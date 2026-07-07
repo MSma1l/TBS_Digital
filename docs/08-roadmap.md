@@ -1,26 +1,29 @@
 # 08 — Roadmap
 
-High-level phases. Only Phase 1 is active now.
+High-level phases. Phases 1–2 are built; Phase 3 (backend) is the colleague's.
 
-## Phase 1 — UI (current)
+## Phase 1 — UI (done)
 
 Rebuild the landing page in Next.js as static, presentational components.
 
 - All sections built to match the design.
 - Business data replaced with placeholders ([06 — Placeholder Rules](./06-placeholder-rules.md)).
-- No API calls, no data fetching, no form submission.
-- Reserve the `/admin` route (not built).
+- No API calls, no data fetching, no real form submission.
 
 **Done when:** the landing page looks like the approved design, is responsive, and contains
 no hardcoded stats/projects/team/prices — only placeholders.
 
-## Phase 2 — Admin page (later)
+## Phase 2 — Admin page (done, localStorage stand-in)
 
-Build `/admin` as its own page where the agency manages the data that is currently
-placeholder: stats, portfolio projects, team members, and service prices.
+`/admin-tbs-digital` — a PIN-gated panel where the agency manages the content that is
+otherwise placeholder: **services (+ prices), stats, team members, partners, contacts**.
 
-- UI for creating/editing that content.
-- Still owned by the frontend, but designed to talk to the backend in Phase 3.
+- Every list can be **added to or removed from**, not just edited in place.
+- Edits persist to **localStorage** via `lib/siteContent.tsx` and show live on the homepage.
+- Still **no backend**: the PIN gate (`tbs2026`) is a client-side guard, and localStorage is
+  the stand-in for the future API. Overrides are per-browser.
+- Built so Phase 3 only has to replace the load/save + auth inside `siteContent` — the admin
+  UI and the sections stay the same.
 
 ## Phase 3 — Backend integration (colleague)
 
@@ -36,8 +39,8 @@ means swapping the data source per section — not rewriting the UI.
 
 ## Ownership
 
-| Phase | Owner |
-|-------|-------|
-| 1 — UI | This repo (me) |
-| 2 — Admin page | Frontend (TBD) |
-| 3 — Backend + integration | Colleague |
+| Phase | Owner | Status |
+|-------|-------|--------|
+| 1 — UI | This repo | Done |
+| 2 — Admin page (localStorage) | This repo | Done |
+| 3 — Backend + integration | Colleague | Pending |

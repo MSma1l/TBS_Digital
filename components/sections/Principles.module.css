@@ -46,6 +46,8 @@
   border: 1px solid var(--line);
   padding: 20px;
   background: var(--panel);
+  /* keeps proportions while blank; filled from the admin later */
+  min-height: 104px;
 }
 
 .statValue {
@@ -58,4 +60,5 @@
   font-size: 11.5px;
   letter-spacing: 0.06em;
   margin-top: 4px;
+  text-transform: uppercase;
 }

@@ -1,9 +1,14 @@
+"use client";
+
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { principles, stats } from "@/lib/content";
+import { principles } from "@/lib/content";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Principles.module.css";
 
 export function Principles() {
+  const { stats } = useSiteContent();
+
   return (
     <section id="despre" className={styles.section}>
       <div className="container">
@@ -21,12 +26,19 @@ export function Principles() {
         </div>
 
         <div className={styles.stats}>
-          {stats.map((s) => (
-            <Reveal key={s.label} className={styles.stat}>
-              <div className={`disp ${styles.statValue}`}>{s.value}</div>
-              <div className={`mono ${styles.statLabel}`}>{s.label}</div>
-            </Reveal>
-          ))}
+          {stats.map((s) => {
+            const empty = !s.value && !s.label;
+            return (
+              <Reveal key={s.id} className={styles.stat} aria-hidden={empty}>
+                {s.value && (
+                  <div className={`disp ${styles.statValue}`}>{s.value}</div>
+                )}
+                {s.label && (
+                  <div className={`mono ${styles.statLabel}`}>{s.label}</div>
+                )}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>

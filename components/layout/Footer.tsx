@@ -1,12 +1,19 @@
-import {
-  navLinks,
-  partners,
-  footerServices,
-  contact,
-} from "@/lib/content";
+"use client";
+
+import { navLinks, footerServices } from "@/lib/content";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Footer.module.css";
 
 export function Footer() {
+  const { partners, contacts } = useSiteContent();
+  const firstEmail = contacts.find((c) => c.type === "email")?.value;
+
+  const contactHref = (type: string, value: string) => {
+    if (type === "email") return `mailto:${value}`;
+    if (type === "phone") return `tel:${value.replace(/\s/g, "")}`;
+    return undefined;
+  };
+
   return (
     <footer className={styles.footer}>
       <div className={`container ${styles.inner}`}>
@@ -16,8 +23,8 @@ export function Footer() {
             PARTENERII NOȘTRI DE AFACERI
           </div>
           <div className={styles.partners}>
-            {partners.map((p) => (
-              <span key={p} className={`mono ${styles.partner}`}>
+            {partners.map((p, i) => (
+              <span key={i} className={`mono ${styles.partner}`}>
                 {p}
               </span>
             ))}
@@ -44,7 +51,7 @@ export function Footer() {
                 </svg>
               </a>
               <a
-                href={`mailto:${contact.email}`}
+                href={firstEmail ? `mailto:${firstEmail}` : "#contact"}
                 aria-label="Email"
                 className={styles.social}
               >
@@ -87,18 +94,18 @@ export function Footer() {
 
           <div>
             <div className={`mono ${styles.colLabel}`}>CONTACT</div>
-            <a
-              href={`mailto:${contact.email}`}
-              className={`mono ${styles.colLink}`}
-            >
-              {contact.email}
-            </a>
-            <a
-              href={`tel:${contact.phone.replace(/\s/g, "")}`}
-              className={`mono ${styles.colLink}`}
-            >
-              {contact.phone}
-            </a>
+            {contacts.map((c) => {
+              const href = contactHref(c.type, c.value);
+              return href ? (
+                <a key={c.id} href={href} className={`mono ${styles.colLink}`}>
+                  {c.value}
+                </a>
+              ) : (
+                <span key={c.id} className={`mono ${styles.colLink}`}>
+                  {c.value}
+                </span>
+              );
+            })}
             <a href="#contact" className={`mono ${styles.colLinkAccent}`}>
               Calculează prețul ↗
             </a>

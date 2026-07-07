@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
-import { StatusBar } from "@/components/layout/StatusBar";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
-import { ScrollProgress } from "@/components/ui/ScrollProgress";
+import { SiteContentProvider } from "@/lib/siteContent";
 
 const archivo = Archivo({
   variable: "--font-display",
@@ -41,11 +38,7 @@ export default function RootLayout({
       className={`${archivo.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
     >
       <body>
-        <ScrollProgress />
-        <StatusBar />
-        <Navbar />
-        {children}
-        <Footer />
+        <SiteContentProvider>{children}</SiteContentProvider>
       </body>
     </html>
   );

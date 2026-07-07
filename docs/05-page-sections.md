@@ -24,7 +24,8 @@ with orbiting dots and X/Y/Z coordinate readout. Copy is brand-generic — **kee
 
 - **Principles grid** (5 cells): Strategie întâi · Sisteme conectate · Estetică digitală ·
   Rezultate reale · IA aplicată. **Keep.**
-- **Stats row** (4 boxes): `50+ / 8+ / 30+ / 24/7`. → **Placeholder** (see rules doc).
+- **Stats row** (4 boxes): originally `50+ / 8+ / 30+ / 24/7`. → **Blank placeholder boxes**
+  (values/labels removed; see rules doc).
 
 ## /03 — Services ("Servicii de digitalizare")
 

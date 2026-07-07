@@ -28,7 +28,7 @@ function getObserver(): IntersectionObserver | null {
 }
 
 type RevealProps = {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
   style?: CSSProperties;
   id?: string;

@@ -8,11 +8,23 @@
    ============================================================ */
 
 export type Principle = { title: string; desc: string };
-export type Stat = { value: string; label: string };
-export type Service = { id: string; num: string; name: string; desc: string };
+/**
+ * A service is the single source for both the /03 cards and the /06 estimator.
+ * `price` feeds the estimator; `estimatorOnly` keeps an option (e.g. AI) in the
+ * estimator without showing a card on the homepage grid. The `/NN` card label is
+ * computed from position (so adding/removing services renumbers automatically).
+ */
+export type Service = {
+  id: string;
+  name: string;
+  desc: string;
+  price: string;
+  estimatorOnly?: boolean;
+};
+export type ContactType = "email" | "phone" | "other";
+export type Contact = { id: string; type: ContactType; value: string };
 export type WorkPlaceholder = { id: string; grad: string };
 export type StatusBar = { label: string; pct: string; val: string };
-export type ProjectType = { id: string; name: string; priceLabel: string };
 export type Deadline = { id: string; name: string; note: string };
 export type Feature = { id: string; label: string };
 export type FooterLink = { label: string; href: string };
@@ -29,26 +41,30 @@ export const principles: Principle[] = [
   { title: "IA\naplicată", desc: "Inteligență artificială acolo unde chiar contează." },
 ];
 
-/* Stats kept as-is for now (small section, revisited later — see docs/06). */
-export const stats: Stat[] = [
-  { value: "50+", label: "PROIECTE LIVRATE" },
-  { value: "8+", label: "ANI EXPERIENȚĂ" },
-  { value: "30+", label: "CLIENȚI" },
-  { value: "24/7", label: "AUTOMATIZĂRI" },
+/* Stats are blank placeholders — values/labels come later from the admin. */
+export const statPlaceholders: { id: string }[] = [
+  { id: "s1" },
+  { id: "s2" },
+  { id: "s3" },
+  { id: "s4" },
 ];
 
-/* ---------- /03 Services (the "Automatizare cu IA" card is removed) ---------- */
+/* ---------- Services — single source for /03 cards AND /06 estimator ----------
+   The "Automatizare cu IA" entry is `estimatorOnly`: it appears in the estimator
+   but has no card on the /03 grid. `price` is the "..." placeholder until the
+   admin sets it. */
 export const services: Service[] = [
-  { id: "landing", num: "/01", name: "Landing page", desc: "Pagini rapide care transformă vizitatorii în clienți." },
-  { id: "site", num: "/02", name: "Site web / prezentare", desc: "Prezență online completă, rapidă și optimizată SEO." },
-  { id: "shop", num: "/03", name: "Magazin online", desc: "eCommerce cu plăți, stocuri și panou de administrare." },
-  { id: "mobile", num: "/04", name: "Aplicație mobilă", desc: "Aplicații iOS & Android native sau cross-platform." },
-  { id: "crm", num: "/05", name: "CRM personalizat", desc: "Gestionează clienți, lead-uri și vânzări dintr-un loc." },
-  { id: "saas", num: "/06", name: "Platformă SaaS", desc: "Produs software scalabil, cu abonamente și utilizatori." },
-  { id: "automation", num: "/07", name: "Automatizare procese", desc: "Elimină munca manuală repetitivă prin fluxuri automate." },
-  { id: "dashboard", num: "/08", name: "Dashboard & rapoarte", desc: "Toate datele importante, vizualizate la un click." },
-  { id: "bot", num: "/09", name: "Bot Telegram", desc: "Asistenți automați pentru suport, vânzări, notificări." },
-  { id: "custom", num: "/10", name: "Software personalizat", desc: "Construit exact pe nevoile și fluxurile afacerii tale." },
+  { id: "landing", name: "Landing page", desc: "Pagini rapide care transformă vizitatorii în clienți.", price: PRICE_PLACEHOLDER },
+  { id: "site", name: "Site web / prezentare", desc: "Prezență online completă, rapidă și optimizată SEO.", price: PRICE_PLACEHOLDER },
+  { id: "shop", name: "Magazin online", desc: "eCommerce cu plăți, stocuri și panou de administrare.", price: PRICE_PLACEHOLDER },
+  { id: "mobile", name: "Aplicație mobilă", desc: "Aplicații iOS & Android native sau cross-platform.", price: PRICE_PLACEHOLDER },
+  { id: "crm", name: "CRM personalizat", desc: "Gestionează clienți, lead-uri și vânzări dintr-un loc.", price: PRICE_PLACEHOLDER },
+  { id: "saas", name: "Platformă SaaS", desc: "Produs software scalabil, cu abonamente și utilizatori.", price: PRICE_PLACEHOLDER },
+  { id: "automation", name: "Automatizare procese", desc: "Elimină munca manuală repetitivă prin fluxuri automate.", price: PRICE_PLACEHOLDER },
+  { id: "dashboard", name: "Dashboard & rapoarte", desc: "Toate datele importante, vizualizate la un click.", price: PRICE_PLACEHOLDER },
+  { id: "bot", name: "Bot Telegram", desc: "Asistenți automați pentru suport, vânzări, notificări.", price: PRICE_PLACEHOLDER },
+  { id: "ai", name: "Automatizare cu IA", desc: "", price: PRICE_PLACEHOLDER, estimatorOnly: true },
+  { id: "custom", name: "Software personalizat", desc: "Construit exact pe nevoile și fluxurile afacerii tale.", price: PRICE_PLACEHOLDER },
 ];
 
 /* ---------- /04 Selected work (placeholder cards, no real content) ---------- */
@@ -76,21 +92,9 @@ export const statusBars: StatusBar[] = [
   { label: "DISPONIBILITATE", pct: "99%", val: "ONLINE" },
 ];
 
-/* ---------- /06 Estimator (all options kept; every price is "...") ---------- */
-export const projectTypes: ProjectType[] = [
-  { id: "landing", name: "Landing page", priceLabel: PRICE_PLACEHOLDER },
-  { id: "site", name: "Site web / prezentare", priceLabel: PRICE_PLACEHOLDER },
-  { id: "shop", name: "Magazin online", priceLabel: PRICE_PLACEHOLDER },
-  { id: "mobile", name: "Aplicație mobilă", priceLabel: PRICE_PLACEHOLDER },
-  { id: "crm", name: "CRM personalizat", priceLabel: PRICE_PLACEHOLDER },
-  { id: "saas", name: "Platformă SaaS", priceLabel: PRICE_PLACEHOLDER },
-  { id: "automation", name: "Automatizare procese", priceLabel: PRICE_PLACEHOLDER },
-  { id: "dashboard", name: "Dashboard & rapoarte", priceLabel: PRICE_PLACEHOLDER },
-  { id: "bot", name: "Bot Telegram", priceLabel: PRICE_PLACEHOLDER },
-  { id: "ai", name: "Automatizare cu IA", priceLabel: PRICE_PLACEHOLDER },
-  { id: "custom", name: "Software personalizat", priceLabel: PRICE_PLACEHOLDER },
-];
-
+/* ---------- /06 Estimator ----------
+   The project-type list IS the services list above (name + price), so the two
+   sections can never drift apart. Deadlines/features are estimator-only. */
 export const deadlines: Deadline[] = [
   { id: "urgent", name: "Urgent", note: "sub 3 săpt." },
   { id: "standard", name: "Standard", note: "1–2 luni" },
@@ -130,7 +134,7 @@ export const footerServices: string[] = [
   "Automatizare & IA",
 ];
 
-export const contact = {
-  email: "contact@tbsdigital.ro",
-  phone: "+373 600 00 000",
-};
+export const contacts: Contact[] = [
+  { id: "c-email", type: "email", value: "contact@tbsdigital.ro" },
+  { id: "c-phone", type: "phone", value: "+373 600 00 000" },
+];

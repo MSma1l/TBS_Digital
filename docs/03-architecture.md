@@ -12,49 +12,62 @@ source for an API response without touching the markup.
 ```
 /
 ├─ app/
-│  ├─ layout.tsx           # Root layout: fonts, <html>, global CSS, top status bar
-│  ├─ page.tsx             # Landing page — composes the section components in order
-│  └─ globals.css          # Design tokens (CSS variables) + base styles + keyframes
+│  ├─ layout.tsx           # Root layout: fonts, <html>, global CSS, SiteContentProvider
+│  ├─ globals.css          # Design tokens (CSS variables) + base styles + keyframes
+│  ├─ (site)/              # Route group for the public site (no URL segment)
+│  │  ├─ layout.tsx        # Marketing chrome: ScrollProgress, StatusBar, Navbar, Footer
+│  │  └─ page.tsx          # Landing page — composes the section components in order
+│  └─ admin-tbs-digital/   # Admin panel route (outside the (site) chrome)
+│     ├─ page.tsx          # PIN gate + content editor
+│     └─ admin.module.css
 │
 ├─ components/
 │  ├─ layout/
 │  │  ├─ StatusBar.tsx     # Top "SYS_TIME / ACCESS GRANTED" bar (with live clock)
-│  │  ├─ Navbar.tsx        # Sticky nav + mobile menu
+│  │  ├─ Navbar.tsx        # Sticky nav + mobile menu (links to /admin-tbs-digital)
 │  │  └─ Footer.tsx        # Footer + partners + "ACCESS GRANTED" marquee
 │  ├─ sections/
-│  │  ├─ Hero.tsx
-│  │  ├─ Principles.tsx    # /02 principles grid + stats row (stats = placeholders)
-│  │  ├─ Services.tsx      # /03 service cards
+│  │  ├─ Hero.tsx + HeroEmblem.tsx   # /01 hero (emblem is the interactive client part)
+│  │  ├─ Principles.tsx    # /02 principles grid + stats row (stats from the store)
+│  │  ├─ Services.tsx      # /03 service cards (from the store)
 │  │  ├─ Work.tsx          # /04 portfolio (placeholder cards)
-│  │  ├─ Team.tsx          # /05 team (placeholder cards) + system-status panel
-│  │  └─ Estimator.tsx     # /06 price estimator + contact form (prices = "...")
-│  └─ ui/                  # Small shared pieces (SectionLabel, MonoTag, RevealOnScroll…)
+│  │  ├─ Team.tsx          # /05 team (from the store) + system-status panel
+│  │  └─ Estimator.tsx     # /06 price estimator + contact form (prices from the store)
+│  └─ ui/                  # Small shared pieces (SectionLabel, Reveal, ScrollProgress…)
 │
 ├─ lib/
-│  └─ content.ts           # Typed placeholder data for every section (single source)
-│
-├─ hooks/
-│  └─ useReveal.ts         # IntersectionObserver scroll-reveal hook
+│  ├─ content.ts           # Typed default content for every section (single source)
+│  └─ siteContent.tsx      # Client store: defaults + localStorage overrides + provider/hook
 │
 ├─ public/                 # Static assets
 └─ docs/                   # This documentation
 ```
 
 > Structure is a starting point — adjust names as the build proceeds, but keep the
-> **section-per-component** and **content-in-`lib/content.ts`** boundaries.
+> **section-per-component** and **content boundary** (`content.ts` defaults, `siteContent`
+> for anything the admin can edit).
 
 ## Routing
 
-- `/` — the landing page (all sections). This is the only page in this phase.
-- `/admin` — **reserved** for the future admin page. Not built now; noted so nobody
-  repurposes the path. See [08 — Roadmap](./08-roadmap.md).
+- `/` — the landing page (all sections). The only public page in this phase.
+- `/admin-tbs-digital` — the admin panel (PIN-gated). Edits the content the site reads.
+  See [08 — Roadmap](./08-roadmap.md).
 
 ## Data flow (this phase)
 
 ```
-lib/content.ts  ──►  section component  ──►  rendered UI
-   (placeholder constants, typed)
+lib/content.ts (defaults)
+        │
+        ▼
+lib/siteContent.tsx  ◄──  localStorage overrides  ◄──  admin panel (edits + saves)
+        │
+        ▼
+section component  ──►  rendered UI
 ```
 
-No `fetch`, no server actions hitting the API, no environment-based API URLs yet. When the
-backend arrives, only the source feeding each section changes — see [07 — Conventions](./07-conventions.md).
+Editable content flows through the `siteContent` store, so admin edits show live on the
+homepage. Every list — **services (+ prices), stats, team, partners, contacts** — is
+add/remove-able, so a saved list fully replaces its default (see `mergeSiteData`). Still **no
+`fetch`, no server actions, no API URLs** — localStorage is a client-only stand-in. When the
+backend arrives, it replaces the localStorage load/save inside `siteContent` and the admin's
+auth — the sections stay unchanged. See [07 — Conventions](./07-conventions.md).

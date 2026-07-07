@@ -1,9 +1,14 @@
+"use client";
+
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import { statusBars, teamPlaceholders } from "@/lib/content";
+import { statusBars } from "@/lib/content";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Team.module.css";
 
 export function Team() {
+  const { team } = useSiteContent();
+
   return (
     <section id="echipa" className="section">
       <div className={`container ${styles.layout}`}>
@@ -40,16 +45,29 @@ export function Team() {
           </Reveal>
         </div>
 
-        {/* right column: placeholder team cards */}
+        {/* right column: team cards (blank placeholders until filled from admin) */}
         <div className={styles.cards}>
-          {teamPlaceholders.map((m) => (
-            <Reveal key={m.id} className={styles.card}>
-              <div className={styles.avatar} aria-hidden />
-              <span className={styles.lineName} aria-hidden />
-              <span className={styles.lineRole} aria-hidden />
-              <span className={styles.lineBio} aria-hidden />
-            </Reveal>
-          ))}
+          {team.map((m) => {
+            const filled = Boolean(m.name || m.role || m.bio);
+            return (
+              <Reveal key={m.id} className={styles.card}>
+                <div className={styles.avatar} aria-hidden />
+                {filled ? (
+                  <>
+                    <span className={`mono ${styles.name}`}>{m.name}</span>
+                    <span className={`mono ${styles.role}`}>{m.role}</span>
+                    <span className={styles.bio}>{m.bio}</span>
+                  </>
+                ) : (
+                  <>
+                    <span className={styles.lineName} aria-hidden />
+                    <span className={styles.lineRole} aria-hidden />
+                    <span className={styles.lineBio} aria-hidden />
+                  </>
+                )}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>

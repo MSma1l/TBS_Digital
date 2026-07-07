@@ -114,6 +114,28 @@
     rgba(120, 150, 255, 0.06)
   );
 }
+/* filled state (populated from the admin) */
+.name {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--txt);
+  text-align: center;
+}
+.role {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  text-align: center;
+}
+.bio {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--mut);
+  text-align: center;
+  margin-top: 4px;
+}
+
 .lineName {
   width: 60%;
   height: 12px;

@@ -13,18 +13,20 @@ layout and styling stay intact and the admin can populate it later.
 Section: **Principles** (`/02`), the four stat boxes.
 
 - Original: `50+ PROIECTE LIVRATE`, `8+ ANI EXPERIENȚĂ`, `30+ CLIENȚI`, `24/7 AUTOMATIZĂRI`.
-- **Remove the `50+` and the whole values row.** Render the boxes as placeholders
-  (e.g. a dash/`—` or an empty value slot) — no real numbers.
-- Keep the boxes and their styling; the numbers come from the admin later.
+- **Removed the values and labels entirely — the four boxes are now blank.**
+  Content lives in `statPlaceholders` (ids only) and each box has a `min-height`
+  so it keeps its proportions.
+- Keep the boxes and their styling; the values/labels come from the admin later.
 
 ## Rule 2 — /03 Services → remove "Automatizare cu IA"
 
 Section: **Services** (`/03`).
 
-- **Completely remove the "Automatizare cu IA" service card.**
-- All other service cards stay. (Grid goes from 11 → 10 cards.)
-- Scope: this rule applies to the **Services section only**. The Estimator's project-type
-  list is handled separately in Rule 5.
+- **No "Automatizare cu IA" card on the /03 grid.** It stays as an estimator option only.
+- Implementation: services and the estimator now share **one list** (`services` in
+  `content.ts`). The AI entry is flagged `estimatorOnly`, so the /03 grid filters it out
+  (10 cards) while the estimator keeps it (11 options). See Rule 5 and
+  [03 — Architecture](./03-architecture.md).
 
 ## Rule 3 — /04 Selected Work → placeholder cards
 
@@ -57,6 +59,8 @@ Section: **Estimator** (`/06`).
   - Any price shown attached to the contact form's "estimate" note → `...`
 - The estimator does **not** compute a real number in this phase; pricing logic and values
   come from the admin/backend later.
+- Prices live on the shared `services` list (one `price` per service), so the estimator's
+  option names and the /03 cards can never drift apart — the admin edits them together.
 
 ## Anything else
 

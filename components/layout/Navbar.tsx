@@ -28,7 +28,7 @@ export function Navbar() {
                 {i < navLinks.length - 1 && <span className={styles.plus}>+</span>}
               </span>
             ))}
-            <a href="/admin" className={`mono ${styles.admin}`}>
+            <a href="/admin-tbs-digital" className={`mono ${styles.admin}`}>
               ◆ ADMIN
             </a>
             <a href="#contact" className={`mono ${styles.cta}`}>
@@ -70,7 +70,7 @@ export function Navbar() {
               {link.label.charAt(0) + link.label.slice(1).toLowerCase()}
             </a>
           ))}
-          <a href="/admin" onClick={close} className={`mono ${styles.overlayAdmin}`}>
+          <a href="/admin-tbs-digital" onClick={close} className={`mono ${styles.overlayAdmin}`}>
             ◆ ADMIN — setează prețuri
           </a>
           <a href="#contact" onClick={close} className={`mono ${styles.overlayCta}`}>

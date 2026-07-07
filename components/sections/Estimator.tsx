@@ -2,15 +2,16 @@
 
 import { useState, type FormEvent } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
-import {
-  projectTypes,
-  deadlines,
-  features,
-  PRICE_PLACEHOLDER,
-} from "@/lib/content";
+import { deadlines, features, PRICE_PLACEHOLDER } from "@/lib/content";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Estimator.module.css";
 
 export function Estimator() {
+  // The project-type list IS the services list (name + price) — same source as /03.
+  const { services: projectTypes } = useSiteContent();
+  const priceOf = (id: string) =>
+    projectTypes.find((p) => p.id === id)?.price || PRICE_PLACEHOLDER;
+
   const [project, setProject] = useState("site");
   const [deadline, setDeadline] = useState("standard");
   const [activeFeatures, setActiveFeatures] = useState<Record<string, boolean>>(
@@ -63,7 +64,7 @@ export function Estimator() {
                 >
                   <div className={`mono ${styles.typeName}`}>{opt.name}</div>
                   <div className={`mono ${styles.typePrice}`}>
-                    de la {opt.priceLabel}
+                    de la {priceOf(opt.id)}
                   </div>
                 </button>
               ))}
@@ -109,7 +110,7 @@ export function Estimator() {
                 PREȚ ORIENTATIV ESTIMAT
               </div>
               <div className={`disp ${styles.totalValue}`}>
-                {PRICE_PLACEHOLDER}
+                {priceOf(project)}
               </div>
               <div className={`mono ${styles.totalNote}`}>
                 ESTIMARE AUTOMATĂ · PREȚUL FINAL DUPĂ DISCUȚIE.
@@ -177,9 +178,7 @@ export function Estimator() {
                   />
                   <div className={`mono ${styles.estimateNote}`}>
                     ESTIMARE ATAȘATĂ:{" "}
-                    <span className={styles.estimateVal}>
-                      {PRICE_PLACEHOLDER}
-                    </span>{" "}
+                    <span className={styles.estimateVal}>{priceOf(project)}</span>{" "}
                     · {selectedProjectName}
                   </div>
                   <button type="submit" className={`mono ${styles.submit}`}>

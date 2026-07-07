@@ -90,3 +90,15 @@ export const serviceIcons: Record<string, ReactElement> = {
     </svg>
   ),
 };
+
+/** Fallback icon for services added from the admin (unknown ids). */
+export const defaultServiceIcon: ReactElement = (
+  <svg {...svgProps}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.5a2.5 2.5 0 113.5 2.3c-.8.4-1 .8-1 1.7" />
+    <line x1="12" y1="16.5" x2="12" y2="16.6" />
+  </svg>
+);
+
+export const iconFor = (id: string): ReactElement =>
+  serviceIcons[id] ?? defaultServiceIcon;
