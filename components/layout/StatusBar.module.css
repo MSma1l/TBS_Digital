@@ -1,0 +1,79 @@
+.bar {
+  position: relative;
+  z-index: 130;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+}
+
+.inner {
+  padding: 7px clamp(14px, 4vw, 40px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-family: var(--font-mono-stack);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.time {
+  color: var(--cyan);
+}
+.timeVal {
+  color: var(--txt);
+}
+.utc {
+  opacity: 0.6;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  animation: dotBlink 1.6s ease-in-out infinite;
+}
+
+/* one clean blink per cycle: lit most of the time, a single quick dip to off */
+@keyframes dotBlink {
+  0%,
+  74%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  84% {
+    opacity: 0.12;
+    box-shadow: 0 0 0 var(--cyan);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+  }
+}
+
+.granted {
+  color: var(--ice);
+}
+
+@media (max-width: 560px) {
+  .granted {
+    display: none;
+  }
+}

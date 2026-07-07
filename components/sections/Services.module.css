@@ -1,0 +1,67 @@
+.head {
+  max-width: 640px;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-size: clamp(30px, 5vw, 56px);
+  line-height: 0.98;
+  margin: 14px 0 0;
+}
+
+.lead {
+  color: var(--mut);
+  font-size: 16px;
+  margin: 16px 0 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.card {
+  background: var(--panel);
+  padding: 26px 24px;
+  position: relative;
+  transition: background 0.25s;
+}
+.card:hover {
+  background: var(--panel2);
+}
+
+.num {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line2);
+  color: var(--cyan);
+  margin-bottom: 18px;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.desc {
+  color: var(--mut);
+  font-size: 13.5px;
+  margin: 9px 0 0;
+}

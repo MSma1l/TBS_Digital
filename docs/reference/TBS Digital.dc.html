@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#04060e; --bg2:#060a16; --panel:#0a1020; --panel2:#0c1426; --line:rgba(120,150,255,.16); --line2:rgba(120,150,255,.28);
+  --txt:#eef3ff; --mut:#8595bd; --dim:#5b688f;
+  --blue:#2f6bff; --blue2:#4d82ff; --ice:#9cc0ff; --cyan:#38bdf8; --glow:rgba(47,107,255,.55);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:'Manrope',system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden;line-height:1.55;}
+::selection{background:var(--blue);color:#fff;}
+input,textarea,button{font-family:inherit;}
+.mono{font-family:'JetBrains Mono',monospace;}
+.disp{font-family:'Archivo',sans-serif;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes floaty{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+@keyframes pulse{0%,100%{opacity:.4;}50%{opacity:.85;}}
+@keyframes riseIn{from{opacity:0;transform:translateY(26px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+@keyframes orbit{from{transform:rotate(0) translateX(var(--r)) rotate(0);}to{transform:rotate(360deg) translateX(var(--r)) rotate(-360deg);}}
+@keyframes scan{from{transform:translateY(-100%);}to{transform:translateY(2000%);}}
+@keyframes blink{0%,60%{opacity:1;}61%,100%{opacity:.15;}}
+@keyframes marquee{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+[data-reveal]{opacity:0;transform:translateY(28px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+[data-reveal].rv-in{opacity:1;transform:none;}
+[data-emblem]{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .08s linear;will-change:transform;}
+[data-digital]{display:inline-block;overflow:hidden;white-space:nowrap;max-width:0;opacity:0;vertical-align:baseline;transition:max-width .1s linear,opacity .1s linear;}
+[data-progress]{position:fixed;top:0;left:0;height:2px;width:0%;z-index:300;background:linear-gradient(90deg,var(--blue),var(--cyan));box-shadow:0 0 10px var(--glow);}
+.hz{background-image:repeating-linear-gradient(45deg,var(--blue) 0 14px,transparent 14px 28px);}
+</style>
+<script>
+(function(){
+  function boot(){
+    var seen=new WeakSet();
+    var io=('IntersectionObserver' in window)?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('rv-in');io.unobserve(e.target);}});},{threshold:0.12}):null;
+    function scan(){document.querySelectorAll('[data-reveal]').forEach(function(el){if(seen.has(el))return;seen.add(el);if(io){io.observe(el);}else{el.classList.add('rv-in');}});}
+    scan();
+    var mo=new MutationObserver(scan);mo.observe(document.body,{childList:true,subtree:true});
+    setTimeout(function(){document.querySelectorAll('[data-reveal]').forEach(function(el){var r=el.getBoundingClientRect();if(r.top<window.innerHeight){el.classList.add('rv-in');}});},1400);
+    window.addEventListener('load',scan);
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',boot);}else{boot();}
+})();
+</script>
+</helmet>
+
+<div data-progress></div>
+
+<!-- ===== TOP STATUS BAR ===== -->
+<div style="position:relative;z-index:130;border-bottom:1px solid var(--line);background:var(--bg2);">
+  <div style="max-width:1280px;margin:0 auto;padding:7px clamp(14px,4vw,40px);display:flex;align-items:center;justify-content:space-between;gap:14px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.06em;color:var(--dim);">
+    <div style="display:flex;align-items:center;gap:18px;">
+      <span style="color:var(--cyan);">SYS_TIME <span ref="{{ setClock }}" style="color:var(--txt);">--:--:--</span></span>
+      <span style="opacity:.6;">UTC+3</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:blink 2s steps(1) infinite;"></span>
+      <span style="color:var(--ice);">&gt; ACCESS GRANTED · TBS_DIGITAL</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NAV ===== -->
+<header style="position:sticky;top:0;z-index:120;backdrop-filter:blur(14px);background:rgba(4,6,14,.82);border-bottom:1px solid var(--line);">
+  <nav style="max-width:1280px;margin:0 auto;padding:13px clamp(14px,4vw,40px);display:flex;align-items:center;justify-content:space-between;gap:18px;">
+    <a href="#top" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--txt);">
+      <span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line2);background:var(--blue);font-family:'Archivo';font-weight:900;font-size:15px;color:#fff;">T</span>
+      <span class="mono" style="font-weight:700;font-size:16px;letter-spacing:.02em;">TBS<span style="color:var(--cyan);">_</span></span>
+    </a>
+    <sc-if value="{{ showDesktopNav }}" hint-placeholder-val="{{ true }}">
+      <div class="mono" style="display:flex;align-items:center;gap:20px;font-size:12.5px;letter-spacing:.08em;">
+        <a href="#servicii" style="text-decoration:none;color:var(--mut);" style-hover="color:var(--cyan);">SERVICII</a>
+        <span style="color:var(--dim);">+</span>
+        <a href="#lucrari" style="text-decoration:none;color:var(--mut);" style-hover="color:var(--cyan);">LUCRĂRI</a>
+        <span style="color:var(--dim);">+</span>
+        <a href="#echipa" style="text-decoration:none;color:var(--mut);" style-hover="color:var(--cyan);">ECHIPĂ</a>
+        <span style="color:var(--dim);">+</span>
+        <a href="#despre" style="text-decoration:none;color:var(--mut);" style-hover="color:var(--cyan);">DESPRE</a>
+        <button onClick="{{ openAdmin }}" class="mono" style="cursor:pointer;background:transparent;border:1px solid var(--line2);color:var(--dim);font-size:11.5px;letter-spacing:.08em;padding:7px 12px;" style-hover="color:var(--cyan);border-color:var(--cyan);">◆ ADMIN</button>
+        <a href="#contact" class="mono" style="text-decoration:none;color:#fff;font-weight:600;font-size:12.5px;letter-spacing:.06em;padding:10px 18px;background:var(--blue);border:1px solid var(--blue2);display:inline-flex;align-items:center;gap:8px;" style-hover="background:var(--blue2);">START PROIECT ↗</a>
+      </div>
+    </sc-if>
+    <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ toggleMenu }}" aria-label="Meniu" style="display:flex;flex-direction:column;gap:5px;background:transparent;border:1px solid var(--line2);padding:11px 12px;cursor:pointer;">
+        <span style="display:block;width:20px;height:2px;background:var(--txt);"></span>
+        <span style="display:block;width:20px;height:2px;background:var(--txt);"></span>
+        <span style="display:block;width:20px;height:2px;background:var(--txt);"></span>
+      </button>
+    </sc-if>
+  </nav>
+</header>
+
+<sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:125;background:rgba(4,6,14,.97);backdrop-filter:blur(8px);display:flex;flex-direction:column;padding:90px clamp(20px,7vw,40px) 40px;gap:6px;animation:fadeIn .25s ease;">
+    <button onClick="{{ toggleMenu }}" aria-label="Închide" class="mono" style="position:absolute;top:20px;right:22px;background:transparent;border:1px solid var(--line2);color:var(--txt);width:42px;height:42px;font-size:20px;cursor:pointer;">×</button>
+    <a href="#servicii" onClick="{{ closeMenu }}" class="disp" style="text-decoration:none;color:var(--txt);font-size:34px;padding:12px 0;border-bottom:1px solid var(--line);">Servicii</a>
+    <a href="#lucrari" onClick="{{ closeMenu }}" class="disp" style="text-decoration:none;color:var(--txt);font-size:34px;padding:12px 0;border-bottom:1px solid var(--line);">Lucrări</a>
+    <a href="#echipa" onClick="{{ closeMenu }}" class="disp" style="text-decoration:none;color:var(--txt);font-size:34px;padding:12px 0;border-bottom:1px solid var(--line);">Echipă</a>
+    <a href="#despre" onClick="{{ closeMenu }}" class="disp" style="text-decoration:none;color:var(--txt);font-size:34px;padding:12px 0;border-bottom:1px solid var(--line);">Despre</a>
+    <button onClick="{{ openAdmin }}" class="mono" style="text-align:left;background:transparent;border:none;color:var(--dim);font-size:14px;padding:16px 0;cursor:pointer;">◆ ADMIN — setează prețuri</button>
+    <a href="#contact" onClick="{{ closeMenu }}" class="mono" style="text-decoration:none;text-align:center;margin-top:14px;color:#fff;font-weight:600;font-size:16px;padding:16px;background:var(--blue);border:1px solid var(--blue2);">START PROIECT ↗</a>
+  </div>
+</sc-if>
+
+<main id="top">
+  <!-- ================= HERO ================= -->
+  <section style="position:relative;overflow:hidden;padding:clamp(40px,7vw,80px) clamp(14px,4vw,40px) clamp(30px,5vw,60px);">
+    <div style="position:absolute;inset:0;background:radial-gradient(1100px 640px at 72% 8%,rgba(47,107,255,.28),transparent 58%),radial-gradient(700px 500px at 8% 90%,rgba(56,189,248,.12),transparent 60%);"></div>
+    <div style="position:absolute;inset:0;background-image:radial-gradient(1.4px 1.4px at 20% 30%,rgba(255,255,255,.5),transparent),radial-gradient(1.4px 1.4px at 65% 20%,rgba(156,192,255,.6),transparent),radial-gradient(1.2px 1.2px at 85% 55%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 40% 70%,rgba(156,192,255,.5),transparent),radial-gradient(1.5px 1.5px at 15% 80%,rgba(255,255,255,.45),transparent),radial-gradient(1.2px 1.2px at 92% 82%,rgba(156,192,255,.5),transparent);"></div>
+    <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(120,150,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(120,150,255,.05) 1px,transparent 1px);background-size:56px 56px;mask-image:radial-gradient(ellipse at 60% 40%,#000 25%,transparent 80%);"></div>
+
+    <div style="position:relative;max-width:1280px;margin:0 auto;">
+      <!-- top hero meta row -->
+      <div class="mono" style="display:flex;justify-content:space-between;align-items:center;font-size:11px;letter-spacing:.1em;color:var(--dim);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:9px 0;margin-bottom:clamp(24px,4vw,44px);">
+        <span style="color:var(--cyan);">WEB · SOFTWARE · IA // 2026</span>
+        <span>/01</span>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:clamp(28px,4vw,50px);">
+        <div style="flex:1 1 460px;min-width:300px;">
+          <div class="mono" style="display:inline-flex;align-items:center;gap:9px;padding:6px 13px;border:1px solid var(--line2);font-size:11px;letter-spacing:.12em;color:var(--ice);animation:riseIn .7s .05s both;">
+            <span style="width:6px;height:6px;background:var(--cyan);box-shadow:0 0 8px var(--cyan);"></span>DE LA CONSULTANȚĂ LA DIGITALIZARE
+          </div>
+          <h1 class="disp" style="font-size:clamp(52px,10vw,120px);line-height:.9;margin:20px 0 0;">TBS<br><span style="color:transparent;-webkit-text-stroke:1.5px var(--blue2);">DIGITAL</span></h1>
+          <p class="mono" style="font-size:clamp(13px,1.5vw,16px);letter-spacing:.04em;color:var(--ice);margin:22px 0 0;text-transform:uppercase;animation:riseIn .7s .12s both;">Viitorul nu e minimal.<br>E construit.</p>
+          <p style="color:var(--mut);font-size:clamp(15px,1.5vw,18px);max-width:480px;margin:18px 0 0;animation:riseIn .7s .2s both;">Software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme care îți cresc afacerea — de la strategie până la execuție.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;animation:riseIn .7s .28s both;">
+            <a href="#contact" class="mono" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;color:#fff;font-weight:600;font-size:14px;letter-spacing:.04em;padding:15px 24px;background:var(--blue);border:1px solid var(--blue2);text-transform:uppercase;" style-hover="background:var(--blue2);transform:translateY(-2px);">Calculează prețul ↗</a>
+            <a href="#servicii" class="mono" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;color:var(--txt);font-weight:500;font-size:14px;letter-spacing:.04em;padding:15px 24px;border:1px solid var(--line2);background:rgba(120,150,255,.03);text-transform:uppercase;" style-hover="border-color:var(--cyan);color:var(--cyan);">Vezi serviciile</a>
+          </div>
+        </div>
+
+        <!-- EMBLEM / HUD -->
+        <div style="flex:1 1 360px;min-width:280px;display:flex;flex-direction:column;align-items:center;gap:22px;animation:riseIn .9s .2s both;">
+          <div style="position:relative;perspective:1100px;width:min(80vw,420px);height:min(80vw,420px);display:flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;inset:6%;border-radius:50%;background:radial-gradient(circle,rgba(47,107,255,.35),transparent 66%);filter:blur(24px);animation:pulse 5s ease-in-out infinite;"></div>
+            <!-- HUD coords -->
+            <div class="mono" style="position:absolute;right:-6px;top:34%;font-size:10.5px;letter-spacing:.06em;color:var(--ice);text-align:right;line-height:1.7;background:rgba(6,10,22,.7);border:1px solid var(--line);padding:8px 10px;">
+              <div>X <span ref="{{ setCx }}" style="color:var(--cyan);">36.1749</span></div>
+              <div>Y <span ref="{{ setCy }}" style="color:var(--cyan);">-86.7676</span></div>
+              <div>Z <span ref="{{ setCz }}" style="color:var(--cyan);">46.6821</span></div>
+            </div>
+            <div class="mono" style="position:absolute;left:2px;top:8px;font-size:10px;letter-spacing:.1em;color:var(--dim);">&gt;RENDERING... <span style="color:var(--cyan);">100%</span></div>
+            <div class="mono" style="position:absolute;right:6px;bottom:2px;font-size:10px;letter-spacing:.1em;color:var(--dim);">//SCN_01</div>
+
+            <div ref="{{ setEmblem }}" data-emblem>
+              <div style="position:absolute;inset:0;border:1px dashed rgba(77,130,255,.4);border-radius:50%;animation:spin 26s linear infinite;"></div>
+              <div style="position:absolute;inset:10%;border:1px solid rgba(56,189,248,.32);border-radius:50%;animation:spin 20s linear infinite reverse;"></div>
+              <div style="position:absolute;inset:20%;border:1px solid rgba(120,150,255,.25);border-radius:50%;"></div>
+              <div style="position:absolute;top:50%;left:8%;right:8%;height:1px;background:linear-gradient(90deg,transparent,rgba(120,150,255,.4),transparent);"></div>
+              <div style="position:absolute;left:50%;top:8%;bottom:8%;width:1px;background:linear-gradient(180deg,transparent,rgba(120,150,255,.4),transparent);"></div>
+              <div style="position:absolute;inset:19%;background:linear-gradient(150deg,rgba(47,107,255,.4),rgba(56,189,248,.25));filter:blur(16px);opacity:.7;border-radius:14px;"></div>
+              <div style="position:absolute;inset:21%;background:linear-gradient(150deg,#0b1730,#070d1c);border:1px solid var(--line2);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 30px 60px rgba(0,0,0,.5);overflow:hidden;">
+                <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(120,150,255,.06) 0 1px,transparent 1px 5px);"></div>
+                <span class="disp" style="font-size:min(19vw,96px);color:transparent;background:linear-gradient(135deg,var(--blue2),var(--cyan));-webkit-background-clip:text;background-clip:text;">TBS</span>
+              </div>
+              <div style="position:absolute;top:50%;left:50%;--r:calc(min(80vw,420px)/2 - 4px);transform-origin:0 0;animation:orbit 12s linear infinite;">
+                <span style="display:block;width:12px;height:12px;background:var(--cyan);box-shadow:0 0 12px var(--cyan);margin:-6px;"></span>
+              </div>
+              <div style="position:absolute;top:50%;left:50%;--r:calc(min(80vw,420px)/2 - 40px);transform-origin:0 0;animation:orbit 9s linear infinite reverse;">
+                <span style="display:block;width:8px;height:8px;background:var(--blue2);box-shadow:0 0 10px var(--blue2);margin:-4px;"></span>
+              </div>
+            </div>
+          </div>
+          <div class="disp" style="font-size:clamp(26px,6vw,40px);white-space:nowrap;">TBS<span ref="{{ setDigital }}" data-digital style="color:transparent;background:linear-gradient(110deg,var(--blue2),var(--cyan));-webkit-background-clip:text;background-clip:text;">&nbsp;DIGITAL</span></div>
+          <p class="mono" style="color:var(--dim);font-size:11px;letter-spacing:.08em;margin:-8px 0 0;">DERULEAZĂ — SISTEMUL SE ACTIVEAZĂ ↓</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CORE PRINCIPLES /02 ================= -->
+  <section id="despre" style="position:relative;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:clamp(40px,6vw,64px) clamp(14px,4vw,40px);background:var(--bg2);">
+    <div style="max-width:1280px;margin:0 auto;">
+      <div class="mono" ref="{{ setReveal }}" data-reveal style="font-size:12px;letter-spacing:.12em;color:var(--dim);margin-bottom:30px;"><span style="color:var(--cyan);">/02</span> &nbsp; PRINCIPIILE NOASTRE</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);">
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--bg2);padding:24px 22px;">
+          <div class="mono" style="font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;">Strategie<br>întâi</div>
+          <p style="color:var(--mut);font-size:13.5px;margin:12px 0 0;">Înțelegem afacerea înainte de prima linie de cod.</p>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--bg2);padding:24px 22px;">
+          <div class="mono" style="font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;">Sisteme<br>conectate</div>
+          <p style="color:var(--mut);font-size:13.5px;margin:12px 0 0;">Date, module, automatizări — totul integrat.</p>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--bg2);padding:24px 22px;">
+          <div class="mono" style="font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;">Estetică<br>digitală</div>
+          <p style="color:var(--mut);font-size:13.5px;margin:12px 0 0;">Interfețe clare, rapide și plăcute de folosit.</p>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--bg2);padding:24px 22px;">
+          <div class="mono" style="font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;">Rezultate<br>reale</div>
+          <p style="color:var(--mut);font-size:13.5px;margin:12px 0 0;">Timp economisit, costuri reduse, venituri crescute.</p>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--bg2);padding:24px 22px;">
+          <div class="mono" style="font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--txt);text-transform:uppercase;">IA<br>aplicată</div>
+          <p style="color:var(--mut);font-size:13.5px;margin:12px 0 0;">Inteligență artificială acolo unde chiar contează.</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:22px;">
+        <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);padding:20px;background:var(--panel);">
+          <div class="disp" style="font-size:clamp(28px,4vw,40px);color:var(--cyan);">50+</div>
+          <div class="mono" style="color:var(--mut);font-size:11.5px;letter-spacing:.06em;margin-top:4px;">PROIECTE LIVRATE</div>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);padding:20px;background:var(--panel);">
+          <div class="disp" style="font-size:clamp(28px,4vw,40px);color:var(--cyan);">8+</div>
+          <div class="mono" style="color:var(--mut);font-size:11.5px;letter-spacing:.06em;margin-top:4px;">ANI EXPERIENȚĂ</div>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);padding:20px;background:var(--panel);">
+          <div class="disp" style="font-size:clamp(28px,4vw,40px);color:var(--cyan);">30+</div>
+          <div class="mono" style="color:var(--mut);font-size:11.5px;letter-spacing:.06em;margin-top:4px;">CLIENȚI</div>
+        </div>
+        <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);padding:20px;background:var(--panel);">
+          <div class="disp" style="font-size:clamp(28px,4vw,40px);color:var(--cyan);">24/7</div>
+          <div class="mono" style="color:var(--mut);font-size:11.5px;letter-spacing:.06em;margin-top:4px;">AUTOMATIZĂRI</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SERVICII ================= -->
+  <section id="servicii" style="position:relative;padding:clamp(56px,8vw,100px) clamp(14px,4vw,40px);">
+    <div style="max-width:1280px;margin:0 auto;">
+      <div ref="{{ setReveal }}" data-reveal style="max-width:640px;margin-bottom:40px;">
+        <div class="mono" style="font-size:12px;letter-spacing:.12em;color:var(--dim);margin-bottom:14px;"><span style="color:var(--cyan);">/03</span> &nbsp; CE PUTEM FACE</div>
+        <h2 class="disp" style="font-size:clamp(30px,5vw,56px);line-height:.98;">Servicii de<br>digitalizare</h2>
+        <p style="color:var(--mut);font-size:16px;margin:16px 0 0;">Alege un serviciu sau combină mai multe într-un produs complet.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);">
+        <sc-for list="{{ services }}" as="s" hint-placeholder-count="11">
+          <div ref="{{ setReveal }}" data-reveal style="background:var(--panel);padding:26px 24px;position:relative;transition:background .25s;" style-hover="background:var(--panel2);">
+            <div class="mono" style="position:absolute;top:14px;right:16px;font-size:11px;color:var(--dim);">{{ s.num }}</div>
+            <div style="display:flex;align-items:center;justify-content:center;width:46px;height:46px;border:1px solid var(--line2);color:var(--cyan);margin-bottom:18px;">{{ s.icon }}</div>
+            <h3 class="mono" style="font-weight:700;font-size:15px;letter-spacing:.03em;text-transform:uppercase;margin:0;">{{ s.name }}</h3>
+            <p style="color:var(--mut);font-size:13.5px;margin:9px 0 0;">{{ s.desc }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SELECTED WORK /04 ================= -->
+  <section id="lucrari" style="position:relative;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:clamp(56px,8vw,100px) clamp(14px,4vw,40px);background:var(--bg2);">
+    <div style="max-width:1280px;margin:0 auto;">
+      <div ref="{{ setReveal }}" data-reveal style="max-width:640px;margin-bottom:40px;">
+        <div class="mono" style="font-size:12px;letter-spacing:.12em;color:var(--dim);margin-bottom:14px;"><span style="color:var(--cyan);">/04</span> &nbsp; EXPERIENȚA NOASTRĂ</div>
+        <h2 class="disp" style="font-size:clamp(30px,5vw,56px);line-height:.98;">Proiecte pe care<br>le-am creat</h2>
+        <p style="color:var(--mut);font-size:16px;margin:16px 0 0;">O selecție din produsele digitale construite pentru clienți din diverse industrii.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;">
+        <sc-for list="{{ works }}" as="w" hint-placeholder-count="4">
+          <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);background:var(--panel);" style-hover="border-color:var(--line2);">
+            <div style="height:150px;background:{{ w.grad }};position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:14px;">
+              <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.15) 0 1px,transparent 1px 4px);"></div>
+              <span class="mono" style="position:relative;background:rgba(4,6,14,.6);backdrop-filter:blur(4px);padding:5px 10px;font-size:10.5px;letter-spacing:.06em;color:var(--ice);border:1px solid var(--line);">{{ w.tag }}</span>
+            </div>
+            <div style="padding:20px;">
+              <div class="mono" style="font-size:10.5px;color:var(--dim);letter-spacing:.08em;">{{ w.code }}</div>
+              <h3 class="mono" style="font-weight:700;font-size:16px;letter-spacing:.02em;margin:6px 0 0;text-transform:uppercase;">{{ w.name }}</h3>
+              <p style="color:var(--mut);font-size:13.5px;margin:9px 0 0;">{{ w.desc }}</p>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <p class="mono" ref="{{ setReveal }}" data-reveal style="color:var(--dim);font-size:11px;letter-spacing:.05em;margin-top:18px;">* PROIECTE DEMONSTRATIVE — ÎNLOCUIEȘTE-LE CU CAZURILE TALE REALE.</p>
+    </div>
+  </section>
+
+  <!-- ================= ECHIPA /05 ================= -->
+  <section id="echipa" style="position:relative;padding:clamp(56px,8vw,100px) clamp(14px,4vw,40px);">
+    <div style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:clamp(28px,4vw,50px);align-items:start;">
+      <div>
+        <div ref="{{ setReveal }}" data-reveal>
+          <div class="mono" style="font-size:12px;letter-spacing:.12em;color:var(--dim);margin-bottom:14px;"><span style="color:var(--cyan);">/05</span> &nbsp; ECHIPA</div>
+          <h2 class="disp" style="font-size:clamp(30px,5vw,56px);line-height:.98;">Oamenii din<br>spatele codului</h2>
+          <p style="color:var(--mut);font-size:16px;margin:16px 0 0;">O echipă mică și dedicată care combină strategia de business cu dezvoltarea tehnică.</p>
+        </div>
+        <!-- SYSTEM STATUS -->
+        <div ref="{{ setReveal }}" data-reveal style="margin-top:30px;border:1px solid var(--line);background:var(--panel);padding:22px;">
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--dim);margin-bottom:16px;">SYSTEM_STATUS</div>
+          <sc-for list="{{ statusBars }}" as="b" hint-placeholder-count="4">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:11px;">
+              <span class="mono" style="flex:0 0 118px;font-size:11px;letter-spacing:.05em;color:var(--mut);">{{ b.label }}</span>
+              <span style="flex:1;height:8px;background:rgba(120,150,255,.12);position:relative;overflow:hidden;">
+                <span style="position:absolute;left:0;top:0;bottom:0;width:{{ b.pct }};background:linear-gradient(90deg,var(--blue),var(--cyan));"></span>
+              </span>
+              <span class="mono" style="flex:0 0 auto;font-size:11px;color:var(--cyan);">{{ b.val }}</span>
+            </div>
+          </sc-for>
+          <div class="mono hz" style="margin-top:16px;height:14px;opacity:.5;"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+        <sc-for list="{{ team }}" as="m" hint-placeholder-count="4">
+          <div ref="{{ setReveal }}" data-reveal style="border:1px solid var(--line);background:var(--panel);padding:22px;text-align:center;" style-hover="border-color:var(--line2);">
+            <div class="disp" style="width:64px;height:64px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;background:{{ m.grad }};border:1px solid var(--line2);">{{ m.initials }}</div>
+            <h3 class="mono" style="font-weight:700;font-size:14px;margin:0;text-transform:uppercase;letter-spacing:.02em;">{{ m.name }}</h3>
+            <div class="mono" style="color:var(--cyan);font-size:11px;letter-spacing:.04em;margin:5px 0 9px;">{{ m.role }}</div>
+            <p style="color:var(--mut);font-size:12.5px;margin:0;">{{ m.bio }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CONTACT + ESTIMATOR /06 ================= -->
+  <section id="contact" style="position:relative;overflow:hidden;border-top:1px solid var(--line);padding:clamp(56px,8vw,100px) clamp(14px,4vw,40px);">
+    <div style="position:absolute;inset:0;background:radial-gradient(900px 560px at 50% 120%,rgba(47,107,255,.3),transparent 62%);"></div>
+    <div style="position:relative;max-width:1280px;margin:0 auto;">
+      <div ref="{{ setReveal }}" data-reveal style="text-align:center;max-width:640px;margin:0 auto 44px;">
+        <div class="mono" style="font-size:12px;letter-spacing:.12em;color:var(--dim);margin-bottom:14px;"><span style="color:var(--cyan);">/06</span> &nbsp; HAI SĂ CONSTRUIM ÎMPREUNĂ</div>
+        <h2 class="disp" style="font-size:clamp(30px,5vw,56px);line-height:.98;">Estimează prețul<br>proiectului tău</h2>
+        <p style="color:var(--mut);font-size:16px;margin:16px auto 0;">Alege tipul de proiect, termenul limită și opțiunile — vezi instant un preț orientativ, apoi trimite-ne detaliile.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">
+        <!-- ESTIMATOR -->
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--panel2);border:1px solid var(--line2);padding:clamp(22px,3vw,32px);box-shadow:0 30px 80px rgba(0,0,0,.5);">
+          <div class="mono" style="font-size:12px;letter-spacing:.06em;color:var(--dim);margin-bottom:14px;">01 · TIP DE PROIECT</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+            <sc-for list="{{ projOptions }}" as="opt" hint-placeholder-count="6">
+              <button onClick="{{ opt.onClick }}" style="position:relative;text-align:left;cursor:pointer;background:{{ opt.bg }};border:1px solid {{ opt.border }};padding:13px 14px;color:var(--txt);transition:.15s;">
+                <div class="mono" style="font-weight:600;font-size:13px;letter-spacing:.02em;">{{ opt.name }}</div>
+                <div class="mono" style="color:var(--dim);font-size:10.5px;margin-top:3px;">{{ opt.priceLabel }}</div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div class="mono" style="font-size:12px;letter-spacing:.06em;color:var(--dim);margin:22px 0 14px;">02 · TERMEN LIMITĂ</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <sc-for list="{{ deadlineOptions }}" as="opt" hint-placeholder-count="3">
+              <button onClick="{{ opt.onClick }}" style="position:relative;flex:1 1 90px;cursor:pointer;background:{{ opt.bg }};border:1px solid {{ opt.border }};padding:13px 12px;color:var(--txt);text-align:center;transition:.15s;">
+                <div class="mono" style="font-weight:600;font-size:13px;">{{ opt.name }}</div>
+                <div class="mono" style="color:var(--dim);font-size:10.5px;margin-top:3px;">{{ opt.note }}</div>
+              </button>
+            </sc-for>
+          </div>
+
+          <div class="mono" style="font-size:12px;letter-spacing:.06em;color:var(--dim);margin:22px 0 14px;">03 · OPȚIUNI SUPLIMENTARE</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <sc-for list="{{ featOptions }}" as="opt" hint-placeholder-count="6">
+              <button onClick="{{ opt.onToggle }}" class="mono" style="cursor:pointer;background:{{ opt.chipBg }};border:1px solid {{ opt.chipBorder }};padding:9px 14px;color:{{ opt.chipColor }};font-size:12px;letter-spacing:.02em;transition:.15s;">{{ opt.label }}</button>
+            </sc-for>
+          </div>
+
+          <div style="margin-top:26px;border-top:1px solid var(--line);padding-top:20px;">
+            <div class="mono" style="color:var(--dim);font-size:11px;letter-spacing:.06em;">PREȚ ORIENTATIV ESTIMAT</div>
+            <div class="disp" style="font-size:clamp(30px,5vw,46px);margin-top:6px;color:transparent;background:linear-gradient(110deg,var(--blue2),var(--cyan));-webkit-background-clip:text;background-clip:text;">{{ priceLow }} – {{ priceHigh }}</div>
+            <div class="mono" style="color:var(--dim);font-size:10.5px;letter-spacing:.04em;margin-top:6px;">ESTIMARE AUTOMATĂ · PREȚUL FINAL DUPĂ DISCUȚIE.</div>
+          </div>
+        </div>
+
+        <!-- FORM -->
+        <div ref="{{ setReveal }}" data-reveal style="background:var(--panel);border:1px solid var(--line);padding:clamp(22px,3vw,32px);">
+          <sc-if value="{{ notSent }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <h3 class="disp" style="font-size:24px;margin:0 0 6px;">Trimite detaliile</h3>
+              <p style="color:var(--mut);font-size:14px;margin:0 0 22px;">Revenim cu o ofertă personalizată în cel mult 24h.</p>
+              <form onSubmit="{{ onSubmit }}" style="display:flex;flex-direction:column;gap:12px;">
+                <input required placeholder="Nume și prenume" class="mono" style="background:var(--bg2);border:1px solid var(--line);padding:14px 16px;color:var(--txt);font-size:14px;outline:none;" style-focus="border-color:var(--cyan);" />
+                <input required type="email" placeholder="Email" class="mono" style="background:var(--bg2);border:1px solid var(--line);padding:14px 16px;color:var(--txt);font-size:14px;outline:none;" style-focus="border-color:var(--cyan);" />
+                <input placeholder="Telefon (opțional)" class="mono" style="background:var(--bg2);border:1px solid var(--line);padding:14px 16px;color:var(--txt);font-size:14px;outline:none;" style-focus="border-color:var(--cyan);" />
+                <textarea rows="4" placeholder="Spune-ne despre proiectul tău..." class="mono" style="background:var(--bg2);border:1px solid var(--line);padding:14px 16px;color:var(--txt);font-size:14px;outline:none;resize:vertical;" style-focus="border-color:var(--cyan);"></textarea>
+                <div class="mono" style="background:var(--bg2);border:1px dashed var(--line2);padding:14px 16px;font-size:12px;color:var(--mut);letter-spacing:.02em;">ESTIMARE ATAȘATĂ: <span style="color:var(--cyan);font-weight:700;">{{ priceLow }} – {{ priceHigh }}</span> · {{ selectedProjName }}</div>
+                <button type="submit" class="mono" style="cursor:pointer;color:#fff;font-weight:600;font-size:14px;letter-spacing:.04em;padding:16px;border:1px solid var(--blue2);background:var(--blue);text-transform:uppercase;" style-hover="background:var(--blue2);">Trimite cererea ↗</button>
+              </form>
+            </div>
+          </sc-if>
+          <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center;padding:30px 10px;animation:riseIn .5s both;">
+              <div style="width:64px;height:64px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;background:rgba(47,107,255,.18);border:1px solid var(--line2);color:var(--cyan);"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <h3 class="disp" style="font-size:24px;margin:0;">Mulțumim!</h3>
+              <p style="color:var(--mut);font-size:14.5px;margin:12px auto 0;max-width:320px;">Am primit cererea cu estimarea {{ priceLow }} – {{ priceHigh }}. Revenim în curând cu o ofertă.</p>
+              <button onClick="{{ resetForm }}" class="mono" style="margin-top:22px;cursor:pointer;background:transparent;border:1px solid var(--line2);color:var(--txt);font-size:12px;letter-spacing:.04em;padding:12px 22px;">TRIMITE ALTĂ CERERE</button>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer style="position:relative;border-top:1px solid var(--line);background:var(--bg2);">
+    <div style="max-width:1280px;margin:0 auto;padding:clamp(44px,6vw,72px) clamp(14px,4vw,40px) 0;">
+      <div ref="{{ setReveal }}" data-reveal style="margin-bottom:40px;">
+        <div class="mono" style="font-size:11px;letter-spacing:.14em;color:var(--dim);margin-bottom:18px;">PARTENERII NOȘTRI DE AFACERI</div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          <span class="mono" style="padding:11px 20px;border:1px solid var(--line);color:var(--mut);font-size:13px;letter-spacing:.04em;">PARTENER_01</span>
+          <span class="mono" style="padding:11px 20px;border:1px solid var(--line);color:var(--mut);font-size:13px;letter-spacing:.04em;">PARTENER_02</span>
+          <span class="mono" style="padding:11px 20px;border:1px solid var(--line);color:var(--mut);font-size:13px;letter-spacing:.04em;">PARTENER_03</span>
+          <span class="mono" style="padding:11px 20px;border:1px solid var(--line);color:var(--mut);font-size:13px;letter-spacing:.04em;">PARTENER_04</span>
+          <span class="mono" style="padding:11px 20px;border:1px solid var(--line);color:var(--mut);font-size:13px;letter-spacing:.04em;">PARTENER_05</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:30px;padding:34px 0;border-top:1px solid var(--line);">
+        <div style="min-width:200px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--line2);background:var(--blue);font-family:'Archivo';font-weight:900;font-size:15px;color:#fff;">T</span>
+            <span class="mono" style="font-weight:700;font-size:16px;">TBS<span style="color:var(--cyan);">_DIGITAL</span></span>
+          </div>
+          <p style="color:var(--mut);font-size:13.5px;max-width:260px;">Digitalizăm afaceri prin software personalizat, aplicații mobile, automatizări și IA.</p>
+          <div style="display:flex;gap:9px;margin-top:16px;">
+            <a href="#top" aria-label="Telegram" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);color:var(--mut);text-decoration:none;" style-hover="color:var(--cyan);border-color:var(--cyan);"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3l-3.3 15.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.3 11.5c-1.1-.3-1.1-1 .2-1.5L20.6 2.8c.9-.3 1.7.2 1.3 1.5z"/></svg></a>
+            <a href="/cdn-cgi/l/email-protection#274448495346445367534554434e404e53464b094a43" aria-label="Email" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);color:var(--mut);text-decoration:none;" style-hover="color:var(--cyan);border-color:var(--cyan);"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 7l9 6 9-6"/></svg></a>
+          </div>
+        </div>
+        <div>
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--dim);margin-bottom:14px;">NAVIGARE</div>
+          <a href="#servicii" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Servicii</a>
+          <a href="#lucrari" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Lucrări</a>
+          <a href="#echipa" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Echipă</a>
+          <a href="#despre" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Despre</a>
+        </div>
+        <div>
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--dim);margin-bottom:14px;">SERVICII</div>
+          <a href="#servicii" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Web & Landing</a>
+          <a href="#servicii" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Aplicații mobile</a>
+          <a href="#servicii" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">CRM & SaaS</a>
+          <a href="#servicii" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">Automatizare & IA</a>
+        </div>
+        <div>
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--dim);margin-bottom:14px;">CONTACT</div>
+          <a href="/cdn-cgi/l/email-protection#492a26273d282a3d093d2b3a2d202e203d282567242d" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);"><span class="__cf_email__" data-cfemail="c3a0acadb7a2a0b783b7a1b0a7aaa4aab7a2afedaea7">[email&#160;protected]</span></a>
+          <a href="tel:+37360000000" class="mono" style="display:block;color:var(--mut);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--cyan);">+373 600 00 000</a>
+          <a href="#contact" class="mono" style="display:block;color:var(--cyan);text-decoration:none;font-size:13px;padding:5px 0;" style-hover="color:var(--blue2);">Calculează prețul ↗</a>
+        </div>
+      </div>
+      <div class="mono" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;padding:22px 0;border-top:1px solid var(--line);color:var(--dim);font-size:11px;letter-spacing:.04em;">
+        <span>© 2026 TBS DIGITAL · TOATE DREPTURILE REZERVATE</span>
+        <span>REALIZAT DE ECHIPA TBS DIGITAL</span>
+      </div>
+    </div>
+    <div style="overflow:hidden;border-top:1px solid var(--line);background:var(--bg);">
+      <div class="hz" style="height:26px;display:flex;align-items:center;justify-content:center;">
+        <span class="mono" style="background:var(--bg);padding:0 18px;font-size:12px;letter-spacing:.2em;color:var(--cyan);">&gt; ACCESS GRANTED_</span>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<!-- ================= ADMIN PANEL ================= -->
+<sc-if value="{{ adminOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:200;background:rgba(2,4,10,.7);backdrop-filter:blur(6px);display:flex;justify-content:flex-end;animation:fadeIn .2s ease;" onClick="{{ closeAdmin }}">
+    <div onClick="{{ stop }}" style="width:min(440px,100%);height:100%;overflow-y:auto;background:var(--panel);border-left:1px solid var(--line2);box-shadow:-30px 0 80px rgba(0,0,0,.6);animation:riseIn .3s both;">
+      <div style="position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:18px 22px;display:flex;align-items:center;justify-content:space-between;z-index:2;">
+        <div>
+          <div class="mono" style="font-size:11px;letter-spacing:.1em;color:var(--dim);">PANOU ADMIN</div>
+          <div class="disp" style="font-size:20px;margin-top:2px;">Prețuri servicii</div>
+        </div>
+        <button onClick="{{ closeAdmin }}" class="mono" style="cursor:pointer;background:transparent;border:1px solid var(--line2);color:var(--txt);width:38px;height:38px;font-size:18px;">×</button>
+      </div>
+
+      <sc-if value="{{ adminLocked }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:30px 22px;">
+          <p class="mono" style="color:var(--mut);font-size:13px;letter-spacing:.02em;margin:0 0 16px;">INTRODU CODUL DE ACCES PENTRU A MODIFICA PREȚURILE.</p>
+          <form onSubmit="{{ onUnlock }}" style="display:flex;flex-direction:column;gap:12px;">
+            <input ref="{{ setPinInput }}" type="password" placeholder="Cod acces" class="mono" style="background:var(--bg2);border:1px solid var(--line2);padding:14px 16px;color:var(--txt);font-size:14px;letter-spacing:.1em;outline:none;" style-focus="border-color:var(--cyan);" />
+            <sc-if value="{{ pinError }}" hint-placeholder-val="{{ false }}">
+              <div class="mono" style="color:#ff6b8a;font-size:11.5px;letter-spacing:.04em;">✕ COD INCORECT — ÎNCEARCĂ DIN NOU</div>
+            </sc-if>
+            <button type="submit" class="mono" style="cursor:pointer;color:#fff;font-weight:600;font-size:13px;letter-spacing:.04em;padding:14px;border:1px solid var(--blue2);background:var(--blue);text-transform:uppercase;" style-hover="background:var(--blue2);">Deblochează ↗</button>
+          </form>
+          <p class="mono" style="color:var(--dim);font-size:10.5px;letter-spacing:.04em;margin-top:16px;">COD IMPLICIT: <span style="color:var(--cyan);">tbs2026</span> — schimbă-l în cod.</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ adminUnlocked }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:22px;">
+          <p class="mono" style="color:var(--mut);font-size:12px;letter-spacing:.02em;margin:0 0 18px;">SETEAZĂ PREȚUL DE BAZĂ (€) PENTRU FIECARE SERVICIU. SE APLICĂ INSTANT ÎN CALCULATOR ȘI SE SALVEAZĂ AUTOMAT.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ priceEditors }}" as="p" hint-placeholder-count="11">
+              <div style="display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--bg2);padding:12px 14px;">
+                <div style="flex:1;">
+                  <div class="mono" style="font-size:13px;color:var(--txt);letter-spacing:.02em;">{{ p.name }}</div>
+                  <div class="mono" style="font-size:10px;color:var(--dim);margin-top:2px;">IMPLICIT: {{ p.defaultLabel }}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <span class="mono" style="color:var(--dim);font-size:13px;">€</span>
+                  <input type="number" min="0" step="50" value="{{ p.value }}" onInput="{{ p.onInput }}" class="mono" style="width:96px;background:var(--panel);border:1px solid var(--line2);padding:10px 10px;color:var(--cyan);font-size:14px;font-weight:600;outline:none;text-align:right;" style-focus="border-color:var(--cyan);" />
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px;">
+            <button onClick="{{ resetPrices }}" class="mono" style="flex:1;cursor:pointer;background:transparent;border:1px solid var(--line2);color:var(--mut);font-size:12px;letter-spacing:.04em;padding:14px;text-transform:uppercase;" style-hover="color:var(--txt);border-color:var(--cyan);">↺ Resetează</button>
+            <button onClick="{{ closeAdmin }}" class="mono" style="flex:1;cursor:pointer;color:#fff;font-weight:600;font-size:12px;letter-spacing:.04em;padding:14px;border:1px solid var(--blue2);background:var(--blue);text-transform:uppercase;" style-hover="background:var(--blue2);">✓ Gata</button>
+          </div>
+          <div class="mono" style="margin-top:16px;padding:12px 14px;border:1px dashed var(--line2);background:var(--bg2);font-size:11px;color:var(--dim);letter-spacing:.03em;">
+            <sc-if value="{{ savedFlash }}" hint-placeholder-val="{{ false }}"><span style="color:var(--cyan);">✓ SALVAT — modificările sunt active.</span></sc-if>
+            <sc-if value="{{ notSaved }}" hint-placeholder-val="{{ true }}">MODIFICĂRILE SE SALVEAZĂ AUTOMAT ÎN ACEST BROWSER.</sc-if>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</sc-if>
+</x-dc>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="text/x-dc" data-dc-script>
+const IC = {
+  landing:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/></svg>',
+  site:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>',
+  shop:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.3"/><circle cx="18" cy="20" r="1.3"/><path d="M2 3h3l2.4 12h11l2-8H6.2"/></svg>',
+  mobile:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/></svg>',
+  crm:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0111 0"/><path d="M16 6a3 3 0 010 6"/><path d="M18 20a5 5 0 00-3-4.6"/></svg>',
+  saas:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16.5l8 4 8-4"/></svg>',
+  automation:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0113.5-5.8"/><path d="M20 12a8 8 0 01-13.5 5.8"/><path d="M18 3v3.5h-3.5"/><path d="M6 21v-3.5h3.5"/></svg>',
+  dashboard:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="11"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="13"/><line x1="21" y1="20" x2="3" y2="20"/></svg>',
+  bot:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2"/><circle cx="9.5" cy="13" r="1"/><circle cx="14.5" cy="13" r="1"/><line x1="12" y1="4" x2="12" y2="8"/><circle cx="12" cy="3.5" r="1"/></svg>',
+  ai:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg>',
+  custom:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 8 4 12 8 16"/><polyline points="16 8 20 12 16 16"/><line x1="13.5" y1="6" x2="10.5" y2="18"/></svg>',
+};
+
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.PIN = 'tbs2026';
+    this.projectTypes = [
+      {id:'landing', name:'Landing page', base:400, icon:IC.landing, desc:'Pagini rapide care transformă vizitatorii în clienți.'},
+      {id:'site', name:'Site web / prezentare', base:900, icon:IC.site, desc:'Prezență online completă, rapidă și optimizată SEO.'},
+      {id:'shop', name:'Magazin online', base:1900, icon:IC.shop, desc:'eCommerce cu plăți, stocuri și panou de administrare.'},
+      {id:'mobile', name:'Aplicație mobilă', base:4500, icon:IC.mobile, desc:'Aplicații iOS & Android native sau cross-platform.'},
+      {id:'crm', name:'CRM personalizat', base:3500, icon:IC.crm, desc:'Gestionează clienți, lead-uri și vânzări dintr-un loc.'},
+      {id:'saas', name:'Platformă SaaS', base:6500, icon:IC.saas, desc:'Produs software scalabil, cu abonamente și utilizatori.'},
+      {id:'automation', name:'Automatizare procese', base:2200, icon:IC.automation, desc:'Elimină munca manuală repetitivă prin fluxuri automate.'},
+      {id:'dashboard', name:'Dashboard & rapoarte', base:1600, icon:IC.dashboard, desc:'Toate datele importante, vizualizate la un click.'},
+      {id:'bot', name:'Bot Telegram', base:700, icon:IC.bot, desc:'Asistenți automați pentru suport, vânzări, notificări.'},
+      {id:'ai', name:'Automatizare cu IA', base:2800, icon:IC.ai, desc:'Inteligență artificială aplicată în procesele tale reale.'},
+      {id:'custom', name:'Software personalizat', base:5500, icon:IC.custom, desc:'Construit exact pe nevoile și fluxurile afacerii tale.'},
+    ];
+    this.deadlines = [
+      {id:'urgent', name:'Urgent', note:'sub 3 săpt.', mult:1.4},
+      {id:'standard', name:'Standard', note:'1–2 luni', mult:1.0},
+      {id:'flex', name:'Flexibil', note:'fără grabă', mult:0.9},
+    ];
+    this.features = [
+      {id:'design', name:'Design premium', add:700},
+      {id:'integr', name:'Integrări & API', add:900},
+      {id:'multi', name:'Multilingv', add:400},
+      {id:'admin', name:'Panou admin', add:800},
+      {id:'seo', name:'SEO', add:350},
+      {id:'aimod', name:'Modul IA', add:1300},
+      {id:'support', name:'Mentenanță 6 luni', add:600},
+    ];
+    this.works = [
+      {code:'DATA_PORTAL', name:'Platformă logistică', tag:'DASHBOARD + AUTOMATIZARE', desc:'Optimizarea rutelor și rapoarte în timp real pentru o flotă de transport.', grad:'linear-gradient(135deg,#0b1730,rgba(47,107,255,.6),rgba(56,189,248,.4))'},
+      {code:'SHOP_SYS', name:'Magazin online fashion', tag:'ECOMMERCE', desc:'Platformă completă cu integrare de plăți, stocuri și livrare.', grad:'linear-gradient(135deg,#0b1730,rgba(56,189,248,.55),rgba(47,107,255,.4))'},
+      {code:'CRM_ESTATE', name:'CRM imobiliar', tag:'CRM PERSONALIZAT', desc:'Gestionarea lead-urilor și a portofoliului de proprietăți într-un loc.', grad:'linear-gradient(135deg,#0b1730,rgba(77,130,255,.6),rgba(47,107,255,.4))'},
+      {code:'AI_SUPPORT', name:'Asistent suport automat', tag:'BOT TELEGRAM + IA', desc:'Bot Telegram cu IA care răspunde clienților 24/7 și preia comenzi.', grad:'linear-gradient(135deg,#0b1730,rgba(56,189,248,.55),rgba(47,107,255,.45))'},
+    ];
+    this.team = [
+      {initials:'AT', name:'Alex T.', role:'FOUNDER & STRATEGIE', bio:'Traduce obiectivele de business în produse digitale.', grad:'linear-gradient(140deg,var(--blue2),var(--cyan))'},
+      {initials:'MD', name:'Maria D.', role:'LEAD DEVELOPER', bio:'Construiește arhitecturi solide și scalabile.', grad:'linear-gradient(140deg,var(--cyan),var(--blue))'},
+      {initials:'AP', name:'Andrei P.', role:'AUTOMATIZARE & IA', bio:'Automatizează procese și integrează IA.', grad:'linear-gradient(140deg,var(--blue),var(--blue2))'},
+      {initials:'EV', name:'Elena V.', role:'UI/UX DESIGNER', bio:'Creează interfețe clare și ușor de folosit.', grad:'linear-gradient(140deg,var(--blue2),var(--cyan))'},
+    ];
+    this.statusBars = [
+      {label:'PROIECTE', pct:'92%', val:'50+'},
+      {label:'SATISFACȚIE', pct:'98%', val:'98%'},
+      {label:'AUTOMATIZĂRI', pct:'100%', val:'24/7'},
+      {label:'DISPONIBILITATE', pct:'99%', val:'ONLINE'},
+    ];
+
+    this.defaultPrices = {};
+    this.projectTypes.forEach(p => { this.defaultPrices[p.id] = p.base; });
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('tbs_prices') || 'null'); } catch(e){}
+
+    this.state = {
+      proj:'site', deadline:'standard', feats:{}, sent:false,
+      isMobile:false, menuOpen:false,
+      adminOpen:false, adminUnlocked:false, pinError:false, savedFlash:false,
+      prices: Object.assign({}, this.defaultPrices, saved || {}),
+    };
+    this._reveals = [];
+    this.scrollP = 0; this.mx = 0; this.my = 0;
+  }
+
+  setEmblem = (el) => { this.emblem = el; };
+  setDigital = (el) => { this.digital = el; };
+  setCx = (el) => { this.cx = el; };
+  setCy = (el) => { this.cy = el; };
+  setCz = (el) => { this.cz = el; };
+  setClock = (el) => { this.clockEl = el; };
+  setPinInput = (el) => { this.pinInput = el; };
+  setReveal = (el) => { if(el){ this._reveals.push(el); if(this.io) this.io.observe(el); } };
+
+  toggleMenu = () => this.setState(s => ({ menuOpen: !s.menuOpen }));
+  closeMenu = () => this.setState({ menuOpen: false });
+  stop = (e) => { e.stopPropagation(); };
+
+  openAdmin = () => this.setState({ adminOpen:true, menuOpen:false, pinError:false });
+  closeAdmin = () => this.setState({ adminOpen:false });
+  onUnlock = (e) => {
+    e.preventDefault();
+    const v = this.pinInput ? this.pinInput.value.trim() : '';
+    if(v === this.PIN){ this.setState({ adminUnlocked:true, pinError:false }); }
+    else { this.setState({ pinError:true }); }
+  };
+
+  setPrice = (id, val) => {
+    let n = parseInt(val, 10);
+    if(isNaN(n) || n < 0) n = 0;
+    this.setState(s => {
+      const prices = Object.assign({}, s.prices, { [id]: n });
+      try { localStorage.setItem('tbs_prices', JSON.stringify(prices)); } catch(e){}
+      return { prices, savedFlash:true };
+    });
+    clearTimeout(this._flash);
+    this._flash = setTimeout(() => this.setState({ savedFlash:false }), 1600);
+  };
+  resetPrices = () => {
+    try { localStorage.removeItem('tbs_prices'); } catch(e){}
+    this.setState({ prices: Object.assign({}, this.defaultPrices), savedFlash:true });
+    clearTimeout(this._flash);
+    this._flash = setTimeout(() => this.setState({ savedFlash:false }), 1600);
+  };
+
+  onSubmit = (e) => { e.preventDefault(); this.setState({ sent:true }); };
+  resetForm = () => this.setState({ sent:false });
+
+  fmt = (n) => '€' + Math.round(n).toLocaleString('ro-RO');
+
+  computePrice = () => {
+    const pt = this.projectTypes.find(p => p.id === this.state.proj) || this.projectTypes[0];
+    const dl = this.deadlines.find(d => d.id === this.state.deadline) || this.deadlines[1];
+    const base = (this.state.prices && this.state.prices[this.state.proj] != null) ? this.state.prices[this.state.proj] : pt.base;
+    let addSum = 0;
+    this.features.forEach(f => { if(this.state.feats[f.id]) addSum += f.add; });
+    const total = (base + addSum) * dl.mult;
+    return { low: Math.round(total*0.9/50)*50, high: Math.round(total*1.2/50)*50 };
+  };
+
+  applyLogo = () => {
+    const p = this.scrollP;
+    if(this.emblem){
+      const tiltX = -this.my * 16, tiltY = this.mx * 22, scale = 1 - Math.min(p,1)*0.12;
+      this.emblem.style.transform = 'rotateX('+tiltX+'deg) rotateY('+(tiltY + p*220)+'deg) rotateZ('+(p*140)+'deg) scale('+scale+')';
+    }
+    if(this.digital){
+      const dp = Math.min(1, p*2.2);
+      this.digital.style.maxWidth = (dp*360)+'px';
+      this.digital.style.opacity = dp;
+    }
+    if(this.cx){ this.cx.textContent = (36.17 + this.mx*10 + p*4).toFixed(4); }
+    if(this.cy){ this.cy.textContent = (-86.76 + this.my*10 - p*3).toFixed(4); }
+    if(this.cz){ this.cz.textContent = (46.68 + p*12).toFixed(4); }
+  };
+
+  tickClock = () => {
+    if(!this.clockEl) return;
+    const d = new Date();
+    const p = n => String(n).padStart(2,'0');
+    this.clockEl.textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  };
+
+  componentDidMount(){
+    this.io = new IntersectionObserver((entries) => {
+      entries.forEach(en => { if(en.isIntersecting){ en.target.classList.add('rv-in'); this.io.unobserve(en.target); } });
+    }, { threshold: 0.12 });
+    this._reveals.forEach(el => this.io.observe(el));
+    this.progressEl = document.querySelector('[data-progress]');
+
+    this.onScroll = () => {
+      const y = window.scrollY||0, vh = window.innerHeight||1;
+      this.scrollP = Math.min(1.4, y/vh);
+      const docH = (document.documentElement.scrollHeight - vh)||1;
+      if(this.progressEl) this.progressEl.style.width = Math.min(100,(y/docH)*100)+'%';
+      if(this._raf) return;
+      this._raf = requestAnimationFrame(() => { this._raf=null; this.applyLogo(); });
+    };
+    this.onMouse = (e) => {
+      this.mx = (e.clientX/(window.innerWidth||1))-0.5;
+      this.my = (e.clientY/(window.innerHeight||1))-0.5;
+      if(this._rafm) return;
+      this._rafm = requestAnimationFrame(() => { this._rafm=null; this.applyLogo(); });
+    };
+    this.onResize = () => this.setState({ isMobile: window.innerWidth < 900 });
+
+    window.addEventListener('scroll', this.onScroll, {passive:true});
+    window.addEventListener('mousemove', this.onMouse, {passive:true});
+    window.addEventListener('resize', this.onResize);
+    this.onResize(); this.onScroll();
+    this.tickClock();
+    this._clock = setInterval(this.tickClock, 1000);
+  }
+  componentWillUnmount(){
+    window.removeEventListener('scroll', this.onScroll);
+    window.removeEventListener('mousemove', this.onMouse);
+    window.removeEventListener('resize', this.onResize);
+    clearInterval(this._clock);
+    if(this.io) this.io.disconnect();
+  }
+
+  renderVals(){
+    const { proj, deadline, feats, sent, isMobile, menuOpen, adminOpen, adminUnlocked, pinError, prices, savedFlash } = this.state;
+    const price = this.computePrice();
+    const selectedProj = this.projectTypes.find(p => p.id === proj) || this.projectTypes[0];
+
+    const services = this.projectTypes.map((p,i) => ({
+      name:p.name, desc:p.desc, icon:this._svg(p.icon), num:'/'+String(i+1).padStart(2,'0'),
+    }));
+
+    const projOptions = this.projectTypes.map(p => {
+      const on = p.id===proj;
+      const base = prices[p.id] != null ? prices[p.id] : p.base;
+      return {
+        name:p.name, priceLabel:'de la '+this.fmt(base),
+        bg: on?'rgba(47,107,255,.16)':'var(--panel)',
+        border: on?'var(--cyan)':'var(--line)',
+        onClick: () => this.setState({ proj:p.id }),
+      };
+    });
+    const deadlineOptions = this.deadlines.map(d => {
+      const on = d.id===deadline;
+      return { name:d.name, note:d.note, bg:on?'rgba(47,107,255,.16)':'var(--panel)', border:on?'var(--cyan)':'var(--line)', onClick:()=>this.setState({deadline:d.id}) };
+    });
+    const featOptions = this.features.map(f => {
+      const on = !!feats[f.id];
+      return {
+        label:(on?'✓ ':'+ ')+f.name,
+        chipBg:on?'rgba(47,107,255,.16)':'var(--panel)',
+        chipBorder:on?'var(--cyan)':'var(--line)',
+        chipColor:on?'var(--ice)':'var(--mut)',
+        onToggle:()=>this.setState(s=>({feats:{...s.feats,[f.id]:!s.feats[f.id]}})),
+      };
+    });
+
+    const priceEditors = this.projectTypes.map(p => ({
+      name:p.name,
+      defaultLabel:this.fmt(this.defaultPrices[p.id]),
+      value: prices[p.id] != null ? prices[p.id] : p.base,
+      onInput:(e)=>this.setPrice(p.id, e.target.value),
+    }));
+
+    return {
+      isMobile, showDesktopNav:!isMobile, menuOpen,
+      toggleMenu:this.toggleMenu, closeMenu:this.closeMenu,
+      openAdmin:this.openAdmin, closeAdmin:this.closeAdmin, stop:this.stop,
+      adminOpen, adminLocked:!adminUnlocked, adminUnlocked, pinError,
+      onUnlock:this.onUnlock, setPinInput:this.setPinInput,
+      priceEditors, resetPrices:this.resetPrices, savedFlash, notSaved:!savedFlash,
+      setEmblem:this.setEmblem, setDigital:this.setDigital,
+      setCx:this.setCx, setCy:this.setCy, setCz:this.setCz, setClock:this.setClock,
+      setReveal:this.setReveal,
+      services, works:this.works, team:this.team, statusBars:this.statusBars,
+      projOptions, deadlineOptions, featOptions,
+      priceLow:this.fmt(price.low), priceHigh:this.fmt(price.high),
+      selectedProjName:selectedProj.name,
+      sent, notSent:!sent, onSubmit:this.onSubmit, resetForm:this.resetForm,
+    };
+  }
+
+  _svg(html){
+    return React.createElement('span', { style:{display:'inline-flex'}, dangerouslySetInnerHTML:{__html:html} });
+  }
+}
+</script>
+</body>
+</html>

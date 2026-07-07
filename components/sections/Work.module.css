@@ -1,0 +1,100 @@
+.section {
+  position: relative;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: clamp(56px, 8vw, 100px) clamp(14px, 4vw, 40px);
+  background: var(--bg2);
+}
+
+.head {
+  max-width: 640px;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-size: clamp(30px, 5vw, 56px);
+  line-height: 0.98;
+  margin: 14px 0 0;
+}
+
+.lead {
+  color: var(--mut);
+  font-size: 16px;
+  margin: 16px 0 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 0.2s;
+}
+.card:hover {
+  border-color: var(--line2);
+}
+
+.thumb {
+  height: 150px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 14px;
+}
+
+.scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0 1px,
+    transparent 1px 4px
+  );
+}
+
+/* empty placeholder chip on the thumbnail (no label) */
+.tagPlaceholder {
+  position: relative;
+  width: 92px;
+  height: 26px;
+  background: rgba(4, 6, 14, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px dashed var(--line2);
+}
+
+/* skeleton lines in place of code / name / description */
+.body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lineSm,
+.lineMd,
+.lineLg {
+  display: block;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(120, 150, 255, 0.14),
+    rgba(120, 150, 255, 0.06)
+  );
+}
+.lineSm {
+  width: 38%;
+  height: 8px;
+}
+.lineLg {
+  width: 80%;
+  height: 14px;
+}
+.lineMd {
+  width: 60%;
+}

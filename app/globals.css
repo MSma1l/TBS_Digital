@@ -1,0 +1,211 @@
+/* ============================================================
+   TBS Digital — global styles
+   Design tokens, base typography, keyframes and shared utilities.
+   See docs/04-design-system.md
+   ============================================================ */
+
+:root {
+  /* surfaces */
+  --bg: #04060e;
+  --bg2: #060a16;
+  --panel: #0a1020;
+  --panel2: #0c1426;
+
+  /* lines */
+  --line: rgba(120, 150, 255, 0.16);
+  --line2: rgba(120, 150, 255, 0.28);
+
+  /* text */
+  --txt: #eef3ff;
+  --mut: #8595bd;
+  --dim: #5b688f;
+
+  /* accents */
+  --blue: #2f6bff;
+  --blue2: #4d82ff;
+  --ice: #9cc0ff;
+  --cyan: #38bdf8;
+  --glow: rgba(47, 107, 255, 0.55);
+
+  /* layout */
+  --maxw: 1280px;
+
+  /* font families (bound to next/font variables in layout.tsx) */
+  --font-display-stack: var(--font-display), "Archivo", sans-serif;
+  --font-mono-stack: var(--font-mono), "JetBrains Mono", monospace;
+  --font-body-stack: var(--font-body), "Manrope", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--txt);
+  font-family: var(--font-body-stack);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  line-height: 1.55;
+}
+
+::selection {
+  background: var(--blue);
+  color: #fff;
+}
+
+input,
+textarea,
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+/* ---------- typographic helpers ---------- */
+.mono {
+  font-family: var(--font-mono-stack);
+}
+
+.disp {
+  font-family: var(--font-display-stack);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+/* ---------- keyframes ---------- */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes orbit {
+  from {
+    transform: rotate(0) translateX(var(--r)) rotate(0);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--r)) rotate(-360deg);
+  }
+}
+@keyframes blink {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+/* ---------- scroll reveal ---------- */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+[data-reveal].rv-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- scroll progress bar ---------- */
+[data-progress] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  z-index: 300;
+  background: linear-gradient(90deg, var(--blue), var(--cyan));
+  box-shadow: 0 0 10px var(--glow);
+}
+
+/* ---------- hazard stripes ---------- */
+.hz {
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--blue) 0 14px,
+    transparent 14px 28px
+  );
+}
+
+/* ---------- shared layout helpers ---------- */
+.container {
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+.section {
+  position: relative;
+  padding: clamp(56px, 8vw, 100px) clamp(14px, 4vw, 40px);
+}
+
+/* mono index label used by every section, e.g. "/02  PRINCIPIILE NOASTRE" */
+.sectionLabel {
+  font-family: var(--font-mono-stack);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+.sectionLabel .idx {
+  color: var(--cyan);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}

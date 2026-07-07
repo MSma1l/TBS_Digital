@@ -22,8 +22,16 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [07 — Conventions](./docs/07-conventions.md) | Coding rules and constraints (UI-only, no API) |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
 
+## Getting started
+
+```bash
+npm install
+npm run dev      # http://localhost:3000
+```
+
 ## Design reference
 
-The original design prototype lives in the repo root: `TBS Digital.dc.html` (+ `support.js`).
-It is an exported design-tool file and is **reference only** — we rebuild it in Next.js.
-The `.jpeg` files are the two visual moodboards.
+The original design prototype lives in [`docs/reference/`](./docs/reference):
+`TBS Digital.dc.html` (+ `support.js`). It is an exported design-tool file and is
+**reference only** — we rebuild it in Next.js. The `.jpeg` files there are the two visual
+moodboards.
