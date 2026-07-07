@@ -57,6 +57,14 @@ labels (e.g. `/02  PRINCIPIILE NOASTRE`).
 Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fadeIn`,
 `orbit`, `scan`, `blink`, `marquee`.
 
+> **Gotcha — define keyframes in the module that uses them.** Next's CSS-Modules compiler
+> (lightningcss) scopes `animation-name` references inside a `*.module.css`, rewriting e.g.
+> `orbit` → `Component-module__xxx__orbit`. A keyframe defined only in `globals.css` then
+> never matches and the animation **silently does nothing** (no error). So any `@keyframes`
+> used by a module's `animation:` must live in that same `.module.css`. Global selectors in
+> `globals.css` may keep using globals.css keyframes (same-file references are fine).
+> `:global(name)` inside the `animation` shorthand does **not** work — lightningcss drops it.
+
 ## Accessibility / responsiveness notes
 
 - The design is dark-only by intent.

@@ -3,8 +3,10 @@
 Marketing / landing website for **TBS Digital** — a digital agency (custom software,
 mobile apps, AI automation, CRM, SaaS). This repository contains the **frontend UI**.
 
-- **Frontend:** Next.js (React) — this repo.
-- **Backend:** Python + FastAPI — built separately by a colleague. Not called yet.
+- **Frontend:** Next.js (React) — this repo. Includes a PIN-gated
+  [admin panel](./docs/09-admin.md) at `/admin-tbs-digital` for editing site content.
+- **Backend:** Python + FastAPI — built separately by a colleague. Not called yet
+  (admin edits persist to the browser's localStorage as a stand-in).
 - **Site language:** Romanian (UI copy). Documentation is in English.
 
 ## Documentation
@@ -21,6 +23,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [06 — Placeholder Rules](./docs/06-placeholder-rules.md) | Exactly what content to remove / stub out |
 | [07 — Conventions](./docs/07-conventions.md) | Coding rules and constraints (UI-only, no API) |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
+| [09 — Admin Panel](./docs/09-admin.md) | The `/admin-tbs-digital` content editor (PIN, localStorage) |
 
 ## Getting started
 

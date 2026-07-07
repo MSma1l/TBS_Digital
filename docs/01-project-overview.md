@@ -15,16 +15,17 @@ glow and scroll-reveal animations.
 
 ## Scope of the current phase
 
-**UI only.** Concretely, in this phase we:
+**UI + a self-contained admin, still no backend.** Concretely, in this phase we:
 
-- Rebuild the landing page and its sections as static, presentational Next.js components.
+- Rebuild the landing page and its sections as presentational Next.js components.
 - Make **no** network calls, **no** data fetching, and read **nothing** from the backend.
-- Replace all business-specific hardcoded data (stats, project names, team members,
-  prices) with **placeholders**. See [06 — Placeholder Rules](./06-placeholder-rules.md).
+- Start data-driven content as **placeholders** (see [06 — Placeholder Rules](./06-placeholder-rules.md)),
+  editable through a **built-in admin panel** ([09 — Admin Panel](./09-admin.md)) that persists
+  to the browser's `localStorage`.
 
-Anything that will eventually come from a database (stats, portfolio projects, team
-members, service prices) is treated as content that a future **admin page** will manage,
-which a colleague will later wire to the FastAPI backend.
+Anything that will eventually come from a database (stats, services, team members, partners,
+prices, contacts) is managed today by that admin panel via a client-side content store, so a
+colleague can later swap `localStorage` for the FastAPI backend without changing the UI.
 
 ## Who does what
 
@@ -33,10 +34,9 @@ which a colleague will later wire to the FastAPI backend.
 
 ## Out of scope for now
 
-- Backend / API integration
-- The admin page's real logic (it exists in the prototype as a price editor; here it is a
-  future destination, not built yet)
-- Authentication, database, form submission handling
-- Content in final form — everything data-driven is a placeholder
+- Backend / API integration (the admin persists to `localStorage`, not a server)
+- Real authentication (the admin's PIN gate is a client-side guard only)
+- Database, contact-form submission handling
+- Content in final form — everything data-driven starts as a placeholder
 
 See [08 — Roadmap](./08-roadmap.md) for how these phases connect.

@@ -9,6 +9,7 @@
 | Styling | **CSS variables + CSS Modules** (or global CSS) | The prototype already ships a clean design-token system built on CSS custom properties — we keep it. See [04 — Design System](./04-design-system.md). |
 | Fonts | Google Fonts: **Archivo**, **JetBrains Mono**, **Manrope** | Loaded via `next/font`. |
 | Animations | Plain CSS + a small `IntersectionObserver` hook | Scroll-reveal, marquee, glow, HUD tilt — all doable without a heavy animation library. |
+| Content/state | **React Context + `localStorage`** (`lib/siteContent.tsx`) | Client-side store for admin-editable content. No backend — localStorage stands in for the future API. See [09 — Admin Panel](./09-admin.md). |
 
 ## Backend (separate, not in this repo)
 
@@ -30,4 +31,4 @@
 
 - No data-fetching libraries (React Query, SWR, `fetch` to the API) — UI-only phase.
 - No component/UI kit (MUI, Chakra) — the design is bespoke; we hand-build components.
-- No state-management library — local component state is enough for this phase.
+- No state-management library — React Context + local state is enough for this phase.
