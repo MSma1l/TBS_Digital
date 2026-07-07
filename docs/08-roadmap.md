@@ -1,6 +1,7 @@
 # 08 — Roadmap
 
-High-level phases. Phases 1–2 are built; Phase 3 (backend) is the colleague's.
+High-level phases. Phases 1–2 are built and the backend API is scaffolded (Phase 3a);
+the database + real integration (Phase 3b) is the colleague's.
 
 ## Phase 1 — UI (done)
 
@@ -25,17 +26,26 @@ otherwise placeholder: **services (+ prices), stats, team members, partners, con
 - Built so Phase 3 only has to replace the load/save + auth inside `siteContent` — the admin
   UI and the sections stay the same.
 
-## Phase 3 — Backend integration (colleague)
+## Phase 3a — Backend API scaffold (done, JSON stand-in)
 
-Wire the frontend to the **Python + FastAPI** backend.
+The **Python + FastAPI** service in [`backend/`](../backend/README.md) — content + contact
+endpoints matching the frontend contract. See [10 — Backend](./10-backend.md).
 
-- Admin page reads/writes real data through the API.
-- The landing page's placeholder sections are fed by the same data (stats, projects, team,
-  prices become live).
-- Contact form submits real requests.
+- `GET/PUT /api/content` (mirrors `SiteData`), `POST /api/contact` + admin submissions list,
+  `POST /api/auth/login` (env-credentials → JWT stand-in).
+- Persistence sits behind a `ContentStore` interface with a temporary **JSON-file** store.
+- **No database yet** — that's Phase 3b.
 
-Because Phase 1 keeps all content in `lib/content.ts` with realistic shapes, Phase 3 mostly
-means swapping the data source per section — not rewriting the UI.
+## Phase 3b — Database + integration (colleague)
+
+- Implement `ContentStore` against a real DB (see the Handoff in `backend/README.md`) and
+  swap it in; replace the auth stand-in with DB-backed users.
+- Wire the frontend to the API: `siteContent.tsx` reads `GET /api/content` and the admin
+  Saves via `PUT`; the PIN gate becomes the login; the contact form `POST`s.
+- The landing page's content becomes live for everyone (not just per-browser localStorage).
+
+Because the content shapes are stable (`lib/content.ts` / `backend/app/schemas.py`), this is
+mostly swapping the data source — not rewriting the UI.
 
 ## Ownership
 
@@ -43,4 +53,5 @@ means swapping the data source per section — not rewriting the UI.
 |-------|-------|--------|
 | 1 — UI | This repo | Done |
 | 2 — Admin page (localStorage) | This repo | Done |
-| 3 — Backend + integration | Colleague | Pending |
+| 3a — Backend API scaffold (JSON stand-in) | This repo | Done |
+| 3b — Database + integration | Colleague | Pending |

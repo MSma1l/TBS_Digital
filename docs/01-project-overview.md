@@ -29,14 +29,15 @@ colleague can later swap `localStorage` for the FastAPI backend without changing
 
 ## Who does what
 
-- **This repo (me):** the frontend UI.
-- **Colleague:** the Python + FastAPI backend and its integration with the admin page.
+- **This repo (me):** the frontend UI and the FastAPI backend **scaffold** (API + JSON
+  stand-in) in [`backend/`](../backend/README.md).
+- **Colleague:** the backend **database** + real auth, and wiring the frontend to the API
+  (see the Handoff in `backend/README.md`).
 
 ## Out of scope for now
 
-- Backend / API integration (the admin persists to `localStorage`, not a server)
-- Real authentication (the admin's PIN gate is a client-side guard only)
-- Database, contact-form submission handling
+- The backend **database** and real auth (the API uses a JSON stand-in + a PIN/JWT stand-in)
+- **Frontend ↔ API integration** — the UI still reads/writes `localStorage`, not the server
 - Content in final form — everything data-driven starts as a placeholder
 
 See [08 — Roadmap](./08-roadmap.md) for how these phases connect.

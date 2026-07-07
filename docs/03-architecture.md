@@ -47,6 +47,9 @@ source for an API response without touching the markup.
 > **section-per-component** and **content boundary** (`content.ts` defaults, `siteContent`
 > for anything the admin can edit).
 
+The FastAPI service lives alongside the frontend in **`backend/`** (its own venv, tests, and
+storage seam). It is not wired to the UI yet — see [10 — Backend](./10-backend.md).
+
 ## Routing
 
 - `/` — the landing page (all sections). The only public page in this phase.
@@ -68,6 +71,9 @@ section component  ──►  rendered UI
 Editable content flows through the `siteContent` store, so admin edits show live on the
 homepage. Every list — **services (+ prices), stats, team, partners, contacts** — is
 add/remove-able, so a saved list fully replaces its default (see `mergeSiteData`). Still **no
-`fetch`, no server actions, no API URLs** — localStorage is a client-only stand-in. When the
-backend arrives, it replaces the localStorage load/save inside `siteContent` and the admin's
-auth — the sections stay unchanged. See [07 — Conventions](./07-conventions.md).
+`fetch`, no server actions, no API URLs** — localStorage is a client-only stand-in.
+
+The backend is built to slot in at exactly this seam: its `GET/PUT /api/content` mirrors the
+`SiteData` shape, so integration replaces the localStorage load/save inside `siteContent` (and
+the PIN with a login) — the sections stay unchanged. See [10 — Backend](./10-backend.md) and
+[07 — Conventions](./07-conventions.md).
