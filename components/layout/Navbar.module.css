@@ -192,3 +192,13 @@
     display: flex;
   }
 }
+
+/* local keyframe — module-scoped names don't resolve global @keyframes (lightningcss) */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

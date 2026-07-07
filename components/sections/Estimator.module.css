@@ -288,3 +288,15 @@
 .resetBtn:hover {
   border-color: var(--cyan);
 }
+
+/* local keyframe — module-scoped names don't resolve global @keyframes (lightningcss) */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
