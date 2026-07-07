@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+# keep the template (the root .gitignore's .env* rule would otherwise drop it)
+!.env.example
+.pytest_cache/
+# JSON stand-in data (runtime state, not source)
+data/*.json
