@@ -81,14 +81,24 @@ update the submission's `status`; a `/stats` command reports totals per service 
 - Config via `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_GROUP_CHAT_ID`, `TELEGRAM_ENABLED`).
 - See [13 — Telegram Bot](./13-telegram.md).
 
+## Phase 3f — Security hardening & pentest (done)
+
+Defensive pentest (4-dimension audit) + hardening + security regression tests. All CRITIC/ÎNALT
+findings fixed. Highlights: production fail-fast config guard, CORS lockdown, **rate limiting**
+(login/contact), security headers, streaming body-size cap, submissions pagination, Telegram
+action authorization (`/register` hijack closed), bcrypt 72-byte + JWT aud/iss. See
+[`SECURITY.md`](../SECURITY.md), the per-topic skills ([15 — Security Skills](./15-security-skills.md)),
+and `backend/tests/test_security_*.py`.
+
 ## Phase 4 — Production polish (remaining)
 
 Not blockers for running the app, but recommended before going fully live:
 
 - **Alembic migrations** (currently `create_all`), and admin-password rotation.
-- **Rate limiting** on `/api/contact` and `/api/auth/login`; spam protection on the form.
-- **Notifications** on new submissions (email/Telegram).
-- HTTPS/reverse proxy + real secrets (the `.env` production checklist).
+- **Server-side token revocation** (logout ends the session) + submission retention/pruning.
+- **Notifications** on new submissions (email; Telegram lead bot already ships).
+- Honeypot/CAPTCHA on the contact form; edge (nginx) rate limits.
+- HTTPS/reverse proxy + real secrets (the `.env` production checklist / prod guard).
 - Fill in the real business content (stats, projects, team, prices) through the admin.
 
 ## Ownership

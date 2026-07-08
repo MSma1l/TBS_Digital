@@ -173,10 +173,16 @@ class DbStore(ContentStore):
             session.add(PartnerRow(value=value, position=pos))
 
     # --- submissions -------------------------------------------------------------
-    def list_submissions(self) -> List[ContactSubmission]:
+    def list_submissions(
+        self, limit: int = 50, offset: int = 0
+    ) -> List[ContactSubmission]:
+        # Push LIMIT/OFFSET into SQL (newest-first) so we never load the whole table.
         with Session(self.engine) as session:
             rows = session.exec(
-                select(SubmissionRow).order_by(SubmissionRow.created_at.desc())
+                select(SubmissionRow)
+                .order_by(SubmissionRow.created_at.desc())
+                .offset(offset)
+                .limit(limit)
             ).all()
         return [
             ContactSubmission.model_construct(

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session
 
 from ..config import Settings, get_settings
 from ..db import get_session
+from ..main import limiter
 from ..schemas import AdminInfo, LoginRequest, TokenResponse
 from ..security import authenticate, create_access_token, get_current_admin
 
@@ -10,7 +11,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     body: LoginRequest,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),

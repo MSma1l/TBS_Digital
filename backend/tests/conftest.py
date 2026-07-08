@@ -13,3 +13,7 @@ import os
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["TELEGRAM_GROUP_CHAT_ID"] = ""
 os.environ["TELEGRAM_ENABLED"] = "false"
+# Keep tests hermetic and deterministic: never treat the suite as production,
+# and disable request rate limiting so repeated calls don't hit 429.
+os.environ["ENVIRONMENT"] = "development"
+os.environ["RATE_LIMIT_ENABLED"] = "false"
