@@ -1,0 +1,25 @@
+# Backend build context — exclude local virtualenv, caches and runtime state.
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+
+# Runtime data (JSON stand-in files and SQLite DBs) — never bake into the image.
+data/*.json
+data/*.db
+data/*.sqlite3
+
+# Env & secrets (config is injected by compose)
+.env
+.env.*
+!.env.example
+
+# VCS / docs / tooling
+.git
+.gitignore
+*.md
+.DS_Store
+Dockerfile
+.dockerignore

@@ -1,7 +1,9 @@
 # 08 — Roadmap
 
-High-level phases. Phases 1–2 are built and the backend API is scaffolded (Phase 3a);
-the database + real integration (Phase 3b) is the colleague's.
+High-level phases. **Phases 1 through 3b are built and verified** — the app now runs
+full-stack (Next.js + FastAPI + Postgres) with a real database, real auth, input
+validation/security, and a one-command Docker deployment. Phase 4 lists what's left for
+production polish.
 
 ## Phase 1 — UI (done)
 
@@ -14,7 +16,10 @@ Rebuild the landing page in Next.js as static, presentational components.
 **Done when:** the landing page looks like the approved design, is responsive, and contains
 no hardcoded stats/projects/team/prices — only placeholders.
 
-## Phase 2 — Admin page (done, localStorage stand-in)
+> **Note:** Phases 2 and 3a below describe the original localStorage/JSON stand-ins. They were
+> **superseded** by Phases 3b–3d (real DB, real auth, API-wired frontend). Kept here as history.
+
+## Phase 2 — Admin page (superseded by 3b)
 
 `/admin-tbs-digital` — a PIN-gated panel where the agency manages the content that is
 otherwise placeholder: **services (+ prices), stats, team members, partners, contacts**.
@@ -36,16 +41,55 @@ endpoints matching the frontend contract. See [10 — Backend](./10-backend.md).
 - Persistence sits behind a `ContentStore` interface with a temporary **JSON-file** store.
 - **No database yet** — that's Phase 3b.
 
-## Phase 3b — Database + integration (colleague)
+## Phase 3b — Database + integration (done)
 
-- Implement `ContentStore` against a real DB (see the Handoff in `backend/README.md`) and
-  swap it in; replace the auth stand-in with DB-backed users.
-- Wire the frontend to the API: `siteContent.tsx` reads `GET /api/content` and the admin
-  Saves via `PUT`; the PIN gate becomes the login; the contact form `POST`s.
-- The landing page's content becomes live for everyone (not just per-browser localStorage).
+- **Real database:** `DbStore` implements `ContentStore` with SQLModel/SQLAlchemy 2 (SQLite by
+  default, Postgres via `DATABASE_URL`). Tables are created and seeded from `defaults.py` on
+  startup. `JSONFileStore` stays in the tree as reference only.
+- **Real auth:** DB `users` table with **bcrypt-hashed** passwords; the first admin is seeded
+  from `ADMIN_USERNAME`/`ADMIN_PASSWORD`. The PIN gate is replaced by a real login.
+- **Frontend wired to the API:** `siteContent.tsx` loads `GET /api/content` (localStorage kept
+  only as an offline cache/fallback), the admin Saves via `PUT /api/content` with a bearer
+  token, and the contact form `POST`s to `/api/contact`. Content is now live for every visitor.
 
-Because the content shapes are stable (`lib/content.ts` / `backend/app/schemas.py`), this is
-mostly swapping the data source — not rewriting the UI.
+## Phase 3c — Security & admin UX (done)
+
+- **Input validation on both layers** — `lib/validation.ts` (frontend) mirrors
+  `backend/app/validators.py`/`schemas.py` (backend, authoritative): length caps, email/phone
+  format, HTML/script escaping (anti-XSS), http/https-only URLs, ORM-parameterized queries
+  (anti-SQLi), 1 MB body guard, list caps. See [11 — Security](./11-security.md).
+- **Tabbed admin** — each content group is its own tab; a **Cereri** (submissions) tab is
+  first, showing contact-form requests newest-first with a count badge. See
+  [09 — Admin Panel](./09-admin.md).
+
+## Phase 3d — Deployment (done)
+
+One-command **Docker Compose** (frontend + backend + Postgres) + a `Makefile`, plus a
+production-ready root `.env.example`. See [12 — Deployment](./12-deployment.md).
+
+## Phase 3e — Telegram lead bot (done)
+
+New-submission notifications over Telegram. `@TBS_Notification_Agent_bot` posts every new
+contact-form lead into a private group, sorted into **forum topics** by service (one per
+service + a General/"Altele" fallback, auto-created). Each lead message has inline
+**classification buttons** (🆕 Nou / 📞 Contactat / 💰 Ofertă / ✅ Câștigat / ❌ Pierdut) that
+update the submission's `status`; a `/stats` command reports totals per service and per status.
+
+- Runs as a **long-polling background worker** in the FastAPI app lifespan — no public webhook,
+  works in local dev and Docker.
+- Best-effort: a Telegram outage never breaks `POST /api/contact`.
+- Config via `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_GROUP_CHAT_ID`, `TELEGRAM_ENABLED`).
+- See [13 — Telegram Bot](./13-telegram.md).
+
+## Phase 4 — Production polish (remaining)
+
+Not blockers for running the app, but recommended before going fully live:
+
+- **Alembic migrations** (currently `create_all`), and admin-password rotation.
+- **Rate limiting** on `/api/contact` and `/api/auth/login`; spam protection on the form.
+- **Notifications** on new submissions (email/Telegram).
+- HTTPS/reverse proxy + real secrets (the `.env` production checklist).
+- Fill in the real business content (stats, projects, team, prices) through the admin.
 
 ## Ownership
 
@@ -54,4 +98,8 @@ mostly swapping the data source — not rewriting the UI.
 | 1 — UI | This repo | Done |
 | 2 — Admin page (localStorage) | This repo | Done |
 | 3a — Backend API scaffold (JSON stand-in) | This repo | Done |
-| 3b — Database + integration | Colleague | Pending |
+| 3b — Database + integration | This repo | Done |
+| 3c — Security & admin UX | This repo | Done |
+| 3d — Deployment (Docker/Make) | This repo | Done |
+| 3e — Telegram lead bot | This repo | Done |
+| 4 — Production polish | This repo | Remaining |

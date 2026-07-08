@@ -229,6 +229,38 @@
   font-weight: 700;
 }
 
+.formError {
+  color: #ff6b6b;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* wraps a single input + its inline error so they stack tightly */
+.fieldWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fieldWrap .input,
+.fieldWrap .textarea {
+  width: 100%;
+}
+.fieldWrap .input[aria-invalid="true"],
+.fieldWrap .textarea[aria-invalid="true"] {
+  border-color: #ff6b6b;
+}
+.fieldError {
+  color: #ff6b6b;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
+.input:disabled,
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .submit {
   cursor: pointer;
   color: #fff;
@@ -243,6 +275,10 @@
 }
 .submit:hover {
   background: var(--blue2);
+}
+.submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 /* ---------- sent state ---------- */

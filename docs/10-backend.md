@@ -6,9 +6,12 @@ setup, API reference, and colleague handoff. This page is the high-level summary
 
 ## Status
 
-Scaffolded and tested, but **pre-database**. Persistence is a temporary **JSON-file**
-stand-in. The database, its migrations, and real auth are the colleague's task (Phase 3b in
-[08 — Roadmap](./08-roadmap.md)).
+**Implemented and tested (20 tests).** Persistence is a **real SQL database** (SQLModel /
+SQLAlchemy 2 — SQLite by default, Postgres via `DATABASE_URL`), tables auto-created and seeded
+on startup. Auth is **real**: DB users with **bcrypt-hashed** passwords. Input is validated and
+sanitized (see [11 — Security](./11-security.md)). The whole stack runs via Docker Compose
+(see [12 — Deployment](./12-deployment.md)). The old JSON-file store remains in the tree as
+reference only. Remaining production polish (Alembic, rate limiting, notifications) is Phase 4.
 
 ## What it does
 
@@ -27,26 +30,30 @@ content endpoints are a drop-in for the current localStorage store.
 ## Design — one seam for the database
 
 Everything above storage (routers, schemas, auth) depends on a single `ContentStore`
-interface (`backend/app/storage/base.py`). Today it's backed by `JSONFileStore`; the colleague
-implements a `DbStore` with the same four methods and swaps it in one line
-(`backend/app/deps.py`). This mirrors the frontend, which uses `localStorage` behind the same
-kind of swap point.
+interface (`backend/app/storage/base.py`). It is now backed by **`DbStore`** (SQLModel);
+`JSONFileStore` stays as a reference implementation, swapped at one line in
+`backend/app/deps.py`.
 
 ```
-routers → ContentStore (interface) → JSONFileStore   (now, temporary)
-                                    → DbStore         (colleague, later)
+routers → ContentStore (interface) → DbStore        (active — SQLModel, SQLite/Postgres)
+                                    → JSONFileStore  (reference only)
 ```
 
-## Auth (stand-in)
+Key files: `app/models.py` (tables: services, stats, team, partners, contacts, submissions,
+users — each content list keeps a `position` column for order), `app/db.py` (engine +
+`create_db_and_tables` + `get_session`), `app/storage/db_store.py` (upsert-by-id + delete-missing
+on `PUT`), `app/seed.py` (idempotent startup seed of content + the hashed admin).
 
-Admin credentials live in `.env`; login returns a JWT that guards the write routes. It is a
-**client-of-convenience stand-in**, not production auth (no user accounts, no hashing). The
-colleague replaces the credential check with DB-backed, hashed-password users behind the same
-`backend/app/security.py` functions.
+## Auth (real)
 
-## What the colleague does
+Admin users live in a DB `users` table with **bcrypt-hashed** passwords. The first admin is
+seeded from `ADMIN_USERNAME`/`ADMIN_PASSWORD` on startup. `POST /api/auth/login` verifies the
+hash in constant time (dummy-verify for unknown users) and returns a short-lived JWT that guards
+`PUT /api/content` and `GET /api/admin/submissions`. See [11 — Security](./11-security.md).
 
-Summarised here; the authoritative checklist is the **Handoff** section of
-[`backend/README.md`](../backend/README.md): implement `ContentStore` against a DB
-(SQLModel/Alembic; SQLite → Postgres), seed from `defaults.py`, swap in real auth, deploy —
-then wire the frontend (`siteContent.tsx` → API, PIN → login, contact form → `POST`).
+## What remains (Phase 4, optional polish)
+
+The DB, auth, validation, integration and deployment are **done**. Remaining production nice-to-
+haves (see [08 — Roadmap](./08-roadmap.md) Phase 4): Alembic migrations (currently `create_all`),
+admin-password rotation, rate limiting, and new-submission notifications (email/Telegram). The
+authoritative detail lives in [`backend/README.md`](../backend/README.md).

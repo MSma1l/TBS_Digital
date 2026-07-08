@@ -1,19 +1,23 @@
 # 07 — Conventions
 
-Rules every contribution in this phase must follow.
+Coding rules every contribution follows.
 
-## Hard constraints (this phase)
+> **Note:** the original "UI-only, no backend" constraints below are **historical** — the app
+> is now wired to the FastAPI + DB backend (see [08 — Roadmap](./08-roadmap.md) Phase 3b–3d).
+> They are kept to explain the architecture's content/data boundary. The current rules are:
+> content flows through the API via `lib/api.ts` + `lib/siteContent.tsx`; the contact form and
+> admin **do** submit to the server; all input is validated on both layers
+> ([11 — Security](./11-security.md)).
 
-1. **UI only — no backend.** No `fetch`, no API clients, no server actions calling the
-   backend, no `NEXT_PUBLIC_API_URL`, no data-fetching libraries. If it talks to a server,
-   it does not belong in this phase. (Client-only `localStorage` is allowed — it's the admin's
-   stand-in for the future API, see [09 — Admin Panel](./09-admin.md).)
+## Original constraints (UI-only phase — superseded)
+
+1. ~~**UI only — no backend.**~~ The UI now fetches via `NEXT_PUBLIC_API_URL`; `localStorage`
+   remains only as an offline cache/fallback in `siteContent.tsx`.
 2. **No hardcoded business data.** Content starts as placeholders and is admin-editable.
-   See [06 — Placeholder Rules](./06-placeholder-rules.md).
-3. **Forms don't submit.** The contact form renders and validates client-side only; it does
-   not send anywhere. A submit can show a local "thank you" state at most.
-4. **Interactive widgets are visual.** The estimator lets you click options and shows the
-   admin-set price (or `...` when unset); it does **not** compute a real total.
+   See [06 — Placeholder Rules](./06-placeholder-rules.md). *(Still current.)*
+3. ~~**Forms don't submit.**~~ The contact form now `POST`s to `/api/contact` (validated).
+4. **Interactive widgets are visual.** The estimator shows the admin-set price (or `...` when
+   unset); it does **not** compute a real total. *(Still current.)*
 
 ## Content & data
 

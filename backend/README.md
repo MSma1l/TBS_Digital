@@ -4,17 +4,20 @@ FastAPI service that serves the site's editable content and receives contact-for
 submissions. It exists so the frontend admin panel and contact form have a real API to
 talk to.
 
-> **Status: pre-database phase.** Persistence is a temporary **JSON file** stand-in.
-> The database and its migrations are the **colleague's task** — this codebase is built
-> around a storage interface so that swap is isolated (see [Handoff](#handoff--what-the-colleague-does)).
+> **Status: database + real auth implemented.** Persistence is a **SQL database**
+> (SQLModel/SQLAlchemy) — SQLite by default, Postgres via `DATABASE_URL`. Admin login is
+> backed by a real `users` table with **bcrypt-hashed** passwords. The storage interface
+> is unchanged, so the earlier `JSONFileStore` stays in the tree only as a reference.
 
 ## Stack
 
 - **FastAPI** + **Uvicorn**
 - **Pydantic v2** / **pydantic-settings** for schemas & config
-- **PyJWT** for the auth stand-in
+- **SQLModel** (SQLAlchemy 2) for persistence — SQLite or Postgres (`psycopg[binary]`)
+- **bcrypt** for password hashing, **PyJWT** for tokens
 - **pytest** + **httpx** for tests
-- No database yet — a `JSONFileStore` writes `data/content.json` and `data/submissions.json`.
+- Tables: `services`, `stats`, `team`, `partners`, `contacts`, `submissions`, `users`.
+  `DbStore` (`app/storage/db_store.py`) assembles them into the `SiteContent` document.
 
 ## Run it
 
@@ -31,7 +34,10 @@ uvicorn app.main:app --reload --port 8000
 - Interactive docs: <http://localhost:8000/docs>
 - Health check: <http://localhost:8000/health>
 
-Run the tests with `pytest` (they use an isolated temp data dir, so they don't touch `data/`).
+On startup the app creates any missing tables and seeds the default content plus one
+admin user (from `ADMIN_USERNAME`/`ADMIN_PASSWORD`, hashed). Seeding is idempotent.
+
+Run the tests with `pytest` (they use an isolated temp SQLite DB, so they don't touch `data/`).
 
 ## Configuration (`.env`)
 
@@ -39,11 +45,15 @@ Run the tests with `pytest` (they use an isolated temp data dir, so they don't t
 |-----|---------|---------|
 | `APP_NAME` | `TBS Digital API` | Shown in docs/health |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins (the Next.js app) |
-| `DATA_DIR` | `data` | Where the JSON stand-in writes its files |
-| `ADMIN_USERNAME` | `admin` | Admin login (stand-in) |
-| `ADMIN_PASSWORD` | `change-me` | Admin password (stand-in) |
+| `DATABASE_URL` | `sqlite:///./data/tbs.db` | DB connection. SQLite (default) or `postgresql://…` (uses psycopg v3) |
+| `DATA_DIR` | `data` | Legacy — only the `JSONFileStore` reference store uses this |
+| `ADMIN_USERNAME` | `admin` | Seeds the admin user's username on first run |
+| `ADMIN_PASSWORD` | `change-me` | Seeds the admin user's password (stored bcrypt-hashed) |
 | `JWT_SECRET` | `dev-secret-change-me` | JWT signing key — **use ≥32 random bytes in prod** |
 | `JWT_EXPIRE_MINUTES` | `720` | Token lifetime |
+
+> Changing `ADMIN_PASSWORD` after first run does **not** update the existing DB user
+> (seeding only creates a missing user). Update the `users` row directly to rotate it.
 
 ## API
 
@@ -63,17 +73,49 @@ Send the token as `Authorization: Bearer <token>` on admin routes.
 `stats[]`, `services[]` (with `price` + `estimatorOnly`), `team[]`, `partners[]`, `contacts[]`.
 So `GET`/`PUT /api/content` is a drop-in for the current localStorage store.
 
-## Auth — the chosen option (documented)
+## Auth — DB-backed users → JWT
 
-Of the options considered, this repo implements **env-credentials → JWT**:
-
-- Admin `username`/`password` live in `.env`; `POST /api/auth/login` verifies them
-  (constant-time) and returns a short-lived JWT.
+- Admin accounts live in the `users` table with **bcrypt-hashed** passwords. The first
+  admin is seeded from `ADMIN_USERNAME`/`ADMIN_PASSWORD` on startup.
+- `POST /api/auth/login` looks up the user and verifies the password against the stored
+  hash (constant-time, with a dummy verify for unknown users to blunt timing enumeration),
+  then returns a short-lived JWT.
 - The JWT guards `PUT /api/content` and `GET /api/admin/submissions`.
-- **This is a stand-in, not production auth** — no user accounts, no password hashing,
-  single admin. It exists so the frontend can build a real login flow now. The colleague
-  replaces the credential check with DB-backed, hashed-password users behind the same
-  `app/security.py` functions.
+- The token issuing/guarding and the `/api/auth/*` request/response contract are
+  unchanged from the earlier stand-in — only the credential check moved into the DB
+  (`app/security.py::authenticate`).
+
+## Input validation & security
+
+Every value entering the API is validated and sanitised at the request boundary via
+Pydantic v2 (`app/schemas.py` + reusable helpers in `app/validators.py`). Violations
+return **HTTP 422**.
+
+- **Length caps** on every string field: id ≤64, name/role/project ≤120, short labels
+  (stat value/label, estimate) ≤80, price ≤40, description/bio ≤2000, contact value ≤254,
+  email ≤254, phone 6–40, message ≤5000. **Required, non-empty (after trim)**: contact-form
+  `name` + `message`, and `email`.
+- **Whitespace** is trimmed on all strings; **control characters** are rejected (tab /
+  newline / carriage-return allowed for multi-line text).
+- **Email**: validated with `pydantic.EmailStr` (backed by `email-validator`). Contact-book
+  values of `type: email` are shape-checked too.
+- **Phone**: permissive regex — digits, spaces, `+`, `-`, `()` only.
+- **XSS / script injection — sanitised (not rejected) for stored free-text**: names, roles,
+  labels, prices, descriptions, bios, partner names, contact values and the contact-form
+  fields are **HTML-escaped** (`html.escape`), so `<script>…`, event-handler attributes and
+  raw tags become inert (`&lt;script&gt;…`) and can never execute when rendered. Escaping is
+  applied once on write; reads use `model_construct` so values are never double-escaped.
+- **URL / link fields**: any value using a dangerous scheme (`javascript:`, `data:`,
+  `vbscript:`, `file:`) is **rejected**; a contact value of `type: other` that looks like a
+  URL must use `http`/`https`.
+- **ids** are rejected unless they match a safe slug charset (`[A-Za-z0-9_.:-]`, 1–64).
+- **SQL injection**: the DB layer (`app/storage/db_store.py`) and auth
+  (`app/security.py`) use **only** the SQLModel/SQLAlchemy ORM with **bound parameters** —
+  no raw SQL, no f-string/`.format`/concatenation building statements. A SQLi payload is
+  stored as literal text and cannot alter query structure.
+- **Flood / DoS defence in depth**: each content list in a `PUT /api/content` is capped at
+  **200 items** (`MAX_LIST_ITEMS`), and a request-size middleware rejects bodies over
+  **1 MB** with **HTTP 413** before parsing.
 
 ## Project structure
 
@@ -81,42 +123,43 @@ Of the options considered, this repo implements **env-credentials → JWT**:
 backend/
 ├─ app/
 │  ├─ main.py            # FastAPI app, CORS, routers, /health
-│  ├─ config.py          # Settings (.env)
+│  ├─ config.py          # Settings (.env) — incl. DATABASE_URL
 │  ├─ schemas.py         # Pydantic models = the API contract (mirror lib/siteContent.tsx)
+│  ├─ validators.py      # Reusable input sanitisers/validators (anti-XSS/injection)
 │  ├─ defaults.py        # Seed content (mirrors lib/content.ts)
-│  ├─ security.py        # Auth stand-in: env creds -> JWT
-│  ├─ deps.py            # get_store() — swap the store implementation here
+│  ├─ db.py              # Engine/session wiring (SQLite or Postgres), create_all
+│  ├─ models.py          # SQLModel tables (services/stats/team/partners/contacts/…/users)
+│  ├─ seed.py            # Idempotent startup seeding (content + admin user)
+│  ├─ security.py        # DB-backed users (bcrypt) -> JWT
+│  ├─ deps.py            # get_store() → DbStore (backed by DATABASE_URL)
 │  ├─ storage/
-│  │  ├─ base.py         # ContentStore interface  ← the seam to implement
-│  │  └─ json_store.py   # JSONFileStore stand-in (TEMPORARY)
+│  │  ├─ base.py         # ContentStore interface
+│  │  ├─ db_store.py     # DbStore — the active persistence
+│  │  └─ json_store.py   # JSONFileStore (reference/fallback, not wired)
 │  └─ routers/           # auth, content, contact
-├─ data/                 # runtime JSON (gitignored)
-├─ tests/                # pytest smoke tests
+├─ data/                 # runtime SQLite DB / JSON (gitignored)
+├─ tests/                # pytest smoke + DB tests (isolated temp SQLite)
 ├─ requirements.txt / requirements-dev.txt
 └─ .env.example
 ```
 
-## Handoff — what the colleague does
+## Implementation notes (DB + auth)
 
-The API, schemas, routers and auth flow are done. Wiring a real database means implementing
-**one interface** and swapping it in — nothing above the storage layer changes.
+The storage seam (`app/storage/base.py`) is unchanged; `DbStore` implements it against
+SQLModel/SQLAlchemy and is wired in `app/deps.py::get_store()`.
 
-1. **Implement `ContentStore` with a database** (`app/storage/base.py` defines it):
-   `get_content`, `save_content`, `list_submissions`, `add_submission`. Suggested stack:
-   SQLModel/SQLAlchemy + Alembic; SQLite is fine to start, Postgres via a connection string.
-   Model the entities as tables (services, stats, team, partners, contacts, submissions) and
-   assemble/return a `SiteContent` in `get_content`. `PUT` replaces the whole document, so
-   `save_content` upserts each list (delete-missing + insert/update by `id`).
-2. **Swap it in** — change the one line in `app/deps.py::get_store()` to return your
-   `DbStore`. Add DB settings (`DATABASE_URL`) to `app/config.py`.
-3. **Seed** the initial content from `app/defaults.py::default_content()` in your first
-   migration (same values the frontend ships).
-4. **Real auth** — replace the credential check in `app/security.py::authenticate` with a DB
-   user lookup + hashed passwords (e.g. `passlib[bcrypt]`). Keep the JWT issuing/guard as-is
-   or extend it. Use a strong `JWT_SECRET`.
-5. **Contact submissions** — optional: add email/Telegram notification on `add_submission`.
-6. **Deploy** — containerize (`uvicorn`/`gunicorn`), set env + CORS for the production
-   frontend origin, run migrations on deploy.
+- **Tables** (`app/models.py`): each content list is its own table with a `position`
+  column so `get_content` reassembles the `SiteContent` in the admin's saved order.
+  `PUT /api/content` → `save_content` does a delete-missing + upsert-by-`id` for the
+  id-bearing lists and a wholesale replace for `partners` (a plain `list[str]`).
+- **Engine** (`app/db.py`): built once from `DATABASE_URL`. SQLite creates its parent
+  dir automatically; a `postgresql://` URL is normalised to the psycopg (v3) driver.
+- **Startup** (`app/main.py` lifespan): `create_db_and_tables()` then `seed_database()`.
+- **Auth** (`app/security.py`): `authenticate` does a DB user lookup + bcrypt verify.
+- **Migrations**: tables are created via `SQLModel.metadata.create_all`. If the schema
+  starts evolving, introduce Alembic — the models are ready for it.
+- **Deploy**: containerize (`uvicorn`/`gunicorn`), point `DATABASE_URL` at Postgres,
+  set a strong `JWT_SECRET`, and set CORS for the production frontend origin.
 
 ### Frontend integration (later, not done here)
 

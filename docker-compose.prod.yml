@@ -1,0 +1,22 @@
+# Production override. Layer it on top of the base file:
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Hardens the base compose for a real deployment:
+#   * stops publishing Postgres to the host (only the backend, on the internal
+#     network, needs it),
+#   * always restarts services.
+# Put this behind an HTTPS reverse proxy (Caddy/Nginx/Traefik) that terminates
+# TLS and forwards to frontend:3000 and backend:8000.
+
+services:
+  db:
+    restart: always
+    # Do NOT expose 5432 publicly in production. Override the base mapping with
+    # an empty list so the port stays on the internal compose network only.
+    ports: []
+
+  backend:
+    restart: always
+
+  frontend:
+    restart: always

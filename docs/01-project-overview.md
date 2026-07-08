@@ -13,31 +13,34 @@ prototype (`TBS Digital.dc.html`). The visual language is a dark, "cyber-brutali
 deep navy background, blue/cyan accents, monospace + heavy display typography, subtle
 glow and scroll-reveal animations.
 
-## Scope of the current phase
+## Current state — full-stack and wired
 
-**UI + a self-contained admin, still no backend.** Concretely, in this phase we:
+The project is now a working full-stack app:
 
-- Rebuild the landing page and its sections as presentational Next.js components.
-- Make **no** network calls, **no** data fetching, and read **nothing** from the backend.
-- Start data-driven content as **placeholders** (see [06 — Placeholder Rules](./06-placeholder-rules.md)),
-  editable through a **built-in admin panel** ([09 — Admin Panel](./09-admin.md)) that persists
-  to the browser's `localStorage`.
+- The landing page and its sections are presentational Next.js components.
+- Content is served by the **FastAPI + database** backend: the frontend loads
+  `GET /api/content` (localStorage is only an offline cache), the admin Saves via
+  `PUT /api/content`, and the contact form `POST`s to `/api/contact`.
+- The **admin** ([09 — Admin Panel](./09-admin.md)) is login-gated (real bcrypt auth, not a PIN)
+  and organized into tabs, with a **Cereri** tab that lists incoming contact requests.
+- All input is **validated on both layers** (anti-XSS/SQLi, lengths, email/URL — see
+  [11 — Security](./11-security.md)).
+- The whole stack starts with one command via Docker Compose + Make
+  ([12 — Deployment](./12-deployment.md)).
 
-Anything that will eventually come from a database (stats, services, team members, partners,
-prices, contacts) is managed today by that admin panel via a client-side content store, so a
-colleague can later swap `localStorage` for the FastAPI backend without changing the UI.
+Data-driven content (stats, services, team, partners, prices, contacts) is managed through the
+admin and stored in the database. It still **ships as placeholders** — the agency fills in real
+business values through the admin.
 
-## Who does what
+## Who did what
 
-- **This repo (me):** the frontend UI and the FastAPI backend **scaffold** (API + JSON
-  stand-in) in [`backend/`](../backend/README.md).
-- **Colleague:** the backend **database** + real auth, and wiring the frontend to the API
-  (see the Handoff in `backend/README.md`).
+- **This repo:** the frontend UI, the FastAPI backend (real DB + auth), the frontend↔API
+  integration, input validation/security, and the Docker/Make deployment.
 
-## Out of scope for now
+## Remaining (Phase 4 — optional polish)
 
-- The backend **database** and real auth (the API uses a JSON stand-in + a PIN/JWT stand-in)
-- **Frontend ↔ API integration** — the UI still reads/writes `localStorage`, not the server
-- Content in final form — everything data-driven starts as a placeholder
+- Alembic migrations, admin-password rotation, rate limiting, new-submission notifications.
+- Real business content entered through the admin.
+- Production secrets + HTTPS/reverse proxy (the `.env` checklist).
 
 See [08 — Roadmap](./08-roadmap.md) for how these phases connect.

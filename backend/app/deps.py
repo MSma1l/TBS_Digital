@@ -2,12 +2,16 @@
 
 from functools import lru_cache
 
-from .config import get_settings
+from .db import get_engine
 from .storage.base import ContentStore
-from .storage.json_store import JSONFileStore
+from .storage.db_store import DbStore
 
 
 @lru_cache
 def get_store() -> ContentStore:
-    """The active content store. Swap the implementation here for the DB store."""
-    return JSONFileStore(get_settings().data_dir)
+    """The active content store — DB-backed, sharing the process-wide engine.
+
+    `JSONFileStore` (storage/json_store.py) remains in the tree as a reference/fallback
+    but is no longer wired in.
+    """
+    return DbStore(get_engine())

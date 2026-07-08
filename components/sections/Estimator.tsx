@@ -4,6 +4,8 @@ import { useState, type FormEvent } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { deadlines, features, PRICE_PLACEHOLDER } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
+import { submitContact, isNetworkError } from "@/lib/api";
+import { LIMITS, validateText, sanitizeText } from "@/lib/validation";
 import styles from "./Estimator.module.css";
 
 export function Estimator() {
@@ -17,7 +19,18 @@ export function Estimator() {
   const [activeFeatures, setActiveFeatures] = useState<Record<string, boolean>>(
     {},
   );
+
+  // Contact-form fields + submission lifecycle.
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  // Per-field errors are shown once a field is touched or a submit is attempted.
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [attempted, setAttempted] = useState(false);
 
   const toggleFeature = (id: string) =>
     setActiveFeatures((f) => ({ ...f, [id]: !f[id] }));
@@ -25,10 +38,72 @@ export function Estimator() {
   const selectedProjectName =
     projectTypes.find((p) => p.id === project)?.name ?? "";
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Live validation mirroring the backend limits (name/email required, phone
+  // optional, hard max lengths, HTML/script injection blocked).
+  const nameErr = validateText(name, {
+    label: "Numele",
+    max: LIMITS.name,
+    required: true,
+  });
+  const emailErr = validateText(email, {
+    label: "Emailul",
+    max: LIMITS.email,
+    required: true,
+    email: true,
+  });
+  const phoneErr = validateText(phone, {
+    label: "Telefonul",
+    max: LIMITS.phone,
+    phone: true,
+  });
+  const messageErr = validateText(message, {
+    label: "Mesajul",
+    max: LIMITS.message,
+    required: true,
+  });
+  const formInvalid = !!(nameErr || emailErr || phoneErr || messageErr);
+  const touch = (field: string) =>
+    setTouched((t) => ({ ...t, [field]: true }));
+  const showErr = (field: string, err: string | null) =>
+    (attempted || touched[field]) && err ? err : null;
+
+  const resetForm = () => {
+    setName("");
+    setEmail("");
+    setPhone("");
+    setMessage("");
+    setFormError("");
+    setTouched({});
+    setAttempted(false);
+    setSent(false);
+  };
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // UI-only phase: no network — just show the local confirmation state.
-    setSent(true);
+    setAttempted(true);
+    if (formInvalid) return;
+
+    setFormError("");
+    setSubmitting(true);
+    try {
+      await submitContact({
+        name: sanitizeText(name),
+        email: sanitizeText(email),
+        phone: sanitizeText(phone),
+        message: sanitizeText(message),
+        project: selectedProjectName,
+        estimate: priceOf(project),
+      });
+      setSent(true);
+    } catch (err) {
+      setFormError(
+        isNetworkError(err)
+          ? "Serverul nu răspunde. Încearcă din nou în câteva momente."
+          : "Trimiterea a eșuat. Te rugăm să încerci din nou.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -143,7 +218,7 @@ export function Estimator() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setSent(false)}
+                  onClick={resetForm}
                   className={`mono ${styles.resetBtn}`}
                 >
                   TRIMITE ALTĂ CERERE
@@ -155,34 +230,85 @@ export function Estimator() {
                 <p className={styles.formSub}>
                   Revenim cu o ofertă personalizată în cel mult 24h.
                 </p>
-                <form onSubmit={onSubmit} className={styles.fields}>
-                  <input
-                    required
-                    placeholder="Nume și prenume"
-                    className={`mono ${styles.input}`}
-                  />
-                  <input
-                    required
-                    type="email"
-                    placeholder="Email"
-                    className={`mono ${styles.input}`}
-                  />
-                  <input
-                    placeholder="Telefon (opțional)"
-                    className={`mono ${styles.input}`}
-                  />
-                  <textarea
-                    rows={4}
-                    placeholder="Spune-ne despre proiectul tău..."
-                    className={`mono ${styles.textarea}`}
-                  />
+                <form onSubmit={onSubmit} className={styles.fields} noValidate>
+                  <div className={styles.fieldWrap}>
+                    <input
+                      required
+                      value={name}
+                      maxLength={LIMITS.name}
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={() => touch("name")}
+                      placeholder="Nume și prenume"
+                      aria-invalid={!!showErr("name", nameErr)}
+                      className={`mono ${styles.input}`}
+                      disabled={submitting}
+                    />
+                    {showErr("name", nameErr) && (
+                      <span className={`mono ${styles.fieldError}`}>{nameErr}</span>
+                    )}
+                  </div>
+                  <div className={styles.fieldWrap}>
+                    <input
+                      required
+                      type="email"
+                      value={email}
+                      maxLength={LIMITS.email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => touch("email")}
+                      placeholder="Email"
+                      aria-invalid={!!showErr("email", emailErr)}
+                      className={`mono ${styles.input}`}
+                      disabled={submitting}
+                    />
+                    {showErr("email", emailErr) && (
+                      <span className={`mono ${styles.fieldError}`}>{emailErr}</span>
+                    )}
+                  </div>
+                  <div className={styles.fieldWrap}>
+                    <input
+                      value={phone}
+                      maxLength={LIMITS.phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      onBlur={() => touch("phone")}
+                      placeholder="Telefon (opțional)"
+                      aria-invalid={!!showErr("phone", phoneErr)}
+                      className={`mono ${styles.input}`}
+                      disabled={submitting}
+                    />
+                    {showErr("phone", phoneErr) && (
+                      <span className={`mono ${styles.fieldError}`}>{phoneErr}</span>
+                    )}
+                  </div>
+                  <div className={styles.fieldWrap}>
+                    <textarea
+                      rows={4}
+                      value={message}
+                      maxLength={LIMITS.message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      onBlur={() => touch("message")}
+                      placeholder="Spune-ne despre proiectul tău..."
+                      aria-invalid={!!showErr("message", messageErr)}
+                      className={`mono ${styles.textarea}`}
+                      disabled={submitting}
+                    />
+                    {showErr("message", messageErr) && (
+                      <span className={`mono ${styles.fieldError}`}>{messageErr}</span>
+                    )}
+                  </div>
                   <div className={`mono ${styles.estimateNote}`}>
                     ESTIMARE ATAȘATĂ:{" "}
                     <span className={styles.estimateVal}>{priceOf(project)}</span>{" "}
                     · {selectedProjectName}
                   </div>
-                  <button type="submit" className={`mono ${styles.submit}`}>
-                    Trimite cererea ↗
+                  {formError && (
+                    <div className={`mono ${styles.formError}`}>{formError}</div>
+                  )}
+                  <button
+                    type="submit"
+                    className={`mono ${styles.submit}`}
+                    disabled={submitting || (attempted && formInvalid)}
+                  >
+                    {submitting ? "Se trimite…" : "Trimite cererea ↗"}
                   </button>
                 </form>
               </>

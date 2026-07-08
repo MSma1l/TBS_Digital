@@ -6,5 +6,8 @@ venv/
 # keep the template (the root .gitignore's .env* rule would otherwise drop it)
 !.env.example
 .pytest_cache/
-# JSON stand-in data (runtime state, not source)
+# Runtime persistence (not source): JSON stand-in files and the SQLite DB
 data/*.json
+data/*.db
+*.sqlite
+*.sqlite3
