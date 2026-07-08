@@ -1,3 +1,62 @@
+/* ---------- login gate ---------- */
+/* Username/password fields — like .gateInput but without the PIN letter-spacing. */
+.loginInput {
+  padding: 14px 16px;
+  font-size: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--txt);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.loginInput:focus {
+  border-color: var(--cyan);
+}
+.loginInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Centered status while a token is being validated. */
+.checking {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  background: var(--bg);
+}
+
+/* Logout control in the editor header. */
+.logout {
+  flex: 0 0 auto;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 12px 18px;
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--mut);
+  text-transform: uppercase;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
+}
+.logout:hover {
+  border-color: #ff6b6b;
+  color: #ff6b6b;
+}
+
+.headerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 /* ---------- PIN gate ---------- */
 .gate {
   min-height: 100vh;
@@ -133,6 +192,172 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+
+/* ---------- tab bar ---------- */
+.tabBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+}
+.tab {
+  position: relative;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mut);
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+.tab:hover {
+  color: var(--txt);
+}
+.tabActive {
+  color: var(--ice);
+  background: var(--panel);
+  border-color: var(--line);
+  border-bottom: 1px solid var(--panel);
+  margin-bottom: -1px;
+}
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  background: var(--blue);
+  border: 1px solid var(--blue2);
+  border-radius: 9px;
+}
+
+/* ---------- panel head (title + action) ---------- */
+.panelHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.refreshBtn {
+  flex: 0 0 auto;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 10px 16px;
+  color: var(--ice);
+  background: rgba(47, 107, 255, 0.1);
+  border: 1px solid var(--line2);
+  text-transform: uppercase;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.refreshBtn:hover {
+  background: rgba(47, 107, 255, 0.18);
+  border-color: var(--blue2);
+}
+.refreshBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- submissions (Cereri) ---------- */
+.subsEmpty {
+  color: var(--dim);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  margin: 18px 0 0;
+}
+.subsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+.subCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  padding: 16px;
+}
+.subHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.subName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--txt);
+}
+.subTime {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--dim);
+  letter-spacing: 0.03em;
+}
+.subMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.subLink {
+  font-size: 12.5px;
+  color: var(--cyan);
+  text-decoration: none;
+}
+.subLink:hover {
+  text-decoration: underline;
+}
+.subEstimate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--dim);
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px dashed var(--line2);
+}
+.subEstimateVal {
+  color: var(--cyan);
+  font-weight: 700;
+}
+.subMessage {
+  margin: 4px 0 0;
+  color: var(--mut);
+  font-size: 13.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* inline validation error under an editor field */
+.fieldError {
+  color: #ff6b6b;
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
 .panel {

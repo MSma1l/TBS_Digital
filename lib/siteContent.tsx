@@ -1,13 +1,16 @@
 "use client";
 
 /*
- * Client-side content store for the UI-only phase.
+ * Client-side content store.
  *
  * The public sections read their editable content from here instead of directly
- * from `content.ts`. Defaults come from `content.ts`; the admin page writes
- * overrides to localStorage. There is NO backend — localStorage is the stand-in
- * a FastAPI backend will later replace (see docs/08-roadmap.md). Overrides are
- * per-browser, so they show live for whoever made the edit.
+ * from `content.ts`. The source of truth is the FastAPI backend (`GET /api/content`);
+ * `content.ts` provides the defaults and `localStorage` is an offline cache.
+ *
+ * Rendering strategy (SSR-safe): defaults are rendered on the server and on the
+ * first client paint so the markup matches and hydration never mismatches. After
+ * mount we swap in the cached copy (instant) and then the freshest API copy. If
+ * the API is unreachable, we keep the cache/defaults so the site never breaks.
  */
 
 import {
@@ -25,6 +28,7 @@ import {
   contacts as defaultContacts,
   type ContactType,
 } from "@/lib/content";
+import { fetchContent } from "@/lib/api";
 
 export type StatItem = { id: string; value: string; label: string };
 export type ServiceItem = {
@@ -104,19 +108,41 @@ const SiteContentContext = createContext<SiteData>(defaultSiteData);
 
 /**
  * Provides merged content to the tree. Renders defaults on the server and on the
- * first client paint (so markup matches), then swaps in any localStorage
- * overrides after mount. Also listens for edits made in another tab.
+ * first client paint (so markup matches). After mount it: (1) shows the
+ * localStorage cache instantly, (2) fetches the live document from the API and
+ * swaps it in, caching it for offline use. If the API is unreachable the cache
+ * (or defaults) stays in place. Also listens for edits made in another tab.
  */
 export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<SiteData>(defaultSiteData);
 
   useEffect(() => {
+    let cancelled = false;
+
+    // 1) Instant paint from the offline cache (or defaults if none).
     setData(loadSiteData());
+
+    // 2) Fetch the source of truth and swap it in; keep the cache on failure.
+    fetchContent()
+      .then((remote) => {
+        if (cancelled) return;
+        const merged = mergeSiteData(remote);
+        setData(merged);
+        saveSiteData(merged); // refresh the offline cache
+      })
+      .catch(() => {
+        /* API unreachable — keep the cache/defaults already shown */
+      });
+
+    // 3) Reflect edits (cache writes) made in another tab.
     const onStorage = (e: StorageEvent) => {
       if (e.key === SITE_DATA_KEY) setData(loadSiteData());
     };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
   return (

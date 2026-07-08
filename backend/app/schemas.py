@@ -6,73 +6,98 @@ so `GET /api/content` and `PUT /api/content` are a drop-in for the current local
 store. Keep them in sync if the frontend shape changes.
 """
 
-from typing import Literal
+from typing import List, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
+
+from .validators import IdStr, PhoneStr, text, validate_contact_value
 
 ContactType = Literal["email", "phone", "other"]
 
 # Placeholder price shown before the admin sets a real one (matches content.ts).
 PRICE_PLACEHOLDER = "..."
 
+# Defence in depth: cap how many items a single PUT can push into any content list,
+# so the write endpoint can't be used to flood the DB.
+MAX_LIST_ITEMS = 200
+
+# Free-text length caps (see validators.text() — trims, blocks control chars,
+# HTML-escapes, and enforces the cap).
+Name = text(120)
+Role = text(120)
+ShortLabel = text(80)
+Price = text(40)
+Description = text(2000)
+Bio = text(2000)
+Partner = text(120)
+ContactValue = text(254)
+
 
 class Stat(BaseModel):
-    id: str
-    value: str = ""
-    label: str = ""
+    id: IdStr
+    value: ShortLabel = ""
+    label: ShortLabel = ""
 
 
 class Service(BaseModel):
-    id: str
-    name: str = ""
-    desc: str = ""
-    price: str = PRICE_PLACEHOLDER
+    id: IdStr
+    name: Name = ""
+    desc: Description = ""
+    price: Price = PRICE_PLACEHOLDER
     estimatorOnly: bool = False  # in the estimator, but not on the /03 grid
 
 
 class TeamMember(BaseModel):
-    id: str
-    name: str = ""
-    role: str = ""
-    bio: str = ""
+    id: IdStr
+    name: Name = ""
+    role: Role = ""
+    bio: Bio = ""
 
 
 class Contact(BaseModel):
-    id: str
+    id: IdStr
     type: ContactType = "email"
-    value: str = ""
+    value: ContactValue = ""
+
+    @model_validator(mode="after")
+    def _check_value(self) -> "Contact":
+        # Reject unsafe URL schemes and enforce email/phone/http(s) shape by type.
+        validate_contact_value(self.value, self.type)
+        return self
 
 
 class SiteContent(BaseModel):
     """The whole editable content blob — one document, matches the admin's Save."""
 
-    stats: list[Stat] = Field(default_factory=list)
-    services: list[Service] = Field(default_factory=list)
-    team: list[TeamMember] = Field(default_factory=list)
-    partners: list[str] = Field(default_factory=list)
-    contacts: list[Contact] = Field(default_factory=list)
+    stats: List[Stat] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    services: List[Service] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    team: List[TeamMember] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    partners: List[Partner] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    contacts: List[Contact] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
 
 
 class ContactSubmissionIn(BaseModel):
     """Incoming payload from the site's contact form (+ estimator context)."""
 
-    name: str = Field(min_length=1)
-    email: str = Field(min_length=1)
-    phone: str = ""
-    message: str = ""
-    project: str = ""  # selected project name from the estimator
-    estimate: str = ""  # attached price estimate label
+    name: text(120, required=True)  # required + non-empty after trim
+    email: EmailStr = Field(max_length=254)
+    phone: PhoneStr = ""
+    message: text(5000, required=True)  # required + non-empty after trim
+    project: Name = ""  # selected project name from the estimator
+    estimate: ShortLabel = ""  # attached price estimate label
 
 
 class ContactSubmission(ContactSubmissionIn):
-    id: str
+    id: IdStr
     created_at: str  # ISO 8601 timestamp
+    status: str = "nou"  # lead classification (see app/telegram STATUSES)
 
 
 # --- auth ---
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    # Length caps only — credentials are never stored/rendered, so no escaping.
+    username: str = Field(min_length=1, max_length=150)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class TokenResponse(BaseModel):

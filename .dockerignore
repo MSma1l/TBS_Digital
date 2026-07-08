@@ -1,0 +1,36 @@
+# Frontend build context — keep it small and reproducible.
+node_modules
+.next
+out
+build
+coverage
+
+# The backend is built from its own context (backend/Dockerfile).
+backend
+
+# VCS / tooling
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Env & secrets (NEXT_PUBLIC_API_URL comes in as a build ARG, not a file)
+.env
+.env.*
+!.env.example
+!.env.local.example
+
+# Docker / make (not needed inside the image)
+Dockerfile
+.dockerignore
+docker-compose*.yml
+Makefile
+
+# Docs & misc
+docs
+*.md
+.DS_Store
+*.pem
+npm-debug.log*
+*.tsbuildinfo

@@ -11,16 +11,16 @@
 | Animations | Plain CSS + a small `IntersectionObserver` hook | Scroll-reveal, marquee, glow, HUD tilt — all doable without a heavy animation library. |
 | Content/state | **React Context + `localStorage`** (`lib/siteContent.tsx`) | Client-side store for admin-editable content. No backend — localStorage stands in for the future API. See [09 — Admin Panel](./09-admin.md). |
 
-## Backend (in `backend/`, not yet wired to the UI)
+## Backend (in `backend/`, wired to the UI)
 
 | Layer | Choice | Notes |
 |-------|--------|-------|
-| Framework | **Python + FastAPI** + Uvicorn | Content + contact API. See [10 — Backend](./10-backend.md). |
-| Schemas / config | **Pydantic v2** / pydantic-settings | Schemas mirror the frontend `SiteData`. |
-| Auth | **PyJWT** (stand-in) | Env credentials → JWT; real auth is the colleague's. |
-| Persistence | **JSON-file stand-in** behind a `ContentStore` interface | **No database yet** — the colleague implements a DB store behind the same interface. |
-| Owner | This repo scaffolded it; **colleague** owns the DB + integration | |
-| Status | Built & tested, **not yet called by the UI**. | |
+| Framework | **Python + FastAPI** + Uvicorn | Content + contact + auth API. See [10 — Backend](./10-backend.md). |
+| Schemas / config | **Pydantic v2** / pydantic-settings | Schemas mirror the frontend `SiteData`; validators enforce security ([11](./11-security.md)). |
+| ORM / DB | **SQLModel / SQLAlchemy 2** | Real database — SQLite (dev) / Postgres (prod) via `DATABASE_URL`, behind the `ContentStore` interface. |
+| Auth | **PyJWT + bcrypt** | DB users, hashed passwords, JWT-guarded write routes. |
+| Deploy | **Docker Compose + Makefile** | frontend + backend + Postgres, one command ([12](./12-deployment.md)). |
+| Status | Built, tested (20 tests), **and called by the UI**. | |
 
 ## Why this stack
 

@@ -15,19 +15,38 @@ class Settings(BaseSettings):
     # Comma-separated list of origins allowed by CORS (the Next.js app).
     cors_origins: str = "http://localhost:3000"
 
-    # Where the JSON stand-in stores its files. The colleague's DB store
-    # ignores this (see backend/README.md → Handoff).
+    # Database connection string. SQLite by default; a `postgresql://` URL switches
+    # to Postgres (normalised to the psycopg driver in app/db.py).
+    #   sqlite:///./data/tbs.db
+    #   postgresql://user:pass@host:5432/tbs
+    database_url: str = "sqlite:///./data/tbs.db"
+
+    # Legacy: where the JSON stand-in (kept as a reference store) writes its files.
+    # The active DB store ignores this.
     data_dir: str = "data"
 
-    # --- Auth stand-in: env credentials -> JWT. Replaced by DB-backed users. ---
+    # --- Admin bootstrap: seeds the DB `users` table on first run (hashed). ---
     admin_username: str = "admin"
     admin_password: str = "change-me"
     jwt_secret: str = "dev-secret-change-me"
     jwt_expire_minutes: int = 720  # 12h
 
+    # --- Telegram lead-notification bot (app/telegram) --------------------------
+    # All optional with safe defaults so boot + existing tests work when unset.
+    # When the token is empty the whole integration is a no-op (never touches the
+    # network). See backend/.env.example for docs (owned by another agent).
+    telegram_bot_token: str = ""  # empty => disabled
+    telegram_group_chat_id: str = ""  # optional; else captured via /register
+    telegram_enabled: bool = True  # honoured only when a token is present
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def telegram_is_enabled(self) -> bool:
+        """True only when the integration should run (token present + enabled)."""
+        return bool(self.telegram_bot_token) and self.telegram_enabled
 
 
 @lru_cache

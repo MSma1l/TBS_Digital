@@ -1,14 +1,22 @@
 # TBS Digital
 
 Marketing / landing website for **TBS Digital** — a digital agency (custom software,
-mobile apps, AI automation, CRM, SaaS). This repository holds the **frontend UI** and a
-scaffolded **backend API**.
+mobile apps, AI automation, CRM, SaaS). Full-stack: **Next.js frontend + FastAPI backend +
+Postgres**, wired together, with a login-gated admin and a one-command Docker deployment.
 
-- **Frontend:** Next.js (React) in the repo root. Includes a PIN-gated
-  [admin panel](./docs/09-admin.md) at `/admin-tbs-digital` for editing site content.
-- **Backend:** Python + FastAPI in [`backend/`](./backend/README.md) — content + contact API.
-  **No database yet** (persistence is a JSON stand-in); the DB + real integration are the
-  colleague's task. The UI does not call it yet. See [10 — Backend](./docs/10-backend.md).
+- **Frontend:** Next.js (React) in the repo root. A login-gated, tabbed
+  [admin panel](./docs/09-admin.md) at `/admin-tbs-digital` edits site content and shows
+  incoming requests. Reads content from the API (localStorage is just an offline cache).
+- **Backend:** Python + FastAPI in [`backend/`](./backend/README.md) — content + contact +
+  auth API, backed by a **real SQL database** (SQLModel; SQLite dev / Postgres prod) with
+  **bcrypt** auth. See [10 — Backend](./docs/10-backend.md).
+- **Security:** all input validated on both layers (anti-XSS/SQLi, lengths, email/URL). See
+  [11 — Security](./docs/11-security.md).
+- **Deploy:** `cp .env.example .env && make up` starts everything. See
+  [12 — Deployment](./docs/12-deployment.md).
+- **Telegram lead bot:** `@TBS_Notification_Agent_bot` posts every new contact-form lead into a
+  private group — one topic per service, inline classification buttons, `/stats`. See
+  [13 — Telegram Bot](./docs/13-telegram.md).
 - **Site language:** Romanian (UI copy). Documentation is in English.
 
 ## Documentation
@@ -25,27 +33,40 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [06 — Placeholder Rules](./docs/06-placeholder-rules.md) | Exactly what content to remove / stub out |
 | [07 — Conventions](./docs/07-conventions.md) | Coding rules and constraints (UI-only, no API) |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
-| [09 — Admin Panel](./docs/09-admin.md) | The `/admin-tbs-digital` content editor (PIN, localStorage) |
-| [10 — Backend](./docs/10-backend.md) | The FastAPI content + contact API (JSON stand-in, no DB yet) |
+| [09 — Admin Panel](./docs/09-admin.md) | The `/admin-tbs-digital` tabbed editor + Cereri tab (real login) |
+| [10 — Backend](./docs/10-backend.md) | The FastAPI content + contact + auth API (real DB) |
+| [11 — Security](./docs/11-security.md) | Input validation & security (XSS, SQLi, lengths, auth) |
+| [12 — Deployment](./docs/12-deployment.md) | Docker Compose + Makefile + production `.env` |
+| [13 — Telegram Bot](./docs/13-telegram.md) | Lead-notification bot: per-service topics, classification buttons, /stats |
 
 ## Getting started
 
-Frontend:
+### Everything at once (Docker) — recommended
 
 ```bash
-npm install
-npm run dev      # http://localhost:3000
+cp .env.example .env     # edit the secrets (checklist inside the file)
+make up                  # db + backend + frontend
+# Frontend http://localhost:3000 · API docs http://localhost:8000/docs
 ```
 
-Backend (optional — not wired to the UI yet, see [`backend/README.md`](./backend/README.md)):
+`make` lists all targets (`down`, `logs`, `test`, `clean`, …). See
+[12 — Deployment](./docs/12-deployment.md).
+
+### Locally without Docker
 
 ```bash
+# Frontend
+npm install && npm run dev          # http://localhost:3000
+
+# Backend (SQLite by default — no Postgres needed)
 cd backend
-python -m venv .venv && ./.venv/Scripts/activate   # Linux/macOS: source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # Windows: ./.venv/Scripts/activate
 pip install -r requirements-dev.txt
 cp .env.example .env
-uvicorn app.main:app --reload --port 8000          # http://localhost:8000/docs
+uvicorn app.main:app --reload --port 8000           # http://localhost:8000/docs
 ```
+
+Point the frontend at the API with `NEXT_PUBLIC_API_URL` (see `.env.local.example`).
 
 ## Design reference
 

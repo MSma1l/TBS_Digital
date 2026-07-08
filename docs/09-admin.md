@@ -1,29 +1,42 @@
 # 09 — Admin Panel
 
-A PIN-gated panel where the agency edits the site's content. It exists **now** (built in this
-repo) as a localStorage-backed stand-in — there is still no backend. Phase 3 replaces the
-storage and the auth without touching the section components. See [08 — Roadmap](./08-roadmap.md).
+A **login-gated, tabbed** panel where the agency edits the site's content and reads incoming
+requests. It is now backed by the **FastAPI API + database** (no more localStorage stand-in for
+the source of truth). See [08 — Roadmap](./08-roadmap.md) and [10 — Backend](./10-backend.md).
 
 ## Where
 
 - **URL:** `/admin-tbs-digital`
-- **PIN:** `tbs2026` (constant `ADMIN_PIN` at the top of `app/admin-tbs-digital/page.tsx`).
-  Client-side guard only — **not real security**. Change it there; real auth arrives with the
-  backend.
+- **Login:** real username/password (`POST /api/auth/login`). Credentials are the seeded admin
+  user (`ADMIN_USERNAME` / `ADMIN_PASSWORD`, bcrypt-hashed in the DB). The returned JWT is
+  stored under `tbs_admin_token`, validated via `GET /api/auth/me` on load, cleared on logout
+  or any 401. **No more `tbs2026` PIN.**
 - Linked from the navbar's `◆ ADMIN` button (desktop + mobile menu).
 
-## What it edits
+## Layout — tabs
 
-Everything that is otherwise placeholder. Every list can be **added to, edited, and removed
-from** (each item has a ✕; each group has a "+ Adaugă …" button):
+The authenticated view is organized into tabs across the top; selecting a tab shows only that
+section. Order (the **Cereri** tab is first and is the default on open):
 
-| Group | Fields | Shows on |
-|-------|--------|----------|
-| Servicii & prețuri | name, price, description | /03 cards **and** /06 estimator |
-| Statistici | value, label | /02 stats row |
-| Echipă | name, role, bio | /05 team cards |
-| Parteneri | name | footer partners row |
-| Contact | type (email/phone/other), value | footer contact column |
+| Tab | What | Source |
+|-----|------|--------|
+| **Cereri** (first) | Contact-form submissions, newest-first, with a **count badge**, name/email/phone/message + project/estimate + timestamp, and a Refresh button. Read-only. | `GET /api/admin/submissions` |
+| Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
+| Statistici | value, label → /02 stats row | content API |
+| Echipă | name, role, bio → /05 team cards | content API |
+| Parteneri | name → footer partners row | content API |
+| Contact | type (email/phone/other), value → footer contact column | content API |
+
+Landing on **Cereri** means the agency immediately sees whether a new request came in.
+
+## Editing & validation
+
+Every editable list can be **added to, edited, and removed from** (each item has a ✕; each
+group has a "+ Adaugă …" button). **Save** does `PUT /api/content` with the bearer token;
+a 401 sends back to login. Every field is validated client-side (length caps, email/phone
+format, script/HTML blocked) via `lib/validation.ts`, mirroring the backend — Save is disabled
+while any field is invalid. The backend re-validates authoritatively (see
+[11 — Security](./11-security.md)).
 
 Notes:
 - **Services are one list** shared by the /03 cards and the estimator, so a name/price edit
@@ -36,22 +49,21 @@ Notes:
 ## How it works (data flow)
 
 ```
-lib/content.ts (defaults)
-        │
-        ▼
-lib/siteContent.tsx  ◄──  localStorage ("tbs_site_data")  ◄──  admin: edit + Save
-        │                                                        Reset → clears the key
-        ▼
-SiteContentProvider (in app/layout.tsx)  ──►  useSiteContent()  ──►  sections render
+backend DB  ◄── PUT /api/content (bearer) ◄── admin: edit + Save
+    │
+    ▼
+GET /api/content  ──►  lib/api.ts  ──►  lib/siteContent.tsx  ──►  useSiteContent()  ──► sections
+                                              ▲
+                                localStorage ("tbs_site_data") = offline cache/fallback only
 ```
 
-- **Save** writes the whole edited draft to `localStorage` under `tbs_site_data`.
-  **Reset** removes the key and restores the code defaults.
-- The homepage reads through the same store, so edits show **live** (the provider also syncs
-  across tabs via the `storage` event). Overrides are **per-browser** — a visitor on another
-  device sees the defaults until the backend exists.
-- Because every list is add/remove-able, a saved list **fully replaces** its default (a
-  missing key falls back to defaults). See `mergeSiteData` in `lib/siteContent.tsx`.
+- **Source of truth is the database.** `siteContent.tsx` renders defaults on the server + first
+  paint (no hydration mismatch), then loads `GET /api/content` and swaps it in, caching the
+  result to `localStorage` for offline resilience. If the API is unreachable, the cache (or the
+  code defaults) keeps the site working.
+- **Save** does `PUT /api/content` with the bearer token and refreshes the cache. Content is now
+  **live for every visitor**, not per-browser.
+- The `useSiteContent()` hook signature is unchanged, so the section components did not change.
 
 ## Routing
 
@@ -62,9 +74,12 @@ The admin lives **outside** the public site's chrome. `app/` uses a route group:
   landing page. The `(site)` group adds **no** URL segment.
 - `app/admin-tbs-digital/` — the panel, with no marketing chrome.
 
-## Swapping in the backend (Phase 3)
+## Frontend ↔ backend seam (implemented)
 
-Only two things change; the admin UI and the sections stay as-is:
+The integration touched exactly the store + auth, as designed — the section components are
+untouched:
 
-1. Replace the `localStorage` load/save inside `lib/siteContent.tsx` with API calls.
-2. Replace the PIN gate with real authentication.
+1. `lib/api.ts` — typed API client (`fetchContent`, `saveContent`, `submitContact`, `login`,
+   `fetchMe`, `fetchSubmissions`, token helpers) using `NEXT_PUBLIC_API_URL`.
+2. `lib/siteContent.tsx` — loads from the API with a localStorage fallback.
+3. `app/admin-tbs-digital/page.tsx` — real login replaces the PIN; tabs + Cereri added.
