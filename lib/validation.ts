@@ -98,8 +98,10 @@ export type TextRules = {
 
 /**
  * Validate one text field against `rules`. Returns a Romanian error message, or
- * `null` when the value is acceptable. Order: required → dangerous → length →
- * format. Empty optional fields pass immediately.
+ * `null` when the value is acceptable. Order: required → length → dangerous →
+ * format. Length is checked before the dangerous-content regexes (defense-in-
+ * depth: an over-long input is rejected on length before any regex runs).
+ * Empty optional fields pass immediately.
  */
 export function validateText(value: string, rules: TextRules): string | null {
   const trimmed = value.trim();
@@ -107,11 +109,11 @@ export function validateText(value: string, rules: TextRules): string | null {
   if (!trimmed) {
     return rules.required ? `${rules.label} este obligatoriu.` : null;
   }
-  if (hasDangerousContent(value)) {
-    return `${rules.label} conține caractere sau cod nepermis.`;
-  }
   if (trimmed.length > rules.max) {
     return `${rules.label} depășește ${rules.max} de caractere.`;
+  }
+  if (hasDangerousContent(value)) {
+    return `${rules.label} conține caractere sau cod nepermis.`;
   }
   if (rules.email && !isEmail(trimmed)) {
     return "Introdu o adresă de email validă.";

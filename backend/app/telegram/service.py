@@ -108,6 +108,41 @@ def parse_callback_data(data: str) -> Optional[Tuple[str, str]]:
     return submission_id, status
 
 
+# --- Authorization ---------------------------------------------------------------
+def is_authorized(
+    user_id: Any,
+    chat_id: Any,
+    settings: Any,
+    current_target_chat_id: Optional[str],
+) -> bool:
+    """Decide whether a Telegram user may run privileged actions (/register, /stats,
+    classification buttons).
+
+    There is no cheap way to fetch a group's admin list from the Bot API, so trust is
+    based on two static signals:
+
+    - **Allowlist:** ``user_id`` is one of ``settings.telegram_admin_id_set`` (the
+      ids from ``TELEGRAM_ADMIN_IDS``). This is the recommended production control.
+    - **Bound group (fallback):** *only when no allowlist is configured*, an action is
+      trusted if it originates in the group already registered/pinned as the lead
+      target (``chat_id == current_target_chat_id``). This keeps a zero-config single
+      group working while still blocking every *other* group the bot happens to be in.
+
+    Returns ``False`` when neither holds (e.g. unknown sender, foreign group).
+    """
+    admin_ids = settings.telegram_admin_id_set
+    if user_id is not None:
+        try:
+            if int(user_id) in admin_ids:
+                return True
+        except (TypeError, ValueError):
+            pass
+    # Fall back to the bound-group trust only when no explicit allowlist is set.
+    if not admin_ids and current_target_chat_id is not None:
+        return str(chat_id) == str(current_target_chat_id)
+    return False
+
+
 # --- Target resolution -----------------------------------------------------------
 def resolve_target(session: Session) -> Tuple[Optional[str], bool]:
     """Return ``(group_chat_id, is_forum)``: env var first, else the /register row."""

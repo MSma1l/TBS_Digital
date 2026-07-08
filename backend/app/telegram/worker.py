@@ -62,6 +62,17 @@ async def _handle_callback(
         await client.answer_callback_query(cq.get("id", ""))
         return
 
+    # Authorization: only allowlisted admins (or, absent an allowlist, members of the
+    # bound group) may reclassify a lead. Reject everyone else with a neutral toast
+    # and leave the lead's status untouched.
+    settings = get_settings()
+    user_id = (cq.get("from") or {}).get("id")
+    cb_chat_id = ((cq.get("message") or {}).get("chat") or {}).get("id")
+    target_chat_id, _ = service.resolve_target(session)
+    if not service.is_authorized(user_id, cb_chat_id, settings, target_chat_id):
+        await client.answer_callback_query(cq.get("id", ""), text="⛔ Neautorizat")
+        return
+
     submission_id, status = parsed
     row = service.apply_status(session, submission_id, status)
     if row is None:
@@ -94,15 +105,41 @@ async def _handle_message(
     if cmd is None:
         return
 
+    settings = get_settings()
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
     chat_type = chat.get("type")
     thread_id = message.get("message_thread_id")
+    user_id = (message.get("from") or {}).get("id")
 
     if cmd == "register":
         if chat_type not in ("group", "supergroup") or chat_id is None:
             await client.send_message(
                 chat_id, "ℹ️ Rulează /register într-un grup.", message_thread_id=thread_id
+            )
+            return
+        # Env-pinned target always wins: /register cannot repoint leads.
+        if (settings.telegram_group_chat_id or "").strip():
+            await client.send_message(
+                chat_id,
+                "ℹ️ Grupul de lead-uri este fixat prin configurare (env); "
+                "/register este dezactivat.",
+                message_thread_id=thread_id,
+            )
+            return
+        target_chat_id, _ = service.resolve_target(session)
+        # First-time bootstrap: if nothing is bound yet and no allowlist is
+        # configured, let the first group claim itself — then it's locked.
+        bootstrap = target_chat_id is None and not settings.telegram_admin_id_set
+        authorized = service.is_authorized(
+            user_id, chat_id, settings, target_chat_id
+        )
+        if not authorized and not bootstrap:
+            await client.send_message(
+                chat_id,
+                "⛔ Neautorizat: /register poate fi rulat doar de un administrator "
+                "sau din grupul deja înregistrat. Ținta nu a fost schimbată.",
+                message_thread_id=thread_id,
             )
             return
         is_forum = bool(chat.get("is_forum"))
@@ -111,17 +148,26 @@ async def _handle_message(
         if is_forum:
             await service.ensure_topic(session, client, chat_id, "", is_forum=True)
         title = escape(chat.get("title") or "acest grup")
+        lock_note = (
+            " Lead-urile sunt acum blocate pe acest grup." if bootstrap else ""
+        )
         await client.send_message(
             chat_id,
             f"✅ Înregistrat! Lead-urile noi vor apărea în <b>{title}</b>"
-            + (" (pe top-uri per serviciu)." if is_forum else "."),
+            + (" (pe top-uri per serviciu)." if is_forum else ".")
+            + lock_note,
             message_thread_id=thread_id,
         )
         return
 
     if cmd == "stats":
+        target_chat_id, is_forum = service.resolve_target(session)
+        if not service.is_authorized(user_id, chat_id, settings, target_chat_id):
+            await client.send_message(
+                chat_id, "⛔ Neautorizat.", message_thread_id=thread_id
+            )
+            return
         target_thread = thread_id
-        _, is_forum = service.resolve_target(session)
         if is_forum and chat_id is not None:
             target_thread = await service.ensure_topic(
                 session, client, chat_id, "", is_forum=True

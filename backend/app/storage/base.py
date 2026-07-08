@@ -21,8 +21,14 @@ class ContentStore(ABC):
         """Replace the whole site content document and return it."""
 
     @abstractmethod
-    def list_submissions(self) -> list[ContactSubmission]:
-        """Return all contact-form submissions (newest first)."""
+    def list_submissions(
+        self, limit: int = 50, offset: int = 0
+    ) -> list[ContactSubmission]:
+        """Return contact-form submissions (newest first), paginated.
+
+        ``limit`` bounds the number of rows returned (default 50); ``offset`` skips
+        that many of the newest rows first (default 0).
+        """
 
     @abstractmethod
     def add_submission(self, data: ContactSubmissionIn) -> ContactSubmission:

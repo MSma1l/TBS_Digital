@@ -6,11 +6,20 @@ so `GET /api/content` and `PUT /api/content` are a drop-in for the current local
 store. Keep them in sync if the frontend shape changes.
 """
 
-from typing import List, Literal
+import html
+from typing import Annotated, List, Literal
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import AfterValidator, BaseModel, EmailStr, Field, model_validator
 
 from .validators import IdStr, PhoneStr, text, validate_contact_value
+
+# Stored e-mail from the contact form. ``EmailStr`` first enforces a valid address
+# (so the endpoint still 422s on garbage), then — for symmetry with every other
+# stored free-text field — we HTML-escape the validated value so it can never carry
+# active markup into whatever renders the leads list. A valid address has no HTML
+# metacharacters, so this is a no-op in practice; it is defence in depth, applied at
+# the same write boundary as ``validators.text()``.
+StoredEmail = Annotated[EmailStr, AfterValidator(html.escape)]
 
 ContactType = Literal["email", "phone", "other"]
 
@@ -80,7 +89,7 @@ class ContactSubmissionIn(BaseModel):
     """Incoming payload from the site's contact form (+ estimator context)."""
 
     name: text(120, required=True)  # required + non-empty after trim
-    email: EmailStr = Field(max_length=254)
+    email: StoredEmail = Field(max_length=254)
     phone: PhoneStr = ""
     message: text(5000, required=True)  # required + non-empty after trim
     project: Name = ""  # selected project name from the estimator

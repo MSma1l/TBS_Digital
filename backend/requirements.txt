@@ -7,6 +7,8 @@ pydantic-settings>=2.3
 PyJWT>=2.8
 sqlmodel>=0.0.14
 bcrypt>=4.0
+# Request rate limiting (login + contact endpoints); keyed on client IP.
+slowapi>=0.1.9
 # Async HTTP client — runtime dep for the Telegram Bot API integration (app/telegram).
 httpx>=0.27
 # Postgres driver (v3). SQLite needs no extra driver; used when DATABASE_URL is postgresql://

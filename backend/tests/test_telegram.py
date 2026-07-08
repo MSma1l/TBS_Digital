@@ -187,10 +187,15 @@ def test_callback_updates_submission_status(session):
     )
     session.commit()
 
+    # Bind the group so the callback is authorized (no allowlist configured => the
+    # bound-group path grants classification rights to that chat).
+    service.set_target(session, chat_id=-1001234567890, is_forum=True)
+
     client = FakeClient()
     update = {
         "callback_query": {
             "id": "cbq-1",
+            "from": {"id": 777},
             "data": f"lead:{sub_id}:contactat",
             "message": {"message_id": 55, "chat": {"id": -1001234567890}},
         }

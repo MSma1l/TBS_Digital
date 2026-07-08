@@ -177,11 +177,12 @@ describe("validateText", () => {
     ).toBe("Numele este obligatoriu.");
   });
 
-  it("checks dangerous BEFORE length", () => {
-    // Value is both dangerous AND over-length; dangerous message must win.
+  it("checks length BEFORE dangerous", () => {
+    // Value is both over-length AND dangerous; length message must win now
+    // (length is checked before the dangerous-content regexes).
     const long = "<script>" + "a".repeat(LIMITS.name + 50);
     expect(validateText(long, { label, max: LIMITS.name })).toBe(
-      "Numele conține caractere sau cod nepermis.",
+      "Numele depășește 120 de caractere.",
     );
   });
 
