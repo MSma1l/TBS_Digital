@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored design-tool export — reference only, not our source (see README).
+    "docs/reference/**",
   ]),
 ]);
 

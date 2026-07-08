@@ -120,6 +120,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     // 1) Instant paint from the offline cache (or defaults if none).
+    // Intentional post-mount setState: the server + first client paint MUST render
+    // `defaultSiteData` to avoid a hydration mismatch (localStorage is client-only),
+    // then we swap in the cache. This is the SSR-safe pattern, not a cascading-render bug.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(loadSiteData());
 
     // 2) Fetch the source of truth and swap it in; keep the cache on failure.

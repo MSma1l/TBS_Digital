@@ -38,6 +38,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [11 — Security](./docs/11-security.md) | Input validation & security (XSS, SQLi, lengths, auth) |
 | [12 — Deployment](./docs/12-deployment.md) | Docker Compose + Makefile + production `.env` |
 | [13 — Telegram Bot](./docs/13-telegram.md) | Lead-notification bot: per-service topics, classification buttons, /stats |
+| [14 — Testing](./docs/14-testing.md) | Vitest UI/UX tests, backend pytest, live API verification script |
 
 ## Getting started
 
