@@ -44,6 +44,8 @@ services:
         condition: service_healthy
     environment:
       APP_NAME: ${APP_NAME}
+      # "development" | "production" — production turns on the fail-fast config guard.
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       # Connects to the db service over the compose network (host = "db").
       DATABASE_URL: ${DATABASE_URL}
       ADMIN_USERNAME: ${ADMIN_USERNAME}
@@ -56,6 +58,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_GROUP_CHAT_ID: ${TELEGRAM_GROUP_CHAT_ID:-}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:-}
     volumes:
       # Persist the JSON stand-in / SQLite fallback across restarts.
       - backend_data:/app/data

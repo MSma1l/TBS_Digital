@@ -17,6 +17,11 @@ services:
 
   backend:
     restart: always
+    # Force the fail-fast guard on for production, regardless of the .env value.
+    # Refuses to boot with a default/short JWT_SECRET, default ADMIN_PASSWORD,
+    # or "*" in CORS_ORIGINS.
+    environment:
+      ENVIRONMENT: production
 
   frontend:
     restart: always
