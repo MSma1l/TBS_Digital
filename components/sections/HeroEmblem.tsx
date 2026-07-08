@@ -98,7 +98,7 @@ export function HeroEmblem() {
           &gt;RENDERING... <span className={styles.hudValInline}>100%</span>
         </div>
         <div className={`mono ${styles.hudScan}`} aria-hidden>
-          //SCN_01
+          {"//SCN_01"}
         </div>
 
         <div ref={emblemRef} className={styles.emblem}>

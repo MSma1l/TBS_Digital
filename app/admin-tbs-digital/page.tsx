@@ -164,6 +164,9 @@ export default function AdminPage() {
   useEffect(() => {
     const token = getToken();
     if (!token) {
+      // Intentional post-mount setState: the server + first paint render "checking"
+      // (localStorage is client-only), then we resolve auth here. SSR-safe by design.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAuth("unauthenticated");
       return;
     }
@@ -228,6 +231,9 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (auth !== "authenticated") return;
+    // Fetches submissions (which setState internally) once authenticated — a data
+    // sync with the backend, run only after auth resolves. Intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSubmissions();
   }, [auth, loadSubmissions]);
 
