@@ -80,6 +80,7 @@
 @media (max-width: 640px) {
   .grid {
     display: flex;
+    position: relative; /* offsetParent for the auto-roll centering math */
     grid-template-columns: none;
     gap: 12px;
     overflow-x: auto;
