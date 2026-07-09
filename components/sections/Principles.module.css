@@ -62,3 +62,47 @@
   margin-top: 4px;
   text-transform: uppercase;
 }
+
+/* An empty stat box reads as broken. Give the blank ones a subtle "to be filled"
+   skeleton (matches the Team/Work placeholder language). `:empty` targets only
+   the blanks — a filled stat has value/label children. */
+.stat:empty {
+  border-style: dashed;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.stat:empty::before,
+.stat:empty::after {
+  content: "";
+  display: block;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(120, 150, 255, 0.14),
+    rgba(120, 150, 255, 0.05)
+  );
+}
+.stat:empty::before {
+  width: 44%;
+  height: 24px; /* stands in for the number */
+}
+.stat:empty::after {
+  width: 66%;
+  height: 9px; /* stands in for the label */
+}
+
+/* Mobile: fixed 2-column grids so nothing orphans. The odd 5th principle spans
+   the full width instead of leaving a dead cell beside it. */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .grid .cell:last-child {
+    grid-column: 1 / -1;
+  }
+  .stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
