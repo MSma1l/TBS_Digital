@@ -98,3 +98,48 @@
 .lineMd {
   width: 60%;
 }
+
+/* swipe affordance — only visible when the grid becomes a carousel (see below) */
+.swipeHint {
+  display: none;
+}
+
+/* ---------- mobile: turn the project stack into a swipe carousel ----------
+   Mirrors the /03 Servicii carousel. The cards already carry their own border,
+   so we only need to switch the grid into a horizontal scroll-snap track.
+   Desktop layout is untouched. Behaviour is driven by useAutoCarousel. */
+@media (max-width: 640px) {
+  .grid {
+    display: flex;
+    position: relative; /* offsetParent for the auto-roll centering math */
+    grid-template-columns: none;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* bleed to the screen edges for a full-width carousel feel */
+    margin-inline: calc(-1 * clamp(14px, 4vw, 40px));
+    padding-inline: clamp(14px, 4vw, 40px);
+    padding-bottom: 4px;
+  }
+  .grid::-webkit-scrollbar {
+    display: none;
+  }
+  .card {
+    flex: 0 0 82%;
+    scroll-snap-align: center;
+  }
+  .card:first-child {
+    scroll-snap-align: start;
+  }
+
+  .swipeHint {
+    display: block;
+    margin: 16px 0 0;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+  }
+}

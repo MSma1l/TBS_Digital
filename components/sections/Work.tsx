@@ -1,9 +1,15 @@
+"use client";
+
 import { Reveal } from "@/components/ui/Reveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
+import { useAutoCarousel } from "@/components/ui/useAutoCarousel";
 import { workPlaceholders } from "@/lib/content";
 import styles from "./Work.module.css";
 
 export function Work() {
+  // Mobile carousel: auto-rolls, pauses on manual slide (see the hook).
+  const trackRef = useAutoCarousel(workPlaceholders.length);
+
   return (
     <section id="lucrari" className={styles.section}>
       <div className="container">
@@ -20,7 +26,7 @@ export function Work() {
           </p>
         </Reveal>
 
-        <div className={styles.grid}>
+        <div ref={trackRef} className={styles.grid}>
           {workPlaceholders.map((w) => (
             <Reveal key={w.id} className={styles.card}>
               <div
@@ -39,6 +45,11 @@ export function Work() {
             </Reveal>
           ))}
         </div>
+
+        {/* mobile-only affordance for the horizontal carousel (CSS-hidden on desktop) */}
+        <p className={`mono ${styles.swipeHint}`} aria-hidden>
+          ← GLISEAZĂ ↔ {workPlaceholders.length} PROIECTE →
+        </p>
       </div>
     </section>
   );
