@@ -67,3 +67,52 @@
   font-size: 13.5px;
   margin: 9px 0 0;
 }
+
+/* swipe affordance — only visible when the grid becomes a carousel (see below) */
+.swipeHint {
+  display: none;
+}
+
+/* ---------- mobile: turn the tall 1-column stack into a swipe carousel ----------
+   On phones the auto-fit grid collapses to a single column, leaving ~10 cards
+   stacked vertically. Instead lay the cards out in a horizontal, scroll-snapping
+   track that peeks the next card. Desktop layout is untouched. */
+@media (max-width: 640px) {
+  .grid {
+    display: flex;
+    grid-template-columns: none;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* drop the hairline-grid look; each card gets its own border below */
+    background: transparent;
+    border: none;
+    /* bleed to the screen edges for a full-width carousel feel */
+    margin-inline: calc(-1 * clamp(14px, 4vw, 40px));
+    padding-inline: clamp(14px, 4vw, 40px);
+    /* room for the card lift/shadow and snap gutter */
+    padding-bottom: 4px;
+  }
+  .grid::-webkit-scrollbar {
+    display: none;
+  }
+  .card {
+    flex: 0 0 82%;
+    scroll-snap-align: center;
+    border: 1px solid var(--line);
+  }
+  .card:first-child {
+    scroll-snap-align: start;
+  }
+
+  .swipeHint {
+    display: block;
+    margin: 16px 0 0;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--dim);
+  }
+}

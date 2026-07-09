@@ -37,6 +37,11 @@ export function Services() {
             </Reveal>
           ))}
         </div>
+
+        {/* mobile-only affordance for the horizontal carousel (CSS-hidden on desktop) */}
+        <p className={`mono ${styles.swipeHint}`} aria-hidden>
+          ← GLISEAZĂ ↔ {cards.length} SERVICII →
+        </p>
       </div>
     </section>
   );
