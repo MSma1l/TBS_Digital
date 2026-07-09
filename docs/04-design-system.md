@@ -71,3 +71,33 @@ Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fade
 - Respect `prefers-reduced-motion` for the reveal/orbit/marquee animations.
 - All sizes use `clamp()`/relative units; verify the mobile menu and single-column
   collapse at small widths.
+
+## Mobile (≤ 640px)
+
+The single mobile breakpoint is **`max-width: 640px`** (the navbar burger switches at
+860px). Next auto-injects `width=device-width, initial-scale=1`, so no viewport meta
+is defined by hand.
+
+- **Overflow-safe grids.** Every `auto-fit` grid uses
+  `repeat(auto-fit, minmax(min(100%, N), 1fr))`. The `min(100%, N)` lets a track
+  shrink below its `N` floor on narrow phones instead of forcing horizontal overflow
+  (which `body { overflow-x: hidden }` would otherwise silently clip).
+- **Section carousels.** `/03 Servicii` and `/04 Proiecte` turn their card grid into a
+  horizontal **scroll-snap carousel** below 640px (peeks the next card, full-bleed,
+  hidden scrollbar, `← GLISEAZĂ →` hint). Behaviour is driven by the shared
+  **`components/ui/useAutoCarousel.ts`** hook:
+  - auto-advances one card every **2s**; **only starts once the track is first
+    scrolled into view** (IntersectionObserver) — it never rolls a section the user
+    hasn't reached;
+  - a manual slide (touch, mouse-drag **or** trackpad/`wheel`) pauses it and it
+    resumes **5s** after the slide settles, continuing from the current card;
+  - reveals every slide up front (a horizontal scroller never intersects the viewport,
+    so the normal scroll-reveal would leave off-screen cards hidden);
+  - fully **off on desktop and under `prefers-reduced-motion`**, and paused while the
+    tab is hidden.
+- **No orphaned cells.** Odd-count grids are pinned to 2 columns on mobile and the lone
+  last item spans the full width: `/02` principles (`.cell:last-child { grid-column: 1 / -1 }`)
+  and the footer partner chips (`.partner:last-child:nth-child(odd)`).
+- **Placeholder stat boxes.** The blank `/02` stats use `:empty` to show a subtle dashed
+  "to-be-filled" skeleton (faint number + label bars) instead of reading as broken empty
+  boxes; a filled stat (has children) is unaffected.

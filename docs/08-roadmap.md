@@ -90,6 +90,15 @@ action authorization (`/register` hijack closed), bcrypt 72-byte + JWT aud/iss. 
 [`SECURITY.md`](../SECURITY.md), the per-topic skills ([15 — Security Skills](./15-security-skills.md)),
 and `backend/tests/test_security_*.py`.
 
+## Phase 3g — Mobile UI pass (done)
+
+Responsive polish for phones (single `≤640px` breakpoint): overflow-safe grids,
+`/03 Servicii` and `/04 Proiecte` turned into auto-rolling scroll-snap carousels
+(shared `useAutoCarousel` hook — starts on first view, pauses on manual slide,
+resumes after 5s), `/02` orphan-cell fix + skeleton placeholders for blank stats,
+and a tidy 2-column footer partners grid. See
+[04 — Design System → Mobile](./04-design-system.md#mobile--640px).
+
 ## Phase 4 — Production polish (remaining)
 
 Not blockers for running the app, but recommended before going fully live:
@@ -112,4 +121,6 @@ Not blockers for running the app, but recommended before going fully live:
 | 3c — Security & admin UX | This repo | Done |
 | 3d — Deployment (Docker/Make) | This repo | Done |
 | 3e — Telegram lead bot | This repo | Done |
+| 3f — Security hardening & pentest | This repo | Done |
+| 3g — Mobile UI pass | This repo | Done |
 | 4 — Production polish | This repo | Remaining |
