@@ -100,6 +100,13 @@ export function Services() {
     const onScroll = () => {
       if (paused) scheduleResume();
     };
+    // Trackpad / mouse-wheel sliding emits `wheel` (never `pointerdown`), and a
+    // programmatic scrollTo never emits `wheel` — so this is an unambiguous
+    // "user is sliding" signal. Pause immediately and start the resume clock.
+    const onWheel = () => {
+      pause();
+      scheduleResume();
+    };
 
     const onVisibility = () => (document.hidden ? stop() : start());
     const onMqChange = () => start();
@@ -111,6 +118,7 @@ export function Services() {
     track.addEventListener("touchend", scheduleResume, { passive: true });
     track.addEventListener("touchcancel", scheduleResume, { passive: true });
     track.addEventListener("scroll", onScroll, { passive: true });
+    track.addEventListener("wheel", onWheel, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
     mqMobile.addEventListener("change", onMqChange);
     mqReduce.addEventListener("change", onMqChange);
@@ -127,6 +135,7 @@ export function Services() {
       track.removeEventListener("touchend", scheduleResume);
       track.removeEventListener("touchcancel", scheduleResume);
       track.removeEventListener("scroll", onScroll);
+      track.removeEventListener("wheel", onWheel);
       document.removeEventListener("visibilitychange", onVisibility);
       mqMobile.removeEventListener("change", onMqChange);
       mqReduce.removeEventListener("change", onMqChange);
