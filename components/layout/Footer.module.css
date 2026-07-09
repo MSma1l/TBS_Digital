@@ -33,6 +33,23 @@
   letter-spacing: 0.04em;
 }
 
+/* Mobile: content-width chips wrap raggedly and orphan the last one. Lay them
+   out as an even 2-column grid of equal, centred chips; a lone last chip (odd
+   total count) spans the full width instead of sitting alone in a half row. */
+@media (max-width: 640px) {
+  .partners {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .partner {
+    text-align: center;
+  }
+  .partner:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
 .columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
