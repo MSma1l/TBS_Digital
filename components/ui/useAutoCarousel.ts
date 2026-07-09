@@ -16,6 +16,8 @@ const RESUME_MS = 5000;
  *  - Advances one slide every ~2s, but only when the track is actually a
  *    horizontal scroller (mobile ≤640px) and the user hasn't asked for reduced
  *    motion. On desktop / reduced-motion it does nothing.
+ *  - Does not start until the carousel is first scrolled into view — if the user
+ *    never reaches the section, it never begins rolling.
  *  - A manual slide (touch, mouse-drag or trackpad/wheel) pauses the auto-roll
  *    and it resumes 5s after the slide settles, continuing from the current card.
  *  - Reveals every slide up front: a horizontal scroller never intersects the
@@ -38,6 +40,7 @@ export function useAutoCarousel(itemCount: number): RefObject<HTMLDivElement | n
     let resumeTimer: number | undefined;
     let index = 0;
     let paused = false;
+    let hasBeenSeen = false; // stays false until the carousel first enters the viewport
 
     const items = () => Array.from(track.children) as HTMLElement[];
 
@@ -81,6 +84,7 @@ export function useAutoCarousel(itemCount: number): RefObject<HTMLDivElement | n
     const start = () => {
       stop();
       if (!mqMobile.matches) return;
+      if (!hasBeenSeen) return; // don't roll until the user actually reaches it
       revealAll();
       if (mqReduce.matches) return; // visible, just not auto-rolling
       timer = window.setInterval(tick, ROLL_MS);
@@ -115,6 +119,18 @@ export function useAutoCarousel(itemCount: number): RefObject<HTMLDivElement | n
     const onVisibility = () => (document.hidden ? stop() : start());
     const onMqChange = () => start();
 
+    // Begin rolling only once the carousel is first scrolled into view.
+    const seenObserver = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        hasBeenSeen = true;
+        seenObserver.disconnect();
+        start();
+      },
+      { threshold: 0.25 },
+    );
+    seenObserver.observe(track);
+
     track.addEventListener("pointerdown", pause);
     track.addEventListener("touchstart", pause, { passive: true });
     track.addEventListener("pointerup", scheduleResume);
@@ -132,6 +148,7 @@ export function useAutoCarousel(itemCount: number): RefObject<HTMLDivElement | n
     return () => {
       stop();
       if (resumeTimer) window.clearTimeout(resumeTimer);
+      seenObserver.disconnect();
       track.removeEventListener("pointerdown", pause);
       track.removeEventListener("touchstart", pause);
       track.removeEventListener("pointerup", scheduleResume);
