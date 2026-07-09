@@ -5,8 +5,10 @@
 #   * stops publishing Postgres to the host (only the backend, on the internal
 #     network, needs it),
 #   * always restarts services.
-# Put this behind an HTTPS reverse proxy (Caddy/Nginx/Traefik) that terminates
-# TLS and forwards to frontend:3000 and backend:8000.
+#
+# Targets server-lucru-1: the shared `nginx_proxy` container terminates TLS and
+# reaches these containers BY NAME over `shared-network`, so nothing here needs
+# a published host port. See deploy/nginx/tbs.conf and docs/12-deployment.md.
 
 services:
   db:
@@ -16,12 +18,32 @@ services:
     ports: []
 
   backend:
+    # nginx_proxy resolves this exact name via Docker's internal DNS; without a
+    # fixed container_name Compose would generate <project>-backend-1 and the
+    # vhost's `set $back` would never resolve.
+    container_name: tbs-digital-backend
     restart: always
     # Force the fail-fast guard on for production, regardless of the .env value.
     # Refuses to boot with a default/short JWT_SECRET, default ADMIN_PASSWORD,
     # or "*" in CORS_ORIGINS.
     environment:
       ENVIRONMENT: production
+    # Reachable only through the proxy — the host port stays closed.
+    ports: []
+    networks:
+      - default          # to reach `db`
+      - shared-network   # so nginx_proxy can proxy /api/ here
 
   frontend:
+    container_name: tbs-digital-frontend
     restart: always
+    ports: []
+    networks:
+      - default
+      - shared-network
+
+networks:
+  # Created once, outside this project, and shared with nginx_proxy. Compose
+  # must attach to it rather than try to create it.
+  shared-network:
+    external: true

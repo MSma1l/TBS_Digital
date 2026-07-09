@@ -14,6 +14,18 @@ export default function SiteLayout({
       <Navbar />
       {children}
       <Footer />
+      {/* Analytics pixel. Mounted here rather than in the root layout so it never
+          loads on /admin-tbs-digital: the tracker's click handler reads
+          `el.value` for inputs, which would ship the admin password to
+          /px/collect. Plain <script async> (not next/script) so React hoists it
+          into the server-rendered <head> — the tracker resolves its site id via
+          document.currentScript, and it patches history itself, so App Router
+          client-side navigations are already counted. */}
+      <script
+        async
+        src="https://statistica.tbs.md/px/t.js"
+        data-site="6749e0d58765467495183773e68168a5"
+      />
     </>
   );
 }

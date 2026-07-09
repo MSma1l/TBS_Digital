@@ -71,6 +71,91 @@ Override the compose command for the legacy plugin: `make COMPOSE="docker-compos
 - [ ] Run behind HTTPS / a reverse proxy; stop publishing Postgres (5432) publicly.
 - [ ] Add rate limiting (see [11 — Security](./11-security.md)).
 
+## Deploy pe server-lucru-1 (tbs.md)
+
+Serverul rulează un singur reverse proxy comun (`nginx_proxy`) care deține 80/443 și
+ajunge la fiecare aplicație **după numele containerului**, pe rețeaua `shared-network`.
+Nu publicăm porturi pe host: `docker-compose.prod.yml` le închide (`ports: []`) și fixează
+`container_name` la `tbs-digital-frontend` / `tbs-digital-backend` — exact numele pe care le
+caută vhost-ul.
+
+> ⚠️ **`tbs.md` este deja folosit** de aplicația `webdev`, prin `conf.d/tbs.conf`.
+> Pașii de mai jos **înlocuiesc** acel vhost, deci site-ul vechi iese din aer la reload.
+> Certificatul `tbs.md` există deja, deci **nu e nevoie de certbot**.
+
+### 1. `.env` pe server (scris direct, nu copiat cu scp)
+
+```bash
+mkdir -p /root/tbs-digital && cd /root/tbs-digital
+cat > .env <<'EOF'
+ENVIRONMENT=production
+POSTGRES_USER=tbs
+POSTGRES_PASSWORD=INLOCUIESTE_DB
+POSTGRES_DB=tbs_digital
+DATABASE_URL=postgresql://tbs:INLOCUIESTE_DB@db:5432/tbs_digital
+APP_NAME=TBS Digital
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=INLOCUIESTE_ADMIN
+JWT_SECRET=INLOCUIESTE_JWT
+JWT_EXPIRE_MINUTES=60
+# Aceeași origine ca frontend-ul: browserul cheamă https://tbs.md/api/...
+CORS_ORIGINS=https://tbs.md
+NEXT_PUBLIC_API_URL=https://tbs.md
+TELEGRAM_BOT_TOKEN=INLOCUIESTE_TOKEN
+TELEGRAM_GROUP_CHAT_ID=
+EOF
+chmod 600 .env
+```
+
+Generează secretele pe server: `openssl rand -hex 32` (JWT), `openssl rand -hex 24` (DB).
+
+`NEXT_PUBLIC_API_URL` este **inlined în bundle-ul de browser la build**, deci trebuie să fie
+URL-ul public, nu `http://backend:8000`. Pus pe aceeași origine, apelurile devin same-origin
+și CORS nici nu intră în discuție. Dacă îl schimbi, **rebuild** imaginea frontend.
+
+### 2. Pornește stack-ul
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker network inspect shared-network | grep tbs-digital   # ambele containere trebuie să apară
+```
+
+### 3. Backup la vhost-ul vechi, apoi înlocuiește-l
+
+```bash
+cp /root/nginx-proxy/conf.d/tbs.conf /root/tbs.conf.webdev.bak   # ← plasa de siguranță
+cp deploy/nginx/tbs.conf /root/nginx-proxy/conf.d/tbs.conf
+docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
+```
+
+`nginx -t` validează înainte de reload; dacă pică, **nu** da reload — nimic nu s-a schimbat încă.
+
+### 4. Verifică
+
+```bash
+curl -I https://tbs.md                      # 200, de la Next
+curl -s https://tbs.md/api/content | head   # JSON, de la FastAPI
+```
+
+### Rollback (dacă ceva e stricat)
+
+```bash
+cp /root/tbs.conf.webdev.bak /root/nginx-proxy/conf.d/tbs.conf
+docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
+```
+
+### De verificat o singură dată
+
+Vhost-ul servește și `www.tbs.md`. Confirmă că certificatul acoperă ambele nume, altfel
+`www` va da eroare de certificat în browser:
+
+```bash
+docker run --rm -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot certificates | grep -A3 'tbs.md'
+```
+
+Dacă lipsește `www.tbs.md`, scoate-l din `server_name` în blocul `:443` sau reemite certul cu
+`-d tbs.md -d www.tbs.md`.
+
 ## Local dev without Docker
 
 ```bash
