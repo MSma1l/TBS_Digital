@@ -9,6 +9,8 @@ import styles from "./Services.module.css";
 
 /** Auto-advance interval for the mobile carousel (ms). */
 const ROLL_MS = 2000;
+/** After a manual slide, wait this long (from when it settles) before auto-rolling again. */
+const RESUME_MS = 5000;
 
 export function Services() {
   const { services } = useSiteContent();
@@ -80,16 +82,23 @@ export function Services() {
       timer = window.setInterval(tick, ROLL_MS);
     };
 
+    // The user grabbed the track — stop auto-rolling and drop any pending resume.
     const pause = () => {
       paused = true;
       if (resumeTimer) window.clearTimeout(resumeTimer);
     };
+    // Resume RESUME_MS after the slide settles. While paused the auto-roll never
+    // scrolls, so every scroll event here is the user's own slide/momentum —
+    // each one pushes the countdown out, so it only resumes once movement stops.
     const scheduleResume = () => {
       if (resumeTimer) window.clearTimeout(resumeTimer);
       resumeTimer = window.setTimeout(() => {
         index = nearestIndex(); // continue from where the user left off
         paused = false;
-      }, ROLL_MS + 1500);
+      }, RESUME_MS);
+    };
+    const onScroll = () => {
+      if (paused) scheduleResume();
     };
 
     const onVisibility = () => (document.hidden ? stop() : start());
@@ -98,7 +107,10 @@ export function Services() {
     track.addEventListener("pointerdown", pause);
     track.addEventListener("touchstart", pause, { passive: true });
     track.addEventListener("pointerup", scheduleResume);
+    track.addEventListener("pointercancel", scheduleResume);
     track.addEventListener("touchend", scheduleResume, { passive: true });
+    track.addEventListener("touchcancel", scheduleResume, { passive: true });
+    track.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
     mqMobile.addEventListener("change", onMqChange);
     mqReduce.addEventListener("change", onMqChange);
@@ -111,7 +123,10 @@ export function Services() {
       track.removeEventListener("pointerdown", pause);
       track.removeEventListener("touchstart", pause);
       track.removeEventListener("pointerup", scheduleResume);
+      track.removeEventListener("pointercancel", scheduleResume);
       track.removeEventListener("touchend", scheduleResume);
+      track.removeEventListener("touchcancel", scheduleResume);
+      track.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisibility);
       mqMobile.removeEventListener("change", onMqChange);
       mqReduce.removeEventListener("change", onMqChange);
