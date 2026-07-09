@@ -89,7 +89,9 @@
 }
 
 .title {
-  font-size: clamp(52px, 10vw, 120px);
+  /* 44px floor keeps "DIGITAL" on one line on ~320px phones; 10vw/120px cap
+     is unchanged above 440px, so desktop sizing is untouched */
+  font-size: clamp(44px, 10vw, 120px);
   line-height: 0.9;
   margin: 20px 0 0;
 }
@@ -368,6 +370,24 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   margin: -8px 0 0;
+}
+
+/*
+ * Phones: the HUD coord readout normally juts slightly past the emblem's right
+ * edge (right: -6px). On a narrow, centred emblem that overhang is clipped by
+ * the page's overflow-x:hidden, so tuck it fully inside the stage instead.
+ */
+@media (max-width: 640px) {
+  .hudCoords {
+    right: 2px;
+    top: 6px;
+    font-size: 9.5px;
+    padding: 6px 8px;
+  }
+  .meta {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
 }
 
 /* motion off: JS skips the scroll reveal, so show the full wordmark statically */
