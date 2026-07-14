@@ -33,6 +33,14 @@ Required fields (contact `name`, `email`, `message`) must be non-empty **after t
 Each content list (services, stats, team, partners, contacts) is capped at **200 items**
 (`MAX_LIST_ITEMS`) so a `PUT /api/content` can't be used to flood the database.
 
+### The admin panel is not advertised
+The public site carries **no link to `/admin-tbs-digital`**. A button in the navbar would
+have published the admin's path in the markup of every page — free reconnaissance for
+anyone scraping the site — and a visitor has no use for it; the admin types the URL. This
+is obscurity, not a control (the route is still guarded by a real login and rate-limited),
+so it only removes a free hint. `components/__tests__/navbar.test.tsx` pins it so the
+button can't quietly come back.
+
 ### Links (partner site / logo) — rejected, never escaped
 A partner's `url` and `logo` are the only fields that land in an `href`/`src`, so they are
 **rejected on a strict shape** instead of being HTML-escaped (escaping would corrupt a real

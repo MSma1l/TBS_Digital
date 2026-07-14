@@ -23,6 +23,7 @@ import {
 import {
   services as defaultServices,
   partners as defaultPartners,
+  projects as defaultProjects,
   teamPlaceholders,
   statPlaceholders,
   contacts as defaultContacts,
@@ -46,6 +47,20 @@ export type PartnerItem = {
   /** Bundled asset (`/partners/…`) or an uploaded logo (`/api/uploads/…`). */
   logo: string;
   url: string;
+  /** Screenshot of the partner's site, revealed on hover (shown outright on mobile). */
+  preview: string;
+};
+
+/** A delivered project on the /04 grid. See `Project` in `lib/content.ts`. */
+export type ProjectItem = {
+  id: string;
+  name: string;
+  tag: string;
+  desc: string;
+  url: string;
+  appStore: string;
+  playStore: string;
+  images: string[];
 };
 
 export type SiteData = {
@@ -53,6 +68,7 @@ export type SiteData = {
   /** Single source for the /03 cards and the /07 estimator (name + price). */
   services: ServiceItem[];
   team: TeamItem[];
+  projects: ProjectItem[];
   partners: PartnerItem[];
   contacts: ContactItem[];
 };
@@ -62,6 +78,7 @@ export const defaultSiteData: SiteData = {
   stats: statPlaceholders.map((s) => ({ id: s.id, value: "", label: "" })),
   services: defaultServices.map((s) => ({ ...s })),
   team: teamPlaceholders.map((t) => ({ id: t.id, name: "", role: "", bio: "" })),
+  projects: defaultProjects.map((p) => ({ ...p, images: [...p.images] })),
   partners: defaultPartners.map((p) => ({ ...p })),
   contacts: defaultContacts.map((c) => ({ ...c })),
 };
@@ -80,6 +97,7 @@ export function mergeSiteData(overrides: Partial<SiteData> | null | undefined): 
     stats: overrides.stats ?? defaultSiteData.stats,
     services: overrides.services ?? defaultSiteData.services,
     team: overrides.team ?? defaultSiteData.team,
+    projects: overrides.projects ?? defaultSiteData.projects,
     partners: overrides.partners ?? defaultSiteData.partners,
     contacts: overrides.contacts ?? defaultSiteData.contacts,
   };

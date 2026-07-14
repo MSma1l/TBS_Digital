@@ -19,6 +19,17 @@ logger = logging.getLogger("app.telegram")
 # SiteContent (MAX_LIST_ITEMS) further bound how much a valid PUT can store.
 MAX_BODY_BYTES = 1_000_000  # 1 MB
 
+# The image upload is the one endpoint whose body is legitimately large — a screenshot
+# straight off a phone easily clears 1 MB. It gets its own, higher ceiling: the route is
+# admin-only and rate-limited, and the image is decoded, downscaled and re-encoded on
+# arrival (routers/uploads.py), so what actually lands on disk is a few dozen KB.
+MAX_UPLOAD_BODY_BYTES = 10_000_000  # 10 MB
+UPLOAD_PATH = "/api/admin/uploads"
+
+
+def _body_limit_for(path: str) -> int:
+    return MAX_UPLOAD_BODY_BYTES if path.startswith(UPLOAD_PATH) else MAX_BODY_BYTES
+
 
 def _client_ip(request: Request) -> str:
     """Rate-limit key: the real client IP, honouring a proxy's X-Forwarded-For.
@@ -48,28 +59,34 @@ from .telegram.worker import run_worker  # noqa: E402
 
 
 class BodySizeLimitMiddleware:
-    """Pure-ASGI guard capping the request body at ``max_body_bytes``.
+    """Pure-ASGI guard capping the request body, per route.
 
     Unlike a Content-Length-only check, this also caps chunked / missing-length
     bodies: it buffers the incoming body with a hard ceiling and returns 413 the
     moment the ceiling is crossed, regardless of what the header claims. The buffered
     body is then replayed to the downstream app so normal parsing is unaffected.
+
+    The ceiling depends on the path (``limit_for``): JSON endpoints get the tight
+    default, while the admin image upload — whose body is *supposed* to be an image —
+    gets a larger one.
     """
 
-    def __init__(self, app, max_body_bytes: int = MAX_BODY_BYTES) -> None:
+    def __init__(self, app, limit_for=_body_limit_for) -> None:
         self.app = app
-        self.max_body_bytes = max_body_bytes
+        self.limit_for = limit_for
 
     async def __call__(self, scope, receive, send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
+        max_body_bytes = self.limit_for(scope.get("path", ""))
+
         # Fast path: reject on a declared, over-large Content-Length.
         for name, value in scope.get("headers") or []:
             if name == b"content-length":
                 try:
-                    if int(value) > self.max_body_bytes:
+                    if int(value) > max_body_bytes:
                         await self._reject(send)
                         return
                 except ValueError:
@@ -87,7 +104,7 @@ class BodySizeLimitMiddleware:
                 return
             body += message.get("body", b"")
             more_body = message.get("more_body", False)
-            if len(body) > self.max_body_bytes:
+            if len(body) > max_body_bytes:
                 await self._reject(send)
                 return
 
@@ -183,7 +200,7 @@ app.add_middleware(
 )
 
 # Body-size cap sits above CORS.
-app.add_middleware(BodySizeLimitMiddleware, max_body_bytes=MAX_BODY_BYTES)
+app.add_middleware(BodySizeLimitMiddleware)
 
 
 # Security headers on every response. Registered last => outermost middleware, so it

@@ -4,6 +4,12 @@ import { useState } from "react";
 import { navLinks } from "@/lib/content";
 import styles from "./Navbar.module.css";
 
+/**
+ * Public navigation. It deliberately carries **no link to the admin panel**: the admin
+ * reaches `/admin-tbs-digital` by typing the URL. A button here would have published the
+ * admin's path in the markup of every page, handing it to anyone scraping the site — and
+ * it bought nothing, since a visitor has no use for it.
+ */
 export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
@@ -28,9 +34,6 @@ export function Navbar() {
                 {i < navLinks.length - 1 && <span className={styles.plus}>+</span>}
               </span>
             ))}
-            <a href="/admin-tbs-digital" className={`mono ${styles.admin}`}>
-              ◆ ADMIN
-            </a>
             <a href="#contact" className={`mono ${styles.cta}`}>
               START PROIECT ↗
             </a>
@@ -70,9 +73,6 @@ export function Navbar() {
               {link.label.charAt(0) + link.label.slice(1).toLowerCase()}
             </a>
           ))}
-          <a href="/admin-tbs-digital" onClick={close} className={`mono ${styles.overlayAdmin}`}>
-            ◆ ADMIN — setează prețuri
-          </a>
           <a href="#contact" onClick={close} className={`mono ${styles.overlayCta}`}>
             START PROIECT ↗
           </a>

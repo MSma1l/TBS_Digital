@@ -2,7 +2,8 @@
 Logo upload — the only endpoint that accepts binary content.
 
 Admin-only, and deliberately narrow: a partner logo is a small raster image, so the
-endpoint accepts nothing else.
+endpoint accepts nothing else. Whatever arrives is decoded, downscaled and re-encoded
+before it is written, so the bytes we store are ours, not the client's.
 
 Security notes (see docs/11-security.md):
 - **SVG is refused.** An SVG is XML and can carry ``<script>`` / event handlers, so a
@@ -15,13 +16,31 @@ Security notes (see docs/11-security.md):
   pick its own extension.
 - The body is capped twice: once here (``MAX_UPLOAD_BYTES``, streamed so an oversized
   file is abandoned mid-read) and once by ``BodySizeLimitMiddleware``.
+- **Decompression bombs are rejected.** ``Image.open`` only parses the header, so the
+  declared pixel count is checked (``MAX_IMAGE_PIXELS``) *before* the pixels are
+  decoded: a 50000x50000 "PNG bomb" compresses to a few KB but would allocate
+  gigabytes. It is refused with a 400.
+- **A decode failure is a 400, never a 500.** Valid magic bytes + a garbage body is a
+  client error, so every Pillow failure mode is funnelled into one clean response.
+
+Storage notes:
+- The image is re-encoded to **WebP** (quality 82), which beats both PNG and JPEG on
+  screenshots and logos alike, and downscaled so the longest side is at most 1600px
+  (never upscaled). A 5 MB phone photo lands on disk at a few dozen KB.
+- **Alpha survives.** The partner logos are white-on-transparent PNGs; flattening them
+  onto a white background would visually destroy them. WebP supports alpha, and RGBA
+  images are re-encoded as RGBA.
+- **EXIF/ICC/XMP metadata is stripped** — it can carry GPS coordinates (a privacy leak
+  for anything uploaded straight from a phone) and it bloats the file.
 """
 
+import io
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from PIL import Image, ImageFile, UnidentifiedImageError
 
 from ..config import get_settings
 from ..main import limiter
@@ -30,14 +49,33 @@ from ..security import get_current_admin
 
 router = APIRouter(prefix="/api/admin/uploads", tags=["uploads"])
 
-# A logo is a small image; anything larger is a mistake or an abuse attempt.
-MAX_UPLOAD_BYTES = 512 * 1024  # 512 KB
+# A logo is a small image; anything larger is a mistake or an abuse attempt. This has to
+# stay below ``main.MAX_BODY_BYTES`` (1 MB): BodySizeLimitMiddleware caps the *whole*
+# multipart body and runs first, so a router cap above it could never be reached.
+MAX_UPLOAD_BYTES = 900 * 1024  # 900 KB
 _CHUNK_BYTES = 64 * 1024
+
+# Longest side of the stored image. Never upscales — a smaller logo is left as-is.
+MAX_DIMENSION = 1600
+_WEBP_QUALITY = 82
+_WEBP_METHOD = 6  # slowest/best of Pillow's WebP effort levels; images here are small.
+
+# Decompression-bomb ceiling: a few-KB PNG can declare 50000x50000 (2.5e9 px) and
+# balloon to gigabytes once decoded. 40 MP is far above any real logo or screenshot.
+MAX_IMAGE_PIXELS = 40_000_000
+# Belt and braces: Pillow raises DecompressionBombError past 2x its own limit, which we
+# pin to ours, and we check the header size explicitly as well (below).
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+# A truncated file must fail loudly (-> 400) rather than decode to a half-grey image.
+ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 # Magic-byte prefix -> the extension we store the file under. WebP is
 # "RIFF....WEBP", so its check needs the bytes at offset 8 as well.
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _JPEG_MAGIC = b"\xff\xd8\xff"
+
+# Modes that carry an alpha channel (P can, via a "transparency" info key).
+_ALPHA_MODES = {"RGBA", "LA", "PA", "La"}
 
 
 def _extension_for(head: bytes) -> Optional[str]:
@@ -49,6 +87,78 @@ def _extension_for(head: bytes) -> Optional[str]:
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return "webp"
     return None
+
+
+def _has_alpha(image: Image.Image) -> bool:
+    """True if the image carries transparency in any of the forms Pillow represents it."""
+    return image.mode in _ALPHA_MODES or "transparency" in image.info
+
+
+def _carries_metadata(image: Image.Image) -> bool:
+    """True if the source carries EXIF/ICC/XMP — i.e. bytes we must not keep verbatim."""
+    return any(image.info.get(key) for key in ("exif", "icc_profile", "xmp"))
+
+
+def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
+    """Decode, downscale and re-encode ``body`` to WebP. Returns ``(bytes, extension)``.
+
+    Raises ``HTTPException(400)`` for anything Pillow cannot safely decode — a corrupt
+    body, an unsupported variant, or a decompression bomb.
+
+    If the WebP re-encode comes out *larger* than what arrived (already-optimal or
+    very small sources), the original bytes are kept instead — unless they carry
+    metadata, in which case the stripped WebP wins anyway: we never write EXIF/GPS to
+    disk just to save a few bytes.
+    """
+    try:
+        with Image.open(io.BytesIO(body)) as source:
+            # Image.open() has only parsed the header at this point, so the declared
+            # dimensions are known while the pixels are still un-decoded. Refuse a bomb
+            # here, before any allocation.
+            width, height = source.size
+            if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+                raise _bad_image("Imagine prea mare (rezoluție).")
+
+            source.load()  # decode; a truncated/corrupt body blows up here
+
+            # Alpha must survive: the partner logos are white-on-transparent PNGs, and
+            # flattening them onto a white background would make them invisible.
+            target_mode = "RGBA" if _has_alpha(source) else "RGB"
+            image = source.convert(target_mode)
+            had_metadata = _carries_metadata(source)
+
+        image.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
+
+        # Rebuild from raw pixels: the new Image has an empty ``info``, so no EXIF (GPS!),
+        # ICC profile or XMP block can ride along into the encoder.
+        clean = Image.frombytes(target_mode, image.size, image.tobytes())
+
+        buffer = io.BytesIO()
+        clean.save(
+            buffer,
+            format="WEBP",
+            quality=_WEBP_QUALITY,
+            method=_WEBP_METHOD,
+            exif=b"",
+            icc_profile=b"",
+        )
+    except HTTPException:
+        raise
+    except Image.DecompressionBombError:
+        raise _bad_image("Imagine prea mare (rezoluție).")
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError, MemoryError):
+        # Corrupt body, truncated file, unsupported variant, hostile input — all of them
+        # are the client's problem, so none of them may surface as a 500/traceback.
+        raise _bad_image()
+
+    encoded = buffer.getvalue()
+    if len(encoded) >= len(body) and not had_metadata:
+        return body, source_extension
+    return encoded, "webp"
+
+
+def _bad_image(detail: str = "Imagine invalidă sau coruptă.") -> HTTPException:
+    return HTTPException(status.HTTP_400_BAD_REQUEST, detail)
 
 
 def uploads_dir() -> Path:
@@ -77,6 +187,7 @@ async def upload_logo(
                 f"Logo prea mare (max {MAX_UPLOAD_BYTES // 1024} KB).",
             )
 
+    # The magic bytes decide the format — never the Content-Type or the filename.
     extension = _extension_for(body)
     if extension is None:
         raise HTTPException(
@@ -84,8 +195,13 @@ async def upload_logo(
             "Format neacceptat. Încarcă un PNG, JPG sau WebP.",
         )
 
+    # Re-encode before writing: shrink it, strip its metadata, and make the stored bytes
+    # ours. The extension follows whatever we actually wrote, so the returned URL and the
+    # StaticFiles mount stay in sync.
+    stored, extension = compress_image(body, extension)
+
     name = f"{uuid.uuid4().hex}.{extension}"
-    (uploads_dir() / name).write_bytes(body)
+    (uploads_dir() / name).write_bytes(stored)
 
     # Served by the StaticFiles mount in main.py. Site-relative on purpose: it passes
     # the frontend's LinkStr validation and survives a change of backend host.

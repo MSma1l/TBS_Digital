@@ -9,6 +9,7 @@ same values in its initial migration.
 from .schemas import (
     Contact,
     Partner,
+    Project,
     Service,
     SiteContent,
     Stat,
@@ -29,6 +30,29 @@ _SERVICES = [
 ]
 
 
+# Project descriptions — taken from what each product actually does, not invented.
+# Fayr Family is intentionally blank: its copy, store links and screenshots are filled in
+# from the admin (the card renders fine without any of them).
+_BIZCHECK_DESC = (
+    "Platformă de autoevaluare a riscurilor pentru IMM-uri, pe metodologia Crowe: teste "
+    "interactive, șabloane juridice pe blocuri și un raport PDF detaliat la final."
+)
+_ITARA_DESC = (
+    "Site corporativ pentru o companie de software: hero, servicii IT end-to-end, stack "
+    "tehnologic și dovezi sociale — construit pentru viteză și pentru conversie."
+)
+_DOCUSAFE_DESC = (
+    "Platformă SaaS de gestiune a documentelor, construită integral de noi: stocare "
+    "securizată, editare colaborativă direct în browser, căutare full-text și procesare "
+    "asincronă."
+)
+_IQ_ARENA_DESC = (
+    "Simulator de negocieri pentru Corporate Governance Academy: ateliere practice, o "
+    "ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate."
+)
+_FAYR_DESC = ""
+
+
 def default_partners() -> list[Partner]:
     """The real partners. Logos are bundled assets under the frontend's `public/`."""
     return [
@@ -37,18 +61,87 @@ def default_partners() -> list[Partner]:
             name="Crowe Turcan Mikhailenko",
             logo="/partners/crowe.png",
             url="https://crowe-tm.md",
+            preview="/partners/previews/crowe.png",
         ),
         Partner(
             id="cgam",
             name="CGAM Business Academy",
             logo="/partners/cgam.png",
             url="https://cgam.md",
+            preview="/partners/previews/cgam.png",
         ),
         Partner(
             id="ivan-turcan",
             name="Ivan Turcan",
             logo="/partners/ivan-turcan.png",
             url="https://turcan.md",
+            preview="/partners/previews/ivan-turcan.png",
+        ),
+    ]
+
+
+def default_projects() -> list[Project]:
+    """The delivered projects on the /04 grid.
+
+    Screenshots are bundled assets under the frontend's `public/projects/` (mixed png/jpg
+    — whichever kept the file small). DocuSafe and Fayr Family ship with no gallery yet;
+    their screenshots are uploaded from the admin. Store links are left empty on purpose:
+    a card only renders the store button whose link is actually set.
+    """
+    return [
+        Project(
+            id="bizcheck",
+            name="BizCheck",
+            tag="PLATFORMĂ WEB",
+            desc=_BIZCHECK_DESC,
+            url="https://bizcheck.md",
+            images=[
+                "/projects/bizcheck-1.jpg",
+                "/projects/bizcheck-2.png",
+                "/projects/bizcheck-3.png",
+                "/projects/bizcheck-4.png",
+            ],
+        ),
+        Project(
+            id="itara-global",
+            name="Itara Global",
+            tag="SITE CORPORATIV",
+            desc=_ITARA_DESC,
+            url="https://itara-global.md",
+            images=[
+                "/projects/itara-1.jpg",
+                "/projects/itara-2.png",
+                "/projects/itara-3.png",
+                "/projects/itara-4.png",
+            ],
+        ),
+        Project(
+            id="docusafe",
+            name="DocuSafe",
+            tag="PLATFORMĂ SAAS",
+            desc=_DOCUSAFE_DESC,
+            url="https://docusafe.tbs.md",
+            images=[],
+        ),
+        Project(
+            id="iq-arena",
+            name="IQ Arena",
+            tag="APLICAȚIE MOBILĂ",
+            desc=_IQ_ARENA_DESC,
+            url="https://cgam.md",
+            images=[
+                "/projects/iq-arena-1.png",
+                "/projects/iq-arena-2.png",
+                "/projects/iq-arena-3.jpg",
+                "/projects/iq-arena-4.png",
+            ],
+        ),
+        Project(
+            id="fayr-family",
+            name="Fayr Family",
+            tag="APLICAȚIE MOBILĂ",
+            desc=_FAYR_DESC,
+            images=[],
         ),
     ]
 
@@ -76,6 +169,7 @@ def default_content() -> SiteContent:
         services=services,
         team=[TeamMember(id=f"t{i}") for i in range(1, 5)],  # 4 blank placeholders
         partners=default_partners(),
+        projects=default_projects(),
         contacts=[
             Contact(id="c-email", type="email", value="contact@tbsdigital.ro"),
             Contact(id="c-phone", type="phone", value="+373 600 00 000"),

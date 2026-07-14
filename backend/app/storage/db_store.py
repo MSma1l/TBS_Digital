@@ -20,6 +20,8 @@ from sqlmodel import Session, select
 from ..models import (
     ContactRow,
     PartnerRow,
+    ProjectImageRow,
+    ProjectRow,
     ServiceRow,
     StatRow,
     SubmissionRow,
@@ -30,6 +32,7 @@ from ..schemas import (
     ContactSubmission,
     ContactSubmissionIn,
     Partner,
+    Project,
     Service,
     SiteContent,
     Stat,
@@ -62,12 +65,24 @@ class DbStore(ContentStore):
                 select(ServiceRow).order_by(ServiceRow.position)
             ).all()
             team = session.exec(select(TeamRow).order_by(TeamRow.position)).all()
+            projects = session.exec(
+                select(ProjectRow).order_by(ProjectRow.position)
+            ).all()
+            # One query for every gallery, grouped in memory — a query per project would
+            # be N+1.
+            image_rows = session.exec(
+                select(ProjectImageRow).order_by(ProjectImageRow.position)
+            ).all()
             partners = session.exec(
                 select(PartnerRow).order_by(PartnerRow.position)
             ).all()
             contacts = session.exec(
                 select(ContactRow).order_by(ContactRow.position)
             ).all()
+
+        images_by_project: dict = {}
+        for row in image_rows:
+            images_by_project.setdefault(row.project_id, []).append(row.url)
 
         # model_construct: stored values are already validated/escaped on write.
         return SiteContent.model_construct(
@@ -91,8 +106,27 @@ class DbStore(ContentStore):
                 )
                 for r in team
             ],
+            projects=[
+                Project.model_construct(
+                    id=r.id,
+                    name=r.name,
+                    tag=r.tag,
+                    desc=r.description,
+                    url=r.url,
+                    appStore=r.app_store,
+                    playStore=r.play_store,
+                    images=images_by_project.get(r.id, []),
+                )
+                for r in projects
+            ],
             partners=[
-                Partner.model_construct(id=r.id, name=r.name, logo=r.logo, url=r.url)
+                Partner.model_construct(
+                    id=r.id,
+                    name=r.name,
+                    logo=r.logo,
+                    url=r.url,
+                    preview=r.preview,
+                )
                 for r in partners
             ],
             contacts=[
@@ -107,6 +141,7 @@ class DbStore(ContentStore):
             self._sync_stats(session, content.stats)
             self._sync_services(session, content.services)
             self._sync_team(session, content.team)
+            self._sync_projects(session, content.projects)
             self._sync_contacts(session, content.contacts)
             self._sync_partners(session, content.partners)
             session.commit()
@@ -170,6 +205,35 @@ class DbStore(ContentStore):
             session.add(row)
 
     @staticmethod
+    def _sync_projects(session: Session, items: List[Project]) -> None:
+        keep = {i.id for i in items}
+        existing = {r.id: r for r in session.exec(select(ProjectRow)).all()}
+        for row_id, row in existing.items():
+            if row_id not in keep:
+                session.delete(row)
+        for pos, item in enumerate(items):
+            row = existing.get(item.id) or ProjectRow(id=item.id)
+            row.name = item.name
+            row.tag = item.tag
+            row.description = item.desc
+            row.url = item.url
+            row.app_store = item.appStore
+            row.play_store = item.playStore
+            row.position = pos
+            session.add(row)
+
+        # Images carry no stable id — replace each project's gallery wholesale, and drop
+        # the galleries of projects that no longer exist.
+        for row in session.exec(select(ProjectImageRow)).all():
+            session.delete(row)
+        session.flush()  # the deletes must land before the re-inserts below
+        for item in items:
+            for pos, url in enumerate(item.images):
+                session.add(
+                    ProjectImageRow(project_id=item.id, url=url, position=pos)
+                )
+
+    @staticmethod
     def _sync_partners(session: Session, items: List[Partner]) -> None:
         keep = {i.id for i in items}
         existing = {r.id: r for r in session.exec(select(PartnerRow)).all()}
@@ -178,10 +242,11 @@ class DbStore(ContentStore):
                 session.delete(row)
         for pos, item in enumerate(items):
             row = existing.get(item.id) or PartnerRow(id=item.id)
-            row.name, row.logo, row.url, row.position = (
+            row.name, row.logo, row.url, row.preview, row.position = (
                 item.name,
                 item.logo,
                 item.url,
+                item.preview,
                 pos,
             )
             session.add(row)

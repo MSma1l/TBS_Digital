@@ -34,8 +34,17 @@ Grid of service cards (icon, name, description). Original has 11.
 
 ## /04 — Selected Work ("Proiecte pe care le-am creat")
 
-Heading + subtitle, then portfolio cards (thumbnail, code, name, tag, description).
-→ **Placeholder cards only** — no names, tags, codes, or descriptions (see rules doc).
+Heading + subtitle, then a card per delivered project: a **rotating gallery** of
+screenshots (they cross-fade every few seconds, pause on hover, and open full-screen in a
+lightbox on click), the category chip, name, description, a link to the live product, and
+the mobile **download buttons**. A store button only appears once its link is set, and the
+visitor is offered the one that matches their device — App Store on iOS, Google Play on
+Android, both on desktop (`components/ui/usePlatform.ts`).
+
+Real content: BizCheck, Itara Global, DocuSafe, IQ Arena, Fayr Family. Screenshots live in
+`public/projects/`. A project with no screenshots yet renders an "ÎN CURÂND" placeholder
+rather than collapsing. Fully editable from the admin's **Proiecte** tab, gallery included
+— see [09 — Admin](./09-admin.md).
 
 ## /05 — Team ("Oamenii din spatele codului")
 
@@ -48,6 +57,9 @@ also hardcoded stats — treat them under the same placeholder rule (see rules d
 
 Heading + lead, a strip of partner logo cards (logo, name, link to the partner's own
 site), then a "Devino partener" call-to-action panel that mails `office@crowe-tm.md`.
+Each card also carries a **preview screenshot of the partner's site**: it fades in behind
+the logo on hover (desktop) and is simply shown from the start on touch devices, where no
+hover exists.
 Real content, not placeholders: Crowe Turcan Mikhailenko, CGAM Business Academy and
 Ivan Turcan. Logos are monochrome-white PNGs on transparent backgrounds (the section
 renders on the dark background) and live in `public/partners/`.

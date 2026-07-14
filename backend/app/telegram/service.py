@@ -159,11 +159,23 @@ def resolve_target(session: Session) -> Tuple[Optional[str], bool]:
 
 
 def set_target(session: Session, chat_id: Any, is_forum: bool) -> None:
-    """Persist the group captured via /register (single-row settings table)."""
+    """Persist the group captured via /register (single-row settings table).
+
+    Re-registering a *different* group also drops every stored forum topic. A thread id
+    only means something inside the group it was created in, so carrying the old group's
+    topics over would make every subsequent lead notification fail ("message thread not
+    found"). Cleared here, they are simply recreated on demand in the new group.
+    """
+    new_chat_id = str(chat_id)
+
     row = session.exec(select(TelegramSetting)).first()
     if row is None:
         row = TelegramSetting(id=1)
-    row.group_chat_id = str(chat_id)
+    elif row.group_chat_id and row.group_chat_id != new_chat_id:
+        for topic in session.exec(select(TelegramTopic)).all():
+            session.delete(topic)
+
+    row.group_chat_id = new_chat_id
     row.is_forum = bool(is_forum)
     session.add(row)
     session.commit()

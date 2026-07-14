@@ -27,6 +27,9 @@
 }
 
 .logoCard {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   flex: 1;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -47,6 +50,63 @@
   background: rgba(120, 150, 255, 0.05);
 }
 
+.logoCard:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-color: var(--line2);
+}
+
+/* Only cards that actually have a preview reserve room for one — a partner
+   without a shot keeps the original, tighter card. */
+.hasPreview {
+  min-height: 172px;
+}
+
+/* ---------- website preview ---------- */
+/* Mobile/touch first: the shot is simply there. Desktop pointers get the
+   hover reveal further down, where a hover actually exists. */
+.preview {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  transition:
+    opacity 0.45s ease,
+    transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.previewImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Anchor on the hero: the interesting part of a homepage is its top. */
+  object-position: 50% 0;
+  display: block;
+}
+
+/* Dark scrim so the white logo/name stay readable over bright screenshots. */
+.preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(4, 6, 14, 0.66) 0%,
+    rgba(4, 6, 14, 0.82) 55%,
+    rgba(4, 6, 14, 0.92) 100%
+  );
+}
+
+/* Logo + name ride above the preview. */
+.face {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
 /* Logos are monochrome white on transparent; they sit back until hovered. */
 .logo {
   height: 46px;
@@ -57,8 +117,14 @@
   transition: opacity 0.2s;
 }
 
-.logoCard:hover .logo {
+.logoCard:hover .logo,
+.logoCard:focus-visible .logo {
   opacity: 1;
+}
+
+.hasPreview .logo,
+.hasPreview .wordmark {
+  filter: drop-shadow(0 2px 12px rgba(4, 6, 14, 0.9));
 }
 
 /* Fallback when a partner has no logo yet. */
@@ -74,12 +140,51 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-align: center;
-  color: var(--dim);
-  transition: color 0.2s;
+  color: var(--txt);
+  opacity: 0.72;
+  transition: opacity 0.2s;
 }
 
-.logoCard:hover .partnerName {
-  color: var(--mut);
+.logoCard:hover .partnerName,
+.logoCard:focus-visible .partnerName {
+  opacity: 1;
+}
+
+.hasPreview .partnerName {
+  opacity: 0.9;
+  text-shadow: 0 2px 10px rgba(4, 6, 14, 0.9);
+}
+
+/* Desktop with a real pointer: hold the preview back, then fade + settle it in. */
+@media (hover: hover) and (pointer: fine) and (min-width: 769px) {
+  .preview {
+    opacity: 0;
+    transform: scale(1.07);
+  }
+
+  .logoCard:hover .preview,
+  .logoCard:focus-visible .preview {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* With the shot showing, the panel tint would only mud it up. */
+  .logoCard.hasPreview:hover {
+    background: var(--panel);
+    border-color: var(--line2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview {
+    transition: opacity 0.01ms linear;
+    transform: none;
+  }
+
+  .logoCard:hover .preview,
+  .logoCard:focus-visible .preview {
+    transform: none;
+  }
 }
 
 /* ---------- become a partner ---------- */

@@ -5,7 +5,18 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { partnershipEmail } from "@/lib/content";
 import { mediaUrl } from "@/lib/api";
 import { useSiteContent } from "@/lib/siteContent";
+import type { PartnerItem } from "@/lib/siteContent";
 import styles from "./Partners.module.css";
+
+/**
+ * Website preview shot for a partner (`/partners/previews/…`), or "" when the
+ * partner has none — those cards keep rendering exactly as they did before.
+ * Read defensively so the section survives content served by an older backend
+ * that predates the `preview` field.
+ */
+function previewOf(p: PartnerItem): string {
+  return "preview" in p && typeof p.preview === "string" ? p.preview : "";
+}
 
 export function Partners() {
   const { partners } = useSiteContent();
@@ -30,12 +41,15 @@ export function Partners() {
         <div className={styles.logos}>
           {partners.map((p) => {
             const logo = mediaUrl(p.logo);
+            const preview = mediaUrl(previewOf(p));
             // A partner with no link is still shown — just not clickable.
             const Card = p.url ? "a" : "div";
             return (
               <Reveal key={p.id} className={styles.logoCell}>
                 <Card
-                  className={styles.logoCard}
+                  className={`${styles.logoCard} ${
+                    preview ? styles.hasPreview : ""
+                  }`}
                   {...(p.url
                     ? {
                         href: p.url,
@@ -44,22 +58,40 @@ export function Partners() {
                       }
                     : {})}
                 >
-                  {logo ? (
-                    // Plain <img>: logos are admin-supplied, of arbitrary aspect
-                    // ratio, and may be served from the backend origin — next/image
-                    // would need a remotePatterns entry per deploy host to optimise
-                    // them, for assets already only a few KB.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={logo}
-                      alt={p.name}
-                      loading="lazy"
-                      className={styles.logo}
-                    />
-                  ) : (
-                    <span className={`disp ${styles.wordmark}`}>{p.name}</span>
-                  )}
-                  <span className={`mono ${styles.partnerName}`}>{p.name}</span>
+                  {preview ? (
+                    <span className={styles.preview} aria-hidden="true">
+                      {/* Decorative: the card already announces the partner by
+                          name, so an alt here would only double-read. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={preview}
+                        alt=""
+                        loading="lazy"
+                        className={styles.previewImg}
+                      />
+                    </span>
+                  ) : null}
+
+                  <span className={styles.face}>
+                    {logo ? (
+                      // Plain <img>: logos are admin-supplied, of arbitrary aspect
+                      // ratio, and may be served from the backend origin — next/image
+                      // would need a remotePatterns entry per deploy host to optimise
+                      // them, for assets already only a few KB.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logo}
+                        alt={p.name}
+                        loading="lazy"
+                        className={styles.logo}
+                      />
+                    ) : (
+                      <span className={`disp ${styles.wordmark}`}>{p.name}</span>
+                    )}
+                    <span className={`mono ${styles.partnerName}`}>
+                      {p.name}
+                    </span>
+                  </span>
                 </Card>
               </Reveal>
             );

@@ -243,6 +243,48 @@ def test_build_stats_counts(session):
     assert "Câștigat: <b>1</b>" in text
 
 
+# --- /idchat ---------------------------------------------------------------------
+def _idchat_update(chat_id: int, chat_type: str = "supergroup"):
+    return {
+        "message": {
+            "message_id": 1,
+            "chat": {"id": chat_id, "type": chat_type},
+            "from": {"id": 42},
+            "text": "/idchat",
+        }
+    }
+
+
+def test_idchat_reports_chat_id_and_binding(session):
+    service.set_target(session, -1001234567890, is_forum=False)
+    client = FakeClient()
+
+    asyncio.run(
+        process_update(
+            session, client, _idchat_update(-1001234567890), bot_username="TestBot"
+        )
+    )
+
+    text = client.sent[-1]["text"]
+    assert "<code>-1001234567890</code>" in text
+    assert "Lead-urile vin în acest chat" in text
+
+
+def test_idchat_does_not_leak_the_bound_group_to_a_stranger(session):
+    """A foreign chat learns only that leads go elsewhere — never *where*."""
+    service.set_target(session, -1001234567890, is_forum=False)
+    client = FakeClient()
+
+    asyncio.run(
+        process_update(session, client, _idchat_update(-100999), bot_username="TestBot")
+    )
+
+    text = client.sent[-1]["text"]
+    assert "<code>-100999</code>" in text  # its own id, which it already knows
+    assert "1001234567890" not in text  # but not the bound group's
+    assert "merg în alt chat" in text
+
+
 # --- no token => no-op, but the API still works ----------------------------------
 def test_no_token_is_noop_and_contact_returns_201():
     # No TELEGRAM_* env set in this module => integration disabled.

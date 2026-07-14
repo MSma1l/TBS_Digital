@@ -54,6 +54,34 @@ class ContactRow(SQLModel, table=True):
     position: int = 0
 
 
+class ProjectRow(SQLModel, table=True):
+    __tablename__ = "projects"
+
+    id: str = Field(primary_key=True)
+    name: str = ""
+    tag: str = ""
+    description: str = ""  # maps to schema field `desc` (a SQL keyword)
+    url: str = ""
+    app_store: str = ""  # maps to schema field `appStore`
+    play_store: str = ""  # maps to schema field `playStore`
+    position: int = 0
+
+
+class ProjectImageRow(SQLModel, table=True):
+    """One screenshot in a project's rotating gallery.
+
+    Images carry no identity of their own (they are just an ordered list of paths), so
+    a save replaces a project's images wholesale rather than upserting by id.
+    """
+
+    __tablename__ = "project_images"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    project_id: str = Field(index=True)
+    url: str = ""
+    position: int = 0
+
+
 class PartnerRow(SQLModel, table=True):
     """A partner: display name, logo reference and a link to their own site.
 
@@ -68,6 +96,7 @@ class PartnerRow(SQLModel, table=True):
     name: str = ""
     logo: str = ""  # bundled asset path or an uploaded /api/uploads/… path
     url: str = ""
+    preview: str = ""  # screenshot of the partner's site, revealed on hover
     position: int = 0
 
 

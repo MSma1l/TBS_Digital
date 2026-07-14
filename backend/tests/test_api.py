@@ -16,7 +16,14 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app.main import app  # noqa: E402
 
-EMPTY = {"stats": [], "services": [], "team": [], "partners": [], "contacts": []}
+EMPTY = {
+    "stats": [],
+    "services": [],
+    "team": [],
+    "projects": [],
+    "partners": [],
+    "contacts": [],
+}
 
 
 @pytest.fixture(scope="module")
@@ -81,9 +88,14 @@ def test_put_and_read_back(client):
     payload = {
         **EMPTY,
         "stats": [{"id": "s1", "value": "50+", "label": "PROIECTE"}],
+        "projects": [
+            {"id": "biz", "name": "BizCheck", "tag": "WEB", "desc": "O platformă.",
+             "url": "https://bizcheck.md", "appStore": "", "playStore": "",
+             "images": ["/projects/bizcheck-1.jpg", "/projects/bizcheck-2.png"]}
+        ],
         "partners": [
             {"id": "acme", "name": "ACME", "logo": "/partners/acme.png",
-             "url": "https://acme.md"}
+             "url": "https://acme.md", "preview": ""}
         ],
     }
     r = client.put(
@@ -93,7 +105,12 @@ def test_put_and_read_back(client):
     back = client.get("/api/content").json()
     assert back["partners"] == [
         {"id": "acme", "name": "ACME", "logo": "/partners/acme.png",
-         "url": "https://acme.md"}
+         "url": "https://acme.md", "preview": ""}
+    ]
+    # The gallery round-trips in order.
+    assert back["projects"][0]["images"] == [
+        "/projects/bizcheck-1.jpg",
+        "/projects/bizcheck-2.png",
     ]
     assert back["stats"][0]["value"] == "50+"
 

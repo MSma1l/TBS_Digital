@@ -42,7 +42,19 @@ const sampleContent: SiteData = {
     { id: "landing", name: "Landing page", desc: "O pagina.", price: "€500" },
   ],
   team: [{ id: "t1", name: "Ion", role: "Dev", bio: "Bio." }],
-  partners: [{ id: "acme", name: "ACME", logo: "", url: "" }],
+  partners: [{ id: "acme", name: "ACME", logo: "", url: "", preview: "" }],
+  projects: [
+    {
+      id: "proj-1",
+      name: "BizCheck",
+      tag: "PLATFORMĂ WEB",
+      desc: "O platformă.",
+      url: "https://bizcheck.md",
+      appStore: "",
+      playStore: "",
+      images: [],
+    },
+  ],
   contacts: [{ id: "c1", type: "email", value: "a@b.com" }],
 };
 

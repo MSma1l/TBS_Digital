@@ -51,7 +51,14 @@ import styles from "./admin.module.css";
 type AuthState = "checking" | "unauthenticated" | "authenticated";
 
 /** The editor tabs, in display order — "cereri" is first (default). */
-type TabId = "cereri" | "services" | "stats" | "team" | "partners" | "contact";
+type TabId =
+  | "cereri"
+  | "services"
+  | "stats"
+  | "team"
+  | "projects"
+  | "partners"
+  | "contact";
 
 const genId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
@@ -69,6 +76,13 @@ const RULES = {
   partner: { label: "Numele partenerului", max: LIMITS.short },
   partnerUrl: { label: "Site-ul partenerului", max: LIMITS.link, link: true },
   partnerLogo: { label: "Logo-ul", max: LIMITS.link, link: true },
+  partnerPreview: { label: "Previzualizarea site-ului", max: LIMITS.link, link: true },
+  projectName: { label: "Numele proiectului", max: LIMITS.name },
+  projectTag: { label: "Categoria", max: 40 },
+  projectDesc: { label: "Descrierea", max: 600 },
+  projectUrl: { label: "Link-ul proiectului", max: LIMITS.link, link: true },
+  projectAppStore: { label: "Link-ul App Store", max: LIMITS.link, link: true },
+  projectPlayStore: { label: "Link-ul Google Play", max: LIMITS.link, link: true },
 } satisfies Record<string, TextRules>;
 
 /** Validation rules for a contact value, which depend on its type. */
@@ -99,12 +113,24 @@ function sanitizeDraft(d: SiteData): SiteData {
       role: sanitizeText(m.role),
       bio: sanitizeText(m.bio),
     })),
+    projects: d.projects.map((p) => ({
+      ...p,
+      name: sanitizeText(p.name),
+      tag: sanitizeText(p.tag),
+      desc: sanitizeText(p.desc),
+      url: sanitizeLink(p.url),
+      appStore: sanitizeLink(p.appStore),
+      playStore: sanitizeLink(p.playStore),
+      // An image that doesn't survive sanitizing is dropped from the gallery entirely.
+      images: p.images.map(sanitizeLink).filter(Boolean),
+    })),
     partners: d.partners.map((p) => ({
       ...p,
       name: sanitizeText(p.name),
       // Links are dropped rather than rewritten — see sanitizeLink.
       logo: sanitizeLink(p.logo),
       url: sanitizeLink(p.url),
+      preview: sanitizeLink(p.preview),
     })),
     contacts: d.contacts.map((c) => ({ ...c, value: sanitizeText(c.value) })),
   };
@@ -130,11 +156,21 @@ function draftHasErrors(d: SiteData): boolean {
         !!validateText(m.role, RULES.teamRole) ||
         !!validateText(m.bio, RULES.teamBio),
     ) ||
+    d.projects.some(
+      (p) =>
+        !!validateText(p.name, RULES.projectName) ||
+        !!validateText(p.tag, RULES.projectTag) ||
+        !!validateText(p.desc, RULES.projectDesc) ||
+        !!validateText(p.url, RULES.projectUrl) ||
+        !!validateText(p.appStore, RULES.projectAppStore) ||
+        !!validateText(p.playStore, RULES.projectPlayStore),
+    ) ||
     d.partners.some(
       (p) =>
         !!validateText(p.name, RULES.partner) ||
         !!validateText(p.url, RULES.partnerUrl) ||
-        !!validateText(p.logo, RULES.partnerLogo),
+        !!validateText(p.logo, RULES.partnerLogo) ||
+        !!validateText(p.preview, RULES.partnerPreview),
     ) ||
     d.contacts.some((c) => !!validateText(c.value, contactRules(c.type)))
   );
@@ -151,6 +187,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "services", label: "Servicii & prețuri" },
   { id: "stats", label: "Statistici" },
   { id: "team", label: "Echipă" },
+  { id: "projects", label: "Proiecte" },
   { id: "partners", label: "Parteneri" },
   { id: "contact", label: "Contact" },
 ];
@@ -169,9 +206,11 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  // Logo upload (Parteneri tab): index of the partner currently uploading, if any.
-  const [logoUploading, setLogoUploading] = useState<number | null>(null);
-  const [logoError, setLogoError] = useState("");
+  // Image upload (Parteneri + Proiecte tabs). `uploadingKey` identifies the row whose
+  // upload is in flight (e.g. "partner:2" / "project:0"), so only that row shows a
+  // spinner and a second upload can't start on top of it.
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState("");
 
   // Contact submissions (Cereri tab).
   const [submissions, setSubmissions] = useState<ContactSubmissionRecord[] | null>(
@@ -333,7 +372,11 @@ export default function AdminPage() {
     setDraft((d) => ({ ...d, team: d.team.filter((_, idx) => idx !== i) }));
 
   // ---- partners -------------------------------------------------------------
-  const setPartner = (i: number, field: "name" | "logo" | "url", val: string) =>
+  const setPartner = (
+    i: number,
+    field: "name" | "logo" | "url" | "preview",
+    val: string,
+  ) =>
     setDraft((d) => ({
       ...d,
       partners: d.partners.map((p, idx) =>
@@ -345,46 +388,118 @@ export default function AdminPage() {
       ...d,
       partners: [
         ...d.partners,
-        { id: genId("p"), name: "", logo: "", url: "" },
+        { id: genId("p"), name: "", logo: "", url: "", preview: "" },
       ],
     }));
   const removePartner = (i: number) =>
     setDraft((d) => ({ ...d, partners: d.partners.filter((_, idx) => idx !== i) }));
 
   /**
-   * Upload a logo and point the partner at the stored path. The file itself is
-   * saved immediately (it is content-addressed by a uuid, so an abandoned upload
-   * is just an orphan file); the partner row only persists on Save like every
-   * other field.
+   * Upload an image and hand the stored path to `apply`. The file itself is saved
+   * immediately (it is named by a uuid, so an abandoned upload is just an orphan
+   * file); the row that points at it only persists on Save, like every other field.
    */
-  const onLogoPicked = async (i: number, file: File) => {
+  const uploadImage = async (
+    key: string,
+    file: File,
+    apply: (url: string) => void,
+  ) => {
     const token = getToken();
     if (!token) {
       setAuth("unauthenticated");
       return;
     }
-    setLogoUploading(i);
-    setLogoError("");
+    setUploadingKey(key);
+    setUploadError("");
     try {
-      const url = await uploadLogo(file, token);
-      setPartner(i, "logo", url);
+      apply(await uploadLogo(file, token));
     } catch (err) {
       if (isUnauthorized(err)) {
         clearToken();
         setAuth("unauthenticated");
         return;
       }
-      setLogoError(
+      setUploadError(
         isNetworkError(err)
-          ? "Serverul nu răspunde — logo-ul nu a fost încărcat."
+          ? "Serverul nu răspunde — imaginea nu a fost încărcată."
           : err instanceof Error
             ? err.message
-            : "Încărcarea logo-ului a eșuat.",
+            : "Încărcarea imaginii a eșuat.",
       );
     } finally {
-      setLogoUploading(null);
+      setUploadingKey(null);
     }
   };
+
+  // ---- projects -------------------------------------------------------------
+  const setProject = (
+    i: number,
+    field: "name" | "tag" | "desc" | "url" | "appStore" | "playStore",
+    val: string,
+  ) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) =>
+        idx === i ? { ...p, [field]: val } : p,
+      ),
+    }));
+  const addProject = () =>
+    setDraft((d) => ({
+      ...d,
+      projects: [
+        ...d.projects,
+        {
+          id: genId("proj"),
+          name: "",
+          tag: "",
+          desc: "",
+          url: "",
+          appStore: "",
+          playStore: "",
+          images: [],
+        },
+      ],
+    }));
+  const removeProject = (i: number) =>
+    setDraft((d) => ({ ...d, projects: d.projects.filter((_, idx) => idx !== i) }));
+
+  const setProjectImages = (i: number, images: string[]) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) => (idx === i ? { ...p, images } : p)),
+    }));
+
+  const addProjectImage = (i: number, url: string) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) =>
+        idx === i ? { ...p, images: [...p.images, url] } : p,
+      ),
+    }));
+
+  const removeProjectImage = (i: number, imageIndex: number) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) =>
+        idx === i
+          ? { ...p, images: p.images.filter((_, k) => k !== imageIndex) }
+          : p,
+      ),
+    }));
+
+  /** Move one screenshot within a project's gallery — the order is the rotation order. */
+  const moveProjectImage = (i: number, imageIndex: number, delta: number) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) => {
+        if (idx !== i) return p;
+        const target = imageIndex + delta;
+        if (target < 0 || target >= p.images.length) return p;
+        const images = [...p.images];
+        [images[imageIndex], images[target]] = [images[target], images[imageIndex]];
+        return { ...p, images };
+      }),
+    }));
 
   // ---- contacts -------------------------------------------------------------
   const setContact = (i: number, field: "type" | "value", val: string) =>
@@ -792,8 +907,8 @@ export default function AdminPage() {
               site-ul partenerului. Încarcă un PNG, JPG sau WebP de max 512 KB —
               ideal alb, pe fundal transparent (site-ul are fundal închis).
             </p>
-            {logoError && (
-              <p className={`mono ${styles.fieldError}`}>{logoError}</p>
+            {uploadError && (
+              <p className={`mono ${styles.fieldError}`}>{uploadError}</p>
             )}
             <div className={styles.grid2}>
               {draft.partners.map((p, i) => (
@@ -845,16 +960,21 @@ export default function AdminPage() {
                       )}
                       <div className={styles.logoActions}>
                         <label className={`mono ${styles.uploadBtn}`}>
-                          {logoUploading === i ? "Se încarcă…" : "Încarcă logo"}
+                          {uploadingKey === `partner:${i}`
+                            ? "Se încarcă…"
+                            : "Încarcă logo"}
                           <input
                             type="file"
                             accept="image/png,image/jpeg,image/webp"
-                            disabled={logoUploading !== null}
+                            disabled={uploadingKey !== null}
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               // Reset the input so re-picking the same file fires onChange again.
                               e.target.value = "";
-                              if (file) void onLogoPicked(i, file);
+                              if (file)
+                                void uploadImage(`partner:${i}`, file, (url) =>
+                                  setPartner(i, "logo", url),
+                                );
                             }}
                             className={styles.fileInput}
                           />
@@ -872,11 +992,254 @@ export default function AdminPage() {
                     </div>
                     <FieldError msg={validateText(p.logo, RULES.partnerLogo)} />
                   </div>
+
+                  <div className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Previzualizare site (la hover)
+                    </span>
+                    <div className={styles.logoRow}>
+                      {p.preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(p.preview)}
+                          alt={`Previzualizare ${p.name}`}
+                          className={styles.logoPreview}
+                        />
+                      ) : (
+                        <span className={`mono ${styles.logoEmpty}`}>
+                          fără previzualizare
+                        </span>
+                      )}
+                      <div className={styles.logoActions}>
+                        <label className={`mono ${styles.uploadBtn}`}>
+                          {uploadingKey === `preview:${i}`
+                            ? "Se încarcă…"
+                            : "Încarcă imaginea"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={uploadingKey !== null}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file)
+                                void uploadImage(`preview:${i}`, file, (url) =>
+                                  setPartner(i, "preview", url),
+                                );
+                            }}
+                            className={styles.fileInput}
+                          />
+                        </label>
+                        {p.preview && (
+                          <button
+                            type="button"
+                            onClick={() => setPartner(i, "preview", "")}
+                            className={`mono ${styles.linkBtn}`}
+                          >
+                            Elimină
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <FieldError
+                      msg={validateText(p.preview, RULES.partnerPreview)}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
             <button type="button" onClick={addPartner} className={`mono ${styles.addBtn}`}>
               + Adaugă partener
+            </button>
+          </section>
+        )}
+
+        {/* ---------- projects ---------- */}
+        {tab === "projects" && (
+          <section className={styles.panel}>
+            <h2 className={`mono ${styles.panelTitle}`}>PROIECTE</h2>
+            <p className={styles.panelHint}>
+              Cardurile din secțiunea „Proiecte pe care le-am creat”. Imaginile se
+              rotesc automat pe card și se deschid mărite la click — prima imagine
+              este cea afișată întâi. Butoanele App Store / Google Play apar doar
+              dacă le completezi linkul, iar vizitatorul vede butonul potrivit
+              dispozitivului lui.
+            </p>
+            {uploadError && (
+              <p className={`mono ${styles.fieldError}`}>{uploadError}</p>
+            )}
+            <div className={styles.grid2}>
+              {draft.projects.map((p, i) => (
+                <div key={p.id} className={styles.rowCard}>
+                  <div className={styles.rowHead}>
+                    <span className={`mono ${styles.rowTag}`}>Proiect {i + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeProject(i)}
+                      className={styles.removeBtn}
+                      aria-label="Șterge proiectul"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Nume</span>
+                    <input
+                      value={p.name}
+                      onChange={(e) => setProject(i, "name", e.target.value)}
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError msg={validateText(p.name, RULES.projectName)} />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Categorie (ex: APLICAȚIE MOBILĂ)
+                    </span>
+                    <input
+                      value={p.tag}
+                      onChange={(e) => setProject(i, "tag", e.target.value)}
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError msg={validateText(p.tag, RULES.projectTag)} />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Descriere</span>
+                    <textarea
+                      rows={3}
+                      value={p.desc}
+                      onChange={(e) => setProject(i, "desc", e.target.value)}
+                      className={styles.textarea}
+                    />
+                    <FieldError msg={validateText(p.desc, RULES.projectDesc)} />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Link proiect</span>
+                    <input
+                      value={p.url}
+                      onChange={(e) => setProject(i, "url", e.target.value)}
+                      placeholder="https://exemplu.md"
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError msg={validateText(p.url, RULES.projectUrl)} />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Link App Store (iOS)
+                    </span>
+                    <input
+                      value={p.appStore}
+                      onChange={(e) => setProject(i, "appStore", e.target.value)}
+                      placeholder="https://apps.apple.com/..."
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError
+                      msg={validateText(p.appStore, RULES.projectAppStore)}
+                    />
+                  </label>
+
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Link Google Play (Android)
+                    </span>
+                    <input
+                      value={p.playStore}
+                      onChange={(e) => setProject(i, "playStore", e.target.value)}
+                      placeholder="https://play.google.com/store/apps/..."
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError
+                      msg={validateText(p.playStore, RULES.projectPlayStore)}
+                    />
+                  </label>
+
+                  <div className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Imagini ({p.images.length}) — se rotesc în ordinea de mai jos
+                    </span>
+                    <div className={styles.shotList}>
+                      {p.images.map((src, k) => (
+                        <div key={src} className={styles.shotRow}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={mediaUrl(src)}
+                            alt={`${p.name} — captură ${k + 1}`}
+                            className={styles.shotThumb}
+                          />
+                          <div className={styles.shotBtns}>
+                            <button
+                              type="button"
+                              onClick={() => moveProjectImage(i, k, -1)}
+                              disabled={k === 0}
+                              className={`mono ${styles.moveBtn}`}
+                              aria-label="Mută mai sus"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveProjectImage(i, k, 1)}
+                              disabled={k === p.images.length - 1}
+                              className={`mono ${styles.moveBtn}`}
+                              aria-label="Mută mai jos"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeProjectImage(i, k)}
+                              className={styles.removeBtn}
+                              aria-label="Șterge imaginea"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {p.images.length === 0 && (
+                        <span className={`mono ${styles.logoEmpty}`}>
+                          nicio imagine — cardul afișează „ÎN CURÂND”
+                        </span>
+                      )}
+                    </div>
+                    <label className={`mono ${styles.uploadBtn}`}>
+                      {uploadingKey === `project:${i}`
+                        ? "Se încarcă…"
+                        : "+ Adaugă imagine"}
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={uploadingKey !== null}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = "";
+                          if (file)
+                            void uploadImage(`project:${i}`, file, (url) =>
+                              addProjectImage(i, url),
+                            );
+                        }}
+                        className={styles.fileInput}
+                      />
+                    </label>
+                    {p.images.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setProjectImages(i, [])}
+                        className={`mono ${styles.linkBtn}`}
+                      >
+                        Elimină toate imaginile
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addProject} className={`mono ${styles.addBtn}`}>
+              + Adaugă proiect
             </button>
           </section>
         )}

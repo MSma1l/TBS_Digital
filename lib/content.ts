@@ -27,7 +27,32 @@ export type Service = {
  * upload (`/api/uploads/…`); a partner with no logo falls back to its name as a
  * wordmark. Both `logo` and `url` are optional.
  */
-export type Partner = { id: string; name: string; logo: string; url: string };
+export type Partner = {
+  id: string;
+  name: string;
+  logo: string;
+  url: string;
+  /** Screenshot of the partner's site, revealed on hover (shown outright on mobile). */
+  preview: string;
+};
+
+/**
+ * A delivered project on the /04 grid. `images` is the card's gallery — the card
+ * rotates through them and they open in a lightbox. `appStore` / `playStore` are the
+ * mobile download links; a card only renders the button whose link is actually set, so
+ * a web-only project has neither and a mobile app can have one or both.
+ */
+export type Project = {
+  id: string;
+  name: string;
+  tag: string;
+  desc: string;
+  url: string;
+  appStore: string;
+  playStore: string;
+  images: string[];
+};
+
 export type ContactType = "email" | "phone" | "other";
 export type Contact = { id: string; type: ContactType; value: string };
 export type WorkPlaceholder = { id: string; grad: string };
@@ -74,12 +99,77 @@ export const services: Service[] = [
   { id: "custom", name: "Software personalizat", desc: "Construit exact pe nevoile și fluxurile afacerii tale.", price: PRICE_PLACEHOLDER },
 ];
 
-/* ---------- /04 Selected work (placeholder cards, no real content) ---------- */
-export const workPlaceholders: WorkPlaceholder[] = [
-  { id: "w1", grad: "linear-gradient(135deg,#0b1730,rgba(47,107,255,.6),rgba(56,189,248,.4))" },
-  { id: "w2", grad: "linear-gradient(135deg,#0b1730,rgba(56,189,248,.55),rgba(47,107,255,.4))" },
-  { id: "w3", grad: "linear-gradient(135deg,#0b1730,rgba(77,130,255,.6),rgba(47,107,255,.4))" },
-  { id: "w4", grad: "linear-gradient(135deg,#0b1730,rgba(56,189,248,.55),rgba(47,107,255,.45))" },
+/* ---------- /04 Selected work ----------
+   Real projects. Screenshots live in `public/projects/` and each card rotates through its
+   gallery. Editable from the admin, where new screenshots can be uploaded. DocuSafe and
+   Fayr Family ship with no gallery yet, and every store link starts empty — the card
+   renders fine without any of them (a store button only appears once its link is set). */
+export const projects: Project[] = [
+  {
+    id: "bizcheck",
+    name: "BizCheck",
+    tag: "PLATFORMĂ WEB",
+    desc: "Platformă de autoevaluare a riscurilor pentru IMM-uri, pe metodologia Crowe: teste interactive, șabloane juridice pe blocuri și un raport PDF detaliat la final.",
+    url: "https://bizcheck.md",
+    appStore: "",
+    playStore: "",
+    images: [
+      "/projects/bizcheck-1.jpg",
+      "/projects/bizcheck-2.png",
+      "/projects/bizcheck-3.png",
+      "/projects/bizcheck-4.png",
+    ],
+  },
+  {
+    id: "itara-global",
+    name: "Itara Global",
+    tag: "SITE CORPORATIV",
+    desc: "Site corporativ pentru o companie de software: hero, servicii IT end-to-end, stack tehnologic și dovezi sociale — construit pentru viteză și pentru conversie.",
+    url: "https://itara-global.md",
+    appStore: "",
+    playStore: "",
+    images: [
+      "/projects/itara-1.jpg",
+      "/projects/itara-2.png",
+      "/projects/itara-3.png",
+      "/projects/itara-4.png",
+    ],
+  },
+  {
+    id: "docusafe",
+    name: "DocuSafe",
+    tag: "PLATFORMĂ SAAS",
+    desc: "Platformă SaaS de gestiune a documentelor, construită integral de noi: stocare securizată, editare colaborativă direct în browser, căutare full-text și procesare asincronă.",
+    url: "https://docusafe.tbs.md",
+    appStore: "",
+    playStore: "",
+    images: [],
+  },
+  {
+    id: "iq-arena",
+    name: "IQ Arena",
+    tag: "APLICAȚIE MOBILĂ",
+    desc: "Simulator de negocieri pentru Corporate Governance Academy: ateliere practice, o ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate.",
+    url: "https://cgam.md",
+    appStore: "",
+    playStore: "",
+    images: [
+      "/projects/iq-arena-1.png",
+      "/projects/iq-arena-2.png",
+      "/projects/iq-arena-3.jpg",
+      "/projects/iq-arena-4.png",
+    ],
+  },
+  {
+    id: "fayr-family",
+    name: "Fayr Family",
+    tag: "APLICAȚIE MOBILĂ",
+    desc: "",
+    url: "",
+    appStore: "",
+    playStore: "",
+    images: [],
+  },
 ];
 
 /* ---------- /05 Team ---------- */
@@ -136,18 +226,21 @@ export const partners: Partner[] = [
     name: "Crowe Turcan Mikhailenko",
     logo: "/partners/crowe.png",
     url: "https://crowe-tm.md",
+    preview: "/partners/previews/crowe.png",
   },
   {
     id: "cgam",
     name: "CGAM Business Academy",
     logo: "/partners/cgam.png",
     url: "https://cgam.md",
+    preview: "/partners/previews/cgam.png",
   },
   {
     id: "ivan-turcan",
     name: "Ivan Turcan",
     logo: "/partners/ivan-turcan.png",
     url: "https://turcan.md",
+    preview: "/partners/previews/ivan-turcan.png",
   },
 ];
 

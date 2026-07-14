@@ -49,8 +49,8 @@ describe("mergeSiteData", () => {
   });
 
   it("falls back to the default for each missing key", () => {
-    const merged = mergeSiteData({ partners: [{ id: "only_one", name: "ONLY_ONE", logo: "", url: "" }] });
-    expect(merged.partners).toEqual([{ id: "only_one", name: "ONLY_ONE", logo: "", url: "" }]);
+    const merged = mergeSiteData({ partners: [{ id: "only_one", name: "ONLY_ONE", logo: "", url: "", preview: "" }] });
+    expect(merged.partners).toEqual([{ id: "only_one", name: "ONLY_ONE", logo: "", url: "", preview: "" }]);
     expect(merged.stats).toBe(defaultSiteData.stats);
     expect(merged.team).toBe(defaultSiteData.team);
     expect(merged.contacts).toBe(defaultSiteData.contacts);
@@ -59,7 +59,7 @@ describe("mergeSiteData", () => {
   it("produces a full SiteData shape with all five keys", () => {
     const merged = mergeSiteData({});
     expect(Object.keys(merged).sort()).toEqual(
-      ["contacts", "partners", "services", "stats", "team"].sort(),
+      ["contacts", "partners", "projects", "services", "stats", "team"].sort(),
     );
   });
 });
@@ -72,7 +72,7 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
   it("round-trips saved data through localStorage", () => {
     const data: SiteData = {
       ...defaultSiteData,
-      partners: [{ id: "a", name: "A", logo: "", url: "" }, { id: "b", name: "B", logo: "", url: "" }],
+      partners: [{ id: "a", name: "A", logo: "", url: "", preview: "" }, { id: "b", name: "B", logo: "", url: "", preview: "" }],
       stats: [{ id: "s1", value: "99", label: "Clienți" }],
     };
     saveSiteData(data);
@@ -80,17 +80,17 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
       JSON.stringify(data),
     );
     const loaded = loadSiteData();
-    expect(loaded.partners).toEqual([{ id: "a", name: "A", logo: "", url: "" }, { id: "b", name: "B", logo: "", url: "" }]);
+    expect(loaded.partners).toEqual([{ id: "a", name: "A", logo: "", url: "", preview: "" }, { id: "b", name: "B", logo: "", url: "", preview: "" }]);
     expect(loaded.stats).toEqual([{ id: "s1", value: "99", label: "Clienți" }]);
   });
 
   it("merges partial stored data onto defaults", () => {
     window.localStorage.setItem(
       SITE_DATA_KEY,
-      JSON.stringify({ partners: [{ id: "solo", name: "SOLO", logo: "", url: "" }] }),
+      JSON.stringify({ partners: [{ id: "solo", name: "SOLO", logo: "", url: "", preview: "" }] }),
     );
     const loaded = loadSiteData();
-    expect(loaded.partners).toEqual([{ id: "solo", name: "SOLO", logo: "", url: "" }]);
+    expect(loaded.partners).toEqual([{ id: "solo", name: "SOLO", logo: "", url: "", preview: "" }]);
     expect(loaded.services).toBe(defaultSiteData.services);
   });
 
@@ -145,7 +145,7 @@ describe("SiteContentProvider", () => {
   it("swaps in API data after mount and caches it", async () => {
     const remote: SiteData = {
       ...defaultSiteData,
-      partners: [{ id: "remote_a", name: "REMOTE_A", logo: "", url: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "" }],
+      partners: [{ id: "remote_a", name: "REMOTE_A", logo: "", url: "", preview: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "", preview: "" }],
     };
     mockedFetchContent.mockResolvedValue(remote);
 
@@ -165,13 +165,13 @@ describe("SiteContentProvider", () => {
     const cached = JSON.parse(
       window.localStorage.getItem(SITE_DATA_KEY) ?? "null",
     ) as SiteData;
-    expect(cached.partners).toEqual([{ id: "remote_a", name: "REMOTE_A", logo: "", url: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "" }]);
+    expect(cached.partners).toEqual([{ id: "remote_a", name: "REMOTE_A", logo: "", url: "", preview: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "", preview: "" }]);
   });
 
   it("keeps the cache/defaults when the API is unreachable", async () => {
     window.localStorage.setItem(
       SITE_DATA_KEY,
-      JSON.stringify({ ...defaultSiteData, partners: [{ id: "cached", name: "CACHED", logo: "", url: "" }] }),
+      JSON.stringify({ ...defaultSiteData, partners: [{ id: "cached", name: "CACHED", logo: "", url: "", preview: "" }] }),
     );
     mockedFetchContent.mockRejectedValue(new Error("offline"));
 

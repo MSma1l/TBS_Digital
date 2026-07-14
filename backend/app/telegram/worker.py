@@ -8,6 +8,7 @@ Started from ``app.main``'s lifespan (only when the integration is enabled). Loo
   message to reflect it (keyboard preserved), and answer the callback.
 - ``/register`` (also ``/register@<bot>``) in a group -> capture the chat as the target.
 - ``/stats`` -> reply with :func:`service.build_stats`.
+- ``/idchat`` -> report this chat's id and whether leads land here.
 - ``/start`` / ``/help`` -> short help text.
 
 Robust by design: every update is processed in its own try/except, the offset keeps
@@ -34,6 +35,7 @@ _HELP_TEXT = (
     "Comenzi:\n"
     "/register — leagă acest grup ca destinație pentru lead-uri\n"
     "/stats — statistici lead-uri\n"
+    "/idchat — ID-ul acestui chat și unde merg lead-urile\n"
     "/help — acest mesaj"
 )
 
@@ -167,13 +169,48 @@ async def _handle_message(
                 chat_id, "⛔ Neautorizat.", message_thread_id=thread_id
             )
             return
+        # Only reach for a forum topic when /stats was sent *in the bound group*. A
+        # thread id belongs to that group, so attaching it to a reply in a DM (which an
+        # allowlisted admin is entitled to send) makes Telegram reject the message —
+        # the reply would silently never arrive. In a DM there is no thread anyway.
         target_thread = thread_id
-        if is_forum and chat_id is not None:
+        in_bound_group = (
+            chat_id is not None
+            and target_chat_id is not None
+            and str(chat_id) == str(target_chat_id)
+        )
+        if is_forum and in_bound_group:
             target_thread = await service.ensure_topic(
                 session, client, chat_id, "", is_forum=True
             )
         await client.send_message(
             chat_id, service.build_stats(session), message_thread_id=target_thread
+        )
+        return
+
+    if cmd == "idchat":
+        # Diagnostic. Nu e necesar pentru legare — /register captează singur grupul —
+        # dar răspunde la întrebarea „botul chiar e unde cred eu că e?".
+        #
+        # Nu cere autorizare și nu divulgă nimic: ID-ul unui chat e vizibil oricui
+        # e deja în el. De aceea, când lead-urile merg în ALT grup, spunem doar
+        # atât — fără să scoatem ID-ul grupului legat într-un chat străin.
+        target_chat_id, _ = service.resolve_target(session)
+        # resolve_target dă un str (set_target salvează str(chat_id)), iar Telegram
+        # trimite chat.id ca int — comparate direct, n-ar fi egale niciodată.
+        # Același str()/str() ca în service.is_authorized.
+        if target_chat_id is None:
+            legatura = "ℹ️ Niciun grup legat încă — rulează /register aici."
+        elif str(target_chat_id) == str(chat_id):
+            legatura = "✅ Lead-urile vin în acest chat."
+        else:
+            legatura = "⚠️ Lead-urile merg în alt chat, nu aici."
+        await client.send_message(
+            chat_id,
+            f"🆔 Chat ID: <code>{chat_id}</code>\n"
+            f"Tip: {escape(str(chat_type))}\n"
+            f"{legatura}",
+            message_thread_id=thread_id,
         )
         return
 
