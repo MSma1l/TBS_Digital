@@ -6,9 +6,15 @@ import { deadlines, features, PRICE_PLACEHOLDER } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
 import { submitContact, isNetworkError } from "@/lib/api";
 import { LIMITS, validateText, sanitizeText } from "@/lib/validation";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { useContentText } from "@/lib/i18n/content";
+import { format, Multiline } from "@/lib/i18n/format";
+import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Estimator.module.css";
 
 export function Estimator() {
+  const t = useT();
+  const tc = useContentText();
   // The project-type list IS the services list (name + price) — same source as /03.
   const { services: projectTypes } = useSiteContent();
   const priceOf = (id: string) =>
@@ -41,23 +47,23 @@ export function Estimator() {
   // Live validation mirroring the backend limits (name/email required, phone
   // optional, hard max lengths, HTML/script injection blocked).
   const nameErr = validateText(name, {
-    label: "Numele",
+    label: t("estimator.field.name"),
     max: LIMITS.name,
     required: true,
   });
   const emailErr = validateText(email, {
-    label: "Emailul",
+    label: t("estimator.field.email"),
     max: LIMITS.email,
     required: true,
     email: true,
   });
   const phoneErr = validateText(phone, {
-    label: "Telefonul",
+    label: t("estimator.field.phone"),
     max: LIMITS.phone,
     phone: true,
   });
   const messageErr = validateText(message, {
-    label: "Mesajul",
+    label: t("estimator.field.message"),
     max: LIMITS.message,
     required: true,
   });
@@ -98,8 +104,8 @@ export function Estimator() {
     } catch (err) {
       setFormError(
         isNetworkError(err)
-          ? "Serverul nu răspunde. Încearcă din nou în câteva momente."
-          : "Trimiterea a eșuat. Te rugăm să încerci din nou.",
+          ? t("estimator.error.network")
+          : t("estimator.error.failed"),
       );
     } finally {
       setSubmitting(false);
@@ -111,22 +117,19 @@ export function Estimator() {
       <div className={styles.glow} aria-hidden />
       <div className={`container ${styles.inner}`}>
         <div className={styles.head}>
-          <SectionLabel index="/07">HAI SĂ CONSTRUIM ÎMPREUNĂ</SectionLabel>
+          <SectionLabel index="/07">{t("estimator.label")}</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
-            Estimează prețul
-            <br />
-            proiectului tău
+            <Multiline text={t("estimator.title")} />
           </h2>
-          <p className={styles.lead}>
-            Alege tipul de proiect, termenul limită și opțiunile — apoi trimite-ne
-            detaliile.
-          </p>
+          <p className={styles.lead}>{t("estimator.lead")}</p>
         </div>
 
         <div className={styles.grid}>
           {/* ---------- estimator ---------- */}
           <div className={styles.estimator}>
-            <div className={`mono ${styles.groupLabel}`}>01 · TIP DE PROIECT</div>
+            <div className={`mono ${styles.groupLabel}`}>
+              {t("estimator.group.type")}
+            </div>
             <div className={styles.typeGrid}>
               {projectTypes.map((opt) => (
                 <button
@@ -137,15 +140,21 @@ export function Estimator() {
                     project === opt.id ? styles.active : ""
                   }`}
                 >
-                  <div className={`mono ${styles.typeName}`}>{opt.name}</div>
+                  <div className={`mono ${styles.typeName}`}>
+                    {tc(`services.${opt.id}.name` as MessageKey, opt.name)}
+                  </div>
                   <div className={`mono ${styles.typePrice}`}>
-                    de la {priceOf(opt.id)}
+                    {format(t("estimator.price.from"), {
+                      price: priceOf(opt.id),
+                    })}
                   </div>
                 </button>
               ))}
             </div>
 
-            <div className={`mono ${styles.groupLabel}`}>02 · TERMEN LIMITĂ</div>
+            <div className={`mono ${styles.groupLabel}`}>
+              {t("estimator.group.deadline")}
+            </div>
             <div className={styles.deadlineRow}>
               {deadlines.map((opt) => (
                 <button
@@ -156,14 +165,18 @@ export function Estimator() {
                     deadline === opt.id ? styles.active : ""
                   }`}
                 >
-                  <div className={`mono ${styles.deadlineName}`}>{opt.name}</div>
-                  <div className={`mono ${styles.deadlineNote}`}>{opt.note}</div>
+                  <div className={`mono ${styles.deadlineName}`}>
+                    {t(`deadlines.${opt.id}.name` as MessageKey)}
+                  </div>
+                  <div className={`mono ${styles.deadlineNote}`}>
+                    {t(`deadlines.${opt.id}.note` as MessageKey)}
+                  </div>
                 </button>
               ))}
             </div>
 
             <div className={`mono ${styles.groupLabel}`}>
-              03 · OPȚIUNI SUPLIMENTARE
+              {t("estimator.group.options")}
             </div>
             <div className={styles.featureRow}>
               {features.map((opt) => (
@@ -175,20 +188,20 @@ export function Estimator() {
                     activeFeatures[opt.id] ? styles.chipActive : ""
                   }`}
                 >
-                  {opt.label}
+                  {t(`features.${opt.id}.label` as MessageKey)}
                 </button>
               ))}
             </div>
 
             <div className={styles.total}>
               <div className={`mono ${styles.totalLabel}`}>
-                PREȚ ORIENTATIV ESTIMAT
+                {t("estimator.total.label")}
               </div>
               <div className={`disp ${styles.totalValue}`}>
                 {priceOf(project)}
               </div>
               <div className={`mono ${styles.totalNote}`}>
-                ESTIMARE AUTOMATĂ · PREȚUL FINAL DUPĂ DISCUȚIE.
+                {t("estimator.total.note")}
               </div>
             </div>
           </div>
@@ -211,25 +224,28 @@ export function Estimator() {
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <h3 className={`disp ${styles.sentTitle}`}>Mulțumim!</h3>
+                <h3 className={`disp ${styles.sentTitle}`}>
+                  {t("estimator.sent.title")}
+                </h3>
                 <p className={styles.sentText}>
-                  Am primit cererea pentru {selectedProjectName}. Revenim în
-                  curând cu o ofertă.
+                  {format(t("estimator.sent.text"), {
+                    project: selectedProjectName,
+                  })}
                 </p>
                 <button
                   type="button"
                   onClick={resetForm}
                   className={`mono ${styles.resetBtn}`}
                 >
-                  TRIMITE ALTĂ CERERE
+                  {t("estimator.sent.reset")}
                 </button>
               </div>
             ) : (
               <>
-                <h3 className={`disp ${styles.formTitle}`}>Trimite detaliile</h3>
-                <p className={styles.formSub}>
-                  Revenim cu o ofertă personalizată în cel mult 24h.
-                </p>
+                <h3 className={`disp ${styles.formTitle}`}>
+                  {t("estimator.form.title")}
+                </h3>
+                <p className={styles.formSub}>{t("estimator.form.sub")}</p>
                 <form onSubmit={onSubmit} className={styles.fields} noValidate>
                   <div className={styles.fieldWrap}>
                     <input
@@ -238,7 +254,7 @@ export function Estimator() {
                       maxLength={LIMITS.name}
                       onChange={(e) => setName(e.target.value)}
                       onBlur={() => touch("name")}
-                      placeholder="Nume și prenume"
+                      placeholder={t("estimator.form.namePlaceholder")}
                       aria-invalid={!!showErr("name", nameErr)}
                       className={`mono ${styles.input}`}
                       disabled={submitting}
@@ -255,7 +271,7 @@ export function Estimator() {
                       maxLength={LIMITS.email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => touch("email")}
-                      placeholder="Email"
+                      placeholder={t("estimator.form.emailPlaceholder")}
                       aria-invalid={!!showErr("email", emailErr)}
                       className={`mono ${styles.input}`}
                       disabled={submitting}
@@ -270,7 +286,7 @@ export function Estimator() {
                       maxLength={LIMITS.phone}
                       onChange={(e) => setPhone(e.target.value)}
                       onBlur={() => touch("phone")}
-                      placeholder="Telefon (opțional)"
+                      placeholder={t("estimator.form.phonePlaceholder")}
                       aria-invalid={!!showErr("phone", phoneErr)}
                       className={`mono ${styles.input}`}
                       disabled={submitting}
@@ -286,7 +302,7 @@ export function Estimator() {
                       maxLength={LIMITS.message}
                       onChange={(e) => setMessage(e.target.value)}
                       onBlur={() => touch("message")}
-                      placeholder="Spune-ne despre proiectul tău..."
+                      placeholder={t("estimator.form.messagePlaceholder")}
                       aria-invalid={!!showErr("message", messageErr)}
                       className={`mono ${styles.textarea}`}
                       disabled={submitting}
@@ -296,9 +312,10 @@ export function Estimator() {
                     )}
                   </div>
                   <div className={`mono ${styles.estimateNote}`}>
-                    ESTIMARE ATAȘATĂ:{" "}
-                    <span className={styles.estimateVal}>{priceOf(project)}</span>{" "}
-                    · {selectedProjectName}
+                    {format(t("estimator.form.estimateAttached"), {
+                      price: priceOf(project),
+                      project: selectedProjectName,
+                    })}
                   </div>
                   {formError && (
                     <div className={`mono ${styles.formError}`}>{formError}</div>
@@ -308,7 +325,9 @@ export function Estimator() {
                     className={`mono ${styles.submit}`}
                     disabled={submitting || (attempted && formInvalid)}
                   >
-                    {submitting ? "Se trimite…" : "Trimite cererea ↗"}
+                    {submitting
+                      ? t("estimator.submit.sending")
+                      : t("estimator.submit.idle")}
                   </button>
                 </form>
               </>

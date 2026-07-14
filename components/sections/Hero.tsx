@@ -1,7 +1,13 @@
+"use client";
+
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { Multiline } from "@/lib/i18n/format";
 import { HeroEmblem } from "./HeroEmblem";
 import styles from "./Hero.module.css";
 
 export function Hero() {
+  const t = useT();
+
   return (
     <section id="top" className={styles.hero}>
       {/* decorative background layers */}
@@ -21,7 +27,7 @@ export function Hero() {
           <div className={styles.copy}>
             <div className={`mono ${styles.badge}`}>
               <span className={styles.badgeDot} />
-              DE LA CONSULTANȚĂ LA DIGITALIZARE
+              {t("hero.badge")}
             </div>
             <h1 className={`disp ${styles.title}`}>
               TBS
@@ -29,20 +35,15 @@ export function Hero() {
               <span className={styles.titleOutline}>DIGITAL</span>
             </h1>
             <p className={`mono ${styles.kicker}`}>
-              Viitorul nu e minimal.
-              <br />E construit.
+              <Multiline text={t("hero.kicker")} />
             </p>
-            <p className={styles.lead}>
-              Software personalizat, aplicații mobile, automatizări cu IA, CRM,
-              SaaS și platforme care îți cresc afacerea — de la strategie până la
-              execuție.
-            </p>
+            <p className={styles.lead}>{t("hero.lead")}</p>
             <div className={styles.actions}>
               <a href="#contact" className={`mono ${styles.primary}`}>
-                Calculează prețul ↗
+                {t("hero.cta.primary")}
               </a>
               <a href="#servicii" className={`mono ${styles.secondary}`}>
-                Vezi serviciile
+                {t("hero.cta.secondary")}
               </a>
             </div>
           </div>

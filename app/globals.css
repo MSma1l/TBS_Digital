@@ -44,7 +44,9 @@
   --maxw: 1280px;
 
   /* font families (bound to next/font variables in layout.tsx) */
-  --font-display-stack: var(--font-display), "Archivo", sans-serif;
+  /* Archivo first (Latin), Montserrat second for Cyrillic glyphs Archivo lacks —
+     the browser falls back per glyph, so Russian headings stay in a heavy display face. */
+  --font-display-stack: var(--font-display), var(--font-display-cyr), "Archivo", sans-serif;
   --font-mono-stack: var(--font-mono), "JetBrains Mono", monospace;
   --font-body-stack: var(--font-body), "Manrope", system-ui, sans-serif;
 }

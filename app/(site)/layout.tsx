@@ -3,6 +3,8 @@ import { StatusBar } from "@/components/layout/StatusBar";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
+import { CookieConsent } from "@/components/ui/CookieConsent";
+import { AnalyticsPixel } from "@/components/ui/AnalyticsPixel";
 
 /** Marketing chrome for the public site. The admin route sits outside this group. */
 export default async function SiteLayout({
@@ -21,19 +23,18 @@ export default async function SiteLayout({
       <Navbar />
       {children}
       <Footer />
-      {/* Analytics pixel. Mounted here rather than in the root layout so it never
-          loads on /admin-tbs-digital: the tracker's click handler reads
-          `el.value` for inputs, which would ship the admin password to
-          /px/collect. Plain <script async> (not next/script) so React hoists it
-          into the server-rendered <head> — the tracker resolves its site id via
-          document.currentScript, and it patches history itself, so App Router
-          client-side navigations are already counted. */}
-      <script
-        async
-        nonce={nonce}
-        src="https://statistica.tbs.md/px/t.js"
-        data-site="6749e0d58765467495183773e68168a5"
-      />
+      {/* GDPR / Legea 133 consent bar — shown until the visitor chooses. It records the
+          choice (localStorage + cookie) and broadcasts it to the pixel below. */}
+      <CookieConsent />
+      {/* Analytics pixel, GATED on consent. It renders the statistica.tbs.md <script>
+          ONLY after the visitor accepts analytics cookies — before that no t.js request
+          and no tracking beacon fires. Mounted here (not the root layout) so it never
+          loads on /admin-tbs-digital: the tracker's click handler reads `el.value` for
+          inputs, which would ship the admin password to /px/collect. The nonce is kept
+          on it so it satisfies the strict CSP ('strict-dynamic'); React hoists the async
+          script into <head> and the tracker resolves its site id via
+          document.currentScript, patching history itself so SPA navigations are counted. */}
+      <AnalyticsPixel nonce={nonce} />
     </>
   );
 }

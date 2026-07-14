@@ -135,6 +135,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   }
 
   if (!res.ok) {
+    // TODO(i18n): "Eroare {status}" is a rare last-resort fallback (server `detail` is
+    // used when present). Localize if these ever surface to users in another language.
     let message = res.statusText || `Eroare ${res.status}`;
     try {
       const data = (await res.json()) as { detail?: unknown };
@@ -183,6 +185,8 @@ export async function uploadLogo(file: File, token: string): Promise<string> {
   }
 
   if (!res.ok) {
+    // TODO(i18n): "Eroare {status}" is a rare last-resort fallback (server `detail` is
+    // used when present). Localize if these ever surface to users in another language.
     let message = res.statusText || `Eroare ${res.status}`;
     try {
       const data = (await res.json()) as { detail?: unknown };

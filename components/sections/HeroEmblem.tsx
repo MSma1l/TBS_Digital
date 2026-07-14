@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useT } from "@/lib/i18n/LanguageProvider";
 import styles from "./Hero.module.css";
 
 /**
@@ -11,6 +12,7 @@ import styles from "./Hero.module.css";
  * The orbiting dots and spinning rings are pure CSS (see Hero.module.css).
  */
 export function HeroEmblem() {
+  const t = useT();
   const emblemRef = useRef<HTMLDivElement>(null);
   const digitalRef = useRef<HTMLSpanElement>(null);
   const cxRef = useRef<HTMLSpanElement>(null);
@@ -127,9 +129,7 @@ export function HeroEmblem() {
           &nbsp;DIGITAL
         </span>
       </div>
-      <p className={`mono ${styles.scrollHint}`}>
-        DERULEAZĂ — SISTEMUL SE ACTIVEAZĂ ↓
-      </p>
+      <p className={`mono ${styles.scrollHint}`}>{t("hero.scrollHint")}</p>
     </div>
   );
 }

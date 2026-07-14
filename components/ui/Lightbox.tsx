@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect } from "react";
 import { mediaUrl } from "@/lib/api";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { format } from "@/lib/i18n/format";
 import styles from "./Lightbox.module.css";
 
 /**
@@ -27,6 +29,7 @@ export function Lightbox({
   onClose: () => void;
   onIndexChange: (next: number) => void;
 }) {
+  const t = useT();
   const count = images.length;
 
   const step = useCallback(
@@ -59,13 +62,17 @@ export function Lightbox({
       className={styles.backdrop}
       role="dialog"
       aria-modal="true"
-      aria-label={`${title} — imagine ${index + 1} din ${count}`}
+      aria-label={format(t("lightbox.dialogAria"), {
+        title,
+        i: index + 1,
+        count,
+      })}
       onClick={onClose}
     >
       <button
         type="button"
         onClick={onClose}
-        aria-label="Închide"
+        aria-label={t("lightbox.closeAria")}
         className={`mono ${styles.close}`}
       >
         ✕
@@ -76,7 +83,7 @@ export function Lightbox({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={mediaUrl(images[index])}
-          alt={`${title} — captură ${index + 1}`}
+          alt={format(t("lightbox.imgAlt"), { title, i: index + 1 })}
           className={styles.image}
         />
         <figcaption className={`mono ${styles.caption}`}>
@@ -92,7 +99,7 @@ export function Lightbox({
               e.stopPropagation();
               step(-1);
             }}
-            aria-label="Imaginea anterioară"
+            aria-label={t("lightbox.prevAria")}
             className={`${styles.nav} ${styles.prev}`}
           >
             ‹
@@ -103,7 +110,7 @@ export function Lightbox({
               e.stopPropagation();
               step(1);
             }}
-            aria-label="Imaginea următoare"
+            aria-label={t("lightbox.nextAria")}
             className={`${styles.nav} ${styles.next}`}
           >
             ›

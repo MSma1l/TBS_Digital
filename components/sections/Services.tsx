@@ -5,10 +5,16 @@ import { SectionLabel } from "@/components/ui/SectionLabel";
 import { iconFor } from "@/components/ui/ServiceIcons";
 import { useAutoCarousel } from "@/components/ui/useAutoCarousel";
 import { useSiteContent } from "@/lib/siteContent";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { useContentText } from "@/lib/i18n/content";
+import { format, Multiline } from "@/lib/i18n/format";
+import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Services.module.css";
 
 export function Services() {
   const { services } = useSiteContent();
+  const t = useT();
+  const tc = useContentText();
   const cards = services.filter((s) => !s.estimatorOnly);
   // Mobile carousel: auto-rolls, pauses on manual slide (see the hook).
   const trackRef = useAutoCarousel(cards.length);
@@ -17,15 +23,11 @@ export function Services() {
     <section id="servicii" className="section">
       <div className="container">
         <Reveal className={styles.head}>
-          <SectionLabel index="/03">CE PUTEM FACE</SectionLabel>
+          <SectionLabel index="/03">{t("services.label")}</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
-            Servicii de
-            <br />
-            digitalizare
+            <Multiline text={t("services.title")} />
           </h2>
-          <p className={styles.lead}>
-            Alege un serviciu sau combină mai multe într-un produs complet.
-          </p>
+          <p className={styles.lead}>{t("services.lead")}</p>
         </Reveal>
 
         <div ref={trackRef} className={styles.grid}>
@@ -35,15 +37,19 @@ export function Services() {
                 /{String(i + 1).padStart(2, "0")}
               </div>
               <div className={styles.icon}>{iconFor(s.id)}</div>
-              <h3 className={`mono ${styles.name}`}>{s.name}</h3>
-              <p className={styles.desc}>{s.desc}</p>
+              <h3 className={`mono ${styles.name}`}>
+                {tc(`services.${s.id}.name` as MessageKey, s.name)}
+              </h3>
+              <p className={styles.desc}>
+                {tc(`services.${s.id}.desc` as MessageKey, s.desc)}
+              </p>
             </Reveal>
           ))}
         </div>
 
         {/* mobile-only affordance for the horizontal carousel (CSS-hidden on desktop) */}
         <p className={`mono ${styles.swipeHint}`} aria-hidden>
-          ← GLISEAZĂ ↔ {cards.length} SERVICII →
+          {format(t("services.swipeHint"), { n: cards.length })}
         </p>
       </div>
     </section>

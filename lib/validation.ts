@@ -7,9 +7,14 @@
  * rejects the same input the server would. No React / DOM dependencies here, so it
  * is SSR-safe and reusable anywhere.
  *
- * UI copy returned by `validateText` is Romanian (with diacritics) on purpose — it
- * is rendered verbatim as inline field errors.
+ * UI copy returned by `validateText` is Romanian (with diacritics) by default, rendered
+ * verbatim as inline field errors. Callers inside a React tree can pass a `t` translate
+ * function (from the i18n LanguageProvider) to `validateText` to localize the messages;
+ * without it the Romanian fallbacks are used, so this module stays framework-agnostic and
+ * every existing caller keeps working unchanged.
  */
+
+import { format } from "@/lib/i18n/format";
 
 /** Max lengths mirroring the backend limits. */
 export const LIMITS = {
@@ -136,31 +141,54 @@ export type TextRules = {
 };
 
 /**
- * Validate one text field against `rules`. Returns a Romanian error message, or
- * `null` when the value is acceptable. Order: required → length → dangerous →
- * format. Length is checked before the dangerous-content regexes (defense-in-
- * depth: an over-long input is rejected on length before any regex runs).
- * Empty optional fields pass immediately.
+ * A translate function shaped like the i18n provider's `t` — takes a catalog key and
+ * returns the localized string. Kept as a loose `(key: string) => string` so this module
+ * never imports React or the provider.
  */
-export function validateText(value: string, rules: TextRules): string | null {
+export type Translate = (key: string) => string;
+
+/**
+ * Validate one text field against `rules`. Returns an error message, or `null` when the
+ * value is acceptable. Order: required → length → dangerous → format. Length is checked
+ * before the dangerous-content regexes (defense-in-depth: an over-long input is rejected
+ * on length before any regex runs). Empty optional fields pass immediately.
+ *
+ * When a `t` translate function is passed (from the i18n LanguageProvider), the messages
+ * come from the catalog (`validation.*`) with `{label}`/`{max}` filled in via `format`.
+ * Without it, the Romanian fallbacks below are used — only the returned message strings
+ * change, never the validation logic.
+ */
+export function validateText(
+  value: string,
+  rules: TextRules,
+  t?: Translate,
+): string | null {
   const trimmed = value.trim();
 
   if (!trimmed) {
-    return rules.required ? `${rules.label} este obligatoriu.` : null;
+    if (!rules.required) return null;
+    return t
+      ? format(t("validation.required"), { label: rules.label })
+      : `${rules.label} este obligatoriu.`;
   }
   if (trimmed.length > rules.max) {
-    return `${rules.label} depășește ${rules.max} de caractere.`;
+    return t
+      ? format(t("validation.maxLen"), { label: rules.label, max: rules.max })
+      : `${rules.label} depășește ${rules.max} de caractere.`;
   }
   if (hasDangerousContent(value)) {
-    return `${rules.label} conține caractere sau cod nepermis.`;
+    return t
+      ? format(t("validation.dangerous"), { label: rules.label })
+      : `${rules.label} conține caractere sau cod nepermis.`;
   }
   if (rules.email && !isEmail(trimmed)) {
-    return "Introdu o adresă de email validă.";
+    return t ? t("validation.email") : "Introdu o adresă de email validă.";
   }
   if (rules.phone && !isPhone(trimmed)) {
-    return "Introdu un număr de telefon valid.";
+    return t ? t("validation.phone") : "Introdu un număr de telefon valid.";
   }
   if (rules.link && !isLink(trimmed)) {
+    // No dedicated catalog key for the link message — keep the Romanian fallback.
     return "Introdu un link valid (https://… sau o cale care începe cu /).";
   }
   return null;

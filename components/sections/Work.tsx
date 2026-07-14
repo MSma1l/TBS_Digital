@@ -8,6 +8,10 @@ import { usePlatform } from "@/components/ui/usePlatform";
 import { useAutoCarousel } from "@/components/ui/useAutoCarousel";
 import { mediaUrl } from "@/lib/api";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { useContentText, projectTagKey } from "@/lib/i18n/content";
+import { format, Multiline } from "@/lib/i18n/format";
+import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Work.module.css";
 
 /** How long each screenshot stays up before the card rotates to the next one. */
@@ -40,9 +44,13 @@ function ProjectCard({
   project: ProjectItem;
   onOpen: (project: ProjectItem, index: number) => void;
 }) {
+  const t = useT();
+  const tc = useContentText();
   const platform = usePlatform();
   const [hovered, setHovered] = useState(false);
   const images = project.images;
+  const tagKey = projectTagKey(project.tag);
+  const tag = tagKey ? tc(tagKey, project.tag) : project.tag;
   const index = useGalleryRotation(images.length, hovered);
   const hasImages = images.length > 0;
 
@@ -66,7 +74,9 @@ function ProjectCard({
               type="button"
               className={styles.thumbBtn}
               onClick={() => onOpen(project, index)}
-              aria-label={`Mărește imaginile proiectului ${project.name}`}
+              aria-label={format(t("work.card.zoomAria"), {
+                name: project.name,
+              })}
             >
               {images.map((src, i) => (
                 // All the frames are stacked and cross-faded, so switching doesn't
@@ -75,7 +85,10 @@ function ProjectCard({
                 <img
                   key={src}
                   src={mediaUrl(src)}
-                  alt={`${project.name} — captură ${i + 1}`}
+                  alt={format(t("work.card.shotAlt"), {
+                    name: project.name,
+                    i: i + 1,
+                  })}
                   loading="lazy"
                   className={`${styles.shot} ${i === index ? styles.shotActive : ""}`}
                 />
@@ -99,16 +112,20 @@ function ProjectCard({
         ) : (
           // No screenshots yet (they get uploaded from the admin) — keep the card's
           // shape instead of collapsing it.
-          <span className={`mono ${styles.noShots}`}>ÎN CURÂND</span>
+          <span className={`mono ${styles.noShots}`}>
+            {t("work.comingSoon")}
+          </span>
         )}
       </div>
 
       <div className={styles.body}>
-        {project.tag && (
-          <span className={`mono ${styles.tag}`}>{project.tag}</span>
-        )}
+        {project.tag && <span className={`mono ${styles.tag}`}>{tag}</span>}
         <h3 className={styles.name}>{project.name}</h3>
-        {project.desc && <p className={styles.desc}>{project.desc}</p>}
+        {project.desc && (
+          <p className={styles.desc}>
+            {tc(`projects.${project.id}.desc` as MessageKey, project.desc)}
+          </p>
+        )}
 
         <div className={styles.actions}>
           {project.url && (
@@ -118,7 +135,7 @@ function ProjectCard({
               rel="noopener noreferrer"
               className={`mono ${styles.visit}`}
             >
-              Vezi proiectul ↗
+              {t("work.visit")}
             </a>
           )}
           {showAppStore && (
@@ -149,6 +166,7 @@ function ProjectCard({
 
 export function Work() {
   const { projects } = useSiteContent();
+  const t = useT();
   // Mobile carousel: auto-rolls, pauses on manual slide (see the hook).
   const trackRef = useAutoCarousel(projects.length);
 
@@ -162,16 +180,11 @@ export function Work() {
     <section id="lucrari" className={styles.section}>
       <div className="container">
         <Reveal className={styles.head}>
-          <SectionLabel index="/04">EXPERIENȚA NOASTRĂ</SectionLabel>
+          <SectionLabel index="/04">{t("work.label")}</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
-            Proiecte pe care
-            <br />
-            le-am creat
+            <Multiline text={t("work.title")} />
           </h2>
-          <p className={styles.lead}>
-            O selecție din produsele digitale construite pentru clienți din
-            diverse industrii.
-          </p>
+          <p className={styles.lead}>{t("work.lead")}</p>
         </Reveal>
 
         <div ref={trackRef} className={styles.grid}>
@@ -186,7 +199,7 @@ export function Work() {
 
         {/* mobile-only affordance for the horizontal carousel (CSS-hidden on desktop) */}
         <p className={`mono ${styles.swipeHint}`} aria-hidden>
-          ← GLISEAZĂ ↔ {projects.length} PROIECTE →
+          {format(t("work.swipeHint"), { n: projects.length })}
         </p>
 
         <div className={`hz ${styles.stripes}`} aria-hidden />

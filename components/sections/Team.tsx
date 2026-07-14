@@ -6,6 +6,10 @@ import { socialIcons, socialNames } from "@/components/ui/SocialIcons";
 import { mediaUrl } from "@/lib/api";
 import { statusBars, type SocialNetwork } from "@/lib/content";
 import { useSiteContent, type TeamItem } from "@/lib/siteContent";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { useContentText } from "@/lib/i18n/content";
+import { format, Multiline } from "@/lib/i18n/format";
+import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Team.module.css";
 
 /**
@@ -42,10 +46,17 @@ function linksOf(m: TeamItem) {
 }
 
 /** Accessible name for a link: it has to say *whose* profile it opens. */
-function socialLabel(network: SocialNetwork, name: string): string {
+function socialLabel(
+  network: SocialNetwork,
+  name: string,
+  t: (key: MessageKey) => string,
+): string {
   return network === "website"
-    ? `Site-ul personal al lui ${name}`
-    : `${name} pe ${socialNames[network]}`;
+    ? format(t("team.social.websiteAria"), { name })
+    : format(t("team.social.networkAria"), {
+        name,
+        network: socialNames[network],
+      });
 }
 
 /**
@@ -64,6 +75,8 @@ function initialsOf(name: string): string {
 
 export function Team() {
   const { team } = useSiteContent();
+  const t = useT();
+  const tc = useContentText();
 
   return (
     <section id="echipa" className="section">
@@ -71,23 +84,20 @@ export function Team() {
         {/* left column */}
         <div>
           <Reveal>
-            <SectionLabel index="/05">ECHIPA</SectionLabel>
+            <SectionLabel index="/05">{t("team.label")}</SectionLabel>
             <h2 className={`disp ${styles.title}`}>
-              Oamenii din
-              <br />
-              spatele codului
+              <Multiline text={t("team.title")} />
             </h2>
-            <p className={styles.lead}>
-              O echipă mică și dedicată care combină strategia de business cu
-              dezvoltarea tehnică.
-            </p>
+            <p className={styles.lead}>{t("team.lead")}</p>
           </Reveal>
 
           <Reveal className={styles.status}>
             <div className={`mono ${styles.statusLabel}`}>SYSTEM_STATUS</div>
-            {statusBars.map((b) => (
+            {statusBars.map((b, i) => (
               <div key={b.label} className={styles.statusRow}>
-                <span className={`mono ${styles.statusName}`}>{b.label}</span>
+                <span className={`mono ${styles.statusName}`}>
+                  {t(`status.${i}.label` as MessageKey)}
+                </span>
                 <span className={styles.statusTrack}>
                   <span
                     className={styles.statusFill}
@@ -135,7 +145,9 @@ export function Team() {
                 </div>
 
                 <span className={styles.name}>{name}</span>
-                <span className={`mono ${styles.role}`}>{role}</span>
+                <span className={`mono ${styles.role}`}>
+                  {tc(`team.${m.id}.role` as MessageKey, role)}
+                </span>
                 {bio ? <p className={styles.bio}>{bio}</p> : null}
 
                 {links.length > 0 ? (
@@ -147,7 +159,7 @@ export function Team() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className={styles.social}
-                        aria-label={socialLabel(network, name)}
+                        aria-label={socialLabel(network, name, t)}
                       >
                         {socialIcons[network]}
                       </a>

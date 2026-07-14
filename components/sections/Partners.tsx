@@ -6,6 +6,8 @@ import { partnershipEmail } from "@/lib/content";
 import { mediaUrl } from "@/lib/api";
 import { useSiteContent } from "@/lib/siteContent";
 import type { PartnerItem } from "@/lib/siteContent";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { Multiline } from "@/lib/i18n/format";
 import styles from "./Partners.module.css";
 
 /**
@@ -20,22 +22,17 @@ function previewOf(p: PartnerItem): string {
 
 export function Partners() {
   const { partners } = useSiteContent();
+  const t = useT();
 
   return (
     <section id="parteneri" className="section">
       <div className="container">
         <Reveal className={styles.head}>
-          <SectionLabel index="/06">PARTENERII NOȘTRI</SectionLabel>
+          <SectionLabel index="/06">{t("partners.label")}</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
-            Creștem
-            <br />
-            împreună
+            <Multiline text={t("partners.title")} />
           </h2>
-          <p className={styles.lead}>
-            Lucrăm alături de companii care țin la aceleași standarde ca noi — în
-            audit, consultanță și educație în afaceri. Ei aduc încrederea
-            clienților lor, noi aducem partea tehnică.
-          </p>
+          <p className={styles.lead}>{t("partners.lead")}</p>
         </Reveal>
 
         <div className={styles.logos}>
@@ -100,17 +97,13 @@ export function Partners() {
 
         <Reveal className={styles.cta}>
           <div className={styles.ctaBody}>
-            <div className={`mono ${styles.ctaLabel}`}>DEVINO PARTENER</div>
+            <div className={`mono ${styles.ctaLabel}`}>
+              {t("partners.cta.label")}
+            </div>
             <h3 className={`disp ${styles.ctaTitle}`}>
-              Și tu poți deveni partener
+              {t("partners.cta.title")}
             </h3>
-            <p className={styles.ctaText}>
-              Lucrezi zi de zi cu antreprenori și vezi, înaintea tuturor, unde se
-              blochează o afacere. Noi construim partea tehnică — software,
-              automatizări, inteligență artificială — iar tu rămâi omul în care
-              clientul are încredere. Fără birocrație și fără angajamente: ne
-              scrii, ne auzim, și stabilim împreună cum arată colaborarea.
-            </p>
+            <p className={styles.ctaText}>{t("partners.cta.text")}</p>
           </div>
           <a
             href={`mailto:${partnershipEmail}`}

@@ -4,23 +4,31 @@ import { Reveal } from "@/components/ui/Reveal";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { principles } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { Multiline } from "@/lib/i18n/format";
+import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Principles.module.css";
 
 export function Principles() {
   const { stats } = useSiteContent();
+  const t = useT();
 
   return (
     <section id="despre" className={styles.section}>
       <div className="container">
         <Reveal>
-          <SectionLabel index="/02">PRINCIPIILE NOASTRE</SectionLabel>
+          <SectionLabel index="/02">{t("principles.label")}</SectionLabel>
         </Reveal>
 
         <div className={styles.grid}>
-          {principles.map((p) => (
+          {principles.map((p, i) => (
             <Reveal key={p.title} className={styles.cell}>
-              <div className={`mono ${styles.cellTitle}`}>{p.title}</div>
-              <p className={styles.cellDesc}>{p.desc}</p>
+              <div className={`mono ${styles.cellTitle}`}>
+                <Multiline text={t(`principles.${i}.title` as MessageKey)} />
+              </div>
+              <p className={styles.cellDesc}>
+                {t(`principles.${i}.desc` as MessageKey)}
+              </p>
             </Reveal>
           ))}
         </div>
