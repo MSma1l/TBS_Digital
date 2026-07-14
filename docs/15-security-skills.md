@@ -16,6 +16,11 @@ input validation up to a full pentest.
 | **security-auth-jwt** | bcrypt + pinned JWT (aud/iss), anti-enumeration, short TTL, guarded routes | `security.py`, `config.py` |
 | **security-rate-limiting** | Per-IP limits (login/contact), body-size cap, pagination, Telegram authz | `main.py`, routers, `telegram/` |
 | **security-secrets-config** | `.env` gitignored, prod fail-fast guard, CORS/headers, non-root containers | `config.py`, `main.py`, compose |
+| **security-file-upload** | Magic-byte sniffing, SVG refusal, decompression-bomb ceiling, bounded decode, storage budget, always-re-encode (anti-polyglot/EXIF) | `routers/uploads.py` |
+| **security-rate-limit-keys** | Real client IP behind a proxy (Nth-from-right XFF, `trusted_proxy_count`) so per-IP limits can't be bypassed; per-route streaming body caps | `main.py`, `config.py`, nginx |
+| **security-csp** | Strict `default-src 'none'` for the JSON API; nonce-based `strict-dynamic` CSP for the HTML (no `unsafe-inline` on scripts) | `main.py`, `proxy.ts`, `next.config.ts` |
+| **security-prod-config-guard** | Fail-fast on unsafe prod config; disable docs/schema in prod; hide banner headers; `noindex` admin | `config.py`, `main.py`, `next.config.ts` |
+| **security-defensive-audit-playbook** | Reusable 4-pass parallel audit → fix-by-disjoint-zones → one regression test per finding | whole app |
 | **security-pentest** | Orchestrated defensive audit → fixes → regression tests (produces `SECURITY.md`) | whole app |
 
 ## How to use
