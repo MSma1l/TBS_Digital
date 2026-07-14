@@ -79,11 +79,169 @@ Nu publicăm porturi pe host: `docker-compose.prod.yml` le închide (`ports: []`
 `container_name` la `tbs-digital-frontend` / `tbs-digital-backend` — exact numele pe care le
 caută vhost-ul.
 
-> ⚠️ **`tbs.md` este deja folosit** de aplicația `webdev`, prin `conf.d/tbs.conf`.
-> Pașii de mai jos **înlocuiesc** acel vhost, deci site-ul vechi iese din aer la reload.
-> Certificatul `tbs.md` există deja, deci **nu e nevoie de certbot**.
+### Ce rulează de fapt pe `tbs.md` azi
 
-### 1. `.env` pe server (scris direct, nu copiat cu scp)
+Apexul **nu** e un site static de prezentare: pe el rulează **DocuSafe**, un stack întreg,
+cu compose-ul în `/root/tbs`:
+
+| Rol | Containere |
+|-----|------------|
+| Web / app | `docusafe_nginx`, `docusafe_backend`, `docusafe_frontend` |
+| Editor documente | `docusafe_onlyoffice` |
+| Date | `docusafe_postgres`, `docusafe_redis`, `docusafe_minio`, `docusafe_meili` |
+| Async | `docusafe_celery_worker`, `docusafe_celery_beat` |
+
+> ⚠️ **DocuSafe nu se scoate din aer.** Planul este o **mutare**, nu o înlocuire:
+> DocuSafe trece pe **`docusafe.tbs.md`** (vhost nou + certificat propriu), iar apexul
+> `tbs.md` trece la TBS Digital. Cele două rulează **în paralel**, pe același proxy.
+
+Ordinea contează: **întâi Etapa A** (DocuSafe capătă subdomeniul lui și e funcțional acolo),
+**abia apoi Etapa B** (apexul trece la TBS Digital). Invers, DocuSafe ar rămâne fără casă.
+
+### Cum stă treaba cu proxy-ul și certificatele
+
+| Lucru | Unde |
+|-------|------|
+| Reverse proxy | containerul `nginx_proxy`, atașat la `shared-network` **și** la `docusafe_prod_net` |
+| Vhost-uri | `/root/nginx-proxy/conf.d/` pe host → `/etc/nginx/conf.d` în container |
+| Webroot ACME | `/root/nginx-proxy/certbot/www` pe host → `/var/www/certbot` în container |
+| Certbot | rulează **din interiorul** containerului `nginx_proxy` |
+| Reînnoire | cron zilnic 02:00: `docker exec nginx_proxy certbot renew --quiet && docker exec nginx_proxy nginx -s reload` |
+
+Capcană: certbot **nu** e un container separat `certbot/certbot`. E instalat în `nginx_proxy`,
+deci orice emitere se face cu `docker exec nginx_proxy certbot ...`. Un container efemer
+`certbot/certbot` ar scrie în alt volum și ar rata webroot-ul pe care îl servește proxy-ul.
+
+Certificatul `tbs.md` **există deja și acoperă atât `tbs.md`, cât și `www.tbs.md`** (confirmat
+în SAN), valabil până la **1 septembrie 2026**. Pentru apex **nu e nevoie de certbot** —
+certbot intră în joc doar pentru subdomeniul nou, `docusafe.tbs.md`.
+
+### Prerequisite DNS
+
+IP server: **195.178.106.161**. Nameservere: `alfa.dns.md` / `beta.dns.md`.
+
+La momentul scrierii, **apexul `tbs.md` nu avea record A** (doar `docusafe.tbs.md` și
+`statistica.tbs.md` aveau). Deci, înainte de Etapa B:
+
+- [ ] `tbs.md` → A → `195.178.106.161`
+- [ ] `www.tbs.md` → A → `195.178.106.161`
+- [ ] `docusafe.tbs.md` → A → `195.178.106.161` (există deja)
+
+```bash
+dig +short tbs.md www.tbs.md docusafe.tbs.md    # toate trei trebuie să dea 195.178.106.161
+```
+
+Fără A record pe apex, `nginx -t` trece, dar nimeni nu ajunge la site — și nici certbot n-ar
+putea reemite certul la expirare.
+
+---
+
+## Etapa A — DocuSafe trece pe `docusafe.tbs.md`
+
+Etapa asta e **pur aditivă**: adaugi un vhost nou, `docusafe.conf`. `tbs.conf` (DocuSafe pe
+apex) **rămâne neatins**, deci DocuSafe răspunde în continuare pe `tbs.md` cât timp lucrezi.
+
+### A1. Vhost `:80` doar pentru challenge-ul ACME
+
+Certbot cere ca `http://docusafe.tbs.md/.well-known/acme-challenge/` să fie servit **înainte**
+de a exista certul — nu poți porni direct cu un bloc `:443` care referă un certificat inexistent
+(`nginx -t` ar pica și ai da jos tot proxy-ul la reload).
+
+```bash
+cat > /root/nginx-proxy/conf.d/docusafe.conf <<'EOF'
+server {
+    listen 80;
+    server_name docusafe.tbs.md;
+
+    location /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { return 301 https://$host$request_uri; }
+}
+EOF
+docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
+```
+
+### A2. Emite certificatul
+
+```bash
+docker exec nginx_proxy certbot certonly --webroot -w /var/www/certbot -d docusafe.tbs.md
+docker exec nginx_proxy ls /etc/letsencrypt/live/docusafe.tbs.md/   # fullchain.pem + privkey.pem
+```
+
+### A3. Adaugă blocul `:443` în `docusafe.conf`
+
+**Copiază blocul `:443` din `tbs.conf`-ul actual (cel al DocuSafe)** și schimbă doar două
+lucruri: `server_name` → `docusafe.tbs.md` și căile `ssl_certificate` / `ssl_certificate_key`
+→ `/etc/letsencrypt/live/docusafe.tbs.md/`. Nu-l rescrie de la zero.
+
+Ce **trebuie** să supraviețuiască copierii — fiecare are un motiv:
+
+| Directivă | De ce |
+|-----------|-------|
+| CSP-ul DocuSafe (`add_header Content-Security-Policy ...`) | e croit pentru ONLYOFFICE; fără el, editorul de documente nu se încarcă |
+| `location /onlyoffice/` cu `Upgrade` / `Connection "upgrade"` | ONLYOFFICE ține o conexiune WebSocket; fără upgrade, editorul rămâne blocat la „se conectează" |
+| `client_max_body_size 200m` | DocuSafe primește upload-uri de documente; default-ul nginx (1m) le-ar tăia cu 413 |
+| `proxy_buffering off` | download-uri mari / streaming — cu buffering, nginx le-ar acumula pe disc |
+
+```bash
+docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
+```
+
+### A4. `APP_BASE_URL` în `/root/tbs/.env`
+
+Singura variabilă DocuSafe care conține domeniul **și chiar contează**:
+
+```
+APP_BASE_URL=https://docusafe.tbs.md
+```
+
+`GOOGLE_REDIRECT_URI` și `MICROSOFT_REDIRECT_URI` conțin și ele `tbs.md`, dar OAuth-ul
+**nu e configurat** (`client_id` / `secret` goale) — e config mort, nu-l urmări. SMTP la fel:
+neconfigurat, deci nu are ce link să trimită greșit.
+
+### A5. Recreează containerele care citesc `.env`
+
+```bash
+cd /root/tbs
+docker compose up -d --force-recreate docusafe_backend docusafe_celery_worker docusafe_celery_beat
+```
+
+Un `restart` **nu** ajunge: variabilele de mediu se citesc la crearea containerului, nu la
+pornirea procesului. Trebuie recreat.
+
+### A6. Verifică
+
+```bash
+curl -I https://docusafe.tbs.md          # 200/302 de la DocuSafe, cert valid
+curl -I https://tbs.md                   # încă DocuSafe — apexul e neatins în Etapa A
+```
+
+Deschide DocuSafe în browser și **editează un document** — asta validează dintr-un foc CSP-ul
+și WebSocket-ul ONLYOFFICE, singurele două lucruri care se pot strica la copierea vhost-ului.
+
+### Rollback Etapa A
+
+Nu ai atins nimic existent, deci rollback-ul e o ștergere:
+
+```bash
+rm /root/nginx-proxy/conf.d/docusafe.conf
+docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
+```
+
+DocuSafe rămâne pe `tbs.md` ca înainte. (Dacă apucaseși să schimbi `APP_BASE_URL`, pune-l
+înapoi pe `https://tbs.md` și recreează containerele de la pasul A5.)
+
+---
+
+## Etapa B — `tbs.md` trece la TBS Digital
+
+Se face **doar după ce Etapa A e verificată** și DocuSafe merge pe `docusafe.tbs.md`.
+
+### B1. DNS
+
+A record pentru `tbs.md` și `www.tbs.md` → `195.178.106.161` (vezi *Prerequisite DNS*).
+Așteaptă propagarea înainte de a merge mai departe.
+
+### B2. `.env` pe server (scris direct, nu copiat cu scp)
 
 ```bash
 mkdir -p /root/tbs-digital && cd /root/tbs-digital
@@ -113,48 +271,51 @@ Generează secretele pe server: `openssl rand -hex 32` (JWT), `openssl rand -hex
 URL-ul public, nu `http://backend:8000`. Pus pe aceeași origine, apelurile devin same-origin
 și CORS nici nu intră în discuție. Dacă îl schimbi, **rebuild** imaginea frontend.
 
-### 2. Pornește stack-ul
+### B3. Pornește stack-ul
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 docker network inspect shared-network | grep tbs-digital   # ambele containere trebuie să apară
 ```
 
-### 3. Backup la vhost-ul vechi, apoi înlocuiește-l
+Containerele pornesc și răspund pe `shared-network` **înainte** ca vhost-ul să le trimită
+trafic — dacă ordinea ar fi inversă, apexul ar da 502 în fereastra dintre reload și build.
+
+### B4. Backup la vhost-ul DocuSafe, apoi înlocuiește-l
 
 ```bash
-cp /root/nginx-proxy/conf.d/tbs.conf /root/tbs.conf.webdev.bak   # ← plasa de siguranță
+cp /root/nginx-proxy/conf.d/tbs.conf /root/tbs.conf.docusafe.bak   # ← plasa de siguranță
 cp deploy/nginx/tbs.conf /root/nginx-proxy/conf.d/tbs.conf
 docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
 ```
 
 `nginx -t` validează înainte de reload; dacă pică, **nu** da reload — nimic nu s-a schimbat încă.
 
-### 4. Verifică
+Vhost-ul nou (`deploy/nginx/tbs.conf`) păstrează moștenirea DocuSafe: rutele vechi
+`/api/v1/` și `/onlyoffice/` primesc **301 către `docusafe.tbs.md`**, în loc de 404. Redirectăm
+doar prefixele fără echivoc DocuSafe — un redirect pe tot `/api/` ar rupe backendul TBS Digital,
+care stă exact acolo.
+
+### B5. Verifică
 
 ```bash
 curl -I https://tbs.md                      # 200, de la Next
+curl -I https://www.tbs.md                  # cert valid (www e în SAN)
 curl -s https://tbs.md/api/content | head   # JSON, de la FastAPI
+curl -I https://tbs.md/api/v1/health        # 301 → https://docusafe.tbs.md/api/v1/health
+curl -I https://docusafe.tbs.md             # DocuSafe, în continuare sus
 ```
 
-### Rollback (dacă ceva e stricat)
+### Rollback Etapa B
 
 ```bash
-cp /root/tbs.conf.webdev.bak /root/nginx-proxy/conf.d/tbs.conf
+cp /root/tbs.conf.docusafe.bak /root/nginx-proxy/conf.d/tbs.conf
 docker exec nginx_proxy nginx -t && docker exec nginx_proxy nginx -s reload
 ```
 
-### De verificat o singură dată
-
-Vhost-ul servește și `www.tbs.md`. Confirmă că certificatul acoperă ambele nume, altfel
-`www` va da eroare de certificat în browser:
-
-```bash
-docker run --rm -v /etc/letsencrypt:/etc/letsencrypt certbot/certbot certificates | grep -A3 'tbs.md'
-```
-
-Dacă lipsește `www.tbs.md`, scoate-l din `server_name` în blocul `:443` sau reemite certul cu
-`-d tbs.md -d www.tbs.md`.
+Apexul revine la DocuSafe. Dacă îl vrei complet ca înainte, pune și `APP_BASE_URL` înapoi pe
+`https://tbs.md` în `/root/tbs/.env` și recreează containerele (pasul A5). Stack-ul TBS Digital
+poate rămâne pornit — fără vhost, nu primește trafic.
 
 ## Local dev without Docker
 
