@@ -72,7 +72,7 @@ def test_get_content_defaults(client):
         "danu",
         "bales-laurentiu",
     ]
-    assert data["team"][0]["name"] == "Chistol Maxim"
+    assert data["team"][0]["name"] == "Maxim"
     assert data["team"][0]["role"] == "Team Lead & Fullstack Developer"
     assert data["team"][2]["role"] == "QA Tester & Pentester"
     assert all(m["photo"] == "" and m["linkedin"] == "" for m in data["team"])
@@ -399,7 +399,7 @@ def test_team_photo_and_social_links_round_trip(client):
     """A team member's photo and every personal profile link survive PUT → GET."""
     member = {
         "id": "chistol-maxim",
-        "name": "Chistol Maxim",
+        "name": "Maxim",
         "role": "Team Lead & Fullstack Developer",
         "bio": "Construiește produsul cap-coadă.",
         "photo": "/api/uploads/maxim.webp",

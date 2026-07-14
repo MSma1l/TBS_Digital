@@ -63,10 +63,12 @@ _FAYR_DESC = ""
 
 # The real team, in the order they appear on the /05 grid. Photos, bios and personal
 # links start empty — the admin fills them in (a card renders fine without any of them).
+# First names only. The ids stay put — they are the stable keys `_sync_team` upserts on, so
+# renaming one would orphan whatever the admin has already filled in for that person.
 _TEAM = [
-    ("chistol-maxim", "Chistol Maxim", "Team Lead & Fullstack Developer"),
+    ("chistol-maxim", "Maxim", "Team Lead & Fullstack Developer"),
     ("danu", "Danu", "Fullstack Developer"),
-    ("bales-laurentiu", "Bales Laurentiu", "QA Tester & Pentester"),
+    ("bales-laurentiu", "Laurentiu", "QA Tester & Pentester"),
 ]
 
 # The company's own networks. Every url starts empty on purpose: the footer renders an

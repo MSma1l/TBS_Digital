@@ -240,10 +240,13 @@ const member = (
   github: "",
 });
 
+/* First names only — that is how the team is introduced on the site. The ids stay as they
+   are: they are the stable keys the admin's saved content is matched on, so renaming them
+   would orphan whatever has already been filled in. */
 export const team: TeamMember[] = [
-  member("chistol-maxim", "Chistol Maxim", "Team Lead & Fullstack Developer"),
+  member("chistol-maxim", "Maxim", "Team Lead & Fullstack Developer"),
   member("danu", "Danu", "Fullstack Developer"),
-  member("bales-laurentiu", "Bales Laurentiu", "QA Tester & Pentester"),
+  member("bales-laurentiu", "Laurentiu", "QA Tester & Pentester"),
 ];
 
 /* ---------- Company socials (footer) ----------

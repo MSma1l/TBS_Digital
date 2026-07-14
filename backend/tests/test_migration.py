@@ -203,7 +203,7 @@ def pre_socials_engine(legacy_engine):
         conn.execute(text(LEGACY_TEAM_DDL))
         for position, (tid, name, role) in enumerate(
             [
-                ("chistol-maxim", "Chistol Maxim", "Team Lead & Fullstack Developer"),
+                ("chistol-maxim", "Maxim", "Team Lead & Fullstack Developer"),
                 ("danu", "Danu", "Fullstack Developer"),
             ]
         ):
@@ -260,7 +260,7 @@ def test_existing_team_rows_survive_the_migration(pre_socials_engine):
         team = session.exec(select(TeamRow).order_by(TeamRow.position)).all()
 
     assert [m.id for m in team] == ["chistol-maxim", "danu"]
-    assert team[0].name == "Chistol Maxim"
+    assert team[0].name == "Maxim"
     assert team[0].role == "Team Lead & Fullstack Developer"
     assert team[1].name == "Danu"
     assert team[1].role == "Fullstack Developer"
