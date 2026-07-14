@@ -21,6 +21,8 @@ export const LIMITS = {
   short: 200,
   /** Generic long free-text field (descriptions, bios). */
   long: 2000,
+  /** A link or image reference (partner site / logo). Mirrors backend LinkStr. */
+  link: 500,
 } as const;
 
 /** Forgiving email check (same shape the Estimator used before). */
@@ -60,6 +62,41 @@ export function isPhone(value: string): boolean {
  * store or echo back: `<script`, a `javascript:` URI, an `on...=` handler, or any
  * raw HTML tag. Used to reject (not silently rewrite) injection attempts.
  */
+/** Schemes that must never be followed from an `href`/`src` we render. */
+const DANGEROUS_SCHEME_RE = /^\s*(?:javascript|data|vbscript|file)\s*:/i;
+
+/** Characters that could break out of the `href="…"` / `src="…"` they land in. */
+const UNSAFE_LINK_CHARS_RE = /[<>"'`\s\\]/;
+
+/**
+ * True for a link we are willing to render: an empty value, a site-relative path
+ * (`/partners/crowe.png` — what the logo upload returns), or an absolute http(s)
+ * URL. Mirrors `LinkStr` in `backend/app/validators.py` so the client rejects
+ * exactly what the server would. Protocol-relative (`//host`) is refused: it
+ * silently inherits the page's scheme and reads too much like a path.
+ */
+export function isLink(value: string): boolean {
+  const v = value.trim();
+  if (!v) return true; // links are optional
+  if (v.length > LIMITS.link) return false;
+  if (UNSAFE_LINK_CHARS_RE.test(v)) return false;
+  if (DANGEROUS_SCHEME_RE.test(v)) return false;
+  if (v.startsWith("//")) return false;
+  if (v.startsWith("/")) return true;
+  return /^https?:\/\//i.test(v);
+}
+
+/**
+ * Trim a link, dropping it entirely if it is not one we would render. A link is
+ * never patched up the way `sanitizeText` rewrites prose: stripping `javascript:`
+ * out of `javascript:alert(1)` would leave a live `alert(1)`, so an unacceptable
+ * link becomes an empty string instead.
+ */
+export function sanitizeLink(value: string): string {
+  const v = value.trim();
+  return isLink(v) ? v : "";
+}
+
 export function hasDangerousContent(value: string): boolean {
   if (!value) return false;
   const lower = value.toLowerCase();
@@ -94,6 +131,8 @@ export type TextRules = {
   email?: boolean;
   /** Also require a valid phone number (only checked when non-empty). */
   phone?: boolean;
+  /** Also require a renderable link (see `isLink`), e.g. a partner site or logo. */
+  link?: boolean;
 };
 
 /**
@@ -120,6 +159,9 @@ export function validateText(value: string, rules: TextRules): string | null {
   }
   if (rules.phone && !isPhone(trimmed)) {
     return "Introdu un număr de telefon valid.";
+  }
+  if (rules.link && !isLink(trimmed)) {
+    return "Introdu un link valid (https://… sau o cale care începe cu /).";
   }
   return null;
 }

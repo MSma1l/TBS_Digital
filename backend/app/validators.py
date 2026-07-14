@@ -20,6 +20,12 @@ Sanitise-vs-reject decision (documented, per field kind):
 - **Email, phone and URL-scheme** violations are **REJECTED** (HTTP 422). Any value
   using a dangerous scheme (``javascript:``, ``data:``, ``vbscript:``, ``file:``) is
   rejected; contact values of type *other* that look like a URL must be http/https.
+- **Link fields** (a partner's website and logo — see ``LinkStr``) are **REJECTED**,
+  never escaped. Escaping would corrupt a legitimate URL (``?a=1&b=2`` would become
+  ``?a=1&amp;b=2`` and 404), so instead the value must match a strict shape: either a
+  site-relative path (``/partners/x.png``) or an absolute ``http(s)`` URL, with the
+  markup/quote/whitespace characters that could break out of an attribute banned
+  outright. That makes the value inert in an ``href``/``src`` without escaping it.
 
 Escaping is done only at the write boundary. ``storage/db_store.py`` reconstructs the
 response models with ``model_construct`` (no re-validation) so reads never double-escape.
@@ -51,6 +57,12 @@ _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _DANGEROUS_SCHEME_RE = re.compile(r"^\s*(?:javascript|data|vbscript|file)\s*:", re.I)
 # Detect a leading "scheme:" so we can force http/https on link-like values.
 _URL_SCHEME_RE = re.compile(r"^\s*([A-Za-z][A-Za-z0-9+.\-]*)\s*:")
+# Characters that must never appear in a link: they are the ones that could break out
+# of the href="…" / src="…" attribute the value is rendered into.
+_UNSAFE_LINK_CHARS_RE = re.compile(r"""[<>"'`\s\\]""")
+
+# Longest link we store (comfortably above any real logo path or site URL).
+_MAX_LINK_LENGTH = 500
 
 
 def _clean_text(value: object, *, max_length: int, required: bool) -> str:
@@ -103,6 +115,40 @@ def _clean_phone(value: object) -> str:
 
 
 PhoneStr = Annotated[str, BeforeValidator(_clean_phone)]
+
+
+def _clean_link(value: object) -> str:
+    """Validate a link/image reference. Rejected (not escaped) — see the module docstring.
+
+    Accepts an empty string (the field is optional), a site-relative path such as
+    ``/partners/crowe.png`` (what the logo upload returns), or an absolute http(s) URL.
+    A protocol-relative ``//host/x`` is rejected: it inherits the page's scheme and is
+    too easy to mistake for a path.
+    """
+    if not isinstance(value, str):
+        raise ValueError("must be a string")
+    v = value.strip()
+    if v == "":
+        return ""
+    if len(v) > _MAX_LINK_LENGTH:
+        raise ValueError(f"must be at most {_MAX_LINK_LENGTH} characters")
+    if _CONTROL_RE.search(v) or _UNSAFE_LINK_CHARS_RE.search(v):
+        raise ValueError("link contains characters that are not allowed")
+    if _DANGEROUS_SCHEME_RE.match(v):
+        raise ValueError("unsafe URL scheme")
+    if v.startswith("//"):
+        raise ValueError("protocol-relative links are not allowed")
+    if v.startswith("/"):
+        return v  # site-relative path (e.g. an uploaded logo)
+    m = _URL_SCHEME_RE.match(v)
+    if not m:
+        raise ValueError("must be an absolute http(s) URL or a path starting with '/'")
+    if m.group(1).lower() not in ("http", "https"):
+        raise ValueError("only http/https URLs are allowed")
+    return v
+
+
+LinkStr = Annotated[str, BeforeValidator(_clean_link)]
 
 
 def validate_contact_value(value: str, contact_type: str) -> None:

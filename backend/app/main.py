@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -41,7 +42,7 @@ limiter = Limiter(key_func=_client_ip, enabled=settings.rate_limit_enabled)
 limiter.enabled = settings.rate_limit_enabled
 
 from .db import create_db_and_tables  # noqa: E402
-from .routers import auth, contact, content  # noqa: E402
+from .routers import auth, contact, content, uploads  # noqa: E402
 from .seed import seed_database  # noqa: E402
 from .telegram.worker import run_worker  # noqa: E402
 
@@ -204,6 +205,16 @@ async def security_headers(request: Request, call_next) -> Response:
 app.include_router(auth.router)
 app.include_router(content.router)
 app.include_router(contact.router)
+app.include_router(uploads.router)
+
+# Serve the uploaded partner logos. They live under DATA_DIR (a persistent volume), and
+# only ever hold raster images the upload endpoint has already vetted by magic bytes.
+# The security-headers middleware above still applies, so they are served `nosniff`.
+app.mount(
+    "/api/uploads",
+    StaticFiles(directory=uploads.uploads_dir()),
+    name="uploads",
+)
 
 
 @app.get("/health", tags=["meta"])

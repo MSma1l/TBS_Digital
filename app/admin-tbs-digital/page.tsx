@@ -16,6 +16,8 @@ import {
   fetchContent,
   saveContent,
   fetchSubmissions,
+  uploadLogo,
+  mediaUrl,
   getToken,
   setToken,
   clearToken,
@@ -27,6 +29,7 @@ import {
   LIMITS,
   validateText,
   sanitizeText,
+  sanitizeLink,
   type TextRules,
 } from "@/lib/validation";
 import styles from "./admin.module.css";
@@ -64,6 +67,8 @@ const RULES = {
   teamRole: { label: "Rolul", max: LIMITS.short },
   teamBio: { label: "Bio", max: LIMITS.long },
   partner: { label: "Numele partenerului", max: LIMITS.short },
+  partnerUrl: { label: "Site-ul partenerului", max: LIMITS.link, link: true },
+  partnerLogo: { label: "Logo-ul", max: LIMITS.link, link: true },
 } satisfies Record<string, TextRules>;
 
 /** Validation rules for a contact value, which depend on its type. */
@@ -94,7 +99,13 @@ function sanitizeDraft(d: SiteData): SiteData {
       role: sanitizeText(m.role),
       bio: sanitizeText(m.bio),
     })),
-    partners: d.partners.map((p) => sanitizeText(p)),
+    partners: d.partners.map((p) => ({
+      ...p,
+      name: sanitizeText(p.name),
+      // Links are dropped rather than rewritten — see sanitizeLink.
+      logo: sanitizeLink(p.logo),
+      url: sanitizeLink(p.url),
+    })),
     contacts: d.contacts.map((c) => ({ ...c, value: sanitizeText(c.value) })),
   };
 }
@@ -119,7 +130,12 @@ function draftHasErrors(d: SiteData): boolean {
         !!validateText(m.role, RULES.teamRole) ||
         !!validateText(m.bio, RULES.teamBio),
     ) ||
-    d.partners.some((p) => !!validateText(p, RULES.partner)) ||
+    d.partners.some(
+      (p) =>
+        !!validateText(p.name, RULES.partner) ||
+        !!validateText(p.url, RULES.partnerUrl) ||
+        !!validateText(p.logo, RULES.partnerLogo),
+    ) ||
     d.contacts.some((c) => !!validateText(c.value, contactRules(c.type)))
   );
 }
@@ -152,6 +168,10 @@ export default function AdminPage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+
+  // Logo upload (Parteneri tab): index of the partner currently uploading, if any.
+  const [logoUploading, setLogoUploading] = useState<number | null>(null);
+  const [logoError, setLogoError] = useState("");
 
   // Contact submissions (Cereri tab).
   const [submissions, setSubmissions] = useState<ContactSubmissionRecord[] | null>(
@@ -313,15 +333,58 @@ export default function AdminPage() {
     setDraft((d) => ({ ...d, team: d.team.filter((_, idx) => idx !== i) }));
 
   // ---- partners -------------------------------------------------------------
-  const setPartner = (i: number, val: string) =>
+  const setPartner = (i: number, field: "name" | "logo" | "url", val: string) =>
     setDraft((d) => ({
       ...d,
-      partners: d.partners.map((p, idx) => (idx === i ? val : p)),
+      partners: d.partners.map((p, idx) =>
+        idx === i ? { ...p, [field]: val } : p,
+      ),
     }));
   const addPartner = () =>
-    setDraft((d) => ({ ...d, partners: [...d.partners, ""] }));
+    setDraft((d) => ({
+      ...d,
+      partners: [
+        ...d.partners,
+        { id: genId("p"), name: "", logo: "", url: "" },
+      ],
+    }));
   const removePartner = (i: number) =>
     setDraft((d) => ({ ...d, partners: d.partners.filter((_, idx) => idx !== i) }));
+
+  /**
+   * Upload a logo and point the partner at the stored path. The file itself is
+   * saved immediately (it is content-addressed by a uuid, so an abandoned upload
+   * is just an orphan file); the partner row only persists on Save like every
+   * other field.
+   */
+  const onLogoPicked = async (i: number, file: File) => {
+    const token = getToken();
+    if (!token) {
+      setAuth("unauthenticated");
+      return;
+    }
+    setLogoUploading(i);
+    setLogoError("");
+    try {
+      const url = await uploadLogo(file, token);
+      setPartner(i, "logo", url);
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        clearToken();
+        setAuth("unauthenticated");
+        return;
+      }
+      setLogoError(
+        isNetworkError(err)
+          ? "Serverul nu răspunde — logo-ul nu a fost încărcat."
+          : err instanceof Error
+            ? err.message
+            : "Încărcarea logo-ului a eșuat.",
+      );
+    } finally {
+      setLogoUploading(null);
+    }
+  };
 
   // ---- contacts -------------------------------------------------------------
   const setContact = (i: number, field: "type" | "value", val: string) =>
@@ -724,9 +787,17 @@ export default function AdminPage() {
         {tab === "partners" && (
           <section className={styles.panel}>
             <h2 className={`mono ${styles.panelTitle}`}>PARTENERI</h2>
+            <p className={styles.panelHint}>
+              Logo-ul apare în secțiunea „Partenerii noștri” și trimite către
+              site-ul partenerului. Încarcă un PNG, JPG sau WebP de max 512 KB —
+              ideal alb, pe fundal transparent (site-ul are fundal închis).
+            </p>
+            {logoError && (
+              <p className={`mono ${styles.fieldError}`}>{logoError}</p>
+            )}
             <div className={styles.grid2}>
               {draft.partners.map((p, i) => (
-                <div key={i} className={styles.rowCard}>
+                <div key={p.id} className={styles.rowCard}>
                   <div className={styles.rowHead}>
                     <span className={`mono ${styles.rowTag}`}>Partener {i + 1}</span>
                     <button
@@ -741,12 +812,66 @@ export default function AdminPage() {
                   <label className={styles.field}>
                     <span className={`mono ${styles.fieldLabel}`}>Nume</span>
                     <input
-                      value={p}
-                      onChange={(e) => setPartner(i, e.target.value)}
+                      value={p.name}
+                      onChange={(e) => setPartner(i, "name", e.target.value)}
                       className={`mono ${styles.input}`}
                     />
-                    <FieldError msg={validateText(p, RULES.partner)} />
+                    <FieldError msg={validateText(p.name, RULES.partner)} />
                   </label>
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Site</span>
+                    <input
+                      value={p.url}
+                      onChange={(e) => setPartner(i, "url", e.target.value)}
+                      placeholder="https://exemplu.md"
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError msg={validateText(p.url, RULES.partnerUrl)} />
+                  </label>
+                  <div className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Logo</span>
+                    <div className={styles.logoRow}>
+                      {p.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(p.logo)}
+                          alt={p.name || "Logo partener"}
+                          className={styles.logoPreview}
+                        />
+                      ) : (
+                        <span className={`mono ${styles.logoEmpty}`}>
+                          fără logo
+                        </span>
+                      )}
+                      <div className={styles.logoActions}>
+                        <label className={`mono ${styles.uploadBtn}`}>
+                          {logoUploading === i ? "Se încarcă…" : "Încarcă logo"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={logoUploading !== null}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              // Reset the input so re-picking the same file fires onChange again.
+                              e.target.value = "";
+                              if (file) void onLogoPicked(i, file);
+                            }}
+                            className={styles.fileInput}
+                          />
+                        </label>
+                        {p.logo && (
+                          <button
+                            type="button"
+                            onClick={() => setPartner(i, "logo", "")}
+                            className={`mono ${styles.linkBtn}`}
+                          >
+                            Elimină
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <FieldError msg={validateText(p.logo, RULES.partnerLogo)} />
+                  </div>
                 </div>
               ))}
             </div>

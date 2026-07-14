@@ -27,10 +27,29 @@ Every string field is capped so no input can flood the DB or the UI:
 | contact value / email | 254 |
 | phone | 6–40 |
 | contact message | 5000 |
+| partner logo / site URL | 500 |
 
 Required fields (contact `name`, `email`, `message`) must be non-empty **after trimming**.
 Each content list (services, stats, team, partners, contacts) is capped at **200 items**
 (`MAX_LIST_ITEMS`) so a `PUT /api/content` can't be used to flood the database.
+
+### Links (partner site / logo) — rejected, never escaped
+A partner's `url` and `logo` are the only fields that land in an `href`/`src`, so they are
+**rejected on a strict shape** instead of being HTML-escaped (escaping would corrupt a real
+URL: `?a=1&b=2` → `?a=1&amp;b=2`). A link must be either a site-relative path (`/partners/…`,
+`/api/uploads/…`) or an absolute `http(s)` URL; `javascript:` / `data:` / `vbscript:` /
+`file:`, protocol-relative `//host`, and the markup/quote/whitespace characters that could
+break out of an attribute are all refused. Enforced on both sides — `LinkStr` in
+`backend/app/validators.py` and `isLink` / `sanitizeLink` in `lib/validation.ts`.
+
+### Logo upload (`POST /api/admin/uploads`) — admin-only, magic-byte sniffed
+The only endpoint accepting binary content. Admin-authenticated and rate-limited (20/min),
+capped at **512 KB** (streamed, so an oversized file is abandoned mid-read). The format is
+decided by the file's **magic bytes**, never by the client's `Content-Type` or filename, and
+only PNG / JPEG / WebP are stored. **SVG is refused**: it is XML and can carry `<script>`, so
+serving one from our own origin would be a stored-XSS primitive. The stored filename is a
+uuid we generate plus an extension from our own allow-list, so a hostile `filename` can
+neither traverse the filesystem nor choose its own extension.
 
 ### XSS / script injection — sanitized, not just blocked
 Free-text stored fields are **HTML-escaped on write** (`<script>` → `&lt;script&gt;`), so

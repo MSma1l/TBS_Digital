@@ -31,6 +31,16 @@
   color: var(--mut);
   font-size: 13px;
   letter-spacing: 0.04em;
+  text-decoration: none;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+/* Only the chips that link out (a partner without a URL renders as a span). */
+a.partner:hover {
+  border-color: var(--line2);
+  color: var(--txt);
 }
 
 /* Mobile: content-width chips wrap raggedly and orphan the last one. Lay them

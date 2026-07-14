@@ -111,7 +111,7 @@ export function Estimator() {
       <div className={styles.glow} aria-hidden />
       <div className={`container ${styles.inner}`}>
         <div className={styles.head}>
-          <SectionLabel index="/06">HAI SĂ CONSTRUIM ÎMPREUNĂ</SectionLabel>
+          <SectionLabel index="/07">HAI SĂ CONSTRUIM ÎMPREUNĂ</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
             Estimează prețul
             <br />

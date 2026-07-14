@@ -4,6 +4,8 @@ pydantic>=2.7
 # EmailStr support for request validation (pydantic[email]).
 email-validator>=2.0
 pydantic-settings>=2.3
+# Multipart form parsing — required by FastAPI's UploadFile (the logo upload).
+python-multipart>=0.0.9
 PyJWT>=2.8
 sqlmodel>=0.0.14
 bcrypt>=4.0

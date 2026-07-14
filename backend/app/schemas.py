@@ -11,7 +11,7 @@ from typing import Annotated, List, Literal
 
 from pydantic import AfterValidator, BaseModel, EmailStr, Field, model_validator
 
-from .validators import IdStr, PhoneStr, text, validate_contact_value
+from .validators import IdStr, LinkStr, PhoneStr, text, validate_contact_value
 
 # Stored e-mail from the contact form. ``EmailStr`` first enforces a valid address
 # (so the endpoint still 422s on garbage), then — for symmetry with every other
@@ -38,7 +38,6 @@ ShortLabel = text(80)
 Price = text(40)
 Description = text(2000)
 Bio = text(2000)
-Partner = text(120)
 ContactValue = text(254)
 
 
@@ -61,6 +60,20 @@ class TeamMember(BaseModel):
     name: Name = ""
     role: Role = ""
     bio: Bio = ""
+
+
+class Partner(BaseModel):
+    """A business partner shown in the /06 strip and the footer.
+
+    ``logo`` is either a bundled asset (``/partners/crowe.png``) or the path returned
+    by the logo upload (``/api/uploads/…``); ``url`` links to the partner's own site.
+    Both are optional — a partner with no logo falls back to its name as a wordmark.
+    """
+
+    id: IdStr
+    name: Name = ""
+    logo: LinkStr = ""
+    url: LinkStr = ""
 
 
 class Contact(BaseModel):
@@ -116,3 +129,10 @@ class TokenResponse(BaseModel):
 
 class AdminInfo(BaseModel):
     username: str
+
+
+# --- uploads ---
+class UploadResponse(BaseModel):
+    """Where the stored file is served from, e.g. ``/api/uploads/<uuid>.png``."""
+
+    url: str

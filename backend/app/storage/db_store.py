@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import List
 
 from sqlalchemy.engine import Engine
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, select
 
 from ..models import (
     ContactRow,
@@ -29,6 +29,7 @@ from ..schemas import (
     Contact,
     ContactSubmission,
     ContactSubmissionIn,
+    Partner,
     Service,
     SiteContent,
     Stat,
@@ -90,7 +91,10 @@ class DbStore(ContentStore):
                 )
                 for r in team
             ],
-            partners=[r.value for r in partners],
+            partners=[
+                Partner.model_construct(id=r.id, name=r.name, logo=r.logo, url=r.url)
+                for r in partners
+            ],
             contacts=[
                 Contact.model_construct(id=r.id, type=r.type, value=r.value)
                 for r in contacts
@@ -166,11 +170,21 @@ class DbStore(ContentStore):
             session.add(row)
 
     @staticmethod
-    def _sync_partners(session: Session, values: List[str]) -> None:
-        # Partners have no stable id (plain list[str]) — replace wholesale, keep order.
-        session.exec(delete(PartnerRow))
-        for pos, value in enumerate(values):
-            session.add(PartnerRow(value=value, position=pos))
+    def _sync_partners(session: Session, items: List[Partner]) -> None:
+        keep = {i.id for i in items}
+        existing = {r.id: r for r in session.exec(select(PartnerRow)).all()}
+        for row_id, row in existing.items():
+            if row_id not in keep:
+                session.delete(row)
+        for pos, item in enumerate(items):
+            row = existing.get(item.id) or PartnerRow(id=item.id)
+            row.name, row.logo, row.url, row.position = (
+                item.name,
+                item.logo,
+                item.url,
+                pos,
+            )
+            session.add(row)
 
     # --- submissions -------------------------------------------------------------
     def list_submissions(

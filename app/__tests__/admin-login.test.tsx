@@ -42,7 +42,7 @@ const sampleContent: SiteData = {
     { id: "landing", name: "Landing page", desc: "O pagina.", price: "€500" },
   ],
   team: [{ id: "t1", name: "Ion", role: "Dev", bio: "Bio." }],
-  partners: ["ACME"],
+  partners: [{ id: "acme", name: "ACME", logo: "", url: "" }],
   contacts: [{ id: "c1", type: "email", value: "a@b.com" }],
 };
 

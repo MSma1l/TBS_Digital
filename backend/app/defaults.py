@@ -6,7 +6,15 @@ sensible before the admin edits anything. The colleague's DB store should seed t
 same values in its initial migration.
 """
 
-from .schemas import Contact, Service, SiteContent, Stat, TeamMember, PRICE_PLACEHOLDER
+from .schemas import (
+    Contact,
+    Partner,
+    Service,
+    SiteContent,
+    Stat,
+    TeamMember,
+    PRICE_PLACEHOLDER,
+)
 
 _SERVICES = [
     ("landing", "Landing page", "Pagini rapide care transformă vizitatorii în clienți."),
@@ -19,6 +27,30 @@ _SERVICES = [
     ("dashboard", "Dashboard & rapoarte", "Toate datele importante, vizualizate la un click."),
     ("bot", "Bot Telegram", "Asistenți automați pentru suport, vânzări, notificări."),
 ]
+
+
+def default_partners() -> list[Partner]:
+    """The real partners. Logos are bundled assets under the frontend's `public/`."""
+    return [
+        Partner(
+            id="crowe",
+            name="Crowe Turcan Mikhailenko",
+            logo="/partners/crowe.png",
+            url="https://crowe-tm.md",
+        ),
+        Partner(
+            id="cgam",
+            name="CGAM Business Academy",
+            logo="/partners/cgam.png",
+            url="https://cgam.md",
+        ),
+        Partner(
+            id="ivan-turcan",
+            name="Ivan Turcan",
+            logo="/partners/ivan-turcan.png",
+            url="https://turcan.md",
+        ),
+    ]
 
 
 def default_content() -> SiteContent:
@@ -43,7 +75,7 @@ def default_content() -> SiteContent:
         stats=[Stat(id=f"s{i}") for i in range(1, 5)],  # 4 blank placeholders
         services=services,
         team=[TeamMember(id=f"t{i}") for i in range(1, 5)],  # 4 blank placeholders
-        partners=[f"PARTENER_0{i}" for i in range(1, 6)],
+        partners=default_partners(),
         contacts=[
             Contact(id="c-email", type="email", value="contact@tbsdigital.ro"),
             Contact(id="c-phone", type="phone", value="+373 600 00 000"),

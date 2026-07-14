@@ -49,8 +49,8 @@ describe("mergeSiteData", () => {
   });
 
   it("falls back to the default for each missing key", () => {
-    const merged = mergeSiteData({ partners: ["ONLY_ONE"] });
-    expect(merged.partners).toEqual(["ONLY_ONE"]);
+    const merged = mergeSiteData({ partners: [{ id: "only_one", name: "ONLY_ONE", logo: "", url: "" }] });
+    expect(merged.partners).toEqual([{ id: "only_one", name: "ONLY_ONE", logo: "", url: "" }]);
     expect(merged.stats).toBe(defaultSiteData.stats);
     expect(merged.team).toBe(defaultSiteData.team);
     expect(merged.contacts).toBe(defaultSiteData.contacts);
@@ -72,7 +72,7 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
   it("round-trips saved data through localStorage", () => {
     const data: SiteData = {
       ...defaultSiteData,
-      partners: ["A", "B"],
+      partners: [{ id: "a", name: "A", logo: "", url: "" }, { id: "b", name: "B", logo: "", url: "" }],
       stats: [{ id: "s1", value: "99", label: "Clienți" }],
     };
     saveSiteData(data);
@@ -80,17 +80,17 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
       JSON.stringify(data),
     );
     const loaded = loadSiteData();
-    expect(loaded.partners).toEqual(["A", "B"]);
+    expect(loaded.partners).toEqual([{ id: "a", name: "A", logo: "", url: "" }, { id: "b", name: "B", logo: "", url: "" }]);
     expect(loaded.stats).toEqual([{ id: "s1", value: "99", label: "Clienți" }]);
   });
 
   it("merges partial stored data onto defaults", () => {
     window.localStorage.setItem(
       SITE_DATA_KEY,
-      JSON.stringify({ partners: ["SOLO"] }),
+      JSON.stringify({ partners: [{ id: "solo", name: "SOLO", logo: "", url: "" }] }),
     );
     const loaded = loadSiteData();
-    expect(loaded.partners).toEqual(["SOLO"]);
+    expect(loaded.partners).toEqual([{ id: "solo", name: "SOLO", logo: "", url: "" }]);
     expect(loaded.services).toBe(defaultSiteData.services);
   });
 
@@ -123,7 +123,7 @@ function Probe() {
   const data = useSiteContent();
   return (
     <div>
-      <span data-testid="partners">{data.partners.join(",")}</span>
+      <span data-testid="partners">{data.partners.map((p) => p.name).join(",")}</span>
     </div>
   );
 }
@@ -138,14 +138,14 @@ describe("SiteContentProvider", () => {
       </SiteContentProvider>,
     );
     expect(screen.getByTestId("partners").textContent).toBe(
-      defaultSiteData.partners.join(","),
+      defaultSiteData.partners.map((p) => p.name).join(","),
     );
   });
 
   it("swaps in API data after mount and caches it", async () => {
     const remote: SiteData = {
       ...defaultSiteData,
-      partners: ["REMOTE_A", "REMOTE_B"],
+      partners: [{ id: "remote_a", name: "REMOTE_A", logo: "", url: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "" }],
     };
     mockedFetchContent.mockResolvedValue(remote);
 
@@ -165,13 +165,13 @@ describe("SiteContentProvider", () => {
     const cached = JSON.parse(
       window.localStorage.getItem(SITE_DATA_KEY) ?? "null",
     ) as SiteData;
-    expect(cached.partners).toEqual(["REMOTE_A", "REMOTE_B"]);
+    expect(cached.partners).toEqual([{ id: "remote_a", name: "REMOTE_A", logo: "", url: "" }, { id: "remote_b", name: "REMOTE_B", logo: "", url: "" }]);
   });
 
   it("keeps the cache/defaults when the API is unreachable", async () => {
     window.localStorage.setItem(
       SITE_DATA_KEY,
-      JSON.stringify({ ...defaultSiteData, partners: ["CACHED"] }),
+      JSON.stringify({ ...defaultSiteData, partners: [{ id: "cached", name: "CACHED", logo: "", url: "" }] }),
     );
     mockedFetchContent.mockRejectedValue(new Error("offline"));
 

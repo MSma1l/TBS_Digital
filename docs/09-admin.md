@@ -24,7 +24,7 @@ section. Order (the **Cereri** tab is first and is the default on open):
 | Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
 | Statistici | value, label → /02 stats row | content API |
 | Echipă | name, role, bio → /05 team cards | content API |
-| Parteneri | name → footer partners row | content API |
+| Parteneri | name, site URL, logo (with upload) → /06 partners strip **and** the footer partners row | content API + `POST /api/admin/uploads` |
 | Contact | type (email/phone/other), value → footer contact column | content API |
 
 Landing on **Cereri** means the agency immediately sees whether a new request came in.

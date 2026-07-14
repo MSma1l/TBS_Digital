@@ -7,6 +7,8 @@ import {
   isPhone,
   hasDangerousContent,
   sanitizeText,
+  sanitizeLink,
+  isLink,
   validateText,
 } from "@/lib/validation";
 
@@ -19,6 +21,7 @@ describe("LIMITS", () => {
       message: 5000,
       short: 200,
       long: 2000,
+      link: 500,
     });
   });
 });
@@ -227,5 +230,67 @@ describe("validateText", () => {
     expect(
       validateText("Ok <b>bold</b>", { label: "Mesajul", max: LIMITS.message }),
     ).toBe("Mesajul conține caractere sau cod nepermis.");
+  });
+});
+
+describe("isLink", () => {
+  it("accepts an empty value (links are optional)", () => {
+    expect(isLink("")).toBe(true);
+    expect(isLink("   ")).toBe(true);
+  });
+
+  it("accepts site-relative paths and absolute http(s) URLs", () => {
+    expect(isLink("/partners/crowe.png")).toBe(true);
+    expect(isLink("/api/uploads/abc123.png")).toBe(true);
+    expect(isLink("https://crowe-tm.md")).toBe(true);
+    expect(isLink("http://cgam.md/logo.png")).toBe(true);
+  });
+
+  it("rejects dangerous schemes", () => {
+    expect(isLink("javascript:alert(1)")).toBe(false);
+    expect(isLink("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=")).toBe(false);
+    expect(isLink("vbscript:msgbox(1)")).toBe(false);
+    expect(isLink("file:///etc/passwd")).toBe(false);
+  });
+
+  it("rejects protocol-relative URLs and non-http schemes", () => {
+    expect(isLink("//evil.example/logo.png")).toBe(false);
+    expect(isLink("ftp://evil.example/logo.png")).toBe(false);
+  });
+
+  it("rejects characters that could break out of an href/src attribute", () => {
+    expect(isLink('https://ok.md/a.png" onerror="alert(1)')).toBe(false);
+    expect(isLink("https://ok.md/<script>")).toBe(false);
+  });
+
+  it("rejects an over-long link", () => {
+    expect(isLink(`https://ok.md/${"a".repeat(LIMITS.link)}`)).toBe(false);
+  });
+});
+
+describe("sanitizeLink", () => {
+  it("trims an acceptable link", () => {
+    expect(sanitizeLink("  https://crowe-tm.md  ")).toBe("https://crowe-tm.md");
+  });
+
+  it("drops an unacceptable link entirely rather than patching it up", () => {
+    // Rewriting would leave a live `alert(1)` behind — so the value is dropped.
+    expect(sanitizeLink("javascript:alert(1)")).toBe("");
+    expect(sanitizeLink("//evil.example/x.png")).toBe("");
+  });
+});
+
+describe("validateText with the link rule", () => {
+  const rules = { label: "Site-ul", max: LIMITS.link, link: true };
+
+  it("passes a valid link and an empty optional one", () => {
+    expect(validateText("https://turcan.md", rules)).toBeNull();
+    expect(validateText("", rules)).toBeNull();
+  });
+
+  it("reports a malformed link", () => {
+    expect(validateText("evil.example", rules)).toBe(
+      "Introdu un link valid (https://… sau o cale care începe cu /).",
+    );
   });
 });

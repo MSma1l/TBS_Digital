@@ -55,12 +55,19 @@ class ContactRow(SQLModel, table=True):
 
 
 class PartnerRow(SQLModel, table=True):
-    """Partners are a plain ``list[str]`` in the schema, so rows carry only a value."""
+    """A partner: display name, logo reference and a link to their own site.
+
+    Partners used to be a plain ``list[str]`` (an INTEGER id and a single ``value``
+    column). ``db.py`` drops that legacy table on boot so this shape can be created —
+    see ``_drop_legacy_partners_table``.
+    """
 
     __tablename__ = "partners"
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    value: str = ""
+    id: str = Field(primary_key=True)
+    name: str = ""
+    logo: str = ""  # bundled asset path or an uploaded /api/uploads/… path
+    url: str = ""
     position: int = 0
 
 

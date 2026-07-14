@@ -21,6 +21,13 @@ export type Service = {
   price: string;
   estimatorOnly?: boolean;
 };
+/**
+ * A business partner shown in the /06 strip and the footer. `logo` is either a
+ * bundled asset under `public/partners/` or the path returned by the admin's logo
+ * upload (`/api/uploads/…`); a partner with no logo falls back to its name as a
+ * wordmark. Both `logo` and `url` are optional.
+ */
+export type Partner = { id: string; name: string; logo: string; url: string };
 export type ContactType = "email" | "phone" | "other";
 export type Contact = { id: string; type: ContactType; value: string };
 export type WorkPlaceholder = { id: string; grad: string };
@@ -116,16 +123,36 @@ export const navLinks: FooterLink[] = [
   { label: "SERVICII", href: "#servicii" },
   { label: "LUCRĂRI", href: "#lucrari" },
   { label: "ECHIPĂ", href: "#echipa" },
+  { label: "PARTENERI", href: "#parteneri" },
   { label: "DESPRE", href: "#despre" },
 ];
 
-export const partners: string[] = [
-  "PARTENER_01",
-  "PARTENER_02",
-  "PARTENER_03",
-  "PARTENER_04",
-  "PARTENER_05",
+/* ---------- /06 Partners ----------
+   Logos are monochrome-white PNGs on transparent backgrounds (the strip renders on
+   the dark background). Editable from the admin, where a new logo can be uploaded. */
+export const partners: Partner[] = [
+  {
+    id: "crowe",
+    name: "Crowe Turcan Mikhailenko",
+    logo: "/partners/crowe.png",
+    url: "https://crowe-tm.md",
+  },
+  {
+    id: "cgam",
+    name: "CGAM Business Academy",
+    logo: "/partners/cgam.png",
+    url: "https://cgam.md",
+  },
+  {
+    id: "ivan-turcan",
+    name: "Ivan Turcan",
+    logo: "/partners/ivan-turcan.png",
+    url: "https://turcan.md",
+  },
 ];
+
+/** Where a prospective partner writes to (the /06 call to action). */
+export const partnershipEmail = "office@crowe-tm.md";
 
 export const footerServices: string[] = [
   "Web & Landing",

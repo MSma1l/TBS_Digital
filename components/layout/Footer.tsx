@@ -23,11 +23,23 @@ export function Footer() {
             PARTENERII NOȘTRI DE AFACERI
           </div>
           <div className={styles.partners}>
-            {partners.map((p, i) => (
-              <span key={i} className={`mono ${styles.partner}`}>
-                {p}
-              </span>
-            ))}
+            {partners.map((p) =>
+              p.url ? (
+                <a
+                  key={p.id}
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`mono ${styles.partner}`}
+                >
+                  {p.name}
+                </a>
+              ) : (
+                <span key={p.id} className={`mono ${styles.partner}`}>
+                  {p.name}
+                </span>
+              ),
+            )}
           </div>
         </div>
 

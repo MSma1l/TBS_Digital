@@ -44,7 +44,9 @@ def test_get_content_defaults(client):
     ai = next(s for s in data["services"] if s["id"] == "ai")
     assert ai["estimatorOnly"] is True
     assert len(data["stats"]) == 4
-    assert data["partners"][0] == "PARTENER_01"
+    assert data["partners"][0]["name"] == "Crowe Turcan Mikhailenko"
+    assert data["partners"][0]["logo"] == "/partners/crowe.png"
+    assert data["partners"][0]["url"] == "https://crowe-tm.md"
 
 
 def test_put_requires_auth(client):
@@ -79,14 +81,20 @@ def test_put_and_read_back(client):
     payload = {
         **EMPTY,
         "stats": [{"id": "s1", "value": "50+", "label": "PROIECTE"}],
-        "partners": ["ACME"],
+        "partners": [
+            {"id": "acme", "name": "ACME", "logo": "/partners/acme.png",
+             "url": "https://acme.md"}
+        ],
     }
     r = client.put(
         "/api/content", json=payload, headers={"Authorization": f"Bearer {token}"}
     )
     assert r.status_code == 200, r.text
     back = client.get("/api/content").json()
-    assert back["partners"] == ["ACME"]
+    assert back["partners"] == [
+        {"id": "acme", "name": "ACME", "logo": "/partners/acme.png",
+         "url": "https://acme.md"}
+    ]
     assert back["stats"][0]["value"] == "50+"
 
 
@@ -108,7 +116,10 @@ def test_db_round_trip_persists_across_new_store(client):
             }
         ],
         "team": [{"id": "t", "name": "T", "role": "r", "bio": "b"}],
-        "partners": ["P1", "P2", "P3"],
+        "partners": [
+            {"id": f"p{i}", "name": f"P{i}", "logo": "", "url": ""}
+            for i in range(1, 4)
+        ],
         "contacts": [{"id": "c", "type": "phone", "value": "+373"}],
     }
     r = client.put(
@@ -119,7 +130,7 @@ def test_db_round_trip_persists_across_new_store(client):
     back = client.get("/api/content").json()
     # Order preserved, fields round-tripped, delete-missing applied.
     assert [s["id"] for s in back["stats"]] == ["a", "b"]
-    assert back["partners"] == ["P1", "P2", "P3"]
+    assert [p["name"] for p in back["partners"]] == ["P1", "P2", "P3"]
     assert back["services"][0]["estimatorOnly"] is True
     assert back["services"][0]["price"] == "9"
     assert back["contacts"][0]["type"] == "phone"
@@ -184,7 +195,11 @@ def test_oversized_field_rejected_on_put_content(client):
 def test_list_cap_rejected_on_put_content(client):
     payload = {
         **EMPTY,
-        "partners": [f"P{i}" for i in range(201)],  # over MAX_LIST_ITEMS (200)
+        # over MAX_LIST_ITEMS (200)
+        "partners": [
+            {"id": f"p{i}", "name": f"P{i}", "logo": "", "url": ""}
+            for i in range(201)
+        ],
     }
     r = client.put("/api/content", json=payload, headers=_auth(client))
     assert r.status_code == 422

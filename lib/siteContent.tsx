@@ -40,13 +40,20 @@ export type ServiceItem = {
 };
 export type TeamItem = { id: string; name: string; role: string; bio: string };
 export type ContactItem = { id: string; type: ContactType; value: string };
+export type PartnerItem = {
+  id: string;
+  name: string;
+  /** Bundled asset (`/partners/…`) or an uploaded logo (`/api/uploads/…`). */
+  logo: string;
+  url: string;
+};
 
 export type SiteData = {
   stats: StatItem[];
-  /** Single source for the /03 cards and the /06 estimator (name + price). */
+  /** Single source for the /03 cards and the /07 estimator (name + price). */
   services: ServiceItem[];
   team: TeamItem[];
-  partners: string[];
+  partners: PartnerItem[];
   contacts: ContactItem[];
 };
 
@@ -55,7 +62,7 @@ export const defaultSiteData: SiteData = {
   stats: statPlaceholders.map((s) => ({ id: s.id, value: "", label: "" })),
   services: defaultServices.map((s) => ({ ...s })),
   team: teamPlaceholders.map((t) => ({ id: t.id, name: "", role: "", bio: "" })),
-  partners: [...defaultPartners],
+  partners: defaultPartners.map((p) => ({ ...p })),
   contacts: defaultContacts.map((c) => ({ ...c })),
 };
 

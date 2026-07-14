@@ -81,6 +81,24 @@ export type ContactSubmissionRecord = ContactSubmission & {
 
 export type LoginResponse = { access_token: string; token_type: string };
 export type AdminInfo = { username: string };
+export type UploadResponse = { url: string };
+
+/**
+ * Resolve a stored image reference to a URL the browser can load.
+ *
+ * Partner logos come from two places. Bundled assets (`/partners/crowe.png`) are
+ * served by Next itself, so they are already correct. Uploaded logos are served by
+ * the backend under `/api/uploads/…` and are stored site-relative on purpose — in
+ * production nginx proxies `/api/` to the backend, so the same path works from the
+ * site's own origin. In development the two run on different ports, so the API base
+ * has to be prepended. An absolute URL is returned untouched.
+ */
+export function mediaUrl(path: string): string {
+  if (!path) return "";
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.startsWith("/api/")) return `${API_URL}${path}`;
+  return path;
+}
 
 type RequestOptions = {
   method?: string;
@@ -140,6 +158,43 @@ export function fetchContent(): Promise<SiteData> {
 /** PUT /api/content — admin. Replaces the whole content document. */
 export function saveContent(data: SiteData, token: string): Promise<void> {
   return request<void>("/api/content", { method: "PUT", body: data, token });
+}
+
+/**
+ * POST /api/admin/uploads — admin. Stores a partner logo and returns its path
+ * (`/api/uploads/<uuid>.png`), ready to be saved as a partner's `logo`.
+ *
+ * `fetch` sets the multipart `Content-Type` (with its boundary) from the FormData,
+ * so this bypasses the JSON `request()` helper rather than fighting its headers.
+ */
+export async function uploadLogo(file: File, token: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/admin/uploads`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+  } catch {
+    throw new ApiError(0, "Nu s-a putut contacta serverul.");
+  }
+
+  if (!res.ok) {
+    let message = res.statusText || `Eroare ${res.status}`;
+    try {
+      const data = (await res.json()) as { detail?: unknown };
+      message = messageFromDetail(data?.detail, message);
+    } catch {
+      /* no JSON body — keep the status text */
+    }
+    throw new ApiError(res.status, message);
+  }
+
+  const data = (await res.json()) as UploadResponse;
+  return data.url;
 }
 
 /** POST /api/contact — public. Stores a contact-form submission. */

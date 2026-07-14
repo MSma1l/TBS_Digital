@@ -44,7 +44,18 @@ Left: heading + a `SYSTEM_STATUS` panel with progress bars. Right: team member c
 → Team cards become **placeholders** (one box is fine). The `SYSTEM_STATUS` numbers are
 also hardcoded stats — treat them under the same placeholder rule (see rules doc).
 
-## /06 — Estimator + Contact ("Estimează prețul")
+## /06 — Partners ("Partenerii noștri")
+
+Heading + lead, a strip of partner logo cards (logo, name, link to the partner's own
+site), then a "Devino partener" call-to-action panel that mails `office@crowe-tm.md`.
+Real content, not placeholders: Crowe Turcan Mikhailenko, CGAM Business Academy and
+Ivan Turcan. Logos are monochrome-white PNGs on transparent backgrounds (the section
+renders on the dark background) and live in `public/partners/`.
+
+Fully editable from the admin's **Parteneri** tab, including uploading a new logo —
+see [09 — Admin](./09-admin.md).
+
+## /07 — Estimator + Contact ("Estimează prețul")
 
 - **Estimator:** three groups — `01 · TIP DE PROIECT`, `02 · TERMEN LIMITĂ`,
   `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total.
@@ -54,9 +65,9 @@ also hardcoded stats — treat them under the same placeholder rule (see rules d
 
 ## Footer
 
-Partners row (`PARTENER_01…05`), navigation/services/contact columns, socials, copyright,
-and the `> ACCESS GRANTED_` striped marquee. Generic — **keep**; partner names stay as
-placeholders.
+Partners row (the same partners as /06, rendered as chips that link to their sites),
+navigation/services/contact columns, socials, copyright, and the `> ACCESS GRANTED_`
+striped marquee.
 
 ## Admin panel (future)
 
