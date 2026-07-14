@@ -299,6 +299,8 @@
     0 30px 60px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
+/* CRT scanlines drifting slowly down the emblem. The pattern repeats every 5px, so the
+   loop travels exactly 5px and lands back on itself — no seam. */
 .coreScan {
   position: absolute;
   inset: 0;
@@ -307,6 +309,22 @@
     rgba(120, 150, 255, 0.06) 0 1px,
     transparent 1px 5px
   );
+  animation: scan-drift 3.2s linear infinite;
+}
+
+@keyframes scan-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coreScan {
+    animation: none;
+  }
 }
 .coreText {
   font-size: min(19vw, 96px);

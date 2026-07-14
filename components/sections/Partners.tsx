@@ -119,6 +119,8 @@ export function Partners() {
             {partnershipEmail} ↗
           </a>
         </Reveal>
+
+        <div className={`hz ${styles.stripes}`} aria-hidden />
       </div>
     </section>
   );

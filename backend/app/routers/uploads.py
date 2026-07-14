@@ -49,10 +49,12 @@ from ..security import get_current_admin
 
 router = APIRouter(prefix="/api/admin/uploads", tags=["uploads"])
 
-# A logo is a small image; anything larger is a mistake or an abuse attempt. This has to
-# stay below ``main.MAX_BODY_BYTES`` (1 MB): BodySizeLimitMiddleware caps the *whole*
-# multipart body and runs first, so a router cap above it could never be reached.
-MAX_UPLOAD_BYTES = 900 * 1024  # 900 KB
+# What we accept *in*; what we store is far smaller (see compress_image). A screenshot
+# straight off a phone clears a megabyte easily, so the ceiling has to allow one.
+# BodySizeLimitMiddleware runs first and caps the whole multipart body, so this must stay
+# below its allowance for this route (``main.MAX_UPLOAD_BODY_BYTES``, 10 MB) — the
+# difference is headroom for the multipart framing around the file itself.
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024  # 8 MB
 _CHUNK_BYTES = 64 * 1024
 
 # Longest side of the stored image. Never upscales — a smaller logo is left as-is.

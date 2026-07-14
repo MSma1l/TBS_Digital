@@ -188,6 +188,8 @@ export function Work() {
         <p className={`mono ${styles.swipeHint}`} aria-hidden>
           ← GLISEAZĂ ↔ {projects.length} PROIECTE →
         </p>
+
+        <div className={`hz ${styles.stripes}`} aria-hidden />
       </div>
 
       {viewing && (

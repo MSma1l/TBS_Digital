@@ -258,3 +258,10 @@
     text-align: center;
   }
 }
+
+/* Animated hazard strip closing the section (the flow itself lives on .hz in globals). */
+.stripes {
+  margin-top: 20px;
+  height: 14px;
+  opacity: 0.45;
+}

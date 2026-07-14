@@ -168,12 +168,34 @@ a {
 }
 
 /* ---------- hazard stripes ---------- */
+/* Hazard stripes. They flow continuously inside their own strip.
+
+   The seam is the whole trick: the gradient repeats every 28px measured along its own
+   45° axis, which is 28 / cos(45°) = 39.598px measured horizontally. Shifting the
+   background by exactly that distance lands the pattern back on itself, so the loop is
+   invisible — any other value (39px, 40px) would jump once per cycle. */
 .hz {
   background-image: repeating-linear-gradient(
     45deg,
     var(--blue) 0 14px,
     transparent 14px 28px
   );
+  animation: hz-flow 1.8s linear infinite;
+}
+
+@keyframes hz-flow {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 39.598px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hz {
+    animation: none;
+  }
 }
 
 /* ---------- shared layout helpers ---------- */

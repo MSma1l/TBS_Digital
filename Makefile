@@ -75,8 +75,12 @@ dev-frontend: ## Run the Next.js dev server locally (http://localhost:3000)
 	npm run dev
 
 .PHONY: dev-backend
-dev-backend: ## Run FastAPI with --reload locally (http://localhost:8000)
-	cd backend && . .venv/bin/activate && uvicorn app.main:app --reload --port 8000
+dev-backend: ## Run FastAPI with --reload locally (http://localhost:8000; Telegram bot OFF)
+	@# TELEGRAM_ENABLED=false is not optional. backend/.env carries the REAL bot token, and
+	@# Telegram only lets one process long-poll a bot: a local instance and production would
+	@# fight over getUpdates (409 Conflict) and lead notifications would go missing in prod.
+	@# Set TELEGRAM_ENABLED=true explicitly, with a separate test bot token, to work on the bot.
+	cd backend && . .venv/bin/activate && TELEGRAM_ENABLED=false uvicorn app.main:app --reload --port 8000
 
 # ---------------------------------------------------------------------------
 # Telegram

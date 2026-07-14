@@ -30,17 +30,14 @@
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   background: var(--panel);
   transition: border-color 0.2s;
 }
 .card:hover {
   border-color: var(--line2);
-}
-
-.card {
-  display: flex;
-  flex-direction: column;
 }
 
 /* ---------- rotating screenshot gallery ---------- */
@@ -251,4 +248,11 @@
     letter-spacing: 0.12em;
     color: var(--dim);
   }
+}
+
+/* Animated hazard strip closing the section (the flow itself lives on .hz in globals). */
+.stripes {
+  margin-top: 28px;
+  height: 14px;
+  opacity: 0.45;
 }
