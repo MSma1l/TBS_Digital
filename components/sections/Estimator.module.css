@@ -9,11 +9,10 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(
-    900px 560px at 50% 120%,
-    rgba(47, 107, 255, 0.3),
-    transparent 62%
-  );
+  background:
+    radial-gradient(900px 560px at 50% 120%, rgba(43, 100, 245, 0.34), transparent 62%),
+    radial-gradient(680px 460px at 12% 8%, rgba(122, 82, 232, 0.22), transparent 64%),
+    radial-gradient(560px 400px at 92% 4%, rgba(242, 176, 113, 0.1), transparent 66%);
 }
 
 .inner {
@@ -49,8 +48,9 @@
 .estimator {
   background: var(--panel2);
   border: 1px solid var(--line2);
+  border-top: 2px solid var(--violet2);
   padding: clamp(22px, 3vw, 32px);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 30px 80px rgba(var(--scrim), 0.55);
 }
 
 .groupLabel {
@@ -116,10 +116,11 @@
   margin-top: 3px;
 }
 
-/* selected state for type + deadline */
+/* selected state for type + deadline — blue: "what you're building" */
 .active {
-  background: rgba(47, 107, 255, 0.16);
+  background: rgba(43, 100, 245, 0.22);
   border-color: var(--blue2);
+  box-shadow: inset 0 0 0 1px rgba(107, 150, 255, 0.25);
 }
 
 .featureRow {
@@ -143,10 +144,13 @@
 }
 .chip:hover {
   border-color: var(--line2);
+  color: var(--txt);
 }
+/* selected feature — violet, so the add-ons are visibly a different axis from the
+   blue project type/deadline above them */
 .chipActive {
-  background: rgba(47, 107, 255, 0.16);
-  border-color: var(--blue2);
+  background: rgba(122, 82, 232, 0.26);
+  border-color: var(--violet);
   color: var(--txt);
 }
 
@@ -164,7 +168,12 @@
   font-size: clamp(30px, 5vw, 46px);
   margin-top: 6px;
   color: transparent;
-  background: linear-gradient(110deg, var(--blue2), var(--cyan));
+  background: linear-gradient(
+    110deg,
+    var(--blue2),
+    var(--violet) 45%,
+    var(--amber) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
 }
@@ -294,9 +303,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(47, 107, 255, 0.18);
-  border: 1px solid var(--line2);
+  background: linear-gradient(
+    140deg,
+    rgba(43, 100, 245, 0.28),
+    rgba(122, 82, 232, 0.24)
+  );
+  border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
   color: var(--cyan);
+  box-shadow: 0 0 28px color-mix(in srgb, var(--cyan) 22%, transparent);
 }
 .sentTitle {
   font-size: 24px;

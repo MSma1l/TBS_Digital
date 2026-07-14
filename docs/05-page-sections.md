@@ -41,10 +41,14 @@ the mobile **download buttons**. A store button only appears once its link is se
 visitor is offered the one that matches their device — App Store on iOS, Google Play on
 Android, both on desktop (`components/ui/usePlatform.ts`).
 
-Real content: BizCheck, Itara Global, DocuSafe, IQ Arena, Fayr Family. Screenshots live in
-`public/projects/`. A project with no screenshots yet renders an "ÎN CURÂND" placeholder
-rather than collapsing. Fully editable from the admin's **Proiecte** tab, gallery included
-— see [09 — Admin](./09-admin.md).
+Real content: BizCheck, Itara Global, DocuSafe, CGAM, IQ Arena, Fayr Family. Note that
+**CGAM and IQ Arena are two different projects** — CGAM is the academy's web platform
+(cgam.md); IQ Arena is the mobile negotiation game, which is why it carries the store
+buttons and no website link.
+
+Screenshots live in `public/projects/`. A project with no screenshots yet renders an
+"ÎN CURÂND" placeholder rather than collapsing. Fully editable from the admin's
+**Proiecte** tab, gallery included — see [09 — Admin](./09-admin.md).
 
 ## /05 — Team ("Oamenii din spatele codului")
 

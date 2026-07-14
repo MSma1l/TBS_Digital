@@ -23,6 +23,12 @@ StoredEmail = Annotated[EmailStr, AfterValidator(html.escape)]
 
 ContactType = Literal["email", "phone", "other"]
 
+# The networks a social link can point at — both for a team member's own links and for
+# the company's links in the footer. Anything else is rejected (422).
+SocialType = Literal[
+    "website", "linkedin", "instagram", "facebook", "github", "telegram"
+]
+
 # Placeholder price shown before the admin sets a real one (matches content.ts).
 PRICE_PLACEHOLDER = "..."
 
@@ -62,10 +68,36 @@ class Service(BaseModel):
 
 
 class TeamMember(BaseModel):
+    """One person on the /05 team grid.
+
+    ``photo`` is either a bundled asset or the path returned by the photo upload
+    (``/api/uploads/…``); the rest are that person's own profiles. All optional — a card
+    with no photo falls back to its initials, and only the links that are set render as
+    icons. Links are validated, never escaped (see validators.LinkStr).
+    """
+
     id: IdStr
     name: Name = ""
     role: Role = ""
     bio: Bio = ""
+    photo: LinkStr = ""
+    website: LinkStr = ""
+    linkedin: LinkStr = ""
+    instagram: LinkStr = ""
+    facebook: LinkStr = ""
+    github: LinkStr = ""
+
+
+class Social(BaseModel):
+    """One of the company's own social links, shown in the footer.
+
+    The footer renders the icon for ``type`` only once ``url`` is set, so a social with
+    an empty url is simply a slot the admin has not filled in yet.
+    """
+
+    id: IdStr
+    type: SocialType = "website"
+    url: LinkStr = ""
 
 
 class Project(BaseModel):
@@ -129,6 +161,7 @@ class SiteContent(BaseModel):
     projects: List[Project] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
     partners: List[Partner] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
     contacts: List[Contact] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
+    socials: List[Social] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
 
 
 class ContactSubmissionIn(BaseModel):

@@ -23,6 +23,17 @@ EMPTY = {
     "projects": [],
     "partners": [],
     "contacts": [],
+    "socials": [],
+}
+
+# Every optional link on a team member, so a test payload can spell out the full shape.
+BLANK_TEAM_LINKS = {
+    "photo": "",
+    "website": "",
+    "linkedin": "",
+    "instagram": "",
+    "facebook": "",
+    "github": "",
 }
 
 
@@ -54,6 +65,21 @@ def test_get_content_defaults(client):
     assert data["partners"][0]["name"] == "Crowe Turcan Mikhailenko"
     assert data["partners"][0]["logo"] == "/partners/crowe.png"
     assert data["partners"][0]["url"] == "https://crowe-tm.md"
+
+    # The real team, in order — photos/bios/links are left for the admin to fill in.
+    assert [m["id"] for m in data["team"]] == [
+        "chistol-maxim",
+        "danu",
+        "bales-laurentiu",
+    ]
+    assert data["team"][0]["name"] == "Chistol Maxim"
+    assert data["team"][0]["role"] == "Team Lead & Fullstack Developer"
+    assert data["team"][2]["role"] == "QA Tester & Pentester"
+    assert all(m["photo"] == "" and m["linkedin"] == "" for m in data["team"])
+
+    # The footer's social slots, each with an empty url until the admin sets one.
+    assert [s["type"] for s in data["socials"]] == ["telegram", "linkedin", "github"]
+    assert all(s["url"] == "" for s in data["socials"])
 
 
 def test_put_requires_auth(client):
@@ -232,15 +258,17 @@ def test_script_in_contact_message_is_sanitized(client):
         },
     )
     assert r.status_code == 201, r.text
-    stored = r.json()["message"]
-    # Sanitised (HTML-escaped): no executable <script> tag survives.
-    assert "<script>" not in stored
-    assert "&lt;script&gt;" in stored
 
-    # And it is stored escaped — the admin list shows the neutralised value too.
+    # Stored VERBATIM — escaping belongs at the boundary that interprets HTML, not here.
+    # The site renders through React (which escapes every value it prints) and the bot
+    # escapes each value as it builds its message, so this text can never execute. What
+    # it must NOT do is get mangled: escaping on write turned a legitimate "A & B" into
+    # "A &amp; B" and React then printed those five characters to the visitor.
+    assert r.json()["message"] == "<script>alert(1)</script>"
+
     subs = client.get("/api/admin/submissions", headers=_auth(client)).json()
     match = next(s for s in subs if s["name"] == "Mallory")
-    assert "<script>" not in match["message"]
+    assert match["message"] == "<script>alert(1)</script>"
 
 
 def test_script_in_service_name_is_sanitized_and_read_back_clean(client):
@@ -257,13 +285,11 @@ def test_script_in_service_name_is_sanitized_and_read_back_clean(client):
     }
     r = client.put("/api/content", json=payload, headers=_auth(client))
     assert r.status_code == 200, r.text
-    # PUT response and a fresh GET must both be free of an executable <script> tag,
-    # and must not be double-escaped on read.
-    assert "<script>" not in r.json()["services"][0]["name"]
+
+    # Round-trips byte-for-byte: not escaped, and therefore not double-escaped either.
+    assert r.json()["services"][0]["name"] == "<script>alert('x')</script>"
     back = client.get("/api/content").json()
-    name = back["services"][0]["name"]
-    assert "<script>" not in name
-    assert name == "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;"
+    assert back["services"][0]["name"] == "<script>alert('x')</script>"
     # cleanup
     client.put("/api/content", json=EMPTY, headers=_auth(client))
 
@@ -283,11 +309,11 @@ def test_sqli_string_stored_as_literal_and_db_intact(client):
         json={"name": injection, "email": "sqli@example.com", "message": "hi"},
     )
     assert r.status_code == 201, r.text
-    # Stored as inert literal text — the query structure was never touched (ORM/bound
-    # params). Quotes are HTML-escaped by the sanitiser, but the payload is plain text.
+    # Stored as inert literal text, quotes and all: the query structure was never touched
+    # (every statement is built with the ORM and bound parameters). Safety here comes from
+    # parameterisation, not from mangling the user's apostrophes.
     stored = r.json()["name"]
-    assert "DROP TABLE users" in stored
-    assert stored == "&#x27;; DROP TABLE users;--"
+    assert stored == injection
 
     # The users table is intact — login still works (table not dropped).
     assert (
@@ -338,4 +364,165 @@ def test_invalid_phone_rejected_on_contact_submission(client):
             "phone": "not-a-phone!!",
         },
     )
+    assert r.status_code == 422
+
+
+def test_an_ampersand_in_content_survives_the_round_trip(client):
+    """The bug this whole change exists for.
+
+    "Dashboard & rapoarte" was stored HTML-escaped as "Dashboard &amp; rapoarte"; React
+    then printed those literal characters, so every visitor to tbs.md read
+    "Dashboard &amp; rapoarte" on the services card.
+    """
+    payload = {
+        **EMPTY,
+        "services": [
+            {
+                "id": "dash",
+                "name": "Dashboard & rapoarte",
+                "desc": 'Cost < 500 lei > buget, "premium" & rapid',
+                "price": "1",
+            }
+        ],
+    }
+    assert client.put("/api/content", json=payload, headers=_auth(client)).status_code == 200
+
+    service = client.get("/api/content").json()["services"][0]
+    assert service["name"] == "Dashboard & rapoarte"
+    assert service["desc"] == 'Cost < 500 lei > buget, "premium" & rapid'
+    assert "&amp;" not in service["name"]
+
+
+# --- team photos & social links ----------------------------------------------
+
+def test_team_photo_and_social_links_round_trip(client):
+    """A team member's photo and every personal profile link survive PUT → GET."""
+    member = {
+        "id": "chistol-maxim",
+        "name": "Chistol Maxim",
+        "role": "Team Lead & Fullstack Developer",
+        "bio": "Construiește produsul cap-coadă.",
+        "photo": "/api/uploads/maxim.webp",
+        "website": "https://maxim.md",
+        "linkedin": "https://linkedin.com/in/maxim",
+        "instagram": "https://instagram.com/maxim",
+        "facebook": "https://facebook.com/maxim",
+        "github": "https://github.com/maxim",
+    }
+    r = client.put(
+        "/api/content", json={**EMPTY, "team": [member]}, headers=_auth(client)
+    )
+    assert r.status_code == 200, r.text
+
+    back = client.get("/api/content").json()
+    assert back["team"] == [member]  # field-for-field, nothing dropped or mangled
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
+
+
+def test_team_member_keeps_empty_links_by_default(client):
+    """The links are optional: a member sent without them reads back with empty strings."""
+    r = client.put(
+        "/api/content",
+        json={**EMPTY, "team": [{"id": "danu", "name": "Danu", "role": "Dev"}]},
+        headers=_auth(client),
+    )
+    assert r.status_code == 200, r.text
+
+    member = client.get("/api/content").json()["team"][0]
+    assert member == {"id": "danu", "name": "Danu", "role": "Dev", "bio": "",
+                      **BLANK_TEAM_LINKS}
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["photo", "website", "linkedin", "instagram", "facebook", "github"],
+)
+def test_unsafe_link_rejected_on_every_team_field(client, field):
+    """A javascript: URL in any of the new link fields is rejected outright (422).
+
+    Links are validated, never escaped — escaping would corrupt a legitimate URL — so a
+    dangerous scheme must never reach the database in the first place.
+    """
+    member = {
+        "id": "mallory",
+        "name": "Mallory",
+        "role": "r",
+        field: "javascript:alert(1)",
+    }
+    r = client.put(
+        "/api/content", json={**EMPTY, "team": [member]}, headers=_auth(client)
+    )
+    assert r.status_code == 422
+
+    # Nothing was written.
+    assert client.get("/api/content").json()["team"] == []
+
+
+@pytest.mark.parametrize(
+    "bad_link",
+    [
+        "data:text/html;base64,PHNjcmlwdD4=",
+        "//evil.example.com/x.png",  # protocol-relative
+        'https://ok.md/" onerror="alert(1)',  # attribute breakout
+    ],
+)
+def test_other_dangerous_links_rejected_on_a_team_photo(client, bad_link):
+    payload = {
+        **EMPTY,
+        "team": [{"id": "m", "name": "M", "role": "r", "photo": bad_link}],
+    }
+    r = client.put("/api/content", json=payload, headers=_auth(client))
+    assert r.status_code == 422
+
+
+def test_socials_round_trip_in_order(client):
+    socials = [
+        {"id": "so-telegram", "type": "telegram", "url": "https://t.me/tbsdigital"},
+        {"id": "so-linkedin", "type": "linkedin", "url": "https://linkedin.com/company/tbs"},
+        {"id": "so-github", "type": "github", "url": ""},  # not filled in yet
+    ]
+    r = client.put(
+        "/api/content", json={**EMPTY, "socials": socials}, headers=_auth(client)
+    )
+    assert r.status_code == 200, r.text
+
+    back = client.get("/api/content").json()
+    assert back["socials"] == socials  # same order, same values
+
+    # Reordering + dropping one is a full replace, exactly like the other lists.
+    trimmed = [socials[2], socials[0]]
+    client.put(
+        "/api/content", json={**EMPTY, "socials": trimmed}, headers=_auth(client)
+    )
+    assert client.get("/api/content").json()["socials"] == trimmed
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
+
+
+def test_unknown_social_type_rejected(client):
+    payload = {
+        **EMPTY,
+        "socials": [{"id": "so-x", "type": "myspace", "url": "https://myspace.com/x"}],
+    }
+    r = client.put("/api/content", json=payload, headers=_auth(client))
+    assert r.status_code == 422
+
+
+def test_unsafe_link_rejected_on_a_social_url(client):
+    payload = {
+        **EMPTY,
+        "socials": [{"id": "so-x", "type": "telegram", "url": "javascript:alert(1)"}],
+    }
+    r = client.put("/api/content", json=payload, headers=_auth(client))
+    assert r.status_code == 422
+
+
+def test_socials_list_cap_enforced(client):
+    payload = {
+        **EMPTY,
+        "socials": [
+            {"id": f"so{i}", "type": "website", "url": ""} for i in range(201)
+        ],
+    }
+    r = client.put("/api/content", json=payload, headers=_auth(client))
     assert r.status_code == 422

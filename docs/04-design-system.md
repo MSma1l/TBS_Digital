@@ -1,31 +1,67 @@
 # 04 — Design System
 
-These tokens are taken directly from the approved prototype. Keep them as CSS variables in
-`globals.css` and reference them everywhere — do not hardcode raw hex values in components.
+Keep these tokens as CSS variables in `globals.css` and reference them everywhere — do not
+hardcode raw hex values in components.
 
 ## Colors
 
+The original prototype was blue-on-near-black: one hue, and a background so dark that the
+panels were indistinguishable from the page. The palette was lifted out of black into a
+deep slate-navy — each surface step is a real elevation, so a card now reads as a card —
+and widened from one accent to four.
+
 ```css
 :root {
-  --bg:    #04060e;   /* page background            */
-  --bg2:   #060a16;   /* alternate section bg       */
-  --panel: #0a1020;   /* card / panel background    */
-  --panel2:#0c1426;   /* raised panel / hover       */
+  /* surfaces — deep slate-navy, not black. bg → panel is ~2.2x luminance. */
+  --bg:     #0d1426;
+  --bg2:    #111a30;
+  --panel:  #18213c;
+  --panel2: #212c4e;
 
-  --line:  rgba(120,150,255,.16);  /* hairline borders        */
-  --line2: rgba(120,150,255,.28);  /* stronger borders        */
+  /* scrim — stays near-black on purpose: it sits over bright partner/project
+     screenshots and is what keeps the white-on-transparent logos readable. */
+  --scrim: 8, 12, 24;   /* raw rgb triplet, for rgba(var(--scrim), a) */
 
-  --txt:   #eef3ff;   /* primary text              */
-  --mut:   #8595bd;   /* muted / body text         */
-  --dim:   #5b688f;   /* dim / mono labels         */
+  --line:  rgba(140,165,255,.22);
+  --line2: rgba(140,165,255,.38);
 
-  --blue:  #2f6bff;   /* primary accent            */
-  --blue2: #4d82ff;   /* lighter accent            */
-  --ice:   #9cc0ff;   /* pale blue text            */
-  --cyan:  #38bdf8;   /* highlight / active        */
-  --glow:  rgba(47,107,255,.55);   /* glow shadows */
+  --txt:   #eef3ff;   /* primary text            */
+  --mut:   #a3b2d6;   /* body text               */
+  --dim:   #8695bd;   /* mono labels             */
+
+  /* accents: blue leads, cyan/violet/amber widen the range */
+  --blue:    #2b64f5;  /* fill — white text sits on it */
+  --blue2:   #6b96ff;
+  --ice:     #a9c6ff;
+  --cyan:    #3fc8f5;
+  --violet:  #b192fb;
+  --violet2: #7a52e8;  /* fill — white text sits on it */
+  --amber:   #f2b071;
 }
 ```
+
+### Contrast — the constraint that shapes the whole palette
+Lifting a background *lowers* contrast, so the text tones were re-tuned along with it. As
+measured: **every text token clears WCAG AA 4.5:1 on every surface** — the faintest pairing
+in the palette is `--dim` on `--panel2` at **4.59:1**. White on the two fill colours is
+4.95:1 (`--blue`) and 5.00:1 (`--violet2`).
+
+Two rules follow, and both have already been violated once:
+- **Never dim a token with `opacity`.** `--dim` is already the faintest tone that clears
+  AA; multiplying it by 0.6 (as `.utc` in the status bar did) pushes it under. Something
+  reads as secondary because of what it sits *next to*, not because it is washed out.
+- **A control on top of a screenshot needs its own plate.** The gallery dots sit over
+  images that may be light or dark, so they carry a dark `box-shadow` ring under a brighter
+  tick rather than relying on the page background.
+
+### Where the hues go
+The accents are not decoration-by-random — they rotate on a fixed four-step cycle
+(cyan → violet → amber → blue) so the page reads as one system:
+- **Section index labels** (`/02`, `/03`, …) — keyed off the section id in `globals.css`.
+- **Project cards** — each card gets a `--h` hue driving its category chip, its active
+  gallery dot, and its hover border/glow.
+- **Footer partner chips** — the same rotation on hover.
+- **Principles, service icons, stat bars** — the same cycle.
 
 ## Typography
 

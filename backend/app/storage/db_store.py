@@ -23,6 +23,7 @@ from ..models import (
     ProjectImageRow,
     ProjectRow,
     ServiceRow,
+    SocialRow,
     StatRow,
     SubmissionRow,
     TeamRow,
@@ -35,6 +36,7 @@ from ..schemas import (
     Project,
     Service,
     SiteContent,
+    Social,
     Stat,
     TeamMember,
 )
@@ -79,6 +81,9 @@ class DbStore(ContentStore):
             contacts = session.exec(
                 select(ContactRow).order_by(ContactRow.position)
             ).all()
+            socials = session.exec(
+                select(SocialRow).order_by(SocialRow.position)
+            ).all()
 
         images_by_project: dict = {}
         for row in image_rows:
@@ -102,7 +107,16 @@ class DbStore(ContentStore):
             ],
             team=[
                 TeamMember.model_construct(
-                    id=r.id, name=r.name, role=r.role, bio=r.bio
+                    id=r.id,
+                    name=r.name,
+                    role=r.role,
+                    bio=r.bio,
+                    photo=r.photo,
+                    website=r.website,
+                    linkedin=r.linkedin,
+                    instagram=r.instagram,
+                    facebook=r.facebook,
+                    github=r.github,
                 )
                 for r in team
             ],
@@ -133,6 +147,10 @@ class DbStore(ContentStore):
                 Contact.model_construct(id=r.id, type=r.type, value=r.value)
                 for r in contacts
             ],
+            socials=[
+                Social.model_construct(id=r.id, type=r.type, url=r.url)
+                for r in socials
+            ],
         )
 
     def save_content(self, content: SiteContent) -> SiteContent:
@@ -144,6 +162,7 @@ class DbStore(ContentStore):
             self._sync_projects(session, content.projects)
             self._sync_contacts(session, content.contacts)
             self._sync_partners(session, content.partners)
+            self._sync_socials(session, content.socials)
             session.commit()
         return self.get_content()
 
@@ -184,12 +203,16 @@ class DbStore(ContentStore):
                 session.delete(row)
         for pos, item in enumerate(items):
             row = existing.get(item.id) or TeamRow(id=item.id)
-            row.name, row.role, row.bio, row.position = (
-                item.name,
-                item.role,
-                item.bio,
-                pos,
-            )
+            row.name = item.name
+            row.role = item.role
+            row.bio = item.bio
+            row.photo = item.photo
+            row.website = item.website
+            row.linkedin = item.linkedin
+            row.instagram = item.instagram
+            row.facebook = item.facebook
+            row.github = item.github
+            row.position = pos
             session.add(row)
 
     @staticmethod
@@ -249,6 +272,18 @@ class DbStore(ContentStore):
                 item.preview,
                 pos,
             )
+            session.add(row)
+
+    @staticmethod
+    def _sync_socials(session: Session, items: List[Social]) -> None:
+        keep = {i.id for i in items}
+        existing = {r.id: r for r in session.exec(select(SocialRow)).all()}
+        for row_id, row in existing.items():
+            if row_id not in keep:
+                session.delete(row)
+        for pos, item in enumerate(items):
+            row = existing.get(item.id) or SocialRow(id=item.id)
+            row.type, row.url, row.position = item.type, item.url, pos
             session.add(row)
 
     # --- submissions -------------------------------------------------------------

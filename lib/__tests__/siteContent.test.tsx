@@ -59,7 +59,15 @@ describe("mergeSiteData", () => {
   it("produces a full SiteData shape with all five keys", () => {
     const merged = mergeSiteData({});
     expect(Object.keys(merged).sort()).toEqual(
-      ["contacts", "partners", "projects", "services", "stats", "team"].sort(),
+      [
+        "contacts",
+        "partners",
+        "projects",
+        "services",
+        "socials",
+        "stats",
+        "team",
+      ].sort(),
     );
   });
 });

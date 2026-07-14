@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(2, 4, 10, 0.92);
+  background: rgba(var(--scrim), 0.94);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
@@ -51,7 +51,7 @@
   height: 40px;
   font-size: 14px;
   color: var(--txt);
-  background: rgba(10, 16, 32, 0.8);
+  background: rgba(var(--scrim), 0.82);
   border: 1px solid var(--line);
   transition:
     border-color 0.15s,
@@ -73,7 +73,7 @@
   font-size: 28px;
   line-height: 1;
   color: var(--txt);
-  background: rgba(10, 16, 32, 0.72);
+  background: rgba(var(--scrim), 0.76);
   border: 1px solid var(--line);
   transition:
     border-color 0.15s,

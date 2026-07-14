@@ -41,7 +41,18 @@ const sampleContent: SiteData = {
   services: [
     { id: "landing", name: "Landing page", desc: "O pagina.", price: "€500" },
   ],
-  team: [{ id: "t1", name: "Ion", role: "Dev", bio: "Bio." }],
+  team: [{
+      id: "t1",
+      name: "Ion",
+      role: "Dev",
+      bio: "Bio.",
+      photo: "",
+      website: "",
+      linkedin: "",
+      instagram: "",
+      facebook: "",
+      github: "",
+    }],
   partners: [{ id: "acme", name: "ACME", logo: "", url: "", preview: "" }],
   projects: [
     {
@@ -56,6 +67,7 @@ const sampleContent: SiteData = {
     },
   ],
   contacts: [{ id: "c1", type: "email", value: "a@b.com" }],
+  socials: [{ id: "so-telegram", type: "telegram", url: "" }],
 };
 
 const submissions: ContactSubmissionRecord[] = [

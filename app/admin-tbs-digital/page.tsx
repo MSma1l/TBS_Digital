@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { PRICE_PLACEHOLDER, type ContactType } from "@/lib/content";
+import {
+  PRICE_PLACEHOLDER,
+  SOCIAL_NETWORKS,
+  type ContactType,
+  type SocialNetwork,
+} from "@/lib/content";
 import {
   defaultSiteData,
   loadSiteData,
@@ -58,10 +63,30 @@ type TabId =
   | "team"
   | "projects"
   | "partners"
-  | "contact";
+  | "contact"
+  | "socials";
 
 const genId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+
+/** A team member's own profile links. An empty one renders no icon on the site. */
+const SOCIAL_FIELDS = [
+  "website",
+  "linkedin",
+  "instagram",
+  "facebook",
+  "github",
+] as const;
+type SocialField = (typeof SOCIAL_FIELDS)[number];
+
+const SOCIAL_LABEL: Record<SocialField | SocialNetwork, string> = {
+  website: "Site personal",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  github: "GitHub",
+  telegram: "Telegram",
+};
 
 /** Per-field validation rules for the editable content fields. */
 const RULES = {
@@ -83,6 +108,9 @@ const RULES = {
   projectUrl: { label: "Link-ul proiectului", max: LIMITS.link, link: true },
   projectAppStore: { label: "Link-ul App Store", max: LIMITS.link, link: true },
   projectPlayStore: { label: "Link-ul Google Play", max: LIMITS.link, link: true },
+  teamPhoto: { label: "Fotografia", max: LIMITS.link, link: true },
+  teamSocial: { label: "Link-ul", max: LIMITS.link, link: true },
+  socialUrl: { label: "Link-ul", max: LIMITS.link, link: true },
 } satisfies Record<string, TextRules>;
 
 /** Validation rules for a contact value, which depend on its type. */
@@ -112,7 +140,15 @@ function sanitizeDraft(d: SiteData): SiteData {
       name: sanitizeText(m.name),
       role: sanitizeText(m.role),
       bio: sanitizeText(m.bio),
+      // Links are dropped rather than rewritten — see sanitizeLink.
+      photo: sanitizeLink(m.photo),
+      website: sanitizeLink(m.website),
+      linkedin: sanitizeLink(m.linkedin),
+      instagram: sanitizeLink(m.instagram),
+      facebook: sanitizeLink(m.facebook),
+      github: sanitizeLink(m.github),
     })),
+    socials: d.socials.map((s) => ({ ...s, url: sanitizeLink(s.url) })),
     projects: d.projects.map((p) => ({
       ...p,
       name: sanitizeText(p.name),
@@ -154,8 +190,11 @@ function draftHasErrors(d: SiteData): boolean {
       (m) =>
         !!validateText(m.name, RULES.teamName) ||
         !!validateText(m.role, RULES.teamRole) ||
-        !!validateText(m.bio, RULES.teamBio),
+        !!validateText(m.bio, RULES.teamBio) ||
+        !!validateText(m.photo, RULES.teamPhoto) ||
+        SOCIAL_FIELDS.some((f) => !!validateText(m[f], RULES.teamSocial)),
     ) ||
+    d.socials.some((s) => !!validateText(s.url, RULES.socialUrl)) ||
     d.projects.some(
       (p) =>
         !!validateText(p.name, RULES.projectName) ||
@@ -190,6 +229,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "projects", label: "Proiecte" },
   { id: "partners", label: "Parteneri" },
   { id: "contact", label: "Contact" },
+  { id: "socials", label: "Social" },
 ];
 
 export default function AdminPage() {
@@ -358,7 +398,11 @@ export default function AdminPage() {
     setDraft((d) => ({ ...d, stats: d.stats.filter((_, idx) => idx !== i) }));
 
   // ---- team -----------------------------------------------------------------
-  const setTeam = (i: number, field: "name" | "role" | "bio", val: string) =>
+  const setTeam = (
+    i: number,
+    field: "name" | "role" | "bio" | "photo" | SocialField,
+    val: string,
+  ) =>
     setDraft((d) => ({
       ...d,
       team: d.team.map((m, idx) => (idx === i ? { ...m, [field]: val } : m)),
@@ -366,10 +410,40 @@ export default function AdminPage() {
   const addTeam = () =>
     setDraft((d) => ({
       ...d,
-      team: [...d.team, { id: genId("team"), name: "", role: "", bio: "" }],
+      team: [
+        ...d.team,
+        {
+          id: genId("team"),
+          name: "",
+          role: "",
+          bio: "",
+          photo: "",
+          website: "",
+          linkedin: "",
+          instagram: "",
+          facebook: "",
+          github: "",
+        },
+      ],
     }));
   const removeTeam = (i: number) =>
     setDraft((d) => ({ ...d, team: d.team.filter((_, idx) => idx !== i) }));
+
+  // ---- company socials (footer) ---------------------------------------------
+  const setSocial = (i: number, field: "type" | "url", val: string) =>
+    setDraft((d) => ({
+      ...d,
+      socials: d.socials.map((s, idx) =>
+        idx === i ? { ...s, [field]: val } : s,
+      ),
+    }));
+  const addSocial = () =>
+    setDraft((d) => ({
+      ...d,
+      socials: [...d.socials, { id: genId("so"), type: "website", url: "" }],
+    }));
+  const removeSocial = (i: number) =>
+    setDraft((d) => ({ ...d, socials: d.socials.filter((_, idx) => idx !== i) }));
 
   // ---- partners -------------------------------------------------------------
   const setPartner = (
@@ -889,11 +963,135 @@ export default function AdminPage() {
                     />
                     <FieldError msg={validateText(m.bio, RULES.teamBio)} />
                   </label>
+
+                  <div className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Fotografie</span>
+                    <div className={styles.logoRow}>
+                      {m.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(m.photo)}
+                          alt={m.name || "Fotografie membru"}
+                          className={styles.logoPreview}
+                        />
+                      ) : (
+                        <span className={`mono ${styles.logoEmpty}`}>
+                          fără fotografie
+                        </span>
+                      )}
+                      <div className={styles.logoActions}>
+                        <label className={`mono ${styles.uploadBtn}`}>
+                          {uploadingKey === `team:${i}`
+                            ? "Se încarcă…"
+                            : "Încarcă poza"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={uploadingKey !== null}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file)
+                                void uploadImage(`team:${i}`, file, (url) =>
+                                  setTeam(i, "photo", url),
+                                );
+                            }}
+                            className={styles.fileInput}
+                          />
+                        </label>
+                        {m.photo && (
+                          <button
+                            type="button"
+                            onClick={() => setTeam(i, "photo", "")}
+                            className={`mono ${styles.linkBtn}`}
+                          >
+                            Elimină
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <FieldError msg={validateText(m.photo, RULES.teamPhoto)} />
+                  </div>
+
+                  {SOCIAL_FIELDS.map((field) => (
+                    <label key={field} className={styles.field}>
+                      <span className={`mono ${styles.fieldLabel}`}>
+                        {SOCIAL_LABEL[field]}
+                      </span>
+                      <input
+                        value={m[field]}
+                        onChange={(e) => setTeam(i, field, e.target.value)}
+                        placeholder="lasă gol = fără iconiță"
+                        className={`mono ${styles.input}`}
+                      />
+                      <FieldError
+                        msg={validateText(m[field], RULES.teamSocial)}
+                      />
+                    </label>
+                  ))}
                 </div>
               ))}
             </div>
             <button type="button" onClick={addTeam} className={`mono ${styles.addBtn}`}>
               + Adaugă membru
+            </button>
+          </section>
+        )}
+
+        {/* ---------- company socials (footer) ---------- */}
+        {tab === "socials" && (
+          <section className={styles.panel}>
+            <h2 className={`mono ${styles.panelTitle}`}>SOCIAL (FOOTER)</h2>
+            <p className={styles.panelHint}>
+              Iconițele companiei din footer. Fiecare apare doar dacă îi completezi
+              linkul — un câmp gol înseamnă pur și simplu că iconița nu se afișează,
+              niciodată un link mort.
+            </p>
+            <div className={styles.grid2}>
+              {draft.socials.map((s, i) => (
+                <div key={s.id} className={styles.rowCard}>
+                  <div className={styles.rowHead}>
+                    <span className={`mono ${styles.rowTag}`}>
+                      {SOCIAL_LABEL[s.type]}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeSocial(i)}
+                      className={styles.removeBtn}
+                      aria-label="Șterge rețeaua"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Rețea</span>
+                    <select
+                      value={s.type}
+                      onChange={(e) => setSocial(i, "type", e.target.value)}
+                      className={`mono ${styles.input}`}
+                    >
+                      {SOCIAL_NETWORKS.map((n) => (
+                        <option key={n} value={n}>
+                          {SOCIAL_LABEL[n]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>Link</span>
+                    <input
+                      value={s.url}
+                      onChange={(e) => setSocial(i, "url", e.target.value)}
+                      placeholder="https://t.me/canalul-tau"
+                      className={`mono ${styles.input}`}
+                    />
+                    <FieldError msg={validateText(s.url, RULES.socialUrl)} />
+                  </label>
+                </div>
+              ))}
+            </div>
+            <button type="button" onClick={addSocial} className={`mono ${styles.addBtn}`}>
+              + Adaugă rețea
             </button>
           </section>
         )}

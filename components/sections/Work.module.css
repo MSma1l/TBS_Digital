@@ -29,15 +29,32 @@
   gap: 14px;
 }
 
+/* Per-card hue on the usual four-step rotation — it drives the category chip, the
+   active gallery dot and the hover border/glow. */
 .card {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--line);
   background: var(--panel);
-  transition: border-color 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+  --h: var(--cyan);
 }
+.card:nth-child(4n + 2) {
+  --h: var(--violet);
+}
+.card:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.card:nth-child(4n + 4) {
+  --h: var(--blue2);
+}
+
 .card:hover {
-  border-color: var(--line2);
+  border-color: color-mix(in srgb, var(--h) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--h) 18%, transparent),
+    0 18px 40px rgba(var(--scrim), 0.45);
 }
 
 /* ---------- rotating screenshot gallery ---------- */
@@ -91,7 +108,7 @@
   justify-content: center;
   font-size: 13px;
   color: var(--txt);
-  background: rgba(4, 6, 14, 0.72);
+  background: rgba(var(--scrim), 0.78);
   border: 1px solid var(--line2);
   opacity: 0;
   transition: opacity 0.2s;
@@ -116,15 +133,20 @@
   pointer-events: none;
 }
 
+/* The idle dots sit on top of a screenshot, which can be light OR dark — at 0.28 they
+   vanished against a bright one. A dark plate under a brighter tick keeps them legible
+   either way, and they are a navigation control, so they owe the reader 3:1. */
 .dot {
   width: 16px;
   height: 3px;
-  background: rgba(238, 243, 255, 0.28);
+  background: rgba(238, 243, 255, 0.55);
+  box-shadow: 0 0 0 1px rgba(var(--scrim), 0.55);
   transition: background 0.3s;
 }
 
 .dotOn {
-  background: var(--cyan);
+  background: var(--h);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--h) 60%, transparent);
 }
 
 /* A project whose screenshots aren't in yet. */
@@ -150,10 +172,15 @@
   flex: 1; /* keeps the actions row on the baseline across a row of cards */
 }
 
+/* The category is now a real chip in the card's hue. */
 .tag {
+  align-self: flex-start;
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: var(--cyan);
+  color: var(--h);
+  border: 1px solid color-mix(in srgb, var(--h) 40%, transparent);
+  background: color-mix(in srgb, var(--h) 12%, transparent);
+  padding: 4px 9px;
 }
 
 .name {
@@ -195,9 +222,9 @@
 
 .visit:hover,
 .store:hover {
-  border-color: var(--cyan);
+  border-color: color-mix(in srgb, var(--h) 65%, transparent);
   color: var(--txt);
-  background: rgba(47, 107, 255, 0.12);
+  background: color-mix(in srgb, var(--h) 14%, transparent);
 }
 
 .store {

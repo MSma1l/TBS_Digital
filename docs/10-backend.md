@@ -39,7 +39,18 @@ routers → ContentStore (interface) → DbStore        (active — SQLModel, SQ
                                     → JSONFileStore  (reference only)
 ```
 
-Key files: `app/models.py` (tables: services, stats, team, partners, contacts, submissions,
+Schema changes are applied at boot by `create_db_and_tables` in `app/db.py`, not by
+Alembic (there is none). It does three things beyond `create_all`, all idempotent: drops
+the pre-logo `partners` table so it can be recreated with its new primary key; `ALTER
+TABLE … ADD COLUMN` for columns added to a model after its table already existed; and
+**backfills** those new columns on the existing rows. That last step is the one that is
+easy to forget — a fresh column starts empty on every row, so a *content* column added
+without a backfill leaves the site silently rendering nothing there (it happened once
+with `partners.preview`). `tests/test_migration.py` pins all of it against a database in
+the old shape.
+
+Key files: `app/models.py` (tables: services, stats, team, projects, project_images,
+partners, contacts, submissions,
 users — each content list keeps a `position` column for order), `app/db.py` (engine +
 `create_db_and_tables` + `get_session`), `app/storage/db_store.py` (upsert-by-id + delete-missing
 on `PUT`), `app/seed.py` (idempotent startup seed of content + the hashed admin).

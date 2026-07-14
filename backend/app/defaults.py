@@ -12,6 +12,7 @@ from .schemas import (
     Project,
     Service,
     SiteContent,
+    Social,
     Stat,
     TeamMember,
     PRICE_PLACEHOLDER,
@@ -46,11 +47,41 @@ _DOCUSAFE_DESC = (
     "securizată, editare colaborativă direct în browser, căutare full-text și procesare "
     "asincronă."
 )
+_CGAM_DESC = (
+    "Platforma Corporate Governance Academy from Moldova: ateliere practice de "
+    "negociere, o ligă gamificată cu niveluri și puncte, calendar de evenimente și "
+    "comunitate."
+)
+# Taken from the app's own store listing (documentatie/16-store-listing.md).
 _IQ_ARENA_DESC = (
-    "Simulator de negocieri pentru Corporate Governance Academy: ateliere practice, o "
-    "ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate."
+    "Aplicația companion pentru evenimentele de dezbatere și negociere CGAM: intri la o "
+    "masă prin cod sau QR, rolurile se atribuie automat (PRO, CON, juriu), runda e "
+    "cronometrată, iar fiecare jurat notează 1–5 pe cele cinci criterii CGAM — "
+    "rezultatele se agregă în timp real, până la dezvăluirea câștigătorului."
 )
 _FAYR_DESC = ""
+
+# The real team, in the order they appear on the /05 grid. Photos, bios and personal
+# links start empty — the admin fills them in (a card renders fine without any of them).
+_TEAM = [
+    ("chistol-maxim", "Chistol Maxim", "Team Lead & Fullstack Developer"),
+    ("danu", "Danu", "Fullstack Developer"),
+    ("bales-laurentiu", "Bales Laurentiu", "QA Tester & Pentester"),
+]
+
+# The company's own networks. Every url starts empty on purpose: the footer renders an
+# icon only once its link is set, so an unfilled slot simply doesn't show.
+_SOCIALS = ["telegram", "linkedin", "github"]
+
+
+def default_team() -> list[TeamMember]:
+    """The real team members, with everything but name/role left for the admin."""
+    return [TeamMember(id=tid, name=name, role=role) for tid, name, role in _TEAM]
+
+
+def default_socials() -> list[Social]:
+    """The footer's social slots — the icons the admin is expected to fill in."""
+    return [Social(id=f"so-{t}", type=t, url="") for t in _SOCIALS]
 
 
 def default_partners() -> list[Partner]:
@@ -124,15 +155,29 @@ def default_projects() -> list[Project]:
             images=[],
         ),
         Project(
+            id="cgam",
+            name="CGAM",
+            tag="PLATFORMĂ WEB",
+            desc=_CGAM_DESC,
+            url="https://cgam.md",
+            images=[
+                "/projects/cgam-1.png",
+                "/projects/cgam-2.png",
+                "/projects/cgam-3.jpg",
+                "/projects/cgam-4.png",
+            ],
+        ),
+        # The game itself, not the academy's platform. Store links start empty — they are
+        # filled in from the admin, and each button only appears once its link is set.
+        Project(
             id="iq-arena",
             name="IQ Arena",
             tag="APLICAȚIE MOBILĂ",
             desc=_IQ_ARENA_DESC,
-            url="https://cgam.md",
             images=[
                 "/projects/iq-arena-1.png",
                 "/projects/iq-arena-2.png",
-                "/projects/iq-arena-3.jpg",
+                "/projects/iq-arena-3.png",
                 "/projects/iq-arena-4.png",
             ],
         ),
@@ -167,11 +212,12 @@ def default_content() -> SiteContent:
     return SiteContent(
         stats=[Stat(id=f"s{i}") for i in range(1, 5)],  # 4 blank placeholders
         services=services,
-        team=[TeamMember(id=f"t{i}") for i in range(1, 5)],  # 4 blank placeholders
+        team=default_team(),
         partners=default_partners(),
         projects=default_projects(),
         contacts=[
             Contact(id="c-email", type="email", value="contact@tbsdigital.ro"),
             Contact(id="c-phone", type="phone", value="+373 600 00 000"),
         ],
+        socials=default_socials(),
     )

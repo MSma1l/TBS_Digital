@@ -46,8 +46,8 @@
 }
 
 .logoCard:hover {
-  border-color: var(--line2);
-  background: rgba(120, 150, 255, 0.05);
+  border-color: color-mix(in srgb, var(--violet) 50%, transparent);
+  background: color-mix(in srgb, var(--violet) 8%, var(--panel2));
 }
 
 .logoCard:focus-visible {
@@ -84,16 +84,19 @@
   display: block;
 }
 
-/* Dark scrim so the white logo/name stay readable over bright screenshots. */
+/* Dark scrim so the white logo/name stay readable over bright screenshots.
+   It deliberately uses --scrim (near-black), NOT --bg: the surfaces got lighter, the
+   thing protecting a white-on-transparent logo must not. Alphas are nudged up to hold
+   the same floor — white-on-scrim over a white screenshot still measures >6:1. */
 .preview::after {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(4, 6, 14, 0.66) 0%,
-    rgba(4, 6, 14, 0.82) 55%,
-    rgba(4, 6, 14, 0.92) 100%
+    rgba(var(--scrim), 0.7) 0%,
+    rgba(var(--scrim), 0.86) 55%,
+    rgba(var(--scrim), 0.94) 100%
   );
 }
 
@@ -124,7 +127,7 @@
 
 .hasPreview .logo,
 .hasPreview .wordmark {
-  filter: drop-shadow(0 2px 12px rgba(4, 6, 14, 0.9));
+  filter: drop-shadow(0 2px 12px rgba(var(--scrim), 0.92));
 }
 
 /* Fallback when a partner has no logo yet. */
@@ -152,7 +155,7 @@
 
 .hasPreview .partnerName {
   opacity: 0.9;
-  text-shadow: 0 2px 10px rgba(4, 6, 14, 0.9);
+  text-shadow: 0 2px 10px rgba(var(--scrim), 0.92);
 }
 
 /* Desktop with a real pointer: hold the preview back, then fade + settle it in. */
@@ -188,10 +191,25 @@
 }
 
 /* ---------- become a partner ---------- */
+/* The "become a partner" pitch is the one warm moment in the page — amber label on a
+   panel that's washed with a violet→amber gradient. */
 .cta {
+  position: relative;
   margin-top: 12px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  border-left: 2px solid var(--amber);
+  background:
+    linear-gradient(
+      100deg,
+      color-mix(in srgb, var(--amber) 8%, transparent),
+      transparent 42%
+    ),
+    linear-gradient(
+      260deg,
+      color-mix(in srgb, var(--violet2) 20%, transparent),
+      transparent 55%
+    ),
+    var(--panel);
   padding: clamp(24px, 3.5vw, 38px);
   display: flex;
   flex-wrap: wrap;
@@ -207,7 +225,7 @@
 .ctaLabel {
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--cyan);
+  color: var(--amber);
 }
 
 .ctaTitle {
@@ -229,8 +247,9 @@
   border: 1px solid var(--line2);
   background: linear-gradient(
     90deg,
-    rgba(47, 107, 255, 0.18),
-    rgba(56, 189, 248, 0.12)
+    rgba(43, 100, 245, 0.28),
+    rgba(122, 82, 232, 0.26) 55%,
+    rgba(63, 200, 245, 0.18)
   );
   color: var(--txt);
   text-decoration: none;
@@ -244,11 +263,12 @@
 }
 
 .ctaBtn:hover {
-  border-color: var(--cyan);
+  border-color: var(--violet);
   background: linear-gradient(
     90deg,
-    rgba(47, 107, 255, 0.3),
-    rgba(56, 189, 248, 0.2)
+    rgba(43, 100, 245, 0.45),
+    rgba(122, 82, 232, 0.42) 55%,
+    rgba(63, 200, 245, 0.3)
   );
 }
 

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from .config import get_settings
 
@@ -68,24 +68,53 @@ def _drop_legacy_partners_table(engine: Engine) -> bool:
     return True
 
 
-def _add_missing_columns(engine: Engine, table: str, columns: dict) -> None:
+def _add_missing_columns(engine: Engine, table: str, columns: dict) -> set:
     """ADD COLUMN for any of ``columns`` the table doesn't have yet.
 
     ``create_all`` never ALTERs an existing table, so a column added to a model after a
     deploy would be missing in production. Both SQLite and Postgres support plain
     ``ALTER TABLE … ADD COLUMN``; we check the live schema first rather than relying on
     ``IF NOT EXISTS`` (SQLite has no such clause for ADD COLUMN). Idempotent.
+
+    Returns the names actually added, so the caller can backfill them — a fresh column
+    starts empty on every existing row, which for a *content* column means the site
+    silently renders nothing there.
     """
     inspector = inspect(engine)
     if table not in inspector.get_table_names():
-        return  # create_all will build it with every column
+        return set()  # create_all will build it with every column
     existing = {c["name"] for c in inspector.get_columns(table)}
 
+    added = set()
     for name, ddl in columns.items():
         if name in existing:
             continue
         with engine.begin() as conn:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+        added.add(name)
+    return added
+
+
+def _backfill_partner_previews(engine: Engine) -> None:
+    """Give the existing partner rows the site-preview image the new column expects.
+
+    ``ALTER TABLE … ADD COLUMN`` leaves every existing row with the empty default, so
+    without this the partners already in the database would have no preview at all and
+    the hover reveal would show nothing. Only rows that are still empty are touched, and
+    only for partners we ship defaults for — an admin's own partner, or one whose preview
+    they have already set, is left exactly as it is.
+    """
+    from .defaults import default_partners
+    from .models import PartnerRow
+
+    previews = {p.id: p.preview for p in default_partners() if p.preview}
+
+    with Session(engine) as session:
+        for row in session.exec(select(PartnerRow)).all():
+            if not row.preview and row.id in previews:
+                row.preview = previews[row.id]
+                session.add(row)
+        session.commit()
 
 
 def _insert_default_partners(engine: Engine) -> None:
@@ -101,6 +130,28 @@ def _insert_default_partners(engine: Engine) -> None:
                     logo=partner.logo,
                     url=partner.url,
                     preview=partner.preview,
+                    position=position,
+                )
+            )
+        session.commit()
+
+
+def _insert_default_socials(engine: Engine) -> None:
+    """Create the footer's social slots on a database that predates the socials table.
+
+    Every url is empty (see ``defaults.default_socials``) — this only gives the admin the
+    three rows to fill in, so the footer has something to render once they do.
+    """
+    from .defaults import default_socials
+    from .models import SocialRow
+
+    with Session(engine) as session:
+        for position, social in enumerate(default_socials()):
+            session.add(
+                SocialRow(
+                    id=social.id,
+                    type=social.type,
+                    url=social.url,
                     position=position,
                 )
             )
@@ -134,6 +185,19 @@ def _insert_default_projects(engine: Engine) -> None:
         session.commit()
 
 
+# A team member gained a photo and their own social profiles after the `team` table was
+# already live in production, so `create_all` will never add these — they have to be
+# ALTERed in. All are links (validated, never escaped) and all start empty.
+TEAM_LINK_COLUMNS = {
+    "photo": "VARCHAR NOT NULL DEFAULT ''",
+    "website": "VARCHAR NOT NULL DEFAULT ''",
+    "linkedin": "VARCHAR NOT NULL DEFAULT ''",
+    "instagram": "VARCHAR NOT NULL DEFAULT ''",
+    "facebook": "VARCHAR NOT NULL DEFAULT ''",
+    "github": "VARCHAR NOT NULL DEFAULT ''",
+}
+
+
 def create_db_and_tables() -> None:
     """Migrate, then create any missing tables. Safe to call repeatedly (idempotent)."""
     # Import for side effect: registers all tables on SQLModel.metadata.
@@ -148,22 +212,31 @@ def create_db_and_tables() -> None:
     # which `seed_database` deliberately never touches.
     is_fresh_db = "services" not in tables_before
     projects_are_new = "projects" not in tables_before
+    socials_are_new = "socials" not in tables_before
 
     migrated_partners = _drop_legacy_partners_table(engine)
     SQLModel.metadata.create_all(engine)
 
     # Columns added to a model after its table was already created in production.
-    _add_missing_columns(
+    added = _add_missing_columns(
         engine, "partners", {"preview": "VARCHAR NOT NULL DEFAULT ''"}
     )
+    # No backfill: unlike a partner's preview, we ship no default photo or profile link —
+    # the admin fills them in, and an empty link just doesn't render.
+    _add_missing_columns(engine, "team", TEAM_LINK_COLUMNS)
 
     if is_fresh_db:
         return  # seed_database() fills everything from defaults.default_content()
+
+    if "preview" in added:
+        _backfill_partner_previews(engine)
 
     if migrated_partners:
         _insert_default_partners(engine)
     if projects_are_new:
         _insert_default_projects(engine)
+    if socials_are_new:
+        _insert_default_socials(engine)
 
 
 def get_session() -> Session:

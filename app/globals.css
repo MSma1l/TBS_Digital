@@ -5,27 +5,40 @@
    ============================================================ */
 
 :root {
-  /* surfaces */
-  --bg: #04060e;
-  --bg2: #060a16;
-  --panel: #0a1020;
-  --panel2: #0c1426;
+  /* surfaces — deep slate-navy, not black. Each step is a real elevation:
+     bg → panel is ~2.2x luminance, so a card reads as a distinct surface. */
+  --bg: #0d1426;
+  --bg2: #111a30;
+  --panel: #18213c;
+  --panel2: #212c4e;
+
+  /* scrim — stays near-black on purpose: it sits over bright partner/project
+     screenshots and is what keeps the white-on-transparent logos readable. */
+  --scrim: 8, 12, 24;
 
   /* lines */
-  --line: rgba(120, 150, 255, 0.16);
-  --line2: rgba(120, 150, 255, 0.28);
+  --line: rgba(140, 165, 255, 0.22);
+  --line2: rgba(140, 165, 255, 0.38);
 
-  /* text */
+  /* text (all AA 4.5:1+ on every surface above — see docs/04-design-system.md) */
   --txt: #eef3ff;
-  --mut: #8595bd;
-  --dim: #5b688f;
+  --mut: #a3b2d6;
+  --dim: #8695bd;
 
-  /* accents */
-  --blue: #2f6bff;
-  --blue2: #4d82ff;
-  --ice: #9cc0ff;
-  --cyan: #38bdf8;
-  --glow: rgba(47, 107, 255, 0.55);
+  /* accents — blue is the primary, cyan/violet/amber widen the range.
+     --blue and --violet2 are *fills* (white text sits on them, AA 4.9:1/5.0:1);
+     --blue2/--cyan/--violet/--amber are the text/icon-weight tones. */
+  --blue: #2b64f5;
+  --blue2: #6b96ff;
+  --ice: #a9c6ff;
+  --cyan: #3fc8f5;
+  --violet: #b192fb;
+  --violet2: #7a52e8;
+  --amber: #f2b071;
+
+  --glow: rgba(43, 100, 245, 0.55);
+  --glow-violet: rgba(122, 82, 232, 0.5);
+  --glow-amber: rgba(242, 176, 113, 0.35);
 
   /* layout */
   --maxw: 1280px;
@@ -163,37 +176,68 @@ a {
   height: 2px;
   width: 0%;
   z-index: 300;
-  background: linear-gradient(90deg, var(--blue), var(--cyan));
+  background: linear-gradient(90deg, var(--blue), var(--violet2), var(--cyan));
   box-shadow: 0 0 10px var(--glow);
 }
 
 /* ---------- hazard stripes ---------- */
 /* Hazard stripes. They flow continuously inside their own strip.
 
-   The seam is the whole trick: the gradient repeats every 28px measured along its own
+   The colour is a static blue→violet→cyan sweep painted across the whole strip; the
+   *stripes* are a mask on top of it. Masking (rather than putting the stripes in the
+   background-image) is what lets one bar carry three hues — a repeating-linear-gradient
+   can only emit flat colour stops.
+
+   The seam is the whole trick: the mask repeats every 28px measured along its own
    45° axis, which is 28 / cos(45°) = 39.598px measured horizontally. Shifting the
-   background by exactly that distance lands the pattern back on itself, so the loop is
-   invisible — any other value (39px, 40px) would jump once per cycle. */
+   mask by exactly that distance lands the pattern back on itself, so the loop is
+   invisible — any other value (39px, 40px) would jump once per cycle.
+
+   The stripes live on ::before, NOT on .hz itself. A mask clips the element's whole
+   rendered subtree, so masking .hz directly would shred any child it has — the footer
+   marquee puts "> ACCESS GRANTED_" *inside* the strip. Painting into a pseudo-element
+   and lifting the real children with position:relative keeps the text intact. */
 .hz {
-  background-image: repeating-linear-gradient(
+  position: relative;
+}
+
+.hz::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    90deg,
+    var(--blue) 0%,
+    var(--violet2) 45%,
+    var(--cyan) 100%
+  );
+  -webkit-mask-image: repeating-linear-gradient(
     45deg,
-    var(--blue) 0 14px,
+    #000 0 14px,
     transparent 14px 28px
   );
+  mask-image: repeating-linear-gradient(45deg, #000 0 14px, transparent 14px 28px);
   animation: hz-flow 1.8s linear infinite;
+}
+
+/* children ride above the stripes (both are positioned → DOM order decides) */
+.hz > * {
+  position: relative;
 }
 
 @keyframes hz-flow {
   from {
-    background-position: 0 0;
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
   }
   to {
-    background-position: 39.598px 0;
+    -webkit-mask-position: 39.598px 0;
+    mask-position: 39.598px 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hz {
+  .hz::before {
     animation: none;
   }
 }
@@ -217,6 +261,28 @@ a {
   color: var(--dim);
 }
 .sectionLabel .idx {
+  color: var(--cyan);
+}
+
+/* The index number is the one mark every section shares, so it carries the palette:
+   walking down the page it rotates violet → cyan → amber → blue → violet → cyan.
+   Keyed off the section ids (SectionLabel itself is content-agnostic). */
+#despre .sectionLabel .idx {
+  color: var(--violet);
+}
+#servicii .sectionLabel .idx {
+  color: var(--cyan);
+}
+#lucrari .sectionLabel .idx {
+  color: var(--amber);
+}
+#echipa .sectionLabel .idx {
+  color: var(--blue2);
+}
+#parteneri .sectionLabel .idx {
+  color: var(--violet);
+}
+#contact .sectionLabel .idx {
   color: var(--cyan);
 }
 

@@ -36,12 +36,40 @@ class StatRow(SQLModel, table=True):
 
 
 class TeamRow(SQLModel, table=True):
+    """A team member, their photo and their own social profiles.
+
+    The photo and the five link columns were added after the table already existed in
+    production — ``db.py`` ALTERs them in on boot (``_add_missing_columns``), because
+    ``create_all`` never touches a table it did not just create.
+    """
+
     __tablename__ = "team"
 
     id: str = Field(primary_key=True)
     name: str = ""
     role: str = ""
     bio: str = ""
+    photo: str = ""  # bundled asset path or an uploaded /api/uploads/… path
+    website: str = ""
+    linkedin: str = ""
+    instagram: str = ""
+    facebook: str = ""
+    github: str = ""
+    position: int = 0
+
+
+class SocialRow(SQLModel, table=True):
+    """One of the company's social links, rendered as an icon in the footer.
+
+    ``type`` is one of the ``SocialType`` network names (schemas.py); ``url`` starts
+    empty and the footer only shows the icon once the admin sets it.
+    """
+
+    __tablename__ = "socials"
+
+    id: str = Field(primary_key=True)
+    type: str = "website"
+    url: str = ""
     position: int = 0
 
 

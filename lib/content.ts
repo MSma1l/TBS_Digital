@@ -53,6 +53,24 @@ export type Project = {
   images: string[];
 };
 
+/**
+ * The social networks a team member or the company can link to. A link is optional
+ * everywhere: an icon is rendered only for the networks whose URL is actually set, so an
+ * empty field simply means no icon — never a dead link.
+ */
+export const SOCIAL_NETWORKS = [
+  "website",
+  "linkedin",
+  "instagram",
+  "facebook",
+  "github",
+  "telegram",
+] as const;
+export type SocialNetwork = (typeof SOCIAL_NETWORKS)[number];
+
+/** One company-wide social link, shown in the footer. */
+export type Social = { id: string; type: SocialNetwork; url: string };
+
 export type ContactType = "email" | "phone" | "other";
 export type Contact = { id: string; type: ContactType; value: string };
 export type WorkPlaceholder = { id: string; grad: string };
@@ -146,17 +164,32 @@ export const projects: Project[] = [
     images: [],
   },
   {
+    id: "cgam",
+    name: "CGAM",
+    tag: "PLATFORMĂ WEB",
+    desc: "Platforma Corporate Governance Academy from Moldova: ateliere practice de negociere, o ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate.",
+    url: "https://cgam.md",
+    appStore: "",
+    playStore: "",
+    images: [
+      "/projects/cgam-1.png",
+      "/projects/cgam-2.png",
+      "/projects/cgam-3.jpg",
+      "/projects/cgam-4.png",
+    ],
+  },
+  {
     id: "iq-arena",
     name: "IQ Arena",
     tag: "APLICAȚIE MOBILĂ",
-    desc: "Simulator de negocieri pentru Corporate Governance Academy: ateliere practice, o ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate.",
-    url: "https://cgam.md",
+    desc: "Aplicația companion pentru evenimentele de dezbatere și negociere CGAM: intri la o masă prin cod sau QR, rolurile se atribuie automat (PRO, CON, juriu), runda e cronometrată, iar fiecare jurat notează 1–5 pe cele cinci criterii CGAM — rezultatele se agregă în timp real, până la dezvăluirea câștigătorului.",
+    url: "",
     appStore: "",
     playStore: "",
     images: [
       "/projects/iq-arena-1.png",
       "/projects/iq-arena-2.png",
-      "/projects/iq-arena-3.jpg",
+      "/projects/iq-arena-3.png",
       "/projects/iq-arena-4.png",
     ],
   },
@@ -172,13 +205,53 @@ export const projects: Project[] = [
   },
 ];
 
-/* ---------- /05 Team ---------- */
-/* Team members are placeholders (populated later from the admin). */
-export const teamPlaceholders: { id: string }[] = [
-  { id: "t1" },
-  { id: "t2" },
-  { id: "t3" },
-  { id: "t4" },
+/* ---------- /05 Team ----------
+   The real team. Photos, bios and social links are filled in from the admin: a member
+   with no photo falls back to the gradient avatar, and a social icon appears only for a
+   network whose URL is actually set — so an empty field is simply no icon, never a dead
+   link. */
+export type TeamMember = {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photo: string;
+  website: string;
+  linkedin: string;
+  instagram: string;
+  facebook: string;
+  github: string;
+};
+
+const member = (
+  id: string,
+  name: string,
+  role: string,
+): TeamMember => ({
+  id,
+  name,
+  role,
+  bio: "",
+  photo: "",
+  website: "",
+  linkedin: "",
+  instagram: "",
+  facebook: "",
+  github: "",
+});
+
+export const team: TeamMember[] = [
+  member("chistol-maxim", "Chistol Maxim", "Team Lead & Fullstack Developer"),
+  member("danu", "Danu", "Fullstack Developer"),
+  member("bales-laurentiu", "Bales Laurentiu", "QA Tester & Pentester"),
+];
+
+/* ---------- Company socials (footer) ----------
+   Same rule as the team: an icon shows up only once its URL is set from the admin. */
+export const socials: Social[] = [
+  { id: "s-telegram", type: "telegram", url: "" },
+  { id: "s-linkedin", type: "linkedin", url: "" },
+  { id: "s-github", type: "github", url: "" },
 ];
 
 /* SYSTEM_STATUS bars — numeric values kept for now (see stats note above). */

@@ -24,10 +24,12 @@ import {
   services as defaultServices,
   partners as defaultPartners,
   projects as defaultProjects,
-  teamPlaceholders,
   statPlaceholders,
   contacts as defaultContacts,
+  team as defaultTeam,
+  socials as defaultSocials,
   type ContactType,
+  type SocialNetwork,
 } from "@/lib/content";
 import { fetchContent } from "@/lib/api";
 
@@ -39,7 +41,24 @@ export type ServiceItem = {
   price: string;
   estimatorOnly?: boolean;
 };
-export type TeamItem = { id: string; name: string; role: string; bio: string };
+/**
+ * A team member. `photo` is a bundled asset or an uploaded path (`/api/uploads/…`); with
+ * none set the card falls back to its gradient avatar. Each social URL is optional — the
+ * card shows an icon only for the ones that are set.
+ */
+export type TeamItem = {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  photo: string;
+  website: string;
+  linkedin: string;
+  instagram: string;
+  facebook: string;
+  github: string;
+};
+export type SocialItem = { id: string; type: SocialNetwork; url: string };
 export type ContactItem = { id: string; type: ContactType; value: string };
 export type PartnerItem = {
   id: string;
@@ -69,6 +88,7 @@ export type SiteData = {
   services: ServiceItem[];
   team: TeamItem[];
   projects: ProjectItem[];
+  socials: SocialItem[];
   partners: PartnerItem[];
   contacts: ContactItem[];
 };
@@ -77,8 +97,9 @@ export type SiteData = {
 export const defaultSiteData: SiteData = {
   stats: statPlaceholders.map((s) => ({ id: s.id, value: "", label: "" })),
   services: defaultServices.map((s) => ({ ...s })),
-  team: teamPlaceholders.map((t) => ({ id: t.id, name: "", role: "", bio: "" })),
+  team: defaultTeam.map((t) => ({ ...t })),
   projects: defaultProjects.map((p) => ({ ...p, images: [...p.images] })),
+  socials: defaultSocials.map((s) => ({ ...s })),
   partners: defaultPartners.map((p) => ({ ...p })),
   contacts: defaultContacts.map((c) => ({ ...c })),
 };
@@ -98,6 +119,7 @@ export function mergeSiteData(overrides: Partial<SiteData> | null | undefined): 
     services: overrides.services ?? defaultSiteData.services,
     team: overrides.team ?? defaultSiteData.team,
     projects: overrides.projects ?? defaultSiteData.projects,
+    socials: overrides.socials ?? defaultSiteData.socials,
     partners: overrides.partners ?? defaultSiteData.partners,
     contacts: overrides.contacts ?? defaultSiteData.contacts,
   };

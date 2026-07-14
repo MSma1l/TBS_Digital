@@ -32,11 +32,25 @@
   margin-bottom: 16px;
 }
 
+/* Four bars, four hues — the fill sweeps into its row's hue and the value echoes it,
+   so SYSTEM_STATUS reads as a spectrum instead of four identical blue meters.
+   The rows are children 2..5 of .status (the SYSTEM_STATUS label is child 1), hence
+   the +1 offset in the nth-child indices below. */
 .statusRow {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 11px;
+  --h: var(--cyan); /* row 1 */
+}
+.statusRow:nth-child(3) {
+  --h: var(--violet); /* row 2 */
+}
+.statusRow:nth-child(4) {
+  --h: var(--amber); /* row 3 */
+}
+.statusRow:nth-child(5) {
+  --h: var(--blue2); /* row 4 */
 }
 
 .statusName {
@@ -49,7 +63,7 @@
 .statusTrack {
   flex: 1;
   height: 8px;
-  background: rgba(120, 150, 255, 0.12);
+  background: rgba(140, 165, 255, 0.14);
   position: relative;
   overflow: hidden;
 }
@@ -59,13 +73,14 @@
   left: 0;
   top: 0;
   bottom: 0;
-  background: linear-gradient(90deg, var(--blue), var(--cyan));
+  background: linear-gradient(90deg, var(--blue), var(--h));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--h) 45%, transparent);
 }
 
 .statusVal {
   flex: 0 0 auto;
   font-size: 11px;
-  color: var(--cyan);
+  color: var(--h);
 }
 
 .statusStripes {
@@ -74,78 +89,177 @@
   opacity: 0.5;
 }
 
-/* ---------- placeholder team cards ---------- */
+/* ---------- team cards ----------
+   Same four-step hue rotation as the /04 work cards (cyan → violet → amber → blue),
+   so a member card reads as part of the same system. Everything below is driven by
+   the card's own --h. */
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
   gap: 12px;
 }
 
 .card {
+  position: relative;
   border: 1px solid var(--line);
   background: var(--panel);
-  padding: 22px;
+  padding: 32px 18px 28px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  transition: border-color 0.2s;
+  gap: 8px;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    box-shadow 0.2s;
+  --h: var(--cyan);
 }
+.card:nth-child(4n + 2) {
+  --h: var(--violet);
+}
+.card:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.card:nth-child(4n + 4) {
+  --h: var(--blue2);
+}
+
+/* hairline of the card's hue along the top edge — the mark that ties the three
+   cards to the SYSTEM_STATUS bars next to them. */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--h) 75%, transparent),
+    transparent
+  );
+}
+
 .card:hover {
+  border-color: color-mix(in srgb, var(--h) 55%, transparent);
+  background: color-mix(in srgb, var(--h) 5%, var(--panel));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--h) 16%, transparent),
+    0 18px 40px rgba(var(--scrim), 0.45);
+}
+
+/* ---------- avatar ----------
+   With a photo it is the frame; without one (the state the team ships in) it is a
+   monogram tile in the card's hue — intentional, not a hole in the layout. */
+.avatar {
+  width: 88px;
+  height: 88px;
+  flex: none;
+  margin-bottom: 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--h) 45%, transparent);
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--h) 40%, transparent),
+    color-mix(in srgb, var(--blue) 28%, transparent)
+  );
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--h) 16%, transparent);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.card:hover .avatar {
+  border-color: color-mix(in srgb, var(--h) 70%, transparent);
+  box-shadow:
+    inset 0 0 26px color-mix(in srgb, var(--h) 22%, transparent),
+    0 0 18px color-mix(in srgb, var(--h) 22%, transparent);
+}
+
+.photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.initials {
+  font-size: 31px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  /* the letters sit on the gradient, so they lean on the light end of the palette */
+  color: var(--txt);
+  text-shadow: 0 2px 12px rgba(var(--scrim), 0.55);
+}
+
+/* ---------- identity ---------- */
+.name {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--txt);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.role {
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: var(--h);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.bio {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--mut);
+  text-align: center;
+  margin: 4px 0 0;
+}
+
+/* ---------- social links ----------
+   Rendered only for the networks a member actually has a URL for; a member with
+   none has no row at all, so the card simply ends after the role. */
+.socials {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.social {
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  background: rgba(140, 165, 255, 0.05);
+  transition:
+    color 0.18s,
+    border-color 0.18s,
+    background 0.18s;
+}
+.social:hover {
+  color: var(--h);
+  border-color: color-mix(in srgb, var(--h) 55%, transparent);
+  background: color-mix(in srgb, var(--h) 12%, transparent);
+}
+.social:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  color: var(--h);
   border-color: var(--line2);
 }
 
-.avatar {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 4px;
-  border: 1px solid var(--line2);
-  background: linear-gradient(140deg, rgba(77, 130, 255, 0.35), rgba(56, 189, 248, 0.25));
-}
-
-.lineName,
-.lineRole,
-.lineBio {
-  display: block;
-  border-radius: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(120, 150, 255, 0.14),
-    rgba(120, 150, 255, 0.06)
-  );
-}
-/* filled state (populated from the admin) */
-.name {
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  color: var(--txt);
-  text-align: center;
-}
-.role {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--cyan);
-  text-align: center;
-}
-.bio {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--mut);
-  text-align: center;
-  margin-top: 4px;
-}
-
-.lineName {
-  width: 60%;
-  height: 12px;
-}
-.lineRole {
-  width: 45%;
-  height: 9px;
-}
-.lineBio {
-  width: 80%;
-  height: 30px;
-  margin-top: 4px;
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .avatar,
+  .social {
+    transition: none;
+  }
 }

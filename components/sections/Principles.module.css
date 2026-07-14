@@ -15,9 +15,44 @@
   margin-top: 30px;
 }
 
+/* Each principle owns a hue (--h). It shows up as a bar riding the cell's top edge and
+   as the tint the cell lifts to on hover — so the row reads as five things, not one
+   blue block. Five cells over a four-hue rotation: the fifth wraps back to violet. */
 .cell {
+  position: relative;
   background: var(--bg2);
-  padding: 24px 22px;
+  padding: 26px 22px 24px;
+  --h: var(--violet);
+  transition: background 0.25s;
+}
+.cell:nth-child(4n + 2) {
+  --h: var(--cyan);
+}
+.cell:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.cell:nth-child(4n + 4) {
+  --h: var(--blue2);
+}
+
+.cell::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 22px;
+  width: 26px;
+  height: 2px;
+  background: var(--h);
+  box-shadow: 0 0 12px var(--h);
+  opacity: 0.9;
+  transition: width 0.25s;
+}
+
+.cell:hover {
+  background: color-mix(in srgb, var(--h) 7%, var(--bg2));
+}
+.cell:hover::before {
+  width: 48px;
 }
 
 .cellTitle {
@@ -42,17 +77,35 @@
   margin-top: 22px;
 }
 
+/* Same four-hue rotation as the principles above, carried by the stat's number,
+   its top rule and the skeleton bars while it is still blank. */
 .stat {
+  position: relative;
   border: 1px solid var(--line);
+  border-top: 2px solid var(--h);
   padding: 20px;
-  background: var(--panel);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--h) 9%, var(--panel)),
+    var(--panel) 70%
+  );
   /* keeps proportions while blank; filled from the admin later */
   min-height: 104px;
+  --h: var(--cyan);
+}
+.stat:nth-child(4n + 2) {
+  --h: var(--violet);
+}
+.stat:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.stat:nth-child(4n + 4) {
+  --h: var(--blue2);
 }
 
 .statValue {
   font-size: clamp(28px, 4vw, 40px);
-  color: var(--cyan);
+  color: var(--h);
 }
 
 .statLabel {
@@ -68,6 +121,9 @@
    the blanks — a filled stat has value/label children. */
 .stat:empty {
   border-style: dashed;
+  /* ...but the hue rail on top stays solid — it's the stat's identity, not part of
+     the "to be filled" skeleton */
+  border-top-style: solid;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -80,8 +136,8 @@
   border-radius: 2px;
   background: linear-gradient(
     90deg,
-    rgba(120, 150, 255, 0.14),
-    rgba(120, 150, 255, 0.05)
+    color-mix(in srgb, var(--h) 34%, transparent),
+    color-mix(in srgb, var(--h) 8%, transparent)
   );
 }
 .stat:empty::before {

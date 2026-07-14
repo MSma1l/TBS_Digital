@@ -59,12 +59,25 @@ serving one from our own origin would be a stored-XSS primitive. The stored file
 uuid we generate plus an extension from our own allow-list, so a hostile `filename` can
 neither traverse the filesystem nor choose its own extension.
 
-### XSS / script injection — sanitized, not just blocked
-Free-text stored fields are **HTML-escaped on write** (`<script>` → `&lt;script&gt;`), so
-malicious markup can never execute when rendered. Escaping is applied **once** on write; DB
-reads use `model_construct` to avoid double-escaping. The frontend additionally blocks
-`<script`, `javascript:`, `on*=` event handlers, and raw HTML tags before submit
-(`hasDangerousContent` / `sanitizeText` in `lib/validation.ts`).
+### XSS / script injection — escaped at the boundary that renders, not at the one that stores
+Free-text is stored **exactly as the user typed it** (trimmed, control-chars rejected,
+length-capped — but *not* HTML-escaped). It cannot execute, because both of the places that
+render it escape it themselves:
+
+- the site renders through **React**, which escapes every value it prints;
+- the Telegram bot **escapes each dynamic value** as it assembles its HTML message
+  (`telegram/client.escape`), since that message body legitimately contains `<b>`/`<a>` markup.
+
+**This used to be done at the storage boundary, and it was a bug.** `validators.text()`
+HTML-escaped on write, so the service legitimately named `Dashboard & rapoarte` was stored as
+`Dashboard &amp; rapoarte` — and React, correctly escaping again on the way out, printed those
+literal characters. Every visitor to tbs.md read "Dashboard &amp; rapoarte" on the services
+card. Escaping data on the way *in* corrupts it; escaping it on the way *out* is what actually
+protects the reader. `test_an_ampersand_in_content_survives_the_round_trip` pins this.
+
+The frontend still blocks `<script`, `javascript:`, `on*=` handlers and raw HTML tags before
+submit (`hasDangerousContent` / `sanitizeText` in `lib/validation.ts`) — a second line of
+defence, and a way to tell an admin they typed something odd rather than silently keeping it.
 
 ### Email, phone, URLs
 - **Email:** validated with `pydantic.EmailStr` (backend) + regex (frontend).

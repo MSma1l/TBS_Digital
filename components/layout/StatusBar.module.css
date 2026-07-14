@@ -29,8 +29,11 @@
 .timeVal {
   color: var(--txt);
 }
+/* No opacity here: --dim is already the faintest text tone that still clears AA on this
+   surface, and multiplying it by 0.6 pushed it under. It reads as secondary because it
+   sits next to --txt, not because it is washed out. */
 .utc {
-  opacity: 0.6;
+  color: var(--dim);
 }
 
 .right {

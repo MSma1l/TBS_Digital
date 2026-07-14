@@ -38,9 +38,23 @@
 }
 
 /* Only the chips that link out (a partner without a URL renders as a span). */
+/* partner chips pick up the page's four-hue rotation on hover */
 a.partner:hover {
-  border-color: var(--line2);
+  border-color: color-mix(in srgb, var(--h) 60%, transparent);
+  background: color-mix(in srgb, var(--h) 10%, transparent);
   color: var(--txt);
+}
+.partner {
+  --h: var(--cyan);
+}
+.partner:nth-child(4n + 2) {
+  --h: var(--violet);
+}
+.partner:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.partner:nth-child(4n + 4) {
+  --h: var(--blue2);
 }
 
 /* Mobile: content-width chips wrap raggedly and orphan the last one. Lay them
@@ -86,7 +100,7 @@ a.partner:hover {
   width: 30px;
   height: 30px;
   border: 1px solid var(--line2);
-  background: var(--blue);
+  background: linear-gradient(135deg, var(--blue), var(--violet2));
   font-family: var(--font-display-stack);
   font-weight: 900;
   font-size: 15px;
@@ -109,6 +123,7 @@ a.partner:hover {
 
 .socials {
   display: flex;
+  flex-wrap: wrap;
   gap: 9px;
   margin-top: 16px;
 }
@@ -124,11 +139,50 @@ a.partner:hover {
   text-decoration: none;
   transition:
     color 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    background-color 0.15s;
 }
+
+/* The icon set ships at its own viewBox size (like ServiceIcons); the box sizes it. */
+.social svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Same four-hue rotation the partner chips run above (cyan → violet → amber → blue),
+   so the icon row reads as part of the same system. A social only renders once its URL
+   is set, and the mailto: icon is always last — so with nothing configured the row is
+   just the email icon and lands on step 1 (cyan), exactly as it looked before. */
+.social {
+  --h: var(--cyan);
+}
+.social:nth-child(4n + 2) {
+  --h: var(--violet);
+}
+.social:nth-child(4n + 3) {
+  --h: var(--amber);
+}
+.social:nth-child(4n + 4) {
+  --h: var(--blue2);
+}
+
 .social:hover {
-  color: var(--cyan);
-  border-color: var(--cyan);
+  color: var(--h);
+  border-color: color-mix(in srgb, var(--h) 60%, transparent);
+  background: color-mix(in srgb, var(--h) 10%, transparent);
+}
+
+.social:focus-visible {
+  outline: 2px solid var(--h);
+  outline-offset: 2px;
+  color: var(--h);
+  border-color: color-mix(in srgb, var(--h) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .social {
+    transition: none;
+  }
 }
 
 .colLabel {
@@ -180,6 +234,13 @@ a.partner:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Hold the full-bleed strip back — it runs the whole page width, so at full strength
+   the new multi-hue stripes shout. Opacity goes on the pseudo (the stripes), not on
+   .marquee, so the "> ACCESS GRANTED_" label on top stays at full contrast. */
+.marquee::before {
+  opacity: 0.5;
 }
 
 .marqueeText {

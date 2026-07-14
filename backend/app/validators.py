@@ -66,7 +66,21 @@ _MAX_LINK_LENGTH = 500
 
 
 def _clean_text(value: object, *, max_length: int, required: bool) -> str:
-    """Trim, reject control chars, enforce length, then HTML-escape stored text."""
+    """Trim, reject control characters, enforce the length cap. Store the text as typed.
+
+    Deliberately does NOT HTML-escape. Escaping belongs at the boundary that actually
+    interprets HTML, and both of ours already do it:
+
+    - the site renders through React, which escapes every value it prints;
+    - the Telegram bot escapes each dynamic value as it builds its HTML message
+      (``telegram/client.escape``).
+
+    Escaping *here* instead was double-escaping in practice: a service legitimately named
+    "Dashboard & rapoarte" was stored as "Dashboard &amp; rapoarte" and then rendered by
+    React as the literal text ``Dashboard &amp; rapoarte`` — visible to every visitor.
+    Storing the user's text verbatim (validated, but not mangled) is both correct and
+    still safe, because nothing renders it as raw HTML.
+    """
     if not isinstance(value, str):
         raise ValueError("must be a string")
     v = value.strip()
@@ -76,8 +90,7 @@ def _clean_text(value: object, *, max_length: int, required: bool) -> str:
         raise ValueError("must not be empty")
     if len(v) > max_length:
         raise ValueError(f"must be at most {max_length} characters")
-    # HTML-escape so any markup is inert when rendered (anti-XSS).
-    return html.escape(v)
+    return v
 
 
 def text(max_length: int, *, required: bool = False):

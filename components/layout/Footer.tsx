@@ -1,12 +1,27 @@
 "use client";
 
 import { navLinks, footerServices } from "@/lib/content";
+import type { SocialNetwork } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
+import { socialIcons, socialNames } from "@/components/ui/SocialIcons";
 import styles from "./Footer.module.css";
 
+/* Accessible name for a company social link — the network is spelled out, so a screen
+   reader announces "TBS Digital pe LinkedIn" rather than a bare "link". `socialNames`
+   is shared with the team cards, where "website" means a member's personal site; for
+   the company that reading is wrong, so it gets its own wording. */
+const socialLabel = (type: SocialNetwork) =>
+  type === "website"
+    ? "Site-ul TBS Digital"
+    : `TBS Digital pe ${socialNames[type]}`;
+
 export function Footer() {
-  const { partners, contacts } = useSiteContent();
+  const { partners, contacts, socials } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
+
+  /* A social only exists once the owner pastes its URL in the admin. Until then the
+     entry ships with url: "" and must not render — no dead links, no empty boxes. */
+  const linkedSocials = socials.filter((s) => s.url.trim() !== "");
 
   const contactHref = (type: string, value: string) => {
     if (type === "email") return `mailto:${value}`;
@@ -57,19 +72,24 @@ export function Footer() {
               automatizări și IA.
             </p>
             <div className={styles.socials}>
-              <a href="#top" aria-label="Telegram" className={styles.social}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M21.9 4.3l-3.3 15.6c-.2 1.1-.9 1.4-1.8.9l-5-3.7-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.2-8.3c.4-.4-.1-.6-.6-.2L6.2 13 1.3 11.5c-1.1-.3-1.1-1 .2-1.5L20.6 2.8c.9-.3 1.7.2 1.3 1.5z" />
-                </svg>
-              </a>
+              {linkedSocials.map((s) => (
+                <a
+                  key={s.id}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={socialLabel(s.type)}
+                  className={styles.social}
+                >
+                  {socialIcons[s.type]}
+                </a>
+              ))}
               <a
                 href={firstEmail ? `mailto:${firstEmail}` : "#contact"}
                 aria-label="Email"
                 className={styles.social}
               >
                 <svg
-                  width="18"
-                  height="18"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
