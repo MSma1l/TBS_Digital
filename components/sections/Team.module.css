@@ -99,6 +99,14 @@
   gap: 12px;
 }
 
+/* On a phone two columns would fit — but the team is an odd number, so the last
+   member would sit alone in a half-empty row. One column keeps the rhythm even. */
+@media (max-width: 560px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 .card {
   position: relative;
   border: 1px solid var(--line);
