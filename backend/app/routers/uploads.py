@@ -34,6 +34,7 @@ Storage notes:
   for anything uploaded straight from a phone) and it bloats the file.
 """
 
+import asyncio
 import io
 import uuid
 from pathlib import Path
@@ -49,6 +50,16 @@ from ..security import get_current_admin
 
 router = APIRouter(prefix="/api/admin/uploads", tags=["uploads"])
 
+# Decoding is CPU- and memory-heavy (an image is expanded to raw RGBA in RAM). Serialise
+# it: at most this many decodes run at once, so a burst of uploads — even with a stolen
+# admin token — can't stack several hundred MB of concurrent bitmaps and OOM the worker.
+_DECODE_SEMAPHORE = asyncio.Semaphore(2)
+
+# Total bytes we let the uploads directory hold. Every stored file is small (a few dozen
+# KB), so this is a very high ceiling in practice, but it makes disk exhaustion via an
+# abused/stolen admin token impossible: past the budget, uploads are refused.
+MAX_UPLOADS_DIR_BYTES = 512 * 1024 * 1024  # 512 MB
+
 # What we accept *in*; what we store is far smaller (see compress_image). A screenshot
 # straight off a phone clears a megabyte easily, so the ceiling has to allow one.
 # BodySizeLimitMiddleware runs first and caps the whole multipart body, so this must stay
@@ -62,9 +73,11 @@ MAX_DIMENSION = 1600
 _WEBP_QUALITY = 82
 _WEBP_METHOD = 6  # slowest/best of Pillow's WebP effort levels; images here are small.
 
-# Decompression-bomb ceiling: a few-KB PNG can declare 50000x50000 (2.5e9 px) and
-# balloon to gigabytes once decoded. 40 MP is far above any real logo or screenshot.
-MAX_IMAGE_PIXELS = 40_000_000
+# Decompression-bomb ceiling: a few-KB PNG can declare 50000x50000 (2.5e9 px) and balloon
+# to gigabytes once decoded. 24 MP covers any real phone photo or 4K screenshot (a 6000x4000
+# shot is 24 MP) while capping a single decode's RAM: 24M px x 4 bytes RGBA ≈ 96 MB, and the
+# semaphore bounds how many of those run at once.
+MAX_IMAGE_PIXELS = 24_000_000
 # Belt and braces: Pillow raises DecompressionBombError past 2x its own limit, which we
 # pin to ours, and we check the header size explicitly as well (below).
 Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
@@ -96,21 +109,16 @@ def _has_alpha(image: Image.Image) -> bool:
     return image.mode in _ALPHA_MODES or "transparency" in image.info
 
 
-def _carries_metadata(image: Image.Image) -> bool:
-    """True if the source carries EXIF/ICC/XMP — i.e. bytes we must not keep verbatim."""
-    return any(image.info.get(key) for key in ("exif", "icc_profile", "xmp"))
-
-
 def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
-    """Decode, downscale and re-encode ``body`` to WebP. Returns ``(bytes, extension)``.
+    """Decode, downscale and re-encode ``body`` to WebP. Returns ``(bytes, "webp")``.
 
     Raises ``HTTPException(400)`` for anything Pillow cannot safely decode — a corrupt
     body, an unsupported variant, or a decompression bomb.
 
-    If the WebP re-encode comes out *larger* than what arrived (already-optimal or
-    very small sources), the original bytes are kept instead — unless they carry
-    metadata, in which case the stripped WebP wins anyway: we never write EXIF/GPS to
-    disk just to save a few bytes.
+    The output is *always* the re-encode, never the original bytes: rebuilding the file
+    from decoded pixels is what guarantees only image data reaches the disk (a polyglot's
+    appended payload is dropped) and that EXIF/GPS is stripped. ``source_extension`` is
+    accepted for signature stability but no longer influences the result.
     """
     try:
         with Image.open(io.BytesIO(body)) as source:
@@ -127,7 +135,6 @@ def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
             # flattening them onto a white background would make them invisible.
             target_mode = "RGBA" if _has_alpha(source) else "RGB"
             image = source.convert(target_mode)
-            had_metadata = _carries_metadata(source)
 
         image.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
 
@@ -153,10 +160,11 @@ def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
         # are the client's problem, so none of them may surface as a 500/traceback.
         raise _bad_image()
 
-    encoded = buffer.getvalue()
-    if len(encoded) >= len(body) and not had_metadata:
-        return body, source_extension
-    return encoded, "webp"
+    # Always return the re-encoded output, even when it isn't smaller. Keeping the client's
+    # original bytes would let a polyglot (a valid image header with a payload appended)
+    # survive on disk verbatim; the re-encode rebuilds the file from decoded pixels, so
+    # nothing but image data is ever stored. `source_extension` is unused now, by design.
+    return buffer.getvalue(), "webp"
 
 
 def _bad_image(detail: str = "Imagine invalidă sau coruptă.") -> HTTPException:
@@ -168,6 +176,11 @@ def uploads_dir() -> Path:
     path = Path(get_settings().data_dir) / "uploads"
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def _uploads_dir_bytes() -> int:
+    """Total bytes currently stored under the uploads directory."""
+    return sum(f.stat().st_size for f in uploads_dir().glob("*") if f.is_file())
 
 
 @router.post("", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
@@ -197,10 +210,19 @@ async def upload_logo(
             "Format neacceptat. Încarcă un PNG, JPG sau WebP.",
         )
 
+    # Refuse before doing the expensive decode if the directory is already at budget, so a
+    # stolen/abused admin token can't fill the disk.
+    if _uploads_dir_bytes() >= MAX_UPLOADS_DIR_BYTES:
+        raise HTTPException(
+            status.HTTP_507_INSUFFICIENT_STORAGE,
+            "Spațiu de stocare epuizat pentru imagini.",
+        )
+
     # Re-encode before writing: shrink it, strip its metadata, and make the stored bytes
-    # ours. The extension follows whatever we actually wrote, so the returned URL and the
-    # StaticFiles mount stay in sync.
-    stored, extension = compress_image(body, extension)
+    # ours. The decode is CPU/RAM-heavy, so serialise it behind the semaphore and run it in
+    # a thread — a burst of uploads can't stack many bitmaps and OOM the event loop.
+    async with _DECODE_SEMAPHORE:
+        stored, extension = await asyncio.to_thread(compress_image, body, extension)
 
     name = f"{uuid.uuid4().hex}.{extension}"
     (uploads_dir() / name).write_bytes(stored)

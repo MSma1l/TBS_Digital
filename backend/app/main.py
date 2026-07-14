@@ -32,17 +32,27 @@ def _body_limit_for(path: str) -> int:
 
 
 def _client_ip(request: Request) -> str:
-    """Rate-limit key: the real client IP, honouring a proxy's X-Forwarded-For.
+    """Rate-limit key: the real client IP, resistant to X-Forwarded-For spoofing.
 
-    Behind a load balancer the socket peer is the proxy, so we trust the *first*
-    (left-most, original client) entry of X-Forwarded-For when present, and fall
-    back to the direct peer address otherwise.
+    X-Forwarded-For is client-controllable, and the shared nginx uses
+    ``$proxy_add_x_forwarded_for`` which *appends* the peer it saw — so the chain is
+    ``<whatever the client sent…>, <real client as nginx saw it>``. The trustworthy entry
+    is therefore the one the trusted proxy added: the Nth from the **right**, where N is the
+    number of proxies in front (``trusted_proxy_count``). Taking the left-most entry (the
+    old behaviour) trusted a value the attacker fully controls, letting them mint a fresh
+    rate-limit bucket per request and defeat the login/contact/upload limits outright.
+
+    With ``trusted_proxy_count = 0`` we ignore the header entirely and use the socket peer.
     """
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+    hops = settings.trusted_proxy_count
+    if hops > 0:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+            # The proxy the app trusts sits `hops` from the right; that entry is the
+            # furthest-left address that trusted infrastructure actually vouched for.
+            if len(parts) >= hops:
+                return parts[-hops]
     return get_remote_address(request)
 
 
@@ -166,6 +176,15 @@ async def lifespan(app: FastAPI):
                 pass
 
 
+# In production the interactive docs and the OpenAPI schema are turned off: they would
+# hand an attacker the full endpoint/parameter map, and nginx only proxies `/api/` so they
+# add nothing operationally. Left on in development, where they are useful.
+_docs_kwargs = (
+    {"docs_url": None, "redoc_url": None, "openapi_url": None}
+    if settings.is_production
+    else {}
+)
+
 app = FastAPI(
     title=settings.app_name,
     version="0.1.0",
@@ -174,6 +193,7 @@ app = FastAPI(
         "Persistence is a SQL database (SQLModel); see backend/README.md."
     ),
     lifespan=lifespan,
+    **_docs_kwargs,
 )
 
 # Rate limiter wiring: expose the limiter on app.state (slowapi's handler reads it)
@@ -182,11 +202,19 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+# The API returns JSON, never HTML, so it needs no scripts, styles, images or framing at
+# all — the strictest possible CSP. This is the backstop for the admin JWT living in
+# localStorage: if reflected content ever slipped through a `/api` response, nothing in it
+# could execute or phone home. (The HTML pages are served by Next, which sets its own CSP —
+# see next.config.ts.)
+_API_CSP = (
+    "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+)
 _SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
-    "Content-Security-Policy": "frame-ancestors 'none'",
+    "Content-Security-Policy": _API_CSP,
 }
 
 # CORS (innermost of our three). Auth is a Bearer token (no cookies), so credentials

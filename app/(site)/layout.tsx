@@ -1,12 +1,19 @@
+import { headers } from "next/headers";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 
 /** Marketing chrome for the public site. The admin route sits outside this group. */
-export default function SiteLayout({
+export default async function SiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Per-request CSP nonce (set by proxy.ts). The analytics pixel below is a plain
+  // hand-written <script>, so — unlike Next's own scripts — it isn't nonced
+  // automatically; and under 'strict-dynamic' the host allow-list is ignored, so
+  // the nonce is the only thing that lets it run.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <>
       <ScrollProgress />
@@ -23,6 +30,7 @@ export default function SiteLayout({
           client-side navigations are already counted. */}
       <script
         async
+        nonce={nonce}
         src="https://statistica.tbs.md/px/t.js"
         data-site="6749e0d58765467495183773e68168a5"
       />

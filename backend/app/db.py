@@ -11,10 +11,15 @@ reused across the app. Both SQLite (the default) and Postgres are supported:
 Tables are created with ``create_db_and_tables`` on startup; models live in models.py.
 """
 
+import re
 from functools import lru_cache
 from pathlib import Path
 
 from sqlalchemy import inspect, text
+
+# A safe SQL identifier (table/column name): letters, digits, underscore; not digit-led.
+# Guards the ADD COLUMN DDL, whose identifiers can't be bound parameters.
+_SQL_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
@@ -89,6 +94,12 @@ def _add_missing_columns(engine: Engine, table: str, columns: dict) -> set:
     for name, ddl in columns.items():
         if name in existing:
             continue
+        # DDL can't use bound parameters for identifiers, so this is an f-string. `table`
+        # and every `name` are developer-controlled constants today — but guard the
+        # identifiers against a strict charset anyway, so a future edit that ever routes a
+        # request/config-derived name here can't silently turn this into SQL injection.
+        if not _SQL_IDENTIFIER_RE.match(table) or not _SQL_IDENTIFIER_RE.match(name):
+            raise ValueError(f"unsafe SQL identifier: {table!r}.{name!r}")
         with engine.begin() as conn:
             conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
         added.add(name)

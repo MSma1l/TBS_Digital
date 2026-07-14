@@ -234,18 +234,39 @@ def test_small_image_is_not_upscaled(client):
         assert image.size == (120, 80)
 
 
-def test_original_is_kept_when_the_re_encode_would_be_larger(client):
-    """The point is to shrink files, so we never grow one: if WebP loses, it loses."""
+def test_upload_always_re_encodes_never_keeps_the_original_bytes(client):
+    """Security over size: we always store our own re-encode, never the client's bytes.
+
+    Keeping the original when the WebP wasn't smaller would let a polyglot (a valid image
+    header with a payload appended) survive on disk verbatim. Rebuilding from decoded
+    pixels drops everything but the image, so the stored file is always a clean WebP —
+    even if that costs a few bytes on an already-tiny source.
+    """
     original = _noise_jpeg()
 
     r = _upload(client, original, filename="noise.jpg", content_type="image/jpeg")
     assert r.status_code == 201, r.text
 
     url = r.json()["url"]
-    assert url.endswith(".jpg")  # extension follows what we actually stored
+    assert url.endswith(".webp")  # never the source extension
     stored = _stored_bytes(url)
-    assert stored == original
+    assert stored != original
+    assert Image.open(io.BytesIO(stored)).format == "WEBP"
     assert client.get(url).status_code == 200
+
+
+def test_upload_strips_an_appended_polyglot_payload(client):
+    """A valid image with an HTML/script payload glued on decodes fine, but the payload
+    must not survive to disk."""
+    payload = b"<script>alert(document.cookie)</script>" * 8
+    poly = _image(fmt="PNG") + payload
+
+    r = _upload(client, poly)
+    assert r.status_code == 201, r.text
+
+    stored = _stored_bytes(r.json()["url"])
+    assert b"<script>" not in stored
+    assert Image.open(io.BytesIO(stored)).format == "WEBP"
 
 
 def test_transparency_survives_the_round_trip(client):
@@ -373,3 +394,15 @@ def test_partner_link_fields_accept_paths_and_https(client, good_link):
     )
     assert r.status_code == 200, r.text
     assert r.json()["partners"][0]["logo"] == good_link
+
+
+def test_upload_refused_when_the_storage_budget_is_exhausted(client, monkeypatch):
+    """A stolen/abused admin token must not be able to fill the disk."""
+    import app.routers.uploads as up
+
+    # Pretend the directory is already at budget; the next upload must be refused BEFORE
+    # the expensive decode, with 507, not stored.
+    monkeypatch.setattr(up, "_uploads_dir_bytes", lambda: up.MAX_UPLOADS_DIR_BYTES)
+
+    r = _upload(client, _image())
+    assert r.status_code == 507, r.text

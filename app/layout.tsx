@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Archivo, JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
@@ -27,11 +28,18 @@ export const metadata: Metadata = {
     "Digitalizăm afaceri prin software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme — de la strategie până la execuție.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Reading a request header opts the whole route tree into dynamic rendering so
+  // the per-request CSP nonce minted in proxy.ts is applied to Next's scripts on
+  // EVERY route — including /admin-tbs-digital, which sits outside the (site)
+  // group. A nonce'd CSP over a statically prerendered page would serve HTML whose
+  // scripts carry a stale/absent nonce and get blocked. See proxy.ts.
+  await headers();
+
   return (
     <html
       lang="ro"

@@ -51,7 +51,12 @@ def test_security_headers_present_on_every_response(client):
     assert r.headers["x-frame-options"] == "DENY"
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["referrer-policy"] == "no-referrer"
-    assert r.headers["content-security-policy"] == "frame-ancestors 'none'"
+    # The API is JSON-only, so it gets the strictest possible CSP: nothing may load,
+    # frame, or act. This is the backstop for the admin JWT in localStorage.
+    csp = r.headers["content-security-policy"]
+    assert "default-src 'none'" in csp
+    assert "frame-ancestors 'none'" in csp
+    assert "base-uri 'none'" in csp
 
 
 def test_hsts_absent_outside_production(client):

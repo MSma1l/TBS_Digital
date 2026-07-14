@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _DEFAULT_JWT_SECRET = "dev-secret-change-me"
 _DEFAULT_ADMIN_PASSWORD = "change-me"
 _MIN_JWT_SECRET_LEN = 32
+_MIN_ADMIN_PASSWORD_LEN = 12
 
 
 class Settings(BaseSettings):
@@ -44,6 +45,13 @@ class Settings(BaseSettings):
 
     # Toggle for the request rate limiter (disabled in tests for determinism).
     rate_limit_enabled: bool = True
+
+    # How many trusted reverse proxies sit in front of the app. The rate-limit key is the
+    # client IP, but X-Forwarded-For is client-controllable: an attacker who sets it gets a
+    # fresh bucket per request and defeats the limit entirely. We therefore trust only the
+    # entry the *trusted* proxy added — the Nth from the RIGHT — never the left-most.
+    # 1 = one reverse proxy (the shared nginx). 0 = no proxy, use the socket peer directly.
+    trusted_proxy_count: int = 1
 
     # --- Telegram lead-notification bot (app/telegram) --------------------------
     # All optional with safe defaults so boot + existing tests work when unset.
@@ -98,8 +106,22 @@ class Settings(BaseSettings):
             )
         if self.admin_password in ("", _DEFAULT_ADMIN_PASSWORD):
             problems.append("ADMIN_PASSWORD is unset or the known default")
+        elif len(self.admin_password) < _MIN_ADMIN_PASSWORD_LEN:
+            problems.append(
+                f"ADMIN_PASSWORD must be >= {_MIN_ADMIN_PASSWORD_LEN} chars"
+            )
         if "*" in self.cors_origin_list:
             problems.append("CORS_ORIGINS must not contain '*' in production")
+        # Rate limiting is the only brute-force control (no account lockout), so it must
+        # never be silently off in production.
+        if not self.rate_limit_enabled:
+            problems.append("RATE_LIMIT_ENABLED must be true in production")
+        # An enabled bot with no admin allow-list trusts *anyone in the bound group* to run
+        # /register, /stats and the lead-status buttons — set the operators' user ids.
+        if self.telegram_is_enabled and not self.telegram_admin_id_set:
+            problems.append(
+                "TELEGRAM_ADMIN_IDS must list the operator user ids when the bot is enabled"
+            )
         if problems:
             raise ValueError(
                 "Refusing to start in production with insecure config: "

@@ -35,6 +35,33 @@ residual/accepted items. It is the source of truth for the app's security postur
 | S3 | Stored `email` not HTML-escaped (symmetry) | SCĂZUT | **Fixed** | `StoredEmail` escaper (`schemas.py`) |
 | S4 | `validateText` ran regex before length | SCĂZUT | **Fixed** | Length-before-regex (`lib/validation.ts`) |
 
+## Round 2 — pre-release deep audit (4 fresh read-only passes)
+
+A second full pentest before the projects/team/palette release. The first-round posture held
+up: **no new CRITIC or ÎNALT in the auth/JWT/IDOR, injection/XSS, or exposure dimensions** —
+the reviewers re-confirmed pinned-alg JWT with `aud`/`iss`, ORM-only queries, no SSRF, no
+ReDoS, complete route-guard coverage, no mass-assignment, locked CORS, and zero committed
+secrets. One CRITIC surfaced in rate-limiting; the rest are MEDIU/SCĂZUT hardening.
+
+| # | Finding | Severity | Status | Where fixed |
+|---|---------|----------|--------|-------------|
+| R4 | Rate-limit key trusted the **left-most** `X-Forwarded-For` (client-controlled) — an attacker rotating the header defeated every per-IP limit (login/contact/upload) | CRITIC | **Fixed** | `_client_ip` now takes the entry the trusted proxy added (Nth-from-right, `trusted_proxy_count`) — `main.py`, `config.py` |
+| H5 | CSP was only `frame-ancestors 'none'` — no XSS backstop for the admin token | MEDIU | **Fixed** | API: strict `default-src 'none'` (`main.py`). HTML: nonce-based CSP (`next.config.ts`/middleware) |
+| H6 | Image decode allowed 40 MP + unbounded concurrency (memory-exhaustion) | MEDIU | **Fixed** | `MAX_IMAGE_PIXELS` 40→24 MP, decode behind a semaphore in a worker thread (`routers/uploads.py`) |
+| H7 | Uploads had no total-size budget (disk exhaustion via abused token) | MEDIU | **Fixed** | `MAX_UPLOADS_DIR_BYTES` 512 MB; over budget → 507 before decode (`routers/uploads.py`) |
+| H8 | nginx `client_max_body_size 1m` blocked the 10 MB upload route (413 at proxy) | MEDIU | **Fixed** | Per-location `10m` for `/api/admin/uploads` (`deploy/nginx/tbs.conf`) |
+| T3 | Bot enabled with empty `TELEGRAM_ADMIN_IDS` — any group member could run `/register`/`/stats`/status buttons | MEDIU | **Fixed** | Ops: `TELEGRAM_ADMIN_IDS` set on the server; guard now refuses to boot without it |
+| G1 | Prod guard didn't enforce admin-password strength, rate-limiter-on, or bot allow-list | SCĂZUT | **Fixed** | `_guard_production` checks all three (`config.py`) |
+| E1 | FastAPI `/docs`,`/openapi.json` enabled in prod (schema disclosure if topology drifts) | SCĂZUT | **Fixed** | Disabled when `is_production` (`main.py`) |
+| E2 | Admin page had no `noindex` (indexable if the URL leaks) | SCĂZUT | **Fixed** | `X-Robots-Tag: noindex` on `/admin-tbs-digital` (`next.config.ts`) |
+| E3 | `Server: uvicorn` leaked the backend stack | SCĂZUT | **Fixed** | `proxy_hide_header Server`/`X-Powered-By` (`deploy/nginx/tbs.conf`) |
+| U1 | Upload kept the client's original bytes when WebP wasn't smaller (polyglot survived, though served inert) | SCĂZUT | **Fixed** | Always store the re-encode (`routers/uploads.py`) |
+| Q1 | Migration `ADD COLUMN` used an f-string (hardcoded identifiers today, latent) | SCĂZUT | **Fixed** | Identifier allow-list guard before the DDL (`db.py`) |
+
+Regression tests: `backend/tests/test_security_hardening.py` (XFF spoof, prod guard, DDL guard),
+plus upload polyglot/re-encode/storage-budget cases in `test_uploads.py` and the CSP assertion
+in `test_security_http.py`.
+
 ## Verified secure (no change needed)
 
 - **SQL injection:** 100% ORM/parameterized; zero raw SQL / `text()` / f-string queries.
@@ -56,13 +83,17 @@ residual/accepted items. It is the source of truth for the app's security postur
 Set `ENVIRONMENT=production` and the app **refuses to boot** unless:
 
 - `JWT_SECRET` is set, not the default, and ≥ 32 chars (`openssl rand -hex 32`).
-- `ADMIN_PASSWORD` is set and not the default.
+- `ADMIN_PASSWORD` is set, not the default, and ≥ 12 chars.
 - `CORS_ORIGINS` does not contain `*`.
+- `RATE_LIMIT_ENABLED` is true (rate limiting is the only brute-force control).
+- `TELEGRAM_ADMIN_IDS` lists the operator user ids whenever the bot is enabled.
 
 Also recommended in production:
 
-- Pin `TELEGRAM_GROUP_CHAT_ID` and set `TELEGRAM_ADMIN_IDS` (locks `/register`, `/stats`, and
-  lead buttons to named admins).
+- Pin `TELEGRAM_GROUP_CHAT_ID` (further locks `/register`). `TELEGRAM_ADMIN_IDS` is now
+  guard-enforced, so `/register`, `/stats`, and the lead buttons are already admin-only.
+- Set `TRUSTED_PROXY_COUNT` to the number of reverse proxies in front (1 for the shared nginx)
+  so the rate-limit key can't be spoofed via `X-Forwarded-For`.
 - Run behind HTTPS / a reverse proxy; run compose with both files so Postgres isn't public.
 
 ## Remaining (Phase 4, non-blocking)
