@@ -10,9 +10,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(900px 560px at 50% 120%, rgba(43, 100, 245, 0.34), transparent 62%),
-    radial-gradient(680px 460px at 12% 8%, rgba(122, 82, 232, 0.22), transparent 64%),
-    radial-gradient(560px 400px at 92% 4%, rgba(242, 176, 113, 0.1), transparent 66%);
+    radial-gradient(900px 560px at 50% 120%, rgba(55, 103, 242, 0.34), transparent 62%),
+    radial-gradient(680px 460px at 12% 8%, rgba(123, 83, 230, 0.22), transparent 64%),
+    radial-gradient(560px 400px at 92% 4%, rgba(255, 157, 122, 0.16), transparent 66%);
 }
 
 .inner {
@@ -118,9 +118,9 @@
 
 /* selected state for type + deadline — blue: "what you're building" */
 .active {
-  background: rgba(43, 100, 245, 0.22);
+  background: rgba(55, 103, 242, 0.24);
   border-color: var(--blue2);
-  box-shadow: inset 0 0 0 1px rgba(107, 150, 255, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(147, 174, 255, 0.25);
 }
 
 .featureRow {
@@ -149,7 +149,7 @@
 /* selected feature — violet, so the add-ons are visibly a different axis from the
    blue project type/deadline above them */
 .chipActive {
-  background: rgba(122, 82, 232, 0.26);
+  background: rgba(123, 83, 230, 0.28);
   border-color: var(--violet);
   color: var(--txt);
 }
@@ -305,8 +305,8 @@
   justify-content: center;
   background: linear-gradient(
     140deg,
-    rgba(43, 100, 245, 0.28),
-    rgba(122, 82, 232, 0.24)
+    rgba(55, 103, 242, 0.28),
+    rgba(123, 83, 230, 0.24)
   );
   border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
   color: var(--cyan);

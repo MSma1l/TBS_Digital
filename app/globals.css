@@ -5,40 +5,47 @@
    ============================================================ */
 
 :root {
-  /* surfaces — deep slate-navy, not black. Each step is a real elevation:
-     bg → panel is ~2.2x luminance, so a card reads as a distinct surface. */
-  --bg: #0d1426;
-  --bg2: #111a30;
-  --panel: #18213c;
-  --panel2: #212c4e;
+  /* surfaces — a warm plum-indigo dark, lifted well off black. Each step is a
+     real elevation (bg → panel is ~2.6x luminance) so a card reads as a distinct
+     surface. The hue leans off cold navy toward indigo/plum (R ≥ G) so the page
+     reads warm and airy rather than like a black hole. */
+  --bg: #1c1b30;
+  --bg2: #252340;
+  --panel: #312e54;
+  --panel2: #3d3a5d;
 
-  /* scrim — stays near-black on purpose: it sits over bright partner/project
-     screenshots and is what keeps the white-on-transparent logos readable. */
-  --scrim: 8, 12, 24;
+  /* scrim — stays near-black on purpose (a hair warm): it sits over bright
+     partner/project screenshots and is what keeps white-on-transparent logos
+     readable. Do NOT lift it with the surfaces. */
+  --scrim: 15, 12, 22;
 
-  /* lines */
-  --line: rgba(140, 165, 255, 0.22);
-  --line2: rgba(140, 165, 255, 0.38);
+  /* lines — a warm lavender-plum hairline that belongs to the new surfaces */
+  --line: rgba(185, 174, 222, 0.2);
+  --line2: rgba(185, 174, 222, 0.36);
 
-  /* text (all AA 4.5:1+ on every surface above — see docs/04-design-system.md) */
-  --txt: #eef3ff;
-  --mut: #a3b2d6;
-  --dim: #8695bd;
+  /* text — slightly warm neutrals (all AA 4.5:1+ on every surface above; the
+     faintest pairing is --dim on --panel2 at 4.94:1 — see docs/04-design-system.md) */
+  --txt: #f5f1fa;
+  --mut: #bcb6cd;
+  --dim: #b2adc7;
 
-  /* accents — blue is the primary, cyan/violet/amber widen the range.
-     --blue and --violet2 are *fills* (white text sits on them, AA 4.9:1/5.0:1);
-     --blue2/--cyan/--violet/--amber are the text/icon-weight tones. */
-  --blue: #2b64f5;
-  --blue2: #6b96ff;
-  --ice: #a9c6ff;
-  --cyan: #3fc8f5;
-  --violet: #b192fb;
-  --violet2: #7a52e8;
-  --amber: #f2b071;
+  /* accents — blue leads; the range is warm-inclusive (rich amber + a coral ember).
+     --blue and --violet2 are *fills* (white text sits on them, AA 4.79:1/4.97:1);
+     --blue2/--cyan/--violet/--amber are the text/icon-weight tones (all clear AA on
+     every surface, and all clear AA for the SectionCTA's dark-on-accent button). */
+  --blue: #3767f2;
+  --blue2: #93aeff;
+  --ice: #c0cfff;
+  --cyan: #4bccf0;
+  --violet: #c9a6ff;
+  --violet2: #7b53e6;
+  --amber: #f4b25c;
+  --coral: #ff9d7a;
 
-  --glow: rgba(43, 100, 245, 0.55);
-  --glow-violet: rgba(122, 82, 232, 0.5);
-  --glow-amber: rgba(242, 176, 113, 0.35);
+  --glow: rgba(55, 103, 242, 0.5);
+  --glow-violet: rgba(123, 83, 230, 0.48);
+  --glow-amber: rgba(244, 178, 92, 0.4);
+  --glow-coral: rgba(255, 157, 122, 0.34);
 
   /* layout */
   --maxw: 1280px;

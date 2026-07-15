@@ -5,6 +5,7 @@ import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_COOKIE, detectLocale, isLocale } from "@/lib/i18n/locales";
+import { messages } from "@/lib/i18n/messages";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
 // brand fonts. Latin-ext covers Romanian diacritics (ă, î, ș, ț).
@@ -37,11 +38,20 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-export const metadata: Metadata = {
-  title: "TBS Digital — Software, aplicații și automatizări cu IA",
-  description:
-    "Digitalizăm afaceri prin software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme — de la strategie până la execuție.",
-};
+// Locale-aware SEO: the title and description must be in the visitor's language too — a
+// static Romanian metadata block would leave Romanian in the <title>/<meta> (and the browser
+// tab) even on the Russian or English page. Resolved the same way <html lang> is: cookie
+// first, then Accept-Language. `messages` is plain data, safe to import in this server file.
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
+  const locale = isLocale(cookieLocale)
+    ? cookieLocale
+    : detectLocale((await headers()).get("accept-language"));
+  return {
+    title: messages[locale]["meta.title"],
+    description: messages[locale]["meta.description"],
+  };
+}
 
 export default async function RootLayout({
   children,

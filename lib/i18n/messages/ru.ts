@@ -14,7 +14,8 @@ export const ru: Record<MessageKey, string> = {
 
   // --- Hero ---
   "hero.badge": "ОТ КОНСАЛТИНГА ДО ЦИФРОВИЗАЦИИ",
-  "hero.kicker": "Будущее не минимально.\nОно построено.",
+  "hero.kicker":
+    "Софт, который приносит результат:\nменьше рутины, больше клиентов, выше доход.",
   "hero.lead":
     "Индивидуальный софт, мобильные приложения, автоматизация на ИИ, CRM, SaaS и платформы, которые растят ваш бизнес — от стратегии до запуска.",
   "hero.cta.primary": "Рассчитать цену ↗",
@@ -195,8 +196,12 @@ export const ru: Record<MessageKey, string> = {
   "footer.services.2": "CRM и SaaS",
   "footer.services.3": "Автоматизация и ИИ",
   "footer.social.emailAria": "Email",
+  "footer.social.websiteAria": "Сайт TBS Digital",
+  "footer.social.networkAria": "TBS Digital в {network}",
   "footer.legal.privacy": "Конфиденциальность",
   "footer.legal.cookies": "Cookie-файлы",
+  "cta.collaborate": "Готовы к сотрудничеству →",
+  "cta.lead": "Есть идея проекта? Давайте построим его вместе.",
 
   // --- Lightbox ---
   "lightbox.dialogAria": "{title} — изображение {i} из {count}",

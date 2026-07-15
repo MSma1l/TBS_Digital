@@ -6,45 +6,56 @@ hardcode raw hex values in components.
 ## Colors
 
 The original prototype was blue-on-near-black: one hue, and a background so dark that the
-panels were indistinguishable from the page. The palette was lifted out of black into a
-deep slate-navy — each surface step is a real elevation, so a card now reads as a card —
-and widened from one accent to four.
+panels were indistinguishable from the page. That was first lifted into a deep slate-navy;
+it still read cold and gloomy, so the surfaces were lifted **again and warmed** — off cold
+navy toward a **warm plum-indigo** (R ≥ G), a clear luminance step lighter (bg is now ~1.7x
+its previous luminance, ~2.6x the panel gap). The accent range was made **warm-inclusive**:
+`--amber` is now a rich gold and a `--coral` ember was added, so the page reads inviting and
+premium rather than blue-on-black.
 
 ```css
 :root {
-  /* surfaces — deep slate-navy, not black. bg → panel is ~2.2x luminance. */
-  --bg:     #0d1426;
-  --bg2:    #111a30;
-  --panel:  #18213c;
-  --panel2: #212c4e;
+  /* surfaces — warm plum-indigo, lifted well off black. bg → panel is ~2.6x luminance. */
+  --bg:     #1c1b30;
+  --bg2:    #252340;
+  --panel:  #312e54;
+  --panel2: #3d3a5d;
 
-  /* scrim — stays near-black on purpose: it sits over bright partner/project
-     screenshots and is what keeps the white-on-transparent logos readable. */
-  --scrim: 8, 12, 24;   /* raw rgb triplet, for rgba(var(--scrim), a) */
+  /* scrim — stays near-black on purpose (a hair warm): it sits over bright partner/
+     project screenshots and is what keeps white-on-transparent logos readable. It is
+     NOT lifted with the surfaces. */
+  --scrim: 15, 12, 22;   /* raw rgb triplet, for rgba(var(--scrim), a) */
 
-  --line:  rgba(140,165,255,.22);
-  --line2: rgba(140,165,255,.38);
+  --line:  rgba(185,174,222,.20);  /* warm lavender-plum hairline */
+  --line2: rgba(185,174,222,.36);
 
-  --txt:   #eef3ff;   /* primary text            */
-  --mut:   #a3b2d6;   /* body text               */
-  --dim:   #8695bd;   /* mono labels             */
+  --txt:   #f5f1fa;   /* primary text  — slightly warm white */
+  --mut:   #bcb6cd;   /* body text     — warm gray           */
+  --dim:   #b2adc7;   /* mono labels   — warm gray           */
 
-  /* accents: blue leads, cyan/violet/amber widen the range */
-  --blue:    #2b64f5;  /* fill — white text sits on it */
-  --blue2:   #6b96ff;
-  --ice:     #a9c6ff;
-  --cyan:    #3fc8f5;
-  --violet:  #b192fb;
-  --violet2: #7a52e8;  /* fill — white text sits on it */
-  --amber:   #f2b071;
+  /* accents: blue leads; the range is warm-inclusive (rich amber + a coral ember) */
+  --blue:    #3767f2;  /* fill — white text sits on it */
+  --blue2:   #93aeff;
+  --ice:     #c0cfff;
+  --cyan:    #4bccf0;
+  --violet:  #c9a6ff;
+  --violet2: #7b53e6;  /* fill — white text sits on it */
+  --amber:   #f4b25c;  /* rich warm gold */
+  --coral:   #ff9d7a;  /* warm ember — used in glows/gradients, not as text */
 }
 ```
 
 ### Contrast — the constraint that shapes the whole palette
 Lifting a background *lowers* contrast, so the text tones were re-tuned along with it. As
 measured: **every text token clears WCAG AA 4.5:1 on every surface** — the faintest pairing
-in the palette is `--dim` on `--panel2` at **4.59:1**. White on the two fill colours is
-4.95:1 (`--blue`) and 5.00:1 (`--violet2`).
+in the palette is `--dim` on `--panel2` at **4.94:1**. White on the two fill colours is
+**4.79:1** (`--blue`) and **4.97:1** (`--violet2`).
+
+**The SectionCTA button** (`components/ui/SectionCTA.module.css`) paints dark text
+(`color: var(--bg)`) on the accent fill (`background: var(--h)`, rotating cyan/violet/
+amber/blue2). All four accents are light enough that dark-on-accent clears AA — the tightest
+is `--blue2` at **7.8:1** — so the button keeps dark text on every hue; none needs white.
+`--coral` is decorative only (glows/gradients), so it carries no text-contrast requirement.
 
 Two rules follow, and both have already been violated once:
 - **Never dim a token with `opacity`.** `--dim` is already the faintest tone that clears

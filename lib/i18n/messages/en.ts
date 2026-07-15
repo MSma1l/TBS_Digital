@@ -17,7 +17,8 @@ export const en: Record<MessageKey, string> = {
 
   // --- Hero ---
   "hero.badge": "FROM CONSULTING TO DIGITALIZATION",
-  "hero.kicker": "The future isn't minimal.\nIt's built.",
+  "hero.kicker":
+    "Software that delivers:\nless busywork, more clients, more revenue.",
   "hero.lead":
     "Custom software, mobile apps, AI automation, CRM, SaaS and platforms that grow your business — from strategy to launch.",
   "hero.cta.primary": "Get a price ↗",
@@ -198,8 +199,12 @@ export const en: Record<MessageKey, string> = {
   "footer.services.2": "CRM & SaaS",
   "footer.services.3": "Automation & AI",
   "footer.social.emailAria": "Email",
+  "footer.social.websiteAria": "TBS Digital website",
+  "footer.social.networkAria": "TBS Digital on {network}",
   "footer.legal.privacy": "Privacy",
   "footer.legal.cookies": "Cookies",
+  "cta.collaborate": "Let's work together →",
+  "cta.lead": "Got a project in mind? Let's build it together.",
 
   // --- Lightbox ---
   "lightbox.dialogAria": "{title} — image {i} of {count}",

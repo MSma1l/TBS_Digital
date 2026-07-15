@@ -20,17 +20,16 @@ const NAV_KEY: Record<string, MessageKey> = {
   "#despre": "nav.about",
 };
 
-/* Accessible name for a company social link — the network is spelled out, so a screen
-   reader announces "TBS Digital pe LinkedIn" rather than a bare "link". `socialNames`
-   is shared with the team cards, where "website" means a member's personal site; for
-   the company that reading is wrong, so it gets its own wording. */
-const socialLabel = (type: SocialNetwork) =>
-  type === "website"
-    ? "Site-ul TBS Digital"
-    : `TBS Digital pe ${socialNames[type]}`;
-
 export function Footer() {
   const t = useT();
+
+  /* Accessible name for a company social link, localized so a Russian/English visitor's
+     screen reader never hears Romanian. The network name (LinkedIn, GitHub…) is a proper
+     noun and stays as-is inside the translated frame. */
+  const socialLabel = (type: SocialNetwork) =>
+    type === "website"
+      ? t("footer.social.websiteAria")
+      : format(t("footer.social.networkAria"), { network: socialNames[type] });
   const { partners, contacts, socials } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
 

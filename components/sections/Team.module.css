@@ -63,7 +63,7 @@
 .statusTrack {
   flex: 1;
   height: 8px;
-  background: rgba(140, 165, 255, 0.14);
+  background: rgba(185, 174, 222, 0.14);
   position: relative;
   overflow: hidden;
 }
@@ -246,7 +246,7 @@
   place-items: center;
   color: var(--dim);
   border: 1px solid var(--line);
-  background: rgba(140, 165, 255, 0.05);
+  background: rgba(185, 174, 222, 0.05);
   transition:
     color 0.18s,
     border-color 0.18s,

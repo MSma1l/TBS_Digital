@@ -13,30 +13,31 @@
   pointer-events: none;
 }
 
-/* Three lights instead of one: the blue key stays dominant, a violet fill warms the
-   left shoulder and a low amber ember keeps the bottom edge from going flat/cold. */
+/* Four lights instead of one: the blue key stays dominant, a violet fill warms the
+   left shoulder, a cyan cools one corner and a warm coral ember washes the bottom-right
+   so the whole frame reads warm and lit rather than flat/cold. */
 .glow {
   background:
-    radial-gradient(1100px 640px at 72% 8%, rgba(43, 100, 245, 0.34), transparent 58%),
-    radial-gradient(760px 560px at 18% 18%, rgba(122, 82, 232, 0.26), transparent 62%),
-    radial-gradient(700px 500px at 8% 92%, rgba(63, 200, 245, 0.14), transparent 60%),
-    radial-gradient(560px 380px at 88% 96%, rgba(242, 176, 113, 0.1), transparent 64%);
+    radial-gradient(1100px 640px at 72% 8%, rgba(55, 103, 242, 0.36), transparent 58%),
+    radial-gradient(760px 560px at 18% 18%, rgba(123, 83, 230, 0.28), transparent 62%),
+    radial-gradient(700px 500px at 8% 92%, rgba(75, 204, 240, 0.14), transparent 60%),
+    radial-gradient(560px 380px at 88% 96%, rgba(255, 157, 122, 0.18), transparent 64%);
 }
 
 .stars {
   background-image:
     radial-gradient(1.4px 1.4px at 20% 30%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1.4px 1.4px at 65% 20%, rgba(156, 192, 255, 0.6), transparent),
+    radial-gradient(1.4px 1.4px at 65% 20%, rgba(196, 188, 246, 0.6), transparent),
     radial-gradient(1.2px 1.2px at 85% 55%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1.2px 1.2px at 40% 70%, rgba(156, 192, 255, 0.5), transparent),
+    radial-gradient(1.2px 1.2px at 40% 70%, rgba(196, 188, 246, 0.5), transparent),
     radial-gradient(1.5px 1.5px at 15% 80%, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1.2px 1.2px at 92% 82%, rgba(156, 192, 255, 0.5), transparent);
+    radial-gradient(1.2px 1.2px at 92% 82%, rgba(196, 188, 246, 0.5), transparent);
 }
 
 .grid {
   background-image:
-    linear-gradient(rgba(140, 165, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140, 165, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(185, 174, 222, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185, 174, 222, 0.07) 1px, transparent 1px);
   background-size: 56px 56px;
   mask-image: radial-gradient(ellipse at 60% 40%, #000 25%, transparent 80%);
 }
@@ -160,12 +161,12 @@
   color: var(--txt);
   font-weight: 500;
   border: 1px solid var(--line2);
-  background: rgba(140, 165, 255, 0.05);
+  background: rgba(185, 174, 222, 0.06);
 }
 .secondary:hover {
   border-color: var(--violet);
   color: var(--violet);
-  background: rgba(122, 82, 232, 0.14);
+  background: rgba(123, 83, 230, 0.16);
 }
 
 /* ---------- emblem ---------- */
@@ -195,8 +196,8 @@
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    rgba(43, 100, 245, 0.4),
-    rgba(122, 82, 232, 0.22) 45%,
+    rgba(55, 103, 242, 0.4),
+    rgba(123, 83, 230, 0.24) 45%,
     transparent 68%
   );
   filter: blur(24px);
@@ -259,17 +260,17 @@
 /* Each ring gets its own hue so the emblem reads as three layers, not one blue disc. */
 .ringDashed {
   inset: 0;
-  border: 1px dashed rgba(177, 146, 251, 0.48);
+  border: 1px dashed rgba(201, 166, 255, 0.48);
   animation: spin 26s linear infinite;
 }
 .ringSolid {
   inset: 10%;
-  border: 1px solid rgba(63, 200, 245, 0.38);
+  border: 1px solid rgba(75, 204, 240, 0.38);
   animation: spin 20s linear infinite reverse;
 }
 .ringInner {
   inset: 20%;
-  border: 1px solid rgba(107, 150, 255, 0.32);
+  border: 1px solid rgba(147, 174, 255, 0.32);
 }
 
 .crossH {
@@ -281,8 +282,8 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(177, 146, 251, 0.45),
-    rgba(63, 200, 245, 0.45),
+    rgba(201, 166, 255, 0.45),
+    rgba(75, 204, 240, 0.45),
     transparent
   );
 }
@@ -295,7 +296,7 @@
   background: linear-gradient(
     180deg,
     transparent,
-    rgba(140, 165, 255, 0.45),
+    rgba(185, 174, 222, 0.45),
     transparent
   );
 }
@@ -305,9 +306,9 @@
   inset: 19%;
   background: linear-gradient(
     150deg,
-    rgba(43, 100, 245, 0.45),
-    rgba(122, 82, 232, 0.4) 50%,
-    rgba(63, 200, 245, 0.3)
+    rgba(55, 103, 242, 0.45),
+    rgba(123, 83, 230, 0.4) 50%,
+    rgba(75, 204, 240, 0.3)
   );
   filter: blur(16px);
   opacity: 0.75;
@@ -317,7 +318,7 @@
 .core {
   position: absolute;
   inset: 21%;
-  background: linear-gradient(150deg, #1d2a4e, #131b33);
+  background: linear-gradient(150deg, #2f2b56, #1b1934);
   border: 1px solid var(--line2);
   display: flex;
   align-items: center;
@@ -334,7 +335,7 @@
   inset: 0;
   background: repeating-linear-gradient(
     0deg,
-    rgba(140, 165, 255, 0.08) 0 1px,
+    rgba(185, 174, 222, 0.08) 0 1px,
     transparent 1px 5px
   );
   animation: scan-drift 3.2s linear infinite;

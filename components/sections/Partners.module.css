@@ -247,9 +247,9 @@
   border: 1px solid var(--line2);
   background: linear-gradient(
     90deg,
-    rgba(43, 100, 245, 0.28),
-    rgba(122, 82, 232, 0.26) 55%,
-    rgba(63, 200, 245, 0.18)
+    rgba(55, 103, 242, 0.28),
+    rgba(123, 83, 230, 0.26) 55%,
+    rgba(255, 157, 122, 0.2)
   );
   color: var(--txt);
   text-decoration: none;
@@ -266,9 +266,9 @@
   border-color: var(--violet);
   background: linear-gradient(
     90deg,
-    rgba(43, 100, 245, 0.45),
-    rgba(122, 82, 232, 0.42) 55%,
-    rgba(63, 200, 245, 0.3)
+    rgba(55, 103, 242, 0.45),
+    rgba(123, 83, 230, 0.42) 55%,
+    rgba(255, 157, 122, 0.32)
   );
 }
 

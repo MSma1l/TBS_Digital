@@ -21,7 +21,8 @@ export const ro = {
 
   // --- Hero ---
   "hero.badge": "DE LA CONSULTANȚĂ LA DIGITALIZARE",
-  "hero.kicker": "Viitorul nu e minimal.\nE construit.",
+  "hero.kicker":
+    "Software care aduce rezultate:\nmai puțin timp, mai mulți clienți, mai mult venit.",
   "hero.lead":
     "Software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme care îți cresc afacerea — de la strategie până la execuție.",
   "hero.cta.primary": "Calculează prețul ↗",
@@ -202,8 +203,14 @@ export const ro = {
   "footer.services.2": "CRM & SaaS",
   "footer.services.3": "Automatizare & IA",
   "footer.social.emailAria": "Email",
+  "footer.social.websiteAria": "Site-ul TBS Digital",
+  "footer.social.networkAria": "TBS Digital pe {network}",
   "footer.legal.privacy": "Confidențialitate",
   "footer.legal.cookies": "Cookie-uri",
+
+  // --- Call to action repeated after each section ---
+  "cta.collaborate": "Hai să colaborăm →",
+  "cta.lead": "Ai un proiect în minte? Hai să-l construim împreună.",
 
   // --- Lightbox ---
   "lightbox.dialogAria": "{title} — imagine {i} din {count}",
