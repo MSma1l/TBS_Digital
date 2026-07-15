@@ -29,6 +29,15 @@
    as a spectrum rather than ten identical blue tiles. The hue drives the icon tile,
    the index number and the hover lift. */
 .card {
+  /* The card is a real <button> now (click → estimator), so reset the button chrome and
+     make it read as a card again: full-width, left-aligned, inherited type, pointer. */
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
   background: var(--panel);
   padding: 26px 24px;
   position: relative;
@@ -36,6 +45,37 @@
     background 0.25s,
     box-shadow 0.25s;
   --h: var(--cyan);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--h);
+  outline-offset: 2px;
+}
+
+/* "Calculează prețul →" affordance — hidden until hover/focus so it doesn't clutter. */
+.cta {
+  display: block;
+  margin-top: 16px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--h);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.card:hover .cta,
+.card:focus-visible .cta {
+  opacity: 1;
+  transform: none;
+}
+/* Touch devices have no hover — always show the affordance there. */
+@media (hover: none) {
+  .cta {
+    opacity: 1;
+    transform: none;
+  }
 }
 .card:nth-child(4n + 2) {
   --h: var(--violet);

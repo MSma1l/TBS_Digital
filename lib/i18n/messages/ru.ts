@@ -40,6 +40,8 @@ export const ru: Record<MessageKey, string> = {
   "services.lead":
     "Выберите одну услугу или соберите несколько в готовый продукт.",
   "services.swipeHint": "← ЛИСТАЙ ↔ {n} УСЛУГ →",
+  "services.card.cta": "Рассчитать цену →",
+  "services.card.estimateAria": "Рассчитать цену для «{name}»",
   "services.landing.name": "Лендинг",
   "services.landing.desc":
     "Быстрые страницы, которые превращают посетителей в клиентов.",

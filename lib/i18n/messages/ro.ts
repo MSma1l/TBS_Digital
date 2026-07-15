@@ -47,6 +47,8 @@ export const ro = {
   "services.lead":
     "Alege un serviciu sau combină mai multe într-un produs complet.",
   "services.swipeHint": "← GLISEAZĂ ↔ {n} SERVICII →",
+  "services.card.cta": "Calculează prețul →",
+  "services.card.estimateAria": "Calculează prețul pentru {name}",
   "services.landing.name": "Landing page",
   "services.landing.desc":
     "Pagini rapide care transformă vizitatorii în clienți.",

@@ -43,6 +43,8 @@ export const en: Record<MessageKey, string> = {
   "services.lead":
     "Pick one service or combine several into a complete product.",
   "services.swipeHint": "← SWIPE ↔ {n} SERVICES →",
+  "services.card.cta": "Get a price →",
+  "services.card.estimateAria": "Get a price for {name}",
   "services.landing.name": "Landing page",
   "services.landing.desc":
     "Fast pages that turn visitors into customers.",

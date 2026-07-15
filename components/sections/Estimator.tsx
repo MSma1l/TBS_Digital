@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { SectionLabel } from "@/components/ui/SectionLabel";
 import { deadlines, features, PRICE_PLACEHOLDER } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
+import { ESTIMATE_EVENT } from "@/lib/estimatorBridge";
 import { submitContact, isNetworkError } from "@/lib/api";
 import { LIMITS, validateText, sanitizeText } from "@/lib/validation";
 import { useT } from "@/lib/i18n/LanguageProvider";
@@ -37,6 +38,17 @@ export function Estimator() {
   // Per-field errors are shown once a field is touched or a submit is attempted.
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [attempted, setAttempted] = useState(false);
+
+  // A click on a /03 service card pre-selects that service here (and scrolls us into
+  // view), so the visitor lands on the estimator with their choice already made.
+  useEffect(() => {
+    const onEstimate = (event: Event) => {
+      const id = (event as CustomEvent<string>).detail;
+      if (projectTypes.some((p) => p.id === id)) setProject(id);
+    };
+    window.addEventListener(ESTIMATE_EVENT, onEstimate);
+    return () => window.removeEventListener(ESTIMATE_EVENT, onEstimate);
+  }, [projectTypes]);
 
   const toggleFeature = (id: string) =>
     setActiveFeatures((f) => ({ ...f, [id]: !f[id] }));
