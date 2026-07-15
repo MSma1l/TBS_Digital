@@ -73,8 +73,8 @@ def test_get_content_defaults(client):
         "bales-laurentiu",
     ]
     assert data["team"][0]["name"] == "Maxim"
-    assert data["team"][0]["role"] == "Team Lead & Fullstack Developer"
-    assert data["team"][2]["role"] == "QA Tester & Pentester"
+    assert data["team"][0]["role"]["ro"] == "Team Lead & Fullstack Developer"
+    assert data["team"][2]["role"]["ro"] == "QA Tester & Pentester"
     assert all(m["photo"] == "" and m["linkedin"] == "" for m in data["team"])
 
     # The footer's social slots, each with an empty url until the admin sets one.
@@ -175,7 +175,7 @@ def test_db_round_trip_persists_across_new_store(client):
     assert [s["id"] for s in back["stats"]] == ["a", "b"]
     assert [p["name"] for p in back["partners"]] == ["P1", "P2", "P3"]
     assert back["services"][0]["estimatorOnly"] is True
-    assert back["services"][0]["price"] == "9"
+    assert back["services"][0]["price"] == {"ro": "9", "ru": "", "en": ""}
     assert back["contacts"][0]["type"] == "phone"
 
     # Replacing with an empty document deletes everything.
@@ -286,10 +286,10 @@ def test_script_in_service_name_is_sanitized_and_read_back_clean(client):
     r = client.put("/api/content", json=payload, headers=_auth(client))
     assert r.status_code == 200, r.text
 
-    # Round-trips byte-for-byte: not escaped, and therefore not double-escaped either.
-    assert r.json()["services"][0]["name"] == "<script>alert('x')</script>"
+    # Round-trips byte-for-byte in the Romanian slot: not escaped, not double-escaped.
+    assert r.json()["services"][0]["name"]["ro"] == "<script>alert('x')</script>"
     back = client.get("/api/content").json()
-    assert back["services"][0]["name"] == "<script>alert('x')</script>"
+    assert back["services"][0]["name"]["ro"] == "<script>alert('x')</script>"
     # cleanup
     client.put("/api/content", json=EMPTY, headers=_auth(client))
 
@@ -388,9 +388,11 @@ def test_an_ampersand_in_content_survives_the_round_trip(client):
     assert client.put("/api/content", json=payload, headers=_auth(client)).status_code == 200
 
     service = client.get("/api/content").json()["services"][0]
-    assert service["name"] == "Dashboard & rapoarte"
-    assert service["desc"] == 'Cost < 500 lei > buget, "premium" & rapid'
-    assert "&amp;" not in service["name"]
+    assert service["name"]["ro"] == "Dashboard & rapoarte"
+    assert service["desc"]["ro"] == 'Cost < 500 lei > buget, "premium" & rapid'
+    assert "&amp;" not in service["name"]["ro"]
+    # cleanup
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
 
 
 # --- team photos & social links ----------------------------------------------
@@ -415,7 +417,11 @@ def test_team_photo_and_social_links_round_trip(client):
     assert r.status_code == 200, r.text
 
     back = client.get("/api/content").json()
-    assert back["team"] == [member]  # field-for-field, nothing dropped or mangled
+    # role/bio are localized now: a plain string on input reads back as {ro, ru, en}.
+    expected = {**member,
+                "role": {"ro": member["role"], "ru": "", "en": ""},
+                "bio": {"ro": member["bio"], "ru": "", "en": ""}}
+    assert back["team"] == [expected]  # field-for-field, nothing dropped or mangled
     client.put("/api/content", json=EMPTY, headers=_auth(client))
 
 
@@ -429,7 +435,9 @@ def test_team_member_keeps_empty_links_by_default(client):
     assert r.status_code == 200, r.text
 
     member = client.get("/api/content").json()["team"][0]
-    assert member == {"id": "danu", "name": "Danu", "role": "Dev", "bio": "",
+    assert member == {"id": "danu", "name": "Danu",
+                      "role": {"ro": "Dev", "ru": "", "en": ""},
+                      "bio": {"ro": "", "ru": "", "en": ""},
                       **BLANK_TEAM_LINKS}
     client.put("/api/content", json=EMPTY, headers=_auth(client))
 
@@ -526,3 +534,33 @@ def test_socials_list_cap_enforced(client):
     }
     r = client.put("/api/content", json=payload, headers=_auth(client))
     assert r.status_code == 422
+
+
+def test_localized_content_round_trips_all_three_languages(client):
+    """A service with {ro,ru,en} name/desc/price survives PUT → GET intact."""
+    payload = {
+        **EMPTY,
+        "services": [
+            {
+                "id": "site",
+                "name": {"ro": "Site web", "ru": "Сайт", "en": "Website"},
+                "desc": {"ro": "Rapid", "ru": "Быстрый", "en": "Fast"},
+                "price": {"ro": "de la 400€", "ru": "от 400€", "en": "from 400€"},
+            }
+        ],
+    }
+    assert client.put("/api/content", json=payload, headers=_auth(client)).status_code == 200
+    svc = client.get("/api/content").json()["services"][0]
+    assert svc["name"] == {"ro": "Site web", "ru": "Сайт", "en": "Website"}
+    assert svc["price"]["ru"] == "от 400€"
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
+
+
+def test_legacy_plain_string_content_coerces_to_romanian(client):
+    """A client that still sends a bare string (pre-localization) keeps working: it lands
+    in the Romanian slot, ru/en empty — no migration needed for old data/clients."""
+    payload = {**EMPTY, "services": [{"id": "x", "name": "Landing", "desc": "d", "price": "9"}]}
+    assert client.put("/api/content", json=payload, headers=_auth(client)).status_code == 200
+    svc = client.get("/api/content").json()["services"][0]
+    assert svc["name"] == {"ro": "Landing", "ru": "", "en": ""}
+    client.put("/api/content", json=EMPTY, headers=_auth(client))

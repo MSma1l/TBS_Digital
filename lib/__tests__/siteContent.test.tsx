@@ -20,6 +20,7 @@ import {
   type SiteData,
   type StatItem,
 } from "@/lib/siteContent";
+import { locRo } from "@/lib/i18n/content";
 
 const mockedFetchContent = vi.mocked(fetchContent);
 
@@ -40,7 +41,7 @@ describe("mergeSiteData", () => {
   });
 
   it("lets a saved list fully replace its default", () => {
-    const stats: StatItem[] = [{ id: "x", value: "10", label: "Proiecte" }];
+    const stats: StatItem[] = [{ id: "x", value: "10", label: locRo("Proiecte") }];
     const merged = mergeSiteData({ stats });
     expect(merged.stats).toBe(stats);
     // Untouched keys still fall back to defaults.
@@ -81,7 +82,7 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
     const data: SiteData = {
       ...defaultSiteData,
       partners: [{ id: "a", name: "A", logo: "", url: "", preview: "" }, { id: "b", name: "B", logo: "", url: "", preview: "" }],
-      stats: [{ id: "s1", value: "99", label: "Clienți" }],
+      stats: [{ id: "s1", value: "99", label: locRo("Clienți") }],
     };
     saveSiteData(data);
     expect(window.localStorage.getItem(SITE_DATA_KEY)).toBe(
@@ -89,7 +90,7 @@ describe("loadSiteData / saveSiteData / clearSiteData", () => {
     );
     const loaded = loadSiteData();
     expect(loaded.partners).toEqual([{ id: "a", name: "A", logo: "", url: "", preview: "" }, { id: "b", name: "B", logo: "", url: "", preview: "" }]);
-    expect(loaded.stats).toEqual([{ id: "s1", value: "99", label: "Clienți" }]);
+    expect(loaded.stats).toEqual([{ id: "s1", value: "99", label: locRo("Clienți") }]);
   });
 
   it("merges partial stored data onto defaults", () => {

@@ -37,15 +37,20 @@ import * as api from "@/lib/api";
 import AdminPage from "@/app/admin-tbs-digital/page";
 
 const sampleContent: SiteData = {
-  stats: [{ id: "s1", value: "50+", label: "PROIECTE" }],
+  stats: [{ id: "s1", value: "50+", label: { ro: "PROIECTE", ru: "", en: "" } }],
   services: [
-    { id: "landing", name: "Landing page", desc: "O pagina.", price: "€500" },
+    {
+      id: "landing",
+      name: { ro: "Landing page", ru: "", en: "" },
+      desc: { ro: "O pagina.", ru: "", en: "" },
+      price: { ro: "€500", ru: "", en: "" },
+    },
   ],
   team: [{
       id: "t1",
       name: "Ion",
-      role: "Dev",
-      bio: "Bio.",
+      role: { ro: "Dev", ru: "", en: "" },
+      bio: { ro: "Bio.", ru: "", en: "" },
       photo: "",
       website: "",
       linkedin: "",
@@ -58,8 +63,8 @@ const sampleContent: SiteData = {
     {
       id: "proj-1",
       name: "BizCheck",
-      tag: "PLATFORMĂ WEB",
-      desc: "O platformă.",
+      tag: { ro: "PLATFORMĂ WEB", ru: "", en: "" },
+      desc: { ro: "O platformă.", ru: "", en: "" },
       url: "https://bizcheck.md",
       appStore: "",
       playStore: "",

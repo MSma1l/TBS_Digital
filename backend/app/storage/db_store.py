@@ -10,6 +10,7 @@ This is the store wired in `deps.py`; the `JSONFileStore` stays in the tree only
 reference/fallback.
 """
 
+import json
 import uuid
 from datetime import datetime, timezone
 from typing import List
@@ -32,6 +33,7 @@ from ..schemas import (
     Contact,
     ContactSubmission,
     ContactSubmissionIn,
+    LocalizedText,
     Partner,
     Project,
     Service,
@@ -41,6 +43,30 @@ from ..schemas import (
     TeamMember,
 )
 from .base import ContentStore
+
+
+def _loc_to_db(value: LocalizedText) -> str:
+    """Serialize a localized field to the TEXT column as JSON ``{"ro","ru","en"}``."""
+    return json.dumps(
+        {"ro": value.ro, "ru": value.ru, "en": value.en}, ensure_ascii=False
+    )
+
+
+def _loc_from_db(raw: str) -> LocalizedText:
+    """Read a localized field back. A legacy plain string (pre-localization) is treated as
+    Romanian-only, so old rows keep working with no migration."""
+    if raw:
+        try:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                return LocalizedText.model_construct(
+                    ro=data.get("ro", ""),
+                    ru=data.get("ru", ""),
+                    en=data.get("en", ""),
+                )
+        except (ValueError, TypeError):
+            pass  # not JSON → a legacy single-language value
+    return LocalizedText.model_construct(ro=raw or "", ru="", en="")
 
 
 class DbStore(ContentStore):
@@ -92,15 +118,17 @@ class DbStore(ContentStore):
         # model_construct: stored values are already validated/escaped on write.
         return SiteContent.model_construct(
             stats=[
-                Stat.model_construct(id=r.id, value=r.value, label=r.label)
+                Stat.model_construct(
+                    id=r.id, value=r.value, label=_loc_from_db(r.label)
+                )
                 for r in stats
             ],
             services=[
                 Service.model_construct(
                     id=r.id,
-                    name=r.name,
-                    desc=r.description,
-                    price=r.price,
+                    name=_loc_from_db(r.name),
+                    desc=_loc_from_db(r.description),
+                    price=_loc_from_db(r.price),
                     estimatorOnly=r.estimator_only,
                 )
                 for r in services
@@ -109,8 +137,8 @@ class DbStore(ContentStore):
                 TeamMember.model_construct(
                     id=r.id,
                     name=r.name,
-                    role=r.role,
-                    bio=r.bio,
+                    role=_loc_from_db(r.role),
+                    bio=_loc_from_db(r.bio),
                     photo=r.photo,
                     website=r.website,
                     linkedin=r.linkedin,
@@ -124,8 +152,8 @@ class DbStore(ContentStore):
                 Project.model_construct(
                     id=r.id,
                     name=r.name,
-                    tag=r.tag,
-                    desc=r.description,
+                    tag=_loc_from_db(r.tag),
+                    desc=_loc_from_db(r.description),
                     url=r.url,
                     appStore=r.app_store,
                     playStore=r.play_store,
@@ -175,7 +203,11 @@ class DbStore(ContentStore):
                 session.delete(row)
         for pos, item in enumerate(items):
             row = existing.get(item.id) or StatRow(id=item.id)
-            row.value, row.label, row.position = item.value, item.label, pos
+            row.value, row.label, row.position = (
+                item.value,
+                _loc_to_db(item.label),
+                pos,
+            )
             session.add(row)
 
     @staticmethod
@@ -187,9 +219,9 @@ class DbStore(ContentStore):
                 session.delete(row)
         for pos, item in enumerate(items):
             row = existing.get(item.id) or ServiceRow(id=item.id)
-            row.name = item.name
-            row.description = item.desc
-            row.price = item.price
+            row.name = _loc_to_db(item.name)
+            row.description = _loc_to_db(item.desc)
+            row.price = _loc_to_db(item.price)
             row.estimator_only = item.estimatorOnly
             row.position = pos
             session.add(row)
@@ -204,8 +236,8 @@ class DbStore(ContentStore):
         for pos, item in enumerate(items):
             row = existing.get(item.id) or TeamRow(id=item.id)
             row.name = item.name
-            row.role = item.role
-            row.bio = item.bio
+            row.role = _loc_to_db(item.role)
+            row.bio = _loc_to_db(item.bio)
             row.photo = item.photo
             row.website = item.website
             row.linkedin = item.linkedin
@@ -237,8 +269,8 @@ class DbStore(ContentStore):
         for pos, item in enumerate(items):
             row = existing.get(item.id) or ProjectRow(id=item.id)
             row.name = item.name
-            row.tag = item.tag
-            row.description = item.desc
+            row.tag = _loc_to_db(item.tag)
+            row.description = _loc_to_db(item.desc)
             row.url = item.url
             row.app_store = item.appStore
             row.play_store = item.playStore

@@ -7,7 +7,7 @@ import { mediaUrl } from "@/lib/api";
 import { statusBars, type SocialNetwork } from "@/lib/content";
 import { useSiteContent, type TeamItem } from "@/lib/siteContent";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { useContentText } from "@/lib/i18n/content";
+import { useLoc } from "@/lib/i18n/content";
 import { format, Multiline } from "@/lib/i18n/format";
 import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Team.module.css";
@@ -76,7 +76,7 @@ function initialsOf(name: string): string {
 export function Team() {
   const { team } = useSiteContent();
   const t = useT();
-  const tc = useContentText();
+  const l = useLoc();
 
   return (
     <section id="echipa" className="section">
@@ -115,8 +115,8 @@ export function Team() {
         <div className={styles.cards}>
           {team.map((m) => {
             const name = str(m.name);
-            const role = str(m.role);
-            const bio = str(m.bio);
+            const role = l(m.role);
+            const bio = l(m.bio);
             const stored = str(m.photo);
             const photo = stored ? mediaUrl(stored) : "";
             const initials = initialsOf(name);
@@ -145,9 +145,7 @@ export function Team() {
                 </div>
 
                 <span className={styles.name}>{name}</span>
-                <span className={`mono ${styles.role}`}>
-                  {tc(`team.${m.id}.role` as MessageKey, role)}
-                </span>
+                <span className={`mono ${styles.role}`}>{role}</span>
                 {bio ? <p className={styles.bio}>{bio}</p> : null}
 
                 {links.length > 0 ? (

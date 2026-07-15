@@ -9,9 +9,8 @@ import { useAutoCarousel } from "@/components/ui/useAutoCarousel";
 import { mediaUrl } from "@/lib/api";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { useContentText, projectTagKey } from "@/lib/i18n/content";
+import { useLoc } from "@/lib/i18n/content";
 import { format, Multiline } from "@/lib/i18n/format";
-import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Work.module.css";
 
 /** How long each screenshot stays up before the card rotates to the next one. */
@@ -45,12 +44,12 @@ function ProjectCard({
   onOpen: (project: ProjectItem, index: number) => void;
 }) {
   const t = useT();
-  const tc = useContentText();
+  const l = useLoc();
   const platform = usePlatform();
   const [hovered, setHovered] = useState(false);
   const images = project.images;
-  const tagKey = projectTagKey(project.tag);
-  const tag = tagKey ? tc(tagKey, project.tag) : project.tag;
+  const tag = l(project.tag);
+  const desc = l(project.desc);
   const index = useGalleryRotation(images.length, hovered);
   const hasImages = images.length > 0;
 
@@ -119,13 +118,9 @@ function ProjectCard({
       </div>
 
       <div className={styles.body}>
-        {project.tag && <span className={`mono ${styles.tag}`}>{tag}</span>}
+        {tag && <span className={`mono ${styles.tag}`}>{tag}</span>}
         <h3 className={styles.name}>{project.name}</h3>
-        {project.desc && (
-          <p className={styles.desc}>
-            {tc(`projects.${project.id}.desc` as MessageKey, project.desc)}
-          </p>
-        )}
+        {desc && <p className={styles.desc}>{desc}</p>}
 
         <div className={styles.actions}>
           {project.url && (

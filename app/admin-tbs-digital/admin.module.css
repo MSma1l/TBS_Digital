@@ -481,6 +481,40 @@
   border-color: var(--cyan);
 }
 
+/* ---------- localized field (RO / RU / EN, three inputs per field) ---------- */
+/* One label, then a stacked row per language, each prefixed with a small RO/RU/EN
+   marker. RO is the source/fallback; ru/en may be left blank. */
+.localizedGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.localizedRow {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.localizedRow .input,
+.localizedRow .textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* The language marker sits to the left of each input like a fixed tag. */
+.langTag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  padding: 6px 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  background: rgba(47, 107, 255, 0.08);
+  border: 1px solid var(--line);
+}
+
 /* ---------- sticky action bar ---------- */
 .actions {
   position: fixed;

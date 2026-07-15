@@ -7,15 +7,14 @@ import { useAutoCarousel } from "@/components/ui/useAutoCarousel";
 import { useSiteContent } from "@/lib/siteContent";
 import { requestEstimate } from "@/lib/estimatorBridge";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { useContentText } from "@/lib/i18n/content";
+import { useLoc } from "@/lib/i18n/content";
 import { format, Multiline } from "@/lib/i18n/format";
-import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Services.module.css";
 
 export function Services() {
   const { services } = useSiteContent();
   const t = useT();
-  const tc = useContentText();
+  const l = useLoc();
   const cards = services.filter((s) => !s.estimatorOnly);
   // Mobile carousel: auto-rolls, pauses on manual slide (see the hook).
   const trackRef = useAutoCarousel(cards.length);
@@ -33,7 +32,7 @@ export function Services() {
 
         <div ref={trackRef} className={styles.grid}>
           {cards.map((s, i) => {
-            const name = tc(`services.${s.id}.name` as MessageKey, s.name);
+            const name = l(s.name);
             return (
               <Reveal
                 key={s.id}
@@ -46,9 +45,7 @@ export function Services() {
                 </div>
                 <div className={styles.icon}>{iconFor(s.id)}</div>
                 <h3 className={`mono ${styles.name}`}>{name}</h3>
-                <p className={styles.desc}>
-                  {tc(`services.${s.id}.desc` as MessageKey, s.desc)}
-                </p>
+                <p className={styles.desc}>{l(s.desc)}</p>
                 <span className={`mono ${styles.cta}`} aria-hidden>
                   {t("services.card.cta")}
                 </span>

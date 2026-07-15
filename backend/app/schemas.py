@@ -52,18 +52,48 @@ ContactValue = text(254)
 Tag = text(40)  # a project's category chip, e.g. "WEB" / "APLICAȚIE MOBILĂ"
 ProjectDesc = text(600)
 
+# Each localized sub-value is sanitised (trim / escape / cap) like any stored text. One cap
+# (2000) covers every localized field; the frontend enforces the tighter per-field limits.
+LocalizedValue = text(2000)
+
+
+class LocalizedText(BaseModel):
+    """A piece of admin content in all three site languages.
+
+    Romanian is the source/fallback: the frontend resolves a field as
+    ``value[locale] || value.ro``, so a missing ru/en degrades to Romanian, never to blank.
+
+    Accepts a plain string on input and coerces it to ``{ro: <string>}`` — so content saved
+    before localization (and any client that still sends a bare string) keeps working
+    without a migration. ``db_store`` does the same coercion when it reads a legacy value.
+    """
+
+    ro: LocalizedValue = ""
+    ru: LocalizedValue = ""
+    en: LocalizedValue = ""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_plain_string(cls, value):
+        return {"ro": value} if isinstance(value, str) else value
+
+
+def _loc(ro: str = "") -> LocalizedText:
+    """Build a LocalizedText with only Romanian set (ru/en fall back to it)."""
+    return LocalizedText(ro=ro)
+
 
 class Stat(BaseModel):
     id: IdStr
-    value: ShortLabel = ""
-    label: ShortLabel = ""
+    value: ShortLabel = ""  # a number like "50+"/"98%" — same in every language
+    label: LocalizedText = Field(default_factory=LocalizedText)
 
 
 class Service(BaseModel):
     id: IdStr
-    name: Name = ""
-    desc: Description = ""
-    price: Price = PRICE_PLACEHOLDER
+    name: LocalizedText = Field(default_factory=LocalizedText)
+    desc: LocalizedText = Field(default_factory=LocalizedText)
+    price: LocalizedText = Field(default_factory=lambda: _loc(PRICE_PLACEHOLDER))
     estimatorOnly: bool = False  # in the estimator, but not on the /03 grid
 
 
@@ -77,9 +107,9 @@ class TeamMember(BaseModel):
     """
 
     id: IdStr
-    name: Name = ""
-    role: Role = ""
-    bio: Bio = ""
+    name: Name = ""  # a person's name — a proper noun, not translated
+    role: LocalizedText = Field(default_factory=LocalizedText)
+    bio: LocalizedText = Field(default_factory=LocalizedText)
     photo: LinkStr = ""
     website: LinkStr = ""
     linkedin: LinkStr = ""
@@ -111,9 +141,9 @@ class Project(BaseModel):
     """
 
     id: IdStr
-    name: Name = ""
-    tag: Tag = ""
-    desc: ProjectDesc = ""
+    name: Name = ""  # a product name (BizCheck, IQ Arena…) — a proper noun, not translated
+    tag: LocalizedText = Field(default_factory=LocalizedText)
+    desc: LocalizedText = Field(default_factory=LocalizedText)
     url: LinkStr = ""
     appStore: LinkStr = ""
     playStore: LinkStr = ""

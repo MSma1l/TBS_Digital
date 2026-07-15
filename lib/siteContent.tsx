@@ -32,25 +32,30 @@ import {
   type SocialNetwork,
 } from "@/lib/content";
 import { fetchContent } from "@/lib/api";
+import { locRo, type LocalizedText } from "@/lib/i18n/content";
 
-export type StatItem = { id: string; value: string; label: string };
+// Localizable fields are `{ ro, ru, en }` — the admin edits all three, and the component
+// resolves the active language with `loc()` (lib/i18n/content). A bare string is still
+// tolerated at runtime (legacy data) and treated as Romanian-only.
+export type StatItem = { id: string; value: string; label: LocalizedText };
 export type ServiceItem = {
   id: string;
-  name: string;
-  desc: string;
-  price: string;
+  name: LocalizedText;
+  desc: LocalizedText;
+  price: LocalizedText;
   estimatorOnly?: boolean;
 };
 /**
- * A team member. `photo` is a bundled asset or an uploaded path (`/api/uploads/…`); with
- * none set the card falls back to its gradient avatar. Each social URL is optional — the
- * card shows an icon only for the ones that are set.
+ * A team member. `name` is a proper noun (single string). `role`/`bio` are localized.
+ * `photo` is a bundled asset or an uploaded path; with none set the card falls back to its
+ * gradient avatar. Each social URL is optional — the card shows an icon only for the ones
+ * that are set.
  */
 export type TeamItem = {
   id: string;
   name: string;
-  role: string;
-  bio: string;
+  role: LocalizedText;
+  bio: LocalizedText;
   photo: string;
   website: string;
   linkedin: string;
@@ -70,12 +75,12 @@ export type PartnerItem = {
   preview: string;
 };
 
-/** A delivered project on the /04 grid. See `Project` in `lib/content.ts`. */
+/** A delivered project on the /04 grid. `name` is a proper noun; `tag`/`desc` are localized. */
 export type ProjectItem = {
   id: string;
   name: string;
-  tag: string;
-  desc: string;
+  tag: LocalizedText;
+  desc: LocalizedText;
   url: string;
   appStore: string;
   playStore: string;
@@ -95,7 +100,7 @@ export type SiteData = {
 
 /** Baseline content — stats and team start blank (they are placeholders). */
 export const defaultSiteData: SiteData = {
-  stats: statPlaceholders.map((s) => ({ id: s.id, value: "", label: "" })),
+  stats: statPlaceholders.map((s) => ({ id: s.id, value: "", label: locRo("") })),
   services: defaultServices.map((s) => ({ ...s })),
   team: defaultTeam.map((t) => ({ ...t })),
   projects: defaultProjects.map((p) => ({ ...p, images: [...p.images] })),

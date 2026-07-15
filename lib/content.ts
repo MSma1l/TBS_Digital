@@ -7,18 +7,23 @@
    See docs/06-placeholder-rules.md and docs/07-conventions.md.
    ============================================================ */
 
+import { locFromCatalog, locRo, type LocalizedText } from "@/lib/i18n/content";
+import type { MessageKey } from "@/lib/i18n/messages";
+
 export type Principle = { title: string; desc: string };
 /**
  * A service is the single source for both the /03 cards and the /06 estimator.
- * `price` feeds the estimator; `estimatorOnly` keeps an option (e.g. AI) in the
- * estimator without showing a card on the homepage grid. The `/NN` card label is
- * computed from position (so adding/removing services renumbers automatically).
+ * `name`, `desc` and `price` are localized (`{ ro, ru, en }`) — the admin edits all
+ * three languages and the section resolves the active one with `loc()`. `price` feeds
+ * the estimator; `estimatorOnly` keeps an option (e.g. AI) in the estimator without
+ * showing a card on the homepage grid. The `/NN` card label is computed from position
+ * (so adding/removing services renumbers automatically).
  */
 export type Service = {
   id: string;
-  name: string;
-  desc: string;
-  price: string;
+  name: LocalizedText;
+  desc: LocalizedText;
+  price: LocalizedText;
   estimatorOnly?: boolean;
 };
 /**
@@ -44,9 +49,10 @@ export type Partner = {
  */
 export type Project = {
   id: string;
+  /** Proper noun — a single string, not localized. */
   name: string;
-  tag: string;
-  desc: string;
+  tag: LocalizedText;
+  desc: LocalizedText;
   url: string;
   appStore: string;
   playStore: string;
@@ -82,6 +88,15 @@ export type FooterLink = { label: string; href: string };
 /** Price values are intentionally stubbed while pricing lives in the backend. */
 export const PRICE_PLACEHOLDER = "...";
 
+/** The default price is the "..." placeholder in every language until the admin sets a
+ *  real, fully localized price (e.g. "de la 400€" / "от 400€" / "from 400€"). A fresh
+ *  object per service keeps admin edits from bleeding across services. */
+const pricePlaceholder = (): LocalizedText => ({
+  ro: PRICE_PLACEHOLDER,
+  ru: PRICE_PLACEHOLDER,
+  en: PRICE_PLACEHOLDER,
+});
+
 /* ---------- /02 Principles ---------- */
 export const principles: Principle[] = [
   { title: "Strategie\nîntâi", desc: "Înțelegem afacerea înainte de prima linie de cod." },
@@ -103,18 +118,31 @@ export const statPlaceholders: { id: string }[] = [
    The "Automatizare cu IA" entry is `estimatorOnly`: it appears in the estimator
    but has no card on the /03 grid. `price` is the "..." placeholder until the
    admin sets it. */
+/** Build a service's trilingual defaults from the message catalog. The service `id`
+ *  is the catalog key segment, so `name`/`desc` come from `services.<id>.name|desc`. */
+const service = (
+  id: string,
+  extra?: Partial<Pick<Service, "estimatorOnly">>,
+): Service => ({
+  id,
+  name: locFromCatalog(`services.${id}.name` as MessageKey),
+  desc: locFromCatalog(`services.${id}.desc` as MessageKey),
+  price: pricePlaceholder(),
+  ...extra,
+});
+
 export const services: Service[] = [
-  { id: "landing", name: "Landing page", desc: "Pagini rapide care transformă vizitatorii în clienți.", price: PRICE_PLACEHOLDER },
-  { id: "site", name: "Site web / prezentare", desc: "Prezență online completă, rapidă și optimizată SEO.", price: PRICE_PLACEHOLDER },
-  { id: "shop", name: "Magazin online", desc: "eCommerce cu plăți, stocuri și panou de administrare.", price: PRICE_PLACEHOLDER },
-  { id: "mobile", name: "Aplicație mobilă", desc: "Aplicații iOS & Android native sau cross-platform.", price: PRICE_PLACEHOLDER },
-  { id: "crm", name: "CRM personalizat", desc: "Gestionează clienți, lead-uri și vânzări dintr-un loc.", price: PRICE_PLACEHOLDER },
-  { id: "saas", name: "Platformă SaaS", desc: "Produs software scalabil, cu abonamente și utilizatori.", price: PRICE_PLACEHOLDER },
-  { id: "automation", name: "Automatizare procese", desc: "Elimină munca manuală repetitivă prin fluxuri automate.", price: PRICE_PLACEHOLDER },
-  { id: "dashboard", name: "Dashboard & rapoarte", desc: "Toate datele importante, vizualizate la un click.", price: PRICE_PLACEHOLDER },
-  { id: "bot", name: "Bot Telegram", desc: "Asistenți automați pentru suport, vânzări, notificări.", price: PRICE_PLACEHOLDER },
-  { id: "ai", name: "Automatizare cu IA", desc: "", price: PRICE_PLACEHOLDER, estimatorOnly: true },
-  { id: "custom", name: "Software personalizat", desc: "Construit exact pe nevoile și fluxurile afacerii tale.", price: PRICE_PLACEHOLDER },
+  service("landing"),
+  service("site"),
+  service("shop"),
+  service("mobile"),
+  service("crm"),
+  service("saas"),
+  service("automation"),
+  service("dashboard"),
+  service("bot"),
+  service("ai", { estimatorOnly: true }),
+  service("custom"),
 ];
 
 /* ---------- /04 Selected work ----------
@@ -126,8 +154,8 @@ export const projects: Project[] = [
   {
     id: "bizcheck",
     name: "BizCheck",
-    tag: "PLATFORMĂ WEB",
-    desc: "Platformă de autoevaluare a riscurilor pentru IMM-uri, pe metodologia Crowe: teste interactive, șabloane juridice pe blocuri și un raport PDF detaliat la final.",
+    tag: locFromCatalog("projects.tag.web"),
+    desc: locFromCatalog("projects.bizcheck.desc"),
     url: "https://bizcheck.md",
     appStore: "",
     playStore: "",
@@ -141,8 +169,8 @@ export const projects: Project[] = [
   {
     id: "itara-global",
     name: "Itara Global",
-    tag: "SITE CORPORATIV",
-    desc: "Site corporativ pentru o companie de software: hero, servicii IT end-to-end, stack tehnologic și dovezi sociale — construit pentru viteză și pentru conversie.",
+    tag: locFromCatalog("projects.tag.corporate"),
+    desc: locFromCatalog("projects.itara-global.desc"),
     url: "https://itara-global.md",
     appStore: "",
     playStore: "",
@@ -156,8 +184,8 @@ export const projects: Project[] = [
   {
     id: "docusafe",
     name: "DocuSafe",
-    tag: "PLATFORMĂ SAAS",
-    desc: "Platformă SaaS de gestiune a documentelor, construită integral de noi: stocare securizată, editare colaborativă direct în browser, căutare full-text și procesare asincronă.",
+    tag: locFromCatalog("projects.tag.saas"),
+    desc: locFromCatalog("projects.docusafe.desc"),
     url: "https://docusafe.tbs.md",
     appStore: "",
     playStore: "",
@@ -166,8 +194,8 @@ export const projects: Project[] = [
   {
     id: "cgam",
     name: "CGAM",
-    tag: "PLATFORMĂ WEB",
-    desc: "Platforma Corporate Governance Academy from Moldova: ateliere practice de negociere, o ligă gamificată cu niveluri și puncte, calendar de evenimente și comunitate.",
+    tag: locFromCatalog("projects.tag.web"),
+    desc: locFromCatalog("projects.cgam.desc"),
     url: "https://cgam.md",
     appStore: "",
     playStore: "",
@@ -181,8 +209,8 @@ export const projects: Project[] = [
   {
     id: "iq-arena",
     name: "IQ Arena",
-    tag: "APLICAȚIE MOBILĂ",
-    desc: "Aplicația companion pentru evenimentele de dezbatere și negociere CGAM: intri la o masă prin cod sau QR, rolurile se atribuie automat (PRO, CON, juriu), runda e cronometrată, iar fiecare jurat notează 1–5 pe cele cinci criterii CGAM — rezultatele se agregă în timp real, până la dezvăluirea câștigătorului.",
+    tag: locFromCatalog("projects.tag.mobile"),
+    desc: locFromCatalog("projects.iq-arena.desc"),
     url: "",
     appStore: "",
     playStore: "",
@@ -196,8 +224,9 @@ export const projects: Project[] = [
   {
     id: "fayr-family",
     name: "Fayr Family",
-    tag: "APLICAȚIE MOBILĂ",
-    desc: "",
+    tag: locFromCatalog("projects.tag.mobile"),
+    // No seed description yet — blank in every language (ru/en fall back to ro at render).
+    desc: locRo(""),
     url: "",
     appStore: "",
     playStore: "",
@@ -212,9 +241,10 @@ export const projects: Project[] = [
    link. */
 export type TeamMember = {
   id: string;
+  /** Proper noun — a single string, not localized. */
   name: string;
-  role: string;
-  bio: string;
+  role: LocalizedText;
+  bio: LocalizedText;
   photo: string;
   website: string;
   linkedin: string;
@@ -223,15 +253,13 @@ export type TeamMember = {
   github: string;
 };
 
-const member = (
-  id: string,
-  name: string,
-  role: string,
-): TeamMember => ({
+/** The member `id` is the catalog key segment, so `role` seeds from `team.<id>.role`.
+   `bio` starts blank in every language (filled in from the admin). */
+const member = (id: string, name: string): TeamMember => ({
   id,
   name,
-  role,
-  bio: "",
+  role: locFromCatalog(`team.${id}.role` as MessageKey),
+  bio: locRo(""),
   photo: "",
   website: "",
   linkedin: "",
@@ -244,9 +272,9 @@ const member = (
    are: they are the stable keys the admin's saved content is matched on, so renaming them
    would orphan whatever has already been filled in. */
 export const team: TeamMember[] = [
-  member("chistol-maxim", "Maxim", "Team Lead & Fullstack Developer"),
-  member("danu", "Danu", "Fullstack Developer"),
-  member("bales-laurentiu", "Laurentiu", "QA Tester & Pentester"),
+  member("chistol-maxim", "Maxim"),
+  member("danu", "Danu"),
+  member("bales-laurentiu", "Laurentiu"),
 ];
 
 /* ---------- Company socials (footer) ----------

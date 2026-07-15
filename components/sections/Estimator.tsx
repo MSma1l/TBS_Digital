@@ -8,18 +8,23 @@ import { ESTIMATE_EVENT } from "@/lib/estimatorBridge";
 import { submitContact, isNetworkError } from "@/lib/api";
 import { LIMITS, validateText, sanitizeText } from "@/lib/validation";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { useContentText } from "@/lib/i18n/content";
+import { useLoc } from "@/lib/i18n/content";
 import { format, Multiline } from "@/lib/i18n/format";
 import type { MessageKey } from "@/lib/i18n/messages";
 import styles from "./Estimator.module.css";
 
 export function Estimator() {
   const t = useT();
-  const tc = useContentText();
+  const l = useLoc();
   // The project-type list IS the services list (name + price) — same source as /03.
   const { services: projectTypes } = useSiteContent();
-  const priceOf = (id: string) =>
-    projectTypes.find((p) => p.id === id)?.price || PRICE_PLACEHOLDER;
+  // Price is a localized, admin-controlled string (e.g. "de la 400€" / "от 400€" /
+  // "from 400€"), rendered as-is — no "de la {price}" wrapper. Falls back to the "..."
+  // placeholder for a service whose price the admin hasn't set.
+  const priceOf = (id: string) => {
+    const price = projectTypes.find((p) => p.id === id)?.price;
+    return price ? l(price) : PRICE_PLACEHOLDER;
+  };
 
   const [project, setProject] = useState("site");
   const [deadline, setDeadline] = useState("standard");
@@ -53,8 +58,8 @@ export function Estimator() {
   const toggleFeature = (id: string) =>
     setActiveFeatures((f) => ({ ...f, [id]: !f[id] }));
 
-  const selectedProjectName =
-    projectTypes.find((p) => p.id === project)?.name ?? "";
+  const selected = projectTypes.find((p) => p.id === project);
+  const selectedProjectName = selected ? l(selected.name) : "";
 
   // Live validation mirroring the backend limits (name/email required, phone
   // optional, hard max lengths, HTML/script injection blocked).
@@ -152,13 +157,9 @@ export function Estimator() {
                     project === opt.id ? styles.active : ""
                   }`}
                 >
-                  <div className={`mono ${styles.typeName}`}>
-                    {tc(`services.${opt.id}.name` as MessageKey, opt.name)}
-                  </div>
+                  <div className={`mono ${styles.typeName}`}>{l(opt.name)}</div>
                   <div className={`mono ${styles.typePrice}`}>
-                    {format(t("estimator.price.from"), {
-                      price: priceOf(opt.id),
-                    })}
+                    {priceOf(opt.id)}
                   </div>
                 </button>
               ))}

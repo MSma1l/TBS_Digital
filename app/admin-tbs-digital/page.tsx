@@ -37,6 +37,11 @@ import {
   sanitizeLink,
   type TextRules,
 } from "@/lib/validation";
+import {
+  type LocalizedText,
+  type MaybeLocalized,
+} from "@/lib/i18n/content";
+import { LOCALES, LOCALE_SHORT, type Locale } from "@/lib/i18n/locales";
 import styles from "./admin.module.css";
 
 /**
@@ -68,6 +73,36 @@ type TabId =
 
 const genId = (prefix: string) =>
   `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+
+/**
+ * Coerce a possibly-legacy localized field into a full `{ ro, ru, en }`. Stored content
+ * may still hold a bare string (legacy) or a partial object (older payload) — this keeps
+ * the editor from ever crashing on such data. A string becomes Romanian-only.
+ */
+const toLocalized = (v: MaybeLocalized | undefined | null): LocalizedText => {
+  if (v == null) return { ro: "", ru: "", en: "" };
+  if (typeof v === "string") return { ro: v, ru: "", en: "" };
+  return { ro: v.ro ?? "", ru: v.ru ?? "", en: v.en ?? "" };
+};
+
+/** A blank localized value — used when seeding a new list row. */
+const emptyLoc = (): LocalizedText => ({ ro: "", ru: "", en: "" });
+
+/** Sanitize each of the three languages of a localized field. */
+const sanitizeLoc = (v: MaybeLocalized): LocalizedText => {
+  const l = toLocalized(v);
+  return {
+    ro: sanitizeText(l.ro),
+    ru: sanitizeText(l.ru),
+    en: sanitizeText(l.en),
+  };
+};
+
+/** True when any of the three languages of a localized field fails `rules`. */
+const locHasError = (v: MaybeLocalized, rules: TextRules): boolean => {
+  const l = toLocalized(v);
+  return LOCALES.some((lc) => !!validateText(l[lc], rules));
+};
 
 /** A team member's own profile links. An empty one renders no icon on the site. */
 const SOCIAL_FIELDS = [
@@ -127,19 +162,25 @@ function sanitizeDraft(d: SiteData): SiteData {
     stats: d.stats.map((s) => ({
       ...s,
       value: sanitizeText(s.value),
-      label: sanitizeText(s.label),
+      label: sanitizeLoc(s.label),
     })),
-    services: d.services.map((s) => ({
-      ...s,
-      name: sanitizeText(s.name),
-      desc: sanitizeText(s.desc),
-      price: sanitizeText(s.price) || PRICE_PLACEHOLDER,
-    })),
+    services: d.services.map((s) => {
+      const price = sanitizeLoc(s.price);
+      // Keep the Romanian placeholder when no price is entered at all — the estimator
+      // falls back to `ro`, so an empty `ro` would render blank.
+      if (!price.ro) price.ro = PRICE_PLACEHOLDER;
+      return {
+        ...s,
+        name: sanitizeLoc(s.name),
+        desc: sanitizeLoc(s.desc),
+        price,
+      };
+    }),
     team: d.team.map((m) => ({
       ...m,
       name: sanitizeText(m.name),
-      role: sanitizeText(m.role),
-      bio: sanitizeText(m.bio),
+      role: sanitizeLoc(m.role),
+      bio: sanitizeLoc(m.bio),
       // Links are dropped rather than rewritten — see sanitizeLink.
       photo: sanitizeLink(m.photo),
       website: sanitizeLink(m.website),
@@ -152,8 +193,8 @@ function sanitizeDraft(d: SiteData): SiteData {
     projects: d.projects.map((p) => ({
       ...p,
       name: sanitizeText(p.name),
-      tag: sanitizeText(p.tag),
-      desc: sanitizeText(p.desc),
+      tag: sanitizeLoc(p.tag),
+      desc: sanitizeLoc(p.desc),
       url: sanitizeLink(p.url),
       appStore: sanitizeLink(p.appStore),
       playStore: sanitizeLink(p.playStore),
@@ -177,20 +218,20 @@ function draftHasErrors(d: SiteData): boolean {
   return (
     d.services.some(
       (s) =>
-        !!validateText(s.name, RULES.serviceName) ||
-        !!validateText(s.price, RULES.servicePrice) ||
-        (!s.estimatorOnly && !!validateText(s.desc, RULES.serviceDesc)),
+        locHasError(s.name, RULES.serviceName) ||
+        locHasError(s.price, RULES.servicePrice) ||
+        (!s.estimatorOnly && locHasError(s.desc, RULES.serviceDesc)),
     ) ||
     d.stats.some(
       (s) =>
         !!validateText(s.value, RULES.statValue) ||
-        !!validateText(s.label, RULES.statLabel),
+        locHasError(s.label, RULES.statLabel),
     ) ||
     d.team.some(
       (m) =>
         !!validateText(m.name, RULES.teamName) ||
-        !!validateText(m.role, RULES.teamRole) ||
-        !!validateText(m.bio, RULES.teamBio) ||
+        locHasError(m.role, RULES.teamRole) ||
+        locHasError(m.bio, RULES.teamBio) ||
         !!validateText(m.photo, RULES.teamPhoto) ||
         SOCIAL_FIELDS.some((f) => !!validateText(m[f], RULES.teamSocial)),
     ) ||
@@ -198,8 +239,8 @@ function draftHasErrors(d: SiteData): boolean {
     d.projects.some(
       (p) =>
         !!validateText(p.name, RULES.projectName) ||
-        !!validateText(p.tag, RULES.projectTag) ||
-        !!validateText(p.desc, RULES.projectDesc) ||
+        locHasError(p.tag, RULES.projectTag) ||
+        locHasError(p.desc, RULES.projectDesc) ||
         !!validateText(p.url, RULES.projectUrl) ||
         !!validateText(p.appStore, RULES.projectAppStore) ||
         !!validateText(p.playStore, RULES.projectPlayStore),
@@ -219,6 +260,69 @@ function draftHasErrors(d: SiteData): boolean {
 function FieldError({ msg }: { msg: string | null }) {
   if (!msg) return null;
   return <span className={`mono ${styles.fieldError}`}>{msg}</span>;
+}
+
+/**
+ * A single editable field rendered once per language (RO / RU / EN). The site shows the
+ * value for the active language and falls back to Romanian when ru/en are blank, so only
+ * RO needs to be filled — ru/en are optional. Each language is validated against the same
+ * `RULES`; an error names the language it came from. `value` may be a legacy bare string,
+ * which is coerced to Romanian-only so the editor never breaks on old data.
+ */
+function LocalizedField({
+  label,
+  value,
+  onChange,
+  rules,
+  multiline = false,
+  rows = 2,
+  placeholder,
+}: {
+  label: string;
+  value: MaybeLocalized;
+  onChange: (locale: Locale, val: string) => void;
+  rules: TextRules;
+  multiline?: boolean;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const loc = toLocalized(value);
+  return (
+    <div className={styles.field}>
+      <span className={`mono ${styles.fieldLabel}`}>{label}</span>
+      <div className={styles.localizedGroup}>
+        {LOCALES.map((lc) => (
+          <div key={lc} className={styles.localizedRow}>
+            <span className={`mono ${styles.langTag}`}>{LOCALE_SHORT[lc]}</span>
+            {multiline ? (
+              <textarea
+                rows={rows}
+                value={loc[lc]}
+                onChange={(e) => onChange(lc, e.target.value)}
+                placeholder={placeholder}
+                className={styles.textarea}
+                aria-label={`${label} (${LOCALE_SHORT[lc]})`}
+              />
+            ) : (
+              <input
+                value={loc[lc]}
+                onChange={(e) => onChange(lc, e.target.value)}
+                placeholder={placeholder}
+                className={`mono ${styles.input}`}
+                aria-label={`${label} (${LOCALE_SHORT[lc]})`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      {LOCALES.map((lc) => {
+        const msg = validateText(loc[lc], rules);
+        return msg ? (
+          <FieldError key={lc} msg={`${LOCALE_SHORT[lc]}: ${msg}`} />
+        ) : null;
+      })}
+    </div>
+  );
 }
 
 const TABS: { id: TabId; label: string }[] = [
@@ -364,12 +468,19 @@ export default function AdminPage() {
     setAuth("unauthenticated");
   };
 
-  // ---- services -------------------------------------------------------------
-  const setService = (i: number, field: "name" | "desc" | "price", val: string) =>
+  // ---- services (all editable fields are localized) -------------------------
+  const setService = (
+    i: number,
+    field: "name" | "desc" | "price",
+    locale: Locale,
+    val: string,
+  ) =>
     setDraft((d) => ({
       ...d,
       services: d.services.map((s, idx) =>
-        idx === i ? { ...s, [field]: val } : s,
+        idx === i
+          ? { ...s, [field]: { ...toLocalized(s[field]), [locale]: val } }
+          : s,
       ),
     }));
   const addService = () =>
@@ -377,35 +488,61 @@ export default function AdminPage() {
       ...d,
       services: [
         ...d.services,
-        { id: genId("svc"), name: "", desc: "", price: PRICE_PLACEHOLDER },
+        {
+          id: genId("svc"),
+          name: emptyLoc(),
+          desc: emptyLoc(),
+          price: { ro: PRICE_PLACEHOLDER, ru: "", en: "" },
+        },
       ],
     }));
   const removeService = (i: number) =>
     setDraft((d) => ({ ...d, services: d.services.filter((_, idx) => idx !== i) }));
 
-  // ---- stats ----------------------------------------------------------------
-  const setStat = (i: number, field: "value" | "label", val: string) =>
+  // ---- stats (value is plain, label is localized) ---------------------------
+  const setStat = (i: number, field: "value", val: string) =>
     setDraft((d) => ({
       ...d,
       stats: d.stats.map((s, idx) => (idx === i ? { ...s, [field]: val } : s)),
     }));
+  const setStatLoc = (i: number, locale: Locale, val: string) =>
+    setDraft((d) => ({
+      ...d,
+      stats: d.stats.map((s, idx) =>
+        idx === i ? { ...s, label: { ...toLocalized(s.label), [locale]: val } } : s,
+      ),
+    }));
   const addStat = () =>
     setDraft((d) => ({
       ...d,
-      stats: [...d.stats, { id: genId("stat"), value: "", label: "" }],
+      stats: [...d.stats, { id: genId("stat"), value: "", label: emptyLoc() }],
     }));
   const removeStat = (i: number) =>
     setDraft((d) => ({ ...d, stats: d.stats.filter((_, idx) => idx !== i) }));
 
-  // ---- team -----------------------------------------------------------------
+  // ---- team (name/photo/socials are plain, role/bio are localized) ----------
   const setTeam = (
     i: number,
-    field: "name" | "role" | "bio" | "photo" | SocialField,
+    field: "name" | "photo" | SocialField,
     val: string,
   ) =>
     setDraft((d) => ({
       ...d,
       team: d.team.map((m, idx) => (idx === i ? { ...m, [field]: val } : m)),
+    }));
+  const setTeamLoc = (
+    i: number,
+    field: "role" | "bio",
+    locale: Locale,
+    val: string,
+  ) =>
+    setDraft((d) => ({
+      ...d,
+      team: d.team.map((m, idx) =>
+        idx === i
+          ? { ...m, [field]: { ...toLocalized(m[field]), [locale]: val } }
+          : m,
+      ),
     }));
   const addTeam = () =>
     setDraft((d) => ({
@@ -415,8 +552,8 @@ export default function AdminPage() {
         {
           id: genId("team"),
           name: "",
-          role: "",
-          bio: "",
+          role: emptyLoc(),
+          bio: emptyLoc(),
           photo: "",
           website: "",
           linkedin: "",
@@ -505,16 +642,30 @@ export default function AdminPage() {
     }
   };
 
-  // ---- projects -------------------------------------------------------------
+  // ---- projects (name/links are plain, tag/desc are localized) --------------
   const setProject = (
     i: number,
-    field: "name" | "tag" | "desc" | "url" | "appStore" | "playStore",
+    field: "name" | "url" | "appStore" | "playStore",
     val: string,
   ) =>
     setDraft((d) => ({
       ...d,
       projects: d.projects.map((p, idx) =>
         idx === i ? { ...p, [field]: val } : p,
+      ),
+    }));
+  const setProjectLoc = (
+    i: number,
+    field: "tag" | "desc",
+    locale: Locale,
+    val: string,
+  ) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p, idx) =>
+        idx === i
+          ? { ...p, [field]: { ...toLocalized(p[field]), [locale]: val } }
+          : p,
       ),
     }));
   const addProject = () =>
@@ -525,8 +676,8 @@ export default function AdminPage() {
         {
           id: genId("proj"),
           name: "",
-          tag: "",
-          desc: "",
+          tag: emptyLoc(),
+          desc: emptyLoc(),
           url: "",
           appStore: "",
           playStore: "",
@@ -820,38 +971,27 @@ export default function AdminPage() {
                       ✕
                     </button>
                   </div>
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Nume</span>
-                    <input
-                      value={s.name}
-                      onChange={(e) => setService(i, "name", e.target.value)}
-                      className={`mono ${styles.input}`}
-                    />
-                    <FieldError msg={validateText(s.name, RULES.serviceName)} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Preț (estimator)</span>
-                    <input
-                      value={s.price}
-                      onChange={(e) => setService(i, "price", e.target.value)}
-                      placeholder="ex. €500"
-                      className={`mono ${styles.input}`}
-                    />
-                    <FieldError msg={validateText(s.price, RULES.servicePrice)} />
-                  </label>
+                  <LocalizedField
+                    label="Nume"
+                    value={s.name}
+                    onChange={(lc, v) => setService(i, "name", lc, v)}
+                    rules={RULES.serviceName}
+                  />
+                  <LocalizedField
+                    label="Preț (estimator)"
+                    value={s.price}
+                    onChange={(lc, v) => setService(i, "price", lc, v)}
+                    rules={RULES.servicePrice}
+                    placeholder="ex. €500"
+                  />
                   {!s.estimatorOnly && (
-                    <label className={styles.field}>
-                      <span className={`mono ${styles.fieldLabel}`}>
-                        Descriere (card /03)
-                      </span>
-                      <textarea
-                        rows={2}
-                        value={s.desc}
-                        onChange={(e) => setService(i, "desc", e.target.value)}
-                        className={styles.textarea}
-                      />
-                      <FieldError msg={validateText(s.desc, RULES.serviceDesc)} />
-                    </label>
+                    <LocalizedField
+                      label="Descriere (card /03)"
+                      value={s.desc}
+                      onChange={(lc, v) => setService(i, "desc", lc, v)}
+                      rules={RULES.serviceDesc}
+                      multiline
+                    />
                   )}
                 </div>
               ))}
@@ -893,16 +1033,13 @@ export default function AdminPage() {
                     />
                     <FieldError msg={validateText(s.value, RULES.statValue)} />
                   </label>
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Etichetă</span>
-                    <input
-                      value={s.label}
-                      onChange={(e) => setStat(i, "label", e.target.value)}
-                      placeholder="ex. PROIECTE LIVRATE"
-                      className={`mono ${styles.input}`}
-                    />
-                    <FieldError msg={validateText(s.label, RULES.statLabel)} />
-                  </label>
+                  <LocalizedField
+                    label="Etichetă"
+                    value={s.label}
+                    onChange={(lc, v) => setStatLoc(i, lc, v)}
+                    rules={RULES.statLabel}
+                    placeholder="ex. PROIECTE LIVRATE"
+                  />
                 </div>
               ))}
             </div>
@@ -943,26 +1080,20 @@ export default function AdminPage() {
                     />
                     <FieldError msg={validateText(m.name, RULES.teamName)} />
                   </label>
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Rol</span>
-                    <input
-                      value={m.role}
-                      onChange={(e) => setTeam(i, "role", e.target.value)}
-                      placeholder="ex. Full-stack Developer"
-                      className={`mono ${styles.input}`}
-                    />
-                    <FieldError msg={validateText(m.role, RULES.teamRole)} />
-                  </label>
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Bio</span>
-                    <textarea
-                      rows={2}
-                      value={m.bio}
-                      onChange={(e) => setTeam(i, "bio", e.target.value)}
-                      className={styles.textarea}
-                    />
-                    <FieldError msg={validateText(m.bio, RULES.teamBio)} />
-                  </label>
+                  <LocalizedField
+                    label="Rol"
+                    value={m.role}
+                    onChange={(lc, v) => setTeamLoc(i, "role", lc, v)}
+                    rules={RULES.teamRole}
+                    placeholder="ex. Full-stack Developer"
+                  />
+                  <LocalizedField
+                    label="Bio"
+                    value={m.bio}
+                    onChange={(lc, v) => setTeamLoc(i, "bio", lc, v)}
+                    rules={RULES.teamBio}
+                    multiline
+                  />
 
                   <div className={styles.field}>
                     <span className={`mono ${styles.fieldLabel}`}>Fotografie</span>
@@ -1291,28 +1422,21 @@ export default function AdminPage() {
                     <FieldError msg={validateText(p.name, RULES.projectName)} />
                   </label>
 
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>
-                      Categorie (ex: APLICAȚIE MOBILĂ)
-                    </span>
-                    <input
-                      value={p.tag}
-                      onChange={(e) => setProject(i, "tag", e.target.value)}
-                      className={`mono ${styles.input}`}
-                    />
-                    <FieldError msg={validateText(p.tag, RULES.projectTag)} />
-                  </label>
+                  <LocalizedField
+                    label="Categorie (ex: APLICAȚIE MOBILĂ)"
+                    value={p.tag}
+                    onChange={(lc, v) => setProjectLoc(i, "tag", lc, v)}
+                    rules={RULES.projectTag}
+                  />
 
-                  <label className={styles.field}>
-                    <span className={`mono ${styles.fieldLabel}`}>Descriere</span>
-                    <textarea
-                      rows={3}
-                      value={p.desc}
-                      onChange={(e) => setProject(i, "desc", e.target.value)}
-                      className={styles.textarea}
-                    />
-                    <FieldError msg={validateText(p.desc, RULES.projectDesc)} />
-                  </label>
+                  <LocalizedField
+                    label="Descriere"
+                    value={p.desc}
+                    onChange={(lc, v) => setProjectLoc(i, "desc", lc, v)}
+                    rules={RULES.projectDesc}
+                    multiline
+                    rows={3}
+                  />
 
                   <label className={styles.field}>
                     <span className={`mono ${styles.fieldLabel}`}>Link proiect</span>
