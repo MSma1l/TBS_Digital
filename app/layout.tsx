@@ -4,7 +4,17 @@ import { Archivo, JetBrains_Mono, Manrope, Montserrat } from "next/font/google";
 import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
-import { LOCALE_COOKIE, detectLocale, isLocale } from "@/lib/i18n/locales";
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  OG_LOCALE,
+  SITE_URL,
+  detectLocale,
+  hreflangAlternates,
+  isLocale,
+  localeUrl,
+  type Locale,
+} from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
@@ -38,18 +48,67 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-// Locale-aware SEO: the title and description must be in the visitor's language too — a
-// static Romanian metadata block would leave Romanian in the <title>/<meta> (and the browser
-// tab) even on the Russian or English page. Resolved the same way <html lang> is: cookie
-// first, then Accept-Language. `messages` is plain data, safe to import in this server file.
-export async function generateMetadata(): Promise<Metadata> {
+// The CONTENT locale — what the visitor actually sees, so it drives <html lang>, <title>,
+// <meta description> and og:locale. On a crawlable /ru or /en URL the `x-locale` header
+// (set by proxy.ts from the path) wins; otherwise it's the cookie, then Accept-Language.
+// Matches how <html lang> and the LanguageProvider are resolved so SSR/first-paint agree.
+async function resolveContentLocale(): Promise<Locale> {
+  const headerList = await headers();
+  const urlLocale = headerList.get("x-locale");
+  if (isLocale(urlLocale)) return urlLocale;
   const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale = isLocale(cookieLocale)
-    ? cookieLocale
-    : detectLocale((await headers()).get("accept-language"));
+  if (isLocale(cookieLocale)) return cookieLocale;
+  return detectLocale(headerList.get("accept-language"));
+}
+
+// The URL's own locale — independent of any cookie — so canonical/og:url reflect the actual
+// address being served (`/` → ro, `/ru` → ru). Only an explicit path prefix sets x-locale.
+async function resolveUrlLocale(): Promise<Locale> {
+  const urlLocale = (await headers()).get("x-locale");
+  return isLocale(urlLocale) ? urlLocale : DEFAULT_LOCALE;
+}
+
+// Locale-aware, per-URL SEO metadata. `metadataBase` lets the file-based OG/Twitter images
+// (app/opengraph-image.tsx, app/twitter-image.tsx) resolve to absolute URLs. Canonical +
+// hreflang are built from the locale-stripped path proxy.ts exposes as `x-pathname`, so
+// every route — home and the legal pages — gets a correct self-canonical and full
+// ro/ru/en + x-default alternates. `messages` is plain data, safe to import server-side.
+export async function generateMetadata(): Promise<Metadata> {
+  const contentLocale = await resolveContentLocale();
+  const urlLocale = await resolveUrlLocale();
+  const path = (await headers()).get("x-pathname") || "/";
+
+  const title = messages[contentLocale]["meta.title"];
+  const description = messages[contentLocale]["meta.description"];
+  const canonical = localeUrl(urlLocale, path);
+
   return {
-    title: messages[locale]["meta.title"],
-    description: messages[locale]["meta.description"],
+    metadataBase: new URL(SITE_URL),
+    title,
+    description,
+    applicationName: "TBS Digital",
+    alternates: {
+      canonical,
+      languages: hreflangAlternates(path),
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+    },
+    openGraph: {
+      type: "website",
+      siteName: "TBS Digital",
+      title,
+      description,
+      url: canonical,
+      locale: OG_LOCALE[contentLocale],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
   };
 }
 
@@ -65,13 +124,50 @@ export default async function RootLayout({
   // scripts carry a stale/absent nonce and get blocked. See proxy.ts.
   const headerList = await headers();
 
-  // Resolve the language server-side so `<html lang>` and the first paint already match
-  // the visitor's choice: their saved cookie wins; a first-time visitor is detected from
-  // Accept-Language. Passing it to the provider keeps SSR and hydration in lockstep.
-  const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  const locale = isLocale(cookieLocale)
-    ? cookieLocale
-    : detectLocale(headerList.get("accept-language"));
+  // Resolve the language server-side so `<html lang>` and the first paint already match the
+  // served URL / the visitor's choice: an explicit /ru or /en URL (via the `x-locale` header
+  // proxy.ts sets) wins, then the saved cookie, then Accept-Language. Passing it to the
+  // provider keeps SSR and hydration in lockstep.
+  const locale = await resolveContentLocale();
+
+  // Per-request CSP nonce (proxy.ts). Reused so the JSON-LD data block below satisfies the
+  // strict, nonce-based script-src — see proxy.ts and app/(site)/layout.tsx.
+  const nonce = headerList.get("x-nonce") ?? undefined;
+
+  // Structured data: an Organization + WebSite graph so Google can build a rich entity for
+  // "TBS Digital". Only real, verifiable facts (brand, site, contact email, country/city,
+  // languages) — no invented socials, address or registration. `sameAs` is omitted rather
+  // than faked. The description is the catalog's, in the served language.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "TBS Digital",
+        url: SITE_URL,
+        logo: `${SITE_URL}/opengraph-image`,
+        image: `${SITE_URL}/opengraph-image`,
+        email: "office@crowe-tm.md",
+        description: messages[locale]["meta.description"],
+        areaServed: { "@type": "Country", name: "Moldova" },
+        address: {
+          "@type": "PostalAddress",
+          addressCountry: "MD",
+          addressLocality: "Chișinău",
+        },
+        knowsLanguage: ["ro", "ru", "en"],
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        name: "TBS Digital",
+        url: SITE_URL,
+        inLanguage: ["ro", "ru", "en"],
+        publisher: { "@id": `${SITE_URL}/#organization` },
+      },
+    ],
+  };
 
   return (
     <html
@@ -79,6 +175,13 @@ export default async function RootLayout({
       className={`${archivo.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
     >
       <body>
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          // JSON-LD is a non-executable data block; JSON.stringify output contains no
+          // HTML-significant sequences that could break out of the script element.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <LanguageProvider initialLocale={locale}>
           <SiteContentProvider>{children}</SiteContentProvider>
         </LanguageProvider>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { DEFAULT_LOCALE, splitLocalePath } from "@/lib/i18n/locales";
 
 /*
  * Per-request Content-Security-Policy (Next 16 "Proxy" — the renamed Middleware).
@@ -70,6 +71,20 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicyHeaderValue);
+
+  // Multilingual SEO (additive; independent of the CSP above). next.config.ts rewrites the
+  // crawlable `/ru` and `/en` prefixes onto the default routes, but the App Router root
+  // layout — which renders <html lang> and resolves canonical/hreflang/OG metadata — cannot
+  // read the request path or the rewrite's query. So expose the URL's locale and the
+  // prefix-stripped path as request headers, the same channel the nonce already travels on.
+  // `x-locale` is set ONLY for an explicit /ru or /en prefix, so the default `/` keeps its
+  // cookie/Accept-Language behaviour untouched. `x-pathname` lets the layout build a correct
+  // self-canonical for every route (home and the legal pages alike).
+  const { locale: urlLocale, rest: localeStrippedPath } = splitLocalePath(
+    request.nextUrl.pathname,
+  );
+  requestHeaders.set("x-pathname", localeStrippedPath);
+  if (urlLocale !== DEFAULT_LOCALE) requestHeaders.set("x-locale", urlLocale);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },
