@@ -1,14 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { navLinks, footerServices } from "@/lib/content";
+import { navLinks } from "@/lib/content";
 import type { SocialNetwork } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { format } from "@/lib/i18n/format";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { socialIcons, socialNames } from "@/components/ui/SocialIcons";
 import styles from "./Footer.module.css";
+
+/** Inline trilingual literal for the portfolio column (kept out of the catalog). */
+const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
+
+const PORTFOLIO_LABEL = L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO");
+const PORTFOLIO: { label: LocalizedText; href: string; external?: boolean }[] = [
+  { label: L("Proiectele TBS", "Проекты TBS", "TBS projects"), href: "#lucrari" },
+  { label: L("BizCheck", "BizCheck", "BizCheck"), href: "https://bizcheck.md", external: true },
+  { label: L("Itara Global", "Itara Global", "Itara Global"), href: "https://itara-global.md", external: true },
+];
 
 /* Map each footer nav anchor to its catalog key — same hrefs the Navbar uses, so the
    two menus stay in lockstep. */
@@ -20,6 +31,10 @@ const NAV_KEY: Record<string, MessageKey> = {
   "#despre": "nav.about",
 };
 
+/* Title-case a SHOUTED catalog label (SERVICII → Servicii) so the footer columns read
+   as calm links, not headings. */
+const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+
 export function Footer() {
   const t = useT();
 
@@ -30,6 +45,7 @@ export function Footer() {
     type === "website"
       ? t("footer.social.websiteAria")
       : format(t("footer.social.networkAria"), { network: socialNames[type] });
+  const l = useLoc();
   const { partners, contacts, socials } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
 
@@ -46,40 +62,11 @@ export function Footer() {
   return (
     <footer className={styles.footer}>
       <div className={`container ${styles.inner}`}>
-        {/* partners */}
-        <div className={styles.partnersBlock}>
-          <div className={`mono ${styles.blockLabel}`}>
-            {t("footer.partnersLabel")}
-          </div>
-          <div className={styles.partners}>
-            {partners.map((p) =>
-              p.url ? (
-                <a
-                  key={p.id}
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`mono ${styles.partner}`}
-                >
-                  {p.name}
-                </a>
-              ) : (
-                <span key={p.id} className={`mono ${styles.partner}`}>
-                  {p.name}
-                </span>
-              ),
-            )}
-          </div>
-        </div>
-
-        {/* columns */}
-        <div className={styles.columns}>
+        <div className={styles.top}>
+          {/* brand */}
           <div className={styles.brandCol}>
-            <div className={styles.brandRow}>
-              <span className={styles.mark}>T</span>
-              <span className={`mono ${styles.wordmark}`}>
-                TBS<span className={styles.accent}>_DIGITAL</span>
-              </span>
+            <div className={`disp ${styles.brand}`}>
+              TBS<span className={styles.dot}>.</span> DIGITAL
             </div>
             <p className={styles.brandText}>{t("footer.brandText")}</p>
             <div className={styles.socials}>
@@ -113,75 +100,103 @@ export function Footer() {
             </div>
           </div>
 
-          <div>
-            <div className={`mono ${styles.colLabel}`}>{t("footer.col.nav")}</div>
-            {navLinks.map((link) => {
-              const label = NAV_KEY[link.href]
-                ? t(NAV_KEY[link.href])
-                : link.label;
-              return (
-                <a
-                  key={link.href}
-                  href={link.href}
-                  className={`mono ${styles.colLink}`}
-                >
-                  {label.charAt(0) + label.slice(1).toLowerCase()}
-                </a>
-              );
-            })}
+          {/* navigation */}
+          <div className={styles.col}>
+            <h4 className={`mono ${styles.colLabel}`}>{t("footer.col.nav")}</h4>
+            <nav className={styles.colNav}>
+              {navLinks.map((link) => {
+                const label = NAV_KEY[link.href]
+                  ? t(NAV_KEY[link.href])
+                  : link.label;
+                return (
+                  <a key={link.href} href={link.href} className={styles.colLink}>
+                    {titleCase(label)}
+                  </a>
+                );
+              })}
+            </nav>
           </div>
 
-          <div>
-            <div className={`mono ${styles.colLabel}`}>
-              {t("footer.col.services")}
-            </div>
-            {footerServices.map((s, i) => (
-              <a key={s} href="#servicii" className={`mono ${styles.colLink}`}>
-                {t(`footer.services.${i}` as MessageKey)}
-              </a>
-            ))}
+          {/* portfolio */}
+          <div className={styles.col}>
+            <h4 className={`mono ${styles.colLabel}`}>{l(PORTFOLIO_LABEL)}</h4>
+            <nav className={styles.colNav}>
+              {PORTFOLIO.map((p) =>
+                p.external ? (
+                  <a
+                    key={p.href}
+                    href={p.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.colLink}
+                  >
+                    {l(p.label)} ↗
+                  </a>
+                ) : (
+                  <a key={p.href} href={p.href} className={styles.colLink}>
+                    {l(p.label)}
+                  </a>
+                ),
+              )}
+            </nav>
           </div>
 
-          <div>
-            <div className={`mono ${styles.colLabel}`}>
-              {t("footer.col.contact")}
-            </div>
+          {/* partners */}
+          <div className={styles.col}>
+            <h4 className={`mono ${styles.colLabel}`}>
+              {t("footer.partnersLabel")}
+            </h4>
+            <nav className={styles.colNav}>
+              {partners.map((p) =>
+                p.url ? (
+                  <a
+                    key={p.id}
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.colLink}
+                  >
+                    {p.name} ↗
+                  </a>
+                ) : (
+                  <span key={p.id} className={styles.colLink}>
+                    {p.name}
+                  </span>
+                ),
+              )}
+            </nav>
+          </div>
+        </div>
+
+        <div className={`mono ${styles.meta}`}>
+          <span>
+            {format(t("footer.copyright"), { year: new Date().getFullYear() })}
+          </span>
+          <span className={styles.metaLinks}>
             {contacts.map((c) => {
               const href = contactHref(c.type, c.value);
               return href ? (
-                <a key={c.id} href={href} className={`mono ${styles.colLink}`}>
+                <a key={c.id} href={href} className={styles.metaLink}>
                   {c.value}
                 </a>
               ) : (
-                <span key={c.id} className={`mono ${styles.colLink}`}>
+                <span key={c.id} className={styles.metaLink}>
                   {c.value}
                 </span>
               );
             })}
-            <a href="#contact" className={`mono ${styles.colLinkAccent}`}>
-              {t("footer.cta")}
-            </a>
-            <Link href="/confidentialitate" className={`mono ${styles.colLink}`}>
+            <Link href="/confidentialitate" className={styles.metaLink}>
               {t("footer.legal.privacy")}
             </Link>
-            <Link href="/cookies" className={`mono ${styles.colLink}`}>
+            <Link href="/cookies" className={styles.metaLink}>
               {t("footer.legal.cookies")}
             </Link>
-          </div>
-        </div>
-
-        <div className={`mono ${styles.bottom}`}>
-          <span>{format(t("footer.copyright"), { year: new Date().getFullYear() })}</span>
-          <span>{t("footer.madeBy")}</span>
+          </span>
         </div>
       </div>
 
-      <div className={styles.marqueeWrap}>
-        <div className={`hz ${styles.marquee}`}>
-          <span className={`mono ${styles.marqueeText}`}>
-            &gt; ACCESS GRANTED_
-          </span>
-        </div>
+      <div className={`disp ${styles.word}`} aria-hidden="true">
+        TBS DIGITAL
       </div>
     </footer>
   );

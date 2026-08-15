@@ -1,0 +1,162 @@
+# Changelog — TBS Digital
+
+**This file is the project's change zone.** Every change to the app — feature, fix, design
+tweak, security hardening, dependency, deploy config — gets an entry here, in the same
+commit that makes the change. Nothing ships undocumented.
+
+- **Newest first.** Dates are `YYYY-MM-DD`.
+- Each entry: what changed · why · which files/areas · the commit hash.
+- Categories: `Added` · `Changed` · `Fixed` · `Security` · `Docs` · `Deploy` · `Removed`.
+- If a change also alters how the app *works*, update the matching doc in [`docs/`](./docs)
+  **and** link it from the entry. The changelog is the index; `docs/` is the explanation.
+- Rule of thumb: if a colleague would need to know it a month from now, it belongs here.
+
+> The workflow rule that enforces this lives in [`AGENTS.md`](./AGENTS.md).
+> Documentation map: [`README.md`](./README.md) · [`docs/`](./docs) · [`SECURITY.md`](./SECURITY.md).
+
+---
+
+## 2026-08-07 — Documentation sync + full verification pass
+
+**Docs**
+
+- Added this changelog as the project's single change zone.
+- Added [16 — i18n & SEO](./docs/16-i18n-seo.md): the trilingual layer (RO/RU/EN), the
+  localized content model, crawlable per-language URLs, hreflang/sitemap/JSON-LD, the
+  cookie-consent banner and the consent-gated analytics pixel — all of which shipped
+  between 2026-07-14 and 2026-07-15 with **no documentation**.
+- Brought the stale docs back in line with the code: [01 — Overview](./docs/01-project-overview.md),
+  [02 — Tech Stack](./docs/02-tech-stack.md), [03 — Architecture](./docs/03-architecture.md)
+  (folder tree now includes `lib/i18n/`, `proxy.ts`, the legal pages and the new `ui/`
+  helpers), [05 — Page Sections](./docs/05-page-sections.md) (section order/numbering matched
+  the real page; the "forms don't submit" and "admin is future work" leftovers removed),
+  [07 — Conventions](./docs/07-conventions.md) (i18n + changelog rules),
+  [08 — Roadmap](./docs/08-roadmap.md) (phases 3h–3k recorded),
+  [14 — Testing](./docs/14-testing.md) (real test counts).
+- `AGENTS.md`: added the "log every change" workflow rule.
+
+**Verification** (run against this commit, frontend locally, backend in Docker)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Frontend tests | `npm test` | **96 passed** (10 files) |
+| Types | `npx tsc --noEmit` | clean |
+| Lint | `npm run lint` | clean |
+| Production build | `npm run build` | ✓ compiled; 9 routes + proxy |
+| Backend tests | `make test` (in the backend container) | 131 tests defined — run in Docker |
+
+No application code was changed in this entry.
+
+---
+
+## 2026-07-15 — Localized content, technical SEO, design feedback, estimator bridge
+
+**Added**
+
+- **Localized editable content** (`e5f387b`) — every admin-editable field now carries three
+  variants `{ ro, ru, en }` instead of one string. `lib/i18n/content.tsx` resolves a field
+  with `loc(value, locale)`, falling back to Romanian so a missing RU/EN never renders
+  blank; bare strings from older payloads are still accepted and treated as Romanian.
+  Admin editors gained a per-language tab per field.
+  See [16 — i18n & SEO](./docs/16-i18n-seo.md).
+- **Technical SEO** (`c1bac18`) — `app/robots.ts` (admin + `/api/` disallowed, sitemap
+  advertised), `app/sitemap.ts` (three public pages × hreflang alternates), JSON-LD
+  organization/website data, Open Graph + Twitter images (`app/opengraph-image.tsx`,
+  `app/twitter-image.tsx`), locale-aware `generateMetadata`, and crawlable per-language
+  URLs: `/` (RO), `/ru`, `/en` via `next.config.ts` rewrites + the `x-locale` header set in
+  `proxy.ts`.
+- **Repeated section CTA** (`880660a`) — `components/ui/SectionCTA.tsx`, placed after every
+  content block so a visitor can start a conversation wherever they stop reading; the `hue`
+  prop varies the accent down the page.
+- **Service card → estimator bridge** (`5612cff`) — clicking a service card on `/03`
+  pre-selects that service in the estimator and scrolls to it (`lib/estimatorBridge.ts`,
+  a window `CustomEvent` because the two sections are independent components).
+- `tsx` as a devDependency (`deb8a79`) so content-migration scripts can be run directly.
+
+**Changed**
+
+- Design feedback pass (`880660a`) — warmer, lighter palette; new UTP copy in the hero.
+
+**Fixed**
+
+- Analytics pixel recorded nothing (`5612cff`) — `t.js` resolves its site id through
+  `document.currentScript`, which is `null` for an `async` script, so it was reading a
+  Next.js framework chunk instead of our tag. The pixel is now injected imperatively with
+  `async = false`. See `components/ui/AnalyticsPixel.tsx`.
+
+## 2026-07-14 — Trilingual site, legal pages, consent; security hardening; real content
+
+**Added**
+
+- **Trilingual RO/RU/EN** (`c4faeeb`) — `lib/i18n/` (message catalogs, `LanguageProvider`,
+  locale helpers), a language switcher, SSR locale resolution from cookie →
+  `Accept-Language` so first paint never flashes the wrong language, and Montserrat
+  alongside Archivo so Cyrillic headings render in the brand's display weight.
+- **Legal pages + cookie consent** (`c4faeeb`) — `/confidentialitate`, `/cookies`, and a
+  GDPR / Law-133 consent banner (`components/ui/CookieConsent.tsx` + `lib/consent.ts`).
+  The analytics pixel loads **only** after analytics cookies are accepted.
+- **Partners section** (`00efba6`, `2c2ef8e`) — logos, links to partner sites, hover site
+  preview, and admin upload.
+- **Projects with galleries** (`2c2ef8e`) — real projects, screenshot galleries with a
+  lightbox, compressed uploads.
+- Reusable security skills extracted from the audit (`f30314b`) — see
+  [15 — Security Skills](./docs/15-security-skills.md).
+
+**Security** (`7b933b0`)
+
+- Defensive pentest (4 parallel audit passes) + fixes + regression tests. See
+  [`SECURITY.md`](./SECURITY.md).
+
+**Changed / Fixed**
+
+- Real team members with socials; lighter palette; CGAM and IQ Arena split into two
+  distinct projects; text is no longer HTML-escaped on save (`d89cbd0`).
+- Team: first names only (`83e0108`); single column on mobile so the third member isn't
+  stranded alone on a row (`673205d`).
+- Animated stripes applied everywhere; upload limit raised to 8 MB; the local dev backend
+  no longer steals the Telegram bot's long-poll (`d056dd5`).
+- Two Telegram bugs fixed (`2c2ef8e`).
+- DocuSafe moved to `docusafe.tbs.md`; `tbs.md` now serves TBS Digital (`351daa4`).
+
+## 2026-07-08 – 2026-07-10 — Mobile pass, analytics, deploy config
+
+**Added**
+
+- Mobile UI pass (`73b40eb` … `abef19b`) — overflow-safe grids, `/03 Servicii` and
+  `/04 Proiecte` as auto-rolling scroll-snap carousels (shared `useAutoCarousel` hook:
+  starts on first view, pauses on manual slide, resumes after 5 s), `/02` orphan-cell fix,
+  skeleton placeholders for blank stats, 2-column footer partners grid. Documented in
+  [04 — Design System](./docs/04-design-system.md#mobile--640px).
+- `statistica.tbs.md` analytics pixel + nginx vhost and production compose for `tbs.md`
+  (`ad4dfcc`).
+
+**Security / Deploy**
+
+- Security hardening + pentest #1 (`ffc39bc`) — production fail-fast config guard, rate
+  limiting, security headers, Telegram action authorization, security skills.
+- `ENVIRONMENT` + `TELEGRAM_ADMIN_IDS` wired through `.env`/compose; the prod override
+  forces the fail-fast guard (`19f8a80`). `.env.example` templates tracked so a fresh clone
+  can configure a deploy (`0edd3b1`).
+- `tbs.md` vhost keeps HSTS, drops the DocuSafe CSP (`70463ee`).
+
+**Fixed**
+
+- `matchMedia` stubbed in tests so the carousel sections can mount (`efb14fb`).
+
+## 2026-07-07 – 2026-07-08 — Full stack: DB, auth, API-wired frontend, Docker, Telegram
+
+- **Full-stack integration** (`cb092c9`) — real database + bcrypt auth, frontend wired to
+  the API, input validation on both layers, Docker Compose, Telegram lead bot.
+  See [10 — Backend](./docs/10-backend.md), [11 — Security](./docs/11-security.md),
+  [12 — Deployment](./docs/12-deployment.md), [13 — Telegram](./docs/13-telegram.md).
+- Frontend UI/UX tests, live API verification script, lint cleanup (`6022c48`) —
+  [14 — Testing](./docs/14-testing.md).
+- FastAPI backend scaffold with the JSON stand-in store (`4667ab0`, documented in `756095b`).
+- Admin panel with an editable, add/remove content store (`ef8ed82`, documented in `143bdeb`) —
+  [09 — Admin](./docs/09-admin.md).
+
+## 2026-06-30 – 2026-07-07 — Foundation
+
+- Initial commit (`5d00d7c`), project documentation (`f8ee4e5`).
+- UI-only Next.js frontend built from the approved design (`89ea44c`).
+- Interactive hero emblem animations; broken keyframes fixed (`01abdc6`).

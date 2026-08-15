@@ -29,9 +29,9 @@ Two layers, both typed:
 
 Rules:
 
-- **Editable** content (services + prices, stats, team, partners, contacts) must be read from
-  `useSiteContent()`, so admin edits show live. **Static** content (nav links, principles,
-  footer service labels, deadlines/features) can import `content.ts` directly.
+- **Editable** content (services + prices, stats, team, projects, partners, contacts) must be
+  read from `useSiteContent()`, so admin edits show live. **Static** content (nav links,
+  principles, footer service labels, deadlines/features) can import `content.ts` directly.
 - Never inline business data in a component.
 - Keep the data **shape** realistic (arrays of typed objects) so the backend contract is easy
   to match later. Every editable list is add/remove-able, so a saved list fully replaces its
@@ -53,13 +53,26 @@ Rules:
 - Extract repeated bits (section label, mono tag, reveal wrapper) into `components/ui/`.
 - Keep components typed (TypeScript); avoid `any`.
 
-## Language
+## Language & i18n
 
-- **UI copy: Romanian** (matches the design). Keep diacritics correct (ă, â, î, ș, ț).
+- **Romanian is the source UI language** (matches the design) and the fallback for RU/EN.
+  Keep diacritics correct (ă, â, î, ș, ț).
+- **Never hardcode visitor-facing copy in a component.** It is either:
+  - a **catalog key** — add it to `lib/i18n/messages/ro.ts` (which types the catalog) *and*
+    to `ru.ts` + `en.ts`, then read it with `const t = useT(); t("key")`; or
+  - a **localized content field** — `{ ro, ru, en }` (`LocalizedText`), seeded with
+    `locFromCatalog()` / `locRo()` and rendered through `const l = useLoc(); l(field)`.
 - **Code, comments, docs, identifiers: English.**
 
-## Git
+Details and gotchas: [16 — i18n & SEO](./16-i18n-seo.md).
+
+## Git & change tracking
 
 - Commit in focused, reviewable chunks (e.g. one section per commit).
-- Don't commit secrets or `.env`. There is no backend config in this phase anyway.
-- Documentation changes go on the `docs/initial-documentation` branch, then merge to `main`.
+- **Every commit that changes behaviour adds an entry to [`CHANGELOG.md`](../CHANGELOG.md)**
+  — the project's change zone — and updates the doc in `docs/` that covers the area. A
+  behaviour change with no doc update is an unfinished change. The rule is restated for
+  agents in [`AGENTS.md`](../AGENTS.md).
+- A new public page must be added to `app/sitemap.ts`; a new doc must be added to the table
+  in `README.md`.
+- Don't commit secrets or `.env` (the `.env.example` templates *are* tracked, on purpose).

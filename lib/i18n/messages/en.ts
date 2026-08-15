@@ -26,7 +26,8 @@ export const en: Record<MessageKey, string> = {
   "hero.scrollHint": "SCROLL — THE SYSTEM POWERS UP ↓",
 
   // --- Principles (/02) ---
-  "principles.label": "OUR PRINCIPLES",
+  "principles.label": "INDIVIDUAL APPROACH",
+  "principles.lead": "Every project starts with understanding your business and goals.",
   "principles.0.title": "Strategy\nfirst",
   "principles.0.desc": "We learn the business before the first line of code.",
   "principles.1.title": "Connected\nsystems",
@@ -93,6 +94,12 @@ export const en: Record<MessageKey, string> = {
   "projects.tag.corporate": "CORPORATE SITE",
   "projects.tag.saas": "SAAS PLATFORM",
   "projects.tag.mobile": "MOBILE APP",
+  "projects.tag.saasPrivate": "PRIVATE SAAS · NO LINK",
+  "projects.tag.mobileSoon": "MOBILE APP · COMING SOON",
+  "projects.statistic.desc":
+    "An in-house web-analytics tool: views, sessions, clicks and trends for every site — a free alternative to well-known services, with a focus on SEO.",
+  "projects.flirt.desc":
+    "A mobile dating app launching soon: profiles, matching and chat in a fast design, with zero tolerance for abusive content.",
   "projects.bizcheck.desc":
     "A risk self-assessment platform for SMEs built on the Crowe methodology: interactive tests, block-based legal templates and a detailed PDF report at the end.",
   "projects.itara-global.desc":
@@ -180,6 +187,24 @@ export const en: Record<MessageKey, string> = {
   "nav.team": "TEAM",
   "nav.partners": "PARTNERS",
   "nav.about": "ABOUT",
+  "dir.section.kicker": "CHOOSE THE RIGHT DIRECTION",
+  "dir.section.title": "A direction picker —\nbuilt for fast, confident decisions.",
+  "dir.section.lead": "Pick a direction — a dedicated page opens with the details.",
+  "dir.digital": "Digital product",
+  "dir.ecommerce": "E-commerce",
+  "dir.automation": "Automation & API",
+  "dir.ai": "Artificial intelligence: assistants & bots",
+  "dir.brand": "Brand & UI",
+  "dir.page.soon": "Page in progress — we'll fill it with details soon.",
+  "dir.page.back": "Home",
+  "nav.company": "COMPANY",
+  "nav.services.web": "Web development",
+  "nav.services.apps": "Apps & platforms",
+  "nav.services.automation": "Business automation",
+  "nav.services.custom": "Custom solutions",
+  "nav.company.team": "Team",
+  "nav.company.partners": "Partners",
+  "nav.company.cases": "Cases",
   "nav.cta": "START A PROJECT ↗",
   "nav.burgerAria": "Menu",
   "nav.closeAria": "Close",

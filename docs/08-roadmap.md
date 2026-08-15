@@ -99,6 +99,34 @@ resumes after 5s), `/02` orphan-cell fix + skeleton placeholders for blank stats
 and a tidy 2-column footer partners grid. See
 [04 — Design System → Mobile](./04-design-system.md#mobile--640px).
 
+## Phase 3h — Trilingual site, legal pages, consent (done)
+
+RO/RU/EN across the whole site: message catalogs + `LanguageProvider` in `lib/i18n/`, a
+switcher in the navbar, and server-side locale resolution (cookie → `Accept-Language`) so
+SSR and first paint agree. Montserrat joins Archivo so Cyrillic headings keep the brand
+weight. Plus `/confidentialitate` and `/cookies`, and a GDPR / Law-133 consent banner that
+gates the analytics pixel. See [16 — i18n & SEO](./16-i18n-seo.md).
+
+## Phase 3i — Design feedback & estimator bridge (done)
+
+Warmer, lighter palette; new hero UTP; a `SectionCTA` after every content block; and a
+click on a `/03` service card that pre-selects that service in the `/07` estimator
+(`lib/estimatorBridge.ts`). The analytics pixel bug (`document.currentScript` is `null` for
+an `async` script, so the tracker read an empty site id) was fixed in the same pass.
+
+## Phase 3j — Technical SEO (done)
+
+`robots.ts`, `sitemap.ts` with hreflang, JSON-LD (`Organization` + `WebSite`, verifiable
+facts only), Open Graph / Twitter images, locale-aware canonical + metadata, and crawlable
+per-language URLs (`/`, `/ru`, `/en`) via `next.config.ts` rewrites + the `x-locale` /
+`x-pathname` headers set in `proxy.ts`. See [16 — i18n & SEO](./16-i18n-seo.md).
+
+## Phase 3k — Localized content model (done)
+
+Every admin-editable field carries `{ ro, ru, en }` instead of a single string, resolved at
+render with `loc()` and falling back to Romanian. Bare strings from older payloads are still
+accepted, so the migration is non-breaking.
+
 ## Phase 4 — Production polish (remaining)
 
 Not blockers for running the app, but recommended before going fully live:
@@ -108,7 +136,10 @@ Not blockers for running the app, but recommended before going fully live:
 - **Notifications** on new submissions (email; Telegram lead bot already ships).
 - Honeypot/CAPTCHA on the contact form; edge (nginx) rate limits.
 - HTTPS/reverse proxy + real secrets (the `.env` production checklist / prod guard).
-- Fill in the real business content (stats, projects, team, prices) through the admin.
+- Fill in the remaining business content (stats, prices) through the admin — team, projects
+  and partners are already real.
+- Complete the RU/EN variants of admin-entered content (the model supports all three; some
+  fields still fall back to Romanian).
 
 ## Ownership
 
@@ -123,4 +154,11 @@ Not blockers for running the app, but recommended before going fully live:
 | 3e — Telegram lead bot | This repo | Done |
 | 3f — Security hardening & pentest | This repo | Done |
 | 3g — Mobile UI pass | This repo | Done |
+| 3h — Trilingual + legal + consent | This repo | Done |
+| 3i — Design feedback & estimator bridge | This repo | Done |
+| 3j — Technical SEO | This repo | Done |
+| 3k — Localized content model | This repo | Done |
 | 4 — Production polish | This repo | Remaining |
+
+Dated detail for every phase — including the small fixes that don't get their own phase —
+is in [`CHANGELOG.md`](../CHANGELOG.md).

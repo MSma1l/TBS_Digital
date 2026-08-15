@@ -77,7 +77,7 @@
 }
 
 .accept {
-  background: var(--blue);
+  background: var(--red);
   color: #fff;
   border: 1px solid var(--blue);
   box-shadow: 0 0 18px var(--glow);

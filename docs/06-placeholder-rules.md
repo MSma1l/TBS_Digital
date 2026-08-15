@@ -1,8 +1,15 @@
 # 06 — Placeholder Rules
 
 The single source of truth for **what content to remove or stub out** in the UI. Everything
-listed here is data that a future admin page will manage and the backend will provide, so we
-must **not** ship hardcoded business values.
+listed here is data the admin panel manages and the backend provides, so we must **not**
+ship hardcoded business values.
+
+> **Status (2026-08-07).** The agency has since supplied real content for **/04 Projects**,
+> **/05 Team** and **/06 Partners**, so Rules 3 and 4 are satisfied *by real data entered
+> through the admin*, not by placeholders — see [05 — Page Sections](./05-page-sections.md).
+> Rules 1 (stats), 4's `SYSTEM_STATUS` numbers and 5 (prices) are **still in force**: those
+> boxes remain stubs until the admin fills them in. The underlying rule never changes —
+> **no business value is hardcoded in a component**; everything comes from the store.
 
 General rule: **no hardcoded stats, names, project titles/types, team members, or prices.**
 Where content is removed, leave the visual container (box/card) as an empty placeholder so

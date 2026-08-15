@@ -1,69 +1,30 @@
 "use client";
 
 import { Reveal } from "@/components/ui/Reveal";
-import { SectionLabel } from "@/components/ui/SectionLabel";
-import { socialIcons, socialNames } from "@/components/ui/SocialIcons";
 import { mediaUrl } from "@/lib/api";
-import { statusBars, type SocialNetwork } from "@/lib/content";
-import { useSiteContent, type TeamItem } from "@/lib/siteContent";
-import { useT } from "@/lib/i18n/LanguageProvider";
-import { useLoc } from "@/lib/i18n/content";
-import { format, Multiline } from "@/lib/i18n/format";
-import type { MessageKey } from "@/lib/i18n/messages";
+import { useSiteContent } from "@/lib/siteContent";
+import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import styles from "./Team.module.css";
 
-/**
- * The member fields that carry a social URL, in the order their icons appear.
- * Only the networks with a non-empty URL get an icon — an empty field is simply
- * no icon, never a dead link, so a member with no links renders no icon row.
- */
-const SOCIAL_FIELDS = [
-  "website",
-  "linkedin",
-  "instagram",
-  "facebook",
-  "github",
-] as const satisfies readonly (SocialNetwork & keyof TeamItem)[];
+const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-/**
- * Read a member field defensively.
- *
- * `TeamItem` types every field as `string`, but the *wire* is not typed: the API
- * still serves team rows saved before the photo/social fields existed, so those keys
- * come back `undefined`. Reaching straight for `m.linkedin.trim()` takes the whole
- * page down with it, so each field is narrowed at the boundary instead.
- */
-function str(value: unknown): string {
-  return typeof value === "string" ? value.trim() : "";
-}
+const SECTION = {
+  eyebrow: L("Echipa", "Команда", "Team"),
+  title: L("Oamenii din spatele produsului.", "Люди за продуктом.", "The people behind the product."),
+  lead: L(
+    "O echipă mică și implicată, cu roluri reale — de la strategie la cod și testare.",
+    "Небольшая вовлечённая команда с реальными ролями — от стратегии до кода и тестирования.",
+    "A small, hands-on team with real roles — from strategy to code and testing.",
+  ),
+  label: L("ECHIPA TBS", "КОМАНДА TBS", "TBS TEAM"),
+};
 
-/** Links a member actually has, ready to render. */
-function linksOf(m: TeamItem) {
-  return SOCIAL_FIELDS.map((network) => ({
-    network,
-    url: str(m[network]),
-  })).filter((l) => l.url !== "");
-}
+const STATS: { value: string; label: LocalizedText }[] = [
+  { value: "50+", label: L("proiecte", "проектов", "projects") },
+  { value: "98%", label: L("clienți mulțumiți", "довольных клиентов", "happy clients") },
+  { value: "24/7", label: L("automatizări online", "автоматизаций онлайн", "automations online") },
+];
 
-/** Accessible name for a link: it has to say *whose* profile it opens. */
-function socialLabel(
-  network: SocialNetwork,
-  name: string,
-  t: (key: MessageKey) => string,
-): string {
-  return network === "website"
-    ? format(t("team.social.websiteAria"), { name })
-    : format(t("team.social.networkAria"), {
-        name,
-        network: socialNames[network],
-      });
-}
-
-/**
- * Up to two initials for the gradient avatar. Photos are uploaded from the admin,
- * so most members have none — the initials are what makes that state read as a
- * deliberate monogram rather than an empty box.
- */
 function initialsOf(name: string): string {
   return name
     .split(/\s+/)
@@ -75,98 +36,55 @@ function initialsOf(name: string): string {
 
 export function Team() {
   const { team } = useSiteContent();
-  const t = useT();
   const l = useLoc();
 
   return (
-    <section id="echipa" className="section">
-      <div className={`container ${styles.layout}`}>
-        {/* left column */}
-        <div>
-          <Reveal>
-            <SectionLabel index="/05">{t("team.label")}</SectionLabel>
-            <h2 className={`disp ${styles.title}`}>
-              <Multiline text={t("team.title")} />
-            </h2>
-            <p className={styles.lead}>{t("team.lead")}</p>
-          </Reveal>
+    <section id="echipa" className={styles.section}>
+      <div className="container">
+        <Reveal className={styles.top}>
+          <div>
+            <div className={`mono ${styles.eyebrow}`}>{l(SECTION.eyebrow)}</div>
+            <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
+          </div>
+          <p className={styles.lead}>{l(SECTION.lead)}</p>
+        </Reveal>
 
-          <Reveal className={styles.status}>
-            <div className={`mono ${styles.statusLabel}`}>SYSTEM_STATUS</div>
-            {statusBars.map((b, i) => (
-              <div key={b.label} className={styles.statusRow}>
-                <span className={`mono ${styles.statusName}`}>
-                  {t(`status.${i}.label` as MessageKey)}
-                </span>
-                <span className={styles.statusTrack}>
-                  <span
-                    className={styles.statusFill}
-                    style={{ width: b.pct }}
-                  />
-                </span>
-                <span className={`mono ${styles.statusVal}`}>{b.val}</span>
-              </div>
-            ))}
-            <div className={`mono hz ${styles.statusStripes}`} />
-          </Reveal>
-        </div>
-
-        {/* right column: the real team */}
-        <div className={styles.cards}>
+        <div className={styles.grid}>
           {team.map((m) => {
-            const name = str(m.name);
+            const name = typeof m.name === "string" ? m.name.trim() : "";
             const role = l(m.role);
-            const bio = l(m.bio);
-            const stored = str(m.photo);
+            const stored = typeof m.photo === "string" ? m.photo.trim() : "";
             const photo = stored ? mediaUrl(stored) : "";
-            const initials = initialsOf(name);
-            const links = linksOf(m);
-
             return (
-              <Reveal key={m.id} className={styles.card}>
-                <div className={styles.avatar}>
-                  {photo ? (
-                    // Plain <img>: photos are admin-uploaded, of arbitrary aspect
-                    // ratio, and served from the backend origin — next/image would
-                    // need a remotePatterns entry per deploy host to optimise them.
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={photo}
-                      alt={name}
-                      loading="lazy"
-                      className={styles.photo}
-                    />
-                  ) : (
-                    // The card already announces the member by name right below.
-                    <span className={`disp ${styles.initials}`} aria-hidden="true">
-                      {initials}
-                    </span>
-                  )}
-                </div>
-
-                <span className={styles.name}>{name}</span>
-                <span className={`mono ${styles.role}`}>{role}</span>
-                {bio ? <p className={styles.bio}>{bio}</p> : null}
-
-                {links.length > 0 ? (
-                  <div className={styles.socials}>
-                    {links.map(({ network, url }) => (
-                      <a
-                        key={network}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={styles.social}
-                        aria-label={socialLabel(network, name, t)}
-                      >
-                        {socialIcons[network]}
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </Reveal>
+              <article key={m.id} className={styles.person}>
+                <span className={`mono ${styles.personLabel}`}>{l(SECTION.label)}</span>
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photo}
+                    alt={name}
+                    loading="lazy"
+                    className={styles.photo}
+                  />
+                ) : (
+                  <span className={`disp ${styles.avatar}`} aria-hidden>
+                    {initialsOf(name)}
+                  </span>
+                )}
+                <h3 className={`disp ${styles.name}`}>{name}</h3>
+                <p className={styles.role}>{role}</p>
+              </article>
             );
           })}
+        </div>
+
+        <div className={styles.stats}>
+          {STATS.map((s) => (
+            <span key={s.value} className={styles.stat}>
+              <b className="disp">{s.value}</b>
+              {l(s.label)}
+            </span>
+          ))}
         </div>
       </div>
     </section>

@@ -1,28 +1,23 @@
 import { Hero } from "@/components/sections/Hero";
-import { Principles } from "@/components/sections/Principles";
-import { Services } from "@/components/sections/Services";
+import { Ticker } from "@/components/sections/Ticker";
+import { Directions } from "@/components/sections/Directions";
 import { Work } from "@/components/sections/Work";
+import { Principles } from "@/components/sections/Principles";
 import { Team } from "@/components/sections/Team";
-import { Partners } from "@/components/sections/Partners";
 import { Estimator } from "@/components/sections/Estimator";
-import { SectionCTA } from "@/components/ui/SectionCTA";
+import { BottomCTA } from "@/components/sections/BottomCTA";
 
 export default function Home() {
   return (
     <main>
       <Hero />
-      <Principles />
-      <SectionCTA hue="cyan" />
-      <Services />
-      <SectionCTA hue="violet" />
+      <Ticker />
+      <Directions />
       <Work />
-      <SectionCTA hue="amber" />
+      <Principles />
       <Team />
-      <SectionCTA hue="blue2" />
-      <Partners />
-      {/* Partners ends with its own "become a partner" panel; the estimator IS the
-          contact form, so no extra CTA between them. */}
       <Estimator />
+      <BottomCTA />
     </main>
   );
 }

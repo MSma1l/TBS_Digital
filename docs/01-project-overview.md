@@ -27,20 +27,29 @@ The project is now a working full-stack app:
   [11 — Security](./11-security.md)).
 - The whole stack starts with one command via Docker Compose + Make
   ([12 — Deployment](./12-deployment.md)).
+- The site is **trilingual (RO / RU / EN)** — a switcher plus crawlable `/`, `/ru`, `/en`
+  URLs, hreflang, sitemap, JSON-LD and locale-aware Open Graph. Editable content carries all
+  three languages. See [16 — i18n & SEO](./16-i18n-seo.md).
+- **Legal + consent:** `/confidentialitate` and `/cookies` pages, and a GDPR / Law-133
+  cookie banner that gates the analytics pixel — nothing tracking loads before consent.
 
-Data-driven content (stats, services, team, partners, prices, contacts) is managed through the
-admin and stored in the database. It still **ships as placeholders** — the agency fills in real
-business values through the admin.
+Data-driven content (stats, services, team, partners, projects, prices, contacts) is managed
+through the admin and stored in the database. **Real business content is in** for the team,
+projects and partners; stats and prices are still the agency's to fill in through the admin.
 
 ## Who did what
 
 - **This repo:** the frontend UI, the FastAPI backend (real DB + auth), the frontend↔API
-  integration, input validation/security, and the Docker/Make deployment.
+  integration, input validation/security, the Docker/Make deployment, the trilingual +
+  SEO layer, and the Telegram lead bot.
 
 ## Remaining (Phase 4 — optional polish)
 
-- Alembic migrations, admin-password rotation, rate limiting, new-submission notifications.
-- Real business content entered through the admin.
+- Alembic migrations, admin-password rotation, server-side token revocation.
+- Email notification on new submissions (the Telegram bot already ships).
+- Honeypot/CAPTCHA on the contact form; edge (nginx) rate limits.
+- Remaining business content (stats, prices) entered through the admin.
 - Production secrets + HTTPS/reverse proxy (the `.env` checklist).
 
-See [08 — Roadmap](./08-roadmap.md) for how these phases connect.
+See [08 — Roadmap](./08-roadmap.md) for how these phases connect, and
+[`CHANGELOG.md`](../CHANGELOG.md) for what changed when.

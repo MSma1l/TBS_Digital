@@ -1,131 +1,80 @@
+/* Footer — light "card" that matches the conversion concept: rounded top corners,
+   a soft radial glow, a four-column top row, a meta line, and a giant gradient
+   "TBS DIGITAL" wordmark cropped at the bottom edge. It runs on the site's own light
+   theme, so no token overrides here — just concrete values that mirror the concept. */
 .footer {
   position: relative;
-  border-top: 1px solid var(--line);
-  background: var(--bg2);
+  overflow: hidden;
+  margin-top: clamp(56px, 8vw, 96px);
+  background: #ffffff;
+  color: #111a31;
+  border: 1px solid #dbe3f1;
+  border-radius: 34px 34px 12px 12px;
+  box-shadow: 0 18px 55px rgba(39, 52, 91, 0.09);
+}
+
+/* soft glow bleeding in from the top-right, like the reference */
+.footer::before {
+  content: "";
+  position: absolute;
+  width: 520px;
+  height: 270px;
+  right: -170px;
+  top: -160px;
+  background: radial-gradient(circle, rgba(57, 107, 255, 0.16), transparent 67%);
+  pointer-events: none;
+}
+.footer::after {
+  content: "";
+  position: absolute;
+  width: 460px;
+  height: 240px;
+  left: -150px;
+  top: 40px;
+  background: radial-gradient(circle, rgba(245, 51, 63, 0.1), transparent 66%);
+  pointer-events: none;
 }
 
 .inner {
-  padding: clamp(44px, 6vw, 72px) clamp(14px, 4vw, 40px) 0;
+  position: relative;
+  z-index: 1;
+  padding: clamp(38px, 5vw, 52px) clamp(14px, 4vw, 40px) 0;
 }
 
-.blockLabel {
-  font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--dim);
-  margin-bottom: 18px;
-}
-
-.partnersBlock {
-  margin-bottom: 40px;
-}
-
-.partners {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.partner {
-  padding: 11px 20px;
-  border: 1px solid var(--line);
-  color: var(--mut);
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-  transition:
-    border-color 0.2s,
-    color 0.2s;
-}
-
-/* Only the chips that link out (a partner without a URL renders as a span). */
-/* partner chips pick up the page's four-hue rotation on hover */
-a.partner:hover {
-  border-color: color-mix(in srgb, var(--h) 60%, transparent);
-  background: color-mix(in srgb, var(--h) 10%, transparent);
-  color: var(--txt);
-}
-.partner {
-  --h: var(--cyan);
-}
-.partner:nth-child(4n + 2) {
-  --h: var(--violet);
-}
-.partner:nth-child(4n + 3) {
-  --h: var(--amber);
-}
-.partner:nth-child(4n + 4) {
-  --h: var(--blue2);
-}
-
-/* Mobile: content-width chips wrap raggedly and orphan the last one. Lay them
-   out as an even 2-column grid of equal, centred chips; a lone last chip (odd
-   total count) spans the full width instead of sitting alone in a half row. */
-@media (max-width: 640px) {
-  .partners {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .partner {
-    text-align: center;
-  }
-  .partner:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
-  }
-}
-
-.columns {
+/* ---------- top row ---------- */
+.top {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
-  gap: 30px;
-  padding: 34px 0;
-  border-top: 1px solid var(--line);
+  grid-template-columns: 1.3fr repeat(3, 0.8fr);
+  gap: 36px;
 }
 
 .brandCol {
   min-width: 200px;
 }
 
-.brandRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+.brand {
+  font-weight: 800;
+  font-size: 25px;
+  letter-spacing: -0.04em;
+  color: #111a31;
 }
-
-.mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--line2);
-  background: linear-gradient(135deg, var(--blue), var(--violet2));
-  font-family: var(--font-display-stack);
-  font-weight: 900;
-  font-size: 15px;
-  color: #fff;
-}
-
-.wordmark {
-  font-weight: 700;
-  font-size: 16px;
-}
-.accent {
-  color: var(--cyan);
+.dot {
+  color: var(--red);
 }
 
 .brandText {
-  color: var(--mut);
-  font-size: 13.5px;
-  max-width: 260px;
+  color: #61708c;
+  line-height: 1.55;
+  font-size: 14px;
+  max-width: 330px;
+  margin: 14px 0 0;
 }
 
 .socials {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 16px;
+  margin-top: 18px;
 }
 
 .social {
@@ -134,119 +83,135 @@ a.partner:hover {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border: 1px solid var(--line);
-  color: var(--mut);
+  border: 1px solid #dbe3f1;
+  border-radius: 11px;
+  color: #61708c;
   text-decoration: none;
   transition:
-    color 0.15s,
-    border-color 0.15s,
-    background-color 0.15s;
+    color 0.16s,
+    border-color 0.16s,
+    background-color 0.16s,
+    transform 0.16s;
 }
-
-/* The icon set ships at its own viewBox size (like ServiceIcons); the box sizes it. */
 .social svg {
   width: 18px;
   height: 18px;
 }
-
-/* Same four-hue rotation the partner chips run above (cyan → violet → amber → blue),
-   so the icon row reads as part of the same system. A social only renders once its URL
-   is set, and the mailto: icon is always last — so with nothing configured the row is
-   just the email icon and lands on step 1 (cyan), exactly as it looked before. */
-.social {
-  --h: var(--cyan);
-}
-.social:nth-child(4n + 2) {
-  --h: var(--violet);
-}
-.social:nth-child(4n + 3) {
-  --h: var(--amber);
-}
-.social:nth-child(4n + 4) {
-  --h: var(--blue2);
-}
-
 .social:hover {
-  color: var(--h);
-  border-color: color-mix(in srgb, var(--h) 60%, transparent);
-  background: color-mix(in srgb, var(--h) 10%, transparent);
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+  transform: translateY(-2px);
 }
-
 .social:focus-visible {
-  outline: 2px solid var(--h);
+  outline: 2px solid var(--red);
   outline-offset: 2px;
-  color: var(--h);
-  border-color: color-mix(in srgb, var(--h) 60%, transparent);
+  color: var(--red);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .social {
-    transition: none;
+/* ---------- nav columns ---------- */
+.colLabel {
+  margin: 5px 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #18233d;
+}
+
+.colNav {
+  display: grid;
+  gap: 9px;
+}
+
+.colLink {
+  width: max-content;
+  max-width: 100%;
+  color: #61708c;
+  text-decoration: none;
+  font-size: 14px;
+  transition:
+    color 0.18s,
+    transform 0.18s;
+}
+.colLink:hover {
+  color: #111a31;
+  transform: translateX(4px);
+}
+a.colLink:hover {
+  color: var(--red);
+}
+
+/* ---------- meta ---------- */
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 34px;
+  padding: 18px 0;
+  border-top: 1px solid #dbe3f1;
+  color: #72809a;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.metaLinks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  align-items: center;
+}
+.metaLink {
+  color: #72809a;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.metaLink:hover {
+  color: var(--red);
+}
+
+/* ---------- giant wordmark ---------- */
+.word {
+  position: relative;
+  z-index: 1;
+  margin: 22px -15px -14px;
+  text-align: center;
+  white-space: nowrap;
+  font-weight: 900;
+  font-size: clamp(64px, 15vw, 190px);
+  line-height: 0.7;
+  letter-spacing: -0.1em;
+  color: transparent;
+  background: linear-gradient(90deg, #d8e1f0, #3970ff, #05b99f, #d8e1f0);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 760px) {
+  .footer {
+    border-radius: 26px 26px 8px 8px;
+  }
+  .top {
+    grid-template-columns: 1fr 1fr;
+    gap: 26px;
+  }
+  .brandCol {
+    grid-column: 1 / -1;
+  }
+  .meta {
+    justify-content: flex-start;
+  }
+  .word {
+    font-size: 21vw;
+    margin: 18px -6px -8px;
   }
 }
 
-.colLabel {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  margin-bottom: 14px;
-}
-
-.colLink,
-.colLinkAccent {
-  display: block;
-  color: var(--mut);
-  text-decoration: none;
-  font-size: 13px;
-  padding: 5px 0;
-  transition: color 0.15s;
-}
-.colLink:hover {
-  color: var(--cyan);
-}
-.colLinkAccent {
-  color: var(--cyan);
-}
-.colLinkAccent:hover {
-  color: var(--blue2);
-}
-
-.bottom {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 22px 0;
-  border-top: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-}
-
-.marqueeWrap {
-  overflow: hidden;
-  border-top: 1px solid var(--line);
-  background: var(--bg);
-}
-
-.marquee {
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Hold the full-bleed strip back — it runs the whole page width, so at full strength
-   the new multi-hue stripes shout. Opacity goes on the pseudo (the stripes), not on
-   .marquee, so the "> ACCESS GRANTED_" label on top stays at full contrast. */
-.marquee::before {
-  opacity: 0.5;
-}
-
-.marqueeText {
-  background: var(--bg);
-  padding: 0 18px;
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  color: var(--cyan);
+@media (prefers-reduced-motion: reduce) {
+  .social,
+  .colLink {
+    transition: none;
+  }
 }

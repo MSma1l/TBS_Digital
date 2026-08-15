@@ -232,6 +232,26 @@ export const projects: Project[] = [
     playStore: "",
     images: [],
   },
+  {
+    id: "statistic",
+    name: "Statistic",
+    tag: locFromCatalog("projects.tag.saasPrivate"),
+    desc: locFromCatalog("projects.statistic.desc"),
+    url: "",
+    appStore: "",
+    playStore: "",
+    images: ["/projects/statistic-1.png"],
+  },
+  {
+    id: "flirt",
+    name: "FLIRT",
+    tag: locFromCatalog("projects.tag.mobileSoon"),
+    desc: locFromCatalog("projects.flirt.desc"),
+    url: "",
+    appStore: "",
+    playStore: "",
+    images: ["/projects/flirt-1.png"],
+  },
 ];
 
 /* ---------- /05 Team ----------
@@ -273,8 +293,7 @@ const member = (id: string, name: string): TeamMember => ({
    would orphan whatever has already been filled in. */
 export const team: TeamMember[] = [
   member("chistol-maxim", "Maxim"),
-  member("danu", "Danu"),
-  member("bales-laurentiu", "Laurentiu"),
+  member("danu", "Artem"),
 ];
 
 /* ---------- Company socials (footer) ----------
@@ -361,4 +380,23 @@ export const footerServices: string[] = [
 export const contacts: Contact[] = [
   { id: "c-email", type: "email", value: "contact@tbsdigital.ro" },
   { id: "c-phone", type: "phone", value: "+373 600 00 000" },
+];
+
+
+export type NavChild = { key: MessageKey; href: string };
+export type NavItem = { key: MessageKey; href: string; children?: NavChild[] };
+
+export const navMenu: NavItem[] = [
+  { key: "nav.services", href: "#servicii", children: [
+    { key: "nav.services.web", href: "#servicii-web" },
+    { key: "nav.services.apps", href: "#servicii-apps" },
+    { key: "nav.services.automation", href: "#servicii-automation" },
+    { key: "nav.services.custom", href: "#servicii-custom" },
+  ] },
+  { key: "nav.company", href: "#echipa", children: [
+    { key: "nav.company.team", href: "#echipa" },
+    { key: "nav.company.partners", href: "#parteneri" },
+    { key: "nav.company.cases", href: "#lucrari" },
+  ] },
+  { key: "nav.about", href: "#despre" },
 ];

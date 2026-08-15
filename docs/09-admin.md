@@ -39,10 +39,21 @@ format, script/HTML blocked) via `lib/validation.ts`, mirroring the backend — 
 while any field is invalid. The backend re-validates authoritatively (see
 [11 — Security](./11-security.md)).
 
+### Three languages per field
+
+Every text field is rendered **once per language — RO · RU · EN** (`LocalizedText`). The
+site shows the active language and falls back to Romanian when RU/EN are blank, so **only
+RO is required**; the other two are optional and can be filled in later. Each language is
+validated against the same rules, and an error names the language it came from. Legacy
+values stored as a bare string are read as Romanian-only and upgraded on the next save.
+See [16 — i18n & SEO](./16-i18n-seo.md).
+
 Notes:
 - **Services are one list** shared by the /03 cards and the estimator, so a name/price edit
   can never make the two disagree. An entry flagged `estimatorOnly` (the AI option) appears in
   the estimator but has no card on the grid.
+- A **click on a /03 service card** pre-selects that service in the estimator, so a service's
+  name is what the visitor sees on the form too.
 - Blank stat/team entries render as **placeholder** boxes, so leaving them empty is valid.
 - A contact's **type** decides its link: `email` → `mailto:`, `phone` → `tel:`, `other` →
   plain text.

@@ -1,285 +1,165 @@
 .section {
-  position: relative;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: clamp(56px, 8vw, 100px) clamp(14px, 4vw, 40px);
-  background: var(--bg2);
+  padding: clamp(48px, 7vw, 76px) 0 clamp(20px, 3vw, 28px);
 }
 
-.head {
-  max-width: 640px;
-  margin-bottom: 40px;
+.top {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: end;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
 }
-
+.eyebrow {
+  color: var(--red);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
 .title {
-  font-size: clamp(30px, 5vw, 56px);
-  line-height: 0.98;
-  margin: 14px 0 0;
+  margin: 8px 0 0;
+  font-size: clamp(28px, 3.5vw, 44px);
+  letter-spacing: -0.04em;
+  color: var(--txt);
 }
-
 .lead {
+  margin: 0;
   color: var(--mut);
-  font-size: 16px;
-  margin: 16px 0 0;
+  max-width: 400px;
+  line-height: 1.5;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+  margin-top: 28px;
 }
 
-/* Per-card hue on the usual four-step rotation — it drives the category chip, the
-   active gallery dot and the hover border/glow. */
-.card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-  --h: var(--cyan);
-}
-.card:nth-child(4n + 2) {
-  --h: var(--violet);
-}
-.card:nth-child(4n + 3) {
-  --h: var(--amber);
-}
-.card:nth-child(4n + 4) {
-  --h: var(--blue2);
-}
-
-.card:hover {
-  border-color: color-mix(in srgb, var(--h) 55%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--h) 18%, transparent),
-    0 18px 40px rgba(var(--scrim), 0.45);
-}
-
-/* ---------- rotating screenshot gallery ---------- */
-.thumb {
-  height: 170px;
+.project {
   position: relative;
   overflow: hidden;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line);
+  min-height: 244px;
+  padding: 22px;
+  border-radius: 19px;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  background: linear-gradient(145deg, var(--p1, #192f6f), var(--p2, #4b7dff));
+  color: #fff;
+  text-decoration: none;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease;
+}
+.project:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 18px 38px rgba(23, 35, 63, 0.27);
 }
 
-/* The whole thumbnail is the "enlarge" affordance. */
-.thumbBtn {
-  position: absolute;
-  inset: 0;
-  cursor: zoom-in;
-  padding: 0;
-  border: none;
-  background: none;
-  display: block;
-}
-
-/* Every frame is stacked and cross-faded, so rotating never re-fetches an image. */
-.shot {
+/* background screenshot: blends into the card's gradient, brightens on hover */
+.image {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 0; /* anchor on the top of the page — that's the interesting part */
-  opacity: 0;
-  transform: scale(1.02);
+  object-position: top center;
+  opacity: 0.56;
+  mix-blend-mode: luminosity;
   transition:
-    opacity 0.7s ease,
-    transform 0.7s ease;
+    transform 0.4s ease,
+    opacity 0.3s ease;
 }
-
-.shotActive {
-  opacity: 1;
-  transform: scale(1);
+.project:hover .image {
+  transform: scale(1.08);
+  opacity: 0.78;
 }
-
-.zoom {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  color: var(--txt);
-  background: rgba(var(--scrim), 0.78);
-  border: 1px solid var(--line2);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.thumb:hover .zoom,
-.thumbBtn:focus-visible .zoom {
-  opacity: 1;
-}
-
-.thumbBtn:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: -2px;
-}
-
-.dots {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  display: flex;
-  gap: 5px;
-  pointer-events: none;
-}
-
-/* The idle dots sit on top of a screenshot, which can be light OR dark — at 0.28 they
-   vanished against a bright one. A dark plate under a brighter tick keeps them legible
-   either way, and they are a navigation control, so they owe the reader 3:1. */
-.dot {
-  width: 16px;
-  height: 3px;
-  background: rgba(238, 243, 255, 0.55);
-  box-shadow: 0 0 0 1px rgba(var(--scrim), 0.55);
-  transition: background 0.3s;
-}
-
-.dotOn {
-  background: var(--h);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--h) 60%, transparent);
-}
-
-/* A project whose screenshots aren't in yet. */
-.noShots {
+/* dark wash over the image so the white label + title stay readable */
+.project:has(.image)::after {
+  content: "";
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--dim);
-  border: 1px dashed var(--line);
-  margin: 14px;
+  background: linear-gradient(
+    0deg,
+    rgba(16, 23, 42, 0.85) 6%,
+    rgba(16, 23, 42, 0.18) 76%
+  );
 }
 
-/* ---------- card body ---------- */
-.body {
-  padding: 18px 20px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1; /* keeps the actions row on the baseline across a row of cards */
-}
-
-/* The category is now a real chip in the card's hue. */
-.tag {
-  align-self: flex-start;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--h);
-  border: 1px solid color-mix(in srgb, var(--h) 40%, transparent);
-  background: color-mix(in srgb, var(--h) 12%, transparent);
-  padding: 4px 9px;
-}
-
-.name {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  margin: 0;
-  color: var(--txt);
-}
-
+/* keep text and index above the image + wash */
+.tag,
+.name,
 .desc {
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--mut);
-  margin: 0;
+  position: relative;
+  z-index: 2;
+}
+.index {
+  z-index: 2;
 }
 
-.actions {
-  margin-top: auto;
-  padding-top: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.index {
+  position: absolute;
+  top: 14px;
+  right: 17px;
+  font-size: 38px;
+  font-weight: 800;
+  opacity: 0.26;
 }
-
-.visit,
-.store {
-  text-decoration: none;
+.tag {
+  font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.04em;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  color: var(--mut);
+  letter-spacing: 0.08em;
+}
+.name {
+  margin: 7px 0;
+  font-size: clamp(22px, 3vw, 25px);
+  letter-spacing: -0.03em;
+}
+.desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(10px);
   transition:
-    border-color 0.15s,
-    color 0.15s,
-    background 0.15s;
+    max-height 0.25s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.project:hover .desc {
+  max-height: 140px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.visit:hover,
-.store:hover {
-  border-color: color-mix(in srgb, var(--h) 65%, transparent);
-  color: var(--txt);
-  background: color-mix(in srgb, var(--h) 14%, transparent);
+.project:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 3px;
 }
 
-.store {
-  color: var(--ice);
-  border-color: var(--line2);
-}
-
-/* swipe affordance — only visible when the grid becomes a carousel (see below) */
-.swipeHint {
-  display: none;
-}
-
-/* ---------- mobile: turn the project stack into a swipe carousel ----------
-   Mirrors the /03 Servicii carousel. The cards already carry their own border,
-   so we only need to switch the grid into a horizontal scroll-snap track.
-   Desktop layout is untouched. Behaviour is driven by useAutoCarousel. */
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .grid {
-    display: flex;
-    position: relative; /* offsetParent for the auto-roll centering math */
-    grid-template-columns: none;
-    gap: 12px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    /* bleed to the screen edges for a full-width carousel feel */
-    margin-inline: calc(-1 * clamp(14px, 4vw, 40px));
-    padding-inline: clamp(14px, 4vw, 40px);
-    padding-bottom: 4px;
-  }
-  .grid::-webkit-scrollbar {
-    display: none;
-  }
-  .card {
-    flex: 0 0 82%;
-    scroll-snap-align: center;
-  }
-  .card:first-child {
-    scroll-snap-align: start;
-  }
-
-  .swipeHint {
-    display: block;
-    margin: 16px 0 0;
-    text-align: center;
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    color: var(--dim);
+    grid-template-columns: 1fr 1fr;
   }
 }
-
-/* Animated hazard strip closing the section (the flow itself lives on .hz in globals). */
-.stripes {
-  margin-top: 28px;
-  height: 14px;
-  opacity: 0.45;
+@media (max-width: 560px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .desc {
+    max-height: 140px;
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .project,
+  .desc,
+  .image {
+    transition: none;
+  }
 }

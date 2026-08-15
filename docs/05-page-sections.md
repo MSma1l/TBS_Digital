@@ -1,9 +1,12 @@
 # 05 — Page Sections
 
 The landing page is a single scroll, top to bottom. Sections carry a mono index label
-(`/01`, `/02`, …). Below is each section, its purpose, and its content status in this phase.
+(`/01`, `/02`, …). Below is each section, its purpose, and where its content comes from.
 
-> For the exact removals/stubs, see [06 — Placeholder Rules](./06-placeholder-rules.md).
+> Order in `app/(site)/page.tsx`: Hero · Principles · **CTA** · Services · **CTA** · Work ·
+> **CTA** · Team · **CTA** · Partners · Estimator. All visitor-facing copy is localized —
+> see [16 — i18n & SEO](./16-i18n-seo.md). For what is still a stub, see
+> [06 — Placeholder Rules](./06-placeholder-rules.md).
 
 ## Top status bar
 
@@ -11,14 +14,26 @@ The landing page is a single scroll, top to bottom. Sections carry a mono index 
 
 ## Navbar
 
-Logo `TBS_`, links: SERVICII · LUCRĂRI · ECHIPĂ · DESPRE, an `◆ ADMIN` button, and a
-`START PROIECT ↗` CTA. Mobile: hamburger → full-screen menu. The ADMIN button will later
-open the future admin page; for now it can be a placeholder/no-op link to `/admin`.
+Logo `TBS_`, links: SERVICII · LUCRĂRI · ECHIPĂ · DESPRE, the **RO/RU/EN language
+switcher**, and a `START PROIECT ↗` CTA. Mobile: hamburger → full-screen menu (switcher
+included).
+
+> The navbar deliberately carries **no link to the admin panel** — a button here would
+> publish `/admin-tbs-digital` in the markup of every page. The admin types the URL.
+
+## Between sections — `SectionCTA`
+
+A short "let's work together" panel repeated after Principles, Services, Work and Team, so a
+visitor can start a conversation wherever they stop reading (design review, 2026-07-15). It
+scrolls to the contact/estimator section; the `hue` prop varies the accent so consecutive
+CTAs don't look identical. Partners ends with its own "become a partner" panel and the
+estimator *is* the contact form, so there is no CTA between those two.
 
 ## /01 — Hero
 
-Badge, giant `TBS DIGITAL` display title, tagline, two CTAs, and the animated HUD emblem
-with orbiting dots and X/Y/Z coordinate readout. Copy is brand-generic — **keep**.
+Badge, giant `TBS DIGITAL` display title, the UTP line (reworked in the 2026-07-15 design
+pass), two CTAs, and the animated HUD emblem with orbiting dots and X/Y/Z coordinate
+readout. Copy comes from the message catalog.
 
 ## /02 — Principles ("Principiile noastre")
 
@@ -29,8 +44,15 @@ with orbiting dots and X/Y/Z coordinate readout. Copy is brand-generic — **kee
 
 ## /03 — Services ("Servicii de digitalizare")
 
-Grid of service cards (icon, name, description). Original has 11.
-→ **Remove the "Automatizare cu IA" card** (see rules doc).
+Grid of service cards (icon, name, description), fed by `lib/content.ts` → the store, so the
+admin edits names, descriptions and prices in all three languages. A service marked
+`estimatorOnly` (currently "Automatizare cu IA") appears in the estimator but has **no card**
+here. Card labels `/01`, `/02`… are computed from position, so adding or removing a service
+renumbers automatically.
+
+**Clicking a card jumps to the estimator with that service pre-selected**
+(`lib/estimatorBridge.ts`). On mobile the grid is an auto-rolling scroll-snap carousel
+(`useAutoCarousel`).
 
 ## /04 — Selected Work ("Proiecte pe care le-am creat")
 
@@ -53,9 +75,12 @@ Screenshots live in `public/projects/`. A project with no screenshots yet render
 ## /05 — Team ("Oamenii din spatele codului")
 
 Left: heading + a `SYSTEM_STATUS` panel with progress bars. Right: team member cards
-(initials avatar, name, role, bio).
-→ Team cards become **placeholders** (one box is fine). The `SYSTEM_STATUS` numbers are
-also hardcoded stats — treat them under the same placeholder rule (see rules doc).
+(initials avatar, name, role, bio, social links).
+
+Real content: **Maxim, Danu, Laurentiu** — first names only, by request. Editable from the
+admin's **Echipă** tab. On mobile the cards drop to a single column so the third member
+isn't stranded alone on a row. The `SYSTEM_STATUS` numbers remain decorative placeholders
+(see the rules doc).
 
 ## /06 — Partners ("Partenerii noștri")
 
@@ -74,10 +99,13 @@ see [09 — Admin](./09-admin.md).
 ## /07 — Estimator + Contact ("Estimează prețul")
 
 - **Estimator:** three groups — `01 · TIP DE PROIECT`, `02 · TERMEN LIMITĂ`,
-  `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total.
-  → **Keep all the option buttons; replace every price with `...`** (see rules doc).
-- **Contact form:** name, email, phone, message + submit. Present visually; **no submission
-  logic** in this phase (UI-only) — see [07 — Conventions](./07-conventions.md).
+  `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total. Prices come from the admin;
+  an unset price renders `...` (see rules doc). Arriving from a service card pre-selects
+  that project type.
+- **Contact form:** name, email, phone, message + submit. It **does** submit —
+  `POST /api/contact`, validated client-side by `lib/validation.ts` and authoritatively by
+  the backend, then pushed to the Telegram lead bot
+  ([13 — Telegram Bot](./13-telegram.md)).
 
 ## Footer
 
@@ -85,8 +113,19 @@ Partners row (the same partners as /06, rendered as chips that link to their sit
 navigation/services/contact columns, socials, copyright, and the `> ACCESS GRANTED_`
 striped marquee.
 
-## Admin panel (future)
+## Cookie-consent banner
 
-The prototype includes a slide-in admin panel (PIN-gated price editor saving to
-`localStorage`). In this project the admin becomes its **own page**, built later and wired
-to the backend by a colleague — **not implemented in this phase**. See [08 — Roadmap](./08-roadmap.md).
+Bottom of the viewport until the visitor chooses: **Accept** allows the analytics pixel,
+**Doar esențiale** rejects it (Escape does the same). Links to `/cookies` and
+`/confidentialitate`. Nothing tracking loads before a choice — see
+[16 — i18n & SEO](./16-i18n-seo.md).
+
+## Legal pages
+
+`/confidentialitate` and `/cookies` — outside the landing scroll, same chrome, linked from
+the footer and the consent banner.
+
+## Admin panel
+
+Built and live at `/admin-tbs-digital` — a login-gated, tabbed editor backed by the API.
+See [09 — Admin Panel](./09-admin.md).

@@ -23,7 +23,8 @@ export const ru: Record<MessageKey, string> = {
   "hero.scrollHint": "ЛИСТАЙ — СИСТЕМА АКТИВИРУЕТСЯ ↓",
 
   // --- Principles (/02) ---
-  "principles.label": "НАШИ ПРИНЦИПЫ",
+  "principles.label": "ИНДИВИДУАЛЬНЫЙ ПОДХОД",
+  "principles.lead": "Каждый проект начинается с понимания вашего бизнеса и целей.",
   "principles.0.title": "Сначала\nстратегия",
   "principles.0.desc": "Разбираемся в бизнесе до первой строки кода.",
   "principles.1.title": "Связанные\nсистемы",
@@ -90,6 +91,12 @@ export const ru: Record<MessageKey, string> = {
   "projects.tag.corporate": "КОРПОРАТИВНЫЙ САЙТ",
   "projects.tag.saas": "SAAS-ПЛАТФОРМА",
   "projects.tag.mobile": "МОБИЛЬНОЕ ПРИЛОЖЕНИЕ",
+  "projects.tag.saasPrivate": "ПРИВАТНЫЙ SAAS · БЕЗ ССЫЛКИ",
+  "projects.tag.mobileSoon": "МОБИЛЬНОЕ ПРИЛОЖЕНИЕ · СКОРО",
+  "projects.statistic.desc":
+    "Собственный инструмент веб-аналитики: просмотры, сессии, клики и динамика по каждому сайту — бесплатная альтернатива известным сервисам, с акцентом на SEO.",
+  "projects.flirt.desc":
+    "Мобильное приложение для знакомств, скоро в релизе: анкеты, мэтчинг и переписка в быстром дизайне, с нулевой терпимостью к оскорбительному контенту.",
   "projects.bizcheck.desc":
     "Платформа самооценки рисков для малого и среднего бизнеса по методологии Crowe: интерактивные тесты, блочные юридические шаблоны и подробный PDF-отчёт в финале.",
   "projects.itara-global.desc":
@@ -177,6 +184,24 @@ export const ru: Record<MessageKey, string> = {
   "nav.team": "КОМАНДА",
   "nav.partners": "ПАРТНЁРЫ",
   "nav.about": "О НАС",
+  "dir.section.kicker": "ВЫБЕРИТЕ ПРАВИЛЬНОЕ НАПРАВЛЕНИЕ",
+  "dir.section.title": "Инструмент выбора направления —\nдля быстрых и уверенных решений.",
+  "dir.section.lead": "Выберите направление — откроется отдельная страница с деталями.",
+  "dir.digital": "Цифровой продукт",
+  "dir.ecommerce": "Электронная коммерция",
+  "dir.automation": "Автоматизация и API",
+  "dir.ai": "Искусственный интеллект: помощники и боты",
+  "dir.brand": "Бренд и пользовательский интерфейс",
+  "dir.page.soon": "Страница в разработке — скоро наполним её деталями.",
+  "dir.page.back": "На главную",
+  "nav.company": "КОМПАНИЯ",
+  "nav.services.web": "Веб-разработка",
+  "nav.services.apps": "Приложения и платформы",
+  "nav.services.automation": "Автоматизация бизнеса",
+  "nav.services.custom": "Индивидуальные решения",
+  "nav.company.team": "Команда",
+  "nav.company.partners": "Партнёры",
+  "nav.company.cases": "Кейсы",
   "nav.cta": "НАЧАТЬ ПРОЕКТ ↗",
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",

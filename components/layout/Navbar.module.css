@@ -3,7 +3,7 @@
   top: 0;
   z-index: 120;
   backdrop-filter: blur(14px);
-  background: rgba(var(--scrim), 0.78);
+  background: rgba(255, 255, 255, 0.82);
   border-bottom: 1px solid var(--line);
 }
 
@@ -16,34 +16,18 @@
 }
 
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: inline-flex;
+  align-items: baseline;
   text-decoration: none;
   color: var(--txt);
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: -0.04em;
+  line-height: 1;
 }
-
-.mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--line2);
-  background: linear-gradient(135deg, var(--blue), var(--violet2));
-  font-family: var(--font-display-stack);
-  font-weight: 900;
-  font-size: 15px;
-  color: #fff;
-}
-
-.wordmark {
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 0.02em;
-}
-.accent {
-  color: var(--cyan);
+/* the red period — the whole mark of the "TBS." wordmark */
+.dot {
+  color: var(--red);
 }
 
 /* ---------- desktop nav ---------- */
@@ -77,19 +61,26 @@
 .cta {
   text-decoration: none;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 12.5px;
   letter-spacing: 0.06em;
-  padding: 10px 18px;
-  background: linear-gradient(120deg, var(--blue), var(--violet2));
-  border: 1px solid var(--blue2);
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff5362, var(--red));
+  box-shadow: 0 12px 24px rgba(245, 51, 63, 0.32);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: filter 0.15s;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
 }
 .cta:hover {
-  filter: brightness(1.18);
+  transform: translateY(-2px);
+  filter: saturate(1.12);
+  box-shadow: 0 16px 30px rgba(245, 51, 63, 0.42);
 }
 
 /* ---------- mobile burger ---------- */
@@ -114,7 +105,7 @@
   position: fixed;
   inset: 0;
   z-index: 125;
-  background: rgba(var(--scrim), 0.96);
+  background: rgba(255, 255, 255, 0.97);
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
@@ -149,11 +140,13 @@
   text-align: center;
   margin-top: 14px;
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
   padding: 16px;
-  background: var(--blue);
-  border: 1px solid var(--blue2);
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #ff5362, var(--red));
+  box-shadow: 0 12px 24px rgba(245, 51, 63, 0.3);
 }
 
 @media (max-width: 860px) {
@@ -173,4 +166,112 @@
   to {
     opacity: 1;
   }
+}
+
+/* ---------- desktop dropdowns (light theme) ---------- */
+.item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.caret {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  line-height: 1;
+  color: var(--dim);
+  transition:
+    transform 0.16s ease,
+    color 0.16s ease;
+}
+.item:hover .caret,
+.item:focus-within .caret {
+  transform: rotate(180deg);
+  color: var(--red);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 0;
+  min-width: 232px;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 44px rgba(17, 24, 39, 0.14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    visibility 0.16s;
+  z-index: 130;
+}
+/* invisible bridge so the pointer can cross the gap without closing the menu */
+.dropdown::before {
+  content: "";
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+}
+.item:hover .dropdown,
+.item:focus-within .dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.dropItem {
+  text-decoration: none;
+  color: var(--mut);
+  font-size: 12.5px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border-left: 2px solid transparent;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+.dropItem:hover,
+.dropItem:focus-visible {
+  color: var(--txt);
+  background: rgba(23, 28, 48, 0.05);
+  border-left-color: var(--red);
+  outline: none;
+}
+
+/* ---------- mobile overlay groups ---------- */
+.overlayGroup {
+  display: flex;
+  flex-direction: column;
+}
+.overlaySub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 10px;
+}
+.overlaySubLink {
+  text-decoration: none;
+  color: var(--mut);
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  padding: 9px 0 9px 16px;
+  border-left: 2px solid var(--line);
+}
+.overlaySubLink:hover {
+  color: var(--red);
+  border-left-color: var(--red);
 }

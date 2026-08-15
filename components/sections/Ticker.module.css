@@ -1,0 +1,73 @@
+/* Trust ticker — a single sliding row, edges faded into the page. */
+.trust {
+  overflow: hidden;
+  white-space: nowrap;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(230, 235, 255, 0.5),
+    transparent
+  );
+  padding: 18px 0;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+
+.track {
+  display: inline-flex;
+  align-items: center;
+  gap: 30px;
+  min-width: max-content;
+  animation: ticker 28s linear infinite;
+  will-change: transform;
+}
+.trust:hover .track {
+  animation-play-state: paused;
+}
+
+.lead {
+  font-weight: 800;
+  font-size: clamp(15px, 2vw, 20px);
+  letter-spacing: -0.02em;
+  color: var(--txt);
+}
+.item {
+  color: var(--mut);
+  font-size: clamp(13px, 1.6vw, 17px);
+  letter-spacing: 0.02em;
+}
+.diamond {
+  color: var(--red);
+  font-size: 11px;
+  font-style: normal;
+}
+
+/* local keyframe — module-scoped, resolved by lightningcss inside this file */
+@keyframes ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}

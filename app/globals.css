@@ -9,10 +9,10 @@
      real elevation (bg → panel is ~2.6x luminance) so a card reads as a distinct
      surface. The hue leans off cold navy toward indigo/plum (R ≥ G) so the page
      reads warm and airy rather than like a black hole. */
-  --bg: #1c1b30;
-  --bg2: #252340;
-  --panel: #312e54;
-  --panel2: #3d3a5d;
+  --bg: #eef1f7;
+  --bg2: #e6eaf2;
+  --panel: #ffffff;
+  --panel2: #f4f6fb;
 
   /* scrim — stays near-black on purpose (a hair warm): it sits over bright
      partner/project screenshots and is what keeps white-on-transparent logos
@@ -20,32 +20,34 @@
   --scrim: 15, 12, 22;
 
   /* lines — a warm lavender-plum hairline that belongs to the new surfaces */
-  --line: rgba(185, 174, 222, 0.2);
-  --line2: rgba(185, 174, 222, 0.36);
+  --line: rgba(23, 28, 48, 0.12);
+  --line2: rgba(23, 28, 48, 0.2);
 
   /* text — slightly warm neutrals (all AA 4.5:1+ on every surface above; the
      faintest pairing is --dim on --panel2 at 4.94:1 — see docs/04-design-system.md) */
-  --txt: #f5f1fa;
-  --mut: #bcb6cd;
-  --dim: #b2adc7;
+  --txt: #11141c;
+  --mut: #4d5361;
+  --dim: #666c7b;
 
   /* accents — blue leads; the range is warm-inclusive (rich amber + a coral ember).
      --blue and --violet2 are *fills* (white text sits on them, AA 4.79:1/4.97:1);
      --blue2/--cyan/--violet/--amber are the text/icon-weight tones (all clear AA on
      every surface, and all clear AA for the SectionCTA's dark-on-accent button). */
-  --blue: #3767f2;
-  --blue2: #93aeff;
-  --ice: #c0cfff;
-  --cyan: #4bccf0;
-  --violet: #c9a6ff;
-  --violet2: #7b53e6;
-  --amber: #f4b25c;
-  --coral: #ff9d7a;
+  --red: #f5333f;
+  --green: #12a37a;
+  --blue: #2f6bef;
+  --blue2: #3f63d8;
+  --ice: #5566c9;
+  --cyan: #0e93b9;
+  --violet: #7a44e6;
+  --violet2: #6a3fe0;
+  --amber: #b3771a;
+  --coral: #e2603c;
 
-  --glow: rgba(55, 103, 242, 0.5);
-  --glow-violet: rgba(123, 83, 230, 0.48);
-  --glow-amber: rgba(244, 178, 92, 0.4);
-  --glow-coral: rgba(255, 157, 122, 0.34);
+  --glow: rgba(47, 107, 239, 0.22);
+  --glow-violet: rgba(123, 83, 230, 0.2);
+  --glow-amber: rgba(179, 119, 26, 0.16);
+  --glow-coral: rgba(226, 96, 60, 0.16);
 
   /* layout */
   --maxw: 1280px;
@@ -68,7 +70,19 @@ html {
 
 body {
   margin: 0;
-  background: var(--bg);
+  /* one shared, viewport-fixed backdrop for the whole site so sections never jump:
+     faint 56px grid + four soft colour glows (the hero's lighting) + blue base.
+     Fixed means every screenful shows the same lighting; kept readable over dark. */
+  background:
+    linear-gradient(rgba(23, 28, 48, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 28, 48, 0.04) 1px, transparent 1px),
+    radial-gradient(1100px 640px at 72% 8%, rgba(47, 107, 239, 0.06), transparent 58%),
+    radial-gradient(760px 560px at 18% 18%, rgba(123, 83, 230, 0.05), transparent 62%),
+    radial-gradient(700px 500px at 8% 92%, rgba(18, 163, 122, 0.05), transparent 60%),
+    radial-gradient(560px 380px at 88% 96%, rgba(245, 51, 63, 0.04), transparent 64%),
+    linear-gradient(180deg, #eef1f7 0%, #e9edf5 100%);
+  background-size: 56px 56px, 56px 56px, auto, auto, auto, auto, cover;
+  background-attachment: fixed;
   color: var(--txt);
   font-family: var(--font-body-stack);
   -webkit-font-smoothing: antialiased;

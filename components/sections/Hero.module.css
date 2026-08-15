@@ -1,486 +1,170 @@
+/* Hero — the conversion-concept first screen: copy on the left, two metric cards on
+   the right, on the site's light theme. No 3D emblem — the macet keeps it calm. */
 .hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(40px, 7vw, 80px) clamp(14px, 4vw, 40px) clamp(30px, 5vw, 60px);
-}
-
-/* ---------- background layers ---------- */
-.glow,
-.stars,
-.grid {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* Four lights instead of one: the blue key stays dominant, a violet fill warms the
-   left shoulder, a cyan cools one corner and a warm coral ember washes the bottom-right
-   so the whole frame reads warm and lit rather than flat/cold. */
-.glow {
-  background:
-    radial-gradient(1100px 640px at 72% 8%, rgba(55, 103, 242, 0.36), transparent 58%),
-    radial-gradient(760px 560px at 18% 18%, rgba(123, 83, 230, 0.28), transparent 62%),
-    radial-gradient(700px 500px at 8% 92%, rgba(75, 204, 240, 0.14), transparent 60%),
-    radial-gradient(560px 380px at 88% 96%, rgba(255, 157, 122, 0.18), transparent 64%);
-}
-
-.stars {
-  background-image:
-    radial-gradient(1.4px 1.4px at 20% 30%, rgba(255, 255, 255, 0.5), transparent),
-    radial-gradient(1.4px 1.4px at 65% 20%, rgba(196, 188, 246, 0.6), transparent),
-    radial-gradient(1.2px 1.2px at 85% 55%, rgba(255, 255, 255, 0.4), transparent),
-    radial-gradient(1.2px 1.2px at 40% 70%, rgba(196, 188, 246, 0.5), transparent),
-    radial-gradient(1.5px 1.5px at 15% 80%, rgba(255, 255, 255, 0.45), transparent),
-    radial-gradient(1.2px 1.2px at 92% 82%, rgba(196, 188, 246, 0.5), transparent);
-}
-
-.grid {
-  background-image:
-    linear-gradient(rgba(185, 174, 222, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(185, 174, 222, 0.07) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse at 60% 40%, #000 25%, transparent 80%);
 }
 
 .inner {
-  position: relative;
-}
-
-.meta {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: clamp(28px, 4vw, 46px);
   align-items: center;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 9px 0;
-  margin-bottom: clamp(24px, 4vw, 44px);
-}
-.metaAccent {
-  color: var(--cyan);
+  padding: clamp(34px, 6vw, 64px) clamp(14px, 4vw, 40px) clamp(44px, 6vw, 62px);
 }
 
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: clamp(28px, 4vw, 50px);
-}
-
-/* ---------- copy ---------- */
 .copy {
-  flex: 1 1 460px;
-  min-width: 300px;
+  min-width: 0;
 }
 
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 6px 13px;
-  border: 1px solid var(--line2);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--ice);
-  animation: riseIn 0.7s 0.05s both;
-}
-.badgeDot {
-  width: 6px;
-  height: 6px;
-  background: var(--cyan);
-  box-shadow: 0 0 8px var(--cyan);
+.eyebrow {
+  color: var(--red);
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .title {
-  /* 44px floor keeps "DIGITAL" on one line on ~320px phones; 10vw/120px cap
-     is unchanged above 440px, so desktop sizing is untouched */
-  font-size: clamp(44px, 10vw, 120px);
-  line-height: 0.9;
-  margin: 20px 0 0;
-}
-/* The outlined word is the biggest single mark on the page — hand it the violet. */
-.titleOutline {
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--violet);
-}
-
-.kicker {
-  font-size: clamp(13px, 1.5vw, 16px);
-  letter-spacing: 0.04em;
-  color: var(--ice);
-  margin: 22px 0 0;
-  text-transform: uppercase;
-  animation: riseIn 0.7s 0.12s both;
+  margin: 14px 0 18px;
+  max-width: 680px;
+  font-size: clamp(37px, 5.2vw, 66px);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  color: var(--txt);
 }
 
 .lead {
+  margin: 0;
+  max-width: 560px;
   color: var(--mut);
-  font-size: clamp(15px, 1.5vw, 18px);
-  max-width: 480px;
-  margin: 18px 0 0;
-  animation: riseIn 0.7s 0.2s both;
+  line-height: 1.6;
+  font-size: clamp(16px, 2vw, 18px);
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 30px;
-  animation: riseIn 0.7s 0.28s both;
+  gap: 14px;
+  align-items: center;
+  margin-top: 26px;
 }
 
-.primary,
-.secondary {
+.primary {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  justify-content: center;
   text-decoration: none;
-  font-size: 14px;
-  letter-spacing: 0.04em;
-  padding: 15px 24px;
-  text-transform: uppercase;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s,
-    transform 0.15s;
-}
-.primary {
+  border-radius: 13px;
+  padding: 16px 26px;
+  background: linear-gradient(135deg, #ff5362, var(--red));
   color: #fff;
-  font-weight: 600;
-  background: var(--blue);
-  border: 1px solid var(--blue2);
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 14px 28px rgba(245, 51, 63, 0.32);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
 }
 .primary:hover {
-  background: var(--blue2);
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  filter: saturate(1.12);
+  box-shadow: 0 19px 34px rgba(245, 51, 63, 0.42);
 }
-.secondary {
+
+.textlink {
   color: var(--txt);
-  font-weight: 500;
-  border: 1px solid var(--line2);
-  background: rgba(185, 174, 222, 0.06);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
-.secondary:hover {
-  border-color: var(--violet);
-  color: var(--violet);
-  background: rgba(123, 83, 230, 0.16);
-}
-
-/* ---------- emblem ---------- */
-.emblemCol {
-  flex: 1 1 360px;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 22px;
-  animation: riseIn 0.9s 0.2s both;
+.textlink:hover {
+  color: var(--red);
+  border-bottom-color: var(--red);
 }
 
-.emblemStage {
+/* ---------- metric cards ---------- */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.metric {
   position: relative;
-  perspective: 1100px;
-  width: min(80vw, 420px);
-  height: min(80vw, 420px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.emblemHalo {
-  position: absolute;
-  inset: 6%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgba(55, 103, 242, 0.4),
-    rgba(123, 83, 230, 0.24) 45%,
-    transparent 68%
-  );
-  filter: blur(24px);
-  animation: pulse 5s ease-in-out infinite;
-}
-
-.hudCoords {
-  position: absolute;
-  right: -6px;
-  top: 34%;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  color: var(--ice);
-  text-align: right;
-  line-height: 1.7;
-  background: rgba(var(--scrim), 0.72);
+  overflow: hidden;
+  background: var(--panel);
   border: 1px solid var(--line);
-  padding: 8px 10px;
-  z-index: 2;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 18px 44px rgba(39, 52, 91, 0.08);
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease;
 }
-.hudVal,
-.hudValInline {
-  color: var(--cyan);
-}
-
-.hudRender {
+.metric::after {
+  content: "";
   position: absolute;
-  left: 2px;
-  top: 8px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  z-index: 2;
-}
-
-.hudScan {
-  position: absolute;
-  right: 6px;
-  bottom: 2px;
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  color: var(--dim);
-  z-index: 2;
-}
-
-.emblem {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
-  will-change: transform;
-}
-
-.ringDashed,
-.ringSolid,
-.ringInner {
-  position: absolute;
+  width: 84px;
+  height: 84px;
+  right: -34px;
+  top: -34px;
   border-radius: 50%;
+  background: var(--accent, var(--blue));
+  opacity: 0.16;
 }
-/* Each ring gets its own hue so the emblem reads as three layers, not one blue disc. */
-.ringDashed {
-  inset: 0;
-  border: 1px dashed rgba(201, 166, 255, 0.48);
-  animation: spin 26s linear infinite;
+.metric:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent, var(--blue));
 }
-.ringSolid {
-  inset: 10%;
-  border: 1px solid rgba(75, 204, 240, 0.38);
-  animation: spin 20s linear infinite reverse;
+.metric:nth-child(1) {
+  --accent: var(--blue);
 }
-.ringInner {
-  inset: 20%;
-  border: 1px solid rgba(147, 174, 255, 0.32);
+.metric:nth-child(2) {
+  --accent: var(--green);
 }
 
-.crossH {
-  position: absolute;
-  top: 50%;
-  left: 8%;
-  right: 8%;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(201, 166, 255, 0.45),
-    rgba(75, 204, 240, 0.45),
-    transparent
-  );
+.metric b {
+  display: block;
+  font-size: clamp(26px, 4vw, 32px);
+  letter-spacing: -0.04em;
+  color: var(--txt);
 }
-.crossV {
-  position: absolute;
-  left: 50%;
-  top: 8%;
-  bottom: 8%;
-  width: 1px;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    rgba(185, 174, 222, 0.45),
-    transparent
-  );
+.metric span {
+  display: block;
+  margin-top: 4px;
+  color: var(--mut);
+  font-size: 13px;
+}
+.metric small {
+  display: block;
+  margin-top: 10px;
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--green);
 }
 
-.coreGlow {
-  position: absolute;
-  inset: 19%;
-  background: linear-gradient(
-    150deg,
-    rgba(55, 103, 242, 0.45),
-    rgba(123, 83, 230, 0.4) 50%,
-    rgba(75, 204, 240, 0.3)
-  );
-  filter: blur(16px);
-  opacity: 0.75;
-  border-radius: 14px;
-}
-
-.core {
-  position: absolute;
-  inset: 21%;
-  background: linear-gradient(150deg, #2f2b56, #1b1934);
-  border: 1px solid var(--line2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 30px 60px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-}
-/* CRT scanlines drifting slowly down the emblem. The pattern repeats every 5px, so the
-   loop travels exactly 5px and lands back on itself — no seam. */
-.coreScan {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(185, 174, 222, 0.08) 0 1px,
-    transparent 1px 5px
-  );
-  animation: scan-drift 3.2s linear infinite;
-}
-
-@keyframes scan-drift {
-  from {
-    background-position: 0 0;
+/* ---------- responsive ---------- */
+@media (max-width: 860px) {
+  .inner {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding-top: 26px;
   }
-  to {
-    background-position: 0 5px;
+  .metrics {
+    order: 2;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .coreScan {
-    animation: none;
-  }
-}
-.coreText {
-  font-size: min(19vw, 96px);
-  color: transparent;
-  background: linear-gradient(135deg, var(--blue2), var(--violet) 50%, var(--cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-.orbitOuter,
-.orbitInner {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-origin: 0 0;
-}
-.orbitOuter {
-  --r: calc(min(80vw, 420px) / 2 - 4px);
-  animation: orbit 12s linear infinite;
-}
-.orbitInner {
-  --r: calc(min(80vw, 420px) / 2 - 40px);
-  animation: orbit 9s linear infinite reverse;
-}
-.orbitDotOuter {
-  display: block;
-  width: 12px;
-  height: 12px;
-  background: var(--cyan);
-  box-shadow: 0 0 12px var(--cyan);
-  margin: -6px;
-}
-.orbitDotInner {
-  display: block;
-  width: 8px;
-  height: 8px;
-  background: var(--amber);
-  box-shadow: 0 0 10px var(--glow-amber);
-  margin: -4px;
-}
-
-.wordmark {
-  font-size: clamp(26px, 6vw, 40px);
-  white-space: nowrap;
-}
-.wordmarkAccent {
-  /* starts collapsed — HeroEmblem expands it on scroll ("TBS" → "TBS DIGITAL") */
-  display: inline-block;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  vertical-align: bottom;
-  color: transparent;
-  background: linear-gradient(110deg, var(--blue2), var(--violet) 55%, var(--cyan));
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-.scrollHint {
-  color: var(--dim);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  margin: -8px 0 0;
-}
-
-/*
- * Phones: the HUD coord readout normally juts slightly past the emblem's right
- * edge (right: -6px). On a narrow, centred emblem that overhang is clipped by
- * the page's overflow-x:hidden, so tuck it fully inside the stage instead.
- */
-@media (max-width: 640px) {
-  .hudCoords {
-    right: 2px;
-    top: 6px;
-    font-size: 9.5px;
-    padding: 6px 8px;
-  }
-  .meta {
-    font-size: 10px;
-    letter-spacing: 0.06em;
-  }
-}
-
-/* motion off: JS skips the scroll reveal, so show the full wordmark statically */
-@media (prefers-reduced-motion: reduce) {
-  .wordmarkAccent {
-    max-width: none;
-    opacity: 1;
-  }
-}
-
-/*
- * Keyframes are declared locally here on purpose. Next's CSS-Modules compiler
- * (lightningcss) scopes animation-name references inside a module, so a name
- * like `orbit` becomes `Hero-module__xxx__orbit` and no longer matches a
- * keyframe defined in the global stylesheet — the animation silently no-ops.
- * Defining them in-module keeps the scoped name and the keyframe in sync.
- */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 0.85;
-  }
-}
-@keyframes riseIn {
-  from {
-    opacity: 0;
-    transform: translateY(26px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-@keyframes orbit {
-  from {
-    transform: rotate(0) translateX(var(--r)) rotate(0);
-  }
-  to {
-    transform: rotate(360deg) translateX(var(--r)) rotate(-360deg);
+  .primary,
+  .metric {
+    transition: none;
   }
 }

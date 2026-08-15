@@ -17,7 +17,12 @@ Postgres**, wired together, with a login-gated admin and a one-command Docker de
 - **Telegram lead bot:** `@TBS_Notification_Agent_bot` posts every new contact-form lead into a
   private group — one topic per service, inline classification buttons, `/stats`. See
   [13 — Telegram Bot](./docs/13-telegram.md).
-- **Site language:** Romanian (UI copy). Documentation is in English.
+- **Languages & SEO:** the site ships in **RO / RU / EN** (switcher + crawlable `/`, `/ru`,
+  `/en` URLs, hreflang, sitemap, JSON-LD) and loads its analytics pixel only after cookie
+  consent. See [16 — i18n & SEO](./docs/16-i18n-seo.md).
+- **Site language:** Romanian is the source/fallback UI language. Documentation is in English.
+- **Change log:** every change is recorded in [`CHANGELOG.md`](./CHANGELOG.md) — start there
+  to see what moved and when.
 
 ## Documentation
 
@@ -31,7 +36,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [04 — Design System](./docs/04-design-system.md) | Colors, fonts, spacing, effects |
 | [05 — Page Sections](./docs/05-page-sections.md) | Breakdown of every section on the landing page |
 | [06 — Placeholder Rules](./docs/06-placeholder-rules.md) | Exactly what content to remove / stub out |
-| [07 — Conventions](./docs/07-conventions.md) | Coding rules and constraints (UI-only, no API) |
+| [07 — Conventions](./docs/07-conventions.md) | Coding rules: content/i18n boundary, styling, components, changelog duty |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
 | [09 — Admin Panel](./docs/09-admin.md) | The `/admin-tbs-digital` tabbed editor + Cereri tab (real login) |
 | [10 — Backend](./docs/10-backend.md) | The FastAPI content + contact + auth API (real DB) |
@@ -40,8 +45,10 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [13 — Telegram Bot](./docs/13-telegram.md) | Lead-notification bot: per-service topics, classification buttons, /stats |
 | [14 — Testing](./docs/14-testing.md) | Vitest UI/UX tests, backend pytest, live API verification script |
 | [15 — Security Skills](./docs/15-security-skills.md) | Per-topic security skills (validation, XSS, SQLi, auth, rate-limit, pentest) |
+| [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, cookie consent + analytics |
 
-See [`SECURITY.md`](./SECURITY.md) for the pentest findings, fixes, and production checklist.
+See [`CHANGELOG.md`](./CHANGELOG.md) for the running record of every change, and
+[`SECURITY.md`](./SECURITY.md) for the pentest findings, fixes, and production checklist.
 
 ## Getting started
 

@@ -1,350 +1,329 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { SectionLabel } from "@/components/ui/SectionLabel";
-import { deadlines, features, PRICE_PLACEHOLDER } from "@/lib/content";
-import { useSiteContent } from "@/lib/siteContent";
-import { ESTIMATE_EVENT } from "@/lib/estimatorBridge";
-import { submitContact, isNetworkError } from "@/lib/api";
-import { LIMITS, validateText, sanitizeText } from "@/lib/validation";
-import { useT } from "@/lib/i18n/LanguageProvider";
-import { useLoc } from "@/lib/i18n/content";
-import { format, Multiline } from "@/lib/i18n/format";
-import type { MessageKey } from "@/lib/i18n/messages";
+import { useState, type FormEvent } from "react";
+import { Reveal } from "@/components/ui/Reveal";
+import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import styles from "./Estimator.module.css";
 
+const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
+
+const SECTION = {
+  eyebrow: L("Cerere / estimare", "Заявка / оценка", "Request / estimate"),
+  title: L("Spune-ne ce vrei să construiești.", "Расскажите, что хотите построить.", "Tell us what you want to build."),
+  lead: L(
+    "Un dialog scurt clarifică cererea, iar rezumatul se atașează automat propunerii.",
+    "Короткий диалог уточняет запрос, а его résumé автоматически прикрепляется к предложению.",
+    "A short dialog clarifies the request, and its summary is attached to the proposal automatically.",
+  ),
+  step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
+  step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),
+  proposal: L("PROPUNEREA TA", "ВАШЕ ПРЕДЛОЖЕНИЕ", "YOUR PROPOSAL"),
+  from: L("de la", "от", "from"),
+  assistant: L("Asistent TBS · online", "Ассистент TBS · онлайн", "TBS assistant · online"),
+  submit: L("Trimite cererea", "Отправить заявку", "Send the request"),
+  submitted: L("Cerere pregătită ✓", "Заявка готова ✓", "Request ready ✓"),
+};
+
+type PType = { label: LocalizedText; price: string };
+const PROJECT_TYPES: PType[] = [
+  { label: L("Site / prezentare", "Сайт / презентация", "Website / landing"), price: "€3.000" },
+  { label: L("CRM la comandă", "CRM под заказ", "Custom CRM"), price: "€8.000" },
+  { label: L("Automatizare cu AI", "Автоматизация с ИИ", "AI automation"), price: "€5.000" },
+  { label: L("E-commerce", "E-commerce", "E-commerce"), price: "€6.000" },
+  { label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), price: "€12.000" },
+];
+
+const OPTIONS: LocalizedText[] = [
+  L("+ Design premium", "+ Премиум-дизайн", "+ Premium design"),
+  L("+ Integrări & API", "+ Интеграции и API", "+ Integrations & API"),
+  L("+ Multilingv", "+ Мультиязычность", "+ Multilingual"),
+  L("+ SEO", "+ SEO", "+ SEO"),
+];
+
+const RESULT_COPY = L(
+  "Include direcție UX, design și o discuție tehnică despre integrări.",
+  "Включает UX-направление, дизайн и техническое обсуждение интеграций.",
+  "Includes UX direction, design and a technical discussion about integrations.",
+);
+
+const PLACEHOLDERS = {
+  name: L("Nume și companie", "Имя и компания", "Name and company"),
+  email: L("Email", "Email", "Email"),
+  phone: L("Telefon (opțional)", "Телефон (необязательно)", "Phone (optional)"),
+  details: L("Adaugă orice detaliu important", "Добавьте любую важную деталь", "Add any important detail"),
+};
+
+/* ---------- chat assistant tree ---------- */
+type Opt = { label: LocalizedText; next: string };
+type Node = { q: LocalizedText; options: Opt[] };
+
+const TREE: Record<string, Node> = {
+  start: {
+    q: L(
+      "Bună! Care este obiectivul principal al proiectului tău?",
+      "Привет! Какая главная цель вашего проекта?",
+      "Hi! What is the main goal of your project?",
+    ),
+    options: [
+      { label: L("Mai mulți clienți", "Больше клиентов", "More clients"), next: "growth" },
+      { label: L("Mai puțină rutină", "Меньше рутины", "Less routine"), next: "automation" },
+      { label: L("Un produs nou", "Новый продукт", "A new product"), next: "product" },
+    ],
+  },
+  growth: {
+    q: L(
+      "Unde se pierd cel mai des potențialii clienți?",
+      "Где чаще всего теряются потенциальные клиенты?",
+      "Where do potential clients get lost most often?",
+    ),
+    options: [
+      { label: L("Nu ne găsesc online", "Нас не находят онлайн", "They don't find us online"), next: "channel" },
+      { label: L("Site-ul nu convinge", "Сайт не убеждает", "The site doesn't convince"), next: "channel" },
+      { label: L("Nu urmărim lead-urile", "Не отслеживаем лиды", "We don't track leads"), next: "channel" },
+    ],
+  },
+  channel: {
+    q: L(
+      "Ce canal vrei să îmbunătățim mai întâi?",
+      "Какой канал улучшаем первым?",
+      "Which channel should we improve first?",
+    ),
+    options: [
+      { label: L("Site / landing page", "Сайт / лендинг", "Site / landing page"), next: "timeline" },
+      { label: L("Google sau SEO", "Google или SEO", "Google or SEO"), next: "timeline" },
+      { label: L("Social media / campanii", "Соцсети / кампании", "Social media / campaigns"), next: "timeline" },
+    ],
+  },
+  automation: {
+    q: L(
+      "Ce activitate consumă acum cel mai mult timp?",
+      "Что сейчас отнимает больше всего времени?",
+      "Which activity consumes the most time now?",
+    ),
+    options: [
+      { label: L("Documente și aprobări", "Документы и согласования", "Documents and approvals"), next: "systems" },
+      { label: L("Lead-uri și vânzări", "Лиды и продажи", "Leads and sales"), next: "systems" },
+      { label: L("Rapoarte și date", "Отчёты и данные", "Reports and data"), next: "systems" },
+    ],
+  },
+  systems: {
+    q: L(
+      "Cu ce trebuie să se conecteze soluția?",
+      "С чем должно соединяться решение?",
+      "What should the solution connect to?",
+    ),
+    options: [
+      { label: L("CRM sau ERP", "CRM или ERP", "CRM or ERP"), next: "timeline" },
+      { label: L("Facturare / plăți", "Счета / платежи", "Invoicing / payments"), next: "timeline" },
+      { label: L("Fișiere și e-mail", "Файлы и e-mail", "Files and e-mail"), next: "timeline" },
+      { label: L("Nu știm încă", "Пока не знаем", "Not sure yet"), next: "timeline" },
+    ],
+  },
+  product: {
+    q: L(
+      "Cine va folosi cel mai des produsul?",
+      "Кто будет чаще всего пользоваться продуктом?",
+      "Who will use the product most often?",
+    ),
+    options: [
+      { label: L("Clienții noștri", "Наши клиенты", "Our clients"), next: "shape" },
+      { label: L("Echipa internă", "Внутренняя команда", "The internal team"), next: "shape" },
+      { label: L("O piață nouă", "Новый рынок", "A new market"), next: "shape" },
+    ],
+  },
+  shape: {
+    q: L(
+      "Ce formă ți se potrivește mai bine?",
+      "Какая форма подходит лучше?",
+      "Which shape fits you best?",
+    ),
+    options: [
+      { label: L("Platformă web", "Веб-платформа", "Web platform"), next: "timeline" },
+      { label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), next: "timeline" },
+      { label: L("SaaS cu abonament", "SaaS по подписке", "Subscription SaaS"), next: "timeline" },
+    ],
+  },
+  timeline: {
+    q: L(
+      "Când vrei să înceapă proiectul?",
+      "Когда хотите начать проект?",
+      "When do you want the project to start?",
+    ),
+    options: [
+      { label: L("În următoarele 3 săptămâni", "В ближайшие 3 недели", "In the next 3 weeks"), next: "budget" },
+      { label: L("În 1–2 luni", "Через 1–2 месяца", "In 1–2 months"), next: "budget" },
+      { label: L("După validare internă", "После внутренней проверки", "After internal validation"), next: "budget" },
+    ],
+  },
+  budget: {
+    q: L(
+      "Ce nivel de investiție ai în vedere?",
+      "Какой уровень инвестиций рассматриваете?",
+      "What investment level do you have in mind?",
+    ),
+    options: [
+      { label: L("Sub €5.000", "До €5.000", "Under €5.000"), next: "finish" },
+      { label: L("€5.000–€15.000", "€5.000–€15.000", "€5.000–€15.000"), next: "finish" },
+      { label: L("Peste €15.000", "Более €15.000", "Over €15.000"), next: "finish" },
+      { label: L("Vreau recomandarea TBS", "Хочу рекомендацию TBS", "I want TBS's recommendation"), next: "finish" },
+    ],
+  },
+};
+
+const FINISH = L(
+  "Mulțumesc! Am adaptat propunerea și am adăugat conversația în cerere. Completează datele de contact pentru a o trimite.",
+  "Спасибо! Мы адаптировали предложение и добавили разговор в заявку. Заполните контакты, чтобы отправить её.",
+  "Thank you! We've adapted the proposal and added the conversation to the request. Fill in your contacts to send it.",
+);
+
+type Bubble = { id: number; text: string; user: boolean };
+
 export function Estimator() {
-  const t = useT();
   const l = useLoc();
-  // The project-type list IS the services list (name + price) — same source as /03.
-  const { services: projectTypes } = useSiteContent();
-  // Price is a localized, admin-controlled string (e.g. "de la 400€" / "от 400€" /
-  // "from 400€"), rendered as-is — no "de la {price}" wrapper. Falls back to the "..."
-  // placeholder for a service whose price the admin hasn't set.
-  const priceOf = (id: string) => {
-    const price = projectTypes.find((p) => p.id === id)?.price;
-    return price ? l(price) : PRICE_PLACEHOLDER;
-  };
-
-  const [project, setProject] = useState("site");
-  const [deadline, setDeadline] = useState("standard");
-  const [activeFeatures, setActiveFeatures] = useState<Record<string, boolean>>(
-    {},
-  );
-
-  // Contact-form fields + submission lifecycle.
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
-  const [formError, setFormError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [typeIndex, setTypeIndex] = useState(0);
+  const [opts, setOpts] = useState<Set<number>>(new Set([1]));
+  const [node, setNode] = useState("start");
+  const [log, setLog] = useState<Bubble[]>([]);
+  const [uid, setUid] = useState(1);
   const [sent, setSent] = useState(false);
-  // Per-field errors are shown once a field is touched or a submit is attempted.
-  const [touched, setTouched] = useState<Record<string, boolean>>({});
-  const [attempted, setAttempted] = useState(false);
 
-  // A click on a /03 service card pre-selects that service here (and scrolls us into
-  // view), so the visitor lands on the estimator with their choice already made.
-  useEffect(() => {
-    const onEstimate = (event: Event) => {
-      const id = (event as CustomEvent<string>).detail;
-      if (projectTypes.some((p) => p.id === id)) setProject(id);
-    };
-    window.addEventListener(ESTIMATE_EVENT, onEstimate);
-    return () => window.removeEventListener(ESTIMATE_EVENT, onEstimate);
-  }, [projectTypes]);
+  const price = `${l(SECTION.from)} ${PROJECT_TYPES[typeIndex].price}`;
 
-  const toggleFeature = (id: string) =>
-    setActiveFeatures((f) => ({ ...f, [id]: !f[id] }));
+  const current = node === "finish" ? null : TREE[node];
 
-  const selected = projectTypes.find((p) => p.id === project);
-  const selectedProjectName = selected ? l(selected.name) : "";
+  const toggleOpt = (i: number) =>
+    setOpts((prev) => {
+      const nextSet = new Set(prev);
+      if (nextSet.has(i)) nextSet.delete(i);
+      else nextSet.add(i);
+      return nextSet;
+    });
 
-  // Live validation mirroring the backend limits (name/email required, phone
-  // optional, hard max lengths, HTML/script injection blocked).
-  const nameErr = validateText(name, {
-    label: t("estimator.field.name"),
-    max: LIMITS.name,
-    required: true,
-  });
-  const emailErr = validateText(email, {
-    label: t("estimator.field.email"),
-    max: LIMITS.email,
-    required: true,
-    email: true,
-  });
-  const phoneErr = validateText(phone, {
-    label: t("estimator.field.phone"),
-    max: LIMITS.phone,
-    phone: true,
-  });
-  const messageErr = validateText(message, {
-    label: t("estimator.field.message"),
-    max: LIMITS.message,
-    required: true,
-  });
-  const formInvalid = !!(nameErr || emailErr || phoneErr || messageErr);
-  const touch = (field: string) =>
-    setTouched((t) => ({ ...t, [field]: true }));
-  const showErr = (field: string, err: string | null) =>
-    (attempted || touched[field]) && err ? err : null;
-
-  const resetForm = () => {
-    setName("");
-    setEmail("");
-    setPhone("");
-    setMessage("");
-    setFormError("");
-    setTouched({});
-    setAttempted(false);
-    setSent(false);
+  const pick = (opt: Opt) => {
+    if (node === "finish") return;
+    const answer = l(opt.label);
+    const userBubble: Bubble = { id: uid, text: answer, user: true };
+    let nextId = uid + 1;
+    const bubbles: Bubble[] = [userBubble];
+    if (opt.next !== "finish") {
+      bubbles.push({ id: nextId, text: l(TREE[opt.next].q), user: false });
+      nextId += 1;
+    } else {
+      bubbles.push({ id: nextId, text: l(FINISH), user: false });
+      nextId += 1;
+    }
+    setLog((prev) => [...prev, ...bubbles]);
+    setUid(nextId);
+    setNode(opt.next);
   };
 
-  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    setAttempted(true);
-    if (formInvalid) return;
-
-    setFormError("");
-    setSubmitting(true);
-    try {
-      await submitContact({
-        name: sanitizeText(name),
-        email: sanitizeText(email),
-        phone: sanitizeText(phone),
-        message: sanitizeText(message),
-        project: selectedProjectName,
-        estimate: priceOf(project),
-      });
-      setSent(true);
-    } catch (err) {
-      setFormError(
-        isNetworkError(err)
-          ? t("estimator.error.network")
-          : t("estimator.error.failed"),
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    setSent(true);
   };
 
   return (
-    <section id="contact" className={styles.section}>
-      <div className={styles.glow} aria-hidden />
-      <div className={`container ${styles.inner}`}>
-        <div className={styles.head}>
-          <SectionLabel index="/07">{t("estimator.label")}</SectionLabel>
-          <h2 className={`disp ${styles.title}`}>
-            <Multiline text={t("estimator.title")} />
-          </h2>
-          <p className={styles.lead}>{t("estimator.lead")}</p>
-        </div>
-
-        <div className={styles.grid}>
-          {/* ---------- estimator ---------- */}
-          <div className={styles.estimator}>
-            <div className={`mono ${styles.groupLabel}`}>
-              {t("estimator.group.type")}
-            </div>
-            <div className={styles.typeGrid}>
-              {projectTypes.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setProject(opt.id)}
-                  className={`${styles.typeBtn} ${
-                    project === opt.id ? styles.active : ""
-                  }`}
-                >
-                  <div className={`mono ${styles.typeName}`}>{l(opt.name)}</div>
-                  <div className={`mono ${styles.typePrice}`}>
-                    {priceOf(opt.id)}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className={`mono ${styles.groupLabel}`}>
-              {t("estimator.group.deadline")}
-            </div>
-            <div className={styles.deadlineRow}>
-              {deadlines.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setDeadline(opt.id)}
-                  className={`${styles.deadlineBtn} ${
-                    deadline === opt.id ? styles.active : ""
-                  }`}
-                >
-                  <div className={`mono ${styles.deadlineName}`}>
-                    {t(`deadlines.${opt.id}.name` as MessageKey)}
-                  </div>
-                  <div className={`mono ${styles.deadlineNote}`}>
-                    {t(`deadlines.${opt.id}.note` as MessageKey)}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className={`mono ${styles.groupLabel}`}>
-              {t("estimator.group.options")}
-            </div>
-            <div className={styles.featureRow}>
-              {features.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => toggleFeature(opt.id)}
-                  className={`mono ${styles.chip} ${
-                    activeFeatures[opt.id] ? styles.chipActive : ""
-                  }`}
-                >
-                  {t(`features.${opt.id}.label` as MessageKey)}
-                </button>
-              ))}
-            </div>
-
-            <div className={styles.total}>
-              <div className={`mono ${styles.totalLabel}`}>
-                {t("estimator.total.label")}
-              </div>
-              <div className={`disp ${styles.totalValue}`}>
-                {priceOf(project)}
-              </div>
-              <div className={`mono ${styles.totalNote}`}>
-                {t("estimator.total.note")}
-              </div>
-            </div>
+    <section id="estimare" className={styles.section}>
+      <div className="container">
+        <Reveal className={styles.top}>
+          <div>
+            <div className={`mono ${styles.eyebrow}`}>{l(SECTION.eyebrow)}</div>
+            <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
           </div>
+          <p className={styles.lead}>{l(SECTION.lead)}</p>
+        </Reveal>
 
-          {/* ---------- form ---------- */}
-          <div className={styles.form}>
-            {sent ? (
-              <div className={styles.sent}>
-                <div className={styles.check}>
-                  <svg
-                    width="32"
-                    height="32"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <h3 className={`disp ${styles.sentTitle}`}>
-                  {t("estimator.sent.title")}
-                </h3>
-                <p className={styles.sentText}>
-                  {format(t("estimator.sent.text"), {
-                    project: selectedProjectName,
-                  })}
-                </p>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className={`mono ${styles.resetBtn}`}
-                >
-                  {t("estimator.sent.reset")}
-                </button>
-              </div>
-            ) : (
-              <>
-                <h3 className={`disp ${styles.formTitle}`}>
-                  {t("estimator.form.title")}
-                </h3>
-                <p className={styles.formSub}>{t("estimator.form.sub")}</p>
-                <form onSubmit={onSubmit} className={styles.fields} noValidate>
-                  <div className={styles.fieldWrap}>
-                    <input
-                      required
-                      value={name}
-                      maxLength={LIMITS.name}
-                      onChange={(e) => setName(e.target.value)}
-                      onBlur={() => touch("name")}
-                      placeholder={t("estimator.form.namePlaceholder")}
-                      aria-invalid={!!showErr("name", nameErr)}
-                      className={`mono ${styles.input}`}
-                      disabled={submitting}
-                    />
-                    {showErr("name", nameErr) && (
-                      <span className={`mono ${styles.fieldError}`}>{nameErr}</span>
-                    )}
-                  </div>
-                  <div className={styles.fieldWrap}>
-                    <input
-                      required
-                      type="email"
-                      value={email}
-                      maxLength={LIMITS.email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => touch("email")}
-                      placeholder={t("estimator.form.emailPlaceholder")}
-                      aria-invalid={!!showErr("email", emailErr)}
-                      className={`mono ${styles.input}`}
-                      disabled={submitting}
-                    />
-                    {showErr("email", emailErr) && (
-                      <span className={`mono ${styles.fieldError}`}>{emailErr}</span>
-                    )}
-                  </div>
-                  <div className={styles.fieldWrap}>
-                    <input
-                      value={phone}
-                      maxLength={LIMITS.phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      onBlur={() => touch("phone")}
-                      placeholder={t("estimator.form.phonePlaceholder")}
-                      aria-invalid={!!showErr("phone", phoneErr)}
-                      className={`mono ${styles.input}`}
-                      disabled={submitting}
-                    />
-                    {showErr("phone", phoneErr) && (
-                      <span className={`mono ${styles.fieldError}`}>{phoneErr}</span>
-                    )}
-                  </div>
-                  <div className={styles.fieldWrap}>
-                    <textarea
-                      rows={4}
-                      value={message}
-                      maxLength={LIMITS.message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      onBlur={() => touch("message")}
-                      placeholder={t("estimator.form.messagePlaceholder")}
-                      aria-invalid={!!showErr("message", messageErr)}
-                      className={`mono ${styles.textarea}`}
-                      disabled={submitting}
-                    />
-                    {showErr("message", messageErr) && (
-                      <span className={`mono ${styles.fieldError}`}>{messageErr}</span>
-                    )}
-                  </div>
-                  <div className={`mono ${styles.estimateNote}`}>
-                    {format(t("estimator.form.estimateAttached"), {
-                      price: priceOf(project),
-                      project: selectedProjectName,
-                    })}
-                  </div>
-                  {formError && (
-                    <div className={`mono ${styles.formError}`}>{formError}</div>
-                  )}
+        <div className={styles.box}>
+          <div className={styles.steps}>
+            <div>
+              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step1)}</div>
+              <div className={styles.choices}>
+                {PROJECT_TYPES.map((p, i) => (
                   <button
-                    type="submit"
-                    className={`mono ${styles.submit}`}
-                    disabled={submitting || (attempted && formInvalid)}
+                    key={i}
+                    type="button"
+                    className={`${styles.choice} ${i === typeIndex ? styles.selected : ""}`}
+                    onClick={() => setTypeIndex(i)}
                   >
-                    {submitting
-                      ? t("estimator.submit.sending")
-                      : t("estimator.submit.idle")}
+                    {l(p.label)}
                   </button>
-                </form>
-              </>
-            )}
+                ))}
+              </div>
+
+              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step2)}</div>
+              <div className={styles.choices}>
+                {OPTIONS.map((o, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`${styles.choice} ${opts.has(i) ? styles.selected : ""}`}
+                    onClick={() => toggleOpt(i)}
+                  >
+                    {l(o)}
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.chat} aria-live="polite">
+                <div className={`mono ${styles.chatHead}`}>
+                  <span className={styles.chatDot} />
+                  {l(SECTION.assistant)}
+                </div>
+                <div className={styles.chatLog}>
+                  <div className={styles.bubble}>{l(TREE.start.q)}</div>
+                  {log.map((b) => (
+                    <div
+                      key={b.id}
+                      className={`${styles.bubble} ${b.user ? styles.bubbleUser : ""}`}
+                    >
+                      {b.text}
+                    </div>
+                  ))}
+                </div>
+                {current && (
+                  <div className={styles.chatOptions}>
+                    {current.options.map((o, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        className={styles.chatOption}
+                        onClick={() => pick(o)}
+                      >
+                        {l(o.label)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <aside className={styles.result}>
+              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</div>
+              <b className={`disp ${styles.price}`}>{price}</b>
+              <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
+              <form className={styles.form} onSubmit={onSubmit}>
+                <input aria-label={l(PLACEHOLDERS.name)} placeholder={l(PLACEHOLDERS.name)} required />
+                <input
+                  aria-label={l(PLACEHOLDERS.email)}
+                  type="email"
+                  placeholder={l(PLACEHOLDERS.email)}
+                  required
+                />
+                <input
+                  aria-label={l(PLACEHOLDERS.phone)}
+                  type="tel"
+                  placeholder={l(PLACEHOLDERS.phone)}
+                />
+                <textarea
+                  aria-label={l(PLACEHOLDERS.details)}
+                  placeholder={l(PLACEHOLDERS.details)}
+                  rows={3}
+                />
+                <button type="submit" className={styles.submit}>
+                  {sent ? l(SECTION.submitted) : l(SECTION.submit)}
+                </button>
+              </form>
+            </aside>
           </div>
         </div>
       </div>

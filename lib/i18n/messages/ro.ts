@@ -30,7 +30,8 @@ export const ro = {
   "hero.scrollHint": "DERULEAZĂ — SISTEMUL SE ACTIVEAZĂ ↓",
 
   // --- Principles (/02) ---
-  "principles.label": "PRINCIPIILE NOASTRE",
+  "principles.label": "ABORDARE INDIVIDUALĂ",
+  "principles.lead": "Fiecare proiect începe cu înțelegerea afacerii și a obiectivelor tale.",
   "principles.0.title": "Strategie\nîntâi",
   "principles.0.desc": "Înțelegem afacerea înainte de prima linie de cod.",
   "principles.1.title": "Sisteme\nconectate",
@@ -97,6 +98,12 @@ export const ro = {
   "projects.tag.corporate": "SITE CORPORATIV",
   "projects.tag.saas": "PLATFORMĂ SAAS",
   "projects.tag.mobile": "APLICAȚIE MOBILĂ",
+  "projects.tag.saasPrivate": "SAAS PRIVAT · FĂRĂ LINK",
+  "projects.tag.mobileSoon": "APLICAȚIE MOBILĂ · ÎN CURÂND",
+  "projects.statistic.desc":
+    "Instrument propriu de web-analytics: vizualizări, sesiuni, click-uri și evoluție în timp pentru fiecare site — alternativă gratuită la serviciile cunoscute, cu accent pe SEO.",
+  "projects.flirt.desc":
+    "Aplicație mobilă de dating, în curând pe piață: profiluri, matching și conversații într-un design rapid, cu toleranță zero la conținut abuziv.",
   "projects.bizcheck.desc":
     "Platformă de autoevaluare a riscurilor pentru IMM-uri, pe metodologia Crowe: teste interactive, șabloane juridice pe blocuri și un raport PDF detaliat la final.",
   "projects.itara-global.desc":
@@ -184,6 +191,24 @@ export const ro = {
   "nav.team": "ECHIPĂ",
   "nav.partners": "PARTENERI",
   "nav.about": "DESPRE",
+  "dir.section.kicker": "ALEGE DIRECȚIA POTRIVITĂ",
+  "dir.section.title": "Un instrument de alegere a direcției —\npentru decizii rapide și sigure.",
+  "dir.section.lead": "Alege o direcție — se deschide o pagină dedicată cu detalii.",
+  "dir.digital": "Produs digital",
+  "dir.ecommerce": "E-commerce",
+  "dir.automation": "Automatizare și API",
+  "dir.ai": "Inteligență artificială: asistenți și boți",
+  "dir.brand": "Brand și interfață",
+  "dir.page.soon": "Pagină în lucru — o completăm în curând cu detalii.",
+  "dir.page.back": "Acasă",
+  "nav.company": "COMPANIE",
+  "nav.services.web": "Dezvoltare web",
+  "nav.services.apps": "Aplicații și platforme",
+  "nav.services.automation": "Automatizarea afacerii",
+  "nav.services.custom": "Soluții individuale",
+  "nav.company.team": "Echipă",
+  "nav.company.partners": "Parteneri",
+  "nav.company.cases": "Cazuri",
   "nav.cta": "START PROIECT ↗",
   "nav.burgerAria": "Meniu",
   "nav.closeAria": "Închide",

@@ -28,7 +28,7 @@ export function Partners() {
     <section id="parteneri" className="section">
       <div className="container">
         <Reveal className={styles.head}>
-          <SectionLabel index="/06">{t("partners.label")}</SectionLabel>
+          <SectionLabel index="/07">{t("partners.label")}</SectionLabel>
           <h2 className={`disp ${styles.title}`}>
             <Multiline text={t("partners.title")} />
           </h2>

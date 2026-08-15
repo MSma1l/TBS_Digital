@@ -13,7 +13,7 @@ npm test          # vitest run (one-shot, CI)
 npm run test:watch
 ```
 
-**80 tests** across:
+**96 tests** across 10 files (last run: 2026-08-07, all passing):
 
 | Area | Files | Covers |
 |------|-------|--------|
@@ -24,18 +24,36 @@ npm run test:watch
 | Admin login | `app/__tests__/admin-login.test.tsx` | login gate, wrong creds, transition to editor |
 | Admin tabs | `app/__tests__/admin-tabs.test.tsx` | Cereri default tab, submission list + badge, tab switching, invalid-field disables Save |
 | Sections | `components/__tests__/sections.test.tsx` | presentational render (Services excludes `estimatorOnly`, Team/Principles) |
+| Navbar | `components/__tests__/navbar.test.tsx` | links, mobile menu, no admin link in the markup |
+| Smoke | `lib/__tests__/smoke.test.ts` | test infra itself: the `@/` alias resolves, jsdom is present |
+| Validation hardening | `lib/__tests__/validation-hardening.test.ts` | rule precedence from the pentest: required > length > dangerous-content |
 
 Tests mock `@/lib/api` (no real network) and use the real `@/lib/validation`.
+`vitest.setup.ts` stubs `matchMedia` so the carousel sections can mount.
+
+Type + lint + build are part of the same gate:
+
+```bash
+npx tsc --noEmit && npm run lint && npm run build
+```
 
 ## Backend — pytest
 
+The stack runs in Docker, so run the backend suite in the container:
+
 ```bash
-make test-local        # or: cd backend && ./.venv/bin/python -m pytest -q
+make test              # docker compose exec backend python -m pytest
 ```
 
-**28 tests**: content round-trip, auth (hashed login, wrong/unknown user → 401), and the
-security suite (oversized → 422, `<script>` stored escaped, invalid email → 422, SQLi inert).
-Telegram is forced off in tests (`backend/tests/conftest.py`) so they stay hermetic.
+(`make test-local` exists for a local venv, but Docker is the supported path.)
+
+**131 tests** across 8 files: content round-trip and the API surface (`test_api.py`), the
+content-migration path (`test_migration.py`), uploads (`test_uploads.py` — magic bytes, SVG
+refusal, pixel caps, re-encoding), the Telegram bot (`test_telegram*.py`), and the security
+suite (`test_security_authz.py`, `test_security_hardening.py`, `test_security_http.py` —
+authz/IDOR, oversized → 422, `<script>` stored escaped, invalid email → 422, SQLi inert,
+rate limits, headers). Telegram is forced off in tests (`backend/tests/conftest.py`) so they
+stay hermetic.
 
 ## Live API verification
 
@@ -52,6 +70,9 @@ PORT=8020 ./scripts/verify-api.sh    # 27/27 checks
 ## One command
 
 ```bash
-npm test && make test-local          # frontend + backend
+npm test && make test                # frontend (local) + backend (in Docker)
 ./scripts/verify-api.sh              # live end-to-end
 ```
+
+Record the result of a full run in [`CHANGELOG.md`](../CHANGELOG.md) when it accompanies a
+release or a verification pass.
