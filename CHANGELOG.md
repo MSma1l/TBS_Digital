@@ -64,8 +64,26 @@ commit that makes the change. Nothing ships undocumented.
 | Worker long-polling | socket ESTABLISHED către `149.154.166.110:443` |
 | **Lead de test** prin `POST /api/contact` | **201**, id `8bcf46d6…`, zero warning-uri Telegram în log |
 
-> Lead-ul de test e marcat „TEST — verificare deploy (ignorati)" și poate fi șters din
-> admin → **Cereri**.
+**Changed** — curățenie în `submissions` (producție)
+
+- Șterse **18** din cele 20 de înscrieri: 15 sonde de scanner din 21 iulie
+  (`test@test.com` — `' OR 1=1--`, `{{7*7}}`, `ssrf-test`, payload-uri XSS) și 3 teste proprii
+  de bot/deploy. Păstrate cele 2 intrări cu date plauzibil reale
+  (`maxim.max2004@gmail.com`, `turcan.play@gmail.com`). Ștergerea s-a făcut pe **ID-uri
+  explicite**, nu pe tipar, iar tabelul a fost salvat înainte în
+  `/root/submissions-backup-20260815-180247.sql`.
+- Sondele erau stocate ca **text literal** — query-urile parametrizate și escaparea și-au
+  făcut treaba, nu a existat injecție. Vezi [11 — Security](./docs/11-security.md).
+- Restul conținutului e neatins: 11 servicii · 3 membri echipă · 6 proiecte · 3 parteneri ·
+  4 statistici · 3 social · 2 contacte.
+
+**Known gap** — adminul nu poate șterge cereri
+
+- `backend/app/routers/contact.py` expune doar `POST /api/contact` și
+  `GET /api/admin/submissions`; `ContentStore` (`storage/base.py`) nu are `delete_submission`.
+  Tabul **Cereri** poate doar lista, deci curățenia de mai sus a fost făcută direct în
+  Postgres. Un buton de ștergere în admin (cu endpoint `DELETE /api/admin/submissions/{id}`
+  protejat de `get_current_admin`) rămâne de făcut.
 
 ## 2026-08-07 — Documentation sync + full verification pass
 
