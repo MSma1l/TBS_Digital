@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+from urllib.parse import quote
 
 # Configure the app via env BEFORE importing it (settings are cached at import).
 # A throwaway on-disk SQLite file keeps the real data dir untouched.
@@ -208,6 +209,82 @@ def test_me_requires_valid_token(client):
         "/api/auth/me", headers={"Authorization": f"Bearer {_token(client)}"}
     )
     assert r.json()["username"] == "admin"
+
+
+# --- delete submission ---------------------------------------------------------
+
+
+def test_delete_submission_removes_it_from_the_list(client):
+    auth = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.post(
+        "/api/contact",
+        json={"name": "Elena", "email": "elena@example.com", "message": "Bună"},
+    )
+    assert r.status_code == 201, r.text
+    sub_id = r.json()["id"]
+
+    before = client.get("/api/admin/submissions", headers=auth).json()
+    assert any(s["id"] == sub_id for s in before)
+
+    d = client.delete(f"/api/admin/submissions/{sub_id}", headers=auth)
+    assert d.status_code == 204
+    assert d.content == b""
+
+    after = client.get("/api/admin/submissions", headers=auth).json()
+    assert all(s["id"] != sub_id for s in after)
+
+
+def test_delete_submission_unknown_id_returns_404(client):
+    auth = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.delete("/api/admin/submissions/does-not-exist", headers=auth)
+    assert r.status_code == 404
+
+
+def test_delete_submission_requires_auth(client):
+    # No token at all.
+    assert client.delete("/api/admin/submissions/whatever").status_code in (401, 403)
+    # Garbage/invalid token is rejected the same way as everywhere else.
+    r = client.delete(
+        "/api/admin/submissions/whatever",
+        headers={"Authorization": "Bearer not-a-real-token"},
+    )
+    assert r.status_code == 401
+
+
+def test_delete_submission_hostile_id_is_inert(client):
+    """A path-traversal / SQLi-shaped id is just a string that matches no row: no 500,
+    nothing deleted, the rest of the store stays intact."""
+    auth = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.post(
+        "/api/contact",
+        json={"name": "Survivor", "email": "s@example.com", "message": "hi"},
+    )
+    assert r.status_code == 201, r.text
+    survivor_id = r.json()["id"]
+
+    hostile_ids = [
+        "../../etc/passwd",
+        "'; DROP TABLE submissions;--",
+        "1 OR 1=1",
+        "%2e%2e%2f",
+        "<script>alert(1)</script>",
+    ]
+    for hostile in hostile_ids:
+        d = client.delete(
+            f"/api/admin/submissions/{quote(hostile, safe='')}", headers=auth
+        )
+        assert d.status_code == 404, hostile
+
+    # Nothing was deleted and the store is still fully functional.
+    after = client.get("/api/admin/submissions", headers=auth).json()
+    assert any(s["id"] == survivor_id for s in after)
+    assert client.get("/api/content").status_code == 200
+    assert (
+        client.post(
+            "/api/auth/login", json={"username": "admin", "password": "test-pass"}
+        ).status_code
+        == 200
+    )
 
 
 # --- security / input-validation hardening -----------------------------------

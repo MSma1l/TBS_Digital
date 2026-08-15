@@ -353,6 +353,83 @@
   overflow-wrap: anywhere;
 }
 
+/* Delete a submission — two-step inline confirm (no native confirm()). */
+.subActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+.subDeleteBtn {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  text-transform: uppercase;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+.subDeleteBtn:hover {
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+.subConfirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.subConfirmLabel {
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: #ff6b6b;
+}
+.subConfirmBtn,
+.subCancelBtn {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  text-transform: uppercase;
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+.subConfirmBtn {
+  color: #fff;
+  font-weight: 600;
+  background: #ff6b6b;
+  border: 1px solid #ff6b6b;
+}
+.subConfirmBtn:hover {
+  opacity: 0.85;
+}
+.subCancelBtn {
+  color: var(--mut);
+  background: transparent;
+  border: 1px solid var(--line2);
+}
+.subCancelBtn:hover {
+  color: var(--txt);
+  border-color: var(--dim);
+}
+.subConfirmBtn:disabled,
+.subCancelBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.subDeleteError {
+  color: #ff6b6b;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  margin: 6px 0 0;
+}
+
 /* inline validation error under an editor field */
 .fieldError {
   color: #ff6b6b;

@@ -16,6 +16,46 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-15 — Ștergerea cererilor din admin
+
+**Added**
+
+- Tabul **Cereri** putea doar să listeze — nu exista nicio cale de a scoate o cerere, nici din
+  UI, nici din API (curățenia de mai devreme s-a făcut direct în Postgres). Acum există
+  `DELETE /api/admin/submissions/{id}`, protejat cu `get_current_admin` ca restul rutelor
+  admin: **204** la succes, **404** dacă id-ul nu există.
+  Fișiere: `backend/app/routers/contact.py`, `backend/app/storage/base.py` (metodă nouă în
+  interfața `ContentStore`), `db_store.py`, `json_store.py` (store-ul de referință, ținut
+  instanțiabil), `lib/api.ts`.
+- Buton de ștergere pe fiecare cerere, cu **confirmare în doi pași inline**
+  (*Sigur? · Confirmă · Anulează*), fără `window.confirm` — ștergerea e permanentă și nu
+  există coș de gunoi. La succes rândul dispare fără reîncărcare și badge-ul scade; la eroare
+  rândul rămâne cu motivul dedesubt (404 = ștearsă deja de altcineva), iar un 401 duce înapoi
+  la login. Fișiere: `app/admin-tbs-digital/page.tsx`, `admin.module.css`.
+- Id-ul ajunge la ORM ca parametru legat (`Session.get`), deci un id ostil (path traversal sau
+  formă de SQLi) e doar un string care nu se potrivește cu niciun rând — acoperit de test.
+
+**Docs**
+
+- [09 — Admin](./docs/09-admin.md): tabul Cereri nu mai e „read-only"; secțiune nouă
+  *Deleting a request* cu fluxul de confirmare și avertismentul că mesajele Telegram ale
+  cererilor șterse răspund „Lead inexistent".
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| Suita backend | **187 passed** (183 → 187, +4 teste) |
+| `npm test` | **91 passed** / 10 failed — cele 10 sunt **preexistente** |
+| Teste admin (3 fișiere) | **13 passed**, din care 5 noi |
+| `npx tsc --noEmit` · `npm run lint` | curate |
+| `npm run build` | ✓ compilat, 10 rute |
+
+> ⚠️ Cele **10 teste picate** din `components/__tests__/` (contact-form, navbar, sections) sunt
+> **anterioare acestei schimbări** — verificat rulând suita pe HEAD curat, cu modificările puse
+> deoparte: 86 passed / 10 failed înainte, 91 passed / 10 failed după. Rămân **de reparat
+> separat**; au ajuns în producție nereparate.
+
 ## 2026-08-15 — Butoanele de clasificare nu mai dau 429
 
 **Fixed**

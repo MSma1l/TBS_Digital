@@ -21,6 +21,7 @@ import {
   fetchContent,
   saveContent,
   fetchSubmissions,
+  deleteSubmission,
   uploadLogo,
   mediaUrl,
   getToken,
@@ -28,6 +29,7 @@ import {
   clearToken,
   isUnauthorized,
   isNetworkError,
+  ApiError,
   type ContactSubmissionRecord,
 } from "@/lib/api";
 import {
@@ -363,6 +365,15 @@ export default function AdminPage() {
   const [subsLoading, setSubsLoading] = useState(false);
   const [subsError, setSubsError] = useState("");
 
+  // Deleting a submission (Cereri tab): two-step inline confirm. `confirmDeleteId`
+  // is the row currently showing "Sigur?" (at most one at a time — arming another
+  // row disarms the previous one); `deletingId` is the row whose DELETE request is
+  // in flight; `deleteErrors` keeps a per-row message so a failed delete leaves the
+  // row in place with a visible reason instead of failing silently.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
+
   // Validate any stored token on mount; show the login form if it's missing/invalid.
   useEffect(() => {
     const token = getToken();
@@ -440,6 +451,50 @@ export default function AdminPage() {
     void loadSubmissions();
   }, [auth, loadSubmissions]);
 
+  // Arm the two-step confirm for a row (clears any previously armed row/error).
+  const armDeleteSubmission = (id: string) => {
+    setConfirmDeleteId(id);
+    setDeleteErrors((errs) => {
+      if (!(id in errs)) return errs;
+      const next = { ...errs };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const cancelDeleteSubmission = () => setConfirmDeleteId(null);
+
+  // Actually delete a submission (second click, i.e. "Confirmă"). On success the
+  // row is removed from state (which also drives the tab badge count) without a
+  // page reload; on failure the row stays put and shows a message.
+  const onDeleteSubmission = async (id: string) => {
+    const token = getToken();
+    if (!token) {
+      setAuth("unauthenticated");
+      return;
+    }
+    setDeletingId(id);
+    try {
+      await deleteSubmission(id, token);
+      setSubmissions((subs) => subs?.filter((s) => s.id !== id) ?? subs);
+      setConfirmDeleteId(null);
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        clearToken();
+        setAuth("unauthenticated");
+        return;
+      }
+      const message = isNetworkError(err)
+        ? "Serverul nu răspunde. Încearcă din nou."
+        : err instanceof ApiError && err.status === 404
+          ? "Cererea nu mai există — a fost ștearsă deja."
+          : "Nu s-a putut șterge cererea.";
+      setDeleteErrors((errs) => ({ ...errs, [id]: message }));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
     setLoginError("");
@@ -465,6 +520,9 @@ export default function AdminPage() {
     setUsername("");
     setPassword("");
     setSubmissions(null);
+    setConfirmDeleteId(null);
+    setDeletingId(null);
+    setDeleteErrors({});
     setAuth("unauthenticated");
   };
 
@@ -941,6 +999,46 @@ export default function AdminPage() {
                       </div>
                     )}
                     {s.message && <p className={styles.subMessage}>{s.message}</p>}
+
+                    <div className={styles.subActions}>
+                      {confirmDeleteId === s.id ? (
+                        <div className={styles.subConfirm}>
+                          <span className={`mono ${styles.subConfirmLabel}`}>
+                            Sigur?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => void onDeleteSubmission(s.id)}
+                            disabled={deletingId === s.id}
+                            className={`mono ${styles.subConfirmBtn}`}
+                          >
+                            {deletingId === s.id ? "Se șterge…" : "Confirmă"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={cancelDeleteSubmission}
+                            disabled={deletingId === s.id}
+                            className={`mono ${styles.subCancelBtn}`}
+                          >
+                            Anulează
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => armDeleteSubmission(s.id)}
+                          className={`mono ${styles.subDeleteBtn}`}
+                          aria-label={`Șterge cererea de la ${s.name}`}
+                        >
+                          Șterge
+                        </button>
+                      )}
+                    </div>
+                    {deleteErrors[s.id] && (
+                      <p className={`mono ${styles.subDeleteError}`}>
+                        {deleteErrors[s.id]}
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>

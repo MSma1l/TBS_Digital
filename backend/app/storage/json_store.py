@@ -59,3 +59,11 @@ class JSONFileStore(ContentStore):
         items.append(record.model_dump())
         self._write(self.subs_path, items)
         return record
+
+    def delete_submission(self, submission_id: str) -> bool:
+        items = self._read(self.subs_path)
+        remaining = [s for s in items if s.get("id") != submission_id]
+        if len(remaining) == len(items):
+            return False
+        self._write(self.subs_path, remaining)
+        return True

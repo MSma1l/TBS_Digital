@@ -20,7 +20,7 @@ section. Order (the **Cereri** tab is first and is the default on open):
 
 | Tab | What | Source |
 |-----|------|--------|
-| **Cereri** (first) | Contact-form submissions, newest-first, with a **count badge**, name/email/phone/message + project/estimate + timestamp, and a Refresh button. Read-only. | `GET /api/admin/submissions` |
+| **Cereri** (first) | Contact-form submissions, newest-first, with a **count badge**, name/email/phone/message + project/estimate + timestamp, and a Refresh button. Each request can be **deleted** (see below); the text itself isn't editable. | `GET /api/admin/submissions` · `DELETE /api/admin/submissions/{id}` |
 | Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
 | Statistici | value, label → /02 stats row | content API |
 | Echipă | name, role, bio → /05 team cards | content API |
@@ -29,6 +29,19 @@ section. Order (the **Cereri** tab is first and is the default on open):
 | Contact | type (email/phone/other), value → footer contact column | content API |
 
 Landing on **Cereri** means the agency immediately sees whether a new request came in.
+
+### Deleting a request
+
+Deletion is **permanent** — there is no trash and no undo, so the button asks twice: the first
+click swaps it for **Sigur? · Confirmă · Anulează**, and only *Confirmă* calls the API. At most
+one row is armed at a time. On success the row disappears without a page reload and the count
+badge drops; on failure it stays put with a reason underneath (`404` reads as *already deleted*,
+which is what you get when two people have the panel open at once). A `401` mid-delete clears
+the token and drops back to the login gate, like every other admin call.
+
+> The Telegram lead messages are **not** touched by a deletion. Tapping a classification button
+> on the message of a deleted request answers *"Lead inexistent"* — see
+> [13 — Telegram](./13-telegram.md).
 
 ## Editing & validation
 

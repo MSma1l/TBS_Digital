@@ -237,3 +237,16 @@ export async function fetchSubmissions(
     return byDate !== 0 ? byDate : (b.id ?? "").localeCompare(a.id ?? "");
   });
 }
+
+/**
+ * DELETE /api/admin/submissions/{id} — admin. Removes a stored contact
+ * submission. 204 on success; the caller (the Cereri tab) treats a 404 as a
+ * user-visible error rather than a silent success, in case two admins are
+ * looking at the panel at once.
+ */
+export function deleteSubmission(id: string, token: string): Promise<void> {
+  return request<void>(`/api/admin/submissions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    token,
+  });
+}

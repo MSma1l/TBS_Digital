@@ -356,3 +356,15 @@ class DbStore(ContentStore):
             session.add(SubmissionRow(**record.model_dump()))
             session.commit()
         return record
+
+    def delete_submission(self, submission_id: str) -> bool:
+        # ORM get-by-primary-key: `submission_id` is always a bound parameter, never
+        # concatenated into SQL, so a hostile id (path traversal / SQLi-shaped string)
+        # is just a string that doesn't match any row.
+        with Session(self.engine) as session:
+            row = session.get(SubmissionRow, submission_id)
+            if row is None:
+                return False
+            session.delete(row)
+            session.commit()
+        return True

@@ -33,3 +33,11 @@ class ContentStore(ABC):
     @abstractmethod
     def add_submission(self, data: ContactSubmissionIn) -> ContactSubmission:
         """Persist a new contact-form submission and return the stored record."""
+
+    @abstractmethod
+    def delete_submission(self, submission_id: str) -> bool:
+        """Delete a contact-form submission by id.
+
+        Returns ``True`` if a row was deleted, ``False`` if no submission with that
+        id exists (the router turns that into a 404 rather than a silent no-op).
+        """
