@@ -76,16 +76,24 @@ async def _handle_callback(
         return
 
     submission_id, status = parsed
+    previous = service.status_of(session, submission_id)
     row = service.apply_status(session, submission_id, status)
     if row is None:
         await client.answer_callback_query(cq.get("id", ""), text="Lead inexistent")
         return
 
+    # Re-tapping the button that is already active would redraw the message with byte-
+    # identical content: Telegram rejects that ("message is not modified") and, under a
+    # fast series of taps, starts answering 429 with a back-off that grows into the tens
+    # of seconds. Skipping the pointless edit removes the burst at its source — the toast
+    # below still confirms the status to whoever tapped.
+    unchanged = previous == row.status
+
     message = cq.get("message") or {}
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
     message_id = message.get("message_id")
-    if chat_id is not None and message_id is not None:
+    if not unchanged and chat_id is not None and message_id is not None:
         await client.edit_message_text(
             chat_id,
             message_id,

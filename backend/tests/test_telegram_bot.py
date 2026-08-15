@@ -661,7 +661,12 @@ def test_every_valid_status_button_updates_the_lead(
 ):
     enable_telegram()
     bind_group(is_forum=False)
-    lead = add_lead(status="nou", project="Magazin online")
+    # Seed a status that differs from the one under test, so every parametrized case is a
+    # real reclassification. Tapping the already-active button is a no-op by design and
+    # has its own test below.
+    lead = add_lead(
+        status="castigat" if status != "castigat" else "nou", project="Magazin online"
+    )
 
     run_update(
         session, bot(), _callback(f"lead:{lead.id}:{status}", chat_id=GROUP_ID, user_id=STRANGER_UID)
@@ -674,6 +679,50 @@ def test_every_valid_status_button_updates_the_lead(
     # The keyboard survives the edit, so the lead can be re-classified.
     assert len(edit["reply_markup"]["inline_keyboard"]) == 2
     assert telegram_api.last("answerCallbackQuery")["text"] == f"Status: {label}"
+
+
+def test_retapping_the_active_status_button_sends_no_edit(
+    session, telegram_api, enable_telegram
+):
+    """A re-tap redraws nothing: identical content is what Telegram 429s us over.
+
+    The edit would carry byte-identical text, so Telegram rejects it ("message is not
+    modified") and, under a fast series of taps, starts answering 429 with a back-off
+    growing into the tens of seconds — which stalls the whole sequential worker loop.
+    """
+    enable_telegram()
+    bind_group(is_forum=False)
+    lead = add_lead(status="oferta")
+
+    run_update(
+        session, bot(), _callback(f"lead:{lead.id}:oferta", chat_id=GROUP_ID, user_id=STRANGER_UID)
+    )
+
+    assert "editMessageText" not in telegram_api.methods()
+    # The tap is still acknowledged, so the operator sees a confirmation either way.
+    assert telegram_api.last("answerCallbackQuery")["text"] == "Status: 💰 Ofertă"
+    assert status_of(lead.id) == "oferta"
+
+
+def test_a_real_reclassification_still_edits_after_a_retap(
+    session, telegram_api, enable_telegram
+):
+    """The skip must not latch: the next genuine change still redraws the message."""
+    enable_telegram()
+    bind_group(is_forum=False)
+    lead = add_lead(status="nou")
+
+    run_update(
+        session, bot(), _callback(f"lead:{lead.id}:nou", chat_id=GROUP_ID, user_id=STRANGER_UID)
+    )
+    assert "editMessageText" not in telegram_api.methods()
+
+    run_update(
+        session, bot(), _callback(f"lead:{lead.id}:castigat", chat_id=GROUP_ID, user_id=STRANGER_UID)
+    )
+
+    assert "🏷 <b>Status:</b> ✅ Câștigat" in telegram_api.last("editMessageText")["text"]
+    assert status_of(lead.id) == "castigat"
 
 
 @pytest.mark.parametrize(
@@ -857,6 +906,77 @@ def test_worker_loop_survives_a_failed_poll_and_keeps_the_offset_moving(
     assert "🤖 <b>TBS Digital — bot lead-uri</b>" in telegram_api.last("sendMessage")["text"]
     # ...and asked for updates *after* the one it processed.
     assert telegram_api.payloads("getUpdates")[-1]["offset"] == 4243
+
+
+# --- 429 rate limiting ------------------------------------------------------------
+def _rate_limit_once(api: FakeTelegramAPI, method: str, retry_after: float) -> None:
+    """Answer the first call to ``method`` with 429, then behave normally."""
+    seen: List[int] = []
+
+    def _handler(payload: Dict[str, Any]) -> httpx.Response:
+        seen.append(1)
+        if len(seen) == 1:
+            return httpx.Response(
+                429,
+                json={
+                    "ok": False,
+                    "error_code": 429,
+                    "description": "Too Many Requests: retry after %s" % retry_after,
+                    "parameters": {"retry_after": retry_after},
+                },
+            )
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 7}})
+
+    api.overrides[method] = _handler
+
+
+def test_a_short_429_is_retried_and_then_succeeds(telegram_api):
+    """A brief back-off is worth waiting out — the edit lands on the second try."""
+    _rate_limit_once(telegram_api, "editMessageText", retry_after=0.01)
+
+    result = asyncio.run(bot().edit_message_text(GROUP_ID, 55, "text"))
+
+    assert result == {"message_id": 7}
+    assert telegram_api.methods().count("editMessageText") == 2
+
+
+def test_a_long_429_is_not_retried_so_the_worker_keeps_moving(telegram_api):
+    """Past MAX_RETRY_AFTER we give up rather than stall every other update.
+
+    ``run_worker`` handles updates strictly sequentially, so sleeping out a 30s back-off
+    here would also freeze new lead notifications and everyone else's taps.
+    """
+    _rate_limit_once(telegram_api, "editMessageText", retry_after=30)
+
+    result = asyncio.run(bot().edit_message_text(GROUP_ID, 55, "text"))
+
+    assert result is None
+    assert telegram_api.methods().count("editMessageText") == 1
+
+
+def test_a_non_429_error_is_never_retried(telegram_api):
+    """Only rate limiting earns a second attempt; a 400 stays a single call."""
+    telegram_api.fail("editMessageText")
+
+    assert asyncio.run(bot().edit_message_text(GROUP_ID, 55, "text")) is None
+    assert telegram_api.methods().count("editMessageText") == 1
+
+
+@pytest.mark.parametrize(
+    "payload,expected",
+    [
+        ({"ok": False, "error_code": 429, "parameters": {"retry_after": 5}}, 5.0),
+        ({"ok": False, "error_code": 429, "parameters": {"retry_after": "3"}}, 3.0),
+        ({"ok": False, "error_code": 429, "parameters": {}}, None),  # no hint given
+        ({"ok": False, "error_code": 429}, None),  # no parameters at all
+        ({"ok": False, "error_code": 429, "parameters": {"retry_after": "x"}}, None),
+        ({"ok": False, "error_code": 400, "parameters": {"retry_after": 5}}, None),
+        ({"ok": True, "result": 1}, None),
+        ("not-a-dict", None),
+    ],
+)
+def test_retry_after_seconds_parsing(payload, expected):
+    assert tg_client.retry_after_seconds(payload) == expected
 
 
 # =================================================================================

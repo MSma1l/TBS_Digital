@@ -11,6 +11,7 @@ Dynamic text that goes into messages must be HTML-escaped by the caller (see
 client never escapes the whole ``text`` itself.
 """
 
+import asyncio
 import html
 import logging
 from typing import Any, Dict, List, Optional
@@ -21,10 +22,31 @@ logger = logging.getLogger("app.telegram")
 
 API_BASE = "https://api.telegram.org"
 
+# A burst of calls (e.g. someone tapping the classification buttons repeatedly) is
+# answered with 429 + ``parameters.retry_after`` seconds. Waiting is only worth it while
+# the wait is SHORT: the worker processes updates strictly sequentially
+# (``worker.run_worker``), so sleeping here also stalls new lead notifications and every
+# other user's taps. Past this cap we give up and let the caller move on — nothing is
+# lost, because a lead's status is persisted *before* the message edit is attempted.
+MAX_RETRY_AFTER = 3.0
+
 
 def escape(value: object) -> str:
     """HTML-escape a dynamic value for safe inclusion in an HTML-parse-mode message."""
     return html.escape("" if value is None else str(value), quote=False)
+
+
+def retry_after_seconds(data: Any) -> Optional[float]:
+    """Seconds Telegram asks us to wait, for a 429 payload; None for any other error."""
+    if not isinstance(data, dict) or data.get("error_code") != 429:
+        return None
+    params = data.get("parameters")
+    value = params.get("retry_after") if isinstance(params, dict) else None
+    try:
+        wait = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return wait if wait >= 0 else None
 
 
 class TelegramClient:
@@ -43,17 +65,28 @@ class TelegramClient:
         timeout: Optional[float] = None,
     ) -> Optional[Any]:
         url = f"{self._base}/{method}"
-        try:
-            async with httpx.AsyncClient(timeout=timeout or self._timeout) as client:
-                resp = await client.post(url, json=params or {})
-            data = resp.json()
-        except Exception as exc:  # network error, JSON decode error, ...
-            logger.warning("Telegram %s call failed: %s", method, exc)
-            return None
-        if not isinstance(data, dict) or not data.get("ok"):
+        # Two attempts at most, and the second one only ever happens for a short 429
+        # back-off — every other failure returns immediately, as before.
+        for attempt in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=timeout or self._timeout) as client:
+                    resp = await client.post(url, json=params or {})
+                data = resp.json()
+            except Exception as exc:  # network error, JSON decode error, ...
+                logger.warning("Telegram %s call failed: %s", method, exc)
+                return None
+            if isinstance(data, dict) and data.get("ok"):
+                return data.get("result")
+            wait = retry_after_seconds(data)
+            if attempt == 0 and wait is not None and wait <= MAX_RETRY_AFTER:
+                logger.info(
+                    "Telegram %s rate-limited; retrying in %.1fs", method, wait
+                )
+                await asyncio.sleep(wait)
+                continue
             logger.warning("Telegram %s returned an error: %s", method, data)
             return None
-        return data.get("result")
+        return None
 
     # --- API methods -------------------------------------------------------------
     async def get_me(self) -> Optional[Dict[str, Any]]:

@@ -93,6 +93,19 @@ All three live in the root **`.env`** (gitignored — never committed). See
 🆕 **Nou** · 📞 **Contactat** · 💰 **Ofertă** · ✅ **Câștigat** · ❌ **Pierdut**. Tapping one
 updates `submission.status` and edits the message to show the new state.
 
+Two details that matter under rapid tapping:
+
+- **Tapping the already-active button redraws nothing.** The edit would carry byte-identical
+  text, which Telegram rejects (*"message is not modified"*) and, in a fast series, answers
+  with **429** and a back-off that climbs into the tens of seconds. The tap is still
+  acknowledged with the usual toast — only the pointless edit is skipped
+  (`worker._handle_callback`).
+- **A 429 is retried only while the wait is short** — `MAX_RETRY_AFTER = 3.0` seconds in
+  `telegram/client.py`. `run_worker` processes updates **strictly sequentially**, so sleeping
+  out a 30-second back-off would freeze new lead notifications and everyone else's taps too.
+  Past the cap the client gives up and logs a warning; nothing is lost, because the lead's
+  status is written to the DB **before** the edit is attempted.
+
 > Remember: with privacy mode ON, address commands to the bot
 > (`/register@TBS_Notification_Agent_bot`, `/stats@TBS_Notification_Agent_bot`) or disable
 > privacy in BotFather (step 4 above).
@@ -117,6 +130,7 @@ updates `submission.status` and edits the message to show the new state.
 | Token invalid / worker won't start | Verify with **`make telegram-check`**; if leaked or wrong, `/revoke` in BotFather and update `TELEGRAM_BOT_TOKEN` in `.env`. |
 | Nothing happens but the form still works | Expected when Telegram is unreachable — notifications are best-effort; check backend logs and `TELEGRAM_ENABLED`. |
 | No `Telegram` line at all in `docker logs` | **Not a symptom.** The worker's start-up message is INFO and the default Python handler only emits WARNING+ — see [Verificare după deploy](#verificare-după-deploy). |
+| `editMessageText returned an error: … 429` | Rapid repeated taps. The status **is** saved (written before the edit) and the toast still appears; only the visual refresh is dropped past `MAX_RETRY_AFTER`. See [Commands & buttons](#commands--buttons). |
 
 ## Verificare după deploy
 

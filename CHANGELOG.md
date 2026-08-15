@@ -16,6 +16,45 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-15 — Butoanele de clasificare nu mai dau 429
+
+**Fixed**
+
+- Apăsarea repetată a butoanelor de clasificare umplea log-ul cu
+  `editMessageText … 429 Too Many Requests`, iar mesajul din grup nu se mai împrospăta
+  vizual. Statusul se salva corect (se scrie în DB **înainte** de edit), deci efectul era
+  cosmetic — dar back-off-ul cerut de Telegram creștea până la ~35s.
+- **Cauza la sursă:** re-apăsarea butonului deja activ producea un edit cu text
+  byte-identic, pe care Telegram îl respinge (*"message is not modified"*) și, în serie
+  rapidă, îl penalizează cu 429. `worker._handle_callback` compară acum statusul dinainte
+  (`service.status_of`) cu cel de după și **sare peste edit** când nu s-a schimbat nimic;
+  toast-ul de confirmare rămâne.
+- **Plasa de siguranță:** `telegram/client.py` reîncearcă acum un 429 respectând
+  `parameters.retry_after`, dar **doar dacă așteptarea e scurtă** (`MAX_RETRY_AFTER = 3.0`s,
+  o singură reîncercare). `run_worker` procesează update-urile **strict secvențial**, deci un
+  sleep de 30s ar îngheța și notificările de lead-uri noi, și apăsările altora. Peste plafon
+  renunțăm, ca înainte.
+- Fișiere: `backend/app/telegram/client.py`, `backend/app/telegram/service.py`
+  (`status_of`), `backend/app/telegram/worker.py`,
+  `backend/tests/test_telegram_bot.py`.
+
+**Docs**
+
+- [13 — Telegram](./docs/13-telegram.md): secțiunea *Commands & buttons* explică ambele
+  comportamente sub apăsare rapidă; rând nou în *Troubleshooting* pentru 429.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `pytest tests/test_telegram_bot.py` | **64 passed** |
+| Suita backend completă | **183 passed** |
+
+> Testul parametrizat `test_every_valid_status_button_updates_the_lead` pornea lead-ul de la
+> `"nou"` și trecea prin toate statusurile — inclusiv `"nou"`, care acum e un no-op. Acum
+> seed-ul e ales să difere de statusul testat, deci fiecare caz rămâne o reclasificare
+> reală, iar no-op-ul are testele lui separate.
+
 ## 2026-08-15 — Deploy în producție (`tbs.md`) + verificarea botului de notificare
 
 **Deploy**

@@ -335,6 +335,16 @@ def build_stats(session: Session) -> str:
     return "\n".join(lines)
 
 
+def status_of(session: Session, submission_id: str) -> Optional[str]:
+    """Current status of a submission, or None if it doesn't exist.
+
+    Read *before* :func:`apply_status` so the caller can tell an actual reclassification
+    from a re-tap of the button that is already active.
+    """
+    row = session.get(SubmissionRow, submission_id)
+    return row.status if row is not None else None
+
+
 def apply_status(session: Session, submission_id: str, status: str) -> Optional[SubmissionRow]:
     """Update a submission's status. Returns the row (or None if not found)."""
     if status not in STATUS_KEYS:
