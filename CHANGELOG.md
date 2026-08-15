@@ -16,6 +16,57 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-15 — Deploy în producție (`tbs.md`) + verificarea botului de notificare
+
+**Deploy**
+
+- `tbs.md` a fost adus de la `e5f387b` la `f56b107` (2 commit-uri: `tsx` ca devDependency și
+  update-ul de conținut/secțiuni). Imaginile `tbs-digital-frontend` și `tbs-digital-backend`
+  au fost rebuild-uite și containerele recreate cu
+  `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`.
+  Nginx, DNS și certificatele **nu** au fost atinse.
+- `/root/tbs-digital` era o **copie** a proiectului, nu o clonă — fără `.git`, deci `git pull`
+  era imposibil. Convertit pe loc în repo git (`origin` = GitHub, branch `main` tracking
+  `origin/main`). Verificat înainte de suprascriere că arborele de pe server corespundea
+  **exact** commit-ului `e5f387b` (0 fișiere diferite), deci nu s-a pierdut nicio modificare
+  făcută direct pe server. Backup: `/root/tbs-digital-backup-20260815-172454.tar.gz`.
+  Update-urile viitoare sunt un simplu `git pull` + rebuild — vezi
+  [12 — Deployment](./docs/12-deployment.md), secțiunea *Update-uri ulterioare*.
+
+**Docs**
+
+- [12 — Deployment](./docs/12-deployment.md): secțiune nouă *Update-uri ulterioare —
+  `git pull` + rebuild*, care separă migrarea inițială (Etapele A/B, o singură dată) de
+  procedura de zi cu zi; explică de ce un checkout peste directorul de cod e sigur (DB și
+  upload-urile stau în volume Docker *named*, nu în bind-mount-uri) și de ce serverul are
+  nevoie de `safe.directory`.
+- [13 — Telegram](./docs/13-telegram.md): secțiune nouă *Verificare după deploy* — cele patru
+  verificări (getMe · env în container · grup înregistrat în DB · socket long-poll deschis în
+  `/proc/net/tcp`) și testul end-to-end. Documentează două capcane de diagnostic:
+  lipsa liniilor `Telegram` din `docker logs` **nu** înseamnă bot picat (mesajul de pornire e
+  INFO, iar handler-ul implicit Python emite doar WARNING+), iar `getUpdates` e un test
+  înșelător (poate întoarce `ok:true` deși worker-ul e viu și, dacă e oprit, îi consumă
+  update-urile).
+
+**Verificare** (rulată împotriva producției, după deploy)
+
+| Check | Rezultat |
+|-------|----------|
+| `docker ps` | `tbs-digital-frontend` up · `tbs-digital-backend` healthy · `db` healthy |
+| `shared-network` | ambele containere atașate (proxy-ul le găsește după nume) |
+| `https://tbs.md` · `/ru` · `/en` · `www` | **200** toate |
+| `https://tbs.md/api/content` | **200** (FastAPI) |
+| Rute noi `/solutions/{digital,ecommerce,ai,brand}`, inclusiv `/ru` și `/en` | **200**, cu conținutul nou — dovada că build-ul nou e live (nu existau înainte) |
+| `sitemap.xml` · `robots.txt` | **200** |
+| `https://docusafe.tbs.md` | **200** — neatins |
+| Telegram `getMe` | ok — `@TBS_Notification_Agent_bot` |
+| Grup înregistrat | `-1004325337899` („TBS notification", supergrup), bot cu drept de postare |
+| Worker long-polling | socket ESTABLISHED către `149.154.166.110:443` |
+| **Lead de test** prin `POST /api/contact` | **201**, id `8bcf46d6…`, zero warning-uri Telegram în log |
+
+> Lead-ul de test e marcat „TEST — verificare deploy (ignorati)" și poate fi șters din
+> admin → **Cereri**.
+
 ## 2026-08-07 — Documentation sync + full verification pass
 
 **Docs**

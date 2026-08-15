@@ -116,6 +116,53 @@ updates `submission.status` and edits the message to show the new state.
 | `/register` / `/stats` ignored | Privacy mode ON — address the command to the bot (`…@TBS_Notification_Agent_bot`) or `/setprivacy` → Disable in BotFather. |
 | Token invalid / worker won't start | Verify with **`make telegram-check`**; if leaked or wrong, `/revoke` in BotFather and update `TELEGRAM_BOT_TOKEN` in `.env`. |
 | Nothing happens but the form still works | Expected when Telegram is unreachable — notifications are best-effort; check backend logs and `TELEGRAM_ENABLED`. |
+| No `Telegram` line at all in `docker logs` | **Not a symptom.** The worker's start-up message is INFO and the default Python handler only emits WARNING+ — see [Verificare după deploy](#verificare-după-deploy). |
+
+## Verificare după deploy
+
+Capcana principală: **absența log-urilor nu înseamnă că botul e picat.** Loggerul
+`app.telegram` nu are handler propriu, iar handler-ul implicit al Python (`logging.lastResort`)
+emite doar de la **WARNING** în sus — deci `"Telegram worker started as @…"` (INFO) **nu apare
+niciodată** în `docker logs`. Ce apare sigur sunt eșecurile (`logger.warning`).
+
+Patru verificări, de la ieftin la decisiv:
+
+```bash
+# 1. Tokenul e valid (getMe) — rulat pe server, nu afișează tokenul
+cd /root/tbs-digital && make telegram-check
+
+# 2. Botul e activ în container (doar prezența, fără valoare)
+docker exec tbs-digital-backend sh -c \
+  'test -n "$TELEGRAM_BOT_TOKEN" && echo SET || echo MISSING; echo "ENABLED=$TELEGRAM_ENABLED"'
+
+# 3. Grupul e înregistrat (env gol => se ia din DB, rândul scris de /register)
+docker exec tbs-digital-db-1 psql -U tbs -d tbs_digital \
+  -c "SELECT group_chat_id, is_forum FROM telegram_settings;"
+
+# 4. Worker-ul chiar face long-polling: ține un socket deschis spre Telegram (149.154.x.x:443)
+docker exec tbs-digital-backend sh -c 'cat /proc/net/tcp /proc/net/tcp6' \
+  | awk '$4=="01" && $3 ~ /:01BB$/' | wc -l      # trebuie >= 1
+```
+
+> **Nu folosi `getUpdates` ca test.** E înșelător în ambele sensuri: dacă nimerește pauza
+> dintre două cicluri de poll, întoarce `ok:true` deși worker-ul e viu (nu primești 409), iar
+> dacă worker-ul chiar e oprit, îți consumă update-urile în așteptare. Verificarea 4 e cea care
+> răspunde fără ambiguitate.
+
+### Test end-to-end
+
+Trimite un lead prin fluxul public real și marchează-l vizibil ca test, ca să nu fie urmărit
+ca un client adevărat:
+
+```bash
+curl -X POST https://tbs.md/api/contact -H "Content-Type: application/json" -d '{
+  "name":"TEST — verificare deploy (ignorati)","email":"test@tbs.md",
+  "message":"Mesaj automat de TEST. Nu este un client real.","project":"Site web"}'
+```
+
+Aștepți **201** plus **zero** linii `Telegram` în `docker logs tbs-digital-backend` — orice
+eșec de trimitere s-ar loga ca WARNING. Lead-ul rămâne în tabelul `submissions` și în tab-ul
+**Cereri** din admin; șterge-l de acolo după verificare.
 
 ## How it fits the backend
 

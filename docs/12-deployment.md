@@ -317,6 +317,47 @@ Apexul revine la DocuSafe. Dacă îl vrei complet ca înainte, pune și `APP_BAS
 `https://tbs.md` în `/root/tbs/.env` și recreează containerele (pasul A5). Stack-ul TBS Digital
 poate rămâne pornit — fără vhost, nu primește trafic.
 
+## Update-uri ulterioare — `git pull` + rebuild
+
+Etapele A și B de mai sus sunt **migrarea inițială**, făcute o singură dată. Ele au rămas
+documentate pentru context și rollback; pentru un update de zi cu zi nu se atinge nici DNS-ul,
+nici nginx-ul.
+
+`/root/tbs-digital` a fost la început o **copie** a proiectului, nu o clonă — nu avea `.git`,
+deci nu se putea da `git pull`. A fost convertit pe loc într-un repo git (2026-08-15), fără
+pierdere de date: arborele de pe server corespundea exact commit-ului `e5f387b`, deci nu
+existau modificări făcute direct pe server.
+
+```bash
+cd /root/tbs-digital
+git pull                                     # branch main, tracking origin/main
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+Ce **nu** e atins de un update: `.env` (gitignored, rămâne pe loc), baza de date și
+upload-urile — ambele stau în volume Docker **named** (`db_data`, `backend_data`), nu în
+bind-mount-uri peste directorul de cod. De asta un checkout peste directorul repo e sigur.
+
+> Fișierele repo-ului sunt deținute de uid `501` (rămas de la copierea inițială), iar git
+> rulează ca root. De aceea serverul are nevoie de
+> `git config --global --add safe.directory /root/tbs-digital` — altfel git refuză cu
+> „dubious ownership".
+
+Un update **nu** necesită certbot, vhost nou sau restart la `nginx_proxy`: proxy-ul ajunge la
+containere după nume (`tbs-digital-frontend` / `tbs-digital-backend`), iar `container_name`
+e fixat în `docker-compose.prod.yml`, deci numele supraviețuiește recreării.
+
+### Verificare după update
+
+```bash
+docker ps --filter name=tbs-digital           # frontend up, backend healthy
+curl -I https://tbs.md                        # 200
+curl -s -o /dev/null -w "%{http_code}\n" https://tbs.md/api/content
+```
+
+Pentru botul de notificare vezi [13 — Telegram](./13-telegram.md), secțiunea *Verificare după
+deploy*.
+
 ## Local dev without Docker
 
 ```bash
