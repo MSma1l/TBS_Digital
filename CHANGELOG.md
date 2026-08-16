@@ -16,6 +16,50 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — Portofoliul trece în admin; corecturi după verificarea în producție
+
+**Fixed** — regresie proprie: 4 proiecte au dispărut de pe site
+
+- Mutarea lui `Work.tsx` pe `useSiteContent()` a fost corectă, dar incompletă: baza de date
+  de producție conținea doar **6** proiecte, în timp ce site-ul afișa **10**, pentru că lista
+  trăia hardcodată în componentă. În momentul în care componenta a început să citească din
+  admin, cele 4 care existau doar în cod au dispărut, iar `fayr-family` — care nu face parte
+  din portofoliul real — a apărut.
+- Reparat prin scrierea listei reale **în baza de date**, cu `DbStore.save_content()` (deci
+  prin logica proprie a aplicației, nu SQL scris de mână), după backup în
+  `/root/projects-backup-20260816-105812.sql`. Restul conținutului a fost citit și rescris
+  neatins: 11 servicii, 3 membri, 3 parteneri, 3 contacte, 3 social, 4 statistici.
+- **Portofoliul e acum administrat din panoul de admin, nu din cod.** Defaults-ul rămâne doar
+  sămânța pentru o instalare nouă.
+
+**Removed**
+
+- `fayr-family` — nu face parte din portofoliul real.
+- `statistica-md` (portalul Biroului Național de Statistică) — scos la cererea clientului, din
+  bază și din defaults, împreună cu textele și eticheta care rămâneau nefolosite.
+- Portofoliul are acum **9 proiecte**, iar metrica din hero se recalculează singură.
+
+**Changed**
+
+- Telefonul din defaults era `+373 600 00 000`, un placeholder; producția avea numărul real.
+  Aliniat în `lib/content.ts` și `defaults.py`, ca o instalare nouă să nu pornească greșit.
+
+**Fixed** — UX, găsit la testarea în browser
+
+- Mesajele de validare rămâneau sub câmp **și după ce vizitatorul îl completa**, până la
+  următorul submit — se citea ca și cum formularul ar fi refuzat în continuare valoarea. Acum
+  mesajul unui câmp dispare la prima editare a acelui câmp; celelalte rămân.
+
+**Verificare** (în producție, cu browser real)
+
+| Check | Rezultat |
+|-------|----------|
+| Validare formular gol | mesajele apar sub câmpurile corecte, în limba servită |
+| Trimitere reală din browser | **201**, lead în DB cu proiect, estimare și opțiunile alese |
+| Notificare Telegram | zero warning-uri; lead-ul a primit status din butoanele grupului |
+| `/api/content` | 9 proiecte, contacte `office@tbs.md` · telefon real · A. Șușev 29 |
+| `npm test` · backend `pytest` | **136 passed** · **188 passed** |
+
 ## 2026-08-16 — Formularul de contact chiar trimite; portofoliu pe date reale
 
 **Fixed** — cererile de contact se pierdeau în tăcere

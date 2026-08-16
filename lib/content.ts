@@ -265,20 +265,6 @@ export const projects: Project[] = [
     images: ["/projects/balloons-breeze-1.png"],
   },
   {
-    id: "statistica-md",
-    name: "Statistica.md",
-    tag: L("PORTAL GUVERNAMENTAL", "ГОСУДАРСТВЕННЫЙ ПОРТАЛ", "GOVERNMENT PORTAL"),
-    desc: L(
-      "Portal public de date pentru Biroul Național de Statistică: indicatori-cheie, banca de date, publicații și căutare — clar și accesibil pentru toți.",
-      "Публичный портал данных для Национального бюро статистики: ключевые показатели, банк данных, публикации и поиск — понятно и доступно для всех.",
-      "A public data portal for the National Bureau of Statistics: key indicators, a data bank, publications and search — clear and accessible for everyone.",
-    ),
-    url: "https://statistica.gov.md",
-    appStore: "",
-    playStore: "",
-    images: ["/projects/statistica-1.png"],
-  },
-  {
     id: "statistic",
     name: "Statistic",
     tag: locFromCatalog("projects.tag.saasPrivate"),
@@ -425,7 +411,7 @@ export const footerServices: string[] = [
 
 export const contacts: Contact[] = [
   { id: "c-email", type: "email", value: "office@tbs.md" },
-  { id: "c-phone", type: "phone", value: "+373 600 00 000" },
+  { id: "c-phone", type: "phone", value: "+373 60417671" },
   { id: "c-address", type: "other", value: "A. Șușev 29" },
 ];
 

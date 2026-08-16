@@ -297,6 +297,20 @@ export function Estimator() {
     return parts.filter(Boolean).join("\n\n").slice(0, 5000);
   };
 
+  /* Clear a field's message as soon as it's edited. Without this, "Numele este
+     obligatoriu." stays under a field the visitor has just filled in, until the next
+     submit — which reads as if the form were still refusing the value. */
+  const editField =
+    (key: "name" | "email" | "phone", set: (v: string) => void) => (value: string) => {
+      set(value);
+      setFieldErrors((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    };
+
   /** Client-side half of the defense-in-depth pair; the API re-validates everything. */
   const validate = (): boolean => {
     const next: Record<string, string> = {};
@@ -437,7 +451,7 @@ export function Estimator() {
                   aria-label={l(PLACEHOLDERS.name)}
                   placeholder={l(PLACEHOLDERS.name)}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => editField("name", setName)(e.target.value)}
                   maxLength={LIMITS.name}
                   aria-invalid={!!fieldErrors.name}
                   required
@@ -452,7 +466,7 @@ export function Estimator() {
                   type="email"
                   placeholder={l(PLACEHOLDERS.email)}
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => editField("email", setEmail)(e.target.value)}
                   maxLength={LIMITS.email}
                   aria-invalid={!!fieldErrors.email}
                   required
@@ -467,7 +481,7 @@ export function Estimator() {
                   type="tel"
                   placeholder={l(PLACEHOLDERS.phone)}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => editField("phone", setPhone)(e.target.value)}
                   maxLength={LIMITS.phone}
                   aria-invalid={!!fieldErrors.phone}
                 />

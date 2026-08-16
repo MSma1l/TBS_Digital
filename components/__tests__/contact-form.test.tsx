@@ -132,6 +132,20 @@ describe("validation — nothing invalid reaches the network", () => {
     expect(api.submitContact).not.toHaveBeenCalled();
   });
 
+  it("clears a field's message as soon as it is edited", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(screen.getByText("Numele este obligatoriu.")).toBeInTheDocument();
+
+    // Otherwise "is required" sits under a field the visitor has just filled in.
+    await user.type(screen.getByPlaceholderText(NAME_PH), "I");
+    expect(screen.queryByText("Numele este obligatoriu.")).not.toBeInTheDocument();
+    // The other field's message is untouched — only the edited one clears.
+    expect(screen.getByText("Emailul este obligatoriu.")).toBeInTheDocument();
+  });
+
   it("marks the offending field with aria-invalid", async () => {
     const user = userEvent.setup();
     renderForm();

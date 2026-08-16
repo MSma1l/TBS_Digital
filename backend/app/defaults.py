@@ -68,7 +68,6 @@ _TAG_CRM_PRIVATE = (
     "PRIVATE CRM · NO LINK",
 )
 _TAG_EVENT_BRAND = ("WEB · EVENT BRAND", "WEB · EVENT-БРЕНД", "WEB · EVENT BRAND")
-_TAG_GOV = ("PORTAL GUVERNAMENTAL", "ГОСУДАРСТВЕННЫЙ ПОРТАЛ", "GOVERNMENT PORTAL")
 
 _BIZCHECK_DESC = (
     "Platformă de autoevaluare a riscurilor pentru IMM-uri, pe metodologia Crowe: teste "
@@ -136,14 +135,6 @@ _BALLOONS_BREEZE_DESC = (
     "событий и быстрый запрос сметы.",
     "An immersive site for a balloon-design studio: an interactive balloon scene, event "
     "services and a fast quote request.",
-)
-_STATISTICA_MD_DESC = (
-    "Portal public de date pentru Biroul Național de Statistică: indicatori-cheie, banca "
-    "de date, publicații și căutare — clar și accesibil pentru toți.",
-    "Публичный портал данных для Национального бюро статистики: ключевые показатели, "
-    "банк данных, публикации и поиск — понятно и доступно для всех.",
-    "A public data portal for the National Bureau of Statistics: key indicators, a data "
-    "bank, publications and search — clear and accessible for everyone.",
 )
 _STATISTIC_DESC = (
     "Instrument propriu de web-analytics: vizualizări, sesiuni, click-uri și evoluție în "
@@ -304,14 +295,6 @@ def default_projects() -> list[Project]:
             images=["/projects/balloons-breeze-1.png"],
         ),
         Project(
-            id="statistica-md",
-            name="Statistica.md",
-            tag=_l(*_TAG_GOV),
-            desc=_l(*_STATISTICA_MD_DESC),
-            url="https://statistica.gov.md",
-            images=["/projects/statistica-1.png"],
-        ),
-        Project(
             id="statistic",
             name="Statistic",
             tag=_l(*_TAG_SAAS_PRIVATE),
@@ -354,7 +337,7 @@ def default_content() -> SiteContent:
         projects=default_projects(),
         contacts=[
             Contact(id="c-email", type="email", value="office@tbs.md"),
-            Contact(id="c-phone", type="phone", value="+373 600 00 000"),
+            Contact(id="c-phone", type="phone", value="+373 60417671"),
             Contact(id="c-address", type="other", value="A. Șușev 29"),
         ],
         socials=default_socials(),

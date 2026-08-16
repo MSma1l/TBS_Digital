@@ -95,7 +95,6 @@ def test_seeded_portfolio_matches_the_real_projects(client):
         "cgam",
         "iq-arena",
         "balloons-breeze",
-        "statistica-md",
         "statistic",
         "flirt",
     ]
