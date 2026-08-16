@@ -65,34 +65,31 @@ describe("Services section", () => {
 });
 
 describe("Team section", () => {
-  it("renders its heading, status label and lead copy (placeholders, no names)", async () => {
+  // The section was redesigned: the old "ECHIPA" + "SYSTEM_STATUS" HUD framing is gone,
+  // replaced by the "ECHIPA TBS" card label. The test now describes what ships.
+  it("renders its card label and lead copy", async () => {
     withProvider(<Team />);
 
-    expect(await screen.findByText("ECHIPA")).toBeInTheDocument();
-    expect(screen.getByText("SYSTEM_STATUS")).toBeInTheDocument();
-    expect(
-      screen.getByText(/O echipă mică și dedicată/),
-    ).toBeInTheDocument();
+    // One label per member card, so there are as many as there are members.
+    expect((await screen.findAllByText("ECHIPA TBS")).length).toBeGreaterThan(0);
+    expect(screen.getByText(/O echipă mică și implicată/)).toBeInTheDocument();
   });
 });
 
 describe("Principles section", () => {
-  it("renders the section label and all 5 principle descriptions", async () => {
+  // Redesigned from the 5 principles in lib/content.ts into 3 numbered rationale cards,
+  // each with its own accent. The copy below is the component's, not the catalog's.
+  it("renders the three rationale cards with their numbers and titles", async () => {
     withProvider(<Principles />);
 
-    expect(
-      await screen.findByText("PRINCIPIILE NOASTRE"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("01 / PRODUS")).toBeInTheDocument();
+    expect(screen.getByText("02 / PROCES")).toBeInTheDocument();
+    expect(screen.getByText("03 / REZULTAT")).toBeInTheDocument();
 
-    const descriptions = [
-      "Înțelegem afacerea înainte de prima linie de cod.",
-      "Date, module, automatizări — totul integrat.",
-      "Interfețe clare, rapide și plăcute de folosit.",
-      "Timp economisit, costuri reduse, venituri crescute.",
-      "Inteligență artificială acolo unde chiar contează.",
-    ];
-    for (const desc of descriptions) {
-      expect(screen.getByText(desc)).toBeInTheDocument();
-    }
+    expect(screen.getByText("Produs, nu doar un site")).toBeInTheDocument();
+    expect(screen.getByText("Proces transparent")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Pornim de la problema de business/),
+    ).toBeInTheDocument();
   });
 });

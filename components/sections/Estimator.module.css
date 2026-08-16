@@ -211,6 +211,27 @@
   transform: translateY(-2px);
   box-shadow: 0 16px 30px rgba(245, 51, 63, 0.42);
 }
+/* Disabled while the request is in flight and after it lands, so a double tap can't
+   file the same lead twice. It must still read as text, not as a greyed-out control. */
+.submit:disabled {
+  cursor: default;
+  opacity: 0.72;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Outcome of the submit — success or failure. Both sit under the button in the same
+   slot, so the form doesn't jump depending on which one appears. */
+.formNote {
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--ink2);
+}
+.formError {
+  color: var(--red);
+  font-weight: var(--fw-semi);
+}
 
 @keyframes rise {
   from {

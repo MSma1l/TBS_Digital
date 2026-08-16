@@ -3,21 +3,10 @@
 import { type CSSProperties } from "react";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
 import styles from "./Work.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
-
-type Project = {
-  index: string;
-  name: string;
-  tag: LocalizedText;
-  desc: LocalizedText;
-  url?: string;
-  /** Background screenshot from /public/projects. Omit for a plain gradient card. */
-  image?: string;
-  p1: string;
-  p2: string;
-};
 
 const SECTION = {
   eyebrow: L("Portofoliu TBS", "Портфолио TBS", "TBS portfolio"),
@@ -29,146 +18,44 @@ const SECTION = {
   ),
 };
 
-const PROJECTS: Project[] = [
-  {
-    index: "01",
-    name: "BizCheck",
-    tag: L("WEB PLATFORM", "WEB PLATFORM", "WEB PLATFORM"),
-    desc: L(
-      "Autoevaluare de risc pentru IMM-uri: teste interactive, template-uri juridice și raport PDF.",
-      "Самооценка рисков для МСБ: интерактивные тесты, юридические шаблоны и PDF-отчёт.",
-      "Risk self-assessment for SMEs: interactive tests, legal templates and a PDF report.",
-    ),
-    url: "https://bizcheck.md",
-    image: "/projects/bizcheck-1.jpg",
-    p1: "#192f6f",
-    p2: "#4b7dff",
-  },
-  {
-    index: "02",
-    name: "Itara Global",
-    tag: L("CORPORATE WEBSITE", "CORPORATE WEBSITE", "CORPORATE WEBSITE"),
-    desc: L(
-      "Site corporativ cu servicii IT, proof points și experiență optimizată pentru conversie.",
-      "Корпоративный сайт с IT-услугами, доказательной базой и оптимизацией под конверсию.",
-      "A corporate site with IT services, proof points and a conversion-optimized experience.",
-    ),
-    url: "https://itara-global.md",
-    image: "/projects/itara-1.jpg",
-    p1: "#173b3d",
-    p2: "#10a99b",
-  },
-  {
-    index: "03",
-    name: "DocuSafe",
-    tag: L("CRM PRIVAT · FĂRĂ LINK", "ПРИВАТНЫЙ CRM · БЕЗ ССЫЛКИ", "PRIVATE CRM · NO LINK"),
-    desc: L(
-      "CRM privat de documente construit pentru un client — nu poate fi publicat. Stocare securizată, roluri, editare, categorii și căutare completă.",
-      "Приватный CRM для документов под клиента — публиковать нельзя. Защищённое хранение, роли, редактирование, категории и полный поиск.",
-      "A private document CRM built for a client — it cannot be published. Secure storage, roles, editing, categories and full-text search.",
-    ),
-    image: "/projects/docusafe-1.png",
-    p1: "#6d2348",
-    p2: "#e5527d",
-  },
-  {
-    index: "04",
-    name: "Crowe Portal",
-    tag: L("CRM PRIVAT · FĂRĂ LINK", "ПРИВАТНЫЙ CRM · БЕЗ ССЫЛКИ", "PRIVATE CRM · NO LINK"),
-    desc: L(
-      "Portal intern de lucru pentru un client — nu poate fi publicat. Sarcini pe board (backlog → în lucru → verificare → trimis), tichete, clienți, ședințe și rapoarte.",
-      "Внутренний рабочий портал под клиента — публиковать нельзя. Задачи на доске (бэклог → в работе → проверка → отправлено), тикеты, клиенты, встречи и отчёты.",
-      "An internal work portal built for a client — it cannot be published. Board tasks (backlog → in progress → review → sent), tickets, clients, meetings and reports.",
-    ),
-    image: "/projects/crowe-portal-1.png",
-    p1: "#1b2a52",
-    p2: "#3f63d8",
-  },
-  {
-    index: "05",
-    name: "CGAM",
-    tag: L("WEB PLATFORM", "WEB PLATFORM", "WEB PLATFORM"),
-    desc: L(
-      "Academie cu workshop-uri, ligă gamificată, calendar de evenimente și comunitate.",
-      "Академия с воркшопами, геймифицированной лигой, календарём событий и сообществом.",
-      "An academy with workshops, a gamified league, an events calendar and a community.",
-    ),
-    url: "https://cgam.md",
-    image: "/projects/cgam-1.png",
-    p1: "#53397d",
-    p2: "#9671dd",
-  },
-  {
-    index: "06",
-    name: "IQ Arena",
-    tag: L("MOBILE APP", "MOBILE APP", "MOBILE APP"),
-    desc: L(
-      "Aplicație pentru evenimente de dezbatere: roluri, timer, jurizare și rezultate în timp real.",
-      "Приложение для дебатов: роли, таймер, судейство и результаты в реальном времени.",
-      "An app for debate events: roles, timer, judging and real-time results.",
-    ),
-    image: "/projects/iq-arena-1.png",
-    p1: "#734328",
-    p2: "#e38a4f",
-  },
-  {
-    index: "07",
-    name: "Balloons Breeze",
-    tag: L("WEB · EVENT BRAND", "WEB · EVENT-БРЕНД", "WEB · EVENT BRAND"),
-    desc: L(
-      "Site imersiv pentru un studio de aerodesign: scenă interactivă cu baloane, servicii pentru evenimente și cerere rapidă de ofertă.",
-      "Иммерсивный сайт студии аэродизайна: интерактивная сцена с шарами, услуги для событий и быстрый запрос сметы.",
-      "An immersive site for a balloon-design studio: an interactive balloon scene, event services and a fast quote request.",
-    ),
-    url: "https://balloonsbreeze.md/",
-    image: "/projects/balloons-breeze-1.png",
-    p1: "#3a1c10",
-    p2: "#b3801f",
-  },
-  {
-    index: "08",
-    name: "Statistica.md",
-    tag: L("PORTAL GUVERNAMENTAL", "ГОСУДАРСТВЕННЫЙ ПОРТАЛ", "GOVERNMENT PORTAL"),
-    desc: L(
-      "Portal public de date pentru Biroul Național de Statistică: indicatori-cheie, banca de date, publicații și căutare — clar și accesibil pentru toți.",
-      "Публичный портал данных для Национального бюро статистики: ключевые показатели, банк данных, публикации и поиск — понятно и доступно для всех.",
-      "A public data portal for the National Bureau of Statistics: key indicators, a data bank, publications and search — clear and accessible for everyone.",
-    ),
-    url: "https://statistica.gov.md",
-    image: "/projects/statistica-1.png",
-    p1: "#0d3a7a",
-    p2: "#1f6fd0",
-  },
-  {
-    index: "09",
-    name: "Statistic",
-    tag: L("SAAS PRIVAT · FĂRĂ LINK", "ПРИВАТНЫЙ SAAS · БЕЗ ССЫЛКИ", "PRIVATE SAAS · NO LINK"),
-    desc: L(
-      "Instrument propriu de web-analytics: vizualizări, sesiuni, click-uri și evoluție în timp pentru fiecare site — alternativă gratuită la serviciile cunoscute, cu accent pe SEO.",
-      "Собственный инструмент веб-аналитики: просмотры, сессии, клики и динамика по каждому сайту — бесплатная альтернатива известным сервисам, с акцентом на SEO.",
-      "An in-house web-analytics tool: views, sessions, clicks and trends for every site — a free alternative to well-known services, with a focus on SEO.",
-    ),
-    image: "/projects/statistic-1.png",
-    p1: "#0f2a52",
-    p2: "#3f7fe0",
-  },
-  {
-    index: "10",
-    name: "FLIRT",
-    tag: L("APLICAȚIE MOBILĂ · ÎN CURÂND", "МОБИЛЬНОЕ ПРИЛОЖЕНИЕ · СКОРО", "MOBILE APP · COMING SOON"),
-    desc: L(
-      "Aplicație mobilă de dating, în curând pe piață: profiluri, matching și conversații într-un design rapid, cu toleranță zero la conținut abuziv.",
-      "Мобильное приложение для знакомств, скоро в релизе: анкеты, мэтчинг и переписка в быстром дизайне, с нулевой терпимостью к оскорбительному контенту.",
-      "A mobile dating app launching soon: profiles, matching and chat in a fast design, with zero tolerance for abusive content.",
-    ),
-    image: "/projects/flirt-1.png",
-    p1: "#1a0510",
-    p2: "#ff2d78",
-  },
+/* ---------- Card gradients ----------
+   Presentation only, so it stays in the component: the *content* (names, tags,
+   descriptions, links, screenshots) comes from the store, while each card's brand colours
+   are part of this section's design. Keyed by project id so a card keeps its colours no
+   matter where it lands in the order. A project the admin adds — or one whose screenshot is
+   missing — falls back to a palette entry picked by position, so it is still a finished
+   coloured card, never an empty box. */
+const GRADIENTS: Record<string, readonly [string, string]> = {
+  bizcheck: ["#192f6f", "#4b7dff"],
+  "itara-global": ["#173b3d", "#10a99b"],
+  docusafe: ["#6d2348", "#e5527d"],
+  "crowe-portal": ["#1b2a52", "#3f63d8"],
+  cgam: ["#53397d", "#9671dd"],
+  "iq-arena": ["#734328", "#e38a4f"],
+  "balloons-breeze": ["#3a1c10", "#b3801f"],
+  "statistica-md": ["#0d3a7a", "#1f6fd0"],
+  statistic: ["#0f2a52", "#3f7fe0"],
+  flirt: ["#1a0510", "#ff2d78"],
+};
+
+const FALLBACK_GRADIENTS: readonly (readonly [string, string])[] = [
+  ["#192f6f", "#4b7dff"],
+  ["#173b3d", "#10a99b"],
+  ["#53397d", "#9671dd"],
+  ["#734328", "#e38a4f"],
+  ["#6d2348", "#e5527d"],
 ];
+
+function gradientFor(project: ProjectItem, position: number): readonly [string, string] {
+  return (
+    GRADIENTS[project.id] ??
+    FALLBACK_GRADIENTS[position % FALLBACK_GRADIENTS.length]
+  );
+}
 
 export function Work() {
   const l = useLoc();
+  const { projects } = useSiteContent();
 
   return (
     <section id="lucrari" className={styles.section}>
@@ -182,30 +69,39 @@ export function Work() {
         </Reveal>
 
         <div className={styles.grid}>
-          {PROJECTS.map((p) => {
-            const style = { "--p1": p.p1, "--p2": p.p2 } as CSSProperties;
+          {projects.map((p, i) => {
+            const [p1, p2] = gradientFor(p, i);
+            const style = { "--p1": p1, "--p2": p2 } as CSSProperties;
+            // The /NN label is computed from position, so adding or removing a project
+            // from the admin renumbers the grid automatically.
+            const index = String(i + 1).padStart(2, "0");
+            // The card shows the first screenshot; the rest of the gallery stays in the
+            // data. With none set the gradient above carries the card on its own.
+            const image = p.images?.[0];
             const inner = (
               <>
-                {p.image ? (
+                {image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={p.image}
+                    src={image}
                     alt={p.name}
                     loading="lazy"
                     className={styles.image}
                   />
                 ) : null}
                 <span className={`disp ${styles.index}`} aria-hidden>
-                  {p.index}
+                  {index}
                 </span>
                 <small className={`mono ${styles.tag}`}>{l(p.tag)}</small>
                 <h3 className={`disp ${styles.name}`}>{p.name}</h3>
                 <p className={styles.desc}>{l(p.desc)}</p>
               </>
             );
+            // Only a project with a real link becomes an <a> — an empty url would
+            // otherwise ship a link that goes nowhere.
             return p.url ? (
               <a
-                key={p.index}
+                key={p.id}
                 href={p.url}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -215,7 +111,7 @@ export function Work() {
                 {inner}
               </a>
             ) : (
-              <article key={p.index} className={styles.project} style={style}>
+              <article key={p.id} className={styles.project} style={style}>
                 {inner}
               </article>
             );

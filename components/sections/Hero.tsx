@@ -1,6 +1,7 @@
 "use client";
 
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Hero.module.css";
 
 /** Inline trilingual literal — keeps the hero copy out of the message catalog
@@ -29,13 +30,22 @@ const CTA_SECONDARY = L(
   "Explore services ↓",
 );
 
-const METRICS: { value: string; label: LocalizedText; note: LocalizedText }[] = [
+type Metric = { id: string; value: string; label: LocalizedText; note: LocalizedText };
+
+/** The portfolio counter's copy. Its *value* is counted, never written here. */
+const PROJECTS_LABEL = L(
+  "proiecte în portofoliu",
+  "проектов в портфолио",
+  "projects in the portfolio",
+);
+const PROJECTS_NOTE = L("experiență aplicată", "прикладной опыт", "applied experience");
+
+/** Metrics that don't come from the portfolio. `24/7` describes how the automations we
+ *  build run, not a countable list, so it stays a fixed claim. The /02 stats are still
+ *  blank placeholders (docs/06), so there is nothing real to read from the store here. */
+const FIXED_METRICS: Metric[] = [
   {
-    value: "50+",
-    label: L("proiecte livrate", "сданных проектов", "delivered projects"),
-    note: L("experiență aplicată", "прикладной опыт", "applied experience"),
-  },
-  {
+    id: "automation",
     value: "24/7",
     label: L("automatizări active", "активных автоматизаций", "active automations"),
     note: L("mai puțină rutină", "меньше рутины", "less routine"),
@@ -44,6 +54,24 @@ const METRICS: { value: string; label: LocalizedText; note: LocalizedText }[] = 
 
 export function Hero() {
   const l = useLoc();
+  const { projects } = useSiteContent();
+
+  // Counted from the real portfolio the /04 grid renders — so the number the hero claims
+  // and the number of cards below it can never drift apart. An empty portfolio shows no
+  // counter at all rather than a bare "0".
+  const metrics: Metric[] = [
+    ...(projects.length > 0
+      ? [
+          {
+            id: "projects",
+            value: String(projects.length),
+            label: PROJECTS_LABEL,
+            note: PROJECTS_NOTE,
+          },
+        ]
+      : []),
+    ...FIXED_METRICS,
+  ];
 
   return (
     <section id="top" className={styles.hero}>
@@ -63,8 +91,8 @@ export function Hero() {
         </div>
 
         <div className={styles.metrics} aria-label={l(L("Indicatori", "Показатели", "Metrics"))}>
-          {METRICS.map((m) => (
-            <div key={m.value} className={styles.metric}>
+          {metrics.map((m) => (
+            <div key={m.id} className={styles.metric}>
               <b className="disp">{m.value}</b>
               <span>{l(m.label)}</span>
               <small>{l(m.note)}</small>

@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useT } from "@/lib/i18n/LanguageProvider";
+import { submitContact, isNetworkError, ApiError } from "@/lib/api";
+import { validateText, LIMITS } from "@/lib/validation";
 import styles from "./Estimator.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -21,7 +24,51 @@ const SECTION = {
   from: L("de la", "от", "from"),
   assistant: L("Asistent TBS · online", "Ассистент TBS · онлайн", "TBS assistant · online"),
   submit: L("Trimite cererea", "Отправить заявку", "Send the request"),
-  submitted: L("Cerere pregătită ✓", "Заявка готова ✓", "Request ready ✓"),
+  sending: L("Se trimite…", "Отправляется…", "Sending…"),
+  // Was "Cerere pregătită ✓" / "Request ready ✓" while the form sent nothing at all —
+  // wording that described the local state rather than a delivered request.
+  submitted: L("Cerere trimisă ✓", "Заявка отправлена ✓", "Request sent ✓"),
+};
+
+const SENT_COPY = L(
+  "Am primit cererea. Revenim în cel mult o zi lucrătoare.",
+  "Мы получили заявку. Ответим в течение одного рабочего дня.",
+  "We received your request. We'll get back to you within one business day.",
+);
+
+const ERRORS = {
+  network: L(
+    "Nu am putut contacta serverul. Verifică conexiunea și încearcă din nou.",
+    "Не удалось связаться с сервером. Проверьте соединение и попробуйте снова.",
+    "We couldn't reach the server. Check your connection and try again.",
+  ),
+  rate: L(
+    "Prea multe cereri trimise. Încearcă din nou peste un minut.",
+    "Слишком много заявок. Попробуйте через минуту.",
+    "Too many requests. Please try again in a minute.",
+  ),
+  generic: L(
+    "Cererea nu a putut fi trimisă. Încearcă din nou sau scrie-ne pe email.",
+    "Заявку не удалось отправить. Попробуйте снова или напишите нам на почту.",
+    "The request couldn't be sent. Try again or email us.",
+  ),
+};
+
+/* Field names, as they appear inside a validation message ("Numele este obligatoriu."). */
+const FIELD_LABELS = {
+  name: L("Numele", "Имя", "The name"),
+  email: L("Emailul", "Email", "The email"),
+  phone: L("Telefonul", "Телефон", "The phone"),
+};
+
+/* Labels for the transcript that travels with the request — the assistant literally
+   promises "am adăugat conversația în cerere", so it has to actually be in there. */
+const TRANSCRIPT = {
+  options: L("Opțiuni alese", "Выбранные опции", "Chosen options"),
+  dialog: L("Dialog", "Диалог", "Dialog"),
+  you: L("Client", "Клиент", "Client"),
+  bot: L("Asistent", "Ассистент", "Assistant"),
+  none: L("fără", "нет", "none"),
 };
 
 type PType = { label: LocalizedText; price: string };
@@ -180,12 +227,28 @@ type Bubble = { id: number; text: string; user: boolean };
 
 export function Estimator() {
   const l = useLoc();
+  const t = useT();
+  /* `useT` is keyed by MessageKey; validateText takes a looser (key: string) => string.
+     Wrapping keeps the catalog's typed keys everywhere except this one boundary. */
+  const tr = (key: string) => t(key as Parameters<typeof t>[0]);
   const [typeIndex, setTypeIndex] = useState(0);
   const [opts, setOpts] = useState<Set<number>>(new Set([1]));
   const [node, setNode] = useState("start");
   const [log, setLog] = useState<Bubble[]>([]);
   const [uid, setUid] = useState(1);
-  const [sent, setSent] = useState(false);
+
+  /* The form is controlled so the request payload can carry what the visitor actually
+     picked — the project type, the estimate and the dialog — not just the four inputs. */
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [details, setDetails] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [error, setError] = useState<LocalizedText | null>(null);
+  /* Per-field messages from lib/validation — the same rules the backend enforces, so a
+     visitor is told what's wrong before a round trip rather than after a 422. */
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const sent = status === "sent";
 
   const price = `${l(SECTION.from)} ${PROJECT_TYPES[typeIndex].price}`;
 
@@ -217,9 +280,75 @@ export function Estimator() {
     setNode(opt.next);
   };
 
-  const onSubmit = (e: FormEvent) => {
+  /** Everything the visitor chose, folded into the one free-text field the API takes. */
+  const buildMessage = (): string => {
+    const chosen = [...opts].sort().map((i) => l(OPTIONS[i]));
+    const parts = [
+      details.trim(),
+      `${l(TRANSCRIPT.options)}: ${chosen.length ? chosen.join(", ") : l(TRANSCRIPT.none)}`,
+    ];
+    if (log.length) {
+      const lines = log.map(
+        (b) => `${b.user ? l(TRANSCRIPT.you) : l(TRANSCRIPT.bot)}: ${b.text}`,
+      );
+      parts.push(`${l(TRANSCRIPT.dialog)}:\n${lines.join("\n")}`);
+    }
+    // The API caps `message` at 5000 chars; trim rather than let the request 422.
+    return parts.filter(Boolean).join("\n\n").slice(0, 5000);
+  };
+
+  /** Client-side half of the defense-in-depth pair; the API re-validates everything. */
+  const validate = (): boolean => {
+    const next: Record<string, string> = {};
+    const nameErr = validateText(
+      name,
+      { label: l(FIELD_LABELS.name), max: LIMITS.name, required: true },
+      tr,
+    );
+    if (nameErr) next.name = nameErr;
+    const emailErr = validateText(
+      email,
+      { label: l(FIELD_LABELS.email), max: LIMITS.email, required: true, email: true },
+      tr,
+    );
+    if (emailErr) next.email = emailErr;
+    // Phone is optional — validateText passes an empty value straight through.
+    const phoneErr = validateText(
+      phone,
+      { label: l(FIELD_LABELS.phone), max: LIMITS.phone, phone: true },
+      tr,
+    );
+    if (phoneErr) next.phone = phoneErr;
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setSent(true);
+    if (status === "sending") return; // double-submit guard
+    setError(null);
+    if (!validate()) {
+      setStatus("idle");
+      return;
+    }
+    setStatus("sending");
+    try {
+      await submitContact({
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        message: buildMessage(),
+        project: l(PROJECT_TYPES[typeIndex].label),
+        estimate: PROJECT_TYPES[typeIndex].price,
+      });
+      setStatus("sent");
+    } catch (err) {
+      // 429 is the public endpoint's rate limit (10/min) — worth its own wording, so a
+      // visitor who hit it knows to wait rather than assume the form is broken.
+      const rateLimited = err instanceof ApiError && err.status === 429;
+      setError(isNetworkError(err) ? ERRORS.network : rateLimited ? ERRORS.rate : ERRORS.generic);
+      setStatus("error");
+    }
   };
 
   return (
@@ -301,27 +430,83 @@ export function Estimator() {
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</div>
               <b className={`disp ${styles.price}`}>{price}</b>
               <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
-              <form className={styles.form} onSubmit={onSubmit}>
-                <input aria-label={l(PLACEHOLDERS.name)} placeholder={l(PLACEHOLDERS.name)} required />
+              {/* noValidate: the browser's own bubble would fire first and our localized,
+                  screen-reader-announced messages would never run. */}
+              <form className={styles.form} onSubmit={onSubmit} noValidate>
+                <input
+                  aria-label={l(PLACEHOLDERS.name)}
+                  placeholder={l(PLACEHOLDERS.name)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={LIMITS.name}
+                  aria-invalid={!!fieldErrors.name}
+                  required
+                />
+                {fieldErrors.name && (
+                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+                    {fieldErrors.name}
+                  </p>
+                )}
                 <input
                   aria-label={l(PLACEHOLDERS.email)}
                   type="email"
                   placeholder={l(PLACEHOLDERS.email)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  maxLength={LIMITS.email}
+                  aria-invalid={!!fieldErrors.email}
                   required
                 />
+                {fieldErrors.email && (
+                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+                    {fieldErrors.email}
+                  </p>
+                )}
                 <input
                   aria-label={l(PLACEHOLDERS.phone)}
                   type="tel"
                   placeholder={l(PLACEHOLDERS.phone)}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  maxLength={LIMITS.phone}
+                  aria-invalid={!!fieldErrors.phone}
                 />
+                {fieldErrors.phone && (
+                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+                    {fieldErrors.phone}
+                  </p>
+                )}
                 <textarea
                   aria-label={l(PLACEHOLDERS.details)}
                   placeholder={l(PLACEHOLDERS.details)}
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  maxLength={4000}
                   rows={3}
                 />
-                <button type="submit" className={styles.submit}>
-                  {sent ? l(SECTION.submitted) : l(SECTION.submit)}
+                <button
+                  type="submit"
+                  className={styles.submit}
+                  disabled={status === "sending" || sent}
+                >
+                  {status === "sending"
+                    ? l(SECTION.sending)
+                    : sent
+                      ? l(SECTION.submitted)
+                      : l(SECTION.submit)}
                 </button>
+                {/* Both outcomes are announced, so a screen-reader user isn't left
+                    guessing whether the request actually went anywhere. */}
+                {sent && (
+                  <p className={styles.formNote} role="status">
+                    {l(SENT_COPY)}
+                  </p>
+                )}
+                {error && (
+                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+                    {l(error)}
+                  </p>
+                )}
               </form>
             </aside>
           </div>

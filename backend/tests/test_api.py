@@ -83,6 +83,40 @@ def test_get_content_defaults(client):
     assert all(s["url"] == "" for s in data["socials"])
 
 
+def test_seeded_portfolio_matches_the_real_projects(client):
+    """The seed is the real portfolio, fully translated, with no invented links."""
+    projects = client.get("/api/content").json()["projects"]
+
+    assert [p["id"] for p in projects] == [
+        "bizcheck",
+        "itara-global",
+        "docusafe",
+        "crowe-portal",
+        "cgam",
+        "iq-arena",
+        "balloons-breeze",
+        "statistica-md",
+        "statistic",
+        "flirt",
+    ]
+    assert projects[0]["name"] == "BizCheck"
+    assert projects[0]["url"] == "https://bizcheck.md"
+    assert projects[0]["images"][0] == "/projects/bizcheck-1.jpg"
+
+    # Private client systems and the unreleased app have no public address — the field
+    # stays empty rather than being filled with a guess.
+    linkless = {p["id"] for p in projects if not p["url"]}
+    assert linkless == {"docusafe", "crowe-portal", "iq-arena", "statistic", "flirt"}
+
+    # Every project ships a name, a screenshot and text in all three languages, so no
+    # card renders blank in any language.
+    for p in projects:
+        assert p["name"], p["id"]
+        assert p["images"], p["id"]
+        for field in ("tag", "desc"):
+            assert all(p[field][lang] for lang in ("ro", "ru", "en")), (p["id"], field)
+
+
 def test_put_requires_auth(client):
     assert client.put("/api/content", json=EMPTY).status_code in (401, 403)
 

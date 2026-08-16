@@ -16,6 +16,79 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — Formularul de contact chiar trimite; portofoliu pe date reale
+
+**Fixed** — cererile de contact se pierdeau în tăcere
+
+- `Estimator.tsx` colecta nume, email, telefon și mesaj, apoi făcea
+  `e.preventDefault(); setSent(true)` — și **atât**. Fișierul nici nu importa `lib/api`.
+  `submitContact` nu era apelat din nicio componentă a aplicației, deci **nicio cerere trimisă
+  din site nu ajungea în baza de date sau la botul de Telegram**, deși vizitatorul vedea
+  confirmarea. Backend-ul funcționa; frontend-ul pur și simplu nu-l chema. Asta explică de ce
+  în `submissions` existau doar două intrări reale.
+- Formularul postează acum pe `POST /api/contact` și trimite **ce a ales efectiv vizitatorul**:
+  tipul de proiect, estimarea, opțiunile bifate și **transcriptul dialogului cu asistentul** —
+  pe care interfața îl promitea deja explicit („am adăugat conversația în cerere").
+- Stările sunt vizibile și anunțate: `Se trimite…`, confirmare cu `role="status"`, eroare cu
+  `role="alert"`. Mesaj separat pentru **429** (limita de 10/min a endpoint-ului public), ca
+  vizitatorul să știe că trebuie să aștepte, nu că formularul e stricat. Butonul se dezactivează
+  în timpul trimiterii și după succes — o cerere nu poate fi depusă de două ori.
+- Textul butonului era „Cerere pregătită ✓" / „Request ready ✓" — descria starea locală, nu o
+  cerere livrată. Acum e „Cerere trimisă ✓", și e adevărat.
+
+**Fixed** — validarea client-side, pusă la loc
+
+- `lib/validation.ts` există și are 37 de teste care trec, dar **nu era conectat la formular**:
+  o rescriere anterioară a estimatorului o scosese, lăsând în urmă testele care o descriau.
+  Reconectată, cu mesaje din catalogul i18n (deci trilingve), `aria-invalid` pe câmpul vinovat
+  și `noValidate` pe formular — altfel bula nativă a browserului ar fi apărut prima, iar
+  mesajele noastre n-ar fi rulat niciodată. Aceleași reguli ca pe server: apărare în adâncime.
+
+**Changed** — portofoliul vine din date reale, metrica se calculează
+
+- Portofoliul avea **trei surse desincronizate**: 10 proiecte hardcodate în `Work.tsx` (ce se
+  vedea pe site), 8 în `lib/content.ts` (adminul) și 6 în `backend/app/defaults.py`. `Work.tsx`
+  nu citea deloc din admin, deci portofoliul nu era editabil.
+- Cele 10 reale au fost migrate în `lib/content.ts` **și** în `defaults.py`, identice, iar
+  `Work.tsx` citește acum `useSiteContent().projects`. Design neschimbat. Un proiect fără URL
+  randează `<article>`, nu `<a>` fără țintă; unul fără imagine primește fallback-ul de gradient.
+  Niciun URL inventat: `docusafe`, `crowe-portal`, `iq-arena`, `statistic` și `flirt` rămân fără
+  link, fiindcă nu au unul public.
+- `Hero.tsx` afișa `"50+"` hardcodat. Acum numără portofoliul real — **10** — cu eticheta
+  „proiecte în portofoliu". **Numărul nu a fost umflat.**
+
+**Changed** — date de contact reale
+
+- `contact@tbsdigital.ro` → **`office@tbs.md`**, în `lib/content.ts`, `defaults.py` și în
+  JSON-LD-ul din `app/layout.tsx` (care folosea o a treia adresă, `office@crowe-tm.md`).
+- Adăugată adresa **A. Șușev 29** ca al treilea contact (`type: "other"`, deci randat ca text,
+  fără href) și ca `streetAddress` în JSON-LD.
+- Telefonul rămâne neschimbat, la cererea clientului.
+
+**Fixed** — suita de teste, complet verde
+
+- `vitest.setup.ts` nu avea stub pentru `IntersectionObserver`, iar `components/ui/Reveal.tsx`
+  construiește unul la montare: orice secțiune învelită în `<Reveal>` arunca la randare. Fiecare
+  fișier de test îl stub-a local sau uita și pica. Acum e global.
+- `contact-form.test.tsx` (7 teste) descria un estimator anterior — alte placeholder-e, alt
+  payload. Rescris pe comportamentul care se livrează: **13 teste**, inclusiv că un formular
+  invalid nu atinge rețeaua, că unul valid pleacă exact o dată, și că un eșec e vizibil fără să
+  piardă ce s-a tastat.
+- `sections.test.tsx` (2 teste) cerea „ECHIPA" și cele 5 principii din catalog; ambele secțiuni
+  fuseseră redesenate deliberat („ECHIPA TBS", 3 carduri de raționament). Aliniate la realitate.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **135 passed / 0 failed** (13 fișiere) — de la 86 passed / 10 failed |
+| Backend `pytest` | **188 passed** |
+| `npm run build` · `lint` · `tsc --noEmit` | curate |
+
+> Rămâne de dat de client: cele 3 link-uri de social (până atunci `Footer.tsx:54` le filtrează,
+> deci nu apar iconițe moarte) și cele 4 statistici, încă goale. Iar `Team.tsx:23-25` mai are
+> `"50+"`, `"98%"`, `"24/7"` hardcodate — `50+` contrazice acum numărul real din hero.
+
 ## 2026-08-16 — Design tokens, URL-uri `/servicii`, preferințe globale în header
 
 **Added** — regula UI globală + tokenurile care o fac posibilă

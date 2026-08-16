@@ -146,10 +146,23 @@ export const services: Service[] = [
 ];
 
 /* ---------- /04 Selected work ----------
-   Real projects. Screenshots live in `public/projects/` and each card rotates through its
-   gallery. Editable from the admin, where new screenshots can be uploaded. DocuSafe and
-   Fayr Family ship with no gallery yet, and every store link starts empty — the card
-   renders fine without any of them (a store button only appears once its link is set). */
+   The real portfolio — this list IS what the /04 grid renders (`components/sections/Work.tsx`
+   reads it through `useSiteContent()`), so a project added or removed here (or from the
+   admin) changes the site. Screenshots live in `public/projects/` and the card shows the
+   first one; the rest are the gallery. Editable from the admin, where new screenshots can
+   be uploaded.
+
+   `url` is left empty for every project that has no public link (private CRMs, an unreleased
+   app) — the card then renders as a plain <article>, never as a link with no target. Store
+   links start empty for the same reason: a button only appears once its link is set.
+
+   Keep this list identical to `backend/app/defaults.py::default_projects()`. */
+const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
+
+/** A private client system that cannot be published — used by DocuSafe and Crowe Portal. */
+const TAG_PRIVATE_CRM = (): LocalizedText =>
+  L("CRM PRIVAT · FĂRĂ LINK", "ПРИВАТНЫЙ CRM · БЕЗ ССЫЛКИ", "PRIVATE CRM · NO LINK");
+
 export const projects: Project[] = [
   {
     id: "bizcheck",
@@ -184,12 +197,28 @@ export const projects: Project[] = [
   {
     id: "docusafe",
     name: "DocuSafe",
-    tag: locFromCatalog("projects.tag.saas"),
+    tag: TAG_PRIVATE_CRM(),
     desc: locFromCatalog("projects.docusafe.desc"),
-    url: "https://docusafe.tbs.md",
+    // Private client system — no public URL exists, so the card is not a link.
+    url: "",
     appStore: "",
     playStore: "",
-    images: [],
+    images: ["/projects/docusafe-1.png"],
+  },
+  {
+    id: "crowe-portal",
+    name: "Crowe Portal",
+    tag: TAG_PRIVATE_CRM(),
+    desc: L(
+      "Portal intern de lucru pentru un client — nu poate fi publicat. Sarcini pe board (backlog → în lucru → verificare → trimis), tichete, clienți, ședințe și rapoarte.",
+      "Внутренний рабочий портал под клиента — публиковать нельзя. Задачи на доске (бэклог → в работе → проверка → отправлено), тикеты, клиенты, встречи и отчёты.",
+      "An internal work portal built for a client — it cannot be published. Board tasks (backlog → in progress → review → sent), tickets, clients, meetings and reports.",
+    ),
+    // Private client system — no public URL exists, so the card is not a link.
+    url: "",
+    appStore: "",
+    playStore: "",
+    images: ["/projects/crowe-portal-1.png"],
   },
   {
     id: "cgam",
@@ -222,15 +251,32 @@ export const projects: Project[] = [
     ],
   },
   {
-    id: "fayr-family",
-    name: "Fayr Family",
-    tag: locFromCatalog("projects.tag.mobile"),
-    // No seed description yet — blank in every language (ru/en fall back to ro at render).
-    desc: locRo(""),
-    url: "",
+    id: "balloons-breeze",
+    name: "Balloons Breeze",
+    tag: L("WEB · EVENT BRAND", "WEB · EVENT-БРЕНД", "WEB · EVENT BRAND"),
+    desc: L(
+      "Site imersiv pentru un studio de aerodesign: scenă interactivă cu baloane, servicii pentru evenimente și cerere rapidă de ofertă.",
+      "Иммерсивный сайт студии аэродизайна: интерактивная сцена с шарами, услуги для событий и быстрый запрос сметы.",
+      "An immersive site for a balloon-design studio: an interactive balloon scene, event services and a fast quote request.",
+    ),
+    url: "https://balloonsbreeze.md/",
     appStore: "",
     playStore: "",
-    images: [],
+    images: ["/projects/balloons-breeze-1.png"],
+  },
+  {
+    id: "statistica-md",
+    name: "Statistica.md",
+    tag: L("PORTAL GUVERNAMENTAL", "ГОСУДАРСТВЕННЫЙ ПОРТАЛ", "GOVERNMENT PORTAL"),
+    desc: L(
+      "Portal public de date pentru Biroul Național de Statistică: indicatori-cheie, banca de date, publicații și căutare — clar și accesibil pentru toți.",
+      "Публичный портал данных для Национального бюро статистики: ключевые показатели, банк данных, публикации и поиск — понятно и доступно для всех.",
+      "A public data portal for the National Bureau of Statistics: key indicators, a data bank, publications and search — clear and accessible for everyone.",
+    ),
+    url: "https://statistica.gov.md",
+    appStore: "",
+    playStore: "",
+    images: ["/projects/statistica-1.png"],
   },
   {
     id: "statistic",
@@ -378,8 +424,9 @@ export const footerServices: string[] = [
 ];
 
 export const contacts: Contact[] = [
-  { id: "c-email", type: "email", value: "contact@tbsdigital.ro" },
+  { id: "c-email", type: "email", value: "office@tbs.md" },
   { id: "c-phone", type: "phone", value: "+373 600 00 000" },
+  { id: "c-address", type: "other", value: "A. Șușev 29" },
 ];
 
 
