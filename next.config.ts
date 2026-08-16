@@ -83,6 +83,26 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Portfolio screenshots and partner logos shipped in `public/`.
+        //
+        // Next serves everything under `public/` as `Cache-Control: public, max-age=0`, so
+        // a returning visitor re-validates every one of these on every page view — nine
+        // conditional requests on the home page alone, each paying a full round trip to be
+        // told "304, unchanged". Unlike `/_next/static/*`, these paths are NOT
+        // content-hashed, so `immutable` would be wrong: the files keep their names when a
+        // deploy replaces a screenshot (the admin manages this content by name — see
+        // components/sections/Work.tsx). An hour of freshness plus a week of
+        // stale-while-revalidate is the honest middle: repeat views inside the hour cost
+        // nothing, and a replaced screenshot is picked up in the background right after.
+        source: "/:dir(projects|partners)/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
         // The admin panel must never be indexed. The navbar no longer links to it, but a
         // leaked URL (referrer, history sync) could still be crawled — this tells robots
         // not to. Deliberately NOT listed in robots.txt, which would only advertise it.

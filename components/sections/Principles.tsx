@@ -7,7 +7,16 @@ import styles from "./Principles.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-type Why = { number: LocalizedText; title: LocalizedText; text: LocalizedText; accent: string };
+/* `accent` tints the hover border (a graphic — 3:1 is enough); `accentText` colours the
+   12px/800 number, which is TEXT and needs 4.5:1. They are separate because the brand fills
+   (--blue 4.25:1, --green 3.21:1, --red 4.19:1 on white) all fail as small text. */
+type Why = {
+  number: LocalizedText;
+  title: LocalizedText;
+  text: LocalizedText;
+  accent: string;
+  accentText: string;
+};
 
 const WHY: Why[] = [
   {
@@ -19,6 +28,7 @@ const WHY: Why[] = [
       "We start from the business problem and ship something that drives results, not just pretty pages.",
     ),
     accent: "var(--blue)",
+    accentText: "var(--blue-text)",
   },
   {
     number: L("02 / PROCES", "02 / ПРОЦЕСС", "02 / PROCESS"),
@@ -29,6 +39,7 @@ const WHY: Why[] = [
       "You always see where we are: clear stages, regular demos and decisions made together.",
     ),
     accent: "var(--green)",
+    accentText: "var(--green-text)",
   },
   {
     number: L("03 / REZULTAT", "03 / РЕЗУЛЬТАТ", "03 / RESULT"),
@@ -39,6 +50,7 @@ const WHY: Why[] = [
       "We tie every release to a real metric — conversion, time saved or revenue — not a gut feeling.",
     ),
     accent: "var(--red)",
+    accentText: "var(--red-text)",
   },
 ];
 
@@ -63,7 +75,7 @@ export function Principles() {
             <Reveal
               key={i}
               className={styles.card}
-              style={{ "--accent": w.accent } as CSSProperties}
+              style={{ "--accent": w.accent, "--accent-text": w.accentText } as CSSProperties}
             >
               <div className={`mono ${styles.number}`}>{l(w.number)}</div>
               <h3 className={`disp ${styles.cardTitle}`}>{l(w.title)}</h3>

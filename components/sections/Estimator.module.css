@@ -10,7 +10,7 @@
   flex-wrap: wrap;
 }
 .eyebrow {
-  color: var(--red);
+  color: var(--red-text);
   font-weight: var(--fw-bold);
   font-size: 13px;
   text-transform: uppercase;
@@ -46,7 +46,7 @@
 .stepLabel {
   font-size: 12px;
   font-weight: var(--fw-extra);
-  color: var(--red);
+  color: var(--red-text);
   letter-spacing: 0.08em;
 }
 
@@ -250,7 +250,7 @@
   font-weight: var(--fw-extra);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--red);
+  color: var(--red-text);
 }
 .summaryIntro {
   margin: var(--sp-2) 0 0;
@@ -387,7 +387,7 @@
   color: var(--txt);
 }
 .formError {
-  color: var(--red);
+  color: var(--red-text);
   font-weight: var(--fw-semi);
 }
 

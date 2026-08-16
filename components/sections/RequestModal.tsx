@@ -1,9 +1,26 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { RequestSection } from "./RequestSection";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+
+/**
+ * The request flow is loaded on demand, not with the page.
+ *
+ * `Modal` renders `null` until `open`, so this subtree is never mounted before the visitor
+ * presses the CTA — yet a static import still put the whole estimator (its dialog tree,
+ * validation, contact form and the dictation button) into the service page's first load.
+ * `next/dynamic` turns that into a chunk fetched at press time.
+ *
+ * `ssr: false` is not a downgrade here: `Modal` itself already renders nothing on the
+ * server (it needs a real `document` for its portal), so the server markup is byte-for-byte
+ * what it was. Nothing about the flow — same component, same endpoint — changes.
+ */
+const RequestSection = dynamic(
+  () => import("./RequestSection").then((m) => m.RequestSection),
+  { ssr: false },
+);
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 

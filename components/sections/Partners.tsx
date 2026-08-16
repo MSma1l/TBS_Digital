@@ -64,6 +64,7 @@ export function Partners() {
                         src={preview}
                         alt=""
                         loading="lazy"
+                        decoding="async"
                         className={styles.previewImg}
                       />
                     </span>
@@ -80,6 +81,7 @@ export function Partners() {
                         src={logo}
                         alt={p.name}
                         loading="lazy"
+                        decoding="async"
                         className={styles.logo}
                       />
                     ) : (

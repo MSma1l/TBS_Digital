@@ -305,7 +305,7 @@
   border-left: 2px solid var(--line);
 }
 .overlaySubLink:hover {
-  color: var(--red);
+  color: var(--red-text);
   border-left-color: var(--red);
 }
 

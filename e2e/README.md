@@ -51,6 +51,10 @@ Run output (traces, screenshots, HTML report) goes to `e2e/.artifacts/`, which i
 | `contact-form.spec.ts` | empty/invalid form → inline messages, `aria-invalid`, **no network request**; a valid form sends the expected payload once; a 429 leaves the form usable |
 | `responsive.spec.ts` | 320 / 375 / 390 / 768 / 1280 × light + dark: no horizontal scroll, header stays one row inside the viewport, language + theme reachable **without opening the burger**, 44px touch targets |
 | `keyboard.spec.ts` | Tab reaches the header controls, Enter/Space activate them, arrow keys move focus inside the language group, the focus ring is really drawn |
+| `modal.spec.ts` | the service-page CTA opens the **real** request flow in a dialog; `role`/`aria-modal`/name from its own heading; focus enters, is trapped over 40 Tab and 40 Shift+Tab presses, and returns to the CTA; ✕ / Escape / a click on the scrim close it, a click (or a drag ending) inside does not; the page behind is frozen and restored to the same pixel; the service is preselected (`/servicii/e-commerce` → €6.000, `/servicii/produs-digital` → €3.000); at 390px it is a bottom sheet with no sideways scroll |
+| `chat.spec.ts` | a freely typed answer becomes a bubble and earns the clarification round; the dialog terminates in a summary rendered on screen that contains what the visitor described; an 80-character unbroken word wraps instead of widening the page (desktop + 390px) |
+| `dictation.spec.ts` | with `SpeechRecognition` removed the button is **not rendered at all**; with a fake recogniser injected it appears but constructs and starts nothing until clicked; a click shows the listening state; recognised text lands in an **editable** review box and reaches the field only after "add", carrying the visitor's edits; a refused microphone shows the fallback and leaves both the button and manual typing usable |
+| `sound.spec.ts` | off by default (no `tbs_sound` cookie); **no `AudioContext` is constructed while the page loads** — the constructor is counted from before the app's first line; the first one appears strictly inside the click that turns sound on, and only one is ever built; the choice survives a reload and turning it off drops the cookie; a returning visitor with sound already ON still triggers nothing before a gesture |
 
 ### A11y gap this suite caught, now fixed
 
@@ -61,28 +65,43 @@ WCAG 2.5.5 is per target, not per group. Fixed in
 `components/ui/LanguageSwitcher.module.css` (stretch the track, `min-height: 44px` on the
 option, under the 860px query). The test now runs for real and guards it.
 
-`helpers.ts` holds the shared locators and assertions. Cookie names, locale prefixes and
-direction slugs are **imported from `lib/`** rather than re-typed, so a rename in the app
-breaks these tests at compile time instead of quietly making them assert on nothing.
+### What the modal/chat/dictation/sound pass turned up
+
+Two findings worth keeping, neither of them a bug in the app:
+
+- **Chromium 151 ships `SpeechRecognition` and `webkitSpeechRecognition`.** A test written as
+  "the browser has no speech API, so assert the button is absent" would pass for the wrong
+  reason on an older build and fail on this one — on this Chromium the dictation button *is*
+  rendered on a plain load. `dictation.spec.ts` therefore deletes the API in an
+  `addInitScript` and asserts absence against that, and injects a fake recogniser (plus a
+  fake `getUserMedia`) for the rest. No microphone, no permission prompt, no audio.
+- **The cookie-consent banner is itself a `role="dialog"`**, so a bare
+  `getByRole("dialog")` is ambiguous and the fixed banner can intercept clicks aimed at the
+  page. `modalDialog()` matches `[aria-modal="true"]` only, and the new specs seed a
+  `"rejected"` consent cookie in `beforeEach`.
+
+`helpers.ts` holds the shared locators and assertions. Cookie names, locale prefixes,
+direction slugs and the service-page CTA label are **imported from `lib/`** rather than
+re-typed, so a rename in the app breaks these tests at compile time instead of quietly making
+them assert on nothing. The four components that keep their `{ro,ru,en}` strings module-local
+(`Modal`, `Estimator`, `DictationButton`, `SoundToggle`) have nothing to import, so their
+Romanian copy is repeated once in `PRIVATE_COPY` — never inline in a spec.
 
 ## Not covered yet — deliberately
 
 These surfaces were being built while this harness was written, so specs for them were left
 out rather than shipped red. Add them here as they land:
 
-- [ ] **Request modal** (`components/ui/Modal.*`) — opens from the header/CTA, focus is
-      trapped inside it, Escape and the backdrop close it, focus returns to the trigger,
-      the body does not scroll behind it, and the form inside it submits the same stubbed
-      `POST /api/contact` payload the inline form does.
-- [ ] **Extended chat / assistant flow** in the estimator — walking the question tree to the
-      end, the transcript ending up in the submitted `message`, and the flow resetting.
-- [ ] **Dictation button** (`components/ui/DictationButton.*`) — permission-denied and
-      unsupported-browser fallbacks (grant/deny mic via `context.grantPermissions`), and the
-      dictated text landing in the right field.
-- [ ] **Sound toggle** (`components/ui/SoundToggle.*`) — the preference persists, nothing
-      autoplays, and the control keeps its 44px target next to the theme toggle.
+- [ ] **The request form submitted from inside the modal** — `modal.spec.ts` proves the real
+      flow is in there (the estimator's own submit button and email field), but the payload
+      assertions still live in `contact-form.spec.ts`, against the inline form only.
+- [ ] **The transcript inside the submitted `message`** — `chat.spec.ts` asserts the summary
+      is rendered; that the same text is what `POST /api/contact` carries is still only
+      covered by the unit tests.
 - [ ] **Cookie-consent banner** (`components/ui/CookieConsent.tsx`) — accept/reject, the
-      analytics pixel only loading after consent.
+      analytics pixel only loading after consent. Note that the banner is a non-modal
+      `role="dialog"`; specs that would otherwise be blocked by it answer it up front with
+      `seedConsent()`.
 - [ ] **Legal pages** `/confidentialitate` and `/cookies` in all three languages.
 - [ ] **Admin panel** `/admin-tbs-digital` — login, `noindex`, and unauthenticated access.
 - [ ] **Cross-engine**: only a `chromium` project is configured; add `webkit` if iOS Safari

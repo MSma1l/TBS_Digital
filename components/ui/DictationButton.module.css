@@ -44,12 +44,12 @@
 /* The listening state has to be unmistakable — it means a microphone is open. Red border,
    red text, red dot: the same --red the brand already uses for "live / attention". */
 .listening {
-  color: var(--red);
+  color: var(--red-text);
   border-color: var(--red);
   background: var(--panel);
 }
 .listening:hover:not(:disabled) {
-  color: var(--red);
+  color: var(--red-text);
   border-color: var(--red);
 }
 

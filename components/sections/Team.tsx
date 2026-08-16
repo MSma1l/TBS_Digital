@@ -19,11 +19,15 @@ const SECTION = {
   label: L("ECHIPA TBS", "КОМАНДА TBS", "TBS TEAM"),
 };
 
-const STATS: { value: string; label: LocalizedText }[] = [
-  { value: "50+", label: L("proiecte", "проектов", "projects") },
-  { value: "98%", label: L("clienți mulțumiți", "довольных клиентов", "happy clients") },
-  { value: "24/7", label: L("automatizări online", "автоматизаций онлайн", "automations online") },
-];
+/*
+ * The stat row is fed by the admin (`useSiteContent().stats`), not by literals.
+ *
+ * It used to hold three hardcoded claims: "50+ proiecte", "98% clienți mulțumiți" and
+ * "24/7 automatizări online". The first contradicted the site itself — the hero counts the
+ * real portfolio and shows 9 — and the other two are not measurable from anything we hold.
+ * Rather than invent numbers, the row renders only stats that actually carry a value and
+ * disappears entirely while there are none.
+ */
 
 function initialsOf(name: string): string {
   return name
@@ -35,7 +39,11 @@ function initialsOf(name: string): string {
 }
 
 export function Team() {
-  const { team } = useSiteContent();
+  const { team, stats } = useSiteContent();
+
+  /* A stat with no value is a placeholder the owner hasn't filled in yet — it must not
+     render as an empty box. */
+  const shownStats = stats.filter((s) => s.value.trim() !== "");
   const l = useLoc();
 
   return (
@@ -64,6 +72,7 @@ export function Team() {
                     src={photo}
                     alt={name}
                     loading="lazy"
+                    decoding="async"
                     className={styles.photo}
                   />
                 ) : (
@@ -78,14 +87,16 @@ export function Team() {
           })}
         </div>
 
-        <div className={styles.stats}>
-          {STATS.map((s) => (
-            <span key={s.value} className={styles.stat}>
-              <b className="disp">{s.value}</b>
-              {l(s.label)}
-            </span>
-          ))}
-        </div>
+        {shownStats.length > 0 && (
+          <div className={styles.stats}>
+            {shownStats.map((s) => (
+              <span key={s.id} className={styles.stat}>
+                <b className="disp">{s.value}</b>
+                {l(s.label)}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

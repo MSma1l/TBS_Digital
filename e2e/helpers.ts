@@ -8,6 +8,9 @@ import {
 import { messages } from "@/lib/i18n/messages";
 import { THEME_COOKIE, type Theme } from "@/lib/theme/theme";
 import { DIRECTIONS_BASE, directions } from "@/lib/directions";
+import { solUI } from "@/lib/solutions";
+import { CONSENT_KEY } from "@/lib/consent";
+import { SOUND_COOKIE } from "@/lib/sound/sound";
 
 /*
  * Shared vocabulary for the E2E specs.
@@ -68,6 +71,21 @@ export const seedTheme = (context: BrowserContext, theme: Theme, baseURL: string
 
 export const seedLocale = (context: BrowserContext, locale: Locale, baseURL: string) =>
   seedCookie(context, LOCALE_COOKIE, locale, baseURL);
+
+/**
+ * Answer the cookie banner before the page is even loaded.
+ *
+ * `components/ui/CookieConsent.tsx` is a fixed, bottom-anchored `role="dialog"`. It is a
+ * legitimate part of a first visit, but it sits on top of the page's own controls — a test
+ * about the request dialog or the sound toggle would otherwise be measuring the banner's
+ * z-index. `"rejected"` is the choice that changes nothing else on the site (no analytics
+ * pixel), which is exactly what a test wants.
+ */
+export const seedConsent = (
+  context: BrowserContext,
+  baseURL: string,
+  value: "accepted" | "rejected" = "rejected",
+) => seedCookie(context, CONSENT_KEY, value, baseURL);
 
 /** Read one cookie's value out of the browser context (`undefined` when unset). */
 export async function cookieValue(
@@ -133,6 +151,208 @@ export const burger = (page: Page, locale: Locale = "ro"): Locator =>
 
 /** The contact/estimate section on the home page. */
 export const estimatorSection = (page: Page): Locator => page.locator("#estimare");
+
+/**
+ * Copy that lives in a component's private `COPY` object.
+ *
+ * Everything the app *exports* is imported at the top of this file, so a rename breaks the
+ * suite at compile time. These four components keep their `{ro,ru,en}` strings module-local
+ * (`Modal.tsx`, `Estimator.tsx`, `DictationButton.tsx`, `SoundToggle.tsx`), so there is
+ * nothing to import — the Romanian variants are repeated here, in ONE place, rather than
+ * scattered across the specs. The suite pins `locale: "ro-RO"` and seeds no `tbs_locale`
+ * cookie, so Romanian is what renders.
+ *
+ * If one of these strings ever changes, the spec that uses it fails loudly with "locator
+ * resolved to 0 elements" — which is the correct outcome for copy the tests assert on.
+ */
+export const PRIVATE_COPY = {
+  /** `components/ui/Modal.tsx` → `COPY.close` (the ✕ button's aria-label). */
+  modalClose: "Închide",
+  /** `components/sections/RequestModal.tsx` → `COPY.title` (the dialog's accessible name). */
+  modalTitle: "Spune-ne ce vrei să construiești.",
+  /** `components/sections/Estimator.tsx` → `SECTION.submit` (the real contact submit). */
+  estimatorSubmit: "Trimite cererea",
+  /** `Estimator.tsx` → `CHAT.send` / `CHAT.inputLabel` (the free-text composer). */
+  chatSend: "Trimite răspunsul",
+  chatInputLabel: "Scrie asistentului",
+  /** `Estimator.tsx` → `SUMMARY.title`, shown once the dialog reaches `finish`. */
+  summaryTitle: "Rezumatul cererii",
+  /** `Estimator.tsx` → the shared opening of every `CLARIFY_Q` variant. */
+  clarifyPrefix: "Ca să înțeleg mai bine",
+  /** `components/ui/DictationButton.tsx` → `COPY.startAria` / `COPY.stopAria`. */
+  dictateStartAria: "Dictează textul cu vocea",
+  dictateStopAria: "Oprește dictarea",
+  /** `DictationButton.tsx` → `COPY.listening` / `COPY.draftLabel` / `COPY.add` / `COPY.denied`. */
+  dictateListening: "Ascult…",
+  dictateDraftLabel: "Textul recunoscut — verifică-l înainte de a-l adăuga",
+  dictateAdd: "Adaugă în câmp",
+  dictateDiscard: "Renunță",
+  dictateDenied: "Accesul la microfon a fost refuzat.",
+  /** `components/ui/SoundToggle.tsx` → `COPY.aria`. */
+  soundAria: "Sunet interfață",
+} as const;
+
+// --- the request modal -------------------------------------------------------------------
+
+/**
+ * The CTA on a service page that opens the request flow in a dialog
+ * (`components/sections/DirectionPage.tsx` → the action bar's `RequestModal`).
+ * Its label is `solUI.actionTalk`, which IS exported, so it is imported rather than typed.
+ */
+export const requestModalCta = (page: Page): Locator =>
+  page.getByRole("button", { name: solUI.actionTalk.ro, exact: true });
+
+/**
+ * The dialog itself.
+ *
+ * `[aria-modal="true"]` and not a bare `getByRole("dialog")`: the cookie-consent banner is
+ * also a `role="dialog"` (a non-modal one), so the plain role locator is ambiguous on a
+ * first visit. Only `Modal` claims to be modal.
+ */
+export const modalDialog = (page: Page): Locator =>
+  page.locator('[role="dialog"][aria-modal="true"]');
+
+/** The scrim behind the panel — the element a "click outside" has to land on. */
+export const modalOverlay = (page: Page): Locator =>
+  page.locator('[data-testid="modal-overlay"]');
+
+/** The ✕ in the dialog's header. */
+export const modalCloseButton = (page: Page): Locator =>
+  modalDialog(page).getByRole("button", { name: PRIVATE_COPY.modalClose, exact: true });
+
+/** Open the request dialog from a service page's action-bar CTA and wait for it. */
+export async function openRequestModal(page: Page): Promise<Locator> {
+  await requestModalCta(page).click();
+  const dialog = modalDialog(page);
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** Is `document.activeElement` inside the open dialog right now? */
+export async function focusIsInsideDialog(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+    const active = document.activeElement;
+    return !!dialog && !!active && (dialog === active || dialog.contains(active));
+  });
+}
+
+// --- the estimator's chat ----------------------------------------------------------------
+
+/**
+ * The assistant's free-text composer. Scoped to `root` because the SAME estimator is
+ * rendered inside the request dialog on a service page — an unscoped `#estimator-chat-input`
+ * would be ambiguous the moment a modal is open.
+ */
+export const chatInput = (root: Locator): Locator => root.locator("#estimator-chat-input");
+
+/** The composer's send button. */
+export const chatSendButton = (root: Locator): Locator =>
+  root.getByRole("button", { name: PRIVATE_COPY.chatSend, exact: true });
+
+/** Every bubble in the transcript, assistant and visitor alike, in order. */
+export const chatBubbles = (root: Locator): Locator =>
+  root.locator('[class*="chatLog"] > [class*="bubble"]');
+
+/**
+ * One quick reply in the chat. `button[class*="chatOption"]` and not just the class: the
+ * container that holds them is `chatOptions`, which the same substring would also match.
+ * CSS-module names keep their readable half in production
+ * (`Estimator-module__AdFMOa__chatOption`), so this is stable.
+ */
+export const chatQuickReplies = (root: Locator): Locator =>
+  root.locator('button[class*="chatOption"]');
+
+/** The structured summary the estimator renders once the dialog reaches its end. */
+export const estimatorSummary = (root: Locator): Locator =>
+  root.locator('[data-testid="estimator-summary"]');
+
+/** Type an answer into the composer and send it. */
+export async function sendChatMessage(root: Locator, text: string): Promise<void> {
+  await chatInput(root).fill(text);
+  await chatSendButton(root).click();
+}
+
+/**
+ * Walk the question tree to the end by always taking the first quick reply, and stop as
+ * soon as the summary appears. The tree's exact shape is the app's business — the spec only
+ * cares that a finite number of answers reaches the end.
+ */
+export async function walkChatToEnd(root: Locator, maxSteps = 12): Promise<number> {
+  const summary = estimatorSummary(root);
+  for (let step = 1; step <= maxSteps; step += 1) {
+    if (await summary.isVisible()) return step - 1;
+    const reply = chatQuickReplies(root).first();
+    if (!(await reply.isVisible())) break;
+    await reply.click();
+  }
+  await expect(summary, `the dialog did not finish within ${maxSteps} answers`).toBeVisible();
+  return maxSteps;
+}
+
+// --- dictation ---------------------------------------------------------------------------
+
+/**
+ * The two mount points `Estimator.tsx` renders for a dictation button. They stay EMPTY in a
+ * browser without speech recognition — which is exactly what one of the specs asserts.
+ */
+export const dictationSlot = (page: Page, name: "estimator-chat" | "estimator-details") =>
+  page.locator(`[data-dictation-slot="${name}"]`);
+
+/** The dictation button itself, when the browser has an API for it to drive. */
+export const dictationButton = (root: Locator | Page): Locator =>
+  root.getByRole("button", { name: PRIVATE_COPY.dictateStartAria, exact: true });
+
+// --- sound -------------------------------------------------------------------------------
+
+/** The interface-sound switch, in the header's preferences group. */
+export const soundToggle = (page: Page): Locator =>
+  header(page).getByRole("button", { name: PRIVATE_COPY.soundAria, exact: true });
+
+/**
+ * Arrive with sound already turned on, the way a returning visitor does. Only the literal
+ * `on` counts (`lib/sound/sound.ts` → `readSoundChoice`), and "off" is stored as *no*
+ * cookie, so this is the only value worth seeding.
+ */
+export const seedSoundOn = (context: BrowserContext, baseURL: string) =>
+  seedCookie(context, SOUND_COOKIE, "on", baseURL);
+
+/** The `tbs_sound` cookie's current value — `undefined` once the choice is "off". */
+export const soundCookie = (context: BrowserContext) => cookieValue(context, SOUND_COOKIE);
+
+/**
+ * Count every `AudioContext` the page constructs, from before the first byte of app code
+ * runs. `lib/sound/player.ts` promises the context is built lazily, at the first tone that
+ * is really going to play — the only way to prove that from outside is to watch the
+ * constructor itself. Read the tally with `audioContextCount(page)`.
+ */
+export async function countAudioContexts(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as {
+      __tbsAudio?: { count: number };
+      AudioContext?: unknown;
+      webkitAudioContext?: unknown;
+    };
+    w.__tbsAudio = { count: 0 };
+    const Real = w.AudioContext as (new (...args: unknown[]) => unknown) | undefined;
+    if (!Real) return;
+    // A function, not a class: it has to be `new`-able and still return a REAL context, so
+    // the app under test keeps working exactly as it would without the probe.
+    function Counting(this: unknown, ...args: unknown[]) {
+      w.__tbsAudio!.count += 1;
+      return new Real!(...args);
+    }
+    Counting.prototype = Real.prototype;
+    w.AudioContext = Counting;
+    w.webkitAudioContext = Counting;
+  });
+}
+
+/** How many `AudioContext`s have been constructed since the page loaded. */
+export const audioContextCount = (page: Page): Promise<number> =>
+  page.evaluate(
+    () => (window as unknown as { __tbsAudio?: { count: number } }).__tbsAudio?.count ?? 0,
+  );
 
 /**
  * The contact form inside that section. The section contains more than one `<form>` (the

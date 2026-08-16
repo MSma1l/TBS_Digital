@@ -10,7 +10,15 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 120; /* above the lightbox (100) — a dialog can be opened from one */
+  /* A modal is the topmost interactive layer, so it sits above every other fixed thing on
+     the site. At 120 it was below several: StatusBar and the navbar dropdown (130), the
+     language popup (200), the cookie banner (280) and the scroll bar (300). The visible
+     symptom was that the top strip stayed undimmed behind the scrim and a click there hit
+     StatusBar instead of the overlay, so the dialog would not close. The cookie banner is
+     worse: it is `position: fixed` and would swallow clicks aimed at the dialog.
+     Stack, low → high: lightbox 100 · header 120 · nav overlay 125 · dropdown/StatusBar 130
+     · language popup 200 · cookie banner 280 · scroll progress 300 · THIS. */
+  z-index: 320;
 
   display: flex;
   align-items: center;
@@ -88,7 +96,7 @@
   font-weight: var(--fw-semi);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--red);
+  color: var(--red-text);
 }
 
 .title {

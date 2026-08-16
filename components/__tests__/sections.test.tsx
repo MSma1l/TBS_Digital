@@ -17,7 +17,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import * as api from "@/lib/api";
-import { SiteContentProvider } from "@/lib/siteContent";
+import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
 import { Services } from "@/components/sections/Services";
 import { Team } from "@/components/sections/Team";
 import { Principles } from "@/components/sections/Principles";
@@ -91,5 +91,40 @@ describe("Principles section", () => {
     expect(
       screen.getByText(/Pornim de la problema de business/),
     ).toBeInTheDocument();
+  });
+});
+
+/**
+ * The team stat row used to be three literals: "50+ proiecte", "98% clienți mulțumiți" and
+ * "24/7 automatizări online". The first contradicted the hero, which counts the real
+ * portfolio (9), and the other two are not measurable from anything the project holds. The
+ * row is now fed by the admin and simply isn't there until real numbers exist.
+ */
+describe("Team stats come from real data, or not at all", () => {
+  it("renders no stat row while the stats are blank placeholders", async () => {
+    withProvider(<Team />);
+
+    // The team itself renders, so this is 'no stats', not 'nothing rendered'.
+    expect(await screen.findAllByText("ECHIPA TBS")).not.toHaveLength(0);
+    expect(screen.queryByText("50+")).not.toBeInTheDocument();
+    expect(screen.queryByText("98%")).not.toBeInTheDocument();
+    expect(screen.queryByText(/clienți mulțumiți/)).not.toBeInTheDocument();
+  });
+
+  it("renders the stats the owner actually filled in", async () => {
+    vi.mocked(api.fetchContent).mockResolvedValue({
+      ...defaultSiteData,
+      stats: [
+        { id: "s1", value: "9", label: { ro: "proiecte livrate", ru: "", en: "" } },
+        // A blank one must stay invisible even when a sibling has a value.
+        { id: "s2", value: "  ", label: { ro: "nimic", ru: "", en: "" } },
+      ],
+    });
+
+    withProvider(<Team />);
+
+    expect(await screen.findByText("9")).toBeInTheDocument();
+    expect(screen.getByText("proiecte livrate")).toBeInTheDocument();
+    expect(screen.queryByText("nimic")).not.toBeInTheDocument();
   });
 });

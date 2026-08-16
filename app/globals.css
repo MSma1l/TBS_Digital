@@ -33,16 +33,34 @@
   /* accents.
      FILLS — brand colours, used as backgrounds with --on-accent text on top:
        --red / --blue / --mint / --star.
-     TEXT TONES — the same hues darkened enough to clear AA 4.5:1 as *text* on a light
-     surface: --green, --amber. This split exists because the brand mint (#05b99f ≈ 2.4:1)
-     and brand yellow (#ffbd2e ≈ 1.6:1) are unreadable as text on white. Using a fill token
-     for text is the one mistake that reliably breaks contrast here. */
+     TEXT TONES — the *-text tokens, dark enough to clear AA 4.5:1 as text on a light
+     surface: --red-text (5.38 on --panel), --blue-text (6.18), --green-text (5.32).
+
+     Using a FILL token as text is the one mistake that reliably breaks contrast here, and
+     every fill fails it — measured on --panel: --red 4.19, --blue 4.25, --green 3.21,
+     --amber 3.77, --cyan 3.56, --mint ≈2.4, --star ≈1.6.
+
+     ⚠ --green and --amber were previously described here as clearing AA as text. They do
+     not; the numbers above are measured. --amber and --cyan are still used as text in
+     places (Partners, StatusBar, the legal pages, the admin panel) and want the same
+     *-text treatment — see docs/04-design-system.md. */
   --red: #ef263d;
   --blue: #3970ff;
   --mint: #05b99f;
   --star: #ffbd2e;
 
   --green: #12a37a;
+  /* the brand red as SMALL TEXT (eyebrows, mono labels, link hovers). Same hue and
+     saturation as --red (H353 S86%), only darker: L54% -> L45%. Measured on the light
+     surfaces it actually lands on: --panel 5.38:1, --bg 5.02:1, --panel2 4.98:1,
+     --bg2 4.64:1, the Estimator summary tint 4.58:1. Never use it as a fill — the fill
+     is --red, and --on-accent still assumes --red underneath. */
+  --red-text: #d41026;
+  /* Same split for blue: #3970ff is a fill (white sits on it), but as 12px text on a
+     light surface it measures 4.05:1 — under AA. Hue and saturation held. */
+  --blue-text: #2a56d6;
+  /* #12a37a measures 3.21:1 on white — the weakest of the three as text. */
+  --green-text: #0b7a5a;
   --blue2: #3f63d8;
   --ice: #5566c9;
   --cyan: #0e93b9;
@@ -154,8 +172,8 @@
        by the inline script in app/layout.tsx, so there is no light flash);
      · no choice at all -> follow the OS, unless the visitor explicitly picked light.
 
-   Text tones are NOT the light ones reused: --green and --amber are darkened for a
-   light background and would fall under AA on #181e30, so dark gets its own pair.
+   Text tones are NOT the light ones reused: --green, --amber and --red-text are darkened
+   for a light background and would fall under AA on #181e30, so dark gets its own set.
    ============================================================ */
 :root {
   --dark-bg: #101422;
@@ -176,12 +194,22 @@
   --dark-ink-line: rgba(255, 255, 255, 0.14);
   --dark-green: #2fd6a8;
   --dark-amber: #f3c14b;
+  /* the small-text red, lifted for a dark surface. Same hue as --red (H354 vs H353),
+     saturation pushed to 100% so it stays a brand red rather than a dusty pink, and
+     lightness raised L54% -> L71% — only a step above --red-lift (L66%), which the CTA
+     gradient already puts on screen. Measured: --panel 6.03:1, --bg 6.67:1,
+     --panel2 5.48:1, --bg2 7.01:1, the Estimator summary tint 4.68:1. */
+  --dark-red-text: #ff6b7b;
+  --dark-blue-text: #8fb0ff;
+  /* On dark, --dark-green already clears AA (8.92:1 on --panel), so it doubles as the
+     text tone rather than adding a fourth near-identical green. */
+  --dark-green-text: var(--dark-green);
   /* --ice and --cyan are pure text/icon tones (never fills), so lifting them on dark is
      safe and buys back AA: measured 3.79:1 and ~3.5:1 on --panel before, comfortably over
      4.5:1 after. --blue and --red are deliberately NOT remapped — they are brand *fills*
      with --on-accent text on top, and lightening them would weaken that pairing instead.
-     Their use as SMALL text (e.g. a 12px --red label on --panel, 3.96:1) is a palette
-     decision that belongs to the brand, not something to patch per theme. */
+     Small red TEXT does not use --red at all any more: it uses --red-text, which is
+     remapped onto --dark-red-text below, exactly like --green and --amber. */
   --dark-ice: #93a4f5;
   --dark-cyan: #4fc3e8;
   --dark-sh-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
@@ -207,6 +235,9 @@
     --ink-line: var(--dark-ink-line);
     --green: var(--dark-green);
     --amber: var(--dark-amber);
+    --red-text: var(--dark-red-text);
+    --blue-text: var(--dark-blue-text);
+    --green-text: var(--dark-green-text);
     --ice: var(--dark-ice);
     --cyan: var(--dark-cyan);
     --sh-sm: var(--dark-sh-sm);
@@ -232,6 +263,9 @@
   --ink-line: var(--dark-ink-line);
   --green: var(--dark-green);
   --amber: var(--dark-amber);
+  --red-text: var(--dark-red-text);
+  --blue-text: var(--dark-blue-text);
+  --green-text: var(--dark-green-text);
   --ice: var(--dark-ice);
   --cyan: var(--dark-cyan);
   --sh-sm: var(--dark-sh-sm);

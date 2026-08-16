@@ -149,7 +149,7 @@
   transform: translateX(4px);
 }
 a.colLink:hover {
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* ---------- meta ---------- */
@@ -179,7 +179,7 @@ a.colLink:hover {
   transition: color 0.15s;
 }
 .metaLink:hover {
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* ---------- giant wordmark ---------- */

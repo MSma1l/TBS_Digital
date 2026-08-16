@@ -220,10 +220,50 @@ and fall under AA on `#181e30`. `--ice` and `--cyan` likewise. **`--blue` and `-
 deliberately left alone** — they are brand *fills* carrying `--on-accent` text, and lightening
 them would weaken that pairing.
 
-> **Known contrast debt.** `--red` as *small* text on `--panel` measures **3.96:1**, under the
-> 4.5:1 AA floor for text below 18.66px bold — on both themes. It affects 12px labels such as
-> `.stepLabel` and `.personLabel`. Fixing it means either a darker text-weight red token or
-> larger labels; both are brand decisions, so it is recorded here rather than patched.
+### Red as text — `--red-text`
+
+`--red` is a **fill**. As *small* text it measured **3.96:1** on `--panel`, under the 4.5:1 AA
+floor for text below 18.66px bold, on both themes. It is now split the same way `--green` and
+`--amber` already were:
+
+```css
+--red-text:      #d41026;  /* light: 5.38:1 on --panel, 5.02:1 on --bg */
+--dark-red-text: #ff6b7b;  /* dark:  6.03:1 on --panel, 6.67:1 on --bg */
+```
+
+Hue is held at 353–354° and saturation at the brand's 86%, so neither tone drifts toward brown
+or pink — they are the same red, one step darker and one step lighter.
+
+**Use `--red-text` for red text; keep `--red` for fills, borders, focus rings and
+`aria-hidden` glyphs.** The binding constraint when picking the dark tone was the estimator's
+summary tint (`color-mix(--green 8%, --panel2)`), measured live rather than derived — it is
+what pushed the dark value one step lighter than `--red-lift`.
+
+The same split now exists for the other two accents used as small text:
+
+```css
+--blue-text:  #2a56d6;  /* 6.18:1 on --panel — the fill --blue is 4.25:1 */
+--green-text: #0b7a5a;  /* 5.32:1 on --panel — the fill --green is 3.21:1 */
+```
+
+On dark, `--green-text` simply points at `--dark-green` (already 8.92:1) rather than adding a
+fourth near-identical green.
+
+`Principles` shows why the split is per *role*, not per colour: its `--accent` tints a hover
+**border** (a graphic — 3:1 is enough) while `--accent-text` colours a 12px/800 **number**.
+Same hue, two thresholds, two tokens.
+
+> **Measured contrast of every fill, as text on `--panel`** — none of them passes:
+> `--red` 4.19 · `--blue` 4.25 · `--green` **3.21** · `--amber` 3.77 · `--cyan` 3.56 ·
+> `--mint` ≈2.4 · `--star` ≈1.6.
+>
+> **Still open:** `--amber` is text in `Partners.module.css`, and `--cyan` is text in about
+> fifteen places — the navbar link hover, `StatusBar`, `CookieConsent`, the legal pages and
+> most of the admin panel. Both want the same `*-text` treatment. As **focus rings and
+> borders** `--cyan` is fine: those are graphics, and 3.56:1 clears the 3:1 bar.
+>
+> This file previously claimed `--green` and `--amber` were "darkened enough to clear AA as
+> text". They were not — the numbers above are measured, not derived.
 
 ## Accessibility / responsiveness notes
 

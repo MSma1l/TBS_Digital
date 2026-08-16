@@ -54,8 +54,12 @@ describe("action bar", () => {
 
     const dialog = await screen.findByRole("dialog");
     // The estimator really mounted inside — its own submit button proves it is the flow,
-    // not a placeholder — and it opened on this service's project type.
-    expect(within(dialog).getByRole("button", { name: /Trimite cererea/ })).toBeInTheDocument();
+    // not a placeholder — and it opened on this service's project type. Awaited because
+    // the flow is code-split (`next/dynamic` in RequestModal): the dialog frame is on
+    // screen first and its body arrives with the chunk, exactly as it does in a browser.
+    expect(
+      await within(dialog).findByRole("button", { name: /Trimite cererea/ }),
+    ).toBeInTheDocument();
     expect(within(dialog).getByText(/€3\.000/)).toBeInTheDocument();
   });
 
@@ -94,7 +98,8 @@ describe("action bar", () => {
 
     const dialog = await screen.findByRole("dialog");
     // The estimator's e-commerce project type — its price is what proves the preselection.
-    expect(within(dialog).getByText(/€6\.000/)).toBeInTheDocument();
+    // Awaited for the same reason as above: the flow inside the dialog is code-split.
+    expect(await within(dialog).findByText(/€6\.000/)).toBeInTheDocument();
   });
 
   it("drops the projects action (and the section) for a direction with no real work", () => {

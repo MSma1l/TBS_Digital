@@ -19,7 +19,7 @@
 }
 .back:hover {
   opacity: 1;
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* ---------- hero ---------- */
@@ -32,7 +32,7 @@
 }
 
 .eyebrow {
-  color: var(--red);
+  color: var(--red-text);
   font-size: 13px;
   font-weight: var(--fw-extra);
   letter-spacing: 0.1em;
@@ -126,7 +126,7 @@
   transition: color 0.15s;
 }
 .textLink:hover {
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* the reference project has no public URL — same slot, but plainly not a link */
@@ -293,7 +293,7 @@
 .highlight b {
   font-size: var(--fs-xs);
   letter-spacing: 0.09em;
-  color: var(--red);
+  color: var(--red-text);
 }
 .highlight h2 {
   font-size: 22px;
@@ -341,7 +341,7 @@
 .caseLabel {
   font-size: var(--fs-xs);
   letter-spacing: 0.09em;
-  color: var(--red);
+  color: var(--red-text);
 }
 .caseName {
   font-size: 22px;
@@ -372,7 +372,7 @@
   transition: color 0.15s;
 }
 .caseLink:hover {
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* ---------- relevant projects ----------
@@ -424,7 +424,7 @@ a.project:hover {
 }
 .projectTag {
   display: block;
-  color: var(--red);
+  color: var(--red-text);
   font-size: var(--fs-xs);
   font-weight: var(--fw-extra);
   letter-spacing: 0.08em;

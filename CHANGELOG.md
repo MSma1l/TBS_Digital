@@ -16,6 +16,104 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-17 — Optimizare: contrast, performanță, E2E complet
+
+Fără nicio schimbare de design: aceleași culori, tipografie, spațieri și componente. Doar
+contrast, performanță, acoperire de teste și două defecte reale.
+
+**Fixed** — contrastul culorilor de brand folosite ca text
+
+- Auditul a măsurat **fiecare** culoare de umplere ca text pe `--panel`. **Niciuna nu trece**
+  pragul AA de 4.5:1: `--red` 4.19 · `--blue` 4.25 · `--green` **3.21** · `--amber` 3.77 ·
+  `--cyan` 3.56 · `--mint` ≈2.4 · `--star` ≈1.6.
+- Trei tokenuri noi de text, cu variante dark: `--red-text` #d41026 (**5.38**),
+  `--blue-text` #2a56d6 (**6.18**), `--green-text` #0b7a5a (**5.32**). Nuanța brandului e
+  păstrată — hue ținut la 353–354° pentru roșu, saturația la nivelul original. Pe dark:
+  `#ff6b7b` (6.03) și `#8fb0ff` (7.75); verdele dark trecea deja (8.92), deci `--green-text`
+  arată spre el în loc să adauge un al patrulea verde aproape identic.
+- **26 de declarații** `color: var(--red)` → `var(--red-text)`, strict acolo unde e text mic.
+  Umplerile, bordurile, inelele de focus și glifele `aria-hidden` rămân pe `--red` — acolo
+  pragul e 3:1 și îl treceau.
+- `Principles` arată de ce împărțirea e pe **rol**, nu pe culoare: `--accent` colora și
+  bordura de hover (grafic, 3:1) și numărul de 12px (text, 4.5:1). Separate în `--accent` și
+  `--accent-text`, deci **bordurile rămân pixel-identice**.
+- Comentariul din `globals.css` susținea că `--green` și `--amber` sunt „darkened enough to
+  clear AA as text". **Fals** — corectat, cu cifrele măsurate. Exact așa reapare un bug:
+  cineva citește comentariul și îl crede.
+
+**Changed** — performanță, măsurată ca A/B controlat
+
+Măsurătorile inițiale au fost **contaminate** de modificările CSS ale altui agent care rula
+în paralel; au fost refăcute ca A/B pe același arbore, cu `shasum` care confirmă că singura
+diferență între cele două build-uri e code splitting-ul.
+
+| | înainte | după |
+|---|---|---|
+| `/servicii/<slug>` JS+CSS gzip | 215.312 | **199.487** (−7,3%) |
+| `/servicii/<slug>` CSS gzip | 15.152 | **10.452** (−31%) |
+| `/` JS+CSS gzip | 218.520 | 214.630 (−1,8%) |
+| PNG-uri în `public/` | 3.751.260 | **3.376.775** (−10%) |
+
+- `RequestSection` (estimatorul, 959 linii + dictarea) se încarcă acum cu `next/dynamic`, la
+  apăsarea CTA-ului, nu cu pagina. `ssr: false` nu e o pierdere: `Modal` oricum randa `null`
+  pe server. Dovedit în browser — la încărcare niciun chunk cu estimatorul; la click, chunk-ul
+  sosește și fluxul e complet, cu preselecția corectă.
+- Recompresie **fără nicio pierdere** a 6 PNG-uri: toate aveau canal alpha complet opac, deci
+  al patrulea canal nu codifica nimic. Dovada: SHA-256 pe bufferul RGB decodat, backup vs.
+  fișier nou → **pixel-identice**.
+- `/projects/*` și `/partners/*` erau servite cu `max-age=0` — 9 round-trip-uri de revalidare
+  doar pe homepage. Acum `max-age=3600, stale-while-revalidate`. **Nu** `immutable`: fișierele
+  nu sunt hash-uite și un deploy le poate înlocui cu același nume.
+
+**Fixed** — modalul era sub alte straturi
+
+`Modal .overlay` avea `z-index: 120`, sub `StatusBar` și dropdown-ul din navbar (130), popup-ul
+de limbă (200), bara de cookie-uri (280) și bara de progres (300). Simptom: banda de sus
+rămânea nedimmed în spatele scrim-ului, iar un click acolo nimerea `StatusBar`, deci dialogul
+nu se închidea. Bara de cookie-uri era mai gravă — fiind `position: fixed`, ar fi interceptat
+clickuri destinate dialogului. Mutat la **320**, deasupra întregii stive, care e acum
+documentată în cod.
+
+**Changed** — statisticile echipei vin din date reale
+
+`Team.tsx` afișa trei valori hardcodate. Una se contrazicea cu site-ul însuși — „50+ proiecte",
+în timp ce hero-ul numără portofoliul real și arată **9**; celelalte două („98% clienți
+mulțumiți", „24/7") nu sunt măsurabile din nimic ce deține proiectul. Rândul e legat acum de
+`stats` din admin, afișează doar valorile completate și **nu se randează deloc** cât timp nu
+există niciuna. Aceeași regulă pe care footer-ul o aplică deja rețelelor sociale.
+
+**Added** — E2E pentru modal, chat, dictare și sunet (+26 teste)
+
+Focus trap verificat pe **40 Tab / 40 Shift+Tab**; focus restaurat pe CTA; închidere prin ✕,
+Escape și scrim, dar **nu** la click în interior *nici* la drag care se termină pe scrim; body
+înghețat și scroll restaurat la același pixel; preselecția serviciului; sheet la 390px fără
+scroll orizontal. Chat: bulă → clarificare → rezumat pe ecran, plus un cuvânt de 80 de
+caractere. Dictare: absența butonului fără API, nicio construcție înainte de click, textul
+confirmat (și **editat**) e cel livrat, refuz de permisiune. Sunet: oprit implicit, **zero
+`AudioContext` la încărcare** (constructorul numărat), persistență, și tăcere pentru un
+vizitator care revine cu sunetul pornit până la primul gest.
+
+> **Premisa mea era greșită:** ceruse să se testeze că butonul de dictare lipsește în Chromium
+> pentru că n-ar avea `SpeechRecognition`. **Chromium 151 îl are** — un test scris pe premisa
+> aceea ar fi trecut din motivul greșit. Testul șterge acum API-ul explicit și verifică ambele
+> stări.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **285 passed / 0 failed** (20 fișiere) |
+| `npx playwright test --workers=1` | **144 passed / 0 failed** (118 + 26) |
+| `npm run lint` · `npx tsc --noEmit` · `npm run build` | curate |
+
+> **Rămâne deschis, cu cifre:** `--cyan` (3.56:1) e folosit ca **text** în ~15 locuri — hover-ul
+> din navbar, `StatusBar`, bara de cookie-uri, paginile legale și aproape tot panoul de admin;
+> `--amber` (3.77:1) la fel în `Partners`. Ambele vor același tratament `*-text`. Ca inele de
+> focus și borduri, `--cyan` e corect — acolo pragul e 3:1.
+> Refuzate deliberat la performanță, ca să nu schimbe designul sau să elimine funcții:
+> `next/image` (ar cere `remotePatterns` per host, altfel imaginile din admin ar da eroare),
+> redimensionarea capturilor, recompresia JPEG (generation loss), reducerea subseturilor de font.
+
 ## 2026-08-16 — E-commerce și Asistenți: completate cu ce e verificabil
 
 Cele două direcții goale din selector au fost completate. Textul cerut inițial conținea mai

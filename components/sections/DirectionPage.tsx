@@ -98,6 +98,7 @@ export function DirectionPage({ slug }: { slug: string }) {
                     src={reference.images[0]}
                     alt={reference.name}
                     loading="lazy"
+                    decoding="async"
                     className={styles.refImage}
                   />
                 ) : null}
@@ -228,6 +229,7 @@ export function DirectionPage({ slug }: { slug: string }) {
                         src={p.images[0]}
                         alt={p.name}
                         loading="lazy"
+                        decoding="async"
                         className={styles.projectImage}
                       />
                     ) : null}

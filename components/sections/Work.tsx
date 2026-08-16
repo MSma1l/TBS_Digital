@@ -86,6 +86,12 @@ export function Work() {
                     src={image}
                     alt={p.name}
                     loading="lazy"
+                    // Nine screenshots land in this grid. `decoding="async"` lets the
+                    // browser decode them off the main thread instead of blocking it at
+                    // paint time; the card is unaffected either way — the image is
+                    // `position: absolute; inset: 0` behind the copy, so it never takes
+                    // part in layout and cannot shift anything while it loads.
+                    decoding="async"
                     className={styles.image}
                   />
                 ) : null}
