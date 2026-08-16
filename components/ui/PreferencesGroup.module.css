@@ -10,11 +10,22 @@
   display: inline-flex;
 }
 
-/* mobile overlay: the row spans the overlay width, and so does the single control inside
-   it — which is how the switcher already rendered as a direct child of the overlay. */
+/* mobile overlay: the row spans the overlay width. Only the FIRST control (the language
+   switcher) grows into it — the theme toggle keeps its square, icon-sized box, which is
+   what makes the pair read as a control and its setting rather than as two half-rows. */
 .stack {
   display: flex;
 }
-.stack > * {
+.stack > :first-child {
   flex: 1 1 auto;
+}
+
+/* Phones and tablets: the whole group is at least 44px tall (WCAG 2.5.5 touch target), and
+   both controls stretch to that height so they stay visually one unit. Above this width the
+   toggle stretches to the switcher's natural height instead — same rule, other direction. */
+@media (max-width: 860px) {
+  .prefs {
+    align-items: stretch;
+    min-height: 44px;
+  }
 }

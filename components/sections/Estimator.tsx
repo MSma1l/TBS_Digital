@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { submitContact, isNetworkError, ApiError } from "@/lib/api";
 import { validateText, LIMITS } from "@/lib/validation";
+import { SERVICE_QUERY_KEY, SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
 import styles from "./Estimator.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -71,13 +73,13 @@ const TRANSCRIPT = {
   none: L("fără", "нет", "none"),
 };
 
-type PType = { label: LocalizedText; price: string };
+type PType = { id: string; label: LocalizedText; price: string };
 const PROJECT_TYPES: PType[] = [
-  { label: L("Site / prezentare", "Сайт / презентация", "Website / landing"), price: "€3.000" },
-  { label: L("CRM la comandă", "CRM под заказ", "Custom CRM"), price: "€8.000" },
-  { label: L("Automatizare cu AI", "Автоматизация с ИИ", "AI automation"), price: "€5.000" },
-  { label: L("E-commerce", "E-commerce", "E-commerce"), price: "€6.000" },
-  { label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), price: "€12.000" },
+  { id: "site", label: L("Site / prezentare", "Сайт / презентация", "Website / landing"), price: "€3.000" },
+  { id: "crm", label: L("CRM la comandă", "CRM под заказ", "Custom CRM"), price: "€8.000" },
+  { id: "automation", label: L("Automatizare cu AI", "Автоматизация с ИИ", "AI automation"), price: "€5.000" },
+  { id: "ecommerce", label: L("E-commerce", "E-commerce", "E-commerce"), price: "€6.000" },
+  { id: "mobile", label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), price: "€12.000" },
 ];
 
 const OPTIONS: LocalizedText[] = [
@@ -225,13 +227,30 @@ const FINISH = L(
 
 type Bubble = { id: number; text: string; user: boolean };
 
+/**
+ * Which type a visitor arriving from a service page should land on.
+ *
+ * The service pages link here as `/?serviciu=<slug>#estimare`, so the choice survives the
+ * navigation, a refresh and a shared link — a CustomEvent would not. Read through
+ * `useSearchParams` rather than `window.location` so the server and the first client
+ * render agree and hydration stays quiet.
+ */
+function useServiceTypeIndex(): number {
+  const params = useSearchParams();
+  const slug = params.get(SERVICE_QUERY_KEY);
+  if (!slug) return 0;
+  const wanted = SERVICE_TO_ESTIMATOR_TYPE[slug];
+  const found = PROJECT_TYPES.findIndex((t) => t.id === wanted);
+  return found >= 0 ? found : 0;
+}
+
 export function Estimator() {
   const l = useLoc();
   const t = useT();
   /* `useT` is keyed by MessageKey; validateText takes a looser (key: string) => string.
      Wrapping keeps the catalog's typed keys everywhere except this one boundary. */
   const tr = (key: string) => t(key as Parameters<typeof t>[0]);
-  const [typeIndex, setTypeIndex] = useState(0);
+  const [typeIndex, setTypeIndex] = useState(useServiceTypeIndex);
   const [opts, setOpts] = useState<Set<number>>(new Set([1]));
   const [node, setNode] = useState("start");
   const [log, setLog] = useState<Bubble[]>([]);

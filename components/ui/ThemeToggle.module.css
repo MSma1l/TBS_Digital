@@ -1,0 +1,59 @@
+/* The toggle is the language switcher's twin: same border, same track, same square
+   corners — the two controls have to read as one group in the header. Everything here is a
+   token, so both palettes get the same contrast (--txt on --panel2 is the strongest pair
+   the surface scale has, in light *and* dark). */
+.toggle {
+  /* The switcher sets the group's height; stretching to it is what makes the two controls
+     exactly the same size without hard-coding a pixel value for either one. */
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--mut);
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.toggle:hover {
+  color: var(--txt);
+  border-color: var(--line2);
+}
+
+/* Keyboard focus must be visible on its own, not only under the pointer — same ring the
+   language switcher uses, so the group behaves consistently. */
+.toggle:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+  color: var(--txt);
+}
+
+.icon {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+/* Touch target: at least 44x44 on phones/tablets (WCAG 2.5.5). The group stretches to the
+   same height, so the language switcher grows with it and the two stay aligned. */
+@media (max-width: 860px) {
+  .toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .icon {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle {
+    transition: none;
+  }
+}

@@ -8,33 +8,41 @@
   /* surfaces — a cool, airy light scale. Each step is a real elevation, so a card
      reads as a distinct surface against the page. The hue leans very slightly blue,
      which is what keeps large white panels from looking grey next to --bg. */
-  --bg: #eef1f7;
-  --bg2: #e6eaf2;
+  --bg: #f4f7ff;
+  --bg2: #e9eefc;
   --panel: #ffffff;
   --panel2: #f4f6fb;
+  /* the soft blue wash in the top-right of the page, and the faint page grid */
+  --wash: rgba(219, 227, 255, 0.5);
+  --grid-line: rgba(16, 23, 42, 0.04);
 
   /* scrim — stays near-black on purpose (a hair warm): it sits over bright
      partner/project screenshots and is what keeps white-on-transparent logos
      readable. Do NOT lift it with the surfaces. */
   --scrim: 15, 12, 22;
 
-  /* lines — a warm lavender-plum hairline that belongs to the new surfaces */
-  --line: rgba(23, 28, 48, 0.12);
-  --line2: rgba(23, 28, 48, 0.2);
+  /* lines */
+  --line: #dbe3f1;
+  --line2: #c5d0e4;
 
-  /* text — slightly warm neutrals (all AA 4.5:1+ on every surface above; the
-     faintest pairing is --dim on --panel2 at 4.94:1 — see docs/04-design-system.md) */
-  --txt: #11141c;
-  --mut: #4d5361;
-  --dim: #666c7b;
+  /* text */
+  --txt: #10172a;
+  --mut: #586784;
+  --dim: #6b7891;
 
-  /* accents — blue leads; the range is warm-inclusive (rich amber + a coral ember).
-     --blue and --violet2 are *fills* (white text sits on them, AA 4.79:1/4.97:1);
-     --blue2/--cyan/--violet/--amber are the text/icon-weight tones (all clear AA on
-     every surface, and all clear AA for the SectionCTA's dark-on-accent button). */
-  --red: #f5333f;
+  /* accents.
+     FILLS — brand colours, used as backgrounds with --on-accent text on top:
+       --red / --blue / --mint / --star.
+     TEXT TONES — the same hues darkened enough to clear AA 4.5:1 as *text* on a light
+     surface: --green, --amber. This split exists because the brand mint (#05b99f ≈ 2.4:1)
+     and brand yellow (#ffbd2e ≈ 1.6:1) are unreadable as text on white. Using a fill token
+     for text is the one mistake that reliably breaks contrast here. */
+  --red: #ef263d;
+  --blue: #3970ff;
+  --mint: #05b99f;
+  --star: #ffbd2e;
+
   --green: #12a37a;
-  --blue: #2f6bef;
   --blue2: #3f63d8;
   --ice: #5566c9;
   --cyan: #0e93b9;
@@ -134,6 +142,111 @@
   --font-body-stack: var(--font-body), "Manrope", system-ui, sans-serif;
 }
 
+/* ============================================================
+   Dark theme
+   ------------------------------------------------------------
+   The values live ONCE, as --dark-* on :root. The two activation paths below only
+   remap the real tokens onto them, so the palette cannot drift between "the visitor
+   chose dark" and "the OS is dark".
+
+   Three states, deliberately:
+     · an explicit choice stamps data-theme="dark" | "light" (set before first paint
+       by the inline script in app/layout.tsx, so there is no light flash);
+     · no choice at all -> follow the OS, unless the visitor explicitly picked light.
+
+   Text tones are NOT the light ones reused: --green and --amber are darkened for a
+   light background and would fall under AA on #181e30, so dark gets its own pair.
+   ============================================================ */
+:root {
+  --dark-bg: #101422;
+  --dark-bg2: #0b0e18;
+  --dark-panel: #181e30;
+  --dark-panel2: #1f2639;
+  --dark-line: #2c354c;
+  --dark-line2: #3b4664;
+  --dark-txt: #f6f7fb;
+  --dark-mut: #aeb8cb;
+  --dark-dim: #94a1b9;
+  --dark-wash: rgba(39, 58, 120, 0.55);
+  --dark-grid-line: rgba(255, 255, 255, 0.035);
+  /* the "inverted" blocks must stay distinguishable from the page once the page is
+     itself dark, so they lift ABOVE the surface rather than sinking below it */
+  --dark-ink: #1d2540;
+  --dark-ink2: #27314f;
+  --dark-ink-line: rgba(255, 255, 255, 0.14);
+  --dark-green: #2fd6a8;
+  --dark-amber: #f3c14b;
+  /* --ice and --cyan are pure text/icon tones (never fills), so lifting them on dark is
+     safe and buys back AA: measured 3.79:1 and ~3.5:1 on --panel before, comfortably over
+     4.5:1 after. --blue and --red are deliberately NOT remapped — they are brand *fills*
+     with --on-accent text on top, and lightening them would weaken that pairing instead.
+     Their use as SMALL text (e.g. a 12px --red label on --panel, 3.96:1) is a palette
+     decision that belongs to the brand, not something to patch per theme. */
+  --dark-ice: #93a4f5;
+  --dark-cyan: #4fc3e8;
+  --dark-sh-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --dark-sh-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+  --dark-sh-lg: 0 18px 55px rgba(0, 0, 0, 0.53);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--dark-bg);
+    --bg2: var(--dark-bg2);
+    --panel: var(--dark-panel);
+    --panel2: var(--dark-panel2);
+    --line: var(--dark-line);
+    --line2: var(--dark-line2);
+    --txt: var(--dark-txt);
+    --mut: var(--dark-mut);
+    --dim: var(--dark-dim);
+    --wash: var(--dark-wash);
+    --grid-line: var(--dark-grid-line);
+    --ink: var(--dark-ink);
+    --ink2: var(--dark-ink2);
+    --ink-line: var(--dark-ink-line);
+    --green: var(--dark-green);
+    --amber: var(--dark-amber);
+    --ice: var(--dark-ice);
+    --cyan: var(--dark-cyan);
+    --sh-sm: var(--dark-sh-sm);
+    --sh-md: var(--dark-sh-md);
+    --sh-lg: var(--dark-sh-lg);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: var(--dark-bg);
+  --bg2: var(--dark-bg2);
+  --panel: var(--dark-panel);
+  --panel2: var(--dark-panel2);
+  --line: var(--dark-line);
+  --line2: var(--dark-line2);
+  --txt: var(--dark-txt);
+  --mut: var(--dark-mut);
+  --dim: var(--dark-dim);
+  --wash: var(--dark-wash);
+  --grid-line: var(--dark-grid-line);
+  --ink: var(--dark-ink);
+  --ink2: var(--dark-ink2);
+  --ink-line: var(--dark-ink-line);
+  --green: var(--dark-green);
+  --amber: var(--dark-amber);
+  --ice: var(--dark-ice);
+  --cyan: var(--dark-cyan);
+  --sh-sm: var(--dark-sh-sm);
+  --sh-md: var(--dark-sh-md);
+  --sh-lg: var(--dark-sh-lg);
+}
+
+/* Let the browser paint form controls, scrollbars and the like to match. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -147,15 +260,15 @@ body {
   /* one shared, viewport-fixed backdrop for the whole site so sections never jump:
      faint 56px grid + four soft colour glows (the hero's lighting) + blue base.
      Fixed means every screenful shows the same lighting; kept readable over dark. */
+  /* One viewport-fixed backdrop for the whole site so sections never jump: a faint 56px
+     grid over a single soft wash in the top right. Both layers are tokens, so the dark
+     theme repoints them instead of redefining this rule. */
   background:
-    linear-gradient(rgba(23, 28, 48, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 28, 48, 0.04) 1px, transparent 1px),
-    radial-gradient(1100px 640px at 72% 8%, rgba(47, 107, 239, 0.06), transparent 58%),
-    radial-gradient(760px 560px at 18% 18%, rgba(123, 83, 230, 0.05), transparent 62%),
-    radial-gradient(700px 500px at 8% 92%, rgba(18, 163, 122, 0.05), transparent 60%),
-    radial-gradient(560px 380px at 88% 96%, rgba(245, 51, 63, 0.04), transparent 64%),
-    linear-gradient(180deg, #eef1f7 0%, #e9edf5 100%);
-  background-size: 56px 56px, 56px 56px, auto, auto, auto, auto, cover;
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+    radial-gradient(1100px 700px at 82% 4%, var(--wash), transparent 62%),
+    var(--bg);
+  background-size: 56px 56px, 56px 56px, auto, cover;
   background-attachment: fixed;
   color: var(--txt);
   font-family: var(--font-body-stack);

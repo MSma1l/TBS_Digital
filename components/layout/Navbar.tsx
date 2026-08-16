@@ -62,26 +62,32 @@ export function Navbar() {
                 {i < navMenu.length - 1 && <span className={styles.plus}>+</span>}
               </Fragment>
             ))}
+          </div>
 
-            {/* Global preferences (language now, theme later) — one group, parked between
-                the last nav link and the CTA. See PreferencesGroup for the theme slot. */}
+          {/* The right-hand end of the bar, on EVERY screen size: global preferences
+              (language + theme), then the red CTA, then the burger. Only the CTA and the
+              burger swap in and out at 860px — the preferences group never does, which is
+              what keeps the theme toggle visible on a phone instead of buried in the
+              hamburger menu. Keeping the CTA as the group's next sibling also preserves
+              the "preferences, then call to action" reading order everywhere. */}
+          <div className={styles.actions}>
             <PreferencesGroup />
             <a href="#contact" className={`mono ${styles.cta}`}>
               {t("nav.cta")}
             </a>
-          </div>
 
-          <button
-            type="button"
-            className={styles.burger}
-            aria-label={t("nav.burgerAria")}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+            <button
+              type="button"
+              className={styles.burger}
+              aria-label={t("nav.burgerAria")}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
         </nav>
       </header>
 
@@ -122,8 +128,9 @@ export function Navbar() {
             </div>
           ))}
 
-          {/* Same preferences group as the desktop bar, laid out as a full-width row. */}
-          <PreferencesGroup layout="stack" />
+          {/* No preferences group here on purpose: language and theme now live in the bar
+              at the top of every screen size, so repeating them inside the menu would put
+              the same two controls on screen twice. The menu is navigation only. */}
           <a href="#contact" onClick={close} className={`mono ${styles.overlayCta}`}>
             {t("nav.cta")}
           </a>

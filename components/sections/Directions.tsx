@@ -5,10 +5,24 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { directionHref } from "@/lib/directions";
+import { projectsForSolution, solutionPalette } from "@/lib/solutions";
+import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Directions.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
+/**
+ * The /02 block is a DIRECTION CHOOSER, not a second sales pitch.
+ *
+ * Every pill is a real link to `/servicii/<slug>` (the tabs used to be inert buttons, so a
+ * visitor who clicked one and expected a page got nothing), and the preview under them is
+ * read-only: one textual link into the service page and no competing CTA. Everything
+ * commercial — talking to the team, the projects, the reference link — now lives in the
+ * action bar on the service page itself (`DirectionPage`).
+ *
+ * `slug` is the CURRENT slug, so it keys straight into `lib/solutions.ts` (palette and
+ * project membership) as well as into `directionHref`.
+ */
 type Service = {
   slug: string;
   tab: LocalizedText;
@@ -16,13 +30,11 @@ type Service = {
   title: LocalizedText;
   text: LocalizedText;
   list: LocalizedText[];
-  v1: string;
-  v2: string;
 };
 
 const SERVICES: Service[] = [
   {
-    slug: "digital",
+    slug: "produs-digital",
     tab: L("Produs digital", "Цифровой продукт", "Digital product"),
     tag: L("DE LA IPOTEZĂ LA LANSARE", "ОТ ГИПОТЕЗЫ ДО ЗАПУСКА", "FROM HYPOTHESIS TO LAUNCH"),
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
@@ -36,11 +48,9 @@ const SERVICES: Service[] = [
       L("UX/UI cu prototip testabil", "UX/UI с тестируемым прототипом", "UX/UI with a testable prototype"),
       L("Dezvoltare și măsurare", "Разработка и метрики", "Development and measurement"),
     ],
-    v1: "#dce8ff",
-    v2: "#b9d5ff",
   },
   {
-    slug: "ecommerce",
+    slug: "e-commerce",
     tab: L("E-commerce", "E-commerce", "E-commerce"),
     tag: L("PENTRU VÂNZARE MAI SIMPLĂ", "ДЛЯ ПРОСТЫХ ПРОДАЖ", "FOR SIMPLER SELLING"),
     title: L("E-commerce", "E-commerce", "E-commerce"),
@@ -54,11 +64,9 @@ const SERVICES: Service[] = [
       L("Checkout fără fricțiune", "Оформление без трения", "Frictionless checkout"),
       L("Analytics și optimizare", "Аналитика и оптимизация", "Analytics and optimization"),
     ],
-    v1: "#ffe1de",
-    v2: "#ffc1be",
   },
   {
-    slug: "automation",
+    slug: "automatizare-api",
     tab: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
     tag: L("CONECTEAZĂ CE CONTEAZĂ", "СОЕДИНЯЕМ ВАЖНОЕ", "CONNECT WHAT MATTERS"),
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
@@ -72,11 +80,9 @@ const SERVICES: Service[] = [
       L("Integrări sigure", "Безопасные интеграции", "Secure integrations"),
       L("Fluxuri și dashboard-uri", "Потоки и дашборды", "Flows and dashboards"),
     ],
-    v1: "#d9faeb",
-    v2: "#a9edd8",
   },
   {
-    slug: "ai",
+    slug: "asistenti-ia",
     tab: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
     tag: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
     title: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
@@ -90,11 +96,9 @@ const SERVICES: Service[] = [
       L("Asistent IA pentru echipă", "ИИ-ассистент для команды", "AI assistant for the team"),
       L("Bot Telegram conectat la API", "Telegram-бот с подключением к API", "Telegram bot connected to your API"),
     ],
-    v1: "#e9ddff",
-    v2: "#cbb8ff",
   },
   {
-    slug: "brand",
+    slug: "brand-ui",
     tab: L("Brand & UI", "Бренд и UI", "Brand & UI"),
     tag: L("O IDENTITATE CARE SE ȚINE MINTE", "ЗАПОМИНАЮЩАЯСЯ ИДЕНТИЧНОСТЬ", "AN IDENTITY THAT STICKS"),
     title: L("Brand & UI", "Бренд и UI", "Brand & UI"),
@@ -108,8 +112,6 @@ const SERVICES: Service[] = [
       L("Design system", "Дизайн-система", "Design system"),
       L("Interfață premium", "Премиальный интерфейс", "Premium interface"),
     ],
-    v1: "#fff0bf",
-    v2: "#ffd778",
   },
 ];
 
@@ -121,28 +123,50 @@ const SECTION = {
     "A service selector built for a fast decision.",
   ),
   lead: L(
-    "Selectează o direcție. Conținutul se schimbă instant, iar următorul pas rămâne mereu evident.",
-    "Выберите направление. Контент меняется мгновенно, а следующий шаг всегда очевиден.",
-    "Pick a direction. The content changes instantly and the next step is always obvious.",
+    "Selectează o direcție. Conținutul se schimbă instant, iar pagina serviciului e la un click.",
+    "Выберите направление. Контент меняется мгновенно, а страница услуги — в одном клике.",
+    "Pick a direction. The content changes instantly and the service page is one click away.",
   ),
-  cta: L("Vorbește cu echipa", "Обсудить с командой", "Talk to the team"),
-  more: L("Deschide pagina direcției", "Открыть страницу направления", "Open the direction page"),
+  tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
+  more: L("Deschide serviciul", "Открыть услугу", "Open the service"),
 };
 
 const CASE = {
-  top: L("PROIECT REAL / WEB PLATFORM", "РЕАЛЬНЫЙ ПРОЕКТ / WEB PLATFORM", "REAL PROJECT / WEB PLATFORM"),
-  text: L(
-    "Platformă de autoevaluare a riscurilor pentru IMM-uri, cu teste interactive și raport PDF.",
-    "Платформа самооценки рисков для МСБ с интерактивными тестами и PDF-отчётом.",
-    "A risk self-assessment platform for SMEs with interactive tests and a PDF report.",
+  /** Label above the real reference project of the selected direction. */
+  ref: L("PROIECT REAL DIN PORTOFOLIU", "РЕАЛЬНЫЙ ПРОЕКТ ИЗ ПОРТФОЛИО", "REAL PROJECT FROM THE PORTFOLIO"),
+  /** Shown when a direction has no delivered project yet — stated plainly rather than
+   *  filled with a project that belongs to another direction. */
+  none: L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO"),
+  noneText: L(
+    "Pe această direcție nu avem încă un proiect public în portofoliu.",
+    "По этому направлению у нас пока нет публичного проекта в портфолио.",
+    "We don't have a public project on this direction yet.",
   ),
-  link: L("Vezi proiectul ↗", "Смотреть проект ↗", "View the project ↗"),
 };
+
+/** "CRM PRIVAT · FĂRĂ LINK" → ["CRM PRIVAT", "FĂRĂ LINK"]. The tag is free localized text,
+ *  so its segments are the only tag-like data a project actually has. */
+function tagChips(tag: string): string[] {
+  return tag
+    .split("·")
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
 
 export function Directions() {
   const l = useLoc();
+  const { projects } = useSiteContent();
   const [active, setActive] = useState(0);
   const svc = SERVICES[active];
+
+  /* The preview card shows the direction's own reference project (the first entry of its
+     list in lib/solutions.ts), resolved against the live portfolio — not a hard-coded
+     project repeated under all five tabs. */
+  const reference = projectsForSolution(svc.slug, projects)[0];
+  const refNumber = reference
+    ? String(projects.findIndex((p) => p.id === reference.id) + 1).padStart(2, "0")
+    : "";
+  const palette = solutionPalette[svc.slug];
 
   return (
     <section id="servicii" className={styles.section}>
@@ -155,20 +179,23 @@ export function Directions() {
           <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
 
-        <div className={`mono ${styles.tabs}`} role="tablist">
+        {/* Links, not tabs: each one navigates to its service page. Pointer/focus/click all
+            move the preview, so the selection is still visible before leaving the page. */}
+        <nav className={`mono ${styles.tabs}`} aria-label={l(SECTION.tabsAria)}>
           {SERVICES.map((s, i) => (
-            <button
+            <Link
               key={s.slug}
-              type="button"
-              role="tab"
-              aria-selected={i === active}
+              href={directionHref(s.slug)}
               className={`${styles.tab} ${i === active ? styles.tabActive : ""}`}
+              aria-current={i === active ? "true" : undefined}
+              onMouseEnter={() => setActive(i)}
+              onFocus={() => setActive(i)}
               onClick={() => setActive(i)}
             >
               {l(s.tab)}
-            </button>
+            </Link>
           ))}
-        </div>
+        </nav>
 
         <div className={styles.panel}>
           <div className={styles.copy}>
@@ -180,40 +207,38 @@ export function Directions() {
                 <li key={i}>{l(item)}</li>
               ))}
             </ul>
-            <div className={styles.actions}>
-              <a href="#estimare" className={styles.cta}>
-                {l(SECTION.cta)}
-              </a>
-              <Link href={directionHref(svc.slug)} className={styles.more}>
-                {l(SECTION.more)} ↗
-              </Link>
-            </div>
+            <Link href={directionHref(svc.slug)} className={styles.more}>
+              {l(SECTION.more)} →
+            </Link>
           </div>
 
           <div
             className={styles.visual}
-            style={{ "--v1": svc.v1, "--v2": svc.v2 } as CSSProperties}
+            style={
+              {
+                "--sol-p1": palette?.p1,
+                "--sol-p2": palette?.p2,
+              } as CSSProperties
+            }
           >
             <article className={styles.case}>
               <div className={`mono ${styles.caseTop}`}>
-                <span>{l(CASE.top)}</span>
-                <b>01</b>
+                <span>{reference ? l(CASE.ref) : l(CASE.none)}</span>
+                {reference && <b>{refNumber}</b>}
               </div>
-              <h4 className={`disp ${styles.caseName}`}>BizCheck</h4>
-              <p className={styles.caseText}>{l(CASE.text)}</p>
-              <div className={`mono ${styles.caseTags}`}>
-                <span>UX/UI</span>
-                <span>{l(L("Platformă", "Платформа", "Platform"))}</span>
-                <span>PDF</span>
-              </div>
-              <a
-                href="https://bizcheck.md"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.caseLink}
-              >
-                {l(CASE.link)}
-              </a>
+              {reference ? (
+                <>
+                  <h4 className={`disp ${styles.caseName}`}>{reference.name}</h4>
+                  <p className={styles.caseText}>{l(reference.desc)}</p>
+                  <div className={`mono ${styles.caseTags}`}>
+                    {tagChips(l(reference.tag)).map((chip) => (
+                      <span key={chip}>{chip}</span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className={styles.caseText}>{l(CASE.noneText)}</p>
+              )}
             </article>
           </div>
         </div>

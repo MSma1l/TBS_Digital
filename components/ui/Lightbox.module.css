@@ -39,7 +39,7 @@
 .caption {
   font-size: var(--fs-xs);
   letter-spacing: 0.08em;
-  color: var(--mut);
+  color: var(--on-ink-mut);
 }
 
 .close {
@@ -50,7 +50,7 @@
   width: 40px;
   height: 40px;
   font-size: var(--fs-md);
-  color: var(--txt);
+  color: var(--on-accent);
   background: rgba(var(--scrim), 0.82);
   border: 1px solid var(--line);
   transition:
@@ -61,6 +61,7 @@
 .close:hover {
   border-color: var(--cyan);
   background: var(--panel);
+  color: var(--txt);
 }
 
 .nav {
@@ -72,7 +73,7 @@
   height: 62px;
   font-size: 28px;
   line-height: 1;
-  color: var(--txt);
+  color: var(--on-accent);
   background: rgba(var(--scrim), 0.76);
   border: 1px solid var(--line);
   transition:
@@ -83,6 +84,7 @@
 .nav:hover {
   border-color: var(--cyan);
   background: var(--panel);
+  color: var(--txt);
 }
 
 .prev {

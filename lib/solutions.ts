@@ -159,12 +159,108 @@ export const solutions: Record<string, Solution> = {
   },
 };
 
+/* ---------------------------------------------------------------------------
+   Pastel surface per direction
+   ---------------------------------------------------------------------------
+   Client-supplied brand values, kept HERE — one table for both the home-page selector
+   (`components/sections/Directions.tsx`) and the service page
+   (`components/sections/DirectionPage.tsx`). They are applied as CSS custom properties
+   (`--sol-p1` / `--sol-p2`) on the element that owns the pastel surface, so the modules
+   only ever reference the tokens; the hex values exist in this file and nowhere else.
+
+   Dark theme: the modules do not paint these raw. Each mixes them into `--panel` through
+   `--sol-mix`, which drops from 100% to ~26% under `[data-theme="dark"]` — the hue stays
+   recognisable per service, the surface stops glowing white on a dark page. */
+export type SolutionPalette = { p1: string; p2: string };
+
+export const solutionPalette: Record<string, SolutionPalette> = {
+  "produs-digital": { p1: "#dce8ff", p2: "#b9d5ff" },
+  "e-commerce": { p1: "#ffe1de", p2: "#ffc1be" },
+  "automatizare-api": { p1: "#d9faeb", p2: "#a9edd8" },
+  "asistenti-ia": { p1: "#e9ddff", p2: "#cbb8ff" },
+  "brand-ui": { p1: "#fff0bf", p2: "#ffd778" },
+};
+
+/* ---------------------------------------------------------------------------
+   Which real projects belong to which direction
+   ---------------------------------------------------------------------------
+   The portfolio has no structured category: `ProjectItem.tag` is free localized text
+   ("PLATFORMĂ WEB", "CRM PRIVAT · FĂRĂ LINK"), which cannot be matched against a service
+   without guessing. So the membership is stated explicitly here, by project id — the ids
+   from `lib/content.ts` / the admin.
+
+   Rules this table follows, deliberately:
+     · a project appears under a direction only if the work really was that kind of work;
+     · a project may appear under two directions when it genuinely spans both;
+     · a direction with no matching project gets an EMPTY list — the page then renders no
+       projects section and no "see the projects" action, instead of an empty block. That
+       is the case for e-commerce and for AI assistants: nothing in the portfolio is a
+       shop or an assistant/bot, and inventing one would be a lie on a sales page.
+
+   The order inside a list is curated: the first entry is the direction's reference
+   project — the one shown in the hero card and behind the "see the project" action. */
+export const solutionProjectIds: Record<string, string[]> = {
+  // Products taken from an idea to a shipped, measurable thing.
+  "produs-digital": ["bizcheck", "docusafe", "iq-arena", "statistic", "flirt"],
+  // Nothing in the portfolio is a shop — see the rules above.
+  "e-commerce": [],
+  // Internal systems: boards, tickets, documents, data pipelines, reporting.
+  "automatizare-api": ["crowe-portal", "docusafe", "statistic"],
+  // No assistant/bot has shipped yet.
+  "asistenti-ia": [],
+  // Brand-led sites and interfaces.
+  "brand-ui": ["itara-global", "cgam", "balloons-breeze"],
+};
+
+/**
+ * The real projects of a direction, in the curated order above.
+ *
+ * Generic over the project shape so this module stays free of a client-only import; the
+ * caller passes `useSiteContent().projects`. Ids that no longer exist (an admin removed
+ * the project) are skipped rather than rendered as a hole, so the table can never
+ * resurrect a deleted project or crash a page.
+ */
+export function projectsForSolution<T extends { id: string }>(
+  slug: string,
+  projects: readonly T[],
+): T[] {
+  const ids = solutionProjectIds[slug];
+  if (!ids || ids.length === 0) return [];
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  return ids.flatMap((id) => {
+    const found = byId.get(id);
+    return found ? [found] : [];
+  });
+}
+
 /** Shared UI copy for the direction pages. */
 export const solUI = {
   back: L("← Înapoi la direcții", "← К направлениям", "← Back to directions"),
   benefit: L("BENEFICIU", "ПРЕИМУЩЕСТВО", "BENEFIT"),
   stepsTitle: L("Cum lucrăm", "Как мы работаем", "How we work"),
   talk: L("Discută cu echipa", "Обсудить с командой", "Talk to the team"),
+  /* --- action bar, straight under the hero --- */
+  actionTalk: L("Vorbește cu echipa", "Обсудить с командой", "Talk to the team"),
+  actionProjects: L(
+    "Vezi proiectele relevante",
+    "Смотреть релевантные проекты",
+    "See the relevant projects",
+  ),
+  actionProject: L("Vezi proiectul ↗", "Смотреть проект ↗", "View the project ↗"),
+  /* Shown instead of the link above when the reference project has no public URL —
+     a private client system. Never a link with nothing behind it. */
+  actionProjectPrivate: L(
+    "fără link public",
+    "без публичной ссылки",
+    "no public link",
+  ),
+  refLabel: L("PROIECT DE REFERINȚĂ", "ЭТАЛОННЫЙ ПРОЕКТ", "REFERENCE PROJECT"),
+  projectsTitle: L("Proiecte relevante", "Релевантные проекты", "Relevant projects"),
+  projectsLead: L(
+    "Lucrări reale livrate pe această direcție.",
+    "Реальные работы, выполненные по этому направлению.",
+    "Real work delivered on this direction.",
+  ),
   bottomTitle: L("Ai un proiect în minte?", "Есть проект на примете?", "Got a project in mind?"),
   bottomLead: L(
     "Spune-ne ce vrei să obții. Revenim cu următorul pas potrivit.",

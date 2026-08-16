@@ -58,7 +58,7 @@
 }
 .person:hover {
   transform: translateY(-5px);
-  box-shadow: 0 18px 55px rgba(39, 52, 91, 0.1);
+  box-shadow: var(--sh-lg);
   border-color: var(--red);
 }
 
@@ -77,7 +77,7 @@
   object-position: center;
   border-radius: 18px;
   display: block;
-  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.14);
+  box-shadow: var(--sh-md);
   transition: transform 0.3s ease;
 }
 .person:hover .photo {
@@ -90,7 +90,7 @@
   margin-bottom: 21px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--blue), var(--green));
-  color: #fff;
+  color: var(--on-accent);
   display: grid;
   place-items: center;
   font-size: var(--fs-2xl);

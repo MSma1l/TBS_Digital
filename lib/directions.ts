@@ -44,6 +44,55 @@ export function directionHref(slugOrLegacySlug: string): string {
   return `${DIRECTIONS_BASE}/${dir ? dir.slug : slugOrLegacySlug}`;
 }
 
+/**
+ * Resolve any direction key (current slug or legacy one) to the CURRENT slug, so a caller
+ * that holds an old key can still look a direction up in tables keyed by the new slug
+ * (`lib/solutions.ts`). An unknown key is returned unchanged.
+ */
+export function directionSlug(slugOrLegacySlug: string): string {
+  const dir = directions.find(
+    (d) => d.slug === slugOrLegacySlug || d.legacySlug === slugOrLegacySlug,
+  );
+  return dir ? dir.slug : slugOrLegacySlug;
+}
+
+/**
+ * The request flow lives in one place — the estimator section on the home page
+ * (`components/sections/Estimator.tsx`, `#estimare`). A service page must send the visitor
+ * *there*, carrying which service was being read, so the request is not a blank form.
+ *
+ * The service travels as a query parameter rather than as a `tbs:estimate` window event
+ * (`lib/estimatorBridge.ts`): the event only survives inside one document, and this is a
+ * cross-page navigation. The parameter is on the URL, so it also survives a share or a
+ * refresh.
+ */
+export const SERVICE_QUERY_KEY = "serviciu";
+
+/**
+ * Which estimator project type a direction preselects.
+ *
+ * The estimator offers five types and the site offers five directions, but they are not
+ * the same list and do not map one-to-one — so the pairing is written out rather than
+ * guessed from names. Two directions deliberately share a target:
+ *  · `asistenti-ia` lands on automation, the only type that covers bots/assistants;
+ *  · `brand-ui` and `produs-digital` both land on the web type, the generic entry point —
+ *    a brand/UI engagement has no separate line in the estimator today.
+ * A slug missing from this table simply preselects nothing; it never throws.
+ */
+export const SERVICE_TO_ESTIMATOR_TYPE: Record<string, string> = {
+  "produs-digital": "site",
+  "e-commerce": "ecommerce",
+  "automatizare-api": "automation",
+  "asistenti-ia": "automation",
+  "brand-ui": "site",
+};
+
+/** Link to the request flow with `slug` named on the URL, landing on the estimator. */
+export function estimateHref(slugOrLegacySlug: string): string {
+  const slug = directionSlug(slugOrLegacySlug);
+  return `/?${SERVICE_QUERY_KEY}=${encodeURIComponent(slug)}#estimare`;
+}
+
 /** Every direction page path, locale-independent — used by the sitemap. */
 export function directionPaths(): string[] {
   return directions.map((d) => `${DIRECTIONS_BASE}/${d.slug}`);

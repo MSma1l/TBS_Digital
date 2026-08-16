@@ -213,6 +213,14 @@ export const ro = {
   "nav.burgerAria": "Meniu",
   "nav.closeAria": "Închide",
 
+  // --- Theme toggle ---
+  // `theme.toggleAria` is the button's accessible NAME and never changes with the state —
+  // `aria-pressed` carries the state, so a screen reader reads "Mod întunecat, apăsat".
+  // The two `switchTo*` strings are the tooltip: what a press would do next.
+  "theme.toggleAria": "Mod întunecat",
+  "theme.switchToDark": "Comută la tema întunecată",
+  "theme.switchToLight": "Comută la tema deschisă",
+
   // --- Footer ---
   "footer.partnersLabel": "PARTENERII NOȘTRI DE AFACERI",
   "footer.brandText":

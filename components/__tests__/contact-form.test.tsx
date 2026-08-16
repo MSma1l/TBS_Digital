@@ -16,6 +16,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+// The estimator reads `?serviciu=` so a visitor arriving from a service page lands on the
+// right project type. That needs the App Router context, which a bare render has no
+// business providing — so the hook is stubbed, and the preselection has its own test below.
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(mockSearch),
+}));
+let mockSearch = "";
+
 // Only the network layer is mocked. Validation stays REAL (@/lib/validation), so these
 // tests exercise the rules the backend also enforces.
 vi.mock("@/lib/api", () => ({
@@ -65,6 +73,7 @@ async function fillValid(user: ReturnType<typeof userEvent.setup>) {
 }
 
 beforeEach(() => {
+  mockSearch = "";
   // The provider fetches content on mount; reject so it keeps the bundled defaults.
   vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
   vi.mocked(api.isNetworkError).mockReturnValue(false);
@@ -79,6 +88,36 @@ describe("fields", () => {
     expect(screen.getByPlaceholderText(PHONE_PH)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(DETAILS_PH)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: SUBMIT })).toBeEnabled();
+  });
+});
+
+describe("arriving from a service page", () => {
+  it("preselects the project type named on the URL", async () => {
+    const user = userEvent.setup();
+    mockSearch = "serviciu=e-commerce";
+    renderForm();
+
+    // The proposal price is the visible proof of which type is active.
+    expect(screen.getByText(/€6\.000/)).toBeInTheDocument();
+
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    expect(api.submitContact).toHaveBeenCalledWith(
+      expect.objectContaining({ project: "E-commerce", estimate: "€6.000" }),
+    );
+  });
+
+  it("maps the AI assistants direction onto automation", () => {
+    mockSearch = "serviciu=asistenti-ia";
+    renderForm();
+    expect(screen.getByText(/€5\.000/)).toBeInTheDocument();
+  });
+
+  it("falls back to the first type for an unknown or absent service", () => {
+    mockSearch = "serviciu=habar-n-am";
+    renderForm();
+    expect(screen.getByText(/€3\.000/)).toBeInTheDocument();
   });
 });
 

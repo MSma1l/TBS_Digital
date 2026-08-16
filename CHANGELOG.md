@@ -16,6 +16,93 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — Dark mode, paleta de brand, servicii ca destinație
+
+**Added** — dark mode complet
+
+- Temă light **și** dark. Valorile dark trăiesc **o singură dată** (`--dark-*` în
+  `globals.css`); cele două căi de activare doar remapează tokenurile reale, deci paleta nu
+  poate diverge între „vizitatorul a ales dark" și „sistemul e pe dark".
+- Trei stări: alegere explicită (`data-theme`), fără alegere (urmează sistemul), persistență
+  prin cookie `tbs_theme`. **Cookie, nu `localStorage`**, fiindcă serverul îl citește și
+  ștampilează `data-theme` în HTML-ul trimis — deci paleta corectă din **primul byte**, fără
+  flash și cu JavaScript oprit. Pentru cazul „încă n-a ales", un script inline rezolvă
+  `prefers-color-scheme` înainte de prima randare și **poartă nonce-ul CSP** — fără el,
+  politica strictă l-ar bloca și flash-ul ar reveni.
+- Buton de temă **mereu vizibil**, inclusiv pe mobil, lângă selectorul de limbă și **nu**
+  ascuns în hamburger. Icon soare/lună, `aria-pressed`, etichetă localizată RO/RU/EN, focus
+  vizibil, 44×44px. `PreferencesGroup` a ieșit din `.desktop` (care dispare sub 860px) într-un
+  rând mereu vizibil, iar instanța din overlay a fost scoasă ca să nu existe două controale
+  identice pe același ecran.
+
+**Changed** — paleta de brand
+
+- Aplicate valorile date de client: `--bg #f4f7ff`, `--txt #10172a`, `--mut #586784`,
+  `--line #dbe3f1`, `--red #ef263d`, `--blue #3970ff`, plus `--mint #05b99f` și
+  `--star #ffbd2e`. Fundalul paginii e acum o pată bleu discretă dreapta-sus peste grila fină,
+  ambele conduse de tokenuri (`--wash`, `--grid-line`) ca tema dark să le repoziționeze.
+- Mint și galben sunt tokenuri de **umplere**, nu de text: măsurate pe alb dau 2.4:1 și 1.6:1,
+  deci ar fi ilizibile ca text. Tonurile de text (`--green`, `--amber`) rămân separate.
+- **Fontul NU a fost schimbat.** Specificația cerea Arial, dar site-ul rulează Archivo/Manrope
+  prin `next/font` — exact tipografia din machetele aprobate. A trece pe Arial ar fi schimbat
+  masiv identitatea, adică fix ce cere prima frază a specificației să nu se întâmple.
+
+**Fixed** — culorile care s-ar fi rupt pe dark
+
+- **57 de valori literale eliminate** din 14 module, plus **8 tokenuri folosite greșit** —
+  cazuri în care un token semantic *întunecat* era folosit ca text pe o suprafață care devine
+  ea însăși întunecată (footer-ul și estimatorul foloseau `--ink`/`--ink2` ca text; opțiunea
+  selectată din estimator picta alb pe alb). Măsurat pe dark: **47 → 22** eșecuri de contrast;
+  pe light **71 → 62**, singura schimbare fiind o îmbunătățire.
+- `Lightbox` avea un bug **de light mode**: glifele de închidere/navigare erau `--txt`
+  (întunecat) peste un fundal aproape negru — invizibile. Reparat.
+
+**Changed** — selectorul de servicii devine destinație, nu acțiune
+
+- Fiecare pill e acum **link real** către pagina serviciului (`aria-current` pe cel activ),
+  nu buton inert. Preview-ul rămâne neinteractiv, cu **un singur** link textual
+  „Deschide serviciul →" — CTA-ul roșu duplicat și linkul extern au fost scoase din el.
+- Cardul bleumarin nu mai arată BizCheck sub toate cele 5 direcții: afișează **proiectul de
+  referință real al direcției**, iar unde nu există spune asta cinstit.
+- Pagina de serviciu are bară de acțiuni sub hero: CTA roșu către fluxul real de cerere,
+  „Vezi proiectele relevante" (ancoră locală) și „Vezi proiectul" — care randează `<span>`,
+  **nu link mort**, când proiectul n-are URL public.
+- **Preselecția serviciului funcționează cap-coadă**: CTA-ul duce la
+  `/?serviciu=<slug>#estimare`, iar estimatorul citește parametrul prin `useSearchParams` și
+  pornește pe tipul corect. Maparea direcție → tip e scrisă explicit în `lib/directions.ts`,
+  nu ghicită din nume. `lib/estimatorBridge.ts` **nu** era o opțiune: evenimentul lui nu are
+  niciun ascultător și oricum nu supraviețuiește navigării.
+- Apartenența proiect → serviciu e un tabel explicit (`solutionProjectIds`), pe **id**, fiindcă
+  `tag` e text liber localizat. `e-commerce` și `asistenti-ia` rămân **intenționat goale** —
+  niciunul din cele 9 proiecte reale nu e magazin sau asistent; secțiunea nu se randează goală
+  și CTA-ul asociat nu apare.
+
+**Fixed** — mobil
+
+- Directions și DirectionPage aveau **gutter orizontal zero**: pe telefon conținutul atingea
+  marginea ecranului. Aliniat la restul site-ului.
+- Linkul „← Înapoi la direcții" avea 20px înălțime → 44px. Titlul h1 scade controlat sub 900px,
+  altfel „Автоматизация" se tăia în coloana îngustă.
+
+**Docs**
+
+- [04 — Design System](./docs/04-design-system.md): secțiune nouă despre tema dark, cele trei
+  stări, de ce cookie și nu `localStorage`, ce **nu** se remapează și de ce.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **179 passed / 0 failed** (16 fișiere) |
+| `npm run build` (după `rm -rf .next`) | ✓ compilat, 16 pagini |
+| `npm run lint` · `npx tsc --noEmit` | curate |
+| Vizual, browser real | dark și light pe `/servicii/produs-digital`, RU, ~680px: toggle vizibil lângă limbă, comută corect, pastel + card bleumarin cu proiect real |
+
+> **Datorie cunoscută, nepatch-uită intenționat:** `--red` ca text *mic* pe `--panel` măsoară
+> **3.96:1**, sub pragul AA de 4.5:1 pentru text sub 18.66px bold — pe ambele teme. Afectează
+> etichete de 12px. Reparația cere ori un roșu de text mai închis, ori etichete mai mari;
+> ambele sunt decizii de brand, deci sunt consemnate, nu ascunse.
+
 ## 2026-08-16 — Portofoliul trece în admin; corecturi după verificarea în producție
 
 **Fixed** — regresie proprie: 4 proiecte au dispărut de pe site

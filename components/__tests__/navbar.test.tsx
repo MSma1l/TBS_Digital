@@ -80,20 +80,26 @@ describe("Navbar — global preferences group", () => {
     expect(cta?.getAttribute("href")).toBe("#contact");
   });
 
-  it("shows the same preferences group in the mobile overlay", async () => {
+  /**
+   * The group lives in the bar, which is visible at every width — so the mobile overlay
+   * must NOT carry a second copy: that would put the same language and theme controls on
+   * screen twice. Opening the menu changes nothing about where the preferences are.
+   */
+  it("keeps a single preferences group — in the bar — when the mobile menu is open", async () => {
     const user = userEvent.setup();
     render(<Navbar />);
 
     await user.click(screen.getByRole("button", { name: "Meniu" }));
 
-    const groups = screen.getAllByRole("group", { name: /Preferences/ });
-    // One in the (still mounted) desktop bar, one in the overlay.
-    expect(groups.length).toBe(2);
+    // The overlay really is open — otherwise this would pass vacuously.
+    expect(screen.getAllByText(/Închide|×/).length).toBeGreaterThan(0);
 
-    const overlayPrefs = groups[groups.length - 1];
-    expect(within(overlayPrefs).getByRole("group", { name: /Language/ })).toBeTruthy();
-    const overlayCta = overlayPrefs.nextElementSibling as HTMLElement | null;
-    expect(overlayCta?.getAttribute("href")).toBe("#contact");
+    const groups = screen.getAllByRole("group", { name: /Preferences/ });
+    expect(groups.length).toBe(1);
+
+    const prefs = groups[0];
+    expect(prefs.closest("header")).not.toBeNull();
+    expect(within(prefs).getByRole("group", { name: /Language/ })).toBeTruthy();
   });
 });
 

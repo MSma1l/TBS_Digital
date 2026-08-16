@@ -1,20 +1,22 @@
 "use client";
 
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
 import styles from "./PreferencesGroup.module.css";
 
 /**
  * Global site preferences, as one group in the header.
  *
  * These are the controls that change **how the whole site is presented** rather than where
- * it navigates, so they live together and away from the nav links. Today the group holds
- * the language switcher; the theme toggle joins it at the marked slot below — dropping it
- * in there gives it the right place in both the desktop bar and the mobile overlay without
- * rearranging either one.
+ * it navigates, so they live together and away from the nav links: the language switcher
+ * and the light/dark toggle, in that order, sharing one height and one border language.
  *
  * `layout` only describes how the group fills the space it is placed in:
- *  - `"bar"`   — desktop nav: shrink-wrapped, sits between the links and the CTA;
- *  - `"stack"` — mobile overlay: full-width row, like the other rows of the overlay.
+ *  - `"bar"`   — the nav bar: shrink-wrapped, sits between the links and the CTA. This is
+ *                the only instance the site renders today, and it stays visible on every
+ *                screen size, phones included — the controls are never hidden in a menu;
+ *  - `"stack"` — a full-width row inside a column of rows (e.g. a drawer). Kept because it
+ *                is the layout any future panel would need; nothing renders it right now.
  */
 export function PreferencesGroup({
   layout = "bar",
@@ -30,9 +32,7 @@ export function PreferencesGroup({
       aria-label="Preferințe / Настройки / Preferences"
     >
       <LanguageSwitcher />
-
-      {/* THEME TOGGLE GOES HERE (built in a later step) — same group, right of the
-          language control; no layout change needed in Navbar when it lands. */}
+      <ThemeToggle />
     </div>
   );
 }

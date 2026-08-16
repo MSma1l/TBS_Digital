@@ -16,6 +16,13 @@ import {
   type Locale,
 } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
+import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import {
+  THEME_COOKIE,
+  THEME_INIT_SCRIPT,
+  isTheme,
+  toThemeChoice,
+} from "@/lib/theme/theme";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
 // brand fonts. Latin-ext covers Romanian diacritics (ă, î, ș, ț).
@@ -130,6 +137,13 @@ export default async function RootLayout({
   // provider keeps SSR and hydration in lockstep.
   const locale = await resolveContentLocale();
 
+  // Same idea for the theme: the visitor's explicit choice lives in a cookie, so the server
+  // can stamp `data-theme` into the HTML it sends. A visitor who has chosen therefore gets
+  // the right palette in the very first byte — no script needed, and it works with
+  // JavaScript off. Nothing is stamped for "no choice yet": globals.css then falls back to
+  // `prefers-color-scheme`, and the inline script below pins the resolved value.
+  const themeChoice = toThemeChoice((await cookies()).get(THEME_COOKIE)?.value);
+
   // Per-request CSP nonce (proxy.ts). Reused so the JSON-LD data block below satisfies the
   // strict, nonce-based script-src — see proxy.ts and app/(site)/layout.tsx.
   const nonce = headerList.get("x-nonce") ?? undefined;
@@ -173,8 +187,28 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
+      data-theme={isTheme(themeChoice) ? themeChoice : undefined}
       className={`${archivo.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
+      // The inline script below rewrites `data-theme` before React hydrates (that is the
+      // whole point of it), so React must accept the DOM's value instead of treating the
+      // difference as a hydration error and re-rendering the tree.
+      // Ref: node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+          Anti-FOUC: runs synchronously while the browser parses <head>, i.e. BEFORE the
+          first paint and long before hydration, so a dark-mode visitor never sees a white
+          flash. It reads the saved choice (cookie), falls back to prefers-color-scheme, and
+          stamps `data-theme` on <html>. See lib/theme/theme.ts for the script itself.
+
+          The nonce is not optional decoration: proxy.ts serves a strict `script-src` with
+          no 'unsafe-inline', so without it the browser refuses to execute this tag and the
+          flash is back. Same per-request nonce Next stamps on its own bundles and the
+          JSON-LD block below.
+        */}
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
         <script
           type="application/ld+json"
@@ -183,9 +217,11 @@ export default async function RootLayout({
           // HTML-significant sequences that could break out of the script element.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <LanguageProvider initialLocale={locale}>
-          <SiteContentProvider>{children}</SiteContentProvider>
-        </LanguageProvider>
+        <ThemeProvider initialChoice={themeChoice}>
+          <LanguageProvider initialLocale={locale}>
+            <SiteContentProvider>{children}</SiteContentProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

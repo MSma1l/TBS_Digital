@@ -32,10 +32,10 @@
   border-radius: var(--r-md);
   padding: 18px 28px;
   background: var(--grad-red);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: var(--fw-extra);
   font-size: var(--fs-base);
-  box-shadow: 0 14px 28px rgba(245, 51, 63, 0.32);
+  box-shadow: var(--sh-red);
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -43,7 +43,7 @@
 }
 .cta:hover {
   transform: translateY(-3px);
-  box-shadow: 0 19px 34px rgba(245, 51, 63, 0.42);
+  box-shadow: var(--sh-red-strong);
 }
 
 @media (prefers-reduced-motion: reduce) {

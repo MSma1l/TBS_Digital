@@ -1,9 +1,14 @@
 .page {
-  padding: clamp(28px, 4vw, 52px) 0 clamp(60px, 8vw, 100px);
+  /* Side padding matches the site-wide `.section` rule. Without it the hero copy, the
+     action bar and the project cards touched the viewport edge on phones. */
+  padding: clamp(28px, 4vw, 52px) clamp(14px, 4vw, 40px) clamp(60px, 8vw, 100px);
 }
 
 .back {
-  display: inline-block;
+  /* inline-flex + 44px so the back link is a real tap target on a phone, not a 20px line */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--txt);
   font-size: 13px;
   font-weight: var(--fw-bold);
@@ -36,11 +41,14 @@
 .title {
   font-family: var(--font-display-stack);
   font-weight: var(--fw-extra);
-  font-size: clamp(44px, 6vw, 76px);
+  /* the client's 54–66px range; phones drop out of it in the media query at the bottom,
+     because "Автоматизация" at 54px does not fit a 320px screen without being cut */
+  font-size: clamp(54px, 5.4vw, 66px);
   line-height: 0.94;
   letter-spacing: -0.05em;
   color: var(--txt);
   margin: 14px 0 20px;
+  overflow-wrap: break-word;
 }
 
 .intro {
@@ -52,27 +60,97 @@
 }
 
 .cta {
-  display: inline-block;
-  margin-top: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--grad-red);
-  color: #fff;
+  color: var(--on-accent);
   text-decoration: none;
   font-size: var(--fs-base);
   font-weight: var(--fw-extra);
   padding: 16px 26px;
+  min-height: 52px;
   border-radius: var(--r-md);
-  box-shadow: 0 14px 28px rgba(245, 51, 63, 0.28);
+  box-shadow: var(--sh-red);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(245, 51, 63, 0.34);
+  box-shadow: var(--sh-red-strong);
 }
 
+/* ---------- action bar ----------
+   Directly under the hero, because this page is where a decision turns into an action:
+   the request flow (with this service on the URL), the direction's own projects, and the
+   reference project's real link. Inline on desktop, stacked full-width on phones. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  padding: var(--sp-5) 0 var(--sp-6);
+  border-top: 1px solid var(--line);
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 15px 24px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line2);
+  background: var(--panel);
+  color: var(--txt);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-base);
+  text-decoration: none;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.ghost:hover {
+  transform: translateY(-2px);
+  border-color: var(--txt);
+  box-shadow: var(--sh-sm);
+}
+
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--txt);
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
+  text-decoration: none;
+  border-bottom: 2px solid var(--red);
+  padding-bottom: 2px;
+  transition: color 0.15s;
+}
+.textLink:hover {
+  color: var(--red);
+}
+
+/* the reference project has no public URL — same slot, but plainly not a link */
+.noLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--mut);
+  font-size: var(--fs-md);
+}
+
+/* ---------- hero visual: the per-service pastel ----------
+   --sol-p1/--sol-p2 come from lib/solutions.ts (one table, shared with the /02 selector).
+   --sol-mix folds them into the current surface so the dark theme gets the same hue at a
+   quarter strength instead of a glowing pastel slab. */
 .visual {
+  --sol-mix: 100%;
   min-height: 320px;
   border-radius: 28px;
-  background: linear-gradient(145deg, var(--sol-accent, var(--blue)), #e8edff);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--sol-p1, #dce8ff) var(--sol-mix), var(--panel)),
+    color-mix(in srgb, var(--sol-p2, #b9d5ff) var(--sol-mix), var(--panel))
+  );
   position: relative;
   overflow: hidden;
   padding: 28px;
@@ -87,36 +165,85 @@
   right: -60px;
   top: -60px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
+  background: color-mix(in srgb, var(--panel) 45%, transparent);
 }
 
-.visualCard {
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .visual {
+    --sol-mix: 26%;
+  }
+}
+:root[data-theme="dark"] .visual {
+  --sol-mix: 26%;
+}
+
+/* ---------- reference project card (inverted, inside the pastel) ---------- */
+.refCard {
   position: relative;
   background: var(--ink);
-  color: #fff;
+  color: var(--on-accent);
   padding: var(--sp-5);
   border-radius: 18px;
   width: 100%;
-  box-shadow: 0 20px 42px rgba(17, 24, 39, 0.27);
+  box-shadow: var(--sh-lg);
 }
-.visualCard small {
+.refTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
   color: var(--on-ink-mut);
   font-weight: var(--fw-extra);
   letter-spacing: 0.08em;
   font-size: var(--fs-xs);
 }
-.visualCard strong {
+.refTop b {
+  color: var(--on-accent);
+  font-size: 22px;
+}
+.refImage {
+  display: block;
+  width: 100%;
+  height: 132px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: var(--r-md);
+  margin-top: var(--sp-4);
+  border: 1px solid var(--ink-line);
+}
+.refName {
   display: block;
   font-size: 28px;
-  margin-top: 20px;
+  margin-top: var(--sp-4);
   letter-spacing: -0.02em;
+  color: var(--on-accent);
 }
-.visualCard span {
-  display: block;
+.refText {
   color: var(--on-ink);
   margin-top: var(--sp-2);
   font-size: var(--fs-md);
   line-height: 1.5;
+  /* portfolio copy is written for the /04 grid; show its opening rather than let one long
+     description stretch the hero */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.refTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: var(--sp-4);
+}
+.refTags span {
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: var(--ink-line);
+  color: var(--on-accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
 }
 
 /* ---------- highlights ---------- */
@@ -152,6 +279,78 @@
   color: var(--mut);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ---------- relevant projects ----------
+   Real portfolio entries for this direction (lib/solutions.ts owns the membership). The
+   whole section is absent when the direction has none, so there is never an empty grid. */
+.projects {
+  margin-top: var(--sp-8);
+  scroll-margin-top: 90px; /* the action bar's anchor lands below the sticky header */
+}
+.projectsTop h2 {
+  font-size: clamp(26px, 3.4vw, 34px);
+  letter-spacing: -0.04em;
+  margin: 0 0 var(--sp-2);
+  color: var(--txt);
+}
+.projectsTop p {
+  color: var(--mut);
+  margin: 0 0 var(--sp-5);
+}
+.projectGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.project {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  padding: var(--sp-4);
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+a.project:hover {
+  transform: translateY(-4px);
+  border-color: var(--blue);
+  box-shadow: var(--sh-md);
+}
+.projectImage {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: var(--r-md);
+  margin-bottom: var(--sp-4);
+  background: var(--panel2);
+}
+.projectTag {
+  display: block;
+  color: var(--red);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-extra);
+  letter-spacing: 0.08em;
+}
+.projectName {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  margin: var(--sp-2) 0 var(--sp-2);
+  color: var(--txt);
+}
+.projectDesc {
+  margin: 0;
+  color: var(--mut);
+  line-height: 1.5;
+  font-size: var(--fs-md);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ---------- steps ---------- */
@@ -222,15 +421,63 @@
   margin: 18px 0 0;
 }
 
+@media (max-width: 1024px) {
+  .projectGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  /* Below the desktop hero the title column is narrow enough that the client's 54–66px
+     would break a long Russian word mid-word ("Автоматизация"), so the range steps down
+     with the column instead of being clipped. */
+  .title {
+    font-size: clamp(34px, 6vw, 54px);
+  }
+}
+
 @media (max-width: 760px) {
   .hero {
     grid-template-columns: 1fr;
     padding: 40px 0;
   }
-  .highlights {
+  .highlights,
+  .projectGrid {
     grid-template-columns: 1fr;
   }
   .visual {
     min-height: 240px;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Stacked, full-width buttons — one clear action per row, 52px tall as agreed. */
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-3);
+  }
+  .cta,
+  .ghost {
+    width: 100%;
+    min-height: 52px;
+  }
+  .textLink,
+  .noLink {
+    justify-content: center;
+    text-align: center;
+  }
+  .refImage {
+    height: 110px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta,
+  .ghost,
+  .project,
+  .highlight {
+    transition: none;
   }
 }

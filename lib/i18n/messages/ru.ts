@@ -206,6 +206,11 @@ export const ru: Record<MessageKey, string> = {
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",
 
+  // --- Theme toggle ---
+  "theme.toggleAria": "Тёмная тема",
+  "theme.switchToDark": "Переключить на тёмную тему",
+  "theme.switchToLight": "Переключить на светлую тему",
+
   // --- Footer ---
   "footer.partnersLabel": "НАШИ БИЗНЕС-ПАРТНЁРЫ",
   "footer.brandText":

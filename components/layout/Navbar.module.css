@@ -3,7 +3,10 @@
   top: 0;
   z-index: 120;
   backdrop-filter: blur(14px);
-  background: rgba(255, 255, 255, 0.82);
+  /* Was a literal rgba(255,255,255,.82) — a white sheet that stayed white once the dark
+     theme landed, so the header floated as a bright band over a dark page. Same 82% wash,
+     derived from the surface token instead, so it follows the theme. */
+  background: color-mix(in srgb, var(--panel) 82%, transparent);
   border-bottom: 1px solid var(--line);
 }
 
@@ -41,6 +44,17 @@
 
 .linkWrap {
   display: inline-flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ---------- the bar's right-hand end (all screen sizes) ----------
+   Preferences + CTA + burger. It lives outside .desktop so the preferences group survives
+   the 860px breakpoint that hides the nav links: on a phone this row is language, theme
+   and the burger. The 20px gap is the same rhythm .desktop uses, so nothing moves on
+   desktop. */
+.actions {
+  display: flex;
   align-items: center;
   gap: 20px;
 }
@@ -107,7 +121,8 @@
   position: fixed;
   inset: 0;
   z-index: 125;
-  background: rgba(255, 255, 255, 0.97);
+  /* Same reason as .header: the overlay used to be a hard-coded white sheet. */
+  background: color-mix(in srgb, var(--panel) 97%, transparent);
   backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
@@ -156,8 +171,20 @@
   .desktop {
     display: none;
   }
+  /* The CTA used to be hidden by .desktop going away with it; it now sits next to the
+     preferences group, which must stay, so it hides itself. The overlay carries it. */
+  .cta {
+    display: none;
+  }
+  /* Shown here, and sized to the same 44px touch target as the preferences group. */
   .burger {
     display: flex;
+    justify-content: center;
+    min-height: 44px;
+  }
+  /* Tighter than the desktop 20px: the row now carries three controls on a narrow screen. */
+  .actions {
+    gap: var(--sp-3);
   }
 }
 
@@ -251,7 +278,9 @@
 .dropItem:hover,
 .dropItem:focus-visible {
   color: var(--txt);
-  background: rgba(23, 28, 48, 0.05);
+  /* A 5% wash of the text colour: dark ink on the light theme, light ink on the dark one.
+     The literal navy it replaces was invisible on a dark panel. */
+  background: color-mix(in srgb, var(--txt) 5%, transparent);
   border-left-color: var(--red);
   outline: none;
 }

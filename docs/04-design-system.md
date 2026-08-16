@@ -183,13 +183,50 @@ Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fade
 > `globals.css` may keep using globals.css keyframes (same-file references are fine).
 > `:global(name)` inside the `animation` shorthand does **not** work — lightningcss drops it.
 
+## Dark theme
+
+The site ships **light and dark**. The dark values live **once**, as `--dark-*` on `:root`
+in `globals.css`; the two activation paths only *remap* the real tokens onto them, so the
+palette cannot drift between "the visitor chose dark" and "the OS is dark".
+
+```css
+--dark-bg: #101422;   --dark-panel: #181e30;   --dark-txt: #f6f7fb;
+--dark-mut: #aeb8cb;  --dark-line: #2c354c;    --dark-wash: rgba(39,58,120,.55);
+```
+
+Three states, deliberately:
+
+| State | How it is expressed |
+|-------|---------------------|
+| Explicit choice | `data-theme="dark"` / `"light"` on `<html>` |
+| No choice yet | nothing stamped → `prefers-color-scheme`, unless the visitor picked light |
+| Persistence | cookie `tbs_theme`, 1 year — same shape as `tbs_locale` |
+
+**Why a cookie and not `localStorage`:** the server reads it and stamps `data-theme` into the
+HTML it sends, so a visitor who has chosen gets the right palette in the **first byte**, with
+no flash and with JavaScript off. For the "no choice yet" case the server cannot know the OS,
+so an inline script in `<head>` resolves it before first paint — and it **carries the CSP
+nonce** (`x-nonce`, minted in `proxy.ts`), without which the strict policy blocks it and the
+flash comes back.
+
+### What is NOT remapped, and why
+
+`--ink*` is not a dark theme — it is the handful of blocks that invert *on purpose*. On dark
+they lift **above** the surface (`#1d2540`) instead of sinking below it, or they would vanish
+into the page.
+
+`--green` and `--amber` get their own dark values: they are darkened for a light background
+and fall under AA on `#181e30`. `--ice` and `--cyan` likewise. **`--blue` and `--red` are
+deliberately left alone** — they are brand *fills* carrying `--on-accent` text, and lightening
+them would weaken that pairing.
+
+> **Known contrast debt.** `--red` as *small* text on `--panel` measures **3.96:1**, under the
+> 4.5:1 AA floor for text below 18.66px bold — on both themes. It affects 12px labels such as
+> `.stepLabel` and `.personLabel`. Fixing it means either a darker text-weight red token or
+> larger labels; both are brand decisions, so it is recorded here rather than patched.
+
 ## Accessibility / responsiveness notes
 
-- The design is **light-only today**. A dark theme is planned but **not built**: there is no
-  toggle, no `data-theme`, and no second token set — the `:root` block above is the only one.
-  (Anything you find claiming otherwise, including the old "dark-only by intent" line that
-  used to sit here, was left over from the pre-light palette.) The `--ink*` scale is *not* a
-  dark theme; it is a handful of blocks that invert on purpose inside a light page.
 - Respect `prefers-reduced-motion` for the reveal/orbit/marquee animations.
 - All sizes use `clamp()`/relative units; verify the mobile menu and single-column
   collapse at small widths.
