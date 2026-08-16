@@ -6,7 +6,7 @@
   display: inline-block;
   color: var(--txt);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   letter-spacing: 0.04em;
   text-decoration: none;
   opacity: 0.8;
@@ -29,13 +29,13 @@
 .eyebrow {
   color: var(--red);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   letter-spacing: 0.1em;
 }
 
 .title {
   font-family: var(--font-display-stack);
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   font-size: clamp(44px, 6vw, 76px);
   line-height: 0.94;
   letter-spacing: -0.05em;
@@ -44,7 +44,7 @@
 }
 
 .intro {
-  font-size: 20px;
+  font-size: var(--fs-lg);
   line-height: 1.55;
   color: var(--mut);
   max-width: 620px;
@@ -54,13 +54,13 @@
 .cta {
   display: inline-block;
   margin-top: 22px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  background: var(--grad-red);
   color: #fff;
   text-decoration: none;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-extra);
   padding: 16px 26px;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   box-shadow: 0 14px 28px rgba(245, 51, 63, 0.28);
   transition: transform 0.15s, box-shadow 0.15s;
 }
@@ -92,18 +92,18 @@
 
 .visualCard {
   position: relative;
-  background: #101a32;
+  background: var(--ink);
   color: #fff;
-  padding: 24px;
+  padding: var(--sp-5);
   border-radius: 18px;
   width: 100%;
   box-shadow: 0 20px 42px rgba(17, 24, 39, 0.27);
 }
 .visualCard small {
-  color: #b8c8ff;
-  font-weight: 800;
+  color: var(--on-ink-mut);
+  font-weight: var(--fw-extra);
   letter-spacing: 0.08em;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .visualCard strong {
   display: block;
@@ -113,9 +113,9 @@
 }
 .visualCard span {
   display: block;
-  color: #dbe5ff;
-  margin-top: 8px;
-  font-size: 14px;
+  color: var(--on-ink);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-md);
   line-height: 1.5;
 }
 
@@ -138,14 +138,14 @@
   box-shadow: 0 16px 35px rgba(17, 24, 39, 0.08);
 }
 .highlight b {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.09em;
   color: var(--red);
 }
 .highlight h2 {
   font-size: 22px;
   letter-spacing: -0.03em;
-  margin: 12px 0 8px;
+  margin: var(--sp-3) 0 var(--sp-2);
   color: var(--txt);
 }
 .highlight p {
@@ -158,12 +158,12 @@
 .steps {
   margin-top: 60px;
   padding: 36px;
-  border-radius: 25px;
-  background: #101a32;
+  border-radius: var(--r-xl);
+  background: var(--ink);
   color: #fff;
 }
 .steps h2 {
-  font-size: 34px;
+  font-size: var(--fs-2xl);
   letter-spacing: -0.04em;
   margin: 0 0 22px;
 }
@@ -172,7 +172,7 @@
   grid-template-columns: 70px 1fr;
   gap: 14px;
   padding: 18px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.13);
+  border-top: 1px solid var(--ink-line);
 }
 .stepRow b {
   color: #ff9da7;
@@ -180,7 +180,7 @@
 }
 .stepRow p {
   margin: 0;
-  color: #d5dcf1;
+  color: var(--on-ink);
   line-height: 1.5;
 }
 
@@ -208,7 +208,7 @@
 }
 .phTitle {
   font-family: var(--font-display-stack);
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   font-size: clamp(34px, 6vw, 68px);
   line-height: 1.03;
   letter-spacing: -0.02em;

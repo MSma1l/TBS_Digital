@@ -40,7 +40,7 @@
 }
 
 .lead {
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   font-size: clamp(15px, 2vw, 20px);
   letter-spacing: -0.02em;
   color: var(--txt);
@@ -52,7 +52,7 @@
 }
 .diamond {
   color: var(--red);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-style: normal;
 }
 

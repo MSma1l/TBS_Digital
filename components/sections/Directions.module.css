@@ -11,7 +11,7 @@
 }
 .eyebrow {
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -41,9 +41,9 @@
   background: var(--panel);
   color: var(--txt);
   padding: 13px 17px;
-  border-radius: 99px;
+  border-radius: var(--r-pill);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 15px;
   transition:
     transform 0.2s ease,
@@ -69,7 +69,7 @@
   min-height: 312px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--r-xl);
   overflow: hidden;
   box-shadow: 0 18px 55px rgba(39, 52, 91, 0.09);
 }
@@ -79,7 +79,7 @@
 }
 .tag {
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 12px;
   letter-spacing: 0.08em;
 }
@@ -90,7 +90,7 @@
   color: var(--txt);
 }
 .copyText {
-  margin: 0 0 16px;
+  margin: 0 0 var(--sp-4);
   color: var(--mut);
   line-height: 1.6;
   max-width: 430px;
@@ -119,11 +119,11 @@
   display: inline-flex;
   align-items: center;
   text-decoration: none;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 14px 22px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  background: var(--grad-red);
   color: #fff;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 15px;
   box-shadow: 0 12px 24px rgba(245, 51, 63, 0.3);
   transition:
@@ -136,8 +136,8 @@
 }
 .more {
   color: var(--txt);
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
   text-decoration: none;
   border-bottom: 2px solid transparent;
   transition:
@@ -161,8 +161,8 @@
 .case {
   width: min(420px, 100%);
   border-radius: 18px;
-  padding: 24px;
-  background: #111a31;
+  padding: var(--sp-5);
+  background: var(--ink);
   color: #fff;
   box-shadow: 0 20px 44px rgba(17, 24, 39, 0.2);
 }
@@ -170,9 +170,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: #aebee7;
-  font-size: 11px;
-  font-weight: 700;
+  color: var(--on-ink-mut);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
   letter-spacing: 0.08em;
 }
 .caseTop b {
@@ -186,9 +186,9 @@
 }
 .caseText {
   margin: 0;
-  color: #d3ddf7;
+  color: var(--on-ink);
   line-height: 1.5;
-  font-size: 14px;
+  font-size: var(--fs-md);
   max-width: 240px;
 }
 .caseTags {
@@ -200,14 +200,14 @@
 .caseTags span {
   padding: 6px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ink-line);
   color: #fff;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
 }
 .caseLink {
   color: #fff;
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   text-decoration: none;
   border-bottom: 2px solid var(--red);
   padding-bottom: 3px;

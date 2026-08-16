@@ -16,6 +16,80 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — Design tokens, URL-uri `/servicii`, preferințe globale în header
+
+**Added** — regula UI globală + tokenurile care o fac posibilă
+
+- `app/globals.css` a primit scalele care lipseau: spațiere (`--sp-1…9`), radius (`--r-sm…2xl`,
+  `--r-pill`), tipografie (`--fs-2xs…2xl`, `--fw-normal…black`), elevație (`--sh-sm/md/lg`),
+  `--on-accent` (text pe umplere colorată), `--grad-red` + `--sh-red*` (gradientul roșu de CTA
+  era **copiat în 6 module**), și scala `--ink*` pentru blocurile care se inversează intenționat
+  (existau **patru** bleumarinuri aproape identice).
+- **137 declarații tokenizate în 16 fișiere** `.module.css`, cu regula „valoarea randată rămâne
+  identică". Verificat în browser pe build-ul de producție: `.case` `rgb(17,26,49)`, footer
+  `rgb(255,255,255)`, gradientul `rgb(255,83,98) → rgb(245,51,63)` — neschimbate.
+- Regula e scrisă în [07 — Conventions](./docs/07-conventions.md): nicio culoare, font,
+  dimensiune, spațiere, rază sau umbră nu se introduce local; dacă lipsește, se adaugă **token
+  global**. Și, explicit: o valoare care nu încape în scală **nu se rotunjește** la treapta
+  vecină — rotunjirea e o schimbare vizuală deghizată în curățenie.
+
+**Changed** — paginile de direcții au URL-uri vorbitoare
+
+- `/solutions/<slug-englez>` → `/servicii/<slug-românesc>`: `produs-digital`, `e-commerce`,
+  `automatizare-api`, `asistenti-ia`, `brand-ui`. Slug-urile **nu** se traduc — `/`, `/ru` și
+  `/en` sunt același path în spatele prefixului de limbă, deci un singur arbore de rute și un
+  singur cluster hreflang.
+- Vechile adrese erau indexate, deci **301** pentru fiecare, expandat pe toate cele 3 prefixe
+  (15 reguli), fiecare aterizând pe **aceeași** limbă. 301, nu `permanent: true` (care emite
+  308), fiindcă sunt URL-uri de conținut GET.
+- Sitemap, canonical și hreflang actualizate; zero linkuri interne rămase spre `/solutions/`.
+
+**Changed** — preferințele globale, grupate în header
+
+- Selectorul de limbă a devenit `components/ui/PreferencesGroup.tsx`, cu slotul pentru
+  comutatorul de temă marcat în cod — când se construiește, intră acolo fără rearanjare, în
+  bara desktop și în overlay-ul mobil deopotrivă.
+
+**Fixed**
+
+- `LanguageSwitcher` avea `background: rgba(var(--scrim), .4)` — un negru rămas de la tema
+  dark, care picta o cutie întunecată în header-ul alb și cobora contrastul etichetelor sub
+  prag. Iar starea activă folosea `color: var(--bg)`, adică **fundalul paginii ca text**. Ambele
+  reparate pe tokenuri; focus de tastatură vizibil separat de hover.
+- `components/__tests__/navbar.test.tsx` pica pe `main`: itera peste `navLinks` (lista plată
+  legacy) în timp ce Navbar randează `navMenu`. Actualizat la navigația reală — **9 teste, toate
+  trec**.
+
+**Docs**
+
+- [04 — Design System](./docs/04-design-system.md) documenta încă **paleta veche, dark**, și
+  afirma „dark-only by intent" la luni după trecerea pe light. Rescris pe valorile reale, cu
+  scalele noi și cu avertismentul că `globals.css` e sursa de adevăr, nu docul.
+- [16 — i18n & SEO](./docs/16-i18n-seo.md): secțiune nouă despre `/servicii/<slug>`, de ce
+  slug-urile nu se traduc, și regula „redenumești un URL public ⇒ 301 pe fiecare prefix + sitemap".
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` | ✓ compilat, `/servicii/[slug]` prezent, `/solutions/[slug]` dispărut |
+| `npm test` | **111 passed** / 9 failed — cele 9 preexistente, numărul **nu** a crescut |
+| `npm run lint` · `npx tsc --noEmit` | curate |
+| Rute noi × 3 limbi (15) | 200, verificate manual pe build-ul de producție |
+| Redirecturi vechi × 3 prefixe | 301, limba păstrată (`/ru/solutions/ai` → `/ru/servicii/asistenti-ia`) |
+| Slug inexistent | 404 |
+| Sitemap | 25 intrări `servicii`, zero `solutions` |
+| `app/__tests__/servicii-routes.test.tsx` | **13 teste noi**, toate trec |
+
+> **Rămâne de făcut, descoperit pe parcurs.** (1) Secțiunile Directions/Work/Principles/Team/
+> Estimator/BottomCTA/Footer au **gutter orizontal zero** — la 360px conținutul atinge marginea
+> ecranului, în timp ce Hero începe la 14px; reparația e `padding-inline` pe `.container`, dar
+> trebuie verificată contra padding dublu în Services/Partners, care folosesc `.section` global.
+> (2) `--sh-red*` nu acoperă niciuna dintre cele 10 umbre roșii din cod (3 variante distincte,
+> diferențe de 2–5px); redefinite ca `0 12px 24px` / `0 16px 30px` ar acoperi exact 4 fără
+> deplasare. (3) Scala de fonturi merită extinsă cu 12/13/15px — mapările la ≤1px ar fi
+> redimensionat zeci de elemente simultan, deci au fost lăsate.
+
 ## 2026-08-15 — Ștergerea cererilor din admin
 
 **Added**

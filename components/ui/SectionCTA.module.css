@@ -17,7 +17,7 @@
   margin: 0;
   font-size: clamp(15px, 1.6vw, 18px);
   color: var(--txt);
-  font-weight: 500;
+  font-weight: var(--fw-med);
 }
 
 .btn {

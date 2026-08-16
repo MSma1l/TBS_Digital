@@ -94,7 +94,7 @@ The mechanism, end to end:
 | Output | File | What it does |
 |--------|------|--------------|
 | `robots.txt` | `app/robots.ts` | Allows everything except `/admin-tbs-digital` and `/api/`; advertises the sitemap and host |
-| `sitemap.xml` | `app/sitemap.ts` | The three public pages (`/`, `/confidentialitate`, `/cookies`), each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
+| `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
 | Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated images; `og:locale` follows the served language |
 | JSON-LD | `app/layout.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph — **only verifiable facts** (brand, URL, contact email, Chișinău/MD, languages). `sameAs` is omitted rather than invented |
@@ -147,8 +147,44 @@ copy in `content.ts` next to each page and shared styling in `LegalDoc.tsx` /
 
 ---
 
+## 6. Direction pages — `/servicii/<slug>`
+
+The five "choose a direction" pages live at speaking Romanian slugs, owned by
+`lib/directions.ts`:
+
+| Direction | URL | Old URL (301) |
+|-----------|-----|---------------|
+| Produs digital | `/servicii/produs-digital` | `/solutions/digital` |
+| E-commerce | `/servicii/e-commerce` | `/solutions/ecommerce` |
+| Automatizare & API | `/servicii/automatizare-api` | `/solutions/automation` |
+| Asistenți IA & boți | `/servicii/asistenti-ia` | `/solutions/ai` |
+| Brand & UI | `/servicii/brand-ui` | `/solutions/brand` |
+
+**The slugs are not translated.** `/servicii/produs-digital`, `/ru/servicii/produs-digital`
+and `/en/servicii/produs-digital` are the same path behind a locale prefix — one route tree,
+one hreflang cluster per direction. Translating slugs would multiply the routes by three and
+split each cluster.
+
+**The old URLs were indexed, so they still resolve.** `next.config.ts` 301-redirects every
+legacy path, expanded over all three prefixes (15 rules), and each lands on the *same*
+prefix — a Russian visitor following an old link stays in Russian. 301 is used rather than
+`permanent: true` (which emits 308) because these are GET-only content URLs and 301 is what
+every crawler follows without special-casing.
+
+Redirects are evaluated **before** the filesystem and before the `/ru/:path*` rewrites, so
+`/ru/solutions/ai` is caught by the redirect and never reaches the rewrite.
+
+The mapping is duplicated as a literal in `next.config.ts` — the config loader cannot resolve
+the `@/` alias — so `app/__tests__/servicii-routes.test.tsx` asserts the two copies stay
+identical, and fails if either drifts.
+
+---
+
 ## Gotchas
 
+- **Renaming a public URL** means a 301 from the old one in `next.config.ts`, for every
+  locale prefix, *and* updating `app/sitemap.ts`. A renamed page with no redirect is a 404
+  for everyone who already has the link.
 - **Adding a UI string** means adding the key to `messages/ro.ts` (which types the catalog)
   and then to `ru.ts` and `en.ts`. Missing RU/EN compiles only if the key exists in all
   three records — keep them in sync.

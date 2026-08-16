@@ -1,0 +1,20 @@
+/* The group is a container only — it must not add any visual weight of its own, so the
+   header keeps looking exactly as it does today while gaining the grouping. */
+.prefs {
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* desktop bar: shrink-wrapped, so the nav's own 20px gaps stay the visible rhythm */
+.bar {
+  display: inline-flex;
+}
+
+/* mobile overlay: the row spans the overlay width, and so does the single control inside
+   it — which is how the switcher already rendered as a direct child of the overlay. */
+.stack {
+  display: flex;
+}
+.stack > * {
+  flex: 1 1 auto;
+}

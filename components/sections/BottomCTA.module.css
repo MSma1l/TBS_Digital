@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: var(--sp-5);
   flex-wrap: wrap;
 }
 
@@ -29,12 +29,12 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 18px 28px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  background: var(--grad-red);
   color: #fff;
-  font-weight: 800;
-  font-size: 16px;
+  font-weight: var(--fw-extra);
+  font-size: var(--fs-base);
   box-shadow: 0 14px 28px rgba(245, 51, 63, 0.32);
   transition:
     transform 0.2s ease,

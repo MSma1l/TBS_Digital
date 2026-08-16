@@ -57,7 +57,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 11px 18px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   white-space: nowrap;
   transition:
@@ -99,7 +99,7 @@
   .inner {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: var(--sp-3);
   }
   .actions {
     width: 100%;

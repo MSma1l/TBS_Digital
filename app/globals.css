@@ -5,10 +5,9 @@
    ============================================================ */
 
 :root {
-  /* surfaces — a warm plum-indigo dark, lifted well off black. Each step is a
-     real elevation (bg → panel is ~2.6x luminance) so a card reads as a distinct
-     surface. The hue leans off cold navy toward indigo/plum (R ≥ G) so the page
-     reads warm and airy rather than like a black hole. */
+  /* surfaces — a cool, airy light scale. Each step is a real elevation, so a card
+     reads as a distinct surface against the page. The hue leans very slightly blue,
+     which is what keeps large white panels from looking grey next to --bg. */
   --bg: #eef1f7;
   --bg2: #e6eaf2;
   --panel: #ffffff;
@@ -44,12 +43,87 @@
   --amber: #b3771a;
   --coral: #e2603c;
 
+  /* text that sits ON a saturated fill (--blue, --blue2, --violet2, --red). Named rather
+     than written as #fff each time, so the dark theme can repoint it in one place. */
+  --on-accent: #ffffff;
+
   --glow: rgba(47, 107, 239, 0.22);
   --glow-violet: rgba(123, 83, 230, 0.2);
   --glow-amber: rgba(179, 119, 26, 0.16);
   --glow-coral: rgba(226, 96, 60, 0.16);
 
-  /* layout */
+  /* ---- ink: the intentionally dark blocks on this light page --------------
+     Several sections invert on purpose (the project card in Directions, the dark
+     panels in DirectionPage, the Estimator summary). They were hand-written hex by
+     hex, which is why four near-identical navies existed. One scale, used by all of
+     them, so an inverted block is a *decision* rather than a colour someone picked. */
+  --ink: #111a31; /* inverted surface */
+  --ink2: #162044; /* inverted surface, one step up */
+  --on-ink: #dbe5ff; /* body text on --ink (AA on both ink steps) */
+  --on-ink-mut: #aebee7; /* muted text on --ink */
+  --ink-line: rgba(255, 255, 255, 0.12); /* hairline inside an inverted block */
+
+  /* ---- brand gradient + its glow ------------------------------------------
+     The red CTA gradient is the single most duplicated value in the codebase (it
+     was pasted into 6 modules). --red-lift is the lighter stop; it is NOT a
+     standalone brand colour — never use it as a flat fill. */
+  --red-lift: #ff5362;
+  --grad-red: linear-gradient(135deg, var(--red-lift), var(--red));
+  --sh-red: 0 10px 24px rgba(245, 51, 63, 0.3);
+  --sh-red-strong: 0 14px 30px rgba(245, 51, 63, 0.42);
+
+  /* ---- elevation ---------------------------------------------------------- */
+  --sh-sm: 0 2px 8px rgba(17, 24, 39, 0.06);
+  --sh-md: 0 8px 24px rgba(17, 24, 39, 0.1);
+  --sh-lg: 0 18px 44px rgba(17, 24, 39, 0.14);
+
+  /* ---- spacing scale ------------------------------------------------------
+     Every gap/padding in a component should come from here. The steps are the
+     values already in use across the site, deduplicated — not a new rhythm. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --sp-8: 64px;
+  --sp-9: 96px;
+
+  /* ---- radii -------------------------------------------------------------- */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-2xl: 34px;
+  --r-pill: 999px;
+
+  /* ---- type scale ---------------------------------------------------------
+     Sizes are the ones the site already renders; naming them stops the next
+     component from inventing a 12.7px. Headings that must scale with the viewport
+     keep using clamp() — the scale is for fixed UI text (nav, labels, buttons). */
+  --fs-2xs: 9px;
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 14px;
+  --fs-base: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 26px;
+  --fs-2xl: 34px;
+
+  --fw-normal: 400;
+  --fw-med: 500;
+  --fw-semi: 600;
+  --fw-bold: 700;
+  --fw-extra: 800;
+  --fw-black: 900;
+
+  /* ---- layout -------------------------------------------------------------
+     Canonical breakpoints for NEW code: 640px (phone), 860px (nav burger / tablet),
+     1024px (small desktop). CSS cannot use custom properties inside a media query,
+     so these live here as the agreed set, not as usable values. Existing modules
+     still carry a few older thresholds; don't churn them just to align — changing a
+     breakpoint changes a layout someone signed off on. */
   --maxw: 1280px;
 
   /* font families (bound to next/font variables in layout.tsx) */
@@ -92,7 +166,7 @@ body {
 
 ::selection {
   background: var(--blue);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 input,

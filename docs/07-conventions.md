@@ -39,13 +39,51 @@ Rules:
 
 ## Styling
 
-- Use the design tokens from [04 — Design System](./04-design-system.md) via CSS variables.
-  Never paste raw hex codes into components.
+### The global UI rule
+
+**The header and every page are one interface, not a set of pages that happen to share a
+logo.** A visitor moving from the home page to a direction page to the admin login should not
+be able to tell that different work went into them. Concretely, everything below comes from
+[04 — Design System](./04-design-system.md) and nowhere else:
+
+| Must be identical everywhere | Token family |
+|------------------------------|--------------|
+| Font families | `--font-display-stack` · `--font-mono-stack` · `--font-body-stack` |
+| Type sizes and weights | `--fs-*` · `--fw-*` |
+| Colours, on every surface | `--bg` `--panel` `--txt` `--mut` `--line` `--red` … and `--ink*` for inverted blocks |
+| Spacing and rhythm | `--sp-1` … `--sp-9` |
+| Corner radii | `--r-sm` … `--r-2xl`, `--r-pill` |
+| Elevation | `--sh-sm/md/lg`, `--sh-red`, `--sh-red-strong` |
+| The brand gradient | `--grad-red` |
+
+The rule in one line: **no colour, font, size, spacing, radius or shadow may be introduced
+locally in a single page or component.** If what you need doesn't exist yet, add a *global
+token* and use it — never copy a value into a module because it's faster.
+
+Why it's written this way and not as "try to be consistent": the site had six near-identical
+navies, the red CTA gradient pasted into six modules, and a footer that used no tokens at all.
+Every one of those started as one reasonable local decision.
+
+**When a value genuinely doesn't fit the scale** — a one-off `13px` radius, a size between two
+steps — don't silently round it to the nearest token, because that moves the design. Either
+add a token for it, or leave the literal and say why in a comment. A rounded value is a visual
+change disguised as a cleanup.
+
+**Exception, and the only one:** `app/opengraph-image.tsx` uses a literal `sans-serif`.
+`ImageResponse` renders outside the browser and cannot read CSS variables. It is commented as
+such at the top of the file.
+
+### The rest
+
 - Reuse the `.disp` (display) and `.mono` typographic classes; don't reinvent them.
 - Respect `prefers-reduced-motion` for animations.
 - **Keyframes used by a `*.module.css` must be defined in that same file** — a global-only
   keyframe silently no-ops when referenced from a module. See the gotcha in
   [04 — Design System](./04-design-system.md).
+- Breakpoints for new code: **640px** (phone), **860px** (nav burger / tablet), **1024px**
+  (small desktop). CSS cannot read a custom property inside a media query, so these are a
+  convention, not a token. Older modules still carry a few other thresholds — leave them;
+  changing a breakpoint changes a layout that was signed off.
 
 ## Components
 

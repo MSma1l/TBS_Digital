@@ -19,7 +19,7 @@
 
 .eyebrow {
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -55,12 +55,12 @@
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  border-radius: 13px;
+  border-radius: var(--r-md);
   padding: 16px 26px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  background: var(--grad-red);
   color: #fff;
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-base);
   box-shadow: 0 14px 28px rgba(245, 51, 63, 0.32);
   transition:
     transform 0.2s ease,
@@ -75,8 +75,8 @@
 
 .textlink {
   color: var(--txt);
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-md);
   text-decoration: none;
   border-bottom: 2px solid transparent;
   padding-bottom: 2px;
@@ -145,8 +145,8 @@
 .metric small {
   display: block;
   margin-top: 10px;
-  font-weight: 700;
-  font-size: 12.5px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
   color: var(--green);
 }
 

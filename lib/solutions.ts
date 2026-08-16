@@ -2,7 +2,10 @@ import type { LocalizedText } from "@/lib/i18n/content";
 
 /** Rich content for a single "direction" page. Kept out of the message catalog as
  *  self-contained trilingual objects (rendered with useLoc). Only filled directions
- *  render the full page; the rest fall back to the placeholder. */
+ *  render the full page; the rest fall back to the placeholder.
+ *
+ *  Keys are the URL slugs from lib/directions.ts, i.e. the `<slug>` in
+ *  `/servicii/<slug>` — the same in all three languages. */
 export type SolutionItem = { title: LocalizedText; desc: LocalizedText };
 export type Solution = {
   eyebrow: LocalizedText;
@@ -19,7 +22,7 @@ export type Solution = {
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 export const solutions: Record<string, Solution> = {
-  digital: {
+  "produs-digital": {
     accent: "#3970ff",
     eyebrow: L("DE LA IPOTEZĂ LA LANSARE", "ОТ ГИПОТЕЗЫ ДО ЗАПУСКА", "FROM HYPOTHESIS TO LAUNCH"),
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
@@ -46,7 +49,7 @@ export const solutions: Record<string, Solution> = {
       L("Dezvoltare, lansare și optimizare.", "Разработка, запуск и оптимизация.", "Development, launch and optimization."),
     ],
   },
-  ecommerce: {
+  "e-commerce": {
     accent: "#ff7268",
     eyebrow: L("VÂNZARE MAI SIMPLĂ", "ПРОДАВАТЬ ПРОЩЕ", "SELLING MADE SIMPLER"),
     title: L("E-commerce", "Электронная коммерция", "E-commerce"),
@@ -73,7 +76,7 @@ export const solutions: Record<string, Solution> = {
       L("Conectăm plata, stocul și analytics.", "Подключаем оплату, склад и аналитику.", "We connect payments, stock and analytics."),
     ],
   },
-  automation: {
+  "automatizare-api": {
     accent: "#12ae9e",
     eyebrow: L("CONECTĂM CE CONTEAZĂ", "СОЕДИНЯЕМ ГЛАВНОЕ", "WE CONNECT WHAT MATTERS"),
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
@@ -100,7 +103,7 @@ export const solutions: Record<string, Solution> = {
       L("Testăm, măsurăm și rafinăm fluxul.", "Тестируем, измеряем и улучшаем поток.", "We test, measure and refine the flow."),
     ],
   },
-  ai: {
+  "asistenti-ia": {
     accent: "#9b72ff",
     eyebrow: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
     title: L("Asistenți IA & boturi", "Помощники ИИ и боты", "AI assistants & bots"),
@@ -127,7 +130,7 @@ export const solutions: Record<string, Solution> = {
       L("Testăm răspunsurile și îmbunătățim continuu.", "Тестируем ответы и постоянно улучшаем.", "We test the answers and keep improving."),
     ],
   },
-  brand: {
+  "brand-ui": {
     accent: "#3970ff",
     eyebrow: L("O IDENTITATE CARE SE ȚINE MINTE", "ИДЕНТИЧНОСТЬ, КОТОРУЮ ЗАПОМИНАЮТ", "AN IDENTITY THAT STICKS"),
     title: L("Brand & UI", "Бренд и интерфейс", "Brand & UI"),

@@ -12,7 +12,7 @@
 }
 .eyebrow {
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -104,12 +104,12 @@
   top: 14px;
   right: 17px;
   font-size: 38px;
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   opacity: 0.26;
 }
 .tag {
-  font-weight: 700;
-  font-size: 11px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-xs);
   letter-spacing: 0.08em;
 }
 .name {

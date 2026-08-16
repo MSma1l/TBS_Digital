@@ -3,7 +3,7 @@
 import { useState, Fragment } from "react";
 import { navMenu } from "@/lib/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { PreferencesGroup } from "@/components/ui/PreferencesGroup";
 import styles from "./Navbar.module.css";
 
 /** Приводит подпись каталога к «Услуги» для крупных ссылок мобильного оверлея. */
@@ -63,7 +63,9 @@ export function Navbar() {
               </Fragment>
             ))}
 
-            <LanguageSwitcher />
+            {/* Global preferences (language now, theme later) — one group, parked between
+                the last nav link and the CTA. See PreferencesGroup for the theme slot. */}
+            <PreferencesGroup />
             <a href="#contact" className={`mono ${styles.cta}`}>
               {t("nav.cta")}
             </a>
@@ -120,7 +122,8 @@ export function Navbar() {
             </div>
           ))}
 
-          <LanguageSwitcher />
+          {/* Same preferences group as the desktop bar, laid out as a full-width row. */}
+          <PreferencesGroup layout="stack" />
           <a href="#contact" onClick={close} className={`mono ${styles.overlayCta}`}>
             {t("nav.cta")}
           </a>

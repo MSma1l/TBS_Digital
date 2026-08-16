@@ -20,8 +20,8 @@
   align-items: baseline;
   text-decoration: none;
   color: var(--txt);
-  font-weight: 800;
-  font-size: 26px;
+  font-weight: var(--fw-extra);
+  font-size: var(--fs-xl);
   letter-spacing: -0.04em;
   line-height: 1;
 }
@@ -35,7 +35,7 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.08em;
 }
 
@@ -61,17 +61,19 @@
 .cta {
   text-decoration: none;
   color: #fff;
-  font-weight: 700;
-  font-size: 12.5px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-sm);
   letter-spacing: 0.06em;
-  padding: 12px 20px;
+  padding: var(--sp-3) 20px;
   border: 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  border-radius: var(--r-md);
+  background: var(--grad-red);
+  /* NOT --sh-red: this one is 12px/0.32, the token is 10px/0.3 — swapping it would move
+     the shadow. Same for the hover shadow (16px vs the token's 14px). */
   box-shadow: 0 12px 24px rgba(245, 51, 63, 0.32);
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -90,7 +92,7 @@
   gap: 5px;
   background: transparent;
   border: 1px solid var(--line2);
-  padding: 11px 12px;
+  padding: 11px var(--sp-3);
   cursor: pointer;
 }
 .burger span {
@@ -123,15 +125,15 @@
   color: var(--txt);
   width: 42px;
   height: 42px;
-  font-size: 20px;
+  font-size: var(--fs-lg);
   cursor: pointer;
 }
 
 .overlayLink {
   text-decoration: none;
   color: var(--txt);
-  font-size: 34px;
-  padding: 12px 0;
+  font-size: var(--fs-2xl);
+  padding: var(--sp-3) 0;
   border-bottom: 1px solid var(--line);
 }
 
@@ -140,12 +142,13 @@
   text-align: center;
   margin-top: 14px;
   color: #fff;
-  font-weight: 700;
-  font-size: 16px;
-  padding: 16px;
+  font-weight: var(--fw-bold);
+  font-size: var(--fs-base);
+  padding: var(--sp-4);
   border: 0;
-  border-radius: 13px;
-  background: linear-gradient(135deg, #ff5362, var(--red));
+  border-radius: var(--r-md);
+  background: var(--grad-red);
+  /* NOT --sh-red: 12px offset here vs the token's 10px. */
   box-shadow: 0 12px 24px rgba(245, 51, 63, 0.3);
 }
 
@@ -178,7 +181,7 @@
 .caret {
   display: inline-block;
   margin-left: 6px;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   line-height: 1;
   color: var(--dim);
   transition:
@@ -193,15 +196,16 @@
 
 .dropdown {
   position: absolute;
-  top: calc(100% + 12px);
+  top: calc(100% + var(--sp-3));
   left: 0;
   min-width: 232px;
   display: flex;
   flex-direction: column;
-  padding: 8px;
-  background: #fff;
+  padding: var(--sp-2);
+  background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--r-md);
+  /* NOT --sh-lg: 20px offset here vs the token's 18px. */
   box-shadow: 0 20px 44px rgba(17, 24, 39, 0.14);
   opacity: 0;
   visibility: hidden;
@@ -217,10 +221,10 @@
 .dropdown::before {
   content: "";
   position: absolute;
-  top: -12px;
+  top: calc(-1 * var(--sp-3));
   left: 0;
   right: 0;
-  height: 12px;
+  height: var(--sp-3);
 }
 .item:hover .dropdown,
 .item:focus-within .dropdown {
@@ -233,11 +237,11 @@
 .dropItem {
   text-decoration: none;
   color: var(--mut);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   letter-spacing: 0.03em;
   white-space: nowrap;
   padding: 11px 13px;
-  border-radius: 8px;
+  border-radius: var(--r-sm);
   border-left: 2px solid transparent;
   transition:
     color 0.15s,
@@ -268,7 +272,7 @@
   color: var(--mut);
   font-size: 15px;
   letter-spacing: 0.03em;
-  padding: 9px 0 9px 16px;
+  padding: 9px 0 9px var(--sp-4);
   border-left: 2px solid var(--line);
 }
 .overlaySubLink:hover {

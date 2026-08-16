@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { directionHref } from "@/lib/directions";
 import styles from "./Directions.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -183,7 +184,7 @@ export function Directions() {
               <a href="#estimare" className={styles.cta}>
                 {l(SECTION.cta)}
               </a>
-              <Link href={`/solutions/${svc.slug}`} className={styles.more}>
+              <Link href={directionHref(svc.slug)} className={styles.more}>
                 {l(SECTION.more)} ↗
               </Link>
             </div>

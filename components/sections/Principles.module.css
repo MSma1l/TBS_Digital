@@ -7,7 +7,7 @@
 }
 .eyebrow {
   color: var(--red);
-  font-weight: 700;
+  font-weight: var(--fw-bold);
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -28,7 +28,7 @@
 .card {
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 24px;
+  padding: var(--sp-5);
   background: var(--panel);
   transition:
     transform 0.25s ease,
@@ -43,7 +43,7 @@
 
 .number {
   color: var(--accent, var(--blue));
-  font-weight: 800;
+  font-weight: var(--fw-extra);
   font-size: 12px;
   letter-spacing: 0.06em;
 }
@@ -56,7 +56,7 @@
 .cardText {
   margin: 0;
   color: var(--mut);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 

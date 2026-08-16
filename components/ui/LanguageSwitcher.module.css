@@ -4,7 +4,11 @@
   gap: 2px;
   padding: 2px;
   border: 1px solid var(--line);
-  background: rgba(var(--scrim), 0.4);
+  /* The track is a *surface*, not a scrim. It used to be `rgba(var(--scrim), .4)` — a
+     near-black wash left over from the dark theme, which painted a dark box inside the
+     light header and dragged --dim label text down to unreadable contrast. --panel2 is
+     the faintest surface step, so the track reads as an inset without adding weight. */
+  background: var(--panel2);
 }
 
 .option {
@@ -12,7 +16,7 @@
   border: none;
   background: transparent;
   color: var(--dim);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   padding: 5px 9px;
   transition:
@@ -24,14 +28,21 @@
   color: var(--txt);
 }
 
+/* The selected option is white on the blue fill (5.2:1). It used to be `var(--bg)` — the
+   *page background* colour used as text, another leftover of the dark theme. */
 .active {
-  color: var(--bg);
+  color: var(--on-accent);
   background: var(--blue2);
 }
 
+/* Keyboard focus must be visible on its own, not only under the pointer. */
 .option:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 1px;
+  color: var(--txt);
+}
+.active:focus-visible {
+  color: var(--on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
