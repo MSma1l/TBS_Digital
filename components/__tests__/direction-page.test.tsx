@@ -8,6 +8,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+// The estimator (mounted inside the request modal) reads `?serviciu=`, which needs the App
+// Router context. The modal passes the service as a prop, so an empty stub is enough here.
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(""),
+}));
 
 vi.mock("@/lib/api", () => ({
   fetchContent: vi.fn(),
@@ -18,7 +25,6 @@ import { SiteContentProvider } from "@/lib/siteContent";
 import { projects as defaultProjects } from "@/lib/content";
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
-import { estimateHref } from "@/lib/directions";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -35,13 +41,22 @@ function renderPage(slug: string): HTMLElement {
 }
 
 describe("action bar", () => {
-  it("sits on the page and leads to the real request flow, carrying the service", () => {
+  it("opens the real request flow in place, with this service preselected", async () => {
+    const user = userEvent.setup();
     renderPage("produs-digital");
 
-    const cta = screen.getByRole("link", { name: "Vorbește cu echipa" });
-    expect(cta).toHaveAttribute("href", "/?serviciu=produs-digital#estimare");
-    // #estimare is the id of the estimator section on the home page — the actual flow.
-    expect(estimateHref("produs-digital")).toContain("#estimare");
+    // It is a button, not a link: the flow opens here rather than throwing the visitor
+    // back to the home page mid-read.
+    const cta = screen.getByRole("button", { name: "Vorbește cu echipa" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await user.click(cta);
+
+    const dialog = await screen.findByRole("dialog");
+    // The estimator really mounted inside — its own submit button proves it is the flow,
+    // not a placeholder — and it opened on this service's project type.
+    expect(within(dialog).getByRole("button", { name: /Trimite cererea/ })).toBeInTheDocument();
+    expect(within(dialog).getByText(/€3\.000/)).toBeInTheDocument();
   });
 
   it("offers the projects action, pointing at the section on this same page", () => {
@@ -77,10 +92,7 @@ describe("action bar", () => {
     expect(screen.queryByRole("link", { name: "Vezi proiectele relevante" })).toBeNull();
     expect(container.querySelector("#proiecte")).toBeNull();
     // The request flow is still offered — the page never ends up actionless.
-    expect(screen.getByRole("link", { name: "Vorbește cu echipa" })).toHaveAttribute(
-      "href",
-      "/?serviciu=e-commerce#estimare",
-    );
+    expect(screen.getByRole("button", { name: "Vorbește cu echipa" })).toBeInTheDocument();
   });
 });
 

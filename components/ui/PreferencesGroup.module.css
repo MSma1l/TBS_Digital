@@ -11,8 +11,9 @@
 }
 
 /* mobile overlay: the row spans the overlay width. Only the FIRST control (the language
-   switcher) grows into it — the theme toggle keeps its square, icon-sized box, which is
-   what makes the pair read as a control and its setting rather than as two half-rows. */
+   switcher) grows into it — the theme and sound toggles keep their square, icon-sized
+   boxes, which is what makes the row read as one control plus its switches rather than as
+   three equal thirds. */
 .stack {
   display: flex;
 }
@@ -21,11 +22,19 @@
 }
 
 /* Phones and tablets: the whole group is at least 44px tall (WCAG 2.5.5 touch target), and
-   both controls stretch to that height so they stay visually one unit. Above this width the
-   toggle stretches to the switcher's natural height instead — same rule, other direction. */
+   every control stretches to that height so they stay visually one unit. Above this width
+   the toggles stretch to the switcher's natural height instead — same rule, other
+   direction. */
 @media (max-width: 860px) {
   .prefs {
     align-items: stretch;
     min-height: 44px;
+  }
+}
+
+/* See the ≤380px note in Navbar.module.css — the row has to fit a 320px viewport. */
+@media (max-width: 380px) {
+  .prefs {
+    gap: var(--sp-1);
   }
 }

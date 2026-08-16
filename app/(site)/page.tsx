@@ -4,7 +4,7 @@ import { Directions } from "@/components/sections/Directions";
 import { Work } from "@/components/sections/Work";
 import { Principles } from "@/components/sections/Principles";
 import { Team } from "@/components/sections/Team";
-import { Estimator } from "@/components/sections/Estimator";
+import { RequestSection } from "@/components/sections/RequestSection";
 import { BottomCTA } from "@/components/sections/BottomCTA";
 
 export default function Home() {
@@ -16,7 +16,7 @@ export default function Home() {
       <Work />
       <Principles />
       <Team />
-      <Estimator />
+      <RequestSection />
       <BottomCTA />
     </main>
   );

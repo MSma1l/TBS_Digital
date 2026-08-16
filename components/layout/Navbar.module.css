@@ -308,3 +308,21 @@
   color: var(--red);
   border-left-color: var(--red);
 }
+
+/* Very small phones (≤380px).
+   The header row is logo + preferences + burger. Adding the sound toggle to the
+   preferences group pushed that row past a 320px viewport — the document went 361px wide
+   and the whole page scrolled sideways, on every page, in both themes. Nothing is hidden
+   to fix it: the row just tightens. Touch targets stay 44px tall; only horizontal padding
+   and the gaps shrink, which is width, not target height. */
+@media (max-width: 380px) {
+  .nav {
+    gap: var(--sp-2);
+  }
+  .actions {
+    gap: var(--sp-2);
+  }
+  .logo {
+    font-size: var(--fs-lg);
+  }
+}

@@ -102,18 +102,26 @@
 }
 .chatLog {
   max-height: 360px;
-  overflow: auto;
+  overflow-y: auto;
+  /* Never sideways: a bubble wraps instead (see `overflow-wrap` below), so a horizontal
+     scrollbar here would only ever mean a layout bug. */
+  overflow-x: hidden;
   padding-right: 5px;
   scrollbar-color: var(--line2) transparent;
 }
 .bubble {
-  max-width: 88%;
+  max-width: min(88%, 100%);
   padding: 11px 13px;
   border-radius: var(--r-md);
   margin: 14px 0 var(--sp-2);
   background: color-mix(in srgb, var(--blue) 10%, var(--panel2));
   line-height: 1.45;
   font-size: var(--fs-md);
+  /* Visitors paste URLs, tracking ids and 80-character words with no spaces. Without a
+     forced break one of those widens the bubble and the whole panel scrolls sideways. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
   animation: rise 0.35s both;
 }
 .bubbleUser {
@@ -142,6 +150,138 @@
 .chatOption:hover {
   border-color: var(--red);
   transform: translateY(-2px);
+}
+
+/* composer — the free-text half of the dialog */
+.compose {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.composeInput {
+  font: inherit;
+  font-size: var(--fs-md);
+  color: var(--txt);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  overflow-wrap: anywhere;
+  transition:
+    outline 0.15s ease,
+    border-color 0.15s ease;
+}
+.composeInput::placeholder {
+  color: var(--mut);
+}
+.composeInput:focus {
+  outline: 3px solid color-mix(in srgb, var(--red) 40%, transparent);
+  border-color: var(--red);
+}
+.composeActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* Mount point for the dictation button another component owns. It collapses to nothing
+   while empty, so the row looks identical until that button exists. */
+.dictationSlot {
+  display: inline-flex;
+  align-items: center;
+}
+/* Until that button is mounted the slot must not spend a flex/grid gap on nothing. */
+.dictationSlot:empty {
+  display: none;
+}
+.composeSend {
+  margin-left: auto;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 10px 16px;
+  background: var(--grad-red);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.composeSend:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.composeSend:disabled {
+  cursor: default;
+  opacity: 0.5;
+  transform: none;
+}
+.composeSkip {
+  background: transparent;
+  color: var(--mut);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 10px 13px;
+  font: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: border-color 0.18s ease;
+}
+.composeSkip:hover {
+  border-color: var(--red);
+  color: var(--txt);
+}
+
+/* summary — what the assistant understood, and what leaves with the request */
+.summary {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--green) 8%, var(--panel2));
+  padding: var(--sp-4);
+  overflow-wrap: anywhere;
+}
+.summaryHead {
+  font-size: 12px;
+  font-weight: var(--fw-extra);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.summaryIntro {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--mut);
+}
+.summaryList {
+  margin: var(--sp-3) 0 0;
+  display: grid;
+  gap: var(--sp-2);
+}
+.summaryRow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
+  gap: 4px 12px;
+}
+.summaryLabel {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  color: var(--mut);
+}
+.summaryValue {
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--txt);
+  /* Clarifications arrive as one line per question — keep those line breaks. */
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 /* result aside */
@@ -184,6 +324,20 @@
   transition:
     outline 0.15s ease,
     border-color 0.15s ease;
+}
+/* The details field and its dictation mount point share one grid cell of the form. */
+.detailsField {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.detailsField textarea {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.detailsField .dictationSlot {
+  justify-self: end;
 }
 .form input::placeholder,
 .form textarea::placeholder {
@@ -257,8 +411,18 @@
   .choice,
   .chatOption,
   .submit,
+  .composeSend,
+  .composeSkip,
+  .composeInput,
+  .summary,
   .bubble {
     transition: none;
     animation: none;
+  }
+  /* A bubble must appear, not fly in — no transform, no fade. */
+  .composeSend:hover:not(:disabled),
+  .chatOption:hover,
+  .submit:hover {
+    transform: none;
   }
 }

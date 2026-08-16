@@ -347,6 +347,18 @@ Un update **nu** necesită certbot, vhost nou sau restart la `nginx_proxy`: prox
 containere după nume (`tbs-digital-frontend` / `tbs-digital-backend`), iar `container_name`
 e fixat în `docker-compose.prod.yml`, deci numele supraviețuiește recreării.
 
+> ⚠️ **`npm start` nu funcționează pe acest repo — și nu e o problemă de producție.**
+> `next.config.ts` are `output: "standalone"`, iar `next start` nu găsește atunci manifestele
+> de client pentru rutele din grupuri: `/servicii/<slug>` întoarce **500**, iar homepage-ul
+> trimite HTML care nu se hidratează (comutatorul de temă, selectorul de limbă și formularul
+> par moarte). Calea corectă e cea pe care o folosesc și Dockerfile-ul, și suita Playwright:
+> ```bash
+> npm run build
+> cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public
+> node .next/standalone/server.js
+> ```
+> Dacă testezi local și „nu merge nimic pe paginile de serviciu", asta e cauza.
+
 ### Verificare după update
 
 ```bash

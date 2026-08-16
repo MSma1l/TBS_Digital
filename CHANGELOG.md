@@ -16,6 +16,84 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — Modal, chat extins, dictare, sunet, E2E
+
+**Added** — modal de cerere
+
+- `components/ui/Modal.tsx`: `role="dialog"`, `aria-modal`, titlu asociat, **focus trap** real
+  (Tab/Shift+Tab ciclează, focusul revine pe declanșator la închidere), închidere prin X,
+  Escape și click exterior, scroll de fundal blocat. Desktop centrat, mobil **sheet ancorat
+  jos**. `prefers-reduced-motion` oprește animația.
+- Trei capcane rezolvate explicit, fiindcă fac diferența între un modal care pare corect și
+  unul care e: trapa ascultă pe `document` în **capture**, altfel nu mai prinde nimic dacă
+  focusul a ieșit; o apăsare începută în panou și terminată pe overlay își **retargetează**
+  click-ul pe overlay, deci o verificare naivă ar închide modalul în timp ce selectezi text;
+  blocarea scroll-ului compensează lățimea scrollbar-ului, altfel pagina saltă lateral.
+- **Cablat pe paginile de serviciu**, unde CTA-ul „Vorbește cu echipa" arunca vizitatorul
+  înapoi pe homepage în mijlocul cititului. Acum deschide fluxul **real** pe loc — aceeași
+  componentă, același endpoint — cu serviciul preselectat prin prop.
+
+**Added** — chat extins
+
+- Arborele a crescut de la 9 la 12 noduri: **descriere liberă**, **întrebare de clarificare
+  aleasă după tipul de proiect**, pas opțional de detalii, apoi **rezumat**. Un răspuns tastat
+  liber declanșează o rundă de clarificare și revine exact în pasul din care a plecat.
+- Rezumatul e vizibil în interfață **și** pleacă odată cu cererea reală. Bugetul de 5000 de
+  caractere e cheltuit rezumat-întâi, transcriptul primind doar restul — și e tăiat vizibil,
+  nu lăsat să producă 422.
+- Textul liber trece prin aceeași validare ca formularul; marcajul e refuzat, dialogul nu
+  avansează, textul rămâne în casetă. Bulele au `overflow-wrap: anywhere`, deci un cuvânt de
+  80 de caractere nu mai împinge pagina lateral.
+
+**Added** — dictare și sunet
+
+- Dictarea pornește **doar la click**, cere permisiunea explicit, oprește imediat pistele de
+  microfon. **Nu salvează și nu trimite audio**: textul recunoscut intră într-un textarea
+  editabil, iar callback-ul se declanșează abia la confirmarea vizitatorului. Refuzul arată o
+  cale clară spre scriere manuală; dacă browserul n-are API-ul, butonul **nu se randează**.
+- Sunet global, oprit implicit, persistat prin cookie ca tema. **Trei apărări contra
+  autoplay-ului**: oprit implicit, un latch armat doar de primul gest real, și `AudioContext`
+  construit înăuntrul funcției de redare. `prefers-reduced-motion` nu-l activează niciodată.
+
+**Added** — Playwright
+
+- Framework E2E (nu exista), cu server propriu pe build-ul de producție. **118 teste**: rute
+  în 3 limbi, redirecturi 301 cu limba păstrată, temă din primul byte, persistență temă/limbă,
+  formularul de contact (cu `page.route()`, deci **niciun lead real nu pleacă**), tastatură, și
+  responsive la **320/375/390/768/1280 × light/dark**.
+
+**Fixed** — două bug-uri reale găsite de E2E, nu de citit cod
+
+- **Ținte de atingere de 24px.** `PreferencesGroup` întindea grupul la 44px, dar `.switcher`
+  centra opțiunile RO/RU/EN — deci fiecare buton măsura 24px. WCAG 2.5.5 se aplică **per
+  țintă**, nu per grup.
+- **Scroll orizontal la 320px**: documentul ieșea **361px într-un viewport de 320px**, pe
+  ambele pagini și în ambele teme. Cauza: butonul de sunet, adăugat în bară. Nu era un bug, ci
+  o imposibilitate geometrică — logo + 3 butoane de limbă + temă + sunet + hamburger, toate la
+  44×44, nu încap în 320px. Prima încercare (strâns padding-ul) repara scroll-ul **stricând
+  exact cerința care îl cauzase**, deci a fost revenită.
+  **Soluția, aleasă de client:** sub **360px** selectorul de limbă devine un singur buton de
+  44×44 care deschide alegerea — cu tastatură completă (săgeți, Home/End, Escape, focus
+  restaurat) și cu fiecare rând din popup tot 44px. Documentul a coborât de la 361px la 320px.
+  Un singur control în DOM, nu două ascunse cu CSS.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` (Vitest) | **271 passed / 0 failed** (20 fișiere) |
+| `npx playwright test --workers=1` | **118 passed / 0 failed** |
+| `npm run lint` · `npx tsc --noEmit` | curate |
+
+> **Notă de operare, descoperită de E2E:** `npm start` (adică `next start`) e **rupt** pe acest
+> repo — `output: "standalone"` face ca `/servicii/[slug]` să întoarcă 500 și homepage-ul să nu
+> se hidrateze. Producția nu e afectată: Docker rulează `node .next/standalone/server.js`, care
+> e calea corectă, iar Playwright face la fel. Vezi [12 — Deployment](./docs/12-deployment.md).
+
+> **Nefăcut, deliberat:** CTA-urile de pe homepage duc în continuare la secțiunea de pe pagină,
+> nu deschid modalul — acolo fluxul e deja vizibil și un modal ar dubla aceeași interfață.
+> Unificarea e o decizie de UX, nu o scăpare.
+
 ## 2026-08-16 — Dark mode, paleta de brand, servicii ca destinație
 
 **Added** — dark mode complet

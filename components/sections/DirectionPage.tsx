@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { RequestModal } from "./RequestModal";
 import type { CSSProperties } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc } from "@/lib/i18n/content";
-import { directions, estimateHref } from "@/lib/directions";
+import { directions } from "@/lib/directions";
 import { solutions, solUI, solutionPalette, projectsForSolution } from "@/lib/solutions";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
 import styles from "./DirectionPage.module.css";
@@ -124,11 +125,13 @@ export function DirectionPage({ slug }: { slug: string }) {
 
         {/* ---- action bar: everything the visitor can DO with this service ---- */}
         <div className={styles.actions}>
-          {/* The request flow itself (the estimator on the home page), with this service
-              named on the URL. */}
-          <Link href={estimateHref(slug)} className={styles.cta}>
-            {l(solUI.actionTalk)}
-          </Link>
+          {/* Opens the real request flow in a dialog, with this service preselected, so the
+              visitor is not thrown back to the home page mid-read. */}
+          <RequestModal
+            serviceSlug={slug}
+            label={l(solUI.actionTalk)}
+            className={styles.cta}
+          />
 
           {related.length > 0 && (
             <a href="#proiecte" className={styles.ghost}>
@@ -224,9 +227,11 @@ export function DirectionPage({ slug }: { slug: string }) {
         <section className={styles.bottom}>
           <h2 className="disp">{l(solUI.bottomTitle)}</h2>
           <p>{l(solUI.bottomLead)}</p>
-          <Link href={estimateHref(slug)} className={styles.cta}>
-            {l(solUI.start)}
-          </Link>
+          <RequestModal
+            serviceSlug={slug}
+            label={l(solUI.start)}
+            className={styles.cta}
+          />
         </section>
       </div>
     </div>

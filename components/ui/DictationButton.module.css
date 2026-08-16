@@ -1,0 +1,236 @@
+/* Dictation lives next to a textarea, so it borrows that area's language: --panel surface,
+   --line hairline, the site's radii and spacing tokens. Nothing here is a literal colour. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel2);
+  color: var(--mut);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.button:hover:not(:disabled) {
+  color: var(--txt);
+  border-color: var(--line2);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+  color: var(--txt);
+}
+
+/* The listening state has to be unmistakable — it means a microphone is open. Red border,
+   red text, red dot: the same --red the brand already uses for "live / attention". */
+.listening {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--panel);
+}
+.listening:hover:not(:disabled) {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.iconBox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+/* The "we are recording you" dot. A discreet pulse, and only a pulse — no growing ring,
+   no colour cycling. Keyframes must live in this module (a global-only keyframe silently
+   no-ops from a CSS module — see docs/04). */
+.pulse {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--red);
+  animation: dictationPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes dictationPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.status {
+  margin: 0;
+  color: var(--mut);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  /* The live region is always in the DOM (so it can announce), but it collapses when it
+     has nothing to say instead of reserving an empty line. */
+  min-height: 0;
+}
+
+.dismiss {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--mut);
+  font-size: var(--fs-xs);
+  padding: var(--sp-1) var(--sp-2);
+}
+.dismiss:hover {
+  color: var(--txt);
+  border-color: var(--line2);
+}
+.dismiss:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+
+/* The review panel: the recognised text, editable, plus the two decisions the visitor is
+   allowed to make about it. */
+.review {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+}
+
+.reviewLabel {
+  color: var(--mut);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.draft {
+  width: 100%;
+  resize: vertical;
+  padding: var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel2);
+  color: var(--txt);
+  font-family: var(--font-body-stack);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.draft:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+  border-color: var(--line2);
+}
+
+.privacy {
+  margin: 0;
+  color: var(--dim);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.primary,
+.secondary {
+  cursor: pointer;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-med);
+  border: 1px solid transparent;
+}
+
+.primary {
+  background: var(--blue2);
+  color: var(--on-accent);
+}
+.primary:hover {
+  background: var(--blue);
+}
+
+.secondary {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--mut);
+}
+.secondary:hover {
+  color: var(--txt);
+  border-color: var(--line2);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* Touch targets: at least 44x44 on phones/tablets (WCAG 2.5.5), like the header controls. */
+@media (max-width: 860px) {
+  .button,
+  .primary,
+  .secondary {
+    min-height: 44px;
+  }
+  .button {
+    min-width: 44px;
+  }
+}
+
+/* Reduced motion: the red dot stays, fully opaque and still. The state must remain
+   obvious — it is the only signal that a microphone is open — but it stops moving. */
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+  .pulse {
+    animation: none;
+    opacity: 1;
+  }
+}

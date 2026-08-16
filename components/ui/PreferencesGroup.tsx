@@ -1,6 +1,7 @@
 "use client";
 
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { SoundToggle } from "./SoundToggle";
 import { ThemeToggle } from "./ThemeToggle";
 import styles from "./PreferencesGroup.module.css";
 
@@ -8,8 +9,12 @@ import styles from "./PreferencesGroup.module.css";
  * Global site preferences, as one group in the header.
  *
  * These are the controls that change **how the whole site is presented** rather than where
- * it navigates, so they live together and away from the nav links: the language switcher
- * and the light/dark toggle, in that order, sharing one height and one border language.
+ * it navigates, so they live together and away from the nav links: the language switcher,
+ * the light/dark toggle and the interface-sound toggle, in that order, sharing one height
+ * and one border language.
+ *
+ * Order is not arbitrary — it goes from the setting a visitor changes most often to the one
+ * they change least: language, then palette, then sound (which is off until asked for).
  *
  * `layout` only describes how the group fills the space it is placed in:
  *  - `"bar"`   — the nav bar: shrink-wrapped, sits between the links and the CTA. This is
@@ -33,6 +38,7 @@ export function PreferencesGroup({
     >
       <LanguageSwitcher />
       <ThemeToggle />
+      <SoundToggle />
     </div>
   );
 }

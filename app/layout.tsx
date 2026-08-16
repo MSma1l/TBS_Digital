@@ -17,6 +17,7 @@ import {
 } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { SoundProvider, SOUND_COOKIE, toSoundChoice } from "@/lib/sound";
 import {
   THEME_COOKIE,
   THEME_INIT_SCRIPT,
@@ -144,6 +145,10 @@ export default async function RootLayout({
   // `prefers-color-scheme`, and the inline script below pins the resolved value.
   const themeChoice = toThemeChoice((await cookies()).get(THEME_COOKIE)?.value);
 
+  // Interface sound, read the same way. Nothing plays until the visitor touches the page —
+  // seeding the choice here only saves the client a tick, it never arms audio.
+  const soundChoice = toSoundChoice((await cookies()).get(SOUND_COOKIE)?.value);
+
   // Per-request CSP nonce (proxy.ts). Reused so the JSON-LD data block below satisfies the
   // strict, nonce-based script-src — see proxy.ts and app/(site)/layout.tsx.
   const nonce = headerList.get("x-nonce") ?? undefined;
@@ -218,9 +223,11 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
         <ThemeProvider initialChoice={themeChoice}>
-          <LanguageProvider initialLocale={locale}>
-            <SiteContentProvider>{children}</SiteContentProvider>
-          </LanguageProvider>
+          <SoundProvider initialChoice={soundChoice}>
+            <LanguageProvider initialLocale={locale}>
+              <SiteContentProvider>{children}</SiteContentProvider>
+            </LanguageProvider>
+          </SoundProvider>
         </ThemeProvider>
       </body>
     </html>

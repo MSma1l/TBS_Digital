@@ -45,8 +45,219 @@
   color: var(--on-accent);
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Touch targets on mobile.
+   `PreferencesGroup` stretches the whole group to 44px, but WCAG 2.5.5 measures each
+   TARGET, not the box around them — with `align-items: center` on the track, every RO/RU/EN
+   button stayed 24px tall inside a 44px group. Stretching the track's items and giving the
+   option a min-height makes each button its own 44px target. */
+@media (max-width: 860px) {
+  .switcher {
+    align-items: stretch;
+  }
   .option {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0;
+  }
+}
+
+/* ==========================================================================
+   The compact control (≤360px)
+
+   One 44×44 button carrying the active language, opening a popup with the three choices.
+   Below 360px the header cannot hold three separate 44px language buttons *and* the theme
+   toggle, the sound toggle and the burger — see the component's header comment.
+   ========================================================================== */
+
+.compact {
+  /* The popup is positioned against this box, so the control owns its own stacking context
+     inside the header rather than escaping it. */
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+/* The trigger is the theme/sound toggles' twin: same border, same --panel2 track, same
+   square corners, so the three read as one strip in the header. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  align-self: stretch;
+  /* 44×44 is the whole reason this variant exists — never shrink it to buy width. */
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--sp-1);
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--txt);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.06em;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.trigger:hover {
+  border-color: var(--line2);
+}
+
+/* Same ring as every other control in the group. */
+.trigger:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+
+/* Open state is visible without colour alone: the track lifts to --panel and the chevron
+   flips, matching the `aria-expanded` a screen reader is told. */
+.trigger[aria-expanded="true"] {
+  background: var(--panel);
+  border-color: var(--line2);
+}
+
+.chevron {
+  display: block;
+  width: 11px;
+  height: 11px;
+  color: var(--dim);
+  transition: transform 0.15s;
+}
+.trigger[aria-expanded="true"] .chevron {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  /* Hangs below the trigger and is anchored to its RIGHT edge: the control sits in the
+     right-hand cluster of the bar, so growing leftwards is the only direction that cannot
+     push the document past the viewport. */
+  top: calc(100% + var(--sp-1));
+  right: 0;
+  /* Above the rest of the header's contents. `.header` is itself z-index 120 and creates
+     the stacking context this number lives in. */
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  padding: var(--sp-1);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--sh-md);
+  animation: langMenuIn 0.12s ease-out;
+}
+
+/* Every option is a tap target like any other: 44px tall, full popup width. */
+.menuOption {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-2);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--txt);
+  text-align: left;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.menuOption:hover {
+  background: var(--panel2);
+}
+
+.menuOption:focus-visible {
+  /* Inset, so the ring is not clipped by the popup's own border. */
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
+}
+
+.menuShort {
+  min-width: 20px;
+  color: var(--dim);
+  font-weight: var(--fw-semi);
+}
+
+.menuName {
+  color: var(--mut);
+}
+
+/* Same white-on-blue pairing the segmented control uses for the active language. */
+.menuActive,
+.menuActive:hover {
+  background: var(--blue2);
+}
+.menuActive .menuShort,
+.menuActive .menuName {
+  color: var(--on-accent);
+}
+
+@keyframes langMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ==========================================================================
+   The pre-hydration frame below 360px
+
+   Keep in sync with COMPACT_MAX_WIDTH in LanguageSwitcher.tsx.
+
+   Below this width the SEGMENTED markup exists for exactly one frame: the server renders it
+   (it cannot know the viewport width) and hydration replaces it with the compact control.
+   It is never on screen here in a hydrated page, so these rules only ever style that one
+   frame — and their whole job is to make it the same 44×44 box, in the same colours, as the
+   compact trigger that takes its place. Without them a 320px phone would paint one frame of
+   a 361px-wide header before the swap: a visible sideways jolt, and a real horizontal
+   scrollbar for as long as it lasted.
+
+   Consequence, accepted: with JavaScript off, only the active language shows. The switcher
+   is a client component whose buttons do nothing without JS either way. */
+@media (max-width: 360px) {
+  .switcher {
+    padding: 0;
+    gap: 0;
+    border: none;
+    background: transparent;
+  }
+
+  .option:not(.active) {
+    display: none;
+  }
+
+  .active {
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 var(--sp-1);
+    border: 1px solid var(--line);
+    background: var(--panel2);
+    color: var(--txt);
+    font-weight: var(--fw-semi);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .option,
+  .trigger,
+  .menuOption,
+  .chevron {
     transition: none;
+  }
+  .menu {
+    animation: none;
   }
 }

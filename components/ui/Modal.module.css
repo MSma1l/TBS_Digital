@@ -1,0 +1,257 @@
+/* ============================================================
+   Modal — the request-flow dialog.
+
+   Every colour, radius, shadow, size and step comes from a global token
+   (docs/07-conventions.md). The handful of literals left in this file are
+   layout dimensions that are not on any scale — each is commented where it
+   appears, and none of them is a colour.
+   ============================================================ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120; /* above the lightbox (100) — a dialog can be opened from one */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+
+  /* Navy scrim. The fallback runs on engines without color-mix(); both are
+     token-derived, no local colour is introduced. */
+  background: rgba(var(--scrim), 0.72);
+  background: color-mix(in srgb, var(--ink) 76%, transparent);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+
+  animation: modalOverlayIn 0.18s ease-out;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* lets .body, not the panel, do the scrolling */
+
+  /* Signed-off dialog dimensions — not points on the spacing scale, so they stay
+     literal rather than being rounded to the nearest token. */
+  width: 100%;
+  max-width: 960px;
+  max-height: min(760px, calc(100dvh - 2 * var(--sp-5)));
+
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2xl);
+  box-shadow: var(--sh-lg);
+  color: var(--txt);
+  overflow: hidden; /* keeps the corners round over the scrolling body */
+
+  /* Reads as growing out of the CTA that was just pressed. */
+  animation: modalPanelIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.panel:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: -2px;
+}
+
+/* Older engines without dvh: vh is close enough and never larger. */
+@supports not (height: 1dvh) {
+  .panel {
+    max-height: min(760px, calc(100vh - 2 * var(--sp-5)));
+  }
+}
+
+/* ---- head ---------------------------------------------------------------- */
+
+.head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-6) var(--sp-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.heading {
+  flex: 1 1 auto;
+  min-width: 0; /* the title must wrap, not widen the panel */
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-extra);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--txt);
+  overflow-wrap: anywhere; /* a long unbroken word must not force a sideways scroll */
+}
+
+.description {
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  color: var(--mut);
+  overflow-wrap: anywhere;
+}
+
+.close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sp-6);
+  height: var(--sp-6);
+  cursor: pointer;
+  font-size: var(--fs-md);
+  line-height: 1;
+  color: var(--mut);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  transition:
+    color 0.15s,
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.close:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--panel);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* ---- body ---------------------------------------------------------------- */
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--sp-6);
+  overflow-y: auto;
+  /* The dialog is a single column; nothing inside it may scroll the page sideways. */
+  overflow-x: hidden;
+  overscroll-behavior: contain; /* wheel at the end of the list must not scroll the page */
+  -webkit-overflow-scrolling: touch;
+  font-size: var(--fs-base);
+  color: var(--txt);
+}
+
+/* ---- foot ---------------------------------------------------------------- */
+
+.foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-6);
+  border-top: 1px solid var(--line);
+  background: var(--panel2);
+}
+
+/* ---- animation ----------------------------------------------------------
+   Keyframes used by a module must be declared in that module — a global-only
+   keyframe silently no-ops here (docs/04-design-system.md).
+   ------------------------------------------------------------------------- */
+
+@keyframes modalOverlayIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modalPanelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- phone: bottom sheet ------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .overlay {
+    align-items: flex-end;
+    /* 10px side inset is the signed-off sheet margin; it sits between --sp-2 (8px)
+       and --sp-3 (12px), so it stays a literal rather than moving the design. */
+    padding: 0 10px;
+  }
+
+  .panel {
+    max-width: 100%;
+    max-height: 88dvh;
+    border-bottom: 0;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    /* The sheet rises from the bottom edge it is anchored to. */
+    transform-origin: bottom center;
+  }
+
+  .head {
+    padding: var(--sp-5) var(--sp-4) var(--sp-4);
+  }
+
+  .title {
+    font-size: var(--fs-lg);
+  }
+
+  .body {
+    padding: var(--sp-4);
+    /* Above the home indicator on a gesture-nav phone. */
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  }
+
+  .foot {
+    padding: var(--sp-4);
+    padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+    justify-content: stretch;
+  }
+
+  .foot > * {
+    flex: 1 1 auto;
+  }
+
+  @supports not (height: 1dvh) {
+    .panel {
+      max-height: 88vh;
+    }
+  }
+}
+
+/* ---- reduced motion ------------------------------------------------------
+   No growth, no slide — the dialog is simply there.
+   ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .panel {
+    animation: none;
+  }
+
+  .close {
+    transition: none;
+  }
+}

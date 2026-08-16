@@ -15,11 +15,8 @@ import styles from "./Footer.module.css";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const PORTFOLIO_LABEL = L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO");
-const PORTFOLIO: { label: LocalizedText; href: string; external?: boolean }[] = [
-  { label: L("Proiectele TBS", "Проекты TBS", "TBS projects"), href: "#lucrari" },
-  { label: L("BizCheck", "BizCheck", "BizCheck"), href: "https://bizcheck.md", external: true },
-  { label: L("Itara Global", "Itara Global", "Itara Global"), href: "https://itara-global.md", external: true },
-];
+/** The first entry — everything under it is the real portfolio, read from the store. */
+const ALL_PROJECTS = L("Proiectele TBS", "Проекты TBS", "TBS projects");
 
 /* Map each footer nav anchor to its catalog key — same hrefs the Navbar uses, so the
    two menus stay in lockstep. */
@@ -46,7 +43,7 @@ export function Footer() {
       ? t("footer.social.websiteAria")
       : format(t("footer.social.networkAria"), { network: socialNames[type] });
   const l = useLoc();
-  const { partners, contacts, socials } = useSiteContent();
+  const { partners, contacts, socials, projects } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
 
   /* A social only exists once the owner pastes its URL in the admin. Until then the
@@ -120,29 +117,38 @@ export function Footer() {
           {/* portfolio */}
           <div className={styles.col}>
             <h4 className={`mono ${styles.colLabel}`}>{l(PORTFOLIO_LABEL)}</h4>
+            {/* The whole real portfolio, not a hand-written pair. It used to list exactly
+                two projects as literals, so anything added in the admin never appeared here.
+                A project with a public URL opens it; one without (a private CRM, an
+                unreleased app) links to the /04 grid, which is where it can actually be
+                seen — never a link with nowhere to go. */}
             <nav className={styles.colNav}>
-              {PORTFOLIO.map((p) =>
-                p.external ? (
+              <a href="#lucrari" className={styles.colLink}>
+                {l(ALL_PROJECTS)}
+              </a>
+              {projects.map((p) =>
+                p.url ? (
                   <a
-                    key={p.href}
-                    href={p.href}
+                    key={p.id}
+                    href={p.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={styles.colLink}
                   >
-                    {l(p.label)} ↗
+                    {p.name} ↗
                   </a>
                 ) : (
-                  <a key={p.href} href={p.href} className={styles.colLink}>
-                    {l(p.label)}
+                  <a key={p.id} href="#lucrari" className={styles.colLink}>
+                    {p.name}
                   </a>
                 ),
               )}
             </nav>
           </div>
 
-          {/* partners */}
-          <div className={styles.col}>
+          {/* partners — the header's "Parteneri" menu item lands here, because this is the
+              only place partners actually render; there is no homepage partners section. */}
+          <div className={styles.col} id="parteneri">
             <h4 className={`mono ${styles.colLabel}`}>
               {t("footer.partnersLabel")}
             </h4>

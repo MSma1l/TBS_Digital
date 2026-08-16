@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, type ReactNode } from "react";
+import Link from "next/link";
 import { navMenu } from "@/lib/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { PreferencesGroup } from "@/components/ui/PreferencesGroup";
@@ -8,6 +9,34 @@ import styles from "./Navbar.module.css";
 
 /** Приводит подпись каталога к «Услуги» для крупных ссылок мобильного оверлея. */
 const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+
+/**
+ * A submenu entry. Since the Services submenu started pointing at the real
+ * `/servicii/<slug>` pages, half these hrefs are routes and half are still same-page
+ * anchors — so the element is chosen per href: `Link` for a route (client-side navigation
+ * and prefetch), a plain anchor for a hash, which `Link` would only complicate.
+ */
+function NavChildLink({
+  href,
+  className,
+  onClick,
+  children,
+}: {
+  href: string;
+  className: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  return href.startsWith("/") ? (
+    <Link href={href} className={className} onClick={onClick}>
+      {children}
+    </Link>
+  ) : (
+    <a href={href} className={className} onClick={onClick}>
+      {children}
+    </a>
+  );
+}
 
 /**
  * Public navigation. It deliberately carries **no link to the admin panel**: the admin
@@ -47,13 +76,13 @@ export function Navbar() {
                   {item.children && (
                     <div className={styles.dropdown}>
                       {item.children.map((child) => (
-                        <a
+                        <NavChildLink
                           key={child.href}
                           href={child.href}
                           className={styles.dropItem}
                         >
                           {t(child.key)}
-                        </a>
+                        </NavChildLink>
                       ))}
                     </div>
                   )}
@@ -114,14 +143,14 @@ export function Navbar() {
               {item.children && (
                 <div className={styles.overlaySub}>
                   {item.children.map((child) => (
-                    <a
+                    <NavChildLink
                       key={child.href}
                       href={child.href}
                       onClick={close}
                       className={`mono ${styles.overlaySubLink}`}
                     >
                       {t(child.key)}
-                    </a>
+                    </NavChildLink>
                   ))}
                 </div>
               )}

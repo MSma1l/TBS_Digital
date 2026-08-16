@@ -1,0 +1,66 @@
+/* The sound toggle is the theme toggle's twin, which is the point: three controls in the
+   header (language · theme · sound) have to read as one group, so this file deliberately
+   repeats the theme toggle's box rather than inventing a second one. Every value is a
+   token, so both palettes get the same contrast. */
+.toggle {
+  /* The language switcher sets the group's height; stretching to it keeps all three
+     controls exactly the same size without hard-coding a pixel value for any of them. */
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--mut);
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.toggle:hover {
+  color: var(--txt);
+  border-color: var(--line2);
+}
+
+/* Sound ON is a state, not a hover: it stays lit while it is on, so a glance at the header
+   answers "is this page going to make a noise?". --cyan is the same tone the focus ring
+   uses and clears AA on --panel2 in both palettes. */
+.on {
+  color: var(--cyan);
+  border-color: var(--line2);
+}
+
+/* Keyboard focus must be visible on its own, not only under the pointer — same ring as the
+   other two controls, so the group behaves consistently. */
+.toggle:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+  color: var(--txt);
+}
+
+.icon {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+/* Touch target: at least 44x44 on phones/tablets (WCAG 2.5.5), matching the theme toggle. */
+@media (max-width: 860px) {
+  .toggle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .icon {
+    width: 19px;
+    height: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle {
+    transition: none;
+  }
+}

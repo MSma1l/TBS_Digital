@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { Navbar } from "@/components/layout/Navbar";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { navMenu } from "@/lib/content";
+import { directionPaths } from "@/lib/directions";
 import { messages } from "@/lib/i18n/messages";
 
 /** Romanian is the source catalog and the fallback locale a bare render uses. */
@@ -192,5 +193,34 @@ describe("LanguageSwitcher — keyboard and labels", () => {
     );
     // The catalog really swapped — the nav now reads in English.
     expect(screen.getAllByText(messages.en["nav.services"]).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Dead menu links — the regression this guards against.
+ *
+ * The Services submenu used to list four anchors (`#servicii-web`, `#servicii-apps`,
+ * `#servicii-automation`, `#servicii-custom`) that no component ever rendered, so all four
+ * items silently did nothing. Nothing in the build or the type system catches that: an
+ * anchor to a missing id is valid HTML that simply goes nowhere.
+ */
+describe("every menu destination is real", () => {
+  it("points the Services submenu at the actual direction pages", () => {
+    const services = navMenu.find((i) => i.key === "nav.services");
+    const hrefs = services?.children?.map((c) => c.href) ?? [];
+    expect(hrefs).toEqual(directionPaths());
+  });
+
+  it("has no invented #servicii-* anchor left anywhere in the menu", () => {
+    const all = navMenu.flatMap((i) => [i.href, ...(i.children ?? []).map((c) => c.href)]);
+    expect(all.filter((h) => /^#servicii-/.test(h))).toEqual([]);
+  });
+
+  it("uses only real routes or same-page anchors — never a bare empty href", () => {
+    const all = navMenu.flatMap((i) => [i.href, ...(i.children ?? []).map((c) => c.href)]);
+    for (const href of all) {
+      expect(href, "an empty href is a dead control").not.toBe("");
+      expect(href.startsWith("/") || href.startsWith("#")).toBe(true);
+    }
   });
 });

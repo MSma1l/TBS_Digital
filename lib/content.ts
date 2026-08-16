@@ -419,15 +419,28 @@ export const contacts: Contact[] = [
 export type NavChild = { key: MessageKey; href: string };
 export type NavItem = { key: MessageKey; href: string; children?: NavChild[] };
 
+/**
+ * The header menu.
+ *
+ * Every `href` here must resolve to something that actually exists on the page it lands on.
+ * The Services submenu used to list four invented anchors (`#servicii-web`, `#servicii-apps`,
+ * `#servicii-automation`, `#servicii-custom`) that were never rendered by any component, so
+ * all four items did nothing when clicked. They now point at the five real direction pages —
+ * the same ones the /02 selector links to — and reuse the `dir.*` labels, so the menu and the
+ * selector can never disagree about what a direction is called.
+ */
 export const navMenu: NavItem[] = [
   { key: "nav.services", href: "#servicii", children: [
-    { key: "nav.services.web", href: "#servicii-web" },
-    { key: "nav.services.apps", href: "#servicii-apps" },
-    { key: "nav.services.automation", href: "#servicii-automation" },
-    { key: "nav.services.custom", href: "#servicii-custom" },
+    { key: "dir.digital", href: "/servicii/produs-digital" },
+    { key: "dir.ecommerce", href: "/servicii/e-commerce" },
+    { key: "dir.automation", href: "/servicii/automatizare-api" },
+    { key: "dir.ai", href: "/servicii/asistenti-ia" },
+    { key: "dir.brand", href: "/servicii/brand-ui" },
   ] },
   { key: "nav.company", href: "#echipa", children: [
     { key: "nav.company.team", href: "#echipa" },
+    // Partners render in the footer, not as a homepage section — so the link goes there
+    // rather than to a `#parteneri` section that isn't on the page.
     { key: "nav.company.partners", href: "#parteneri" },
     { key: "nav.company.cases", href: "#lucrari" },
   ] },
