@@ -197,6 +197,40 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* The flow card: same dark card, but the title is a three-word scheme
+   ("Ofertă → Plată → Acces"), which at the project size would wrap onto three lines. */
+.caseFlowName {
+  font-size: clamp(21px, 2.4vw, 26px);
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+}
+/* Numbered steps of the flow, always visible — no hover, no truncation, so a phone shows
+   the whole scheme. */
+.flow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.flow li {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding-top: 12px;
+  border-top: 1px solid var(--ink-line);
+  color: var(--on-ink);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+}
+.flow li b {
+  color: #fff;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+}
+
 .caseTags {
   display: flex;
   gap: 7px;

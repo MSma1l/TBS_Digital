@@ -111,15 +111,47 @@ describe("direction selector — the preview follows the selection", () => {
     expect(screen.queryByText("BizCheck")).not.toBeInTheDocument();
   });
 
-  it("states plainly that a direction has no public project yet, inventing none", () => {
-    renderSection();
-    fireEvent.mouseEnter(pills()[1]); // e-commerce — nothing shipped on it
+  /* e-commerce is sold as a CAPABILITY: no shop has shipped, so the card draws the flow we
+     build instead of naming a project — and it no longer tells the visitor there is
+     nothing, which read as an apology on a sales page. */
+  it("draws the flow for a capability direction, naming no project and linking nowhere", () => {
+    const container = renderSection();
+    fireEvent.mouseEnter(pills()[1]); // e-commerce
 
-    expect(
-      screen.getByText(
-        "Pe această direcție nu avem încă un proiect public în portofoliu.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeInTheDocument();
+    expect(screen.getByText("Ofertă → Plată → Acces")).toBeInTheDocument();
+    const steps = Array.from(container.querySelectorAll("ol li span")).map(
+      (el) => el.textContent,
+    );
+    expect(steps).toEqual([
+      "Ofertă — produsul, raportul sau accesul, prezentate clar.",
+      "Plată — un checkout scurt, cu metodele potrivite pieței tale.",
+      "Acces — livrare digitală sau cont cu tot ce a cumpărat clientul.",
+    ]);
+
+    // …and no portfolio project is borrowed to fill the card.
+    for (const name of ["BizCheck", "Balloons Breeze", "Itara Global", "CGAM"]) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+  });
+
+  it("no longer tells the visitor a direction is empty — both filled directions show real content", () => {
+    renderSection();
+    const empty = "Pe această direcție nu avem încă un proiect public în portofoliu.";
+
+    for (const index of [1, 3]) {
+      fireEvent.mouseEnter(pills()[index]); // e-commerce, then assistants
+      expect(screen.queryByText(empty)).toBeNull();
+    }
+  });
+
+  it("shows the two real assistant/bot projects on the assistants direction", async () => {
+    renderSection();
+    fireEvent.mouseEnter(pills()[3]); // asistenti-ia
+
+    // The reference card is the first curated project of the direction.
+    expect(await screen.findByText("BizCheck")).toBeInTheDocument();
+    expect(screen.getByText("PROIECT REAL DIN PORTOFOLIU")).toBeInTheDocument();
   });
 });
 
@@ -136,6 +168,24 @@ describe("direction selector — one action, not two", () => {
 
     fireEvent.mouseEnter(pills()[2]);
     expect(panelLinks[0].getAttribute("href")).toBe("/servicii/automatizare-api");
+  });
+
+  /* Claims an audit proved false: a "Contract MD" product that does not exist, a project
+     name nobody uses ("Balons Blaze" — the real one is Balloons Breeze), and a bot link
+     whose profile shows spam in link previews. None of them may appear on any direction. */
+  it("carries none of the disproved claims, on any direction", () => {
+    const container = renderSection();
+
+    for (let i = 0; i < pills().length; i += 1) {
+      fireEvent.mouseEnter(pills()[i]);
+      const text = container.textContent ?? "";
+      expect(text).not.toContain("Contract MD");
+      expect(text).not.toContain("Balons Blaze");
+      const hrefs = Array.from(
+        container.querySelectorAll<HTMLAnchorElement>("a"),
+      ).map((a) => a.getAttribute("href") ?? "");
+      expect(hrefs.some((h) => h.includes("t.me/"))).toBe(false);
+    }
   });
 
   it("no longer duplicates the commercial CTA — nothing here jumps to the estimator", () => {

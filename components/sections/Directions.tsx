@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { directionHref } from "@/lib/directions";
-import { projectsForSolution, solutionPalette } from "@/lib/solutions";
+import { projectsForSolution, solutionPalette, solutions } from "@/lib/solutions";
 import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Directions.module.css";
 
@@ -51,18 +51,28 @@ const SERVICES: Service[] = [
   },
   {
     slug: "e-commerce",
+    /* The pill keeps the short label — it is a navigation item; the panel carries the full
+       title. Nothing here is written in the past tense: we have not shipped a shop. */
     tab: L("E-commerce", "E-commerce", "E-commerce"),
-    tag: L("PENTRU VÂNZARE MAI SIMPLĂ", "ДЛЯ ПРОСТЫХ ПРОДАЖ", "FOR SIMPLER SELLING"),
-    title: L("E-commerce", "E-commerce", "E-commerce"),
+    tag: L(
+      "PRODUSE DIGITALE CARE SE VÂND CLAR",
+      "ЦИФРОВЫЕ ПРОДУКТЫ, КОТОРЫЕ ПРОДАЮТСЯ ПОНЯТНО",
+      "DIGITAL PRODUCTS THAT SELL CLEARLY",
+    ),
+    title: L(
+      "E-commerce pentru produse, rapoarte și acces digital",
+      "E-commerce для продуктов, отчётов и цифрового доступа",
+      "E-commerce for products, reports and digital access",
+    ),
     text: L(
-      "Construim experiențe de cumpărare rapide, clare și optimizate pentru conversie.",
-      "Строим быстрый, понятный и оптимизированный под конверсию опыт покупки.",
-      "We build fast, clear buying experiences optimized for conversion.",
+      "Construim fluxul întreg: oferta, plata și accesul la produs sau la raport.",
+      "Строим весь поток: предложение, оплата и доступ к продукту или отчёту.",
+      "We build the whole flow: the offer, the payment and the access to the product or report.",
     ),
     list: [
-      L("Arhitectură de catalog", "Архитектура каталога", "Catalog architecture"),
-      L("Checkout fără fricțiune", "Оформление без трения", "Frictionless checkout"),
-      L("Analytics și optimizare", "Аналитика и оптимизация", "Analytics and optimization"),
+      L("Checkout și plăți", "Чекаут и оплата", "Checkout and payments"),
+      L("Livrare și acces digital", "Цифровая выдача и доступ", "Digital delivery and access"),
+      L("Raportare și gestionare produse", "Отчётность и управление товарами", "Reporting and product management"),
     ],
   },
   {
@@ -83,18 +93,24 @@ const SERVICES: Service[] = [
   },
   {
     slug: "asistenti-ia",
+    /* The pill label and the route stay as the client signed them off; only the panel copy
+       changed, so that what is described as delivered is what actually runs. */
     tab: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
     tag: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
-    title: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
+    title: L(
+      "Asistenți și boți conectați la conversații reale",
+      "Ассистенты и боты, подключённые к реальным разговорам",
+      "Assistants and bots connected to real conversations",
+    ),
     text: L(
-      "Construim asistenți care răspund, califică cereri și pornesc procese în web, Telegram sau sistemele interne.",
-      "Создаём ассистентов, которые отвечают, квалифицируют заявки и запускают процессы в вебе, Telegram или внутренних системах.",
-      "We build assistants that answer, qualify requests and trigger processes in web, Telegram or internal systems.",
+      "Răspuns, calificare și automatizare prin web, Telegram și sistemele interne.",
+      "Ответ, квалификация и автоматизация через веб, Telegram и внутренние системы.",
+      "Answering, qualification and automation across web, Telegram and internal systems.",
     ),
     list: [
-      L("Chatbot pentru clienți", "Чат-бот для клиентов", "Chatbot for clients"),
-      L("Asistent IA pentru echipă", "ИИ-ассистент для команды", "AI assistant for the team"),
-      L("Bot Telegram conectat la API", "Telegram-бот с подключением к API", "Telegram bot connected to your API"),
+      L("Chat pentru clienți", "Чат для клиентов", "Chat for customers"),
+      L("Asistent care califică cererea", "Ассистент, который квалифицирует заявку", "An assistant that qualifies the request"),
+      L("Bot Telegram conectat la fluxul echipei", "Telegram-бот, подключённый к потоку команды", "A Telegram bot wired into the team's flow"),
     ],
   },
   {
@@ -134,8 +150,8 @@ const SECTION = {
 const CASE = {
   /** Label above the real reference project of the selected direction. */
   ref: L("PROIECT REAL DIN PORTOFOLIU", "РЕАЛЬНЫЙ ПРОЕКТ ИЗ ПОРТФОЛИО", "REAL PROJECT FROM THE PORTFOLIO"),
-  /** Shown when a direction has no delivered project yet — stated plainly rather than
-   *  filled with a project that belongs to another direction. */
+  /** Last-resort label: a direction with neither a project nor a flow to show. Kept because
+   *  the portfolio is editable — an admin can remove the projects a direction points at. */
   none: L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO"),
   noneText: L(
     "Pe această direcție nu avem încă un proiect public în portofoliu.",
@@ -167,6 +183,11 @@ export function Directions() {
     ? String(projects.findIndex((p) => p.id === reference.id) + 1).padStart(2, "0")
     : "";
   const palette = solutionPalette[svc.slug];
+  /* A direction we sell as a capability (e-commerce) has no project to show, and must not
+     borrow one: its card draws the flow we build — offer → payment → access — from the same
+     table the service page reads. No project name, no external link. */
+  const sol = solutions[svc.slug];
+  const flow = !reference && sol?.flow?.length ? sol : undefined;
 
   return (
     <section id="servicii" className={styles.section}>
@@ -223,7 +244,9 @@ export function Directions() {
           >
             <article className={styles.case}>
               <div className={`mono ${styles.caseTop}`}>
-                <span>{reference ? l(CASE.ref) : l(CASE.none)}</span>
+                <span>
+                  {reference ? l(CASE.ref) : flow ? l(flow.cardLabel) : l(CASE.none)}
+                </span>
                 {reference && <b>{refNumber}</b>}
               </div>
               {reference ? (
@@ -235,6 +258,20 @@ export function Directions() {
                       <span key={chip}>{chip}</span>
                     ))}
                   </div>
+                </>
+              ) : flow ? (
+                <>
+                  <h4 className={`disp ${styles.caseName} ${styles.caseFlowName}`}>
+                    {l(flow.cardTitle)}
+                  </h4>
+                  <ol className={styles.flow}>
+                    {flow.flow?.map((step, i) => (
+                      <li key={i}>
+                        <b className="mono">{String(i + 1).padStart(2, "0")}</b>
+                        <span>{l(step)}</span>
+                      </li>
+                    ))}
+                  </ol>
                 </>
               ) : (
                 <p className={styles.caseText}>{l(CASE.noneText)}</p>

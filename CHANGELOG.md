@@ -16,6 +16,57 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-16 — E-commerce și Asistenți: completate cu ce e verificabil
+
+Cele două direcții goale din selector au fost completate. Textul cerut inițial conținea mai
+multe afirmații care **nu s-au confirmat la verificare**; sunt listate mai jos, cu dovada, ca
+să nu fie reintroduse din greșeală.
+
+**Added** — `e-commerce`, ca **capabilitate**, fără studiu de caz
+
+- eyebrow „PRODUSE DIGITALE CARE SE VÂND CLAR", titlu „E-commerce pentru produse, rapoarte și
+  acces digital", trei beneficii (checkout și plăți · livrare și acces digital · raportare și
+  gestionare produse), toate la **timpul viitor** — e ofertă, nu portofoliu.
+- Cardul din dreapta desenează **fluxul** (Ofertă → Plată → Acces), nu un proiect: niciun nume
+  împrumutat, niciun link extern. `solutionProjectIds["e-commerce"]` rămâne **gol**, intenționat.
+- CTA-ul deschide cererea cu **E-commerce preselectat** (€6.000), acoperit de test.
+
+**Added** — `asistenti-ia`, cu **cazuri reale**
+
+- `solutionProjectIds["asistenti-ia"] = ["bizcheck", "balloons-breeze"]` — ambele publice, deci
+  ambele cu link real. Mesajul „nu avem încă un proiect public" a dispărut de pe direcție.
+- Pagina primește secțiunea **„Cazuri reale"**, cu trei carduri etichetate: **BizCheck**
+  (rezultat livrat în Telegram printr-un bot dedicat) · **Balloons Breeze** (chat live cu
+  **răspuns uman**, dintr-un panou de administrare) · **TBS Digital** (fluxul nostru intern —
+  numit, dar **fără link**, fiindcă nu e proiect de portofoliu).
+- Eticheta tabului și ruta rămân neschimbate.
+
+**Removed** — afirmații care nu au trecut verificarea
+
+| Cerut | De ce nu a fost publicat |
+|---|---|
+| Produsul „Contract MD" | Nu există. Endpoint-ul public de șabloane al bizcheck.md întoarce `{"templates":[]}`; zero apariții în cod. |
+| Checkout / plăți / livrare digitală la BizCheck | Contrazis de propriul lor site: „Integrare MAIB — **în lucru**", butoanele de livrare `disabled` cu „Implementare ulterioară", toate testele `is_paid: false`. |
+| „Balons Blaze" | Nume inexistent, greșit de două ori. Canonic: **Balloons Breeze**. |
+| Balloons Breeze: chat cu **boți** | Chat-ul e răspuns de **un om** — panoul lor scrie „Ответить клиенту…". Confirmat și pe server: proiectul are doar `web`/`backend`/`db`, **niciun container de bot** (spre deosebire de BizCheck, care are `bizcheckua-tgbot-1` și `bizcheckua-groupbot-1`). |
+| Balloons Breeze: integrare Telegram | Zero apariții „telegram" în HTML sau în vreun chunk JS al site-ului. |
+| „IA / AI" ca lucru **livrat** | Niciun model de limbaj nicăieri în stack. `lib/solutions.ts` avea deja scris că inventarea unui astfel de exemplu ar fi „a lie on a sales page". IA rămâne formulată ca ofertă. |
+| „Audituri GDPR" (plural) / audit de conformitate | Un **singur** chestionar e live și e **gratuit**; celelalte patru sunt „în curând". E autoevaluare, nu audit. |
+
+> ⚠️ **De rezolvat în afara codului:** bio-ul botului `@CROWE_BIZCHECK_bot` conține spam
+> pornografic, care apare ca `og:description` la orice previzualizare a linkului — sub brandul
+> Crowe. Botul e deja linkat din fluxul live de pe bizcheck.md. Se curăță din BotFather. Până
+> atunci **niciun link către el nu a fost adăugat pe site**, deși botul e menționat ca fapt.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **283 passed / 0 failed** (+12 față de 271) |
+| `npx playwright test --workers=1` | **118 passed / 0 failed** |
+| `npm run lint` · `npx tsc --noEmit` · `npm run build` | curate |
+| grep pe sursă pentru `Contract MD`, `Balons Blaze`, `CROWE_BIZCHECK_bot` | **0 apariții** |
+
 ## 2026-08-16 — Modal, chat extins, dictare, sunet, E2E
 
 **Added** — modal de cerere

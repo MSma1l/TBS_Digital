@@ -86,6 +86,17 @@ describe("action bar", () => {
     ).toBeNull();
   });
 
+  it("opens the request flow with E-commerce preselected on the e-commerce page", async () => {
+    const user = userEvent.setup();
+    renderPage("e-commerce");
+
+    await user.click(screen.getByRole("button", { name: "Vorbește cu echipa" }));
+
+    const dialog = await screen.findByRole("dialog");
+    // The estimator's e-commerce project type — its price is what proves the preselection.
+    expect(within(dialog).getByText(/€6\.000/)).toBeInTheDocument();
+  });
+
   it("drops the projects action (and the section) for a direction with no real work", () => {
     const container = renderPage("e-commerce");
 
@@ -104,6 +115,21 @@ describe("relevant projects", () => {
     const section = container.querySelector("#proiecte")!;
     const names = Array.from(section.querySelectorAll("h3")).map((h) => h.textContent);
     expect(names).toEqual(["Itara Global", "CGAM", "Balloons Breeze"]);
+  });
+
+  it("lists the two real assistant/bot projects, each with its own public URL", async () => {
+    const container = renderPage("asistenti-ia");
+
+    // The case cards name BizCheck too, so wait on the projects section itself.
+    await screen.findAllByRole("heading", { name: "BizCheck" });
+    const section = container.querySelector("#proiecte") as HTMLElement;
+    expect(Array.from(section.querySelectorAll("h3")).map((h) => h.textContent)).toEqual([
+      "BizCheck",
+      "Balloons Breeze",
+    ]);
+    expect(
+      Array.from(section.querySelectorAll("a")).map((a) => a.getAttribute("href")),
+    ).toEqual(["https://bizcheck.md", "https://balloonsbreeze.md/"]);
   });
 
   it("does not borrow a project from another direction", () => {
@@ -155,13 +181,103 @@ describe("hero card", () => {
     expect(shot).toHaveAttribute("src", "/projects/bizcheck-1.jpg");
   });
 
-  it("falls back to the direction's own summary when it has no project yet", () => {
-    renderPage("asistenti-ia");
+  it("draws the flow — not a project — for a direction sold as a capability", () => {
+    const container = renderPage("e-commerce");
 
     expect(screen.queryByText("PROIECT DE REFERINȚĂ")).toBeNull();
+    expect(screen.getByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeInTheDocument();
+    expect(screen.getByText("Ofertă → Plată → Acces")).toBeInTheDocument();
+
+    const steps = Array.from(container.querySelectorAll("ol li span")).map(
+      (el) => el.textContent,
+    );
+    expect(steps).toEqual([
+      "Ofertă — produsul, raportul sau accesul, prezentate clar.",
+      "Plată — un checkout scurt, cu metodele potrivite pieței tale.",
+      "Acces — livrare digitală sau cont cu tot ce a cumpărat clientul.",
+    ]);
+  });
+
+  it("names no project and links nowhere external on the capability direction", async () => {
+    const container = renderPage("e-commerce");
+    // Wait for the portfolio provider to settle, so the assertion is not just early.
+    expect(await screen.findByText("Ofertă → Plată → Acces")).toBeInTheDocument();
+
+    for (const name of defaultProjects.map((p) => p.name)) {
+      expect(screen.queryByText(name)).toBeNull();
+    }
+    const external = Array.from(container.querySelectorAll<HTMLAnchorElement>("a")).filter(
+      (a) => /^https?:/.test(a.getAttribute("href") ?? ""),
+    );
+    expect(external).toHaveLength(0);
+  });
+
+  it("shows the assistants direction's reference project instead of an offer summary", async () => {
+    renderPage("asistenti-ia");
+
+    expect(await screen.findByText("PROIECT DE REFERINȚĂ")).toBeInTheDocument();
+    expect(screen.getAllByText("BizCheck").length).toBeGreaterThan(0);
+  });
+});
+
+/* The three assistant cases: two client projects with a public page, and our own internal
+   Telegram flow, which has none and therefore gets no link. */
+describe("labelled cases", () => {
+  it("gives the assistants page one section per real case, each labelled", () => {
+    renderPage("asistenti-ia");
+
+    expect(screen.getByRole("heading", { name: "Cazuri reale" })).toBeInTheDocument();
+    for (const label of [
+      "REZULTAT LIVRAT ÎN TELEGRAM",
+      "CHAT LIVE CU RĂSPUNS UMAN",
+      "FLUXUL NOSTRU INTERN",
+    ]) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
     expect(
-      screen.getByText("Chatbot + asistent intern + Telegram"),
-    ).toBeInTheDocument();
+      screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent),
+    ).toEqual(
+      expect.arrayContaining(["BizCheck", "Balloons Breeze", "TBS Digital"]),
+    );
+  });
+
+  it("links only the cases that have a public page — ours is named, never linked", () => {
+    renderPage("asistenti-ia");
+
+    const cards = screen
+      .getAllByText(/REZULTAT LIVRAT ÎN TELEGRAM|CHAT LIVE CU RĂSPUNS UMAN|FLUXUL NOSTRU INTERN/)
+      .map((el) => el.closest("article") as HTMLElement);
+
+    expect(cards[0].querySelector("a")).toHaveAttribute("href", "https://bizcheck.md");
+    expect(cards[1].querySelector("a")).toHaveAttribute(
+      "href",
+      "https://balloonsbreeze.md/",
+    );
+    // Our own internal flow: described, named, and not a link.
+    expect(cards[2].querySelector("a")).toBeNull();
+    expect(cards[2].textContent).toContain("TBS Digital");
+  });
+
+  it("adds no case section to a direction that has none", () => {
+    renderPage("produs-digital");
+    expect(screen.queryByRole("heading", { name: "Cazuri reale" })).toBeNull();
+  });
+});
+
+/* Everything an audit disproved: a product that does not exist, a project name nobody
+   uses, and a bot whose profile shows spam in link previews — mentionable, never linked. */
+describe("disproved claims stay off both directions", () => {
+  it.each(["e-commerce", "asistenti-ia"])("%s carries none of them", (slug) => {
+    const container = renderPage(slug);
+    const text = container.textContent ?? "";
+
+    expect(text).not.toContain("Contract MD");
+    expect(text).not.toContain("Balons Blaze");
+    const hrefs = Array.from(container.querySelectorAll<HTMLAnchorElement>("a")).map(
+      (a) => a.getAttribute("href") ?? "",
+    );
+    expect(hrefs.some((h) => h.includes("t.me/"))).toBe(false);
+    expect(hrefs.some((h) => h.includes("CROWE_BIZCHECK_bot"))).toBe(false);
   });
 });
 

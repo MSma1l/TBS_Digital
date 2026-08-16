@@ -7,6 +7,18 @@ import type { LocalizedText } from "@/lib/i18n/content";
  *  Keys are the URL slugs from lib/directions.ts, i.e. the `<slug>` in
  *  `/servicii/<slug>` — the same in all three languages. */
 export type SolutionItem = { title: LocalizedText; desc: LocalizedText };
+
+/** One documented case on a direction page: a piece of work that really exists.
+ *  `url` is set ONLY when there is a real public page behind it — a case without one is
+ *  rendered as plain text, never as a link with nothing at the end. */
+export type SolutionCase = {
+  label: LocalizedText;
+  /** Product name, identical in all three languages — it is a proper noun. */
+  name: string;
+  text: LocalizedText;
+  url?: string;
+};
+
 export type Solution = {
   eyebrow: LocalizedText;
   title: LocalizedText;
@@ -17,6 +29,11 @@ export type Solution = {
   items: SolutionItem[];
   steps: LocalizedText[];
   accent?: string;
+  /** The flow a direction sells when it has no delivered project to show: the hero card
+   *  draws these steps as a scheme instead of naming a project that does not exist. */
+  flow?: LocalizedText[];
+  /** Labelled cases on the service page, each described strictly with verified facts. */
+  cases?: { title: LocalizedText; lead: LocalizedText; items: SolutionCase[] };
 };
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -49,31 +66,93 @@ export const solutions: Record<string, Solution> = {
       L("Dezvoltare, lansare și optimizare.", "Разработка, запуск и оптимизация.", "Development, launch and optimization."),
     ],
   },
+  /* Sold as a CAPABILITY, not as a case study: nothing in the portfolio is a shop, so every
+     sentence here is written in the offer tense ("construim"), and the hero card draws the
+     flow we build instead of naming a project. See `solutionProjectIds` below — the list
+     stays empty on purpose. */
   "e-commerce": {
     accent: "#ff7268",
-    eyebrow: L("VÂNZARE MAI SIMPLĂ", "ПРОДАВАТЬ ПРОЩЕ", "SELLING MADE SIMPLER"),
-    title: L("E-commerce", "Электронная коммерция", "E-commerce"),
+    eyebrow: L(
+      "PRODUSE DIGITALE CARE SE VÂND CLAR",
+      "ЦИФРОВЫЕ ПРОДУКТЫ, КОТОРЫЕ ПРОДАЮТСЯ ПОНЯТНО",
+      "DIGITAL PRODUCTS THAT SELL CLEARLY",
+    ),
+    title: L(
+      "E-commerce pentru produse, rapoarte și acces digital",
+      "E-commerce для продуктов, отчётов и цифрового доступа",
+      "E-commerce for products, reports and digital access",
+    ),
     intro: L(
-      "Un magazin online rapid, ușor de cumpărat și conectat la operațiunile tale.",
-      "Быстрый интернет-магазин — удобно покупать и связан с вашими процессами.",
-      "A fast online store — easy to buy from and connected to your operations.",
+      "Construim fluxul întreg: oferta, plata și accesul la produs sau la raport.",
+      "Строим весь поток: предложение, оплата и доступ к продукту или отчёту.",
+      "We build the whole flow: the offer, the payment and the access to the product or report.",
     ),
-    cardLabel: L("PENTRU COMENZI FĂRĂ FRICȚIUNE", "ДЛЯ ЗАКАЗОВ БЕЗ ТРЕНИЯ", "FOR FRICTIONLESS ORDERS"),
-    cardTitle: L("Catalog → checkout → livrare", "Каталог → оформление → доставка", "Catalog → checkout → delivery"),
+    cardLabel: L("FLUXUL PE CARE ÎL CONSTRUIM", "ПОТОК, КОТОРЫЙ МЫ СТРОИМ", "THE FLOW WE BUILD"),
+    cardTitle: L("Ofertă → Plată → Acces", "Предложение → Оплата → Доступ", "Offer → Payment → Access"),
     cardText: L(
-      "Experiență clară pentru client și echipă.",
-      "Понятный опыт и для клиента, и для команды.",
-      "A clear experience for both customer and team.",
+      "Trei pași, fără nimic în plus între decizie și livrare.",
+      "Три шага — и ничего лишнего между решением и выдачей.",
+      "Three steps, with nothing extra between the decision and the delivery.",
     ),
+    flow: [
+      L(
+        "Ofertă — produsul, raportul sau accesul, prezentate clar.",
+        "Предложение — продукт, отчёт или доступ, показанные понятно.",
+        "Offer — the product, the report or the access, presented clearly.",
+      ),
+      L(
+        "Plată — un checkout scurt, cu metodele potrivite pieței tale.",
+        "Оплата — короткий чекаут с методами, подходящими вашему рынку.",
+        "Payment — a short checkout, with the methods that fit your market.",
+      ),
+      L(
+        "Acces — livrare digitală sau cont cu tot ce a cumpărat clientul.",
+        "Доступ — цифровая выдача или личный кабинет со всем, что купил клиент.",
+        "Access — digital delivery, or an account holding everything the customer bought.",
+      ),
+    ],
     items: [
-      { title: L("Catalog clar", "Понятный каталог", "Clear catalog"), desc: L("Produse și filtre care ajută alegerea.", "Товары и фильтры, которые помогают выбрать.", "Products and filters that guide the choice.") },
-      { title: L("Checkout rapid", "Быстрое оформление", "Fast checkout"), desc: L("Pași puțini, plăți sigure și conversie mai bună.", "Меньше шагов, безопасная оплата и выше конверсия.", "Fewer steps, secure payments and better conversion.") },
-      { title: L("Operațiuni conectate", "Связанные операции", "Connected operations"), desc: L("Stoc, facturare și livrare într-un singur flux.", "Склад, счета и доставка в едином потоке.", "Stock, invoicing and delivery in one flow.") },
+      {
+        title: L("Checkout și plăți", "Чекаут и оплата", "Checkout and payments"),
+        desc: L(
+          "Construim un pas de plată scurt, cu metodele potrivite pieței tale.",
+          "Строим короткий шаг оплаты с методами, подходящими вашему рынку.",
+          "We build a short payment step, with the methods that fit your market.",
+        ),
+      },
+      {
+        title: L("Livrare și acces digital", "Цифровая выдача и доступ", "Digital delivery and access"),
+        desc: L(
+          "După plată, clientul primește automat produsul, raportul sau accesul.",
+          "После оплаты клиент автоматически получает продукт, отчёт или доступ.",
+          "After payment, the customer automatically receives the product, the report or the access.",
+        ),
+      },
+      {
+        title: L("Raportare și gestionare produse", "Отчётность и управление товарами", "Reporting and product management"),
+        desc: L(
+          "Un panou pentru produse, comenzi și rapoarte de vânzări.",
+          "Панель для товаров, заказов и отчётов о продажах.",
+          "One panel for products, orders and sales reports.",
+        ),
+      },
     ],
     steps: [
-      L("Audităm oferta și traseul de cumpărare.", "Аудит предложения и пути покупки.", "We audit the offer and the buying journey."),
-      L("Proiectăm experiența mobil-first.", "Проектируем опыт mobile-first.", "We design the experience mobile-first."),
-      L("Conectăm plata, stocul și analytics.", "Подключаем оплату, склад и аналитику.", "We connect payments, stock and analytics."),
+      L(
+        "Definim produsul digital, prețul și ce primește clientul.",
+        "Определяем цифровой продукт, цену и то, что получает клиент.",
+        "We define the digital product, its price and what the customer gets.",
+      ),
+      L(
+        "Proiectăm oferta și checkout-ul, mobil-first.",
+        "Проектируем предложение и чекаут, mobile-first.",
+        "We design the offer and the checkout, mobile-first.",
+      ),
+      L(
+        "Conectăm plata, accesul la produs și raportarea.",
+        "Подключаем оплату, доступ к продукту и отчётность.",
+        "We connect the payment, the product access and the reporting.",
+      ),
     ],
   },
   "automatizare-api": {
@@ -103,32 +182,118 @@ export const solutions: Record<string, Solution> = {
       L("Testăm, măsurăm și rafinăm fluxul.", "Тестируем, измеряем и улучшаем поток.", "We test, measure and refine the flow."),
     ],
   },
+  /* Written against what actually runs. The eyebrow is the OFFER ("IA care lucrează cu
+     echipa"); everything described as delivered — chat answered by a person, a decision-tree
+     qualifier, a Telegram bot that routes requests — is something a visitor can go and see.
+     No sentence here claims a language model shipped, because none did. */
   "asistenti-ia": {
     accent: "#9b72ff",
     eyebrow: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
-    title: L("Asistenți IA & boturi", "Помощники ИИ и боты", "AI assistants & bots"),
+    title: L(
+      "Asistenți și boți conectați la conversații reale",
+      "Ассистенты и боты, подключённые к реальным разговорам",
+      "Assistants and bots connected to real conversations",
+    ),
     intro: L(
-      "Asistenți care răspund, califică cereri și pornesc procese în web, Telegram și sistemele interne.",
-      "Ассистенты, которые отвечают, квалифицируют запросы и запускают процессы в вебе, Telegram и внутренних системах.",
-      "Assistants that answer, qualify requests and trigger processes across web, Telegram and internal systems.",
+      "Răspuns, calificare și automatizare prin web, Telegram și sistemele interne.",
+      "Ответ, квалификация и автоматизация через веб, Telegram и внутренние системы.",
+      "Answering, qualification and automation across web, Telegram and internal systems.",
     ),
     cardLabel: L("PENTRU RĂSPUNSURI ȘI ACȚIUNI RAPIDE", "ДЛЯ БЫСТРЫХ ОТВЕТОВ И ДЕЙСТВИЙ", "FOR FAST ANSWERS AND ACTIONS"),
-    cardTitle: L("Chatbot + asistent intern + Telegram", "Чат-бот + внутренний ассистент + Telegram", "Chatbot + internal assistant + Telegram"),
+    cardTitle: L(
+      "Chat + asistent de calificare + bot Telegram",
+      "Чат + ассистент квалификации + Telegram-бот",
+      "Chat + qualification assistant + Telegram bot",
+    ),
     cardText: L(
-      "IA conectată la contextul și procesele tale.",
-      "ИИ, подключённый к вашему контексту и процессам.",
-      "AI connected to your context and processes.",
+      "Canale conectate la contextul și procesele tale.",
+      "Каналы, подключённые к вашему контексту и процессам.",
+      "Channels connected to your context and processes.",
     ),
     items: [
-      { title: L("Chatbot client", "Клиентский чат-бот", "Customer chatbot"), desc: L("Răspunde și califică cererile 24/7.", "Отвечает и квалифицирует запросы 24/7.", "Answers and qualifies requests 24/7.") },
-      { title: L("Asistent intern", "Внутренний ассистент", "Internal assistant"), desc: L("Găsește informația și asistă echipa.", "Находит информацию и помогает команде.", "Finds information and assists the team.") },
-      { title: L("Bot Telegram", "Telegram-бот", "Telegram bot"), desc: L("Trimite notificări și pornește acțiuni din chat.", "Шлёт уведомления и запускает действия из чата.", "Sends notifications and triggers actions from chat.") },
+      {
+        title: L("Chat pentru clienți", "Чат для клиентов", "Chat for customers"),
+        desc: L(
+          "Un canal de chat pe site, la care echipa răspunde în timp real dintr-un panou de administrare.",
+          "Канал чата на сайте, в котором команда отвечает в реальном времени из панели администрирования.",
+          "A chat channel on the site, where the team answers in real time from an admin panel.",
+        ),
+      },
+      {
+        title: L("Asistent care califică cererea", "Ассистент, который квалифицирует заявку", "An assistant that qualifies the request"),
+        desc: L(
+          "Ghidează vizitatorul prin întrebări, structurează cererea și o trimite automat echipei.",
+          "Ведёт посетителя по вопросам, структурирует заявку и автоматически отправляет её команде.",
+          "It guides the visitor through questions, structures the request and sends it to the team automatically.",
+        ),
+      },
+      {
+        title: L("Bot Telegram conectat la fluxul echipei", "Telegram-бот, подключённый к потоку команды", "A Telegram bot wired into the team's flow"),
+        desc: L(
+          "Fiecare cerere ajunge în chat, sortată pe topicuri per serviciu, gata de calificat cu butoane.",
+          "Каждая заявка приходит в чат, разложенная по темам для каждой услуги, и готова к квалификации кнопками.",
+          "Every request lands in the chat, sorted into per-service topics and ready to be qualified with buttons.",
+        ),
+      },
     ],
     steps: [
-      L("Definim întrebările și limitele asistentului.", "Определяем вопросы и границы ассистента.", "We define the assistant's questions and limits."),
-      L("Conectăm datele, API-urile și canalele.", "Подключаем данные, API и каналы.", "We connect the data, APIs and channels."),
-      L("Testăm răspunsurile și îmbunătățim continuu.", "Тестируем ответы и постоянно улучшаем.", "We test the answers and keep improving."),
+      L(
+        "Definim întrebările, răspunsurile și limitele asistentului.",
+        "Определяем вопросы, ответы и границы ассистента.",
+        "We define the assistant's questions, answers and limits.",
+      ),
+      L(
+        "Conectăm canalele: site, Telegram și sistemele interne.",
+        "Подключаем каналы: сайт, Telegram и внутренние системы.",
+        "We connect the channels: site, Telegram and internal systems.",
+      ),
+      L(
+        "Testăm conversațiile reale și rafinăm fluxul.",
+        "Тестируем реальные разговоры и улучшаем поток.",
+        "We test the real conversations and refine the flow.",
+      ),
     ],
+    cases: {
+      title: L("Cazuri reale", "Реальные кейсы", "Real cases"),
+      lead: L(
+        "Trei conversații care lucrează deja: două la clienții noștri, una la noi în echipă.",
+        "Три уже работающих разговора: два — у наших клиентов, один — у нас в команде.",
+        "Three conversations already at work: two at our clients, one inside our own team.",
+      ),
+      items: [
+        {
+          label: L("REZULTAT LIVRAT ÎN TELEGRAM", "РЕЗУЛЬТАТ В TELEGRAM", "RESULT DELIVERED IN TELEGRAM"),
+          name: "BizCheck",
+          text: L(
+            "Platformă de autoevaluare a riscurilor pe metodologia Crowe: teste interactive pe blocuri, rezultat instant și raport PDF. Rezultatul poate fi primit în Telegram, printr-un bot dedicat. Include și un chestionar general GDPR, gratuit.",
+            "Платформа самооценки рисков по методологии Crowe: интерактивные тесты по блокам, мгновенный результат и PDF-отчёт. Результат можно получить в Telegram — через отдельного бота. Включает и общий опросник GDPR, бесплатно.",
+            "A risk self-assessment platform on the Crowe methodology: interactive tests by block, an instant result and a PDF report. The result can be received in Telegram, through a dedicated bot. It also includes a general GDPR questionnaire, free of charge.",
+          ),
+          url: "https://bizcheck.md",
+        },
+        {
+          label: L("CHAT LIVE CU RĂSPUNS UMAN", "ЖИВОЙ ЧАТ С ЖИВЫМ ОТВЕТОМ", "LIVE CHAT ANSWERED BY PEOPLE"),
+          name: "Balloons Breeze",
+          text: L(
+            "Site imersiv pentru un studio de aerodesign, cu chat live integrat: echipa răspunde clienților în timp real, dintr-un panou de administrare.",
+            "Иммерсивный сайт студии аэродизайна со встроенным живым чатом: команда отвечает клиентам в реальном времени из панели администрирования.",
+            "An immersive site for an aerodesign studio, with an integrated live chat: the team answers customers in real time, from an admin panel.",
+          ),
+          url: "https://balloonsbreeze.md/",
+        },
+        {
+          /* Our own internal flow, not a portfolio project — hence no entry in
+             `solutionProjectIds` and no external link. See docs/13-telegram.md. */
+          label: L("FLUXUL NOSTRU INTERN", "НАШ ВНУТРЕННИЙ ПОТОК", "OUR OWN INTERNAL FLOW"),
+          name: "TBS Digital",
+          text: L(
+            "Botul nostru de Telegram primește fiecare cerere din formular, o sortează pe topicuri per serviciu și lasă echipa s-o califice cu butoane, direct din chat.",
+            "Наш Telegram-бот получает каждую заявку из формы, раскладывает её по темам для каждой услуги и позволяет команде квалифицировать её кнопками прямо в чате.",
+            "Our Telegram bot receives every request from the form, sorts it into per-service topics and lets the team qualify it with buttons, straight from the chat.",
+          ),
+        },
+      ],
+    },
   },
   "brand-ui": {
     accent: "#3970ff",
@@ -194,8 +359,9 @@ export const solutionPalette: Record<string, SolutionPalette> = {
      · a project may appear under two directions when it genuinely spans both;
      · a direction with no matching project gets an EMPTY list — the page then renders no
        projects section and no "see the projects" action, instead of an empty block. That
-       is the case for e-commerce and for AI assistants: nothing in the portfolio is a
-       shop or an assistant/bot, and inventing one would be a lie on a sales page.
+       is the case for e-commerce: nothing in the portfolio is a shop, and inventing one
+       would be a lie on a sales page. That direction sells the flow it builds instead
+       (`solutions["e-commerce"].flow`).
 
    The order inside a list is curated: the first entry is the direction's reference
    project — the one shown in the hero card and behind the "see the project" action. */
@@ -206,8 +372,10 @@ export const solutionProjectIds: Record<string, string[]> = {
   "e-commerce": [],
   // Internal systems: boards, tickets, documents, data pipelines, reporting.
   "automatizare-api": ["crowe-portal", "docusafe", "statistic"],
-  // No assistant/bot has shipped yet.
-  "asistenti-ia": [],
+  // Conversational work that really shipped: BizCheck delivers its result through a
+  // dedicated Telegram bot, Balloons Breeze runs a live chat its team answers from an
+  // admin panel. Both are public, so both carry a real link.
+  "asistenti-ia": ["bizcheck", "balloons-breeze"],
   // Brand-led sites and interfaces.
   "brand-ui": ["itara-global", "cgam", "balloons-breeze"],
 };
@@ -255,6 +423,8 @@ export const solUI = {
     "no public link",
   ),
   refLabel: L("PROIECT DE REFERINȚĂ", "ЭТАЛОННЫЙ ПРОЕКТ", "REFERENCE PROJECT"),
+  /* --- labelled cases (only where a direction has them) --- */
+  caseLink: L("Deschide site-ul ↗", "Открыть сайт ↗", "Open the site ↗"),
   projectsTitle: L("Proiecte relevante", "Релевантные проекты", "Relevant projects"),
   projectsLead: L(
     "Lucrări reale livrate pe această direcție.",

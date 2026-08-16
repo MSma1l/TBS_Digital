@@ -110,14 +110,26 @@ export function DirectionPage({ slug }: { slug: string }) {
                 </div>
               </article>
             ) : (
-              /* No shipped project on this direction yet — the card describes the offer
-                 instead of borrowing a project that belongs somewhere else. */
+              /* No shipped project on this direction — the card describes the OFFER instead
+                 of borrowing a project that belongs somewhere else. When the direction
+                 carries a flow (e-commerce: offer → payment → access), the card draws that
+                 flow as a scheme: no project name, no external link, nothing implied. */
               <article className={styles.refCard}>
                 <div className={`mono ${styles.refTop}`}>
                   <span>{l(sol.cardLabel)}</span>
                 </div>
                 <strong className={`disp ${styles.refName}`}>{l(sol.cardTitle)}</strong>
                 <span className={styles.refText}>{l(sol.cardText)}</span>
+                {sol.flow?.length ? (
+                  <ol className={styles.flow}>
+                    {sol.flow.map((step, i) => (
+                      <li key={i}>
+                        <b className="mono">{String(i + 1).padStart(2, "0")}</b>
+                        <span>{l(step)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
               </article>
             )}
           </div>
@@ -167,6 +179,38 @@ export function DirectionPage({ slug }: { slug: string }) {
             </article>
           ))}
         </section>
+
+        {/* ---- labelled cases ----
+            Each one is a piece of work that really exists, described with what it actually
+            does. A case gets a link only when there is a public page behind it; our own
+            internal flow has none, so it is named as ours and left without one. */}
+        {sol.cases && (
+          <section className={styles.cases}>
+            <div className={styles.casesTop}>
+              <h2 className="disp">{l(sol.cases.title)}</h2>
+              <p>{l(sol.cases.lead)}</p>
+            </div>
+            <div className={styles.caseGrid}>
+              {sol.cases.items.map((c) => (
+                <article key={c.name} className={styles.caseCard}>
+                  <b className={`mono ${styles.caseLabel}`}>{l(c.label)}</b>
+                  <h3 className={`disp ${styles.caseName}`}>{c.name}</h3>
+                  <p className={styles.caseText}>{l(c.text)}</p>
+                  {c.url ? (
+                    <a
+                      href={c.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.caseLink}
+                    >
+                      {l(solUI.caseLink)}
+                    </a>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         {related.length > 0 && (
           <section id="proiecte" className={styles.projects}>
