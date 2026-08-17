@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
@@ -172,6 +179,121 @@ const PLACEHOLDERS = {
   email: L("Email", "Email", "Email"),
   phone: L("Telefon (opțional)", "Телефон (необязательно)", "Phone (optional)"),
   details: L("Adaugă orice detaliu important", "Добавьте любую важную деталь", "Add any important detail"),
+};
+
+/* ---------- stepped layout, used inside the request dialog ----------
+   The home-page section shows everything at once on two columns, which is right at page
+   width and cramped inside a 960px modal. In a dialog the same flow runs on ONE column,
+   one step at a time: the project, then what it should contain, then the visitor's
+   details. The assistant is not part of that path — it is opened on request. */
+
+type StepId = "project" | "options" | "contact";
+
+const STEPS: {
+  id: StepId;
+  /** Short name in the progress indicator — it has to fit three-across on a phone. */
+  label: LocalizedText;
+  /** The step's own heading. */
+  title: LocalizedText;
+  /** One line saying what to do here. */
+  hint: LocalizedText;
+}[] = [
+  {
+    id: "project",
+    label: L("Proiectul", "Проект", "Project"),
+    title: L("Ce construim?", "Что строим?", "What are we building?"),
+    hint: L(
+      "Alege tipul de proiect. Prețul de pornire se schimbă odată cu el.",
+      "Выберите тип проекта. Стартовая цена меняется вместе с ним.",
+      "Pick the project type. The starting price follows it.",
+    ),
+  },
+  {
+    id: "options",
+    label: L("Ce conține", "Что включить", "Contents"),
+    title: L("Ce să conțină?", "Что включить?", "What should it include?"),
+    hint: L(
+      "Bifează ce contează pentru tine. Poți alege mai multe sau niciuna.",
+      "Отметьте, что важно. Можно выбрать несколько или ничего.",
+      "Tick whatever matters to you. Pick several, or none.",
+    ),
+  },
+  {
+    id: "contact",
+    label: L("Datele tale", "Ваши данные", "Your details"),
+    title: L("Datele tale", "Ваши данные", "Your details"),
+    hint: L(
+      "Îți răspundem în cel mult o zi lucrătoare.",
+      "Отвечаем в течение одного рабочего дня.",
+      "We reply within one business day.",
+    ),
+  },
+];
+
+const NAV = {
+  back: L("Înapoi", "Назад", "Back"),
+  next: L("Continuă", "Продолжить", "Continue"),
+  /** Accessible name of the progress list itself. */
+  steps: L("Pașii cererii", "Шаги заявки", "Request steps"),
+};
+
+/**
+ * Where you are and how much is left — both, in one line, because a bare "2/3" answers
+ * only the first half.
+ */
+const stepHint = (index: number): LocalizedText => {
+  const n = index + 1;
+  const total = STEPS.length;
+  const left = total - n;
+  if (left === 0) {
+    return L(
+      `Pasul ${n} din ${total} · ultimul pas`,
+      `Шаг ${n} из ${total} · последний шаг`,
+      `Step ${n} of ${total} · last step`,
+    );
+  }
+  return L(
+    `Pasul ${n} din ${total} · ${left === 1 ? "a mai rămas 1 pas" : `au mai rămas ${left} pași`}`,
+    `Шаг ${n} из ${total} · ${left === 1 ? "остался 1 шаг" : `осталось ${left} шага`}`,
+    `Step ${n} of ${total} · ${left === 1 ? "1 step left" : `${left} steps left`}`,
+  );
+};
+
+/**
+ * The two ways through the flow, said plainly.
+ *
+ * Both are real paths through the same form, and neither is sold as better: one is for a
+ * visitor who already knows what they want, the other for one who does not. Nothing here
+ * promises anything the flow does not actually do — the fast path really is three steps,
+ * and the assistant really does write the summary that travels with the request.
+ */
+const PATHS = {
+  title: L(
+    "Două feluri de a ajunge la o cerere",
+    "Два способа дойти до заявки",
+    "Two ways to get to a request",
+  ),
+  fastTitle: L("Rapid", "Быстро", "Fast"),
+  fastCopy: L(
+    "Știi ce vrei: alegi proiectul, bifezi ce conține, completezi datele. Trei pași, nicio întrebare în plus.",
+    "Вы знаете, что нужно: выбираете проект, отмечаете содержимое, заполняете данные. Три шага, без лишних вопросов.",
+    "You know what you want: pick the project, tick the contents, fill in your details. Three steps, no extra questions.",
+  ),
+  guidedTitle: L("Ghidat", "С ассистентом", "Guided"),
+  guidedCopy: L(
+    "Nu ești sigur ce să ceri: asistentul pune câteva întrebări scurte și scrie rezumatul cererii. Poți trimite oricând, fără să-l termini.",
+    "Не уверены, что просить: ассистент задаёт несколько коротких вопросов и пишет итог заявки. Отправить можно в любой момент, не завершая диалог.",
+    "You're not sure what to ask for: the assistant asks a few short questions and writes the request summary. You can send at any point, without finishing it.",
+  ),
+  open: L("Deschide asistentul", "Открыть ассистента", "Open the assistant"),
+  close: L("Închide asistentul", "Закрыть ассистента", "Close the assistant"),
+  /* Shown once the assistant has recorded something, so closing it never looks like
+     throwing that work away — the summary is state, not markup. */
+  kept: L(
+    "Asistentul a notat răspunsurile tale. Pleacă cu cererea, chiar dacă închizi chatul.",
+    "Ассистент записал ваши ответы. Они уйдут вместе с заявкой, даже если вы закроете чат.",
+    "The assistant recorded your answers. They travel with the request, even if you close the chat.",
+  ),
 };
 
 /* ---------- chat assistant tree ---------- */
@@ -448,6 +570,16 @@ export type EstimatorProps = {
    * from a CTA, and it reads `?serviciu=` exactly as it always has.
    */
   context?: RequestContext;
+  /**
+   * How the same flow is laid out.
+   *
+   * `"section"` (the default) is the home page's `#estimare` block, unchanged: heading,
+   * two columns, the assistant always on screen. `"dialog"` is the variant the shared
+   * request modal uses — one column, three steps, and the assistant behind a button.
+   * Only the arrangement differs; the state, the validation and the submitted payload
+   * are the same code in both.
+   */
+  layout?: "section" | "dialog";
   /** Rendered next to the chat composer (`data-dictation-slot="estimator-chat"`). */
   renderChatDictation?: DictationSlot;
   /** Rendered next to the details field (`data-dictation-slot="estimator-details"`). */
@@ -486,10 +618,12 @@ function useServiceTypeIndex(override?: string): number {
 
 export function Estimator({
   context,
+  layout = "section",
   renderChatDictation,
   renderDetailsDictation,
 }: EstimatorProps = {}) {
   const { serviceSlug, projectId, projectName, source } = context ?? {};
+  const isDialog = layout === "dialog";
   const l = useLoc();
   const t = useT();
   /* Prices are the owner's, edited in the admin — see SERVICE_FOR_TYPE. */
@@ -524,6 +658,44 @@ export function Estimator({
      visitor is told what's wrong before a round trip rather than after a 422. */
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const sent = status === "sent";
+
+  /* ---- stepped layout state (dialog only; the section shows everything at once) ----
+     Both live here, above the step panels, so going back never loses a chip, a typed
+     field or a line of the dialog: the panels are views over this state, not owners of it. */
+  const [stepIndex, setStepIndex] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  const chatPanelRef = useRef<HTMLDivElement>(null);
+  const chatToggleRef = useRef<HTMLButtonElement>(null);
+  const mountedRef = useRef(false);
+  const chatWasOpen = useRef(false);
+
+  /* Moving between steps swaps the whole panel, so focus has to follow it — otherwise a
+     keyboard visitor presses "Continuă" and their next Tab starts from the button they
+     just left, below content they never saw. Skipped on mount: the dialog does its own
+     initial focus, and stealing it would fight the modal. */
+  useEffect(() => {
+    if (!isDialog) return;
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    stepHeadingRef.current?.focus();
+  }, [stepIndex, isDialog]);
+
+  /* Opening the assistant moves focus into it; closing it hands focus back to the button
+     that closed it, which is the only control still on screen that means "the assistant". */
+  useEffect(() => {
+    if (!isDialog) return;
+    if (chatOpen) {
+      chatPanelRef.current?.focus();
+      chatWasOpen.current = true;
+    } else if (chatWasOpen.current) {
+      chatToggleRef.current?.focus();
+      chatWasOpen.current = false;
+    }
+  }, [chatOpen, isDialog]);
 
   /* The admin's price already reads "de la 150€" / "от 150€" / "from 150€", so it is shown
      as written. Only the built-in fallback needs the "de la" prefix glued on. A service that
@@ -778,6 +950,375 @@ export function Estimator({
     }
   };
 
+  /* ---------------------------------------------------------------------------------
+     The pieces of the flow, built once and arranged differently by each layout. Two
+     copies of the contact form would be two sets of validation rules waiting to drift.
+     --------------------------------------------------------------------------------- */
+
+  /* `marks` carries the step attributes when the caller has no wrapper of its own to put
+     them on — the section arranges these blocks itself, the dialog wraps each in a step. */
+  const projectChips = (marks?: Record<string, string>) => (
+    <div className={styles.choices} {...marks}>
+      {PROJECT_TYPES.map((p, i) => (
+        <button
+          key={i}
+          type="button"
+          className={`${styles.choice} ${i === typeIndex ? styles.selected : ""}`}
+          onClick={() => setTypeIndex(i)}
+        >
+          {l(p.label)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const optionChips = (marks?: Record<string, string>) => (
+    <div className={styles.choices} {...marks}>
+      {OPTIONS.map((o, i) => (
+        <button
+          key={i}
+          type="button"
+          className={`${styles.choice} ${opts.has(i) ? styles.selected : ""}`}
+          onClick={() => toggleOpt(i)}
+        >
+          {l(o)}
+        </button>
+      ))}
+    </div>
+  );
+
+  /* The assistant's own contents — head, log, quick replies, composer, summary. The
+     wrapper around it differs: a plain panel in the section, an on-request one in the
+     dialog. Its state (`log`, `turns`, `node`) lives in the component, so closing the
+     dialog's panel hides the conversation without forgetting a word of it. */
+  const chatBody = (
+    <>
+      <div className={`mono ${styles.chatHead}`}>
+        <span className={styles.chatDot} />
+        {l(SECTION.assistant)}
+      </div>
+      <div className={styles.chatLog} aria-live="polite">
+        <div className={styles.bubble}>{l(TREE.start.q)}</div>
+        {log.map((b) => (
+          <div key={b.id} className={`${styles.bubble} ${b.user ? styles.bubbleUser : ""}`}>
+            {b.text}
+          </div>
+        ))}
+      </div>
+      {current && (
+        <div className={styles.chatOptions}>
+          {current.options.map((o, i) => (
+            <button
+              key={i}
+              type="button"
+              className={styles.chatOption}
+              onClick={() => pick(o)}
+            >
+              {l(o.label)}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* The composer. Quick replies are the fast path; this is the one that lets a
+          visitor describe the project in their own words. It is a form of its own —
+          the contact form is never wrapped around this one. */}
+      {current && (
+        <form className={styles.compose} onSubmit={sendDraft}>
+          <textarea
+            id="estimator-chat-input"
+            data-dictation-target="estimator-chat"
+            className={styles.composeInput}
+            aria-label={l(CHAT.inputLabel)}
+            placeholder={l(current.hint ?? CHAT.placeholder)}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              if (draftError) setDraftError(null);
+            }}
+            onKeyDown={onDraftKey}
+            maxLength={CHAT_MAX}
+            aria-invalid={!!draftError}
+            rows={2}
+          />
+          <div className={styles.composeActions}>
+            {/* Mount point for the dictation button owned by another component: either
+                pass `renderChatDictation`, or find this node by its
+                `data-dictation-slot` attribute. */}
+            <span className={styles.dictationSlot} data-dictation-slot="estimator-chat">
+              {renderChatDictation?.({
+                targetId: "estimator-chat-input",
+                onTranscript: (text) => setDraft((prev) => appendText(prev, text)),
+              })}
+            </span>
+            {current.optional && (
+              <button type="button" className={styles.composeSkip} onClick={skipStep}>
+                {l(CHAT.skip)}
+              </button>
+            )}
+            <button type="submit" className={styles.composeSend} disabled={!draft.trim()}>
+              {l(CHAT.send)}
+            </button>
+          </div>
+          {draftError && (
+            <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+              {draftError}
+            </p>
+          )}
+        </form>
+      )}
+      {/* What the assistant understood — visible proof of the text that will be attached
+          to the request, not a promise that it was. */}
+      {done && (
+        <div className={styles.summary} data-testid="estimator-summary" role="status">
+          <div className={`mono ${styles.summaryHead}`}>{l(SUMMARY.title)}</div>
+          <p className={styles.summaryIntro}>{l(SUMMARY.intro)}</p>
+          <dl className={styles.summaryList}>
+            {summaryRows().map((r) => (
+              <div key={r.label} className={styles.summaryRow}>
+                <dt className={styles.summaryLabel}>{r.label}</dt>
+                <dd className={styles.summaryValue}>{r.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </>
+  );
+
+  /* noValidate: the browser's own bubble would fire first and our localized,
+     screen-reader-announced messages would never run. */
+  const contactForm = (
+    <form className={styles.form} onSubmit={onSubmit} noValidate>
+      <input
+        aria-label={l(PLACEHOLDERS.name)}
+        placeholder={l(PLACEHOLDERS.name)}
+        value={name}
+        onChange={(e) => editField("name", setName)(e.target.value)}
+        maxLength={LIMITS.name}
+        aria-invalid={!!fieldErrors.name}
+        required
+      />
+      {fieldErrors.name && (
+        <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+          {fieldErrors.name}
+        </p>
+      )}
+      <input
+        aria-label={l(PLACEHOLDERS.email)}
+        type="email"
+        placeholder={l(PLACEHOLDERS.email)}
+        value={email}
+        onChange={(e) => editField("email", setEmail)(e.target.value)}
+        maxLength={LIMITS.email}
+        aria-invalid={!!fieldErrors.email}
+        required
+      />
+      {fieldErrors.email && (
+        <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+          {fieldErrors.email}
+        </p>
+      )}
+      <input
+        aria-label={l(PLACEHOLDERS.phone)}
+        type="tel"
+        placeholder={l(PLACEHOLDERS.phone)}
+        value={phone}
+        onChange={(e) => editField("phone", setPhone)(e.target.value)}
+        maxLength={LIMITS.phone}
+        aria-invalid={!!fieldErrors.phone}
+      />
+      {fieldErrors.phone && (
+        <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+          {fieldErrors.phone}
+        </p>
+      )}
+      <div className={styles.detailsField}>
+        <textarea
+          id="estimator-details"
+          data-dictation-target="estimator-details"
+          aria-label={l(PLACEHOLDERS.details)}
+          placeholder={l(PLACEHOLDERS.details)}
+          value={details}
+          onChange={(e) => setDetails(e.target.value)}
+          maxLength={4000}
+          rows={3}
+        />
+        {/* Second dictation mount point — same contract as the chat one. */}
+        <span className={styles.dictationSlot} data-dictation-slot="estimator-details">
+          {renderDetailsDictation?.({
+            targetId: "estimator-details",
+            onTranscript: (text) => setDetails((prev) => appendText(prev, text)),
+          })}
+        </span>
+      </div>
+      <button
+        type="submit"
+        className={styles.submit}
+        disabled={status === "sending" || sent}
+      >
+        {status === "sending"
+          ? l(SECTION.sending)
+          : sent
+            ? l(SECTION.submitted)
+            : l(SECTION.submit)}
+      </button>
+      {/* Both outcomes are announced, so a screen-reader user isn't left guessing
+          whether the request actually went anywhere. */}
+      {sent && (
+        <p className={styles.formNote} role="status">
+          {l(SENT_COPY)}
+        </p>
+      )}
+      {error && (
+        <p className={`${styles.formNote} ${styles.formError}`} role="alert">
+          {l(error)}
+        </p>
+      )}
+    </form>
+  );
+
+  /* ---------------------------------------------------------------------------------
+     Dialog: one column, three steps, the assistant on request.
+     --------------------------------------------------------------------------------- */
+  if (isDialog) {
+    const last = STEPS.length - 1;
+    return (
+      <div className={styles.flow} data-testid="request-flow" data-layout="dialog">
+        <div className={styles.progressBlock}>
+          <ol
+            className={styles.progress}
+            data-testid="request-steps"
+            aria-label={l(NAV.steps)}
+          >
+            {STEPS.map((s, i) => (
+              <li key={s.id} className={styles.progressItem}>
+                {/* Every step is reachable at any moment: nothing here validates a gate,
+                    so a visitor who wants to send straight away is one press away from
+                    the contact fields. */}
+                <button
+                  type="button"
+                  className={`${styles.progressStep} ${
+                    i === stepIndex ? styles.progressCurrent : ""
+                  } ${i < stepIndex ? styles.progressDone : ""}`}
+                  aria-current={i === stepIndex ? "step" : undefined}
+                  onClick={() => setStepIndex(i)}
+                >
+                  <span className={styles.progressNum}>{i + 1}</span>
+                  <span className={styles.progressLabel}>{l(s.label)}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <p className={styles.progressHint} role="status">
+            {l(stepHint(stepIndex))}
+          </p>
+        </div>
+
+        {/* The price is the owner's, and it stays on screen through every step — it is
+            what the visitor is being asked to react to. */}
+        <div className={styles.proposal}>
+          <span className={`mono ${styles.proposalLabel}`}>{l(SECTION.proposal)}</span>
+          <span className={styles.proposalType}>{l(PROJECT_TYPES[typeIndex].label)}</span>
+          <b className={`disp ${styles.proposalPrice}`}>{price}</b>
+        </div>
+
+        {STEPS.map((s, i) => (
+          <section
+            key={s.id}
+            className={styles.step}
+            data-step={s.id}
+            {...(i === stepIndex ? { "data-active": "true" } : {})}
+            aria-labelledby={`request-step-${s.id}`}
+          >
+            <h3
+              id={`request-step-${s.id}`}
+              className={styles.stepTitle}
+              tabIndex={-1}
+              ref={i === stepIndex ? stepHeadingRef : undefined}
+            >
+              {l(s.title)}
+            </h3>
+            <p className={styles.stepHint}>{l(s.hint)}</p>
+            {s.id === "project" && (
+              <>
+                {projectChips()}
+                <p className={styles.stepNote}>{l(RESULT_COPY)}</p>
+              </>
+            )}
+            {s.id === "options" && optionChips()}
+            {s.id === "contact" && contactForm}
+          </section>
+        ))}
+
+        <div className={styles.stepNav}>
+          <button
+            type="button"
+            className={styles.navBack}
+            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+            disabled={stepIndex === 0}
+          >
+            {l(NAV.back)}
+          </button>
+          {stepIndex < last && (
+            <button
+              type="button"
+              className={styles.navNext}
+              onClick={() => setStepIndex((i) => Math.min(last, i + 1))}
+            >
+              {l(NAV.next)}
+            </button>
+          )}
+        </div>
+
+        {/* The two paths, and the only control that starts the assistant. It sits after
+            the steps because that is where it belongs in the flow: the request can be
+            sent without ever opening it. */}
+        <div className={styles.paths}>
+          <div className={`mono ${styles.pathsTitle}`}>{l(PATHS.title)}</div>
+          <div className={styles.pathList}>
+            <div className={`${styles.path} ${chatOpen ? "" : styles.pathActive}`}>
+              <b className={styles.pathName}>{l(PATHS.fastTitle)}</b>
+              <p className={styles.pathCopy}>{l(PATHS.fastCopy)}</p>
+            </div>
+            <div className={`${styles.path} ${chatOpen ? styles.pathActive : ""}`}>
+              <b className={styles.pathName}>{l(PATHS.guidedTitle)}</b>
+              <p className={styles.pathCopy}>{l(PATHS.guidedCopy)}</p>
+              <button
+                ref={chatToggleRef}
+                type="button"
+                className={styles.pathButton}
+                data-testid="chat-toggle"
+                aria-expanded={chatOpen}
+                aria-controls={chatOpen ? "request-assistant" : undefined}
+                onClick={() => setChatOpen((open) => !open)}
+              >
+                {l(chatOpen ? PATHS.close : PATHS.open)}
+              </button>
+            </div>
+          </div>
+          {turns.length > 0 && <p className={styles.pathKept}>{l(PATHS.kept)}</p>}
+        </div>
+
+        {chatOpen && (
+          <div
+            id="request-assistant"
+            ref={chatPanelRef}
+            tabIndex={-1}
+            role="group"
+            aria-label={l(SECTION.assistant)}
+            className={`${styles.chat} ${styles.chatPanel}`}
+            data-testid="chat-panel"
+          >
+            {chatBody}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ---------------------------------------------------------------------------------
+     Section: the home page's `#estimare`, unchanged.
+     --------------------------------------------------------------------------------- */
   return (
     <section id="estimare" className={styles.section}>
       <div className="container">
@@ -789,246 +1330,23 @@ export function Estimator({
           <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
 
-        <div className={styles.box}>
+        <div className={styles.box} data-testid="request-flow" data-layout="section">
           <div className={styles.steps}>
             <div>
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step1)}</div>
-              <div className={styles.choices}>
-                {PROJECT_TYPES.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className={`${styles.choice} ${i === typeIndex ? styles.selected : ""}`}
-                    onClick={() => setTypeIndex(i)}
-                  >
-                    {l(p.label)}
-                  </button>
-                ))}
-              </div>
+              {projectChips({ "data-step": "project", "data-active": "true" })}
 
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step2)}</div>
-              <div className={styles.choices}>
-                {OPTIONS.map((o, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className={`${styles.choice} ${opts.has(i) ? styles.selected : ""}`}
-                    onClick={() => toggleOpt(i)}
-                  >
-                    {l(o)}
-                  </button>
-                ))}
-              </div>
+              {optionChips({ "data-step": "options", "data-active": "true" })}
 
-              <div className={styles.chat}>
-                <div className={`mono ${styles.chatHead}`}>
-                  <span className={styles.chatDot} />
-                  {l(SECTION.assistant)}
-                </div>
-                <div className={styles.chatLog} aria-live="polite">
-                  <div className={styles.bubble}>{l(TREE.start.q)}</div>
-                  {log.map((b) => (
-                    <div
-                      key={b.id}
-                      className={`${styles.bubble} ${b.user ? styles.bubbleUser : ""}`}
-                    >
-                      {b.text}
-                    </div>
-                  ))}
-                </div>
-                {current && (
-                  <div className={styles.chatOptions}>
-                    {current.options.map((o, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={styles.chatOption}
-                        onClick={() => pick(o)}
-                      >
-                        {l(o.label)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {/* The composer. Quick replies are the fast path; this is the one that
-                    lets a visitor describe the project in their own words. It is a form
-                    of its own — the contact form lives in the aside, never around this. */}
-                {current && (
-                  <form className={styles.compose} onSubmit={sendDraft}>
-                    <textarea
-                      id="estimator-chat-input"
-                      data-dictation-target="estimator-chat"
-                      className={styles.composeInput}
-                      aria-label={l(CHAT.inputLabel)}
-                      placeholder={l(current.hint ?? CHAT.placeholder)}
-                      value={draft}
-                      onChange={(e) => {
-                        setDraft(e.target.value);
-                        if (draftError) setDraftError(null);
-                      }}
-                      onKeyDown={onDraftKey}
-                      maxLength={CHAT_MAX}
-                      aria-invalid={!!draftError}
-                      rows={2}
-                    />
-                    <div className={styles.composeActions}>
-                      {/* Mount point for the dictation button owned by another component:
-                          either pass `renderChatDictation`, or find this node by its
-                          `data-dictation-slot` attribute. */}
-                      <span
-                        className={styles.dictationSlot}
-                        data-dictation-slot="estimator-chat"
-                      >
-                        {renderChatDictation?.({
-                          targetId: "estimator-chat-input",
-                          onTranscript: (text) =>
-                            setDraft((prev) => appendText(prev, text)),
-                        })}
-                      </span>
-                      {current.optional && (
-                        <button
-                          type="button"
-                          className={styles.composeSkip}
-                          onClick={skipStep}
-                        >
-                          {l(CHAT.skip)}
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        className={styles.composeSend}
-                        disabled={!draft.trim()}
-                      >
-                        {l(CHAT.send)}
-                      </button>
-                    </div>
-                    {draftError && (
-                      <p className={`${styles.formNote} ${styles.formError}`} role="alert">
-                        {draftError}
-                      </p>
-                    )}
-                  </form>
-                )}
-                {/* What the assistant understood — visible proof of the text that will
-                    be attached to the request, not a promise that it was. */}
-                {done && (
-                  <div
-                    className={styles.summary}
-                    data-testid="estimator-summary"
-                    role="status"
-                  >
-                    <div className={`mono ${styles.summaryHead}`}>{l(SUMMARY.title)}</div>
-                    <p className={styles.summaryIntro}>{l(SUMMARY.intro)}</p>
-                    <dl className={styles.summaryList}>
-                      {summaryRows().map((r) => (
-                        <div key={r.label} className={styles.summaryRow}>
-                          <dt className={styles.summaryLabel}>{r.label}</dt>
-                          <dd className={styles.summaryValue}>{r.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                )}
-              </div>
+              <div className={styles.chat}>{chatBody}</div>
             </div>
 
-            <aside className={styles.result}>
+            <aside className={styles.result} data-step="contact" data-active="true">
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</div>
               <b className={`disp ${styles.price}`}>{price}</b>
               <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
-              {/* noValidate: the browser's own bubble would fire first and our localized,
-                  screen-reader-announced messages would never run. */}
-              <form className={styles.form} onSubmit={onSubmit} noValidate>
-                <input
-                  aria-label={l(PLACEHOLDERS.name)}
-                  placeholder={l(PLACEHOLDERS.name)}
-                  value={name}
-                  onChange={(e) => editField("name", setName)(e.target.value)}
-                  maxLength={LIMITS.name}
-                  aria-invalid={!!fieldErrors.name}
-                  required
-                />
-                {fieldErrors.name && (
-                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
-                    {fieldErrors.name}
-                  </p>
-                )}
-                <input
-                  aria-label={l(PLACEHOLDERS.email)}
-                  type="email"
-                  placeholder={l(PLACEHOLDERS.email)}
-                  value={email}
-                  onChange={(e) => editField("email", setEmail)(e.target.value)}
-                  maxLength={LIMITS.email}
-                  aria-invalid={!!fieldErrors.email}
-                  required
-                />
-                {fieldErrors.email && (
-                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
-                    {fieldErrors.email}
-                  </p>
-                )}
-                <input
-                  aria-label={l(PLACEHOLDERS.phone)}
-                  type="tel"
-                  placeholder={l(PLACEHOLDERS.phone)}
-                  value={phone}
-                  onChange={(e) => editField("phone", setPhone)(e.target.value)}
-                  maxLength={LIMITS.phone}
-                  aria-invalid={!!fieldErrors.phone}
-                />
-                {fieldErrors.phone && (
-                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
-                    {fieldErrors.phone}
-                  </p>
-                )}
-                <div className={styles.detailsField}>
-                  <textarea
-                    id="estimator-details"
-                    data-dictation-target="estimator-details"
-                    aria-label={l(PLACEHOLDERS.details)}
-                    placeholder={l(PLACEHOLDERS.details)}
-                    value={details}
-                    onChange={(e) => setDetails(e.target.value)}
-                    maxLength={4000}
-                    rows={3}
-                  />
-                  {/* Second dictation mount point — same contract as the chat one. */}
-                  <span
-                    className={styles.dictationSlot}
-                    data-dictation-slot="estimator-details"
-                  >
-                    {renderDetailsDictation?.({
-                      targetId: "estimator-details",
-                      onTranscript: (text) =>
-                        setDetails((prev) => appendText(prev, text)),
-                    })}
-                  </span>
-                </div>
-                <button
-                  type="submit"
-                  className={styles.submit}
-                  disabled={status === "sending" || sent}
-                >
-                  {status === "sending"
-                    ? l(SECTION.sending)
-                    : sent
-                      ? l(SECTION.submitted)
-                      : l(SECTION.submit)}
-                </button>
-                {/* Both outcomes are announced, so a screen-reader user isn't left
-                    guessing whether the request actually went anywhere. */}
-                {sent && (
-                  <p className={styles.formNote} role="status">
-                    {l(SENT_COPY)}
-                  </p>
-                )}
-                {error && (
-                  <p className={`${styles.formNote} ${styles.formError}`} role="alert">
-                    {l(error)}
-                  </p>
-                )}
-              </form>
+              {contactForm}
             </aside>
           </div>
         </div>

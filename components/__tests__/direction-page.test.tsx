@@ -64,13 +64,14 @@ describe("action bar", () => {
     await user.click(cta);
 
     const dialog = await screen.findByRole("dialog");
-    // The estimator really mounted inside — its own submit button proves it is the flow,
-    // not a placeholder — and it opened on this service's project type. Awaited because
-    // the flow is code-split (`next/dynamic` in RequestModal): the dialog frame is on
-    // screen first and its body arrives with the chunk, exactly as it does in a browser.
-    expect(
-      await within(dialog).findByRole("button", { name: /Trimite cererea/ }),
-    ).toBeInTheDocument();
+    // The estimator really mounted inside — the request flow's own container proves it is
+    // the flow, not a placeholder — and it opened on this service's project type. Awaited
+    // because the flow is code-split (`next/dynamic` in the provider): the dialog frame is
+    // on screen first and its body arrives with the chunk, exactly as in a browser. In a
+    // dialog the flow is stepped, so the submit button lives on the third step rather than
+    // next to the chips — the container is what is always there.
+    const flow = await within(dialog).findByTestId("request-flow");
+    expect(flow).toHaveAttribute("data-layout", "dialog");
     expect(within(dialog).getByText(seededPrice("site"))).toBeInTheDocument();
   });
 

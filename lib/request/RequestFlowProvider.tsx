@@ -174,8 +174,12 @@ export function RequestFlowProvider({ children }: { children: ReactNode }) {
         restoreFocusRef={triggerRef}
       >
         {/* Mounted only while open, so every opening starts a clean dialog rather than
-            resuming a half-finished one from a previous visit to the modal. */}
-        <RequestSection context={context ?? undefined} />
+            resuming a half-finished one from a previous visit to the modal.
+
+            `layout="dialog"` is the stepped arrangement: one column, three steps
+            (project → contents → details) and the assistant behind a button. The home
+            page's `#estimare` keeps the section arrangement it was designed with. */}
+        <RequestSection context={context ?? undefined} layout="dialog" />
       </Modal>
     </RequestFlowContext.Provider>
   );

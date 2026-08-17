@@ -16,6 +16,54 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-17 — Cererea din modal devine un flux pe pași, cu asistentul la cerere
+
+**Changed** — modalul nu mai e o secțiune de pagină înghesuită
+
+Clientul: „frame-ul de la butonul de contact e prea mărunt și prost organizat; botul cu
+întrebări să fie la dorință; întâi selectează proiectul, apoi ce să conțină, apoi datele".
+
+Cauza nu era spațierea: `Estimator` e construit ca **secțiune de pagină**, cu un grid pe
+**două coloane** (chips + chat în stânga, preț + formular în dreapta). Corect la lățime de
+pagină, strâns într-un modal de 960px devine mărunt. Nicio ajustare de padding n-ar fi rezolvat-o.
+
+- Variantă nouă `layout="dialog"`: **o coloană, trei pași** — *Proiectul → Ce conține → Datele
+  tale* — cu indicator de progres („Pasul 1 din 3 · au mai rămas 2 pași") și prețul, cel din
+  admin, vizibil pe tot parcursul.
+- **Asistentul e opțional**: nu e ascuns, ci **nu e randat deloc** până nu e cerut. Dacă e
+  folosit, transcriptul și rezumatul pleacă în cerere ca înainte.
+- **Două parcursuri, motivate explicit**: *Rapid* („știi ce vrei… trei pași, nicio întrebare în
+  plus") și *Ghidat* („nu ești sigur ce să ceri… **poți trimite oricând, fără să-l termini**").
+  Fluxul rapid **nu e blocat** în spatele chatului.
+- **Secțiunea `#estimare` de pe homepage rămâne neschimbată** — e design aprobat, iar acolo
+  asistentul e deja pe ecran; a-l face „opțional" ar fi ascuns ceva care funcționa. Cele trei
+  zone sunt doar marcate cu același contract, ca testele să meargă în ambele variante.
+- Navigarea înapoi nu pierde ce s-a completat; focusul urmează pasul; pe mobil un singur pas pe
+  ecran.
+
+**Fixed** — recuperare după oprirea agenților la limita de sesiune
+
+Doi agenți au fost opriți în mijlocul lucrului. `Estimator.tsx` a rămas cu **eroare de
+sintaxă**: blocul de progres era în curs de a fi învelit într-un `div`, cu închiderea scrisă și
+deschiderea nu. Reparat, apoi verificat că restul era coerent.
+
+Trei teste E2E descriau starea veche și au fost aliniate la designul real, nu slăbite:
+- dovada „fluxul dinăuntru e cel real" aștepta butonul de trimitere la deschidere; el e acum la
+  pasul 3, deci testul așteaptă containerul fluxului și **navighează** la pasul de contact ca să
+  verifice submit-ul și câmpul de email;
+- testul homepage-ului presupunea că și secțiunea are chat opțional — nu are, prin decizie;
+- `summaryTitle` fusese confundat: titlul de pe **ecran** e „Rezumatul cererii", cel din
+  **payload** e scris cu majuscule. Sunt acum două constante distincte.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **316 passed / 0 failed** (+11) |
+| `npx playwright test --workers=1` | **156 passed / 0 failed** (+12) |
+| `npm run lint` · `npx tsc --noEmit` · `npm run build` | curate |
+| Vizual, modal pe `/servicii/e-commerce` | trei pași, preț real 550€, serviciu preselectat, ambele parcursuri, asistent nerandat până la cerere |
+
 ## 2026-08-17 — Prețurile din admin sunt cele afișate
 
 **Fixed** — prețul pe care îl vedea vizitatorul nu era al proprietarului

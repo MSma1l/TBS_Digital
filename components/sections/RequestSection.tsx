@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Estimator } from "./Estimator";
+import { Estimator, type EstimatorProps } from "./Estimator";
 import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 
 /**
@@ -36,11 +36,18 @@ const DictationButton = dynamic(
  * `context` is where the request was started from (`lib/request/RequestFlowProvider.tsx`).
  * The home page renders this section with none — it is the section, not a dialog opened
  * from somewhere; the shared dialog passes the CTA's context straight through.
+ *
+ * `layout` picks the arrangement: the home page takes the default `"section"`, the shared
+ * dialog asks for `"dialog"` — one column, three steps, the assistant on request.
  */
-export function RequestSection({ context }: { context?: RequestContext } = {}) {
+export function RequestSection({
+  context,
+  layout,
+}: { context?: RequestContext; layout?: EstimatorProps["layout"] } = {}) {
   return (
     <Estimator
       context={context}
+      layout={layout}
       renderChatDictation={({ onTranscript }) => (
         <DictationButton onResult={onTranscript} />
       )}

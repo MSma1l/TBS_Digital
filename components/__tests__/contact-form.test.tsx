@@ -578,6 +578,195 @@ describe("dictation slot — mounted by another component", () => {
  * to a factor of twenty: "€3.000" on screen for a site the owner priced at 150€. The number
  * the visitor sees is now the owner's, and the built-in one is only a fallback.
  */
+/**
+ * The stepped layout — the same flow, arranged for a dialog.
+ *
+ * The section above is a page section: two columns, everything at once, the assistant
+ * always on screen. Inside a 960px modal that reads as a cramped grid, so `layout="dialog"`
+ * runs the flow on one column in three steps — project, contents, details — and puts the
+ * assistant behind a button. These tests pin what makes that arrangement worth having:
+ * the order, the fact that nothing is lost going back, that the assistant is genuinely
+ * optional, and that sending is never behind it.
+ */
+describe("stepped layout — the flow inside the dialog", () => {
+  const STEP_NAMES = ["Proiectul", "Ce conține", "Datele tale"];
+
+  /** The step buttons of the progress indicator, in order. */
+  const stepButtons = () =>
+    within(screen.getByTestId("request-steps")).getAllByRole("button");
+
+  /** Go to a step the way a visitor does — by pressing it in the progress indicator. */
+  const goTo = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) =>
+    user.click(within(screen.getByTestId("request-steps")).getByRole("button", { name }));
+
+  /** The step panel currently marked active. */
+  const activeStep = (container: HTMLElement) =>
+    container.querySelector('[data-step][data-active="true"]');
+
+  it("keeps the home-page section on the section layout by default", () => {
+    const { container } = renderForm();
+
+    const flow = screen.getByTestId("request-flow");
+    expect(flow).toHaveAttribute("data-layout", "section");
+    // No stepping, and the assistant is part of the design rather than a request.
+    expect(screen.queryByTestId("request-steps")).toBeNull();
+    expect(screen.queryByTestId("chat-toggle")).toBeNull();
+    expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
+    expect(container.querySelector("#estimare")).not.toBeNull();
+  });
+
+  it("runs project → options → contact, one step at a time", () => {
+    const { container } = renderForm({ layout: "dialog" });
+
+    expect(screen.getByTestId("request-flow")).toHaveAttribute("data-layout", "dialog");
+    // The order the visitor was promised, in the DOM order they read.
+    expect(
+      [...container.querySelectorAll("[data-step]")].map((n) => n.getAttribute("data-step")),
+    ).toEqual(["project", "options", "contact"]);
+    expect(stepButtons().map((b) => b.textContent)).toEqual(
+      STEP_NAMES.map((n, i) => `${i + 1}${n}`),
+    );
+    expect(activeStep(container)).toHaveAttribute("data-step", "project");
+  });
+
+  it("says where you are and how much is left, and marks the current step", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    expect(screen.getByText("Pasul 1 din 3 · au mai rămas 2 pași")).toBeInTheDocument();
+    expect(stepButtons()[0]).toHaveAttribute("aria-current", "step");
+    expect(stepButtons()[2]).not.toHaveAttribute("aria-current");
+
+    await user.click(screen.getByRole("button", { name: "Continuă" }));
+    expect(screen.getByText("Pasul 2 din 3 · a mai rămas 1 pas")).toBeInTheDocument();
+    expect(stepButtons()[1]).toHaveAttribute("aria-current", "step");
+
+    await user.click(screen.getByRole("button", { name: "Continuă" }));
+    expect(screen.getByText("Pasul 3 din 3 · ultimul pas")).toBeInTheDocument();
+    // The last step has no "Continuă" — the form's own submit is the action there.
+    expect(screen.queryByRole("button", { name: "Continuă" })).toBeNull();
+  });
+
+  it("keeps the owner's price on screen through every step", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    await user.click(screen.getByRole("button", { name: "CRM la comandă" }));
+    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
+
+    await goTo(user, /Datele tale/);
+    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
+  });
+
+  it("does not lose what was filled in when the visitor goes back", async () => {
+    const user = userEvent.setup();
+    const { container } = renderForm({ layout: "dialog" });
+
+    await user.click(screen.getByRole("button", { name: "CRM la comandă" }));
+    await user.click(screen.getByRole("button", { name: "Continuă" }));
+    await user.click(screen.getByRole("button", { name: "+ SEO" }));
+    await user.click(screen.getByRole("button", { name: "Continuă" }));
+    await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
+
+    await user.click(screen.getByRole("button", { name: "Înapoi" }));
+    await user.click(screen.getByRole("button", { name: "Înapoi" }));
+
+    expect(activeStep(container)).toHaveAttribute("data-step", "project");
+    // Every earlier answer survived the round trip.
+    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
+    await goTo(user, /Datele tale/);
+    expect(screen.getByPlaceholderText(NAME_PH)).toHaveValue("Ion Popescu");
+    // …including the option ticked on the middle step, which the request carries.
+    await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(vi.mocked(api.submitContact).mock.calls[0][0].message).toContain("+ SEO");
+  });
+
+  it("does not start the assistant, and does not spend space on it, until it is asked for", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    const toggle = screen.getByTestId("chat-toggle");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(screen.queryByLabelText(CHAT_LABEL)).toBeNull();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
+    expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
+  });
+
+  it("explains both paths rather than leaving the choice unmotivated", () => {
+    renderForm({ layout: "dialog" });
+
+    expect(screen.getByText("Rapid")).toBeInTheDocument();
+    expect(screen.getByText(/Trei pași, nicio întrebare în plus/)).toBeInTheDocument();
+    expect(screen.getByText("Ghidat")).toBeInTheDocument();
+    expect(screen.getByText(/scrie rezumatul cererii/)).toBeInTheDocument();
+  });
+
+  it("sends without the assistant ever being opened — the fast path is actually fast", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    await goTo(user, /Datele tale/);
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    expect(await screen.findByText(/Am primit cererea/)).toBeInTheDocument();
+    expect(api.submitContact).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+  });
+
+  it("keeps the dialog's summary when the assistant is closed again", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    await user.click(screen.getByTestId("chat-toggle"));
+    await say(user, "Vrem un magazin online pentru piese auto.");
+    await tap(user, "Pornim de la zero");
+
+    // Closing it hides the conversation…
+    await user.click(screen.getByTestId("chat-toggle"));
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(screen.queryByText("Vrem un magazin online pentru piese auto.")).toBeNull();
+    // …and says so, rather than letting it look like the work was thrown away.
+    expect(screen.getByText(/Pleacă cu cererea, chiar dacă închizi chatul/)).toBeInTheDocument();
+
+    await goTo(user, /Datele tale/);
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    // The request carries every word of it.
+    const payload = vi.mocked(api.submitContact).mock.calls[0][0];
+    expect(payload.message).toContain("REZUMATUL CERERII");
+    expect(payload.message).toContain("Vrem un magazin online pentru piese auto.");
+    expect(payload.message).toContain("Dialog");
+
+    // Reopening shows the same conversation, continued rather than restarted.
+    await user.click(screen.getByTestId("chat-toggle"));
+    expect(
+      screen.getByText("Vrem un magazin online pentru piese auto."),
+    ).toBeInTheDocument();
+  });
+
+  it("still preselects the service the dialog was opened from", () => {
+    renderForm({ layout: "dialog", context: { serviceSlug: "e-commerce" } });
+
+    expect(screen.getByText(seededPrice("shop"))).toBeInTheDocument();
+  });
+
+  it("keeps the submit button's accessible name", async () => {
+    const user = userEvent.setup();
+    renderForm({ layout: "dialog" });
+
+    await goTo(user, /Datele tale/);
+    expect(screen.getByRole("button", { name: "Trimite cererea" })).toBeEnabled();
+  });
+});
+
 describe("the price is the owner's, not the code's", () => {
   it("shows the admin price instead of the built-in one", async () => {
     const user = userEvent.setup();

@@ -9,7 +9,10 @@ const price = (serviceId: string) =>
   seededServices.find((s) => s.id === serviceId)!.price.ro;
 import {
   PRIVATE_COPY,
-  chatInput,
+  chatPanel,
+  expectActiveStep,
+  goToStep,
+  requestFlow,
   expectNoHorizontalScroll,
   focusIsInsideDialog,
   gotoHydrated,
@@ -93,14 +96,16 @@ async function dialogHeading(page: Page, dialog: Locator): Promise<Locator> {
 }
 
 /**
- * The request flow is `next/dynamic`-loaded (`RequestModal.tsx`), so the dialog is on screen
- * a moment before its body is. Anything that measures the panel or walks its focus order has
- * to wait for the real content first.
+ * The request flow is `next/dynamic`-loaded, so the dialog is on screen a moment before its
+ * body is. Anything that measures the panel or walks its focus order has to wait for the real
+ * content first.
+ *
+ * It waits on the flow container, not on the submit button: the flow now opens on step 1
+ * (project) and the submit lives on step 3 (contact), so the button is legitimately absent
+ * at this point.
  */
 async function waitForFlow(dialog: Locator): Promise<void> {
-  await expect(
-    dialog.getByRole("button", { name: PRIVATE_COPY.estimatorSubmit, exact: true }),
-  ).toBeVisible();
+  await expect(requestFlow(dialog)).toBeVisible();
 }
 
 test.describe("request modal", () => {
@@ -117,14 +122,22 @@ test.describe("request modal", () => {
 
     const dialog = await openRequestModal(page);
 
-    // The flow inside is the real one: the estimator's own submit button, not a copy.
+    // It is the stepped flow, in its dialog shape, and it opens on the first step.
+    const flow = requestFlow(dialog);
+    await expect(flow).toBeVisible();
+    await expect(flow).toHaveAttribute("data-layout", "dialog");
+    await expectActiveStep(flow, "project");
+
+    // The assistant is OPTIONAL: it is not merely hidden, it is not rendered until asked for.
+    await expect(chatPanel(flow)).toHaveCount(0);
+
+    // And the flow inside is the real estimator, not a copy: walking to the contact step
+    // produces its own submit button and the email field the form actually posts.
+    await goToStep(flow, "contact");
     await expect(
       dialog.getByRole("button", { name: PRIVATE_COPY.estimatorSubmit, exact: true }),
     ).toBeVisible();
-    // …and its email field, the one the contact form actually posts.
     await expect(dialog.locator('input[type="email"]')).toBeVisible();
-    // …and the assistant's composer, so the whole dialog is inside, not just the form.
-    await expect(chatInput(dialog)).toBeVisible();
   });
 
   test("it is a real dialog: role, aria-modal and a name from its own heading", async ({

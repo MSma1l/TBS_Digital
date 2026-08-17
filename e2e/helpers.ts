@@ -176,7 +176,10 @@ export const PRIVATE_COPY = {
   chatSend: "Trimite răspunsul",
   chatInputLabel: "Scrie asistentului",
   /** `Estimator.tsx` → `SUMMARY.title`, shown once the dialog reaches `finish`. */
+  /* Two different strings, deliberately: the heading rendered on SCREEN, and the one the
+     message carries. buildMessage() shouts its section headers, the UI does not. */
   summaryTitle: "Rezumatul cererii",
+  summaryPayloadTitle: "REZUMATUL CERERII",
   /** `Estimator.tsx` → the shared opening of every `CLARIFY_Q` variant. */
   clarifyPrefix: "Ca să înțeleg mai bine",
   /** `components/ui/DictationButton.tsx` → `COPY.startAria` / `COPY.stopAria`. */
@@ -235,6 +238,190 @@ export async function focusIsInsideDialog(page: Page): Promise<boolean> {
     const active = document.activeElement;
     return !!dialog && !!active && (dialog === active || dialog.contains(active));
   });
+}
+
+// --- the stepped request flow --------------------------------------------------------------
+
+/*
+ * The restructured request flow: three steps on ONE column — choose the project, choose what
+ * it should contain, fill in the contact details — with the conversational assistant reduced
+ * to an OPTIONAL panel behind a toggle.
+ *
+ * Everything below addresses the flow through the contract the flow's own markup declares
+ * (`data-testid` / `data-step` / `aria-current`), never through copy or CSS-module class
+ * names: the copy is trilingual and the styles are being rewritten in the same change.
+ */
+
+/** The flow's root. `data-layout` says whether it is the dialog or the home-page section. */
+export const requestFlow = (root: Page | Locator): Locator =>
+  root.locator('[data-testid="request-flow"]');
+
+/** The three steps, in the order the client asked for them. */
+export const REQUEST_STEPS = ["project", "options", "contact"] as const;
+export type RequestStep = (typeof REQUEST_STEPS)[number];
+
+/**
+ * The step PANELS — every `[data-step]` that is not an item of the step indicator.
+ *
+ * The indicator is allowed to key its own items by `data-step` too, so an unqualified
+ * `[data-step="contact"]` could match two very different things: the panel holding the
+ * contact fields, and the little dot that points at it. `:not(<indicator> *)` keeps
+ * "which step is on screen" a question about panels only.
+ */
+export const stepPanels = (flow: Locator): Locator =>
+  flow.locator('[data-step]:not([data-testid="request-steps"] *)');
+
+/** One step panel. */
+export const stepPanel = (flow: Locator, step: RequestStep): Locator =>
+  flow.locator(`[data-step="${step}"]:not([data-testid="request-steps"] *)`);
+
+/** The progress indicator above the steps. */
+export const requestSteps = (flow: Locator): Locator =>
+  flow.locator('[data-testid="request-steps"]');
+
+/** The indicator item the flow marks as current — the assistive-tech half of `data-active`. */
+export const currentStepItem = (flow: Locator): Locator =>
+  requestSteps(flow).locator('[aria-current="step"]');
+
+/** Every step panel currently marked active. Exactly one, once the flow has mounted. */
+export const activeStepPanels = (flow: Locator): Locator =>
+  stepPanels(flow).and(flow.locator('[data-active="true"]'));
+
+/** Which step is active right now, or `null` before the flow has mounted. */
+export async function activeStep(flow: Locator): Promise<string | null> {
+  const active = activeStepPanels(flow);
+  if ((await active.count()) === 0) return null;
+  return active.first().getAttribute("data-step");
+}
+
+/** Wait until `step` is the active one, failing with the step that is actually showing. */
+export async function expectActiveStep(flow: Locator, step: RequestStep): Promise<void> {
+  await expect
+    .poll(() => activeStep(flow), { message: `the "${step}" step should be active` })
+    .toBe(step);
+  // Exactly one panel at a time — "one step on screen" is the whole point of the redesign.
+  await expect(
+    activeStepPanels(flow),
+    "exactly one step may be active at a time",
+  ).toHaveCount(1);
+}
+
+/*
+ * CONTRACT GAP: the brief names the container, the steps, the indicator and the chat toggle,
+ * but never names the control that MOVES between steps. Rather than guess one label, the
+ * helper below tries, in order:
+ *   1. an explicit hook — `[data-testid="request-next"]` / `[data-nav="next"]`;
+ *   2. the Romanian wording such a button plausibly carries;
+ *   3. the step indicator itself, if its items are buttons.
+ * Whichever the implementation picked, the specs keep working. If it picked none of them,
+ * the failure message says so instead of dying on a missing locator.
+ */
+const NAV_LABEL: Record<"next" | "back", RegExp> = {
+  next: /^(continu[ăa]|mai departe|urm[ăa]torul|pasul urm[ăa]tor|[îi]nainte|pas nou)/i,
+  back: /^([îi]napoi|pasul anterior|precedent)/i,
+};
+
+/** Click whatever moves the flow one step in `dir`. Returns false if nothing could be found. */
+async function clickStepNav(flow: Locator, dir: "next" | "back"): Promise<boolean> {
+  const hook = flow.locator(`[data-testid="request-${dir}"], [data-nav="${dir}"]`);
+  if (await hook.count()) {
+    await hook.first().click();
+    return true;
+  }
+  const named = flow.getByRole("button", { name: NAV_LABEL[dir] });
+  if (await named.count()) {
+    await named.first().click();
+    return true;
+  }
+  return false;
+}
+
+/** Click the indicator item for `step`, when the indicator is navigable. */
+async function clickStepIndicator(flow: Locator, step: RequestStep): Promise<boolean> {
+  const item = requestSteps(flow).locator(`[data-step="${step}"]`);
+  const button = item.locator("xpath=self::button | .//button").first();
+  const target = (await button.count()) ? button : item;
+  if (!(await target.count()) || !(await target.first().isEnabled().catch(() => false))) {
+    return false;
+  }
+  await target.first().click();
+  return true;
+}
+
+/**
+ * Walk the flow to `step`, whichever direction that is from where it stands now.
+ *
+ * Deliberately a walk and not a jump: going "project → contact" has to pass through
+ * "options", which is exactly what a visitor does, and what a test that asserted nothing
+ * about the intermediate step would stop guarding.
+ */
+export async function goToStep(flow: Locator, step: RequestStep): Promise<void> {
+  for (let hop = 0; hop <= REQUEST_STEPS.length; hop += 1) {
+    const current = (await activeStep(flow)) as RequestStep | null;
+    if (current === step) {
+      await expectActiveStep(flow, step);
+      return;
+    }
+    expect(current, "the flow should have an active step").not.toBeNull();
+    const dir =
+      REQUEST_STEPS.indexOf(current!) < REQUEST_STEPS.indexOf(step) ? "next" : "back";
+    const moved = (await clickStepNav(flow, dir)) || (await clickStepIndicator(flow, step));
+    expect(
+      moved,
+      `no control moves the flow ${dir} from "${current}" — the flow needs a ` +
+        `[data-testid="request-${dir}"] hook, a button named like /${NAV_LABEL[dir].source}/, ` +
+        `or a navigable step indicator`,
+    ).toBe(true);
+    await expect
+      .poll(() => activeStep(flow), { message: `the flow did not move ${dir}` })
+      .not.toBe(current);
+  }
+  throw new Error(`the flow never reached the "${step}" step`);
+}
+
+/** Take one step back, asserting the flow actually moved. */
+export async function goBackOneStep(flow: Locator): Promise<void> {
+  const before = (await activeStep(flow)) as RequestStep;
+  const moved = await clickStepNav(flow, "back");
+  expect(moved, `nothing takes the flow back from "${before}"`).toBe(true);
+  await expect.poll(() => activeStep(flow)).not.toBe(before);
+}
+
+/** The optional assistant's switch. Its `aria-expanded` is the state a screen reader hears. */
+export const chatToggle = (flow: Locator): Locator =>
+  flow.locator('[data-testid="chat-toggle"]');
+
+/** The assistant's panel. Absent from the DOM until the toggle is pressed. */
+export const chatPanel = (flow: Locator): Locator =>
+  flow.locator('[data-testid="chat-panel"]');
+
+/** Turn the assistant on and wait for its panel. */
+export async function openChat(flow: Locator): Promise<Locator> {
+  await chatToggle(flow).click();
+  const panel = chatPanel(flow);
+  await expect(panel).toBeVisible();
+  await expect(chatToggle(flow)).toHaveAttribute("aria-expanded", "true");
+  return panel;
+}
+
+/** The contact fields, located by shape rather than by their trilingual placeholder copy. */
+export const flowFields = (flow: Locator) => ({
+  /* The name input is the only one in the form with no explicit `type`. */
+  name: flow.locator('input:not([type]), input[type="text"]').first(),
+  email: flow.locator('input[type="email"]'),
+  phone: flow.locator('input[type="tel"]'),
+  submit: flow.getByRole("button", { name: PRIVATE_COPY.estimatorSubmit, exact: true }),
+});
+
+/** Fill the contact step with a plausible lead. The request is stubbed; nothing is sent. */
+export async function fillContactStep(
+  flow: Locator,
+  lead: { name: string; email: string; phone?: string },
+): Promise<void> {
+  const f = flowFields(flow);
+  await f.name.fill(lead.name);
+  await f.email.fill(lead.email);
+  if (lead.phone) await f.phone.fill(lead.phone);
 }
 
 // --- the estimator's chat ----------------------------------------------------------------

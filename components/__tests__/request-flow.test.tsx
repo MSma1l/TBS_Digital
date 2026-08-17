@@ -137,15 +137,29 @@ async function openFrom(
 ): Promise<HTMLElement> {
   await user.click(screen.getAllByRole("button", { name: label })[0]);
   /* By NAME: the dialog takes its accessible name from its own heading, and that is what
-     a screen reader announces. (`getByRole("heading", …)` would be ambiguous — the
-     estimator section inside carries the same title.) */
+     a screen reader announces. */
   const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-  await within(dialog).findByRole("button", { name: /Trimite cererea/ });
+  /* The flow is code-split, so wait for its container rather than for any one control:
+     inside the dialog the flow is stepped, and only the current step is on screen. */
+  await within(dialog).findByTestId("request-flow");
   return dialog;
+}
+
+/** Walk to the contact step the way a visitor does — the third step of the dialog flow. */
+async function toContactStep(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+) {
+  await user.click(
+    within(within(dialog).getByTestId("request-steps")).getByRole("button", {
+      name: /Datele tale/,
+    }),
+  );
 }
 
 /** Fill the two required fields inside the dialog and send the request. */
 async function sendFrom(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
+  await toContactStep(user, dialog);
   await user.type(within(dialog).getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(within(dialog).getByPlaceholderText(EMAIL_PH), "ion@example.com");
   await user.click(within(dialog).getByRole("button", { name: /Trimite cererea/ }));
@@ -379,6 +393,8 @@ describe("the context the CTA was pressed in travels with the request", () => {
     renderHome();
 
     const dialog = await openFrom(user, CTA.hero);
+    /* In the dialog the assistant is opened on request, so this asks for it first. */
+    await user.click(within(dialog).getByTestId("chat-toggle"));
     /* Nothing here exceeds what a visitor may actually enter — the chat turn stays under
        its 1000-character limit and the details field under its 4000 — yet together they
        overflow the API's 5000-character message. `fireEvent`, not `user.type`: thousands
@@ -387,6 +403,7 @@ describe("the context the CTA was pressed in travels with the request", () => {
       target: { value: "descriere ".repeat(90) },
     });
     await user.click(within(dialog).getByRole("button", { name: "Trimite răspunsul" }));
+    await toContactStep(user, dialog);
     fireEvent.change(within(dialog).getByPlaceholderText(DETAILS_PH), {
       target: { value: "detaliu ".repeat(495) },
     });
