@@ -47,6 +47,19 @@ commit that makes the change. Nothing ships undocumented.
 Restul (mobil 500 · dashboard 200 · bot 100 · IA 150 · custom 500) rămân cum le-a pus
 proprietarul. Corectat și un spațiu dublu în prețul serviciului `ai`.
 
+
+**Fixed** — prețul real e acum și în HTML-ul livrat de server
+
+Prima verificare în producție a arătat că pagina venea în continuare cu **€3.000**: conținutul
+din admin se încarcă abia după hidratare, iar SSR-ul folosea semințele din cod, unde prețurile
+erau `"..."` — deci cădea pe rezerva din estimator. Vizitatorul ar fi văzut €3.000 preț de o
+clipă, iar cu JS lent ar fi rămas așa. Semințele din `lib/content.ts` și `backend/app/defaults.py`
+poartă acum prețurile reale, deci și primul byte e corect, și o instalare nouă pornește corect.
+Baza de date rămâne sursa de adevăr — semințele doar nu o mai contrazic.
+
+Testele nu mai codifică cifre: derivă prețul așteptat din sămânță, în toate cele patru fișiere
+(3 unitare + `e2e/modal.spec.ts`). O repreciere nu mai face suita roșie fără motiv.
+
 **Fixed** — o scurgere între teste
 
 `SiteContentProvider` cachează ultimul răspuns bun în `localStorage`, deci un test care

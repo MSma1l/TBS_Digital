@@ -75,6 +75,12 @@ import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestSection } from "@/components/sections/RequestSection";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { SiteContentProvider } from "@/lib/siteContent";
+import { services as seededServices } from "@/lib/content";
+
+/* The estimator shows the OWNER's price (seeded in lib/content.ts, overridden by the admin).
+   Deriving the expectation keeps this test about the wiring, not about a figure. */
+const seededPrice = (serviceId: string) =>
+  seededServices.find((s) => s.id === serviceId)!.price.ro;
 import { messages } from "@/lib/i18n/messages";
 import { LIMITS } from "@/lib/validation";
 
@@ -167,7 +173,7 @@ describe("every commercial CTA opens the one request flow", () => {
 
     expect(dialog).toHaveAttribute("aria-modal", "true");
     // The real flow mounted inside, not a placeholder: the estimator's own price is there.
-    expect(within(dialog).getByText(/€3\.000/)).toBeInTheDocument();
+    expect(within(dialog).getByText(seededPrice("site"))).toBeInTheDocument();
   });
 
   it("opens it from the bottom CTA", async () => {
@@ -310,9 +316,9 @@ describe("the context the CTA was pressed in travels with the request", () => {
 
     const dialog = await openFrom(user, CTA.servicePage);
     // The estimator's e-commerce type — its price is what proves the preselection
-    // (the web default would read €3.000).
-    expect(within(dialog).getByText(/€6\.000/)).toBeInTheDocument();
-    expect(within(dialog).queryByText(/€3\.000/)).toBeNull();
+    // (the web default would read the `site` price).
+    expect(within(dialog).getByText(seededPrice("shop"))).toBeInTheDocument();
+    expect(within(dialog).queryByText(seededPrice("site"))).toBeNull();
   });
 
   it("names the service and the CTA in the message that is sent", async () => {
@@ -407,7 +413,7 @@ describe("the estimator's own buttons never open a dialog", () => {
     expect(dialogs()).toHaveLength(0);
     expect(play).not.toHaveBeenCalled();
     // The chip really did what it has always done — the estimate followed the CRM type.
-    expect(screen.getByText(/€8\.000/)).toBeInTheDocument();
+    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
     // An invalid form still doesn't reach the network; the submit button is unchanged.
     expect(api.submitContact).not.toHaveBeenCalled();
   });

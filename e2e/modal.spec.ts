@@ -1,5 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { solUI } from "@/lib/solutions";
+import { services as seededServices } from "@/lib/content";
+
+/* The dialog shows the OWNER's price for the service it was opened from — seeded in
+   lib/content.ts and overridable from the admin. Asserting a derived value keeps this test
+   about the preselection wiring; a repricing should not turn it red. */
+const price = (serviceId: string) =>
+  seededServices.find((s) => s.id === serviceId)!.price.ro;
 import {
   PRIVATE_COPY,
   chatInput,
@@ -241,20 +248,20 @@ test.describe("request modal", () => {
       .toBe(before);
   });
 
-  test("the service is preselected: e-commerce opens on €6.000", async ({ page }) => {
+  test("the service is preselected: e-commerce opens on the shop price", async ({ page }) => {
     await gotoHydrated(page, ECOMMERCE_PAGE);
     const dialog = await openRequestModal(page);
 
-    await expect(dialog.getByText(/€6\.000/)).toBeVisible();
-    await expect(dialog.getByText(/€3\.000/)).toHaveCount(0);
+    await expect(dialog.getByText(price("shop"))).toBeVisible();
+    await expect(dialog.getByText(price("site"))).toHaveCount(0);
   });
 
-  test("the service is preselected: produs-digital opens on €3.000", async ({ page }) => {
+  test("the service is preselected: produs-digital opens on the site price", async ({ page }) => {
     await gotoHydrated(page, PRODUCT_PAGE);
     const dialog = await openRequestModal(page);
 
-    await expect(dialog.getByText(/€3\.000/)).toBeVisible();
-    await expect(dialog.getByText(/€6\.000/)).toHaveCount(0);
+    await expect(dialog.getByText(price("site"))).toBeVisible();
+    await expect(dialog.getByText(price("shop"))).toHaveCount(0);
   });
 
   test("the second CTA at the bottom of the page opens the same preselected flow", async ({
@@ -265,7 +272,7 @@ test.describe("request modal", () => {
     await page.getByRole("button", { name: solUI.start.ro, exact: true }).click();
     const dialog = modalDialog(page);
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText(/€6\.000/)).toBeVisible();
+    await expect(dialog.getByText(price("shop"))).toBeVisible();
   });
 
   test.describe("on a 390px phone", () => {

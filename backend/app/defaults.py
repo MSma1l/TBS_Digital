@@ -16,13 +16,39 @@ from .schemas import (
     Social,
     Stat,
     TeamMember,
-    PRICE_PLACEHOLDER,
 )
 
 
 def _l(ro: str, ru: str, en: str) -> LocalizedText:
     """A fully translated seed field (RO is the source and the render-time fallback)."""
     return LocalizedText(ro=ro, ru=ru, en=en)
+
+
+def _from_price(eur: int) -> LocalizedText:
+    """The owner's "starting at" phrasing, in all three languages.
+
+    Prices used to seed as the "..." placeholder. The admin overrides them, but the seed is
+    what the SERVER renders before the store has loaded — and a placeholder there meant the
+    estimator briefly showed its own built-in figure instead of the real one. Keep these in
+    step with `lib/content.ts::services`.
+    """
+    return LocalizedText(ro=f"de la {eur}€", ru=f"от {eur}€", en=f"from {eur}€")
+
+
+# id -> starting price in EUR, mirroring the database.
+_PRICES = {
+    "landing": 150,
+    "site": 150,
+    "shop": 550,
+    "mobile": 500,
+    "crm": 450,
+    "saas": 450,
+    "automation": 150,
+    "dashboard": 200,
+    "bot": 100,
+    "ai": 150,
+    "custom": 500,
+}
 
 _SERVICES = [
     ("landing", "Landing page", "Pagini rapide care transformă vizitatorii în clienți."),
@@ -313,19 +339,19 @@ def default_projects() -> list[Project]:
 
 def default_content() -> SiteContent:
     services = [
-        Service(id=sid, name=name, desc=desc, price=PRICE_PLACEHOLDER)
+        Service(id=sid, name=name, desc=desc, price=_from_price(_PRICES[sid]))
         for sid, name, desc in _SERVICES
     ]
     # estimator-only option (no /03 card) — kept between "bot" and "custom"
     services.append(
-        Service(id="ai", name="Automatizare cu IA", desc="", price=PRICE_PLACEHOLDER, estimatorOnly=True)
+        Service(id="ai", name="Automatizare cu IA", desc="", price=_from_price(_PRICES["ai"]), estimatorOnly=True)
     )
     services.append(
         Service(
             id="custom",
             name="Software personalizat",
             desc="Construit exact pe nevoile și fluxurile afacerii tale.",
-            price=PRICE_PLACEHOLDER,
+            price=_from_price(_PRICES["custom"]),
         )
     )
 

@@ -120,29 +120,44 @@ export const statPlaceholders: { id: string }[] = [
    admin sets it. */
 /** Build a service's trilingual defaults from the message catalog. The service `id`
  *  is the catalog key segment, so `name`/`desc` come from `services.<id>.name|desc`. */
+/** "de la 150€" / "от 150€" / "from 150€" — the phrasing the admin also uses, so a seeded
+ *  price and an edited one read identically. */
+const fromPrice = (eur: number): LocalizedText => ({
+  ro: `de la ${eur}€`,
+  ru: `от ${eur}€`,
+  en: `from ${eur}€`,
+});
+
 const service = (
   id: string,
+  eur: number,
   extra?: Partial<Pick<Service, "estimatorOnly">>,
 ): Service => ({
   id,
   name: locFromCatalog(`services.${id}.name` as MessageKey),
   desc: locFromCatalog(`services.${id}.desc` as MessageKey),
-  price: pricePlaceholder(),
+  price: eur > 0 ? fromPrice(eur) : pricePlaceholder(),
   ...extra,
 });
 
+/* The owner's real prices, mirroring what is in the database.
+ *
+ * These are the SEED, not the source of truth — the admin overrides them and the site renders
+ * whatever the store returns. They matter anyway: the server renders before the store has
+ * loaded, so a placeholder here meant the visitor briefly read the estimator's built-in
+ * "€3.000" for a site sold from 150€. Keep them in step with `backend/app/defaults.py`. */
 export const services: Service[] = [
-  service("landing"),
-  service("site"),
-  service("shop"),
-  service("mobile"),
-  service("crm"),
-  service("saas"),
-  service("automation"),
-  service("dashboard"),
-  service("bot"),
-  service("ai", { estimatorOnly: true }),
-  service("custom"),
+  service("landing", 150),
+  service("site", 150),
+  service("shop", 550),
+  service("mobile", 500),
+  service("crm", 450),
+  service("saas", 450),
+  service("automation", 150),
+  service("dashboard", 200),
+  service("bot", 100),
+  service("ai", 150, { estimatorOnly: true }),
+  service("custom", 500),
 ];
 
 /* ---------- /04 Selected work ----------

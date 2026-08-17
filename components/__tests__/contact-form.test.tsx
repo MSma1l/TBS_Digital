@@ -53,6 +53,12 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Estimator, type EstimatorProps } from "@/components/sections/Estimator";
 import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
+import { services as seededServices } from "@/lib/content";
+
+/* The estimator shows the OWNER's price. Deriving the expectation from the seed keeps these
+   tests honest when a price changes: they assert the wiring, not a figure someone typed. */
+const seededPrice = (serviceId: string) =>
+  seededServices.find((s) => s.id === serviceId)!.price.ro;
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
@@ -127,27 +133,28 @@ describe("arriving from a service page", () => {
     mockSearch = "serviciu=e-commerce";
     renderForm();
 
-    // The proposal price is the visible proof of which type is active.
-    expect(screen.getByText(/€6\.000/)).toBeInTheDocument();
+    // The proposal price is the visible proof of which type is active — and it is the
+    // owner's price for the `shop` service, not a figure baked into the estimator.
+    expect(screen.getByText(seededPrice("shop"))).toBeInTheDocument();
 
     await fillValid(user);
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(api.submitContact).toHaveBeenCalledWith(
-      expect.objectContaining({ project: "E-commerce", estimate: "de la €6.000" }),
+      expect.objectContaining({ project: "E-commerce", estimate: seededPrice("shop") }),
     );
   });
 
   it("maps the AI assistants direction onto automation", () => {
     mockSearch = "serviciu=asistenti-ia";
     renderForm();
-    expect(screen.getByText(/€5\.000/)).toBeInTheDocument();
+    expect(screen.getByText(seededPrice("automation"))).toBeInTheDocument();
   });
 
   it("falls back to the first type for an unknown or absent service", () => {
     mockSearch = "serviciu=habar-n-am";
     renderForm();
-    expect(screen.getByText(/€3\.000/)).toBeInTheDocument();
+    expect(screen.getByText(seededPrice("site"))).toBeInTheDocument();
   });
 });
 
@@ -243,7 +250,7 @@ describe("submit — the request actually leaves", () => {
         email: "ion@example.com",
         phone: "+373 600 00 000",
         project: "Site / prezentare",
-        estimate: "de la €3.000",
+        estimate: seededPrice("site"),
       }),
     );
   });
@@ -598,8 +605,16 @@ describe("the price is the owner's, not the code's", () => {
     );
   });
 
-  it("falls back to the built-in price while a service is still on the placeholder", async () => {
-    // The bundled defaults ship "..." for every price; that must never reach the visitor.
+  it("falls back to the built-in price rather than showing the placeholder", async () => {
+    // A service whose price the owner has not filled in yet still carries "...". That is a
+    // stand-in for an empty field, not a price, and must never reach the visitor.
+    vi.mocked(api.fetchContent).mockResolvedValue({
+      ...defaultSiteData,
+      services: defaultSiteData.services.map((s) =>
+        s.id === "site" ? { ...s, price: { ro: "...", ru: "...", en: "..." } } : s,
+      ),
+    });
+
     renderForm();
 
     expect(await screen.findByText("de la €3.000")).toBeInTheDocument();

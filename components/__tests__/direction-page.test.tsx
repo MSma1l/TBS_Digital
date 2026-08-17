@@ -23,6 +23,12 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { projects as defaultProjects } from "@/lib/content";
+import { services as seededServices } from "@/lib/content";
+
+/* The estimator shows the OWNER's price (seeded in lib/content.ts, overridden by the admin).
+   Deriving the expectation keeps this test about the wiring, not about a figure. */
+const seededPrice = (serviceId: string) =>
+  seededServices.find((s) => s.id === serviceId)!.price.ro;
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
@@ -65,7 +71,7 @@ describe("action bar", () => {
     expect(
       await within(dialog).findByRole("button", { name: /Trimite cererea/ }),
     ).toBeInTheDocument();
-    expect(within(dialog).getByText(/€3\.000/)).toBeInTheDocument();
+    expect(within(dialog).getByText(seededPrice("site"))).toBeInTheDocument();
   });
 
   it("offers the projects action, pointing at the section on this same page", () => {
@@ -104,7 +110,7 @@ describe("action bar", () => {
     const dialog = await screen.findByRole("dialog");
     // The estimator's e-commerce project type — its price is what proves the preselection.
     // Awaited for the same reason as above: the flow inside the dialog is code-split.
-    expect(await within(dialog).findByText(/€6\.000/)).toBeInTheDocument();
+    expect(await within(dialog).findByText(seededPrice("shop"))).toBeInTheDocument();
   });
 
   it("drops the projects action (and the section) for a direction with no real work", () => {
