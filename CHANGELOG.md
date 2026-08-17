@@ -16,6 +16,51 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-17 — Prețurile din admin sunt cele afișate
+
+**Fixed** — prețul pe care îl vedea vizitatorul nu era al proprietarului
+
+- `Services.tsx` e singura componentă care randează `service.price`, și **nu e pe nicio
+  pagină** — deci toate cele 11 prețuri editate din admin erau invizibile. Singurul preț vizibil
+  era cel din estimator, **hardcodat în cod**. Cele două ajunseseră să difere de **20 de ori**:
+  ecranul spunea „€3.000" pentru un site pe care proprietarul îl vinde de la **150€**.
+- Estimatorul citește acum prețul din `useSiteContent().services`. Maparea e scrisă explicit
+  (`SERVICE_FOR_TYPE`) — cinci tipuri față de unsprezece servicii, iar `ecommerce` este `shop`,
+  deci nu se putea ghici din nume. Prețul din admin se afișează **verbatim**, fiindcă include
+  deja „de la" / „от" / „from"; cel din cod rămâne doar ca rezervă și primește prefixul.
+- Un serviciu lipsă sau rămas pe placeholder-ul `...` cade pe rezervă — **„..." nu ajunge
+  niciodată la vizitator**.
+- Câmpul `estimate` din cererea trimisă poartă acum **exact șirul afișat pe ecran**, nu cifra
+  goală: echipa primește ce a văzut clientul.
+
+**Changed** — prețuri reale în producție (scrise în baza de date, nu în cod)
+
+| Serviciu | Înainte | Acum |
+|---|---|---|
+| Landing page | 250€ | **150€** |
+| Site web / prezentare | 400€ | **150€** |
+| Magazin online | 650€ | **550€** |
+| Platformă SaaS | 500€ | **450€** |
+| CRM personalizat | 450€ | 450€ |
+| Automatizare procese | 150€ | 150€ |
+
+Restul (mobil 500 · dashboard 200 · bot 100 · IA 150 · custom 500) rămân cum le-a pus
+proprietarul. Corectat și un spațiu dublu în prețul serviciului `ai`.
+
+**Fixed** — o scurgere între teste
+
+`SiteContentProvider` cachează ultimul răspuns bun în `localStorage`, deci un test care
+rezolva prețuri reale le lăsa în cache pentru următorul test „offline". `contact-form.test.tsx`
+curăță acum cache-ul în `beforeEach`.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **305 passed / 0 failed** (+2) |
+| `npx playwright test --workers=1` | **144 passed / 0 failed** |
+| `npm run lint` · `npx tsc --noEmit` · `npm run build` | curate |
+
 ## 2026-08-17 — Un singur flux de cerere + audit complet de mobil
 
 **Changed** — toate CTA-urile comerciale deschid același modal

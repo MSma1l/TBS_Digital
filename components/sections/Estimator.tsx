@@ -7,6 +7,7 @@ import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { submitContact, isNetworkError, ApiError } from "@/lib/api";
 import { validateText, LIMITS } from "@/lib/validation";
+import { useSiteContent } from "@/lib/siteContent";
 import { SERVICE_QUERY_KEY, SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
 import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 import styles from "./Estimator.module.css";
@@ -132,6 +133,26 @@ const PROJECT_TYPES: PType[] = [
   { id: "ecommerce", label: L("E-commerce", "E-commerce", "E-commerce"), price: "€6.000" },
   { id: "mobile", label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), price: "€12.000" },
 ];
+
+/**
+ * Estimator type -> the service whose price the admin edits.
+ *
+ * The prices below are a FALLBACK only. What the visitor sees comes from the admin
+ * (`useSiteContent().services`), because the two were drifting badly: the estimator showed
+ * "€3.000" for a site while the owner had it priced at 150€ in the panel, and the panel's
+ * numbers were rendered nowhere at all — `Services` is not on any page. A price the owner
+ * cannot change is a price that goes stale.
+ *
+ * The estimator has five types and the catalogue has eleven services, so the pairing is
+ * written out rather than guessed: `ecommerce` is the `shop` service, the rest share a name.
+ */
+const SERVICE_FOR_TYPE: Record<string, string> = {
+  site: "site",
+  crm: "crm",
+  automation: "automation",
+  ecommerce: "shop",
+  mobile: "mobile",
+};
 
 const OPTIONS: LocalizedText[] = [
   L("+ Design premium", "+ Премиум-дизайн", "+ Premium design"),
@@ -471,6 +492,8 @@ export function Estimator({
   const { serviceSlug, projectId, projectName, source } = context ?? {};
   const l = useLoc();
   const t = useT();
+  /* Prices are the owner's, edited in the admin — see SERVICE_FOR_TYPE. */
+  const { services } = useSiteContent();
   /* `useT` is keyed by MessageKey; validateText takes a looser (key: string) => string.
      Wrapping keeps the catalog's typed keys everywhere except this one boundary. */
   const tr = (key: string) => t(key as Parameters<typeof t>[0]);
@@ -502,7 +525,17 @@ export function Estimator({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const sent = status === "sent";
 
-  const price = `${l(SECTION.from)} ${PROJECT_TYPES[typeIndex].price}`;
+  /* The admin's price already reads "de la 150€" / "от 150€" / "from 150€", so it is shown
+     as written. Only the built-in fallback needs the "de la" prefix glued on. A service that
+     is missing, or still on the "..." placeholder, falls back rather than showing "...". */
+  const adminPrice = services.find(
+    (sv) => sv.id === SERVICE_FOR_TYPE[PROJECT_TYPES[typeIndex].id],
+  )?.price;
+  const adminPriceText = adminPrice ? l(adminPrice).trim() : "";
+  const priceIsReal = adminPriceText !== "" && !adminPriceText.startsWith("...");
+  const price = priceIsReal
+    ? adminPriceText
+    : `${l(SECTION.from)} ${PROJECT_TYPES[typeIndex].price}`;
 
   const done = node === "finish";
   const current = done ? null : TREE[node];
@@ -733,7 +766,7 @@ export function Estimator({
         phone: phone.trim(),
         message: buildMessage(),
         project: l(PROJECT_TYPES[typeIndex].label),
-        estimate: PROJECT_TYPES[typeIndex].price,
+        estimate: price,
       });
       setStatus("sent");
     } catch (err) {

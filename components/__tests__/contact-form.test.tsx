@@ -52,7 +52,7 @@ vi.mock("@/lib/api", () => ({
 
 import * as api from "@/lib/api";
 import { Estimator, type EstimatorProps } from "@/components/sections/Estimator";
-import { SiteContentProvider } from "@/lib/siteContent";
+import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
@@ -101,6 +101,9 @@ async function fillValid(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   mockSearch = "";
+  /* SiteContentProvider caches the last good payload in localStorage, so without this a
+     test that resolved real prices would leak them into the next test's "offline" run. */
+  window.localStorage.clear();
   // The provider fetches content on mount; reject so it keeps the bundled defaults.
   vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
   vi.mocked(api.isNetworkError).mockReturnValue(false);
@@ -131,7 +134,7 @@ describe("arriving from a service page", () => {
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(api.submitContact).toHaveBeenCalledWith(
-      expect.objectContaining({ project: "E-commerce", estimate: "€6.000" }),
+      expect.objectContaining({ project: "E-commerce", estimate: "de la €6.000" }),
     );
   });
 
@@ -240,7 +243,7 @@ describe("submit — the request actually leaves", () => {
         email: "ion@example.com",
         phone: "+373 600 00 000",
         project: "Site / prezentare",
-        estimate: "€3.000",
+        estimate: "de la €3.000",
       }),
     );
   });
@@ -557,5 +560,49 @@ describe("dictation slot — mounted by another component", () => {
     await user.click(mic);
 
     expect(screen.getByLabelText(CHAT_LABEL)).toHaveValue("dictat");
+  });
+});
+
+/**
+ * Where the price comes from.
+ *
+ * The estimator used to show five hardcoded prices while the owner edited eleven service
+ * prices in the admin that were rendered nowhere — `Services` is on no page. The two drifted
+ * to a factor of twenty: "€3.000" on screen for a site the owner priced at 150€. The number
+ * the visitor sees is now the owner's, and the built-in one is only a fallback.
+ */
+describe("the price is the owner's, not the code's", () => {
+  it("shows the admin price instead of the built-in one", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.fetchContent).mockResolvedValue({
+      ...defaultSiteData,
+      services: defaultSiteData.services.map((s) =>
+        s.id === "site"
+          ? { ...s, price: { ro: "de la 150€", ru: "от 150€", en: "from 150€" } }
+          : s,
+      ),
+    });
+
+    renderForm();
+
+    // The owner's string is rendered verbatim — it already carries its own "de la".
+    expect(await screen.findByText("de la 150€")).toBeInTheDocument();
+    expect(screen.queryByText(/€3\.000/)).not.toBeInTheDocument();
+
+    await fillValid(user);
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    // And the team receives exactly what was on screen.
+    expect(api.submitContact).toHaveBeenCalledWith(
+      expect.objectContaining({ estimate: "de la 150€" }),
+    );
+  });
+
+  it("falls back to the built-in price while a service is still on the placeholder", async () => {
+    // The bundled defaults ship "..." for every price; that must never reach the visitor.
+    renderForm();
+
+    expect(await screen.findByText("de la €3.000")).toBeInTheDocument();
+    expect(screen.queryByText("...")).not.toBeInTheDocument();
   });
 });
