@@ -5,6 +5,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Navbar } from "@/components/layout/Navbar";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 import {
   THEME_COOKIE,
@@ -30,7 +31,9 @@ function savedChoice(): ThemeChoice {
 /**
  * Renders the navbar the way the app does: the theme provider seeded with the choice the
  * server read from the cookie, and — for an explicit choice — `data-theme` already on
- * `<html>`, exactly as the server-rendered markup and the inline script leave it.
+ * `<html>`, exactly as the server-rendered markup and the inline script leave it. The
+ * request-flow provider is there for the same reason: the navbar's red CTA opens the site's
+ * one shared dialog through it (`app/layout.tsx` mounts it above every page).
  */
 function renderNav({
   choice = "system" as ThemeChoice,
@@ -40,7 +43,9 @@ function renderNav({
   return render(
     <ThemeProvider initialChoice={choice}>
       <LanguageProvider initialLocale={locale}>
-        <Navbar />
+        <RequestFlowProvider>
+          <Navbar />
+        </RequestFlowProvider>
       </LanguageProvider>
     </ThemeProvider>,
   );

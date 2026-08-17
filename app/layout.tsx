@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
 import { Archivo, JetBrains_Mono, Manrope, Montserrat } from "next/font/google";
 import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
@@ -81,6 +82,24 @@ async function resolveUrlLocale(): Promise<Locale> {
 // hreflang are built from the locale-stripped path proxy.ts exposes as `x-pathname`, so
 // every route — home and the legal pages — gets a correct self-canonical and full
 // ro/ru/en + x-default alternates. `messages` is plain data, safe to import server-side.
+/**
+ * `interactive-widget=resizes-content` is the point of this export.
+ *
+ * When the on-screen keyboard opens, iOS and Android do NOT shrink the layout viewport by
+ * default — they pan it. Anything `position: fixed` (the request dialog) therefore keeps its
+ * full height behind the keyboard, and the input the visitor is typing into can end up under
+ * it. `dvh` does not help: it tracks the URL bar, not the keyboard. This tells the browser to
+ * resize the content instead, so the dialog shortens and its own internal scroll keeps the
+ * focused field on screen.
+ *
+ * The rest are Next's defaults, restated because declaring `viewport` replaces them.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const contentLocale = await resolveContentLocale();
   const urlLocale = await resolveUrlLocale();
@@ -225,7 +244,15 @@ export default async function RootLayout({
         <ThemeProvider initialChoice={themeChoice}>
           <SoundProvider initialChoice={soundChoice}>
             <LanguageProvider initialLocale={locale}>
-              <SiteContentProvider>{children}</SiteContentProvider>
+              <SiteContentProvider>
+                {/* The site's ONE request dialog. Mounted here, above every page, so each
+                    commercial CTA can call `openRequest()` instead of rendering a dialog of
+                    its own — a page with four CTAs would otherwise ship four dialogs, four
+                    focus traps and four scroll locks. Inside the language provider because
+                    the dialog's own copy is localized; the flow itself is code-split and
+                    nothing of it loads until a CTA is pressed. */}
+                <RequestFlowProvider>{children}</RequestFlowProvider>
+              </SiteContentProvider>
             </LanguageProvider>
           </SoundProvider>
         </ThemeProvider>

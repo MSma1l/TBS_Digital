@@ -2,6 +2,7 @@
 
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import styles from "./BottomCTA.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -22,6 +23,7 @@ const COPY = {
 
 export function BottomCTA() {
   const l = useLoc();
+  const { openRequest } = useRequestFlow();
 
   return (
     <section id="contact" className={styles.section}>
@@ -31,9 +33,16 @@ export function BottomCTA() {
             <h2 className={`disp ${styles.title}`}>{l(COPY.title)}</h2>
             <p className={styles.lead}>{l(COPY.lead)}</p>
           </div>
-          <a href="#estimare" className={styles.cta}>
+          {/* Opens the request dialog rather than scrolling to `#estimare`. The estimator
+              section is still there, still reachable, still the same flow — this CTA just
+              brings it to the visitor instead of moving the visitor to it. */}
+          <button
+            type="button"
+            className={styles.cta}
+            onClick={() => openRequest({ source: "bottom-cta" })}
+          >
             {l(COPY.cta)}
-          </a>
+          </button>
         </Reveal>
       </div>
     </section>

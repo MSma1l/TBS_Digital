@@ -11,7 +11,7 @@
 }
 
 .nav {
-  padding: 13px clamp(14px, 4vw, 40px);
+  padding: 13px clamp(16px, 4vw, 40px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -72,11 +72,22 @@
   color: var(--dim);
 }
 
+/* The ONE red CTA that is deliberately not 56.8px tall.
+   Every content CTA (Hero, BottomCTA, DirectionPage, `.overlayCta` below) is 56.8px. This
+   one lives inside the sticky bar, whose whole row is 44px on a phone and ~70px on desktop;
+   at 56.8px it would either burst the bar or force the logo and the preferences group to
+   shrink around it. It is 43.4px and stays there. It is also hidden below 860px — the
+   overlay carries the full-size CTA there — so it is never a phone tap target. */
 .cta {
   text-decoration: none;
   color: #fff;
+  cursor: pointer;
   font-weight: var(--fw-bold);
   font-size: var(--fs-sm);
+  /* Explicit, because a <button> does not inherit the body's line-height the way the <a>
+     this used to be did: with the UA's `normal` the bar CTA measured 41px instead of the
+     43.4px it is drawn at. */
+  line-height: 1.55;
   letter-spacing: 0.06em;
   padding: var(--sp-3) 20px;
   border: 0;
@@ -131,17 +142,26 @@
   animation: fadeIn 0.25s ease;
 }
 
+/* 44x44, not 42x42 — this is the only way out of the mobile menu, so it is the one control
+   that must not be under the touch-target floor. */
 .overlayClose {
   position: absolute;
   top: 20px;
   right: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid var(--line2);
   color: var(--txt);
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   font-size: var(--fs-lg);
   cursor: pointer;
+}
+.overlayClose:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 .overlayLink {
@@ -153,18 +173,32 @@
 }
 
 .overlayCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   text-align: center;
   margin-top: 14px;
   color: #fff;
+  cursor: pointer;
   font-weight: var(--fw-bold);
   font-size: var(--fs-base);
+  line-height: 1.55;
   padding: var(--sp-4);
   border: 0;
   border-radius: var(--r-md);
   background: var(--grad-red);
   /* NOT --sh-red: 12px offset here vs the token's 10px. */
   box-shadow: 0 12px 24px rgba(245, 51, 63, 0.3);
+}
+
+/* The shared red-CTA focus ring — see the note on `Hero .primary`. Both of these need it
+   explicitly now that they are <button>s: the user agent ring differs between <a> and
+   <button>, so without this the five red CTAs stopped matching one another. */
+.cta:focus-visible,
+.overlayCta:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 @media (max-width: 860px) {
@@ -185,6 +219,13 @@
   /* Tighter than the desktop 20px: the row now carries three controls on a narrow screen. */
   .actions {
     gap: var(--sp-3);
+  }
+  /* The wordmark is a link to "/" and measured 45.5 x 20 — wide enough, 24px too short.
+     Both children are the same size, so `center` and `baseline` put the glyphs in exactly
+     the same place; only the anchor's box grows. */
+  .logo {
+    align-items: center;
+    min-height: 44px;
   }
 }
 
@@ -296,7 +337,12 @@
   gap: 2px;
   padding: 2px 0 10px;
 }
+/* 15px text with 9px block padding measured 41.25px — just under the floor. inline-flex +
+   min-height rounds it up without moving the 16px indent or the hairline rail. */
 .overlaySubLink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
   color: var(--mut);
   font-size: 15px;

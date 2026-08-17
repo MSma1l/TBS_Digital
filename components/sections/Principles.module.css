@@ -1,5 +1,7 @@
+/* Site-wide horizontal gutter — see the note in globals' `.section`. It was `0`, so the
+   three principle cards touched the viewport edge on every phone. */
 .section {
-  padding: clamp(40px, 6vw, 60px) 0;
+  padding: clamp(40px, 6vw, 60px) clamp(16px, 4vw, 40px);
 }
 
 .head {

@@ -10,8 +10,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-// The estimator (mounted inside the request modal) reads `?serviciu=`, which needs the App
-// Router context. The modal passes the service as a prop, so an empty stub is enough here.
+// The estimator (mounted inside the request dialog) reads `?serviciu=`, which needs the App
+// Router context. The dialog passes the service as context, so an empty stub is enough here.
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
@@ -24,6 +24,7 @@ import * as api from "@/lib/api";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { projects as defaultProjects } from "@/lib/content";
 import { DirectionPage } from "@/components/sections/DirectionPage";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
 
 beforeEach(() => {
@@ -31,10 +32,14 @@ beforeEach(() => {
   vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
 });
 
+/* Both providers `app/layout.tsx` puts above a service page: the content store, and the
+   request flow whose single dialog the page's two CTAs open. */
 function renderPage(slug: string): HTMLElement {
   const { container } = render(
     <SiteContentProvider>
-      <DirectionPage slug={slug} />
+      <RequestFlowProvider>
+        <DirectionPage slug={slug} />
+      </RequestFlowProvider>
     </SiteContentProvider>,
   );
   return container;

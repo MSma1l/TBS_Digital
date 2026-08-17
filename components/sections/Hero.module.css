@@ -10,7 +10,7 @@
   grid-template-columns: 1.05fr 0.95fr;
   gap: clamp(28px, 4vw, 46px);
   align-items: center;
-  padding: clamp(34px, 6vw, 64px) clamp(14px, 4vw, 40px) clamp(44px, 6vw, 62px);
+  padding: clamp(34px, 6vw, 64px) clamp(16px, 4vw, 40px) clamp(44px, 6vw, 62px);
 }
 
 .copy {
@@ -50,17 +50,27 @@
   margin-top: 26px;
 }
 
+/* The red CTA. It is a <button> (it opens the request dialog), not a link, so it has to
+   turn off the two things a user agent gives a button and does not give an <a>: its own
+   border and its default text cursor. Without `border: 0` the browser draws a 2px outset
+   frame around the gradient — the button stops matching the signed-off design.
+   16px block padding + 16px/1.55 text = the 56.8px shared by every CONTENT CTA on the site
+   (BottomCTA, DirectionPage, the nav overlay). The bar CTA is the one exception; the reason
+   is documented in Navbar.module.css. */
 .primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  border: 0;
+  cursor: pointer;
   border-radius: var(--r-md);
   padding: 16px 26px;
   background: var(--grad-red);
   color: var(--on-accent);
   font-weight: var(--fw-bold);
   font-size: var(--fs-base);
+  line-height: 1.55;
   box-shadow: var(--sh-red);
   transition:
     transform 0.2s ease,
@@ -72,8 +82,23 @@
   filter: saturate(1.12);
   box-shadow: var(--sh-red-strong);
 }
+/* The five red CTAs used to inherit the user agent's focus ring, which is drawn differently
+   for <a> and for <button> — so once they became buttons they no longer matched each other
+   either. This is the same ring the language switcher and the toggles use: --cyan on the
+   page surface clears the 3:1 required of a non-text indicator with room to spare, and the
+   2px offset keeps it off the gradient it would otherwise disappear into. */
+.primary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
 
+/* The secondary action measured 131.3 x 25.7 — under the 44px touch target.
+   The height is added as an invisible overlay rather than with `min-height`, because the
+   hover state of this link IS its `border-bottom`: growing the box to 44px would drop that
+   underline ~9px below the text and change how the hero looks on hover. The pseudo-element
+   grows only the hit area. */
 .textlink {
+  position: relative;
   color: var(--txt);
   font-weight: var(--fw-bold);
   font-size: var(--fs-md);
@@ -83,6 +108,19 @@
   transition:
     border-color 0.18s ease,
     color 0.18s ease;
+}
+.textlink::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 44px;
+  transform: translateY(-50%);
+}
+.textlink:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 .textlink:hover {
   color: var(--red-text);

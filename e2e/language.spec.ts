@@ -29,7 +29,7 @@ test.describe("language switcher", () => {
   test("switching to Russian changes the copy without a reload @smoke", async ({ page }) => {
     await gotoHydrated(page, "/");
 
-    const cta = page.locator("header").first().getByRole("link", {
+    const cta = page.locator("header").first().getByRole("button", {
       name: messages.ro["nav.cta"],
     });
     await expect(cta).toBeVisible();
@@ -38,7 +38,7 @@ test.describe("language switcher", () => {
 
     // The catalog swap is a client re-render: same document, new copy.
     await expect(
-      page.locator("header").first().getByRole("link", { name: messages.ru["nav.cta"] }),
+      page.locator("header").first().getByRole("button", { name: messages.ru["nav.cta"] }),
     ).toBeVisible();
     await expect(languageOption(page, "ru")).toHaveAttribute("aria-pressed", "true");
     await expect(languageOption(page, "ro")).toHaveAttribute("aria-pressed", "false");
@@ -58,7 +58,7 @@ test.describe("language switcher", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(languageOption(page, "en")).toHaveAttribute("aria-pressed", "true");
     await expect(
-      page.locator("header").first().getByRole("link", { name: messages.en["nav.cta"] }),
+      page.locator("header").first().getByRole("button", { name: messages.en["nav.cta"] }),
     ).toBeVisible();
   });
 

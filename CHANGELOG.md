@@ -16,6 +16,94 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-08-17 — Un singur flux de cerere + audit complet de mobil
+
+**Changed** — toate CTA-urile comerciale deschid același modal
+
+- Nou: `lib/request/RequestFlowProvider.tsx` — provider montat **o dată** în `app/layout.tsx`,
+  care ține **un singur** `Modal`. `useRequestFlow().openRequest({...})` e singura cale.
+  `RequestModal.tsx` (buton + dialog propriu) a fost **șters**: montat la fiecare CTA ar fi
+  produs cinci dialoguri în DOM, fiecare cu focus trap și scroll lock propriu. Un test
+  verifică explicit că o pagină cu cinci CTA-uri are exact un `[role="dialog"]`.
+- Conectate: Hero, CTA-ul roșu din bară, CTA-ul din meniul mobil (închide meniul întâi),
+  BottomCTA, și cele două de pe pagina de serviciu. **Neatinse**, cum s-a cerut: linkul
+  „Deschide serviciul →" (e navigare) și tot ce e în `Estimator` — estimatorul de pe homepage
+  rămâne secțiune vizibilă, nu se dublează într-un modal.
+- CTA-urile au devenit `<button type="button">`; ancorele `#contact`/`#estimare` de pe ele au
+  dispărut, dar **secțiunile respective există în continuare**. Un control care ar fi scrollat
+  pagina *și* ar fi deschis un dialog făcea două lucruri deodată.
+- Cererea trimisă poartă acum un bloc de origine — serviciu, proiect, CTA-ul sursă — iar
+  **spațiul lui e rezervat înainte** ca rezumatul să fie tăiat la 5000 de caractere, deci
+  informația de rutare nu se pierde niciodată. `RequestSource` e o uniune închisă, nu un string
+  liber: o greșeală de tipar ar produce un lead nerutabil.
+- Focus: CTA-ul din meniul mobil dispare din DOM în același commit în care se deschide
+  dialogul, deci meniul pasează hamburgerul ca țintă de restaurare — altfel focusul ar cădea
+  pe `<body>`.
+- `play("tap")` e apelat **o dată**, în `openRequest`, nu copiat în fiecare buton.
+
+**Fixed** — regresie vizuală prinsă la timp
+
+Conversia `<a>` → `<button>` scotea la iveală bordura implicită a browserului pe `Hero .primary`
+și `BottomCTA .cta`, care nu declarau `border`. Reparat, împreună cu `cursor: pointer` pe toate
+cinci. Adăugat și un `:focus-visible` **comun** — până acum **niciun** CTA roșu nu avea stare de
+focus definită, toate se bazau pe inelul implicit, care diferă între `<a>` și `<button>`.
+Înălțimile aliniate la 56.8px, cu o excepție documentată: CTA-ul din bară rămâne 43.4px, ca să
+încapă într-un header de 44px pe mobil.
+
+**Fixed** — mobil, măsurat în browser la 6 lățimi × 2 teme
+
+- **Gutter**: Work, Principles, Team, Estimator și BottomCTA aveau **0px** padding orizontal
+  până la 1024px — cardurile și inputurile atingeau marginea ecranului. Acum **16px** uniform.
+- **Footer, overflow preexistent**: `.colLink { width: max-content }` făcea ca min-content-ul
+  fiecărui link să fie textul întreg, deci un track `fr` nu se putea micșora. La 320px cele
+  două coloane cereau 317.4px într-un container de 286px, iar `overflow: hidden` **tăia în
+  tăcere** paragraful de brand, iconurile sociale și toată coloana a doua, la jumătate de
+  cuvânt. Reparat cu `minmax(0, …)` și `min-width: 0`.
+- **Descrierea proiectelor era vizibilă doar pe hover** — deci invizibilă pe telefon. Acum se
+  afișează la `(hover: none)`; desktopul păstrează dezvăluirea la hover. Odată permanentă,
+  lizibilitatea chiar era ruptă: măsurat pe pixelul cel mai luminos de sub text, **4.01:1 light
+  / 3.75 dark** pentru descriere și **2.99 / 2.88** pentru titlu. Wash-ul cardului a fost
+  adâncit în aceeași interogare → **8.29 / 7.28** și **5.30 / 4.81**.
+- **Caruselele**: Work devine bandă cu snap sub 640px (erau 9 carduri stivuite, ~2400px de
+  scroll); Team pe `min(390px, max(82vw, 320px))`. `overscroll-behavior-x: contain`, ca un swipe
+  la capăt să nu tragă pagina sau gestul de „înapoi" pe iOS.
+- **Ținte de atingere**: 12 controale urcate la 44px. Două cazuri rezolvate fără a mișca
+  designul — `Hero .textlink` și `Modal .close` primesc zona de 44px printr-un pseudo-element
+  invizibil, fiindcă `min-height` ar fi mutat sublinierea, respectiv ar fi mărit cercul aprobat
+  de 32px.
+- **`Lightbox`** folosea `100vh`, care pe telefon e înălțimea cu bara de URL retrasă — imaginea
+  ieșea ~60–100px prea înaltă și împingea legenda sub fold. Trecut pe `100dvh`.
+
+**Fixed** — două lucruri care cereau `.tsx`, aplicate de mine
+
+- **Selectorul de limbă avea ținte de 32.5×44px între 361 și 399px.** Nu există aranjament în
+  care controlul segmentat să fie și pe ecran, și tappabil în banda aia: 44px lățime cere un
+  rând de header de 397px, care nu încape până la 398. Pragul compact a urcat de la **360 la
+  400**, deci 375 și 390 — cele mai comune lățimi de telefon — folosesc acum controlul cu un
+  singur buton, unde fiecare țintă e 44×44. Nota anterioară apăra 360 ca să păstreze 375
+  segmentat; era o constrângere moștenită dintr-un brief contradictoriu, nu o cerință de
+  accesibilitate, și pierde în fața WCAG 2.5.5. Constanta e acum **exportată**, iar suita E2E o
+  **importă** în loc s-o copieze.
+- **Tastatura mobilă putea acoperi inputul activ.** `interactive-widget=resizes-content` în
+  `app/layout.tsx`. iOS și Android nu micșorează layout viewport-ul când apare tastatura — îl
+  panoramează — deci un `position: fixed` (dialogul) își păstrează înălțimea în spatele ei.
+  `dvh` nu ajută: urmărește bara de URL, nu tastatura.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm test` | **303 passed / 0 failed** (21 fișiere) |
+| `npx playwright test --workers=1` | **144 passed / 0 failed** |
+| `npm run lint` · `npx tsc --noEmit` · `npm run build` | curate |
+| Scroll orizontal, 320/375/390/768/1024/1440 × light+dark | **0** pe toate cele 36 de combinații |
+
+> **Rămâne, cu motiv:** linkurile din footer și navigația desktop stau sub 44px peste 860px —
+> input cu pointer, iar ridicarea lor ar restructura vizibil footerul. Greutatea fontului
+> diferă între CTA-uri (`--fw-bold` vs `--fw-extra`); cerința era „aceeași înălțime / focus",
+> iar unificarea greutății ar fi o schimbare vizibilă fără cerință. `--cyan` (3.56:1) și
+> `--amber` (3.77) sunt încă text în ~15 locuri.
+
 ## 2026-08-17 — Optimizare: contrast, performanță, E2E complet
 
 Fără nicio schimbare de design: aceleași culori, tipografie, spațieri și componente. Doar

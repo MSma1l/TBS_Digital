@@ -3,12 +3,26 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Navbar } from "@/components/layout/Navbar";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { navMenu } from "@/lib/content";
 import { directionPaths } from "@/lib/directions";
 import { messages } from "@/lib/i18n/messages";
 
 /** Romanian is the source catalog and the fallback locale a bare render uses. */
 const ro = messages.ro;
+
+/**
+ * The navbar as the app mounts it. `RequestFlowProvider` is not decoration: the red CTA —
+ * in the bar and in the mobile overlay — opens the site's single shared request dialog
+ * through `useRequestFlow()`, and `app/layout.tsx` mounts that provider above every page.
+ */
+function renderNav() {
+  return render(
+    <RequestFlowProvider>
+      <Navbar />
+    </RequestFlowProvider>,
+  );
+}
 
 /**
  * The public navbar must never link to the admin panel. Such a button would publish the
@@ -18,7 +32,7 @@ const ro = messages.ro;
  */
 describe("Navbar — the admin panel is not advertised", () => {
   it("renders no link to the admin panel", () => {
-    render(<Navbar />);
+    renderNav();
 
     expect(screen.queryByText(/ADMIN/i)).toBeNull();
     for (const link of document.querySelectorAll("a")) {
@@ -28,7 +42,7 @@ describe("Navbar — the admin panel is not advertised", () => {
 
   it("renders no link to the admin panel in the mobile menu either", async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderNav();
 
     await user.click(screen.getByRole("button", { name: "Meniu" }));
 
@@ -46,7 +60,7 @@ describe("Navbar — the admin panel is not advertised", () => {
    * on screen: the three top-level entries plus every dropdown child.
    */
   it("still renders the public navigation", () => {
-    render(<Navbar />);
+    renderNav();
 
     for (const item of navMenu) {
       expect(screen.getAllByText(ro[item.key]).length).toBeGreaterThan(0);
@@ -69,16 +83,19 @@ describe("Navbar — the admin panel is not advertised", () => {
  */
 describe("Navbar — global preferences group", () => {
   it("wraps the language switcher in a preferences group placed before the CTA", () => {
-    render(<Navbar />);
+    renderNav();
 
     const prefs = screen.getByRole("group", { name: /Preferences/ });
     // The language control is inside the group, not loose in the nav.
     expect(within(prefs).getByRole("group", { name: /Language/ })).toBeTruthy();
 
-    // The group sits between the nav links and the call to action.
+    // The group sits between the nav links and the call to action. The CTA is a BUTTON,
+    // not an anchor: it opens the request dialog in place, so it carries no `#contact`
+    // href that would scroll the page out from under the dialog at the same time.
     const cta = prefs.nextElementSibling as HTMLElement | null;
-    expect(cta?.tagName).toBe("A");
-    expect(cta?.getAttribute("href")).toBe("#contact");
+    expect(cta?.tagName).toBe("BUTTON");
+    expect(cta?.getAttribute("href")).toBeNull();
+    expect(cta?.textContent).toBe(ro["nav.cta"]);
   });
 
   /**
@@ -88,7 +105,7 @@ describe("Navbar — global preferences group", () => {
    */
   it("keeps a single preferences group — in the bar — when the mobile menu is open", async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderNav();
 
     await user.click(screen.getByRole("button", { name: "Meniu" }));
 
@@ -117,7 +134,7 @@ describe("LanguageSwitcher — keyboard and labels", () => {
   ];
 
   it("labels each option with the language's own name and marks the active one", () => {
-    render(<Navbar />);
+    renderNav();
 
     const [roBtn, ruBtn, enBtn] = options();
     expect(roBtn).toHaveAttribute("aria-pressed", "true");
@@ -128,10 +145,10 @@ describe("LanguageSwitcher — keyboard and labels", () => {
 
   it("is reachable by Tab, in order, before the CTA", async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderNav();
 
     const [roBtn, ruBtn, enBtn] = options();
-    const cta = screen.getAllByRole("link", { name: ro["nav.cta"] })[0];
+    const cta = screen.getAllByRole("button", { name: ro["nav.cta"] })[0];
 
     const order: Element[] = [];
     for (let i = 0; i < 25; i += 1) {
@@ -150,7 +167,7 @@ describe("LanguageSwitcher — keyboard and labels", () => {
 
   it("moves focus with the arrow keys and Home/End, without switching language", async () => {
     const user = userEvent.setup();
-    render(<Navbar />);
+    renderNav();
 
     const [roBtn, ruBtn, enBtn] = options();
     roBtn.focus();
@@ -178,7 +195,9 @@ describe("LanguageSwitcher — keyboard and labels", () => {
     const user = userEvent.setup();
     render(
       <LanguageProvider initialLocale="ro">
-        <Navbar />
+        <RequestFlowProvider>
+          <Navbar />
+        </RequestFlowProvider>
       </LanguageProvider>,
     );
 

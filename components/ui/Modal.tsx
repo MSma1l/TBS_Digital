@@ -138,6 +138,15 @@ export type ModalProps = {
    * which for a form modal is usually the ✕ — point this at the first field instead.
    */
   initialFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * Element focus returns to when the dialog closes. Defaults to whatever had focus at the
+   * moment it opened, which is right for a dialog rendered next to its own trigger.
+   *
+   * A *shared* dialog needs this: it is often opened by a control that unmounts in the same
+   * commit (the mobile menu closes itself on the way), and by the time the effect below runs
+   * `document.activeElement` is already `<body>` — focus would be dropped on the floor.
+   */
+  restoreFocusRef?: RefObject<HTMLElement | null>;
   /** Set to `false` for a flow that must not be dismissed by a stray backdrop click. */
   closeOnOverlayClick?: boolean;
   /** Set to `false` to keep Escape from closing (rare — prefer leaving it on). */
@@ -166,6 +175,7 @@ export function Modal({
   children,
   footer,
   initialFocusRef,
+  restoreFocusRef,
   closeOnOverlayClick = true,
   closeOnEscape = true,
   className,
@@ -251,8 +261,11 @@ export function Modal({
     const panel = panelRef.current;
     if (!panel) return;
 
-    // Still the opener: the portal has rendered, but focus hasn't been moved yet.
-    const trigger = document.activeElement as HTMLElement | null;
+    // Whatever opened this: the element the caller remembered when it was pressed, or —
+    // for a dialog that lives next to its own trigger — whatever still holds focus, since
+    // the portal has rendered but focus hasn't been moved yet.
+    const trigger =
+      restoreFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     let restoring = false;
 
     // Backstop for the ways focus can leave without a Tab keydown we see: a click on
@@ -277,7 +290,7 @@ export function Modal({
         trigger.focus();
       }
     };
-  }, [open, initialFocusRef]);
+  }, [open, initialFocusRef, restoreFocusRef]);
 
   useEffect(() => {
     if (!open) return;

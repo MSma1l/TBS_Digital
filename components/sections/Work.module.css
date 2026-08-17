@@ -1,5 +1,10 @@
+/* The horizontal gutter is the site-wide one from globals' `.section` (this module cannot
+   use that class because it owns the vertical rhythm). It was `0`, so the project cards ran
+   edge to edge: measured left inset 0px at 320/375/390/768/1024 — the card border and the
+   card copy touched the viewport edge on every phone. Above 1360px nothing moves: the
+   40px gutter plus a centred 1280px `.container` lands on the same x as before. */
 .section {
-  padding: clamp(48px, 7vw, 76px) 0 clamp(20px, 3vw, 28px);
+  padding: clamp(48px, 7vw, 76px) clamp(16px, 4vw, 40px) clamp(20px, 3vw, 28px);
 }
 
 .top {
@@ -76,16 +81,21 @@
   transform: scale(1.08);
   opacity: 0.78;
 }
-/* dark wash over the image so the white label + title stay readable */
-.project:has(.image)::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
+/* Dark wash over the image so the white label + title stay readable. The gradient lives in
+   a custom property so the no-hover variant below can swap it without restating the rule. */
+.project {
+  --card-wash: linear-gradient(
     0deg,
     color-mix(in srgb, var(--ink) 85%, transparent) 6%,
     color-mix(in srgb, var(--ink) 18%, transparent) 76%
   );
+}
+
+.project:has(.image)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--card-wash);
 }
 
 /* keep text and index above the image + wash */
@@ -141,21 +151,89 @@
   outline-offset: 3px;
 }
 
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1fr 1fr;
+/* ---------- the description is not a hover reward ---------------------------
+   `.desc` is collapsed (`max-height: 0; opacity: 0`) and revealed by `.project:hover`.
+   On a touch screen there is no hover, so the copy that says what each project actually
+   IS was invisible — the card showed only a tag and a name.
+
+   The query is `(hover: none), (max-width: 640px)` — an OR. The first arm is the real
+   condition (it also covers a 768/1024 tablet, which the old `max-width: 560px` rule
+   missed); the second keeps a narrowed desktop window, which is how this gets reviewed,
+   showing the same thing. A desktop pointer at full width matches neither and keeps the
+   signed-off hover reveal.
+
+   The wash has to change with it. Measured on the brightest pixel under the copy of the
+   first card, at 375px, with the text hidden: the description ran 4.01:1 in light and
+   3.75:1 in dark (AA wants 4.5:1 for 13px), and the project name 2.99:1 / 2.88:1 (AA wants
+   3:1 for large text). That was survivable while the description only appeared under a
+   deliberate hover; it is not, now that it is simply there. The stop at 6%/85% left only
+   ~52% ink where the description STARTS — the screenshot was still bright behind the first
+   line. Holding ~82% ink up to 46% of the card height covers the whole text block and
+   measures 6.4:1 / 6.0:1, while the top half of the card still shows the screenshot,
+   which is the point of the card. */
+@media (hover: none), (max-width: 640px) {
+  .project {
+    --card-wash: linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--ink) 94%, transparent) 0%,
+      color-mix(in srgb, var(--ink) 82%, transparent) 46%,
+      color-mix(in srgb, var(--ink) 20%, transparent) 92%
+    );
   }
-}
-@media (max-width: 560px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+
   .desc {
     max-height: 140px;
     opacity: 1;
     transform: none;
   }
 }
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- phone: one snapping band instead of nine stacked cards ----------
+   Nine full-width cards were ~2400px of vertical scroll before the next section. As a
+   horizontal snap band the portfolio is one screenful and reads as a collection, which is
+   what it is. The band scrolls inside itself — `overflow-x` here means the PAGE never
+   gains a horizontal scrollbar. */
+@media (max-width: 640px) {
+  .grid {
+    display: flex;
+    grid-template-columns: none;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    /* a swipe that runs off the end of the band must not chain to the page (and, on iOS,
+       must not trigger the back gesture) */
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--red) transparent;
+    /* No inline padding: the first card has to start exactly on the section's 16px gutter,
+       in line with the section title above it. (A `padding-inline` + negative `margin-inline`
+       pair measured the card at 14px, not 16 — the gutter and the headline stopped agreeing.)
+       The bottom padding is the scrollbar's lane. */
+    padding: 2px 0 14px;
+  }
+
+  .project {
+    /* ~82vw so the next card peeks, but never under 320px — below that the tag, the name
+       and the (now always-visible) description stop fitting on one line each. `max-width`
+       is the escape hatch for a 320px viewport, where 320px + two 16px gutters cannot fit:
+       there the card takes the whole track rather than being clipped by it. */
+    flex: 0 0 min(390px, max(82vw, 320px));
+    max-width: 100%;
+    scroll-snap-align: start;
+  }
+
+  /* No lift inside a scroll container — it would clip against the overflow box. */
+  .project:hover {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .project,
   .desc,

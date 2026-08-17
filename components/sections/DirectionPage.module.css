@@ -1,7 +1,7 @@
 .page {
   /* Side padding matches the site-wide `.section` rule. Without it the hero copy, the
      action bar and the project cards touched the viewport edge on phones. */
-  padding: clamp(28px, 4vw, 52px) clamp(14px, 4vw, 40px) clamp(60px, 8vw, 100px);
+  padding: clamp(28px, 4vw, 52px) clamp(16px, 4vw, 40px) clamp(60px, 8vw, 100px);
 }
 
 .back {
@@ -59,6 +59,8 @@
   margin: 0;
 }
 
+/* Same <button>-not-<a> treatment as `Hero .primary`: explicit `border: 0` and
+   `cursor: pointer`, and the 56.8px shared by every content CTA. */
 .cta {
   display: inline-flex;
   align-items: center;
@@ -66,8 +68,11 @@
   background: var(--grad-red);
   color: var(--on-accent);
   text-decoration: none;
+  border: 0;
+  cursor: pointer;
   font-size: var(--fs-base);
   font-weight: var(--fw-extra);
+  line-height: 1.55;
   padding: 16px 26px;
   min-height: 52px;
   border-radius: var(--r-md);
@@ -77,6 +82,11 @@
 .cta:hover {
   transform: translateY(-2px);
   box-shadow: var(--sh-red-strong);
+}
+/* The shared red-CTA focus ring — see the note on `Hero .primary`. */
+.cta:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 /* ---------- action bar ----------

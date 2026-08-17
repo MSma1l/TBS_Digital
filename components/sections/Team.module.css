@@ -1,5 +1,7 @@
+/* Site-wide horizontal gutter — see the note in globals' `.section`. It was `0`, which put
+   the first person card hard against the viewport edge on every width up to 1360px. */
 .section {
-  padding: clamp(48px, 7vw, 76px) 0 clamp(40px, 5vw, 56px);
+  padding: clamp(48px, 7vw, 76px) clamp(16px, 4vw, 40px) clamp(40px, 5vw, 56px);
 }
 
 .top {
@@ -35,13 +37,23 @@
   gap: 18px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  /* a swipe that runs off the end of the band must not chain to the page (and, on iOS,
+     must not trigger the back gesture) */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 28px 4px 18px;
   scrollbar-width: thin;
   scrollbar-color: var(--red) transparent;
 }
 
 .person {
-  flex: 0 0 min(390px, 82vw);
+  /* ~82vw so the next card peeks, but never under 320px: at 82vw a 375px phone gave a
+     307px card and a 320px phone a 262px one, which wrapped the role line and squeezed the
+     stats row into three rows. `max-width` is the escape hatch for a 320px viewport, where
+     320px + two 16px gutters cannot fit — there the card takes the whole track instead of
+     being clipped by it. Desktop is unchanged: 82vw passes 390px at 476px wide. */
+  flex: 0 0 min(390px, max(82vw, 320px));
+  max-width: 100%;
   min-height: 350px;
   scroll-snap-align: start;
   display: flex;

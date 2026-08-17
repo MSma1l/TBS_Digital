@@ -1,6 +1,7 @@
 "use client";
 
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { useSiteContent } from "@/lib/siteContent";
 import styles from "./Hero.module.css";
 
@@ -54,6 +55,7 @@ const FIXED_METRICS: Metric[] = [
 
 export function Hero() {
   const l = useLoc();
+  const { openRequest } = useRequestFlow();
   const { projects } = useSiteContent();
 
   // Counted from the real portfolio the /04 grid renders — so the number the hero claims
@@ -81,9 +83,16 @@ export function Hero() {
           <h1 className={`disp ${styles.title}`}>{l(TITLE)}</h1>
           <p className={styles.lead}>{l(LEAD)}</p>
           <div className={styles.actions}>
-            <a href="#contact" className={styles.primary}>
+            {/* Opens the request dialog in place. A <button>, not an <a href="#contact">:
+                it no longer navigates anywhere, and a control that both jumped to an
+                anchor and opened a dialog would be doing two things at once. */}
+            <button
+              type="button"
+              className={styles.primary}
+              onClick={() => openRequest({ source: "hero" })}
+            >
               {l(CTA_PRIMARY)}
-            </a>
+            </button>
             <a href="#servicii" className={styles.textlink}>
               {l(CTA_SECONDARY)}
             </a>

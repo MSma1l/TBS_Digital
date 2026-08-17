@@ -8,6 +8,7 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { submitContact, isNetworkError, ApiError } from "@/lib/api";
 import { validateText, LIMITS } from "@/lib/validation";
 import { SERVICE_QUERY_KEY, SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
+import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 import styles from "./Estimator.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -87,6 +88,17 @@ const SUMMARY = {
   described: L("Ce ai descris", "Что вы описали", "What you described"),
   clarifications: L("Clarificări", "Уточнения", "Clarifications"),
   details: L("Detalii suplimentare", "Дополнительные детали", "Additional details"),
+};
+
+/* Where the request was started from. Not shown to the visitor — it is routing information
+   for whoever reads the lead: which service page or project card the CTA sat on, and which
+   CTA it was. It travels inside the message because that is the only free-text field the
+   API takes (see `buildMessage`). */
+const ORIGIN = {
+  title: L("Contextul cererii", "Контекст заявки", "Request context"),
+  service: L("Serviciu", "Услуга", "Service"),
+  project: L("Proiect", "Проект", "Project"),
+  source: L("Sursă (CTA)", "Источник (CTA)", "Source (CTA)"),
 };
 
 /* Copy for the free-text composer in the chat — the visitor can always answer in their
@@ -402,12 +414,19 @@ export type DictationSlot = (props: {
 
 export type EstimatorProps = {
   /**
-   * Preselect a project type directly, for when the estimator is opened somewhere the URL
-   * cannot say which service it is — the request modal on a service page. It wins over
-   * `?serviciu=`, because a modal opened from a page's own CTA is a stronger statement of
-   * intent than whatever the address bar happens to carry.
+   * Where the request was started from (`lib/request/RequestFlowProvider.tsx`).
+   *
+   * `context.serviceSlug` preselects a project type directly, for when the estimator is
+   * opened somewhere the URL cannot say which service it is — the shared request dialog,
+   * opened from a service page. It wins over `?serviciu=`, because a dialog opened from a
+   * page's own CTA is a stronger statement of intent than whatever the address bar happens
+   * to carry. The project fields and `source` are not shown to the visitor; they are folded
+   * into the sent message so the team can see where the lead came from.
+   *
+   * Absent on the home page: that estimator is the section itself, not a dialog opened
+   * from a CTA, and it reads `?serviciu=` exactly as it always has.
    */
-  serviceSlug?: string;
+  context?: RequestContext;
   /** Rendered next to the chat composer (`data-dictation-slot="estimator-chat"`). */
   renderChatDictation?: DictationSlot;
   /** Rendered next to the details field (`data-dictation-slot="estimator-details"`). */
@@ -445,10 +464,11 @@ function useServiceTypeIndex(override?: string): number {
 }
 
 export function Estimator({
-  serviceSlug,
+  context,
   renderChatDictation,
   renderDetailsDictation,
 }: EstimatorProps = {}) {
+  const { serviceSlug, projectId, projectName, source } = context ?? {};
   const l = useLoc();
   const t = useT();
   /* `useT` is keyed by MessageKey; validateText takes a looser (key: string) => string.
@@ -605,19 +625,45 @@ export function Estimator({
   };
 
   /**
+   * Where this request came from, as a short labelled block — or "" when the estimator is
+   * the plain home-page section and there is nothing to say.
+   *
+   * Deliberately not part of `summaryRows()`: those rows are shown to the visitor, and
+   * "Sursă (CTA): hero" is information for us, not for them. The values are the raw ids
+   * (slug, project id, CTA id) so they stay greppable rather than translated.
+   */
+  const originBlock = (): string => {
+    const rows: string[] = [];
+    if (serviceSlug) rows.push(`- ${l(ORIGIN.service)}: ${serviceSlug}`);
+    if (projectName || projectId) {
+      const named =
+        projectName && projectId ? `${projectName} (${projectId})` : projectName || projectId;
+      rows.push(`- ${l(ORIGIN.project)}: ${named}`);
+    }
+    if (source) rows.push(`- ${l(ORIGIN.source)}: ${source}`);
+    if (rows.length === 0) return "";
+    return [`${l(ORIGIN.title).toUpperCase()}:`, ...rows].join("\n");
+  };
+
+  /**
    * Everything the visitor chose, folded into the one free-text field the API takes:
-   * the structured summary first, the raw transcript after it.
+   * the structured summary first, then where the request came from, then the raw transcript.
    *
    * The API caps `message` at 5000 characters, so the budget is spent in that order —
    * the summary is what a human reads first, and only the leftover room goes to the
-   * transcript. Both are cut with a visible marker rather than left to 422.
+   * transcript. Both are cut with a visible marker rather than left to 422. The origin
+   * block's room is *reserved* before the summary is clamped: it is a couple of lines, and
+   * it is the part that routes the lead, so it must never be the thing the cap eats.
    */
   const buildMessage = (): string => {
     const summary = [
       l(SUMMARY.title).toUpperCase(),
       ...summaryRows().map((r) => `- ${r.label}: ${r.value.replace(/\n/g, "\n  ")}`),
     ].join("\n");
-    let message = clamp(summary, LIMITS.message);
+    const origin = originBlock();
+    const reserved = origin ? origin.length + 2 : 0; // the "\n\n" separator
+    let message = clamp(summary, LIMITS.message - reserved);
+    if (origin) message += `\n\n${origin}`;
 
     const transcript = log.length
       ? `${l(TRANSCRIPT.dialog)}:\n${log

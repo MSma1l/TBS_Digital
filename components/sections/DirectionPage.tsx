@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { RequestModal } from "./RequestModal";
 import type { CSSProperties } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc } from "@/lib/i18n/content";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { directions } from "@/lib/directions";
 import { solutions, solUI, solutionPalette, projectsForSolution } from "@/lib/solutions";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
@@ -30,6 +30,7 @@ function tagChips(tag: string): string[] {
 export function DirectionPage({ slug }: { slug: string }) {
   const t = useT();
   const l = useLoc();
+  const { openRequest } = useRequestFlow();
   const { projects } = useSiteContent();
   const sol = solutions[slug];
 
@@ -138,13 +139,15 @@ export function DirectionPage({ slug }: { slug: string }) {
 
         {/* ---- action bar: everything the visitor can DO with this service ---- */}
         <div className={styles.actions}>
-          {/* Opens the real request flow in a dialog, with this service preselected, so the
-              visitor is not thrown back to the home page mid-read. */}
-          <RequestModal
-            serviceSlug={slug}
-            label={l(solUI.actionTalk)}
+          {/* Opens the real request flow in the site's one dialog, with this service
+              preselected, so the visitor is not thrown back to the home page mid-read. */}
+          <button
+            type="button"
             className={styles.cta}
-          />
+            onClick={() => openRequest({ serviceSlug: slug, source: "service-page" })}
+          >
+            {l(solUI.actionTalk)}
+          </button>
 
           {related.length > 0 && (
             <a href="#proiecte" className={styles.ghost}>
@@ -273,11 +276,13 @@ export function DirectionPage({ slug }: { slug: string }) {
         <section className={styles.bottom}>
           <h2 className="disp">{l(solUI.bottomTitle)}</h2>
           <p>{l(solUI.bottomLead)}</p>
-          <RequestModal
-            serviceSlug={slug}
-            label={l(solUI.start)}
+          <button
+            type="button"
             className={styles.cta}
-          />
+            onClick={() => openRequest({ serviceSlug: slug, source: "service-page-bottom" })}
+          >
+            {l(solUI.start)}
+          </button>
         </section>
       </div>
     </div>

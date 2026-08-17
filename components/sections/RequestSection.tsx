@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Estimator } from "./Estimator";
+import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 
 /**
  * The microphone is loaded after the page is interactive, not with it.
@@ -31,11 +32,15 @@ const DictationButton = dynamic(
  * `DictationButton` renders nothing at all when the browser has no speech recognition, so
  * on those browsers the slots simply stay empty — `.dictationSlot:empty` collapses them and
  * the layout is unchanged. No button that does nothing.
+ *
+ * `context` is where the request was started from (`lib/request/RequestFlowProvider.tsx`).
+ * The home page renders this section with none — it is the section, not a dialog opened
+ * from somewhere; the shared dialog passes the CTA's context straight through.
  */
-export function RequestSection({ serviceSlug }: { serviceSlug?: string } = {}) {
+export function RequestSection({ context }: { context?: RequestContext } = {}) {
   return (
     <Estimator
-      serviceSlug={serviceSlug}
+      context={context}
       renderChatDictation={({ onTranscript }) => (
         <DictationButton onResult={onTranscript} />
       )}

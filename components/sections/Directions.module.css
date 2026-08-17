@@ -2,7 +2,7 @@
   /* The side padding is the site-wide one from globals' `.section` (this module cannot
      use that class because it owns the vertical rhythm). Without it the panel and the
      pill row ran into the viewport edge on phones — the first pill was clipped. */
-  padding: clamp(56px, 8vw, 90px) clamp(14px, 4vw, 40px) clamp(36px, 5vw, 48px);
+  padding: clamp(56px, 8vw, 90px) clamp(16px, 4vw, 40px) clamp(36px, 5vw, 48px);
 }
 
 .top {
@@ -274,6 +274,9 @@
     flex-wrap: nowrap;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
+    /* a swipe that runs off the end of the band must not chain to the page (and, on iOS,
+       must not trigger the back gesture) */
+    overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     margin: 22px 0;

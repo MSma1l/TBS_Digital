@@ -492,9 +492,15 @@ a {
   margin: 0 auto;
 }
 
+/* The one horizontal gutter of the site.
+   16px is the floor on every phone (4vw only overtakes it at 400px), 40px the desktop
+   ceiling — so a 320px and a 390px screen get the SAME 16px inset instead of the 12.8px /
+   15.6px the old `clamp(14px, 4vw, 40px)` produced. Section modules that own their own
+   vertical rhythm repeat this exact clamp rather than inventing a second gutter; grep for
+   `clamp(16px, 4vw, 40px)` to find all of them. */
 .section {
   position: relative;
-  padding: clamp(56px, 8vw, 100px) clamp(14px, 4vw, 40px);
+  padding: clamp(56px, 8vw, 100px) clamp(16px, 4vw, 40px);
 }
 
 /* mono index label used by every section, e.g. "/02  PRINCIPIILE NOASTRE" */

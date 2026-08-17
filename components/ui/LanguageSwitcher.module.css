@@ -62,6 +62,27 @@
   }
 }
 
+/* WCAG 2.5.5 measures BOTH sides. The rule above fixed the height and left each option
+   32.5px wide, so RO/RU/EN were 32.5 x 44 — still under target on the axis a thumb is
+   least precise about.
+
+   400px is not a taste breakpoint, it is the measured floor. The bar carries the wordmark,
+   three language buttons, the theme toggle, the sound toggle and the burger; with 44px
+   options the row needs 397px, so it first fits at 398. Below that the row overflows and
+   the whole page scrolls sideways — measured 397 wide on a 390px viewport, 362 on a 361px
+   one. This is why the ≤360px compact control exists at all.
+
+   361–399px is therefore still 32.5px wide, and CSS cannot fix it: the segmented control
+   simply does not fit there. The fix is to raise COMPACT_MAX_WIDTH in LanguageSwitcher.tsx
+   from 360 to 400, so the one-button compact control covers that band too — keep this
+   media query's lower bound and that constant in sync. */
+@media (min-width: 401px) and (max-width: 860px) {
+  .option {
+    justify-content: center;
+    min-width: 44px;
+  }
+}
+
 /* ==========================================================================
    The compact control (≤360px)
 
@@ -226,7 +247,7 @@
 
    Consequence, accepted: with JavaScript off, only the active language shows. The switcher
    is a client component whose buttons do nothing without JS either way. */
-@media (max-width: 360px) {
+@media (max-width: 400px) {
   .switcher {
     padding: 0;
     gap: 0;

@@ -27,14 +27,10 @@ import {
  * have to open the burger menu to switch language or turn on dark mode.
  */
 
-/**
- * At or below this width the language switcher is ONE 44×44 button that opens the three
- * choices, instead of three side-by-side buttons — three 44px targets plus the theme
- * toggle, the sound toggle and the burger do not fit a 320px row (the document measured
- * 361px). Mirrors `COMPACT_MAX_WIDTH` in `components/ui/LanguageSwitcher.tsx`; of the
- * viewports below, only 320 is on this side of it.
- */
-const COMPACT_MAX_WIDTH = 360;
+/* The breakpoint is IMPORTED, not copied: it moved 360 -> 400 once measurement showed the
+   segmented control cannot be both on screen and 44px-tappable between 361 and 399, and a
+   copy here would have silently disagreed with the app. */
+import { COMPACT_MAX_WIDTH } from "@/components/ui/LanguageSwitcher";
 
 /**
  * The compact switcher's button. Identified by `aria-haspopup`, which only that shape has —

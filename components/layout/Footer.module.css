@@ -49,14 +49,40 @@
 .inner {
   position: relative;
   z-index: 1;
-  padding: clamp(38px, 5vw, 52px) clamp(14px, 4vw, 40px) 0;
+  padding: clamp(38px, 5vw, 52px) clamp(16px, 4vw, 40px) 0;
 }
 
-/* ---------- top row ---------- */
+/* ---------- top row ----------
+   `minmax(0, …)` on the link columns, not a bare `fr`.
+
+   A bare `fr` track cannot shrink below its content's min-content width, and `.colLink`
+   below is `width: max-content` — which makes a link's min-content contribution its FULL
+   text. So the longest entry in the portfolio column ("Crowe Turcan Mikhailenko ↗",
+   181.2px) became that column's floor. Measured at 320px: the two tracks resolved to
+   181.2px + 116.2px + 20px gap = 317.4px inside a 286px container, the grid overflowed by
+   31.4px, and `.footer`'s `overflow: hidden` CLIPPED it — the brand paragraph, the socials
+   and the whole second column were cut off mid-word with no scrollbar to reveal them.
+   At 768px the same floor squeezed the second column down to 79.3px against the fourth's
+   181.2px, so four "equal" columns were not.
+
+   `minmax(0, …)` lets the tracks take their fr share and the long links wrap instead.
+   Above ~1100px nothing changes: the fr shares were already larger than every floor. */
 .top {
   display: grid;
-  grid-template-columns: 1.3fr repeat(3, 0.8fr);
+  grid-template-columns: 1.3fr repeat(3, minmax(0, 0.8fr));
   gap: 36px;
+}
+
+/* Second half of the same fix: `minmax(0, …)` frees the TRACK, this frees the ITEM.
+   Each nav column is an unclassed wrapper <div>, and a grid item's default
+   `min-width: auto` is its min-content width — which `.colLink`'s `width: max-content`
+   makes the longest link's full text. Measured at 768px: the track resolved to 129px and
+   the wrapper still sat 181.2px wide, so "Crowe Turcan Mikhailenko ↗" and "CGAM Business
+   Academy ↗" ran 52px and 48px past the footer's content edge and were clipped by
+   `overflow: hidden`. With the floor removed the wrapper takes its track and the long
+   links wrap onto a second line. `.brandCol` below re-states its own 200px floor. */
+.top > * {
+  min-width: 0;
 }
 
 .brandCol {
@@ -129,8 +155,15 @@
   color: var(--txt);
 }
 
+/* Third and last part of the same fix. This grid has no explicit column, so its implicit
+   one is sized `auto` — i.e. to the widest item's max-content, which `.colLink`'s
+   `width: max-content` makes the longest link's full text (181.2px). The track then
+   overflowed the 129px column AND became the containing block `.colLink`'s
+   `max-width: 100%` resolved against, so the cap could never bite. `minmax(0, 1fr)` pins
+   the track to the column instead, and the cap starts working. */
 .colNav {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 9px;
 }
 
@@ -211,7 +244,7 @@ a.colLink:hover {
     border-radius: 26px 26px 8px 8px;
   }
   .top {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 26px;
   }
   .brandCol {
@@ -223,6 +256,87 @@ a.colLink:hover {
   .word {
     font-size: 21vw;
     margin: 18px -6px -8px;
+  }
+}
+
+/* ---------- touch: real tap targets ----------------------------------------
+   Measured before: `.social` 38x38, every `.colLink` 21.7px tall, every `.metaLink`
+   18.6px — all three under the 44px minimum, and the nav links sat 9px apart, which is
+   what makes a mis-tap land on the wrong project.
+
+   Each link becomes its own 44px row and the 9px gap goes to zero: the rows are adjacent,
+   so there is no dead strip between two targets and a column grows by 22px per link
+   instead of 31px.
+
+   860px, not 640px, because that is the threshold the rest of the project uses for "this
+   is a finger" (Navbar, PreferencesGroup, ThemeToggle, SoundToggle, DictationButton) — a
+   768px tablet is touch too, and the 640px version of this rule left it on 21.7px links.
+   Above 860px the footer keeps its signed-off desktop rhythm. */
+@media (max-width: 860px) {
+  .socials {
+    gap: var(--sp-2);
+  }
+
+  /* 44x44 (WCAG 2.5.5), same as the header's toggles. */
+  .social {
+    width: 44px;
+    height: 44px;
+  }
+
+  .colNav {
+    gap: 0;
+  }
+
+  .colLink {
+    display: inline-flex;
+    align-items: center;
+    /* `width: max-content` above keeps the visible text as wide as it is; min-width only
+       grows the hit box, so a short label like "FLIRT" (34.6px) is still tappable. */
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .metaLinks {
+    gap: 0 20px;
+  }
+
+  .metaLink {
+    display: inline-flex;
+    align-items: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ---------- phone: nothing spent on air -------------------------------------
+   The block padding around the footer's own sections is what pays for the taller tap
+   rows above. The giant "TBS DIGITAL" wordmark at the base is untouched — it is the
+   point of the footer. */
+@media (max-width: 640px) {
+  .inner {
+    padding-top: 28px;
+  }
+
+  .top {
+    gap: 20px;
+  }
+
+  .brandText {
+    margin-top: 10px;
+  }
+
+  .socials {
+    margin-top: 14px;
+  }
+
+  .colLabel {
+    margin: 0 0 6px;
+  }
+
+  .meta {
+    margin-top: 18px;
+    padding: 10px 0;
+    gap: 0 20px;
   }
 }
 

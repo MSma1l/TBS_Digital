@@ -29,11 +29,21 @@
 
 .image {
   max-width: 100%;
-  /* Leave room for the caption below without letting the image push it off-screen. */
-  max-height: calc(100vh - 140px);
+  /* Leave room for the caption below without letting the image push it off-screen.
+     `dvh`, not `vh`: on a phone `100vh` is the tallest the viewport ever gets (URL bar
+     retracted), so with the bar shown the image was sized ~60-100px taller than the space
+     it had and pushed the caption under the fold. */
+  max-height: calc(100dvh - 140px);
   object-fit: contain;
   border: 1px solid var(--line2);
   background: var(--panel);
+}
+
+/* Engines without dvh: vh is the old behaviour, and never smaller. */
+@supports not (height: 1dvh) {
+  .image {
+    max-height: calc(100vh - 140px);
+  }
 }
 
 .caption {
@@ -42,13 +52,17 @@
   color: var(--on-ink-mut);
 }
 
+/* 44x44, not 40x40 — closing is the only way out of a full-screen overlay. */
 .close {
   position: absolute;
   top: clamp(12px, 2vw, 24px);
   right: clamp(12px, 2vw, 24px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   font-size: var(--fs-md);
   color: var(--on-accent);
   background: rgba(var(--scrim), 0.82);

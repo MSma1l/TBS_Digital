@@ -57,14 +57,20 @@ import styles from "./LanguageSwitcher.module.css";
 /**
  * Where the control changes shape.
  *
- * The brief says "under 380px", but 375px (iPhone SE/8 — the second viewport the responsive
- * suite checks) must keep the segmented control, and 375 is under 380. 360px is the largest
- * value that satisfies both: it covers the widths that actually overflow (320, 360) and
- * leaves 375 exactly as it is today.
+ * Raised from 360 to 400 after measuring: between 361 and 399 the segmented control still
+ * fits the header, but each RO/RU/EN button is only ~32.5px wide. WCAG 2.5.5 measures the
+ * TARGET, and 32.5×44 fails it. Making them 44 wide needs a 397px header row, which does not
+ * fit until the viewport is 398 — so the band 361–399 has no arrangement where the segmented
+ * control is both on screen and tappable.
  *
- * **Keep in sync with the `max-width: 360px` block in `LanguageSwitcher.module.css`.**
+ * 400 therefore covers every phone width the responsive suite checks (320, 375, 390) with the
+ * one-button control, where every target is a full 44×44. An earlier note here defended 360
+ * so 375 would keep the segmented shape; that was a constraint carried over from a
+ * contradictory brief, not an accessibility requirement, and it loses to 2.5.5.
+ *
+ * **Keep in sync with the `max-width: 400px` block in `LanguageSwitcher.module.css`.**
  */
-const COMPACT_MAX_WIDTH = 360;
+export const COMPACT_MAX_WIDTH = 400;
 const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
 
 /** Names the control for a reader of any of the three languages — same label in both shapes,

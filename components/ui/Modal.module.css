@@ -119,6 +119,7 @@
 
 .close {
   flex: none;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -135,6 +136,20 @@
     color 0.15s,
     border-color 0.15s,
     background 0.15s;
+}
+
+/* The visible circle is 32px, which is the signed-off dialog head. WCAG 2.5.5 measures the
+   TARGET, not the paint, so the missing 12px is added as an invisible overlay instead of by
+   growing the button: the head keeps its proportions and the tap area is 44x44. It stays
+   inside the head's own padding, so it never reaches the title next to it. */
+.close::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
 }
 
 .close:hover {
@@ -161,6 +176,11 @@
   -webkit-overflow-scrolling: touch;
   font-size: var(--fs-base);
   color: var(--txt);
+  /* The dialog hosts arbitrary content. `overflow-x: hidden` above stops a long unbroken
+     token from scrolling the panel sideways, but it CLIPS it — the text is simply gone.
+     Breaking it is what actually keeps it readable, and it costs nothing when the content
+     (like the estimator) already wraps itself. */
+  overflow-wrap: anywhere;
 }
 
 /* ---- foot ---------------------------------------------------------------- */

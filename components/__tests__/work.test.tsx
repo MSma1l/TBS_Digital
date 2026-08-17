@@ -11,6 +11,7 @@ import { SiteContentProvider, defaultSiteData, type ProjectItem } from "@/lib/si
 import { projects as defaultProjects } from "@/lib/content";
 import { Work } from "@/components/sections/Work";
 import { Hero } from "@/components/sections/Hero";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 
 // <Reveal> constructs an IntersectionObserver, which jsdom doesn't implement.
 beforeAll(() => {
@@ -35,8 +36,14 @@ beforeEach(() => {
   vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
 });
 
+/* Both providers the app puts above these sections: the content store they read, and the
+   request flow the hero's CTA opens (`app/layout.tsx`). */
 function withProvider(node: ReactNode) {
-  return render(<SiteContentProvider>{node}</SiteContentProvider>);
+  return render(
+    <SiteContentProvider>
+      <RequestFlowProvider>{node}</RequestFlowProvider>
+    </SiteContentProvider>,
+  );
 }
 
 const project = (over: Partial<ProjectItem>): ProjectItem => ({

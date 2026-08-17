@@ -1,5 +1,7 @@
+/* Site-wide horizontal gutter — see the note in globals' `.section`. It was `0`, so the
+   closing headline and the red CTA touched the viewport edge on every phone. */
 .section {
-  padding: clamp(40px, 6vw, 64px) 0 clamp(20px, 3vw, 30px);
+  padding: clamp(40px, 6vw, 64px) clamp(16px, 4vw, 40px) clamp(20px, 3vw, 30px);
 }
 
 .inner {
@@ -24,17 +26,26 @@
   max-width: 520px;
 }
 
+/* Same <button>-not-<a> treatment as `Hero .primary`: an explicit `border: 0` (a user agent
+   draws its own frame on a button, which broke the gradient's edge) and an explicit
+   `cursor: pointer`.
+   The block padding was 18px, which made this the tallest CTA on the site at 60.8px while
+   Hero, DirectionPage and the nav overlay all measured 56.8px. 16px lines it up with them;
+   the 28px inline padding is its own and stays. */
 .cta {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  border: 0;
+  cursor: pointer;
   border-radius: var(--r-md);
-  padding: 18px 28px;
+  padding: 16px 28px;
   background: var(--grad-red);
   color: var(--on-accent);
   font-weight: var(--fw-extra);
   font-size: var(--fs-base);
+  line-height: 1.55;
   box-shadow: var(--sh-red);
   transition:
     transform 0.2s ease,
@@ -44,6 +55,11 @@
 .cta:hover {
   transform: translateY(-3px);
   box-shadow: var(--sh-red-strong);
+}
+/* The shared red-CTA focus ring — see the note on `Hero .primary`. */
+.cta:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

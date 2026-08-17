@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
+import { LanguageSwitcher, COMPACT_MAX_WIDTH } from "@/components/ui/LanguageSwitcher";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_LABELS } from "@/lib/i18n/locales";
 
@@ -10,14 +10,14 @@ import { LOCALE_LABELS } from "@/lib/i18n/locales";
  * about — `components/__tests__/navbar.test.tsx` already covers the segmented control as it
  * appears in the header at a normal width.
  *
- * At or below 360px the header cannot hold three 44px language buttons next to the theme
+ * At or below COMPACT_MAX_WIDTH the header cannot hold three 44px language buttons next to the theme
  * toggle, the sound toggle and the burger: the document measured 361px inside a 320px
  * viewport. The control collapses to ONE 44×44 button plus a popup — and, critically, only
  * one of the two shapes is ever in the DOM, because two would mean two language controls in
  * the accessibility tree and two matches for every `getByRole` in this suite.
  *
  * jsdom has no layout, so "the viewport is narrow" is exactly what the component asks: a
- * `matchMedia("(max-width: 360px)")` query, stubbed here. `vitest.setup.ts` installs a
+ * `matchMedia("(max-width: <COMPACT_MAX_WIDTH>px)")` query, stubbed here. `vitest.setup.ts` installs a
  * matchMedia that always answers `false`, which is why every other test file (and the first
  * describe below) sees the segmented control without doing anything.
  */
@@ -27,7 +27,7 @@ const realMatchMedia = window.matchMedia;
 /** Answer `matches` for the compact query, `false` for anything else the tree may ask. */
 function stubViewport(compact: boolean) {
   window.matchMedia = ((query: string) => ({
-    matches: compact && query.includes("360px"),
+    matches: compact && query.includes(`${COMPACT_MAX_WIDTH}px`),
     media: query,
     onchange: null,
     addEventListener: () => {},
@@ -78,7 +78,7 @@ describe("LanguageSwitcher — above the compact breakpoint", () => {
   });
 });
 
-describe("LanguageSwitcher — the compact control (≤360px)", () => {
+describe("LanguageSwitcher — the compact control (narrow phones)", () => {
   beforeEach(() => stubViewport(true));
 
   it("collapses to ONE button showing the active language, with the choices closed", () => {

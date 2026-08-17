@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, Fragment, type ReactNode } from "react";
+import { useRef, useState, Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { navMenu } from "@/lib/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { PreferencesGroup } from "@/components/ui/PreferencesGroup";
 import styles from "./Navbar.module.css";
 
@@ -45,8 +46,24 @@ function NavChildLink({
  */
 export function Navbar() {
   const t = useT();
+  const { openRequest } = useRequestFlow();
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
+
+  /* The burger is where focus came from when the overlay opened, and — unlike the overlay's
+     own CTA — it is still in the DOM after the menu closes. It is therefore the element the
+     shared dialog must hand focus back to when it was opened from inside the menu. */
+  const burgerRef = useRef<HTMLButtonElement>(null);
+
+  /**
+   * The menu's CTA: close the menu first, then open the request dialog. Leaving the overlay
+   * up would stack a full-screen menu behind the dialog and give the visitor two things to
+   * dismiss.
+   */
+  const openFromMenu = () => {
+    close();
+    openRequest({ source: "navbar-menu", returnFocusTo: burgerRef.current });
+  };
 
   return (
     <>
@@ -101,12 +118,20 @@ export function Navbar() {
               the "preferences, then call to action" reading order everywhere. */}
           <div className={styles.actions}>
             <PreferencesGroup />
-            <a href="#contact" className={`mono ${styles.cta}`}>
+            {/* Opens the shared request dialog. It used to be an anchor to `#contact`;
+                a control that scrolled the page *and* opened a dialog would be doing two
+                things at once, so the anchor is gone and this is a real button. */}
+            <button
+              type="button"
+              className={`mono ${styles.cta}`}
+              onClick={() => openRequest({ source: "navbar" })}
+            >
               {t("nav.cta")}
-            </a>
+            </button>
 
             <button
               type="button"
+              ref={burgerRef}
               className={styles.burger}
               aria-label={t("nav.burgerAria")}
               aria-expanded={menuOpen}
@@ -160,9 +185,13 @@ export function Navbar() {
           {/* No preferences group here on purpose: language and theme now live in the bar
               at the top of every screen size, so repeating them inside the menu would put
               the same two controls on screen twice. The menu is navigation only. */}
-          <a href="#contact" onClick={close} className={`mono ${styles.overlayCta}`}>
+          <button
+            type="button"
+            onClick={openFromMenu}
+            className={`mono ${styles.overlayCta}`}
+          >
             {t("nav.cta")}
-          </a>
+          </button>
         </div>
       )}
     </>
