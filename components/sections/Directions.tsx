@@ -404,12 +404,16 @@ export function Directions({ initialArt }: DirectionsProps) {
           ))}
         </nav>
 
+        {/* The glass reveal (app/tailwind.css): `entry-glow` lights the panel's edge in the
+            accent once the scene has formed the model (at once without WebGL), `entry-sweep`
+            runs a band of light across the copy while it bursts — its ::after, so no after:
+            utility goes on that column. */}
         <div
           style={accentStyle(svc.slug)}
-          className={`grid overflow-hidden rounded-xl border border-glass-line shadow-lg md:grid-cols-[.95fr_1.05fr] lg:grid-cols-[.82fr_1.18fr] ${minHeights.panel}`}
+          className={`entry-glow grid overflow-hidden rounded-xl border border-glass-line shadow-lg md:grid-cols-[.95fr_1.05fr] lg:grid-cols-[.82fr_1.18fr] ${minHeights.panel}`}
         >
           <div
-            className={`relative flex min-w-0 flex-col bg-glass-solid p-[clamp(24px,3vw,38px)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${minHeights.copy}`}
+            className={`entry-sweep relative flex min-w-0 flex-col bg-glass-solid p-[clamp(24px,3vw,38px)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${minHeights.copy}`}
           >
             {/* Keyed, so a new direction's copy plays its entrance. The link below is NOT
                 inside: it stays the same element, only its href follows the selection. */}

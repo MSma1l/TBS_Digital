@@ -179,7 +179,7 @@ export function fallbackHeroRect(w: number, h: number, layout: SceneLayout): Doc
   return { x: w - size - Math.min(w * 0.04, 32), y: (h - size) / 2, w: size, h: size };
 }
 
-/** The hero chip's placement at `scrollY` (its own host, through the handoff too). */
+/** The hero chip's placement at `scrollY` (always on its own host). */
 export function placeCore(
   probe: ScrollProbe,
   scrollY: number,
@@ -266,7 +266,7 @@ const MORPH_STEP_MAX = 1 / 20;
  *  · before the cloud (t < .5) nothing on screen depends on `to`, so a new target simply
  *    replaces it — unless it is `from` again, which dissolves back the way it came;
  *  · while re-forming (t > .5) a new target first walks back to the cloud;
- *  · `instant` (the handoff owns the swarm) jumps straight to the target, formed.
+ *  · `instant` (the services entrance owns the swarm) jumps straight to the target, formed.
  */
 export function stepMorph(state: MorphState, target: number, dt: number, instant = false): void {
   if (instant) {
@@ -319,10 +319,17 @@ export function stepMorph(state: MorphState, target: number, dt: number, instant
 export type SwarmPlan = { active: boolean; from: number; to: number; t: number };
 export type ModelReveal = { index: number; reveal: number };
 
+/**
+ * Not a swarm slot: as a plan's `from`, the `to` slot shrunk to a speck at the services host's
+ * centre — the services entrance bursts out of it (and implodes back into it).
+ */
+export const BURST = -1;
+
 export type SceneComposition = {
-  /** 1 = the core fully formed, 0 = collapsed and hidden. */
-  core: number;
-  /** Swarm slots: 0 = the core, 1 + i = service model i. */
+  /**
+   * Swarm slots: 1 + i = service model i; `from` may be `BURST`. Slot 0 (the chip's silhouette
+   * until the Work helix takes it) is never planned.
+   */
   swarm: SwarmPlan;
   /** At most two models are drawn; the same index twice means one model (take the max). */
   models: [ModelReveal, ModelReveal];
@@ -330,7 +337,6 @@ export type SceneComposition = {
 
 export function createComposition(): SceneComposition {
   return {
-    core: 1,
     swarm: { active: false, from: 0, to: 0, t: 0 },
     models: [
       { index: 0, reveal: 0 },
@@ -339,42 +345,38 @@ export function createComposition(): SceneComposition {
   };
 }
 
+function setSwarm(swarm: SwarmPlan, active: boolean, from: number, to: number, t: number): void {
+  swarm.active = active;
+  swarm.from = active ? from : 0;
+  swarm.to = active ? to : 0;
+  swarm.t = active ? t : 0;
+}
+
+function setModels(out: SceneComposition, a: number, revealA: number, b: number, revealB: number): void {
+  out.models[0].index = a;
+  out.models[0].reveal = revealA;
+  out.models[1].index = b;
+  out.models[1].reveal = revealB;
+}
+
 /**
- * The frame's plan from the handoff progress `h` (core → services) and the morph. While the
- * handoff runs (0 < h < 1) it owns the swarm: the core dissolves into it and it re-forms as
- * the selected model; the morph is instant then (see `stepMorph`). Once h = 1 the morph owns
- * it. Written into `out` (no allocation per frame).
+ * The frame's plan from the services entry gate's value `entry` (fx.ts, run in time) and the
+ * morph. Written into `out` (no allocation per frame). One branch owns the swarm at a time:
+ *  · entry < 1 — the entrance: the selected model bursts out of a speck at its host's centre
+ *    (`BURST` → 1 + m.to) and is revealed over the last stretch, or implodes back the same way;
+ *    at 0 nothing is drawn. The morph is instant meanwhile (see `stepMorph`);
+ *  · entry = 1 — formed: the pill morph owns the swarm, the two models' reveals cross over.
+ * Both hand over continuously: at entry → 1 the swarm's alpha falls to 0 as the model's reveal
+ * reaches 1, which is exactly the formed picture.
  */
-export function composeScene(h: number, m: MorphState, out: SceneComposition): SceneComposition {
-  const hand = clamp01(h);
-  out.core = 1 - smoothstep(0.1, 0.5, hand);
-  const inHandoff = hand > 0 && hand < 1;
-  if (inHandoff) {
-    out.swarm.active = true;
-    out.swarm.from = 0;
-    out.swarm.to = 1 + m.to;
-    out.swarm.t = hand;
-  } else if (hand >= 1 && m.t > 0) {
-    out.swarm.active = true;
-    out.swarm.from = 1 + m.from;
-    out.swarm.to = 1 + m.to;
-    out.swarm.t = m.t;
+export function composeScene(entry: number, m: MorphState, out: SceneComposition): SceneComposition {
+  const e = clamp01(entry);
+  if (e < 1) {
+    setSwarm(out.swarm, e > 0, BURST, 1 + m.to, e);
+    setModels(out, m.to, smoothstep(0.72, 1, e), m.to, 0);
   } else {
-    out.swarm.active = false;
-    out.swarm.from = 0;
-    out.swarm.to = 0;
-    out.swarm.t = 0;
-  }
-  if (hand < 1) {
-    out.models[0].index = m.to;
-    out.models[0].reveal = smoothstep(0.7, 1, hand);
-    out.models[1].index = m.to;
-    out.models[1].reveal = 0;
-  } else {
-    out.models[0].index = m.from;
-    out.models[0].reveal = 1 - smoothstep(0, 0.3, m.t);
-    out.models[1].index = m.to;
-    out.models[1].reveal = smoothstep(0.7, 1, m.t);
+    setSwarm(out.swarm, m.t > 0, 1 + m.from, 1 + m.to, m.t);
+    setModels(out, m.from, 1 - smoothstep(0, 0.3, m.t), m.to, smoothstep(0.7, 1, m.t));
   }
   return out;
 }
@@ -401,4 +403,9 @@ export function swarmPhase(t: number, w: number): { leave: number; arrive: numbe
   const leave = clamp01((t * 2 - stagger) / 0.65);
   const arrive = clamp01(((t - 0.5) * 2 - stagger) / 0.65);
   return t < 0.5 ? { leave, arrive: 0 } : { leave: 1, arrive };
+}
+
+/** The swarm's opacity at morph progress `t`: faded in off `from`, faded out onto `to` (the shader's). */
+export function swarmAlpha(t: number): number {
+  return smoothstep(0, 0.12, t) * smoothstep(1, 0.88, t);
 }

@@ -15,8 +15,8 @@ import {
 import {
   releaseProbe,
   writeAnchors,
+  writeEntrySpan,
   writeHeroSpan,
-  writeServicesSpan,
 } from "@/components/scene/scrollProbe";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import { INTRO_REVEAL_ATTR } from "@/lib/intro";
@@ -304,17 +304,19 @@ describe("parallaxTargets", () => {
 /* ---- scrollProbe.ts -------------------------------------------------------------------- */
 
 describe("scroll probe writes", () => {
-  it("copies a trigger's start/end into heroExit and handoff, never a non-finite number", () => {
+  it("copies a trigger's start/end into heroExit and entry, never a non-finite number", () => {
     const probe = createScrollProbe();
     const heroExit = probe.heroExit;
+    const entry = probe.entry;
     writeHeroSpan(probe, { start: 0, end: 812.5 } as ScrollTrigger);
-    writeServicesSpan(probe, { start: 1400, end: 1810 } as ScrollTrigger);
+    writeEntrySpan(probe, { start: 1400, end: 1520 } as ScrollTrigger);
     expect(probe.heroExit).toEqual({ start: 0, end: 812.5 });
-    expect(probe.handoff).toEqual({ start: 1400, end: 1810 });
+    expect(probe.entry).toEqual({ start: 1400, end: 1520 });
     expect(probe.heroExit).toBe(heroExit);
+    expect(probe.entry).toBe(entry);
 
-    writeServicesSpan(probe, { start: Number.NaN, end: Number.POSITIVE_INFINITY } as ScrollTrigger);
-    expect(probe.handoff).toEqual({ start: 0, end: 0 });
+    writeEntrySpan(probe, { start: Number.NaN, end: Number.POSITIVE_INFINITY } as ScrollTrigger);
+    expect(probe.entry).toEqual({ start: 0, end: 0 });
   });
 
   function buildStage() {
@@ -461,8 +463,15 @@ describe("SceneDirector", () => {
     expect(probe.hero).not.toBeNull();
     expect(probe.services).not.toBeNull();
     expect(stage.getAttribute(SCENE_ATTR.scrollFx)).toBe("on");
-    // Two measurement triggers, no parallax (the media query does not match in jsdom).
-    expect(ScrollTrigger.getAll()).toHaveLength(2);
+    // Two measurement triggers, no parallax (the media query does not match in jsdom): the hero
+    // exit, and the services entry band the scene's timed gate arms over.
+    const triggers = ScrollTrigger.getAll();
+    expect(triggers).toHaveLength(2);
+    expect(triggers.map((st) => [st.trigger, st.vars.start, st.vars.end])).toEqual([
+      [stage.querySelector("#top"), "top top", "bottom 35%"],
+      [stage.querySelector('[data-scene-anchor="services"]'), "top 90%", "top 75%"],
+    ]);
+    for (const st of triggers) expect(st.animation).toBeUndefined();
     expect(gsap.getTweensOf("#backdrop, #stats")).toHaveLength(0);
     expect(root().hasAttribute(INSTANT_SCROLL_ATTR)).toBe(false);
     expect(root().getAttribute("style")).toBeNull();
@@ -732,7 +741,7 @@ describe("SceneDirector", () => {
     expect(probe.stage).toEqual({ top: 71, bottom: 1671 });
     const version = probe.version;
     const heroExit = { ...probe.heroExit };
-    const handoff = { ...probe.handoff };
+    const entry = { ...probe.entry };
 
     let release = () => {};
     try {
@@ -745,7 +754,7 @@ describe("SceneDirector", () => {
       expect(probe.version).toBe(version);
       expect(probe.stage).toEqual({ top: 71, bottom: 1671 });
       expect(probe.heroExit).toEqual(heroExit);
-      expect(probe.handoff).toEqual(handoff);
+      expect(probe.entry).toEqual(entry);
 
       // The dialog closes: the page is back at 3000 BEFORE the cover lifts (Modal.tsx).
       setScroll(0, PAGE_Y);

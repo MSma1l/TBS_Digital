@@ -53,6 +53,22 @@ const GLOBAL_HELPERS = new Set(["disp", "mono", "container"]);
 const read = (repoPath: string) => readFileSync(resolve(ROOT, repoPath), "utf8");
 const stripCssComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, "");
 
+/** The body of the first `{…}` block opening at or after `from` (nested blocks kept whole). */
+function blockBody(css: string, from: number): string | null {
+  const open = css.indexOf("{", from);
+  if (from < 0 || open < 0) return null;
+  let depth = 0;
+  for (let i = open; i < css.length; i += 1) {
+    if (css[i] === "{") depth += 1;
+    else if (css[i] === "}" && (depth -= 1) === 0) return css.slice(open + 1, i);
+  }
+  return null;
+}
+
+/** How many blocks enclose `index` (0: the top level of the stylesheet). */
+const depthAt = (css: string, index: number) =>
+  [...css.slice(0, index)].reduce((depth, ch) => depth + (ch === "{" ? 1 : ch === "}" ? -1 : 0), 0);
+
 /** The plain `@source "<path>";` lines, as repo-relative POSIX paths. */
 function sourcePaths(css: string): string[] {
   const paths: string[] = [];
@@ -395,6 +411,69 @@ describe("app/tailwind.css — @source", () => {
   it("allows a missing path only for a source that is still declared", () => {
     const stale = [...NOT_YET_CREATED].filter((path) => !sources.includes(path));
     expect(stale, "NOT_YET_CREATED entries no longer in @source").toEqual([]);
+  });
+});
+
+/**
+ * The services glass reveal (the Directions panel and its copy column). What it keys off is
+ * the stage root: `data-entry` exists only on the WebGL path, `data-renderer` everywhere.
+ * `pending` must light nothing — it can still turn into WebGL and take the glow away again.
+ */
+describe("app/tailwind.css — the services glass reveal", () => {
+  const css = stripCssComments(entry);
+  const glow = blockBody(css, css.search(/@utility\s+entry-glow\s*\{/)) ?? "";
+  const sweep = blockBody(css, css.search(/@utility\s+entry-sweep\s*\{/)) ?? "";
+
+  it("lights the panel's edge once the scene formed the model, and statically without WebGL, never while pending", () => {
+    expect(glow, "@utility entry-glow").not.toBe("");
+    // Only once the stage really is WebGL: the first entry report lands a commit before it says so.
+    expect(glow).toMatch(/\[data-scene-stage\]\[data-renderer="webgl"\]\[data-entry="formed"\]\s+&\s*[,{]/);
+    expect(glow).not.toMatch(/(^|[\s,{])\[data-entry=/);
+    expect(glow).toMatch(/\[data-scene-stage\]\[data-renderer="fallback"\]\s+&\s*[,{]/);
+    expect(glow).toMatch(/\[data-scene-stage\]\[data-renderer="off"\]\s+&\s*[,{]/);
+    expect(glow).toMatch(/var\(--accent\)/);
+    expect(glow).not.toMatch(/pending|data-reveal|intro/);
+    // The one transition belongs to the WebGL path: the static glow never animates in.
+    expect(glow.match(/\btransition\s*:/g)).toHaveLength(1);
+    expect(/([^{}]*)\{[^{}]*\btransition\s*:/.exec(glow)?.[1].trim()).toBe(
+      '[data-scene-stage][data-renderer="webgl"] &',
+    );
+  });
+
+  it("sweeps the copy column's ::after only while the scene bursts and motion is allowed", () => {
+    expect(sweep, "@utility entry-sweep").not.toBe("");
+    expect(sweep).toMatch(/&::after\s*\{[^{}]*pointer-events:\s*none/);
+    expect(sweep).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*\[data-scene-stage\]\[data-renderer="webgl"\]\[data-entry="burst"\]\s+&::after\s*\{[^{}]*animation:\s*hud-glass-sweep\s/,
+    );
+    expect(sweep.match(/\banimation\s*:/g)).toHaveLength(1);
+    expect(sweep).not.toMatch(/pending|data-reveal|intro/);
+  });
+
+  it("mixes colours only inside its own color-mix @supports: Tailwind adds no opaque-accent copy", () => {
+    const at = glow.search(/@supports\s*\(\s*color:\s*color-mix\(in lab, red, red\)\s*\)\s*\{/);
+    const inside = blockBody(glow, at) ?? "";
+    expect(inside).toMatch(/border-color:\s*color-mix\(in srgb, var\(--accent\)/);
+    expect(glow.replace(inside, "").replace(/@supports[^{]*/, "")).not.toMatch(/color-mix\(/);
+    // The band's strength is its opacity, never a mix an engine could fall back from.
+    expect(sweep).not.toMatch(/color-mix\(/);
+  });
+
+  it("neither blurs nor rounds anything", () => {
+    expect(`${glow}${sweep}`).not.toMatch(/filter|blur\(|border-radius/);
+  });
+
+  it("keeps hud-glass-sweep at the top level, on transform and opacity only", () => {
+    const at = css.search(/@keyframes\s+hud-glass-sweep\s*\{/);
+    expect(at, "@keyframes hud-glass-sweep").toBeGreaterThan(-1);
+    expect(depthAt(css, at)).toBe(0);
+    const body = blockBody(css, at) ?? "";
+    const properties = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
+    expect(new Set(properties)).toEqual(new Set(["opacity", "transform"]));
+    // The band crosses the copy: at its strongest a 12% tint (the light theme's red tag stays at
+    // 4.5:1 or more under it, for every accent), never a stripe over the text.
+    const opacities = [...body.matchAll(/opacity:\s*([\d.]+)/g)].map((m) => Number(m[1]));
+    expect(Math.max(...opacities)).toBeLessThanOrEqual(0.12);
   });
 });
 

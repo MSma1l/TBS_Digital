@@ -254,7 +254,7 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(root).toHaveAttribute("data-renderer", "pending");
     expect(root).toHaveAttribute("data-motion", "static");
     expect(root).toHaveAttribute("data-scroll-fx", "off");
-    for (const name of ["data-reason", "data-tier", "data-paused", "data-boost", "data-quality", "data-morph", "style"]) {
+    for (const name of ["data-reason", "data-tier", "data-paused", "data-boost", "data-quality", "data-morph", "data-entry", "style"]) {
       expect(root.hasAttribute(name), name).toBe(false);
     }
     expect(root.className.split(" ")).toEqual(["group/stage", "relative", "isolate"]);
@@ -629,19 +629,28 @@ describe("SceneStage — the WebGL path", () => {
     }
   });
 
-  it("writes data-quality and data-morph straight to the DOM, and drops them with the scene", async () => {
+  it("writes data-quality, data-morph and data-entry straight to the DOM, and drops them with the scene", async () => {
     await loadScene();
     const props = h.canvasProps!;
+    // Nothing about the services entrance until the scene reports it.
+    expect(stage().hasAttribute("data-entry")).toBe(false);
     act(() => props.onQuality("dpr"));
     act(() => props.onMorph(true));
-    expect([attr("data-quality"), attr("data-morph")]).toEqual(["dpr", "running"]);
+    act(() => props.onEntry("idle"));
+    expect([attr("data-quality"), attr("data-morph"), attr("data-entry")]).toEqual(["dpr", "running", "idle"]);
     act(() => props.onMorph(false));
     act(() => props.onQuality("lite"));
-    expect([attr("data-quality"), attr("data-morph")]).toEqual(["lite", "idle"]);
+    act(() => props.onEntry("burst"));
+    expect([attr("data-quality"), attr("data-morph"), attr("data-entry")]).toEqual(["lite", "idle", "burst"]);
+    act(() => props.onEntry("formed"));
+    expect(attr("data-entry")).toBe("formed");
 
+    // The fallback the scene fell back to never carries the entrance.
     act(() => props.onBail());
+    expect(attr("data-renderer")).toBe("fallback");
     expect(stage().hasAttribute("data-quality")).toBe(false);
     expect(stage().hasAttribute("data-morph")).toBe(false);
+    expect(stage().hasAttribute("data-entry")).toBe(false);
   });
 
   it("a governor bail marks the session slow: fallback, slow, static motion, the scene gone", async () => {
@@ -720,9 +729,11 @@ describe("SceneStage — the WebGL path", () => {
     await loadScene();
     act(() => h.canvasProps!.onReady());
     act(() => h.directorProps!.onLive());
+    act(() => h.canvasProps!.onEntry("formed"));
 
     setReducedMotion(true);
     expect([attr("data-renderer"), attr("data-reason"), attr("data-motion")]).toEqual(["off", "reduced-motion", "static"]);
+    expect(stage().hasAttribute("data-entry")).toBe(false);
     expect(stage().querySelector('[data-mock="scene-director"]')).toBeNull();
     expect(canvas()).toBeNull();
   });

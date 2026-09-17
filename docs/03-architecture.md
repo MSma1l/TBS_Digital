@@ -70,7 +70,8 @@ so the data source can change without touching markup.
 │  │  ├─ scrollGuard.ts · scrollProbe.ts   # smooth-scroll guard, quiet/wake, parallax targets;
 │  │  │                    #   the writes into the scroll probe
 │  │  ├─ choreography.ts · fx.ts · tiers.ts · input.ts · trail.ts · pixelRatio.ts · shapes.ts
-│  │  │                    #   pure placement/morph maths, per-frame fx, tier budgets, pointer and
+│  │  │                    #   pure placement/morph maths, per-frame fx and the timed services
+│  │  │                    #   entry gate, tier budgets, pointer and
 │  │  │                    #   gyroscope tilt (a mouse or pen also writes the cursor trail), the
 │  │  │                    #   cursor trail's ring buffer, the DPR watcher, model geometry shared
 │  │  │                    #   with the art (the chip: CHIP, CHIP_POSE, chipTraces, chipPins)
@@ -231,8 +232,9 @@ target on the page by `data-intro-reveal`.
 ## The interior stage
 
 The home page's first three sections — Hero, Ticker, Directions — scroll over **one** WebGL
-canvas: the hero's neon microprocessor (the chip), which hands over to the selected direction's
-model as the visitor reaches the services, and a cursor circuit trail behind a mouse or pen.
+canvas: the hero's neon microprocessor (the chip), which dissolves as the hero leaves; the
+selected direction's model, which bursts out of a point and assembles once the visitor reaches
+the services; and a cursor circuit trail behind a mouse or pen.
 Devices that should not draw it get static SVG art in the same places (no trail).
 What the visitor sees is in [05 — Page Sections](./05-page-sections.md#interior-stage-3d);
 the styling rules in [04 — Design System](./04-design-system.md#the-interior-stage); the coding
@@ -310,7 +312,11 @@ Also on the stage root: `data-tier` (from mount; `mid` while a forced low-tier d
 `data-motion` (`live` only with every gate open and a tier above low — the holograms key off
 it), `data-paused` (only while `webgl`). Written straight to the DOM, never through React
 state: `data-boost` (a hero CTA is boosted), `data-quality` (`full|dpr|lite`, once the governor
-steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on` once measured).
+steps), `data-morph` (`running|idle`), `data-entry` (`idle|burst|formed`, the services entrance
+as the scene draws it — see [below](#the-services-entrance-it-os-phase-2-2026-09-17)), and the
+director's `data-scroll-fx` (`on` once measured). `data-quality`, `data-morph` and `data-entry`
+belong to the mounted scene: they are removed with it, so a `fallback` or `off` stage never
+carries them.
 
 ### Who owns what
 
@@ -319,16 +325,20 @@ steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on`
 | `lib/scene.ts` (+ `lib/gpuProbe.ts`) | The contract: `SCENE_3D_KEY`, the live gates (`readMotionGate`), the probe cache and `decideWebGL` / `reasonFor`, the `data-*` names and test ids, `SCENE_SHAPES` → `SERVICE_MODEL`, the input store, the `ScrollProbe` type, `SCENE_TIMING`, `PARALLAX_MEDIA` / `PARALLAX_LAYERS`. No `"use client"`, no DOM at import (server components and `e2e/helpers.ts` import it) |
 | `SceneStage` | The pipeline and its state, pausing, the React-written attributes and the DOM-written reports, the error boundary, the session marks |
 | `SceneDirector` + `scrollGuard.ts` / `scrollProbe.ts` | ScrollTrigger: measuring into the probe, when to refresh, no measurement under a cover, the smooth-scroll guard, quiet/wake, the desktop hero parallax |
-| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` and never touches the page |
+| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` and never touches the page |
 | `Hero`, `Directions` | The anchors the scene fits its models into, the art slots, and the inputs: `setSceneBoost` (CTA hover / keyboard focus), `selectSceneShape` (the selected pill) |
 | `components/scene/art/*` | The static drawings (server-rendered first, see below) |
 
 ### Stores and channels
 
 - **The scroll probe** — a plain mutable object the stage creates once and hands to both halves.
-  The director writes it at every ScrollTrigger refresh (`heroExit`, `handoff`, the stage's
-  top/bottom, both anchors' document boxes, `headerH`, `version`, `live`); the scene reads it,
-  with `window.scrollY`, once per frame. No React state, no events.
+  The director writes it at every ScrollTrigger refresh; the scene reads it, with
+  `window.scrollY`, once per frame. No React state, no events. Its shape (`ScrollProbe`,
+  `lib/scene.ts`): `live`, `version`, `headerH`, `stage: { top, bottom }`, `hero` and `services`
+  (document boxes, null while the anchor is not in the page), and two scroll spans — `heroExit`
+  (`#top` "top top" → "bottom 35%", a progress the chip's exit follows) and `entry` (the services
+  anchor "top 90%" → "top 75%", the band the services entry gate arms and disarms over; not a
+  progress).
 - **The scene input store** (`lib/scene.ts`) — `{ boost, waveSeq, shape }`, a frozen snapshot
   replaced on every change (so it works with `useSyncExternalStore`). `boost` is 1 while any CTA
   source is active; `waveSeq` counts only the 0 → 1 edges, so moving between the two CTAs never
@@ -337,7 +347,8 @@ steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on`
 - **`tbs:intro-gone`** (`lib/intro.ts`) and **`tbs:page-cover`** (`lib/scrollLock.ts`) — see
   [Data flow](#data-flow) below.
 - **The scene's fx** (`fx.ts`, one per canvas) — the tilt targets the listeners write, what the
-  world smooths every frame, and the cursor trail's ring buffer (`fx.trail`). `input.ts` pushes a
+  world smooths every frame, the services entry gate (`fx.entry`), and the cursor trail's ring
+  buffer (`fx.trail`). `input.ts` pushes a
   segment for a **mouse or pen** move only (in the fine-pointer branch): `pushTrail` snaps the
   point to a 20px **document** grid (`clientX + scrollX`, `clientY + scrollY`, `event.timeStamp`)
   and marks the slots it wrote; `three/trail.ts` uploads just those slots and draws.
@@ -358,8 +369,9 @@ steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on`
   `components/scene/**` for GSAP pinning and would read the key as a ScrollTrigger pin.
 - **Along the hero exit** the chip shrinks, lifts apart (`coreExitPose().lift`: heat spreader and
   die rise off the substrate) and dissolves (`coreReveal`); it no longer drifts to the services
-  host. Until the services-entry phase, swarm slot 0 holds the chip's silhouette (`chipSamples`),
-  so the hand-over still leaves from where the chip is.
+  host, and no swarm carries it anywhere: swarm slot 0 still holds the chip's silhouette
+  (`chipSamples`) but no plan uses it since the services entrance (Phase 2) — the Work helix takes
+  the slot in Phase 3.
 - **The cursor trail** is one more part (built after the swarm, compiled in its own slice): one P5
   ribbon of `TRAIL.cap` (64) segments × 6 vertices in document px, drawn over the rest of the scene
   (render order 9, no depth test), and only while a segment is still fading (`TRAIL.life` 0.9s).
@@ -369,6 +381,47 @@ steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on`
   rings were tied to the intro's orbits (`RING_TILTS` / `RING_OMEGA` ≡ the intro's `ORBITS`, pinned
   by a unit test). `CORE`, `RING_TILTS`, `RING_OMEGA` and that test are gone; the intro keeps its own
   `ORBITS` in `components/intro/`.
+
+### The services entrance (IT-OS Phase 2, 2026-09-17)
+
+The chip used to be scrubbed into the services model by the scroll: the swarm's progress was the
+scroll position, so a visitor who stopped reading half-way left the model half-formed — the
+brand-ui wave read as noise. The entrance is now a **timed gate** (decisions D-C, D-G):
+
+- **The band** — the director's `entry` trigger on the services anchor, "top 90%" → "top 75%",
+  measured into `probe.entry` (`writeEntrySpan`). Animation-free, like `heroExit`.
+- **The gate** (`fx.ts`, pure): `Gate = { value, armed }`, stepped every frame by
+  `stepGate(gate, scrollY, span, step, ENTRY_SECONDS, instant)` (never a parameter named `snap`:
+  `scene-contract.test.ts` reads `snap:` under `components/scene` as ScrollTrigger's). Hysteresis: it arms once `scrollY`
+  reaches the band's end and disarms only above its start; in between it keeps what it has.
+  `value` runs in **time**, not scroll: 0 → 1 in `ENTRY_SECONDS.form` (1.1s) while armed, back in
+  `.unform` (0.45s) while not — on the clamped frame step, so SwiftShader's 20 Hz clamp makes it
+  at least 22 frames. `stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan)` snaps the gate on
+  the first frame (a deep link into the services finds the model formed), keeps it shut while the
+  services anchor is not measured (`entrySpan` null), and snaps a disarmed gate to 0 once the page
+  is back at the hero (`heroExit` 0).
+- **The composition** (`composeScene(entry, morph, out)`, `choreography.ts`): below 1 the
+  entrance owns the swarm — `from = BURST` (−1, not a slot), `to = 1 + selected`, `t = entry` —
+  and the model is revealed by `smoothstep(.72, 1, entry)`; the pill morph is instant meanwhile.
+  At 1 the morph owns the swarm as before. Both ends meet continuously (unit-tested): the swarm's
+  alpha reaches 0 exactly as the model's reveal reaches 1.
+- **The burst** (`world.ts`, `swarm.ts`, no shader change): a `BURST` plan uses the selected
+  model's slot at both ends; the `from` matrix shrinks it to a speck at the services host's centre
+  (`BURST_SPECK`: scale × 0.05, a cloud 1.35 × the model's radius so it overshoots and converges,
+  sprites from half size). The shader's leave → cloud → arrive then reads as an explosion out of
+  the centre that assembles into the model; scrolled back above, it implodes the same way.
+- **A model's own cycle waits for it to form.** The world passes a model `step = 0` while its
+  reveal is below 1 (its clock is reset at the first reveal), so the swarm lands on the model's
+  starting pose and every loop starts at formation: the cubes hold their block for the whole
+  1.4s hold after `formed`, then run their explode → float → re-assemble loop (7.2s,
+  `models/cubes.ts`) — scattered cubes a couple of seconds after `formed` are that loop, not a
+  half-formed entrance. The same applies to a model a pill morph reveals.
+- **`data-entry`** (D-G) — the scene, not the director, knows when the model has formed. From the
+  first frame after ready, `SceneWorld` reports `entryState(fx.entry.value)` through `onEntry`
+  (`SceneCanvasProps`) on a change only: `idle` at 0, `burst` in between (either direction),
+  `formed` at 1. `SceneStage` writes it on the stage root and removes it with the scene; the
+  Directions panel's edge glow and glass sweep (`entry-glow`, `entry-sweep` in `app/tailwind.css`)
+  key off it. Nothing is written while the art shows (`pending`, `fallback`, `off`).
 
 ### The art: one drawing in the HTML, the rest on demand
 

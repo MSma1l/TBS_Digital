@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BURST,
   COARSE_PARALLAX_MAX,
   CORE_BEHIND_COPY_BELOW,
   CORE_BEHIND_COPY_DIM,
@@ -22,11 +23,23 @@ import {
   revealOf,
   smoothstep,
   stepMorph,
+  swarmAlpha,
   swarmPhase,
   worldPerPx,
   type MorphState,
+  type SceneComposition,
 } from "@/components/scene/choreography";
-import { createChangeSignal, createSceneFx, reportChange, stepSceneFx, WAVE_GAP_SECONDS } from "@/components/scene/fx";
+import {
+  ENTRY_SECONDS,
+  createChangeSignal,
+  createGate,
+  createSceneFx,
+  entryState,
+  reportChange,
+  stepGate,
+  stepSceneFx,
+  WAVE_GAP_SECONDS,
+} from "@/components/scene/fx";
 import { CHIP, CHIP_POSE, MODEL_RADIUS, type Vec3 } from "@/components/scene/shapes";
 import {
   CHIP_STACK,
@@ -39,7 +52,7 @@ import {
 } from "@/components/scene/three/samples";
 import { SCENE_TIER_CONFIG } from "@/components/scene/tiers";
 import { mulberry32 } from "@/components/three/random";
-import { SCENE_SHAPES, SERVICE_MODEL, createScrollProbe, type ScrollProbe } from "@/lib/scene";
+import { SCENE_SHAPES, SERVICE_MODEL, createScrollProbe, type SceneEntry, type ScrollProbe } from "@/lib/scene";
 
 /*
  * The interior scene's choreography as numbers: where the core and the service models sit on
@@ -58,7 +71,8 @@ function desktopProbe(): ScrollProbe {
   probe.hero = { x: 702, y: 167, w: 538, h: 538 };
   probe.services = { x: 610, y: 1126, w: 630, h: 248 };
   probe.heroExit = { start: 71, end: 520 };
-  probe.handoff = { start: 366, end: 810 };
+  // The services anchor "top 90%" → "top 75%" of the 800px viewport.
+  probe.entry = { start: 406, end: 526 };
   return probe;
 }
 
@@ -363,34 +377,38 @@ describe("morph — stepMorph", () => {
 });
 
 describe("morph — who draws what (composeScene)", () => {
-  it("at the hero: the core only", () => {
+  /** How much of the swarm is on screen: the shader's alpha while it is drawn, 0 when not. */
+  const swarmDrawn = (plan: SceneComposition) => (plan.swarm.active ? swarmAlpha(plan.swarm.t) : 0);
+
+  it("above the services (entry 0): nothing drawn", () => {
     const plan = composeScene(0, createMorph(2), createComposition());
-    expect(plan.core).toBe(1);
-    expect(plan.swarm.active).toBe(false);
-    expect(revealOf(plan, 2)).toBe(0);
+    expect(plan.swarm).toEqual({ active: false, from: 0, to: 0, t: 0 });
+    for (let index = 0; index < SCENE_SHAPES.length; index += 1) expect(revealOf(plan, index)).toBe(0);
   });
 
-  it("during the handoff the swarm carries the core into the selected model", () => {
+  it("the entrance bursts the selected model out of a speck and reveals it over the last stretch", () => {
+    expect(BURST).toBe(-1);
     const plan = composeScene(0.6, createMorph(3), createComposition());
-    expect(plan.swarm).toEqual({ active: true, from: 0, to: 4, t: 0.6 });
-    expect(plan.core).toBeCloseTo(1 - smoothstep(0.1, 0.5, 0.6), 12);
-    expect(revealOf(plan, 3)).toBe(smoothstep(0.7, 1, 0.6));
-    expect(composeScene(0.85, createMorph(3), createComposition()).models[0]).toEqual({
-      index: 3,
-      reveal: smoothstep(0.7, 1, 0.85),
-    });
+    expect(plan.swarm).toEqual({ active: true, from: BURST, to: 4, t: 0.6 });
+    expect(revealOf(plan, 3)).toBe(0);
+    expect(composeScene(0.85, createMorph(3), createComposition()).models).toEqual([
+      { index: 3, reveal: smoothstep(0.72, 1, 0.85) },
+      { index: 3, reveal: 0 },
+    ]);
+    // Imploding runs the same picture backwards; out of range is clamped.
+    expect(composeScene(0.3, createMorph(1), createComposition()).swarm).toEqual({ active: true, from: BURST, to: 2, t: 0.3 });
+    expect(composeScene(-2, createMorph(1), createComposition()).swarm.active).toBe(false);
+    expect(composeScene(7, createMorph(1), createComposition())).toEqual(composeScene(1, createMorph(1), createComposition()));
   });
 
-  it("is continuous where the handoff hands over to the morph", () => {
-    const m = createMorph(1);
-    const before = composeScene(1 - 1e-9, m, createComposition());
-    const after = composeScene(1, m, createComposition());
-    expect(revealOf(before, 1)).toBeCloseTo(revealOf(after, 1), 6);
-    expect(after.core).toBe(0);
-    expect(after.swarm.active).toBe(false);
+  it("formed and not morphing: the selected model alone, no swarm", () => {
+    const plan = composeScene(1, createMorph(4), createComposition());
+    expect(plan.swarm.active).toBe(false);
+    expect(revealOf(plan, 4)).toBe(1);
+    for (const index of [0, 1, 2, 3]) expect(revealOf(plan, index)).toBe(0);
   });
 
-  it("once in place the morph owns the swarm, and the reveals cross over", () => {
+  it("once formed the morph owns the swarm, and the reveals cross over", () => {
     const m: MorphState = { from: 0, to: 2, t: 0.2 };
     const plan = composeScene(1, m, createComposition());
     expect(plan.swarm).toEqual({ active: true, from: 1, to: 3, t: 0.2 });
@@ -402,57 +420,202 @@ describe("morph — who draws what (composeScene)", () => {
     expect(revealOf(late, 0)).toBe(0);
   });
 
+  it("property: continuous where the burst hands over to the formed model (entry → 1) and where the implosion ends (entry → 0)", () => {
+    // While entry < 1 the morph is instant (world.ts), so the entrance always meets a formed morph.
+    // Both sides agree to second order: the model's reveal and the swarm's alpha are smoothsteps,
+    // flat at those ends (|Δ| ≤ 3·(ε/0.28)² and 3·(ε/0.12)²).
+    for (let shape = 0; shape < SCENE_SHAPES.length; shape += 1) {
+      const m = createMorph(shape);
+      const formed = composeScene(1, m, createComposition());
+      const idle = composeScene(0, m, createComposition());
+      for (const eps of [1e-2, 1e-3, 1e-4, 1e-6]) {
+        const bound = 300 * eps * eps;
+        const arriving = composeScene(1 - eps, m, createComposition());
+        const leaving = composeScene(eps, m, createComposition());
+        for (let index = 0; index < SCENE_SHAPES.length; index += 1) {
+          expect(Math.abs(revealOf(arriving, index) - revealOf(formed, index)), `shape ${shape} → 1`).toBeLessThanOrEqual(bound);
+          expect(Math.abs(revealOf(leaving, index) - revealOf(idle, index)), `shape ${shape} → 0`).toBeLessThanOrEqual(bound);
+        }
+        expect(swarmDrawn(arriving)).toBeLessThanOrEqual(bound);
+        expect(swarmDrawn(leaving)).toBeLessThanOrEqual(bound);
+      }
+      expect(swarmDrawn(formed)).toBe(0);
+      expect(swarmDrawn(idle)).toBe(0);
+      // Mid-burst the swarm really is on screen.
+      expect(swarmDrawn(composeScene(0.5, m, createComposition()))).toBe(1);
+    }
+  });
+
   it("writes into the composition it is given (no allocation per frame)", () => {
     const out = createComposition();
     expect(composeScene(0.3, createMorph(0), out)).toBe(out);
+    expect(composeScene(1, { from: 1, to: 2, t: 0.4 }, out)).toBe(out);
+  });
+});
+
+/* ---- the entry gate ------------------------------------------------------------------------ */
+
+describe("gates — stepGate (armed by scroll, run in time)", () => {
+  const span = { start: 406, end: 526 };
+  const rates = ENTRY_SECONDS;
+
+  it("burst in 1.1 s, implode in 0.45 s", () => {
+    expect(ENTRY_SECONDS).toEqual({ form: 1.1, unform: 0.45 });
+    expect(createGate()).toEqual({ value: 0, armed: false });
+  });
+
+  it("hysteresis: arms at the span's end, disarms only above its start, keeps its state in between", () => {
+    const g = createGate();
+    const at = (scrollY: number) => {
+      stepGate(g, scrollY, span, 0, rates, false);
+      return g.armed;
+    };
+    expect(at(0)).toBe(false);
+    expect(at(525)).toBe(false);
+    expect(at(526)).toBe(true);
+    expect(at(450)).toBe(true);
+    expect(at(406)).toBe(true);
+    expect(at(405)).toBe(false);
+    expect(at(450)).toBe(false);
+    expect(at(9000)).toBe(true);
+  });
+
+  it("the value runs in time, not scroll: formed ENTRY_SECONDS.form after arming, wherever the page rests", () => {
+    for (const rest of [526, 700, 5000]) {
+      const g = createGate();
+      let seconds = 0;
+      for (let i = 0; i < 60; i += 1) {
+        stepGate(g, rest, span, 1 / 60, rates, false);
+        seconds += 1 / 60;
+      }
+      expect(g.value, `at ${rest}`).toBeCloseTo(1 / ENTRY_SECONDS.form, 9);
+      while (g.value < 1 && seconds < 5) {
+        stepGate(g, rest, span, 1 / 60, rates, false);
+        seconds += 1 / 60;
+      }
+      expect(g.value).toBe(1);
+      expect(seconds).toBeCloseTo(ENTRY_SECONDS.form, 1);
+      // Resting inside the band keeps it formed.
+      for (let i = 0; i < 30; i += 1) stepGate(g, 450, span, 1 / 60, rates, false);
+      expect(g.value).toBe(1);
+    }
+  });
+
+  it("scrolled back above, it implodes over ENTRY_SECONDS.unform, from wherever it was", () => {
+    const g = { value: 1, armed: true };
+    stepGate(g, 300, span, 0.2, rates, false);
+    expect(g.armed).toBe(false);
+    expect(g.value).toBeCloseTo(1 - 0.2 / ENTRY_SECONDS.unform, 12);
+    stepGate(g, 300, span, 0.25, rates, false);
+    expect(g.value).toBe(0);
+    // Half-formed and turned back: it goes back the way it came, never jumps.
+    const turned = { value: 0.5, armed: true };
+    stepGate(turned, 0, span, 0.05, rates, false);
+    expect(turned.value).toBeCloseTo(0.5 - 0.05 / ENTRY_SECONDS.unform, 12);
+  });
+
+  it("snap jumps straight to the armed value", () => {
+    const g = createGate();
+    stepGate(g, 600, span, 0, rates, true);
+    expect(g).toEqual({ value: 1, armed: true });
+    stepGate(g, 450, span, 0, rates, true);
+    expect(g).toEqual({ value: 1, armed: true });
+    stepGate(g, 100, span, 0, rates, true);
+    expect(g).toEqual({ value: 0, armed: false });
+  });
+
+  it("data-entry: idle at 0, burst on the way either direction, formed at 1", () => {
+    expect([0, -1, 1e-9, 0.5, 1 - 1e-9, 1, 2].map(entryState)).toEqual<SceneEntry[]>([
+      "idle",
+      "idle",
+      "burst",
+      "burst",
+      "burst",
+      "formed",
+      "formed",
+    ]);
   });
 });
 
 /* ---- per-frame state ------------------------------------------------------------------------ */
 
-describe("fx — per-frame smoothing and the light wave", () => {
+describe("fx — per-frame smoothing, the entry gate and the light wave", () => {
   const input = (waveSeq = 0, boost: 0 | 1 = 0) => ({ boost, waveSeq, shape: 0 });
+  const span = { start: 406, end: 526 };
 
-  it("the first frame snaps to the targets (a deep link never animates in)", () => {
+  it("the first frame snaps to the targets, the entry gate included (a deep link never animates in)", () => {
     const fx = createSceneFx();
-    stepSceneFx(fx, 1 / 60, input(3, 1), 0.4, 1);
+    stepSceneFx(fx, 1 / 60, input(3, 1), 0.4, 600, span);
     expect(fx.heroExit).toBe(0.4);
-    expect(fx.handoff).toBe(1);
+    expect(fx.entry).toEqual({ value: 1, armed: true });
     expect(fx.boost).toBe(1);
     expect(fx.waveSeq).toBe(3);
     expect(fx.wave).toBe(1);
   });
 
-  it("eases towards a new scroll progress and really reaches 1", () => {
+  it("then the burst runs on the clamped frame step: at SwiftShader's 20 Hz clamp it takes 22 frames", () => {
     const fx = createSceneFx();
-    stepSceneFx(fx, 1 / 60, input(), 0, 0);
-    stepSceneFx(fx, 1 / 60, input(), 0, 1);
-    expect(fx.handoff).toBeGreaterThan(0);
-    expect(fx.handoff).toBeLessThan(1);
-    for (let i = 0; i < 120; i += 1) stepSceneFx(fx, 1 / 60, input(), 0, 1);
-    expect(fx.handoff).toBe(1);
+    stepSceneFx(fx, 1 / 60, input(), 0, 0, span);
+    expect(fx.entry).toEqual({ value: 0, armed: false });
+    const states: SceneEntry[] = [];
+    const signal = createChangeSignal<SceneEntry | null>(null);
+    let frames = 0;
+    // A hitch of a whole second still moves it by one 20 Hz frame at most.
+    while (fx.entry.value < 1 && frames < 100) {
+      stepSceneFx(fx, 1, input(), 1, 600, span);
+      frames += 1;
+      const state = reportChange(signal, entryState(fx.entry.value));
+      if (state !== null) states.push(state);
+      if (frames === 1) expect(fx.entry.value).toBeCloseTo(1 / 20 / ENTRY_SECONDS.form, 12);
+    }
+    expect(frames).toBeGreaterThanOrEqual(22);
+    expect(frames).toBeLessThanOrEqual(23);
+    expect(states).toEqual(["burst", "formed"]);
+  });
+
+  it("no measured services anchor: the gate stays shut", () => {
+    const fx = createSceneFx();
+    for (let i = 0; i < 40; i += 1) stepSceneFx(fx, 1 / 20, input(), 1, 5000, null);
+    expect(fx.entry).toEqual({ value: 0, armed: false });
+  });
+
+  it("flung back up to the hero, a disarmed gate snaps to idle; merely above the span it implodes in time", () => {
+    const fx = createSceneFx();
+    stepSceneFx(fx, 1 / 20, input(), 1, 600, span);
+    expect(fx.entry.value).toBe(1);
+    stepSceneFx(fx, 1 / 20, input(), 0.9, 300, span);
+    expect(fx.entry.armed).toBe(false);
+    expect(fx.entry.value).toBeCloseTo(1 - 1 / 20 / ENTRY_SECONDS.unform, 12);
+    stepSceneFx(fx, 1 / 20, input(), 0, 0, span);
+    expect(fx.entry).toEqual({ value: 0, armed: false });
+
+    // A services anchor already past its span at the top of the page stays armed there.
+    const early = createSceneFx();
+    stepSceneFx(early, 1 / 20, input(), 0, 0, { start: -300, end: -100 });
+    stepSceneFx(early, 1 / 20, input(), 0, 0, { start: -300, end: -100 });
+    expect(early.entry).toEqual({ value: 1, armed: true });
   });
 
   it("a new boost starts a wave, but never sooner than the gap after the last one", () => {
     const fx = createSceneFx();
-    stepSceneFx(fx, 1 / 60, input(0), 0, 0);
-    stepSceneFx(fx, 1 / 60, input(1, 1), 0, 0);
+    stepSceneFx(fx, 1 / 60, input(0), 0, 0, span);
+    stepSceneFx(fx, 1 / 60, input(1, 1), 0, 0, span);
     expect(fx.wave).toBeLessThan(1);
     const started = fx.waveStart;
-    stepSceneFx(fx, 1 / 60, input(2, 1), 0, 0);
+    stepSceneFx(fx, 1 / 60, input(2, 1), 0, 0, span);
     expect(fx.waveStart).toBe(started);
-    for (let i = 0; i < Math.ceil(WAVE_GAP_SECONDS * 60) + 2; i += 1) stepSceneFx(fx, 1 / 60, input(2, 1), 0, 0);
-    stepSceneFx(fx, 1 / 60, input(3, 1), 0, 0);
+    for (let i = 0; i < Math.ceil(WAVE_GAP_SECONDS * 60) + 2; i += 1) stepSceneFx(fx, 1 / 60, input(2, 1), 0, 0, span);
+    stepSceneFx(fx, 1 / 60, input(3, 1), 0, 0, span);
     expect(fx.waveStart).toBeGreaterThan(started);
   });
 
   it("sways on its own until a real tilt sample arrives", () => {
     const fx = createSceneFx();
-    for (let i = 0; i < 60; i += 1) stepSceneFx(fx, 1 / 20, input(), 0, 0);
+    for (let i = 0; i < 60; i += 1) stepSceneFx(fx, 1 / 20, input(), 0, 0, span);
     expect(fx.tx).not.toBe(0);
     fx.tiltLive = true;
     fx.tiltX = 1;
-    for (let i = 0; i < 200; i += 1) stepSceneFx(fx, 1 / 20, input(), 0, 0);
+    for (let i = 0; i < 200; i += 1) stepSceneFx(fx, 1 / 20, input(), 0, 0, span);
     expect(fx.tx).toBeCloseTo(1, 3);
   });
 

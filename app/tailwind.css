@@ -328,6 +328,73 @@
   }
 }
 
+/* The services glass reveal. `entry-glow` (the Directions panel) lights its edge in the
+   selected direction's --accent; `entry-sweep` (its copy column) runs one band of light across
+   it. On the WebGL path they follow `data-entry` on the stage root, which the scene writes as
+   the services model assembles (components/scene/SceneStage.tsx): the band while it bursts, the
+   edge easing in once it is formed. Without WebGL (`data-renderer` fallback or off) the edge is
+   simply lit, with no transition — never while `pending`, which may still become WebGL and take
+   it away again. The WebGL rules also require `data-renderer="webgl"`: the scene reports its
+   first entry state in the frame it becomes ready, a commit before the stage says `webgl`, and
+   a deep link's first report is already `formed`. The depth shadow stays under the glow; the panel's own shadow is not
+   clipped by its `overflow-hidden`. Neither goes on `[data-reveal]` or the intro.
+   The glow's colours are `color-mix` inside an explicit @supports: Tailwind would otherwise
+   add a fallback copy of every rule with the plain, fully opaque accent. An engine without
+   color-mix keeps the plain panel. */
+@utility entry-glow {
+  [data-scene-stage][data-renderer="webgl"] & {
+    transition:
+      border-color 0.5s var(--motion-ease-out),
+      box-shadow 0.5s var(--motion-ease-out);
+  }
+  @supports (color: color-mix(in lab, red, red)) {
+    [data-scene-stage][data-renderer="webgl"][data-entry="formed"] &,
+    [data-scene-stage][data-renderer="fallback"] &,
+    [data-scene-stage][data-renderer="off"] & {
+      border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+      box-shadow:
+        var(--sh-lg),
+        0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+        0 0 32px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+  }
+}
+/* The column is `relative` and keeps ::before for its top hairline; ::after is the band, above
+   the copy but never catching the pointer. The column clips it only while it plays (`clip`
+   makes no scroll container, so the layout never moves). The band's strength is the
+   keyframes' opacity, not a colour mix, so no engine ever gets an opaque band over the text:
+   .12 at most, which keeps every line of the copy at 4.5:1 or more under the band's centre in
+   both themes, for all five accents (the light theme's red tag is the tightest, 4.61; .16 would
+   take it to 4.38). Transform and opacity only. */
+@utility entry-sweep {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    background-image: linear-gradient(115deg, transparent 35%, var(--accent) 50%, transparent 65%);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    [data-scene-stage][data-renderer="webgl"][data-entry="burst"] & {
+      overflow: clip;
+    }
+    [data-scene-stage][data-renderer="webgl"][data-entry="burst"] &::after {
+      animation: hud-glass-sweep 1.1s var(--motion-ease-out) both;
+    }
+  }
+}
+@keyframes hud-glass-sweep {
+  from {
+    opacity: 0.12;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
 /* ---- animations -------------------------------------------------------------------------
    Every one is transform- or opacity-only, so the compositor runs it, and the reduced-motion
    switch in globals.css (`* { animation: none !important }`) stops all of them. Keyframe

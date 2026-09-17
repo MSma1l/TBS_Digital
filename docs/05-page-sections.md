@@ -211,9 +211,13 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
     outside the stage;
   - a pause over 0.35s, or a jump of more than 12 grid cells (240px), starts a new line instead of
     drawing a wire across the page. At most 64 segments live at once.
-- **The selected direction's model.** As the services come into view the chip dissolves and
-  the scene hands over to the model of the pill that is selected, drawn behind the Directions
-  HUD screen:
+- **The selected direction's model.** The chip dissolves on its own as the hero leaves. Once the
+  top of the services screen passes three quarters of the viewport, the model of the pill that is
+  selected **bursts out of a point** at the centre of its place and assembles, in 1.1s — on its own
+  clock, whether the visitor keeps scrolling or stops, so it is never left half-formed. Scrolled
+  back above (the screen's top below 90% of the viewport) it implodes into that point in 0.45s. A
+  visit that lands on the services directly (a reload, a link) finds it already formed. It is
+  drawn behind the Directions HUD screen:
 
   | Direction | Model |
   |-----------|-------|
@@ -221,11 +225,21 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
   | E-commerce | the Offer → Payment → Access loop, packets riding it |
   | Automatizare & API | a hub wired to its systems |
   | Asistenți IA & boți | a layered neural network with impulses |
-  | Brand & UI | a wireframe wave with interface cards over it |
+  | Brand & UI | a neon grid (rows, columns and + crossings) rolling in waves, with interface cards over it |
 
   Selecting another direction **morphs** the model through a particle swarm (0.32s dissolve,
-  0.5s re-form) — once the hand-over is complete; during it a switch is instant. The models sway
-  gently rather than spin (a full turn shows a loop or a mesh edge-on).
+  0.5s re-form) — once the model has formed; while it bursts in, a switch is instant. The models
+  sway gently rather than spin (a full turn shows a loop or a mesh edge-on). A model's own motion
+  starts only once it has formed, after the burst or a morph: the cubes hold their block for 1.4s,
+  then explode, float and re-assemble on a 7.2s loop, so cubes scattered a couple of seconds after
+  the entrance are that loop, not an unfinished burst. The Brand & UI grid holds its waves still while
+  the swarm lands on it, so the particles meet the lines exactly; the waves roll from formation,
+  and the pulse ring and the lean towards the pointer grow in over 0.6s.
+- **The screen answers the burst.** The stage says where the entrance is (`data-entry` on
+  `[data-scene-stage]`: `idle`, `burst`, `formed`), and the Directions panel follows it: a band of
+  light sweeps its copy while the model bursts in, and its edge lights up in the direction's accent
+  once it has formed. On the static art (`fallback`, `off`) there is no `data-entry` and the
+  panel's edge is simply lit; while the stage is still deciding (`pending`) it stays plain.
 - Each model follows its place on the page at a parallax factor below 1, so the canvas's
   one-frame lag behind a scrolling page reads as depth.
 - **Below 861px the chip sits behind the headline**, dimmed so the copy keeps its contrast (0.55
@@ -375,6 +389,9 @@ direction's accent and reference project come from `lib/solutions.ts` and the li
   card — the direction's own reference project (name, description, its tags as chips joined by
   the tag's "·"), or, for a capability direction with no project (e-commerce), the numbered flow
   Offer → Payment → Access.
+- **The panel answers the 3D entrance:** a band of light crosses the preview while the model
+  bursts in, and the panel's edge lights in the direction's accent once it has formed (simply lit
+  on the static art). See [Interior stage (3D)](#interior-stage-3d).
 - **Layout:** below 861px the screen comes **first**, right under the pills, so a tap changes the
   model in view; from 861px the preview and the screen sit side by side; from 1025px the model
   stands beside the case card.

@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * The interior WebGL scene (three.js + R3F): the hero's Cybernetic Core, the five service
- * models and the swarm that morphs between them, drawn on the stage's one sticky canvas.
+ * The interior WebGL scene (three.js + R3F): the hero's microprocessor, the five service
+ * models and the swarm that bursts them in and morphs between them, drawn on the stage's one
+ * sticky canvas.
  *
  * Reached only through `next/dynamic` from the stage, via the shared 3D runtime module
  * (components/three/runtime.tsx, the intro's import target too), so three.js and R3F never
@@ -19,7 +20,7 @@ import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GovernorStep } from "@/components/three/governor";
 import { useRendererFactory } from "@/components/three/hooks";
-import type { SceneCanvasProps } from "@/lib/scene";
+import type { SceneCanvasProps, SceneEntry } from "@/lib/scene";
 import { SCENE_CAMERA } from "./choreography";
 import { createSceneFx } from "./fx";
 import { attachTiltInput } from "./input";
@@ -55,6 +56,7 @@ export function SceneCanvas({
   onBail,
   onQuality,
   onMorph,
+  onEntry,
 }: SceneCanvasProps) {
   // Read before any context exists: an unparsable token throws straight to the stage's boundary.
   const [palette, setPalette] = useState(readScenePalette);
@@ -71,14 +73,15 @@ export function SceneCanvas({
   const [step, setStep] = useState<GovernorStep>("full");
   const [fx] = useState(createSceneFx);
 
-  const callbacks = useRef({ onReady, onLost, onBail, onQuality, onMorph });
+  const callbacks = useRef({ onReady, onLost, onBail, onQuality, onMorph, onEntry });
   useEffect(() => {
-    callbacks.current = { onReady, onLost, onBail, onQuality, onMorph };
-  }, [onReady, onLost, onBail, onQuality, onMorph]);
+    callbacks.current = { onReady, onLost, onBail, onQuality, onMorph, onEntry };
+  }, [onReady, onLost, onBail, onQuality, onMorph, onEntry]);
 
   const handleLost = useCallback(() => callbacks.current.onLost(), []);
   const handleReady = useCallback(() => callbacks.current.onReady(), []);
   const handleMorph = useCallback((running: boolean) => callbacks.current.onMorph(running), []);
+  const handleEntry = useCallback((state: SceneEntry) => callbacks.current.onEntry(state), []);
   const handleStep = useCallback((next: GovernorStep) => {
     if (next === "bail") {
       callbacks.current.onBail();
@@ -129,6 +132,7 @@ export function SceneCanvas({
         onReady={handleReady}
         onStep={handleStep}
         onMorph={handleMorph}
+        onEntry={handleEntry}
       />
     </Canvas>
   );

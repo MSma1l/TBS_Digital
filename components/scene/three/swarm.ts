@@ -1,10 +1,15 @@
 /**
- * The morph swarm: one set of light particles that carries every change of shape — the hero
- * core collapsing into the services host, and one service model turning into another. Each
- * particle knows its place on all six shapes (`aS0` the core, `aS1…aS5` the service models in
- * `SCENE_SHAPES` order), fixed for life, so a morph only sets uniforms: which two slots, the
- * two models' world matrices, and the progress. The vertex shader does the rest (materials.ts,
- * `POINTS_MODE.swarm`); nothing moves on the CPU.
+ * The morph swarm: one set of light particles that carries every change of shape — the
+ * services model bursting out of a speck at its host (and imploding back), and one service
+ * model turning into another. Each particle knows its place on all six shapes (`aS0` the
+ * chip's silhouette, unplanned until the Work helix takes the slot; `aS1…aS5` the service
+ * models in `SCENE_SHAPES` order), fixed for life, so a morph only sets uniforms: which two
+ * slots, the two ends' world matrices, and the progress. The vertex shader does the rest
+ * (materials.ts, `POINTS_MODE.swarm`); nothing moves on the CPU.
+ *
+ * A burst (`plan.from === BURST`) is the `to` slot at both ends: the frame's `fromMatrix`
+ * shrinks it to a speck, so the shader's usual leave → cloud → arrive reads as an explosion
+ * out of the centre that assembles into the model.
  *
  * It lives in world space (a direct child of the scene root, identity transform) and is only
  * drawn while a morph runs.
@@ -12,7 +17,7 @@
 
 import { BufferAttribute, BufferGeometry, Matrix4, Points, type Vector3 } from "three";
 import type { ServiceModel } from "@/lib/scene";
-import type { SwarmPlan } from "../choreography";
+import { BURST, type SwarmPlan } from "../choreography";
 import { pointsDrawn, type SceneTierConfig } from "../tiers";
 import { INK_SPRITES, POINTS_MODE, createPointsMaterial, paintPoints } from "./materials";
 import type { ScenePalette } from "./palette";
@@ -20,6 +25,7 @@ import { SCENE_SEEDS, seedAttributes, swarmSlots } from "./samples";
 
 export type SwarmFrame = {
   plan: SwarmPlan;
+  /** For a burst: the speck (the `to` shape shrunk at its host's centre). */
   fromMatrix: Matrix4;
   toMatrix: Matrix4;
   /** World radius of the shapes at either end (the cloud swells between them). */
@@ -94,7 +100,7 @@ export function createSwarm(
       if (!visible) return;
       const u = swarm.uniforms;
       u.uT.value = plan.t;
-      slotWeights(plan.from, u.uFromA.value, u.uFromB.value);
+      slotWeights(plan.from === BURST ? plan.to : plan.from, u.uFromA.value, u.uFromB.value);
       slotWeights(plan.to, u.uToA.value, u.uToB.value);
       u.uFromM.value.copy(frame.fromMatrix);
       u.uToM.value.copy(frame.toMatrix);

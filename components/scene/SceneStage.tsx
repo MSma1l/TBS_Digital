@@ -22,6 +22,7 @@ import {
   type GpuFacts,
   type GpuMode,
   type MotionGate,
+  type SceneEntry,
   type SceneMotion,
   type SceneQuality,
   type SceneReason,
@@ -115,8 +116,10 @@ const serverFalse = () => false;
  *
  * Paused (`frameloop="never"`, context kept) while the stage is off screen, the tab hidden
  * or something full-screen covers the page (burger, intro, dialog). `data-boost`,
- * `data-quality`, `data-morph` (and the director's `data-scroll-fx`) are written straight to
- * the DOM, never through React state.
+ * `data-quality`, `data-morph`, `data-entry` (and the director's `data-scroll-fx`) are written
+ * straight to the DOM, never through React state. `data-entry` (`idle|burst|formed`, the
+ * services entrance as the ready scene draws it) exists only while a scene is mounted: the
+ * fallback and off stages never carry it.
  */
 export function SceneStage({ children }: { children: ReactNode }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -256,13 +259,14 @@ export function SceneStage({ children }: { children: ReactNode }) {
     return subscribeSceneInput(write);
   }, []);
 
-  // The scene's quality and morph reports belong to the scene that made them.
+  // The scene's quality, morph and entry reports belong to the scene that made them.
   useEffect(() => {
     const el = stageRef.current;
     if (!loading || !el) return;
     return () => {
       el.removeAttribute(SCENE_ATTR.quality);
       el.removeAttribute(SCENE_ATTR.morph);
+      el.removeAttribute(SCENE_ATTR.entry);
     };
   }, [loading, attempt]);
 
@@ -309,6 +313,10 @@ export function SceneStage({ children }: { children: ReactNode }) {
     stageRef.current?.setAttribute(SCENE_ATTR.morph, running ? "running" : "idle");
   }, []);
 
+  const onEntry = useCallback((entry: SceneEntry) => {
+    stageRef.current?.setAttribute(SCENE_ATTR.entry, entry);
+  }, []);
+
   // ---- render --------------------------------------------------------------------------
   const webgl = loading && readyAttempt === attempt && liveAttempt === attempt;
   const renderer: SceneRenderer = webgl
@@ -353,6 +361,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
                   onBail={onBail}
                   onQuality={onQuality}
                   onMorph={onMorph}
+                  onEntry={onEntry}
                 />
               </div>
               <SceneDirector stage={stageRef} probe={probe} onLive={onLive} />

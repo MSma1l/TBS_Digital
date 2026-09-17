@@ -16,6 +16,344 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Faza 2: intrarea serviciilor (explozie și asamblare), panoul care se aprinde, Brand & UI ca grilă
+
+A treia fază a experienței IT aprobate. Până acum scroll-ul „trecea” cipul în modelul direcției
+selectate: progresul roiului era chiar poziția paginii, deci un vizitator care se oprea să citească
+lăsa modelul **pe jumătate format**. Brand & UI (o plasă de poligoane cu noduri) se citea acolo ca
+**zgomot de particule**. Acum intrarea la Servicii e o **poartă temporizată**. Când ancora
+serviciilor trece un prag, modelul selectat **explodează dintr-un punct și se asamblează în 1.1s**,
+pe ceasul lui, oriunde s-ar opri pagina. Deasupra pragului **implodează în 0.45s**.
+
+Scena spune unde a ajuns intrarea (`data-entry`), iar panoul Directions răspunde:
+- cât explodează modelul, o bandă de lumină trece peste text;
+- după ce s-a format, marginea panoului se aprinde în accentul direcției.
+
+Brand & UI devine o grilă rară de rânduri și coloane, cu cruciulițe `+`.
+
+Trei owneri, pe fișiere disjuncte:
+- poarta și compoziția (P2-A);
+- grila Brand & UI (P2-B);
+- panoul (P2-C).
+
+Documentația a făcut-o P2-D. Nu există niciun program WebGL nou și nimic nou în bundle-ul paginii.
+Nu există copie nouă pentru vizitator: totul e canvas sau decor `aria-hidden`. CSP-ul e neschimbat
+și nimic nu se scrie în storage.
+
+**Added** — poarta de intrare a serviciilor (`components/scene/fx.ts`, `choreography.ts`,
+`SceneDirector.tsx`, `scrollProbe.ts`, `SceneWorld.tsx`, `SceneCanvas.tsx`, `SceneStage.tsx`,
+`three/world.ts`, `three/swarm.ts`, `lib/scene.ts`) — vezi
+[03](./docs/03-architecture.md#the-services-entrance-it-os-phase-2-2026-09-17),
+[05](./docs/05-page-sections.md#interior-stage-3d) și [07](./docs/07-conventions.md#gsap-and-scrolltrigger)
+
+- **Banda** (decizia D-C): trigger-ul `entry` al directorului, pe ancora serviciilor.
+  - Merge de la **„top 90%” la „top 75%”** (vechiul `handoff`: „top 95%” → „center 55%”).
+  - E măsurat în `probe.entry` (`writeEntrySpan`), fără animație, ca `heroExit`.
+  - Nu e un progres, doar pragul.
+- **Poarta** (`fx.ts`, pură): `Gate = { value, armed }`, `createGate`,
+  `ENTRY_SECONDS = { form: 1.1, unform: 0.45 }` și
+  `stepGate(g, scrollY, span, step, rates, instant)`.
+  - **Histerezis**: se armează când `scrollY` ajunge la capătul benzii și se dezarmează doar
+    deasupra începutului ei. Între cele două își păstrează starea.
+  - `value` merge **în timp, nu în scroll**: urcă de la 0 la 1 în 1.1s cât e armată și coboară
+    în 0.45s. Pasul de cadru e limitat, deci sub SwiftShader (1/20s) explozia ține cel puțin
+    22 de cadre.
+- **`stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan)`**:
+  - **Primul cadru fixează poarta direct.** Un deep link în servicii (reload, link) găsește
+    modelul deja format, fără explozie.
+  - Cât ancora nu e măsurată (`entrySpan` null), poarta rămâne închisă.
+  - Aruncat înapoi la hero (`heroExit` brut 0), o poartă dezarmată sare la 0.
+- **Compoziția**: `composeScene(entry, m, out)`.
+  - **Sub 1, intrarea deține roiul**: `from = BURST` (−1, nu e un slot), `to = 1 + selectat`,
+    `t = entry`. Modelul apare pe `smoothstep(.72, 1, entry)`, iar morph-ul între pastile e
+    instant între timp.
+  - **La 1, morph-ul deține roiul**, ca înainte.
+  - Cele două capete se ating continuu: alfa roiului (`swarmAlpha`) ajunge la 0 exact când
+    dezvăluirea modelului ajunge la 1. Asta e fixat de un test de proprietate.
+  - Funcția e gândită ca Faza 3 să adauge `work` ca ramură nouă.
+- **Explozia** (`world.ts`, `swarm.ts`, **niciun shader schimbat**):
+  - Un plan `BURST` folosește slotul modelului selectat la ambele capete.
+  - Matricea `from` strânge modelul într-un punct din centrul host-ului, după
+    `BURST_SPECK = { scale: .05, radius: 1.35, sprite: .5 }`. Norul e cu 35% mai larg decât
+    modelul, deci trece peste el și apoi converge; sprite-urile pornesc de la jumătate.
+  - Shader-ul existent (plecare → nor → sosire) se vede ca o explozie din centru care se
+    asamblează. Deasupra benzii, implozia e același drum invers.
+- **`data-entry="idle|burst|formed"`** pe `[data-scene-stage]` (decizia D-G). Doar scena știe
+  când modelul s-a format; directorul știe doar pragul.
+  - `SceneWorld` raportează `entryState(fx.entry.value)` prin `onEntry` (`SceneCanvasProps`),
+    doar la schimbare și doar după ready.
+  - Primul raport e starea curentă, deci un deep link spune direct `formed`.
+  - `SceneStage` scrie atributul direct în DOM, niciodată prin state React, și îl scoate odată cu
+    scena. Numele e în `SCENE_ATTR.entry`.
+  - Pe `fallback` și `off` atributul nu există.
+- **Măsurat** (W16, noble, SwiftShader, 3 rulări):
+  - `burst` apare la 6–37ms după scroll;
+  - `formed` vine la 1.060–1.082ms după `burst`;
+  - deasupra benzii, `idle` vine la 444–480ms după `burst`.
+
+**Added** — panoul Directions răspunde intrării (`app/tailwind.css`,
+`components/sections/Directions.tsx`) — vezi [04](./docs/04-design-system.md#directions--the-hud-screen)
+
+- **`@utility entry-glow`**, pe panou:
+  - bordură `color-mix(in srgb, var(--accent) 70%, transparent)`;
+  - un inel de 1px la 35% și un glow de 32px la 18%;
+  - toate listate **după `var(--sh-lg)`**, deci umbra de adâncime rămâne dedesubt.
+
+  Când se aprinde:
+  - sub `[data-entry="formed"]`;
+  - **static** pe `[data-renderer="fallback"]` și `"off"` (R9.2);
+  - **niciodată** sub `pending`, care poate încă deveni WebGL și ar stinge glow-ul din nou.
+
+  Tranziția de 0.5s există doar sub `[data-renderer="webgl"]`, deci glow-ul static nu se animă.
+- **`color-mix` stă doar într-un `@supports (color: color-mix(in lab, red, red))` explicit.**
+  Fără el, Tailwind adaugă la fiecare regulă o copie de rezervă cu accentul plin, opac. Un motor
+  fără `color-mix` păstrează panoul simplu.
+- **`@utility entry-sweep`**, pe coloana de text:
+  - Banda e `::after`. Coloana e deja `relative`, iar `::before` e linia de sus, deci pe coloană
+    nu are voie niciun utilitar `after:`.
+  - Banda e un gradient la 115° cu `var(--accent)` solid, cu `pointer-events: none` și
+    opacitate 0 în repaus.
+  - **`@keyframes hud-glass-sweep`** e top-level: 1.1s, doar `transform` și `opacity`
+    (`translateX` −100% → 100%, opacitate .12 → 0).
+  - Rulează o singură dată, sub `[data-entry="burst"]`, doar cu
+    `prefers-reduced-motion: no-preference`.
+  - Doar atunci coloana primește `overflow: clip`, care nu creează container de scroll: nimic
+    din layout nu se mută.
+- **Contrastul sub bandă**, măsurat pe pixeli, pe textul de sub centrul benzii, pentru cele cinci
+  accente.
+  - Intensitatea vine din opacitatea keyframe-ului, nu dintr-un amestec de culoare. Așa niciun
+    motor nu poate pune o bandă opacă peste text.
+  - La .12, cel mai slab text e tag-ul: **dark 5.11:1** (6.11 fără bandă) și **light 4.61:1**
+    (5.36 fără bandă).
+  - La .16 tag-ul light ar coborî la 4.38. De aceea banda nu folosește amestecul de 16% cu
+    opacitate 1 din plan.
+  - Glow-ul nu schimbă niciun pixel din zona textului.
+- Nu atinge `[data-reveal]` și nici markerii intro-ului. Nu folosește filter, blur sau
+  border-radius.
+- **Greutate**: +218 B gzip de CSS (+1.017 raw). HTML-ul `/` crește cu +16 B la prima vizită și
+  cu +18 B la revenire (cele două clase, o dată în markup și o dată în RSC).
+
+**Added** — E2E W16 (`e2e/interior-webgl.spec.ts`, `e2e/helpers.ts`) — vezi [`e2e/README.md`](./e2e/README.md)
+
+W16 rulează la 1280×800, cu WebGL forțat:
+1. `data-entry` e `idle` în 10s, iar proba de scroll corespunde DOM-ului.
+2. Scroll la capătul benzii: `idle` → `burst` → `formed` în cel mult 20s.
+   - Tranzițiile sunt înregistrate cu un `MutationObserver`, iar timpii sunt atașați ca adnotări.
+   - `formed` nu vine niciodată mai devreme de 1s după `burst`.
+3. `box-shadow`-ul panoului `.entry-glow` diferă de cel din repaus și nu e `none`.
+4. Deasupra începutului benzii: `burst` → `idle`.
+5. Renderer-ul rămâne `webgl`, cu 0 erori de pagină.
+
+**Changed** — Brand & UI: o grilă rară în locul plasei de poligoane
+(`components/scene/three/models/meshWave.ts`, `three/samples.ts`, `three/materials.ts`, `tiers.ts`)
+— vezi [05](./docs/05-page-sections.md#interior-stage-3d)
+
+- **Geometria** (`waveGridLines`, `waveGridSegments`): un singur `LineSegments` P4
+  (`LINE_MODE.wave`), cu `aPhase` 0 pe linii și 1 pe cruciulițe.
+  - Rândurile au (sy+1)×subdiv segmente, iar coloanele (sx+1)×subdiv/2.
+  - Pe fiecare a doua intersecție (coloană pară × rând par) stă un `+` cu brațul
+    `MESH_WAVE.crossArm` = 0.045.
+- **Tier-uri**:
+
+  | | `wave` (celule) | `waveSubdiv` (nou) | Segmente |
+  |---|---|---|---|
+  | high | [44, 28] → **[16, 8]** | 32 | **650** (înainte 3.768, plus 345 de sprite-uri) |
+  | mid | [30, 18] → **[10, 6]** | 24 | **348** |
+
+- **Draw-uri cu Brand & UI format**: high **5 → 4**, mid **4 → 3**. Nodurile P6 nu mai există.
+- **Fragment shader**: ramura wave adaugă `strength += vPhase * (0.35 + vRing * 0.8)`.
+  Cruciulițele ies din grilă și se aprind când trece inelul de puls. Lite ascunde doar cardurile;
+  grila rămâne.
+- **Aterizare exactă** (`WaveClock`, `createWaveClock`, `resetWaveClock`, `stepWaveClock`,
+  `WAVE_SETTLE_SECONDS` = .6):
+  - Ceasul valului stă la 0 de la `resetCycle` până la prima dezvăluire completă. Cât aterizează
+    roiul, grila e exact `wavePoint(x, y, 0, 0)`.
+  - După formare ceasul pornește, iar raza inelului și atracția pointerului cresc din 0 în 0.6s.
+  - **Abatere de la spec**: odată format, ceasul continuă să meargă și printr-o dizolvare
+    ulterioară. O revenire la 0 acolo ar face toată plasa să sară.
+- **`waveSamples(count, cells, seed)`**: mostrele roiului stau pe grila tier-ului, la timpul 0:
+  45% pe rânduri, 40% pe coloane (uniform pe lungime), 15% pe brațele cruciulițelor. Tier-ul
+  vine prin `SampleTier.wave`, trimis de `swarmSlots`.
+- **Chunk-ul scenei**: +275 B gzip (260.570 → 260.845, măsurat de P2-B). `__THREE__` rămâne într-un
+  singur chunk.
+
+**Changed**
+
+- **Parametrul se numește `instant`, nu `snap`** ca în spec: `scene-contract.test.ts` citește
+  `snap:` în `components/scene/**` ca opțiunea interzisă a ScrollTrigger. Tot în redenumirea asta,
+  `writeServicesSpan` a devenit `writeEntrySpan`.
+- `stepMorph(…, instant)` e instant cât timp `fx.entry.value < 1` (înainte: `fx.handoff < 1`).
+- **Cipul din hero se dizolvă doar după `coreReveal(heroExit)`.** Nu-l mai ia nimeni spre
+  servicii, deci `SceneComposition.core` a dispărut. Slotul 0 al roiului (silueta cipului)
+  rămâne, dar niciun plan nu-l mai folosește până îl ia elicoidul, în Faza 3.
+- `e2e/helpers.ts` `sceneProbeVsDom`: citirile `handoff.*` devin
+  `entry.start = services.top − .9vh` și `entry.end = services.top − .75vh`. Docblock-ul e
+  actualizat.
+
+**Changed** — aserțiuni de test schimbate deliberat (niciuna slăbită)
+
+`scene-choreography.test.ts` (39 → 48):
+- Proba desktop are `entry` {406, 526} în loc de `handoff`.
+- „La hero: doar nucleul” devine „deasupra serviciilor (entry 0): nimic desenat”. `plan.core` nu
+  mai există: roiul e inactiv și toate dezvăluirile sunt 0.
+- „În handoff, roiul duce nucleul în model” devine „intrarea explodează modelul dintr-un punct”:
+  `from` e `BURST` în loc de 0, dezvăluirea folosește `smoothstep(.72, 1)` în loc de `(.7, 1)`,
+  iar implozia și clamparea sunt verificate și ele.
+- „Continuu unde handoff-ul predă morph-ului” verifica un singur ε, lângă 1. Devine un **test de
+  proprietate** la ambele capete, pentru fiecare formă, cu alfa roiului, cu diferența mărginită la
+  300·ε².
+- „Primul cadru fixează ținta” verifică acum poarta `{ value: 1, armed: true }` în loc de
+  `fx.handoff` = 1.
+- „Se apropie de noul progres de scroll și ajunge la 1” devine „explozia rulează pe pasul
+  limitat”: 22–23 de cadre la 20 Hz, cu stările `burst`, apoi `formed`.
+- Teste noi:
+  - „format, fără morph”;
+  - șase teste pentru `stepGate` și `entryState`;
+  - ancora nemăsurată;
+  - aruncat înapoi la hero.
+- Celelalte teste fx primesc doar noua semnătură (`scrollY` și banda).
+
+`scroll-guard.test.ts` (30):
+- `writeServicesSpan` / `probe.handoff` devin `writeEntrySpan` / `probe.entry`, plus verificarea
+  că obiectul probei rămâne același.
+- Testul de montare al directorului verifica doar că există 2 trigger-e. Acum verifică **exact**
+  care sunt: `#top` „top top” → „bottom 35%” și ancora serviciilor „top 90%” → „top 75%”, ambele
+  fără animație.
+- Cazul W13 copiază `entry` în loc de `handoff`.
+
+`scene-stage.test.tsx` (29):
+- Lista „niciun atribut înainte” include `data-entry`.
+- Testul „scrie în DOM și le scoate odată cu scena” acoperă și `onEntry` (`idle`, `burst`,
+  `formed`), plus scoaterea atributului la bail, cu `data-renderer="fallback"` verificat.
+- Testul de reduced motion verifică și că `data-entry` dispare.
+
+`lib/__tests__/scene.test.ts` (53): forma probei are `entry` în loc de `handoff`, iar
+`SCENE_ATTR.entry === "data-entry"`.
+
+`scene-tiers.test.ts` (13 → 14):
+- Tabelul de buget are un rând nou, `wave subdiv` (high ≥ mid). Rândul `wave` păstrează aceeași
+  aserțiune, pe valorile noi.
+- Test nou: 16×8 cu 32 pe high, 10×6 cu 24 pe mid, iar subdiv e par.
+
+Doar teste noi: `scene-build.test.ts` (16 → 18), `directions-selector.test.tsx` (32 → 34) și
+`tailwind-contract.test.ts` (21 → 26; cele 5 teste noi au trecut un test de mutație pe 6 copii
+stricate ale CSS-ului). `scene-mesh-wave.test.ts` e nou (9).
+
+**E2E**:
+- W11 („odată ce modelul s-a format, hover pe o pastilă face morph”) derulează la
+  `anchor.top − .75vh + 40`, adică poarta armată. Înainte derula la centrul ancorei − 450px,
+  capătul vechiului handoff.
+- Bucla de pastile (~20s) rămâne; comentariul explică cele 22 de cadre.
+- W16 e nou. Niciun alt test E2E nu s-a schimbat.
+
+**Removed**
+
+- **Handoff-ul derulat de scroll** (spec §10, punctul 2): `probe.handoff`, `writeServicesSpan`,
+  `fx.handoff` și netezirea lui, `SceneComposition.core`. A dispărut și plecarea roiului din silueta
+  cipului: `coreMatrix`, `fromIsCore` și importul `CHIP` din `world.ts`.
+  - `grep handoff` nu mai găsește nimic legat de scenă, nici în cod, nici în `docs/`.
+  - Au rămas doar „handoff”-urile fluxului de cerere HUD, care n-au legătură.
+- **Nodurile valului** (P6):
+  - `POINTS_MODE.waveNodes` (3) și ramura lui din vertex shader;
+  - `WAVE_GLSL` din sursa P6;
+  - uniformele `uWaveTime`, `uPulseR` și `uOrigin` ale materialului de puncte;
+  - `PlaneGeometry` / `WireframeGeometry` din `meshWave.ts`.
+
+  **Fără renumerotare**: `POINTS_MODE` rămâne `{ swarm: 1, pulses: 2 }`.
+
+**Fixed**
+
+- **Modelul putea rămâne pe jumătate format la poziția de citire.** Asta producea și „zgomotul”
+  din Brand & UI.
+  - Estimarea din plan, la 1280×800: când titlul Directions devine complet vizibil, vechiul handoff
+    era la ≈ .64 (modelul încă invizibil, roiul la 43%). La 390×844 era la ≈ .82 (modelul la 35%).
+  - Acum pragul armează cu ≈ 180px (desktop) sau ≈ 160px (telefon) înainte ca titlul să fie
+    complet vizibil, iar modelul se formează în 1.1s oricum.
+- **Cuburile apăreau împrăștiate imediat după `formed`.** P2-C a văzut asta pe o captură făcută la
+  900ms după `formed`, iar P2-A a confirmat.
+  - Cauza: lumea repornea ciclul modelului la prima apariție (entry ≈ .72, cu ~0.3s înainte de
+    formare). Din faza de bloc de 1.4s mai rămâneau astfel doar ~1.1s după `formed`.
+  - Reparația: cât dezvăluirea e sub 1, lumea îi dă modelului `step = 0`. Roiul aterizează pe poza
+    de start, iar fiecare buclă începe exact la formare. Același lucru se aplică după un morph de
+    pastilă.
+  - Test în `scene-build`: matricea cuburilor e neschimbată la 1.25s după `formed` și schimbată o
+    secundă mai târziu.
+
+- **Glow-ul putea să se aprindă un commit sub `pending`** (găsit de P2-D la verificarea docs):
+  scena raportează prima stare de intrare în cadrul în care devine gata, cu un commit React înainte
+  ca stage-ul să spună `webgl`, iar la un deep link primul raport e deja `formed`. Selectorii din
+  `app/tailwind.css` cer acum și `[data-scene-stage][data-renderer="webgl"]` (glow-ul și banda);
+  `tailwind-contract` fixează selectorul complet și interzice un `[data-entry=…]` singur.
+
+**Docs**
+
+- [03](./docs/03-architecture.md#the-services-entrance-it-os-phase-2-2026-09-17):
+  - secțiunea nouă „The services entrance”: banda, poarta, compoziția, explozia, ciclul propriu al
+    modelelor, `data-entry`;
+  - forma probei, `data-entry` printre atributele scenei, `onEntry` în „Who owns what”;
+  - arborele: `fx.ts` cu poarta.
+- [04](./docs/04-design-system.md#directions--the-hud-screen):
+  - regulile glow-ului și ale benzii, cu contrastul măsurat;
+  - `entry-glow` / `entry-sweep` în tabelul de utilitare;
+  - `hud-glass-sweep` la keyframes.
+- [05](./docs/05-page-sections.md#interior-stage-3d):
+  - explozia și implozia, „ecranul răspunde”;
+  - rândul Brand & UI („a neon grid (rows, columns and + crossings) rolling in waves”);
+  - ciclul propriu al modelelor, care pornește la `formed`;
+  - legătura din secțiunea Directions.
+- [07](./docs/07-conventions.md#gsap-and-scrolltrigger):
+  - banda `entry` și regula „poartă temporizată, nu progres de scroll”;
+  - `data-entry` în contractul `data-*`;
+  - `POINTS_MODE` fără 0 și fără 3, `TUBE_MODE` fără 0;
+  - regula Tailwind a panoului, fixată de `tailwind-contract`.
+- [14](./docs/14-testing.md): numărătorile pe fișier, `scene-mesh-wave`, W16.
+- [`e2e/README.md`](./e2e/README.md): W11 și W16.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, snapshot-ul final) | exit 0 · 0 · 0 |
+| `npm test` (node:22-alpine), rulat de 2 ori | **1.200 passed / 0 failed** în 65 de fișiere, de ambele dăți (înainte: 1.172 în 64) |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă) | **258 passed / 0 failed / 0 skipped** (257 + W16) |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl`, `--repeat-each=3` | 272 passed, **1 failed**: intro-ul la 568×320 nu s-a terminat în 20s (`preloader`), cu agenții Fazei 3 rulând build-uri în paralel; Faza 2 nu atinge intro-ul. W14 3 / 3 (reparația `scrollToY` din Faza 1 ține) |
+| după reparația selectorilor: `tailwind-contract` + `directions-selector`; `interior` (E), W11, W16 și intro-ul pe telefoane, `--repeat-each=3` | `tailwind-contract` + `directions-selector` 60 / 60; noble **81 passed / 0 failed** (E1–E16, W11, W16 formed după 1.081–1.205ms, intro-ul pe telefoane inclusiv 568×320 de 3 ori) |
+| E2E rulat de agenți (noble) | P2-A: `interior-webgl` + `interior` + `preloader` → 65 passed / 1 failed (W14). Repetări: W14 2/3, W11 3/3, W16 3/3, W13 2/2 după reparația cuburilor. P2-B: `interior-webgl` + `interior` → 42 passed. P2-C: `interior` 22 + `hud-shell` 25 + `responsive` 66 = 113 passed |
+| Laboratoare vizuale | P2-A: capturi desktop și telefon, dark, în fiecare stare; 0 erori CSP sau de pagină. P2-B: grila înainte și după, formată și în aterizare. P2-C: glow static pe fallback în ambele teme; `pending` fără glow; reduced motion (`off`) cu glow static și fără bandă; pe WebGL real, `pending` → `idle` → `burst` → `formed` |
+| Draw-uri cu Brand & UI format (SwiftShader, 120 de cadre) | high 5 → 4, mid 4 → 3 (P2-B) |
+| `__THREE__` într-un singur chunk | da (`2brzpckzba614.js`, 261.969 B gzip), în toate cazurile cu WebGL |
+Greutate (gzip, bytes; același script și aceleași cazuri ca la Faza 1; baza e coloana *Faza 1* de acolo):
+
+| Buget | Caz | Bază (Faza 1) | Faza 2 | Diferență |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine | total 262.140 · referit din HTML 257.250 · JS târziu 3.936 | total **262.391** · JS târziu 3.936 | +251 (CSS +220: `entry-glow`, `entry-sweep`, keyframes; HTML +19) |
+| B1s / B7 | B1 + scroll · pe mobil | JS târziu 3.936 | 3.936 | 0 |
+| B2 | scenă forțată + scroll (desktop și mobil) | JS târziu 314.585 | **315.109** ✓ (≤ B1s + 316.000) | +524 (poarta, compoziția, explozia, grila) |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 323.648 | **324.177** ✓ (≤ 330.000) | +529 |
+| B3i | prima vizită, intro forțat | 304.593 | **305.128** | +535 — peste limita planului (300.000), ca în fazele anterioare; nouă bază |
+| B4 | prima vizită | JS târziu 35.776 | 35.775 | −1 |
+| B5 | `/servicii/e-commerce` | total 222.689 (limită 224.000) | **222.906** ✓ | +217 (CSS) |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte | 3.219; 0 contexte | 0 |
+| H | documentul HTML `/`, care revine | 21.560 | **21.579** ✓ | +19 (cele două clase) |
+| — | chunk-ul comun three + R3F + scene | 261.439 | **261.969** | +530 |
+
+> **Rămâne deschis:**
+> - **Saltul inelului de puls** (exista dinainte): raza inelului e ceasul modulo 3.2s. La fiecare
+>   ciclu, inelul sare de la margine înapoi în centru.
+> - **Safari < 16 nu are `overflow: clip`.** În cele 1.1s ale exploziei, banda poate trece discret
+>   dincolo de coloana de text.
+> - **La 390×844**, la pragul de intrare, modelul format ajunge în spatele rândului de pastile.
+>   Pastilele rămân deasupra și lizibile.
+> - **Implozia în timpul unui morph de pastilă**: dacă vizitatorul urcă deasupra benzii exact cât
+>   rulează un morph, compoziția trece de la ramura morph-ului la implozie cu un salt de un cadru.
+> - **Cuburile explodează la ~2s după `formed`, intenționat.** E bucla lor de 7.2s: bloc 1.4s,
+>   explozie 0.8s, plutire 2.2s, reasamblare 1.4s, fixare 1.4s. Nu e o intrare neterminată.
+> - **Un deep link înainte ca proba să fie măsurată** (teoretic, P2-A): dacă scena e gata înaintea
+>   directorului, poarta nu mai e la primul cadru. Modelul ar exploda în loc să apară direct format,
+>   sub ilustrația care încă se vede.
+
+---
+
 ## 2026-09-17 — Faza 1: microprocesorul din hero și urma de circuite a cursorului
 
 A doua fază a experienței IT aprobate. Nucleul de sticlă din hero („Cybernetic Core”: sferă de

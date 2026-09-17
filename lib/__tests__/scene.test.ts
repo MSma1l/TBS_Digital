@@ -253,7 +253,7 @@ describe("scrollProgress", () => {
       hero: null,
       services: null,
       heroExit: { start: 0, end: 0 },
-      handoff: { start: 0, end: 0 },
+      entry: { start: 0, end: 0 },
     });
     expect(createScrollProbe()).not.toBe(createScrollProbe());
   });
@@ -364,6 +364,8 @@ describe("the DOM contract", () => {
     });
     expect(Object.values(SCENE_ATTR).every((name) => name.startsWith("data-"))).toBe(true);
     expect(new Set(Object.values(SCENE_ATTR)).size).toBe(Object.values(SCENE_ATTR).length);
+    // The services entrance as the scene draws it (the Directions panel's glow keys off it).
+    expect(SCENE_ATTR.entry).toBe("data-entry");
     expect(Object.keys(PARALLAX_LAYERS)).toEqual(["hero-backdrop", "hero-stats"]);
     expect(SCENE_TIMING.AFTER_INTRO_MS).toBeGreaterThan(500);
   });

@@ -19,6 +19,7 @@ import { Directions, pillIndexForKey } from "@/components/sections/Directions";
 import { ServiceArt } from "@/components/scene/art/ServiceArt";
 import { directions } from "@/lib/directions";
 import { SCENE_SHAPES, readSceneInput, resetSceneForTests, selectSceneShape } from "@/lib/scene";
+import { solutions } from "@/lib/solutions";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -537,5 +538,38 @@ describe("direction selector — the HUD screen and the scene", () => {
     expect(card).not.toBeNull();
     expect((anchor as Element).compareDocumentPosition(card as Element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(box.querySelectorAll("a, button, input, [tabindex]")).toHaveLength(0);
+  });
+});
+
+/* ---- the glass reveal: `entry-glow` / `entry-sweep` (app/tailwind.css) -------------------- */
+
+describe("direction selector — the glass reveal hooks", () => {
+  it("the panel carries entry-glow and its copy column entry-sweep, once each, off every reveal marker", () => {
+    const container = renderSection();
+    const panel = container.querySelector<HTMLElement>("#servicii nav ~ div");
+    const copy = screen.getByRole("heading", { level: 3 }).closest<HTMLElement>(".entry-sweep");
+
+    expect(panel).toHaveClass("entry-glow");
+    expect(copy).not.toBeNull();
+    expect(copy?.parentElement).toBe(panel);
+    expect(container.querySelectorAll(".entry-glow")).toHaveLength(1);
+    expect(container.querySelectorAll(".entry-sweep")).toHaveLength(1);
+    // The band is the column's ::after: no `after:` utility may write the same pseudo-element.
+    expect(copy?.className.split(/\s+/).filter((token) => /(?:^|:)after:/.test(token))).toEqual([]);
+    for (const el of [panel, copy]) {
+      expect(el?.closest("[data-reveal]")).toBeNull();
+      expect(el?.querySelector("[data-reveal]")).toBeNull();
+    }
+  });
+
+  it("the glow's --accent follows the selected direction", () => {
+    const container = renderSection();
+    const panel = container.querySelector<HTMLElement>(".entry-glow");
+    const links = pills();
+
+    for (const [i, slug] of SCENE_SHAPES.entries()) {
+      fireEvent.mouseEnter(links[i]);
+      expect(panel?.style.getPropertyValue("--accent")).toBe(solutions[slug]?.accent ?? "var(--blue)");
+    }
   });
 });

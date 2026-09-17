@@ -1,41 +1,96 @@
 /**
- * "Brand & UI": a polygon mesh lying back like a floor, rolling in slow waves, with a pulse
- * ring spreading from wherever the pointer leans; nodes ride the vertices and a few UI card
- * outlines float above it. The wave is displaced in the vertex shader (no CPU per vertex).
+ * "Brand & UI": a sparse neon grid lying back like a floor — the rows and columns of a design
+ * surface, with a small `+` on every second crossing — rolling in slow waves, with a pulse ring
+ * spreading from wherever the pointer leans; a few UI card outlines float above it. The wave is
+ * displaced in the vertex shader (no CPU per vertex).
  *
- * Draws: the wireframe (P4), the nodes (P6), the cards (P4, one geometry). Lite hides the
- * nodes and the cards.
+ * The swarm lands exactly on this grid (`waveSamples`, taken at wave time 0): the wave's clock
+ * is held at 0 from the moment the model starts to reveal until it has formed, and only then
+ * runs; the pulse ring and the pointer's pull grow in from 0 over `WAVE_SETTLE_SECONDS`.
+ *
+ * Draws: the grid with its crosses (P4, one geometry; `aPhase` 1 on the crosses, which ride the
+ * pulse), one per card (P4). Lite hides the cards.
  */
 
-import {
-  BufferAttribute,
-  BufferGeometry,
-  Float32BufferAttribute,
-  Group,
-  LineSegments,
-  PlaneGeometry,
-  Points,
-  WireframeGeometry,
-} from "three";
+import { BufferAttribute, BufferGeometry, Float32BufferAttribute, Group, LineSegments } from "three";
 import type { SceneTierConfig } from "../../tiers";
-import {
-  INK_SPRITES,
-  LINE_MODE,
-  POINTS_MODE,
-  createLineMaterial,
-  createPointsMaterial,
-  paint,
-  paintPoints,
-  type LineUniforms,
-} from "../materials";
+import { LINE_MODE, createLineMaterial, paint, type LineUniforms } from "../materials";
 import type { ScenePalette } from "../palette";
-import { MESH_WAVE, MODEL_POSES, MODEL_SCALES, SCENE_SEEDS, seedAttributes } from "../samples";
+import { MESH_WAVE, MODEL_POSES, MODEL_SCALES, waveGridLines } from "../samples";
 import { place, type SceneModel } from "./types";
 
-const NODE_SIZE = 0.06;
-const NODE_ALPHA = 0.85;
-const NODE_MAX_CSS_PX = 10;
 const CARD_LIFT = 0.75;
+const GRID_ALPHA = { glow: 0.42, ink: 0.5 } as const;
+
+/** Seconds after formation over which the pulse ring's radius and the pointer's pull grow from 0. */
+export const WAVE_SETTLE_SECONDS = 0.6;
+
+/**
+ * The grid of `cells` as segment pairs on the plane (z = 0; the shader adds the wave), with one
+ * `aPhase` per vertex: 0 on a line, 1 on a cross. Rows run `subdiv` segments, columns half as
+ * many; a `+` of arm `MESH_WAVE.crossArm` sits on every crossing of an even column and row.
+ */
+export function waveGridSegments(
+  cells: readonly [number, number],
+  subdiv: number,
+): { positions: Float32Array; phases: Float32Array } {
+  const { xs, ys } = waveGridLines(cells);
+  const rowSteps = Math.max(1, Math.round(subdiv));
+  const columnSteps = Math.max(1, Math.round(subdiv / 2));
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const push = (ax: number, ay: number, bx: number, by: number, phase: number) => {
+    positions.push(ax, ay, 0, bx, by, 0);
+    phases.push(phase, phase);
+  };
+  const along = (from: number, to: number, share: number) => from + (to - from) * share;
+  const [left, right] = [xs[0], xs[xs.length - 1]];
+  const [bottom, top] = [ys[0], ys[ys.length - 1]];
+  for (const y of ys) {
+    for (let k = 0; k < rowSteps; k += 1) {
+      push(along(left, right, k / rowSteps), y, along(left, right, (k + 1) / rowSteps), y, 0);
+    }
+  }
+  for (const x of xs) {
+    for (let k = 0; k < columnSteps; k += 1) {
+      push(x, along(bottom, top, k / columnSteps), x, along(bottom, top, (k + 1) / columnSteps), 0);
+    }
+  }
+  const arm = MESH_WAVE.crossArm;
+  for (let j = 0; j < ys.length; j += 2) {
+    for (let i = 0; i < xs.length; i += 2) {
+      push(xs[i] - arm, ys[j], xs[i] + arm, ys[j], 1);
+      push(xs[i], ys[j] - arm, xs[i], ys[j] + arm, 1);
+    }
+  }
+  return { positions: new Float32Array(positions), phases: new Float32Array(phases) };
+}
+
+/** The wave's clock (seconds) and whether the model has formed since it last started to reveal. */
+export type WaveClock = { clock: number; formed: boolean };
+
+export function createWaveClock(): WaveClock {
+  return { clock: 0, formed: false };
+}
+
+/** A new landing: back to wave time 0, held there until the model forms again. */
+export function resetWaveClock(state: WaveClock): void {
+  state.clock = 0;
+  state.formed = false;
+}
+
+/**
+ * One frame at `reveal`: returns how far the pulse ring and the pointer's pull have grown in
+ * (0 → 1). Until the model first forms (reveal 1) the clock stays at 0, so the grid is exactly
+ * `wavePoint(x, y, 0, 0)` while the swarm lands on it. Once formed it keeps running, through a
+ * later dissolve too: snapping back to 0 there would jump the whole mesh.
+ */
+export function stepWaveClock(state: WaveClock, reveal: number, step: number): number {
+  if (reveal >= 1) state.formed = true;
+  state.clock = state.formed ? state.clock + (Number.isFinite(step) && step > 0 ? step : 0) : 0;
+  const e = Math.min(1, state.clock / WAVE_SETTLE_SECONDS);
+  return e * e * (3 - 2 * e);
+}
 
 type WaveUniforms = Pick<LineUniforms, "uWaveTime" | "uPulseR" | "uOrigin" | "uReveal" | "uTime">;
 
@@ -82,34 +137,12 @@ export function createMeshWaveModel(config: SceneTierConfig, palette: ScenePalet
   pose.scale.setScalar(MODEL_SCALES["mesh-wave"]);
   group.add(pose);
 
-  const [sx, sy] = config.wave;
-  const plane = new PlaneGeometry(MESH_WAVE.width, MESH_WAVE.height, sx, sy);
-  const wireGeometry = new WireframeGeometry(plane);
-  const wire = createLineMaterial({ mode: LINE_MODE.wave, roles: { a: "blue", b: "cyan", hot: "red" }, alpha: 0.42 });
-  const wireLines = place(new LineSegments(wireGeometry, wire.material), 5);
-  pose.add(wireLines);
-
-  // Nodes on every other vertex in both directions: a lattice, not a dot grid.
-  const node: number[] = [];
-  for (let j = 0; j <= sy; j += 2) {
-    for (let i = 0; i <= sx; i += 2) {
-      node.push((i / sx - 0.5) * MESH_WAVE.width, (j / sy - 0.5) * MESH_WAVE.height, 0);
-    }
-  }
-  plane.dispose();
-  const nodeCount = node.length / 3;
-  const nodeGeometry = new BufferGeometry();
-  nodeGeometry.setAttribute("position", new BufferAttribute(new Float32Array(nodeCount * 3), 3));
-  nodeGeometry.setAttribute("aS0", new Float32BufferAttribute(node, 3));
-  nodeGeometry.setAttribute("aSeed", new BufferAttribute(seedAttributes(nodeCount, SCENE_SEEDS.samples + 21), 4));
-  const nodes = createPointsMaterial({
-    mode: POINTS_MODE.waveNodes,
-    roles: { a: "cyan", b: "blue", c: "red", hot: "hot" },
-    alpha: NODE_ALPHA,
-    size: NODE_SIZE,
-  });
-  const nodePoints = place(new Points(nodeGeometry, nodes.material), 6);
-  pose.add(nodePoints);
+  const { positions, phases } = waveGridSegments(config.wave, config.waveSubdiv);
+  const gridGeometry = new BufferGeometry();
+  gridGeometry.setAttribute("position", new BufferAttribute(positions, 3));
+  gridGeometry.setAttribute("aPhase", new BufferAttribute(phases, 1));
+  const grid = createLineMaterial({ mode: LINE_MODE.wave, roles: { a: "blue", b: "cyan", hot: "red" }, alpha: GRID_ALPHA.glow });
+  pose.add(place(new LineSegments(gridGeometry, grid.material), 5));
 
   const cardCount = config.uiCards;
   const cardPositions: number[] = [];
@@ -125,11 +158,11 @@ export function createMeshWaveModel(config: SceneTierConfig, palette: ScenePalet
   pose.add(cardRoot);
   for (let c = 0; c < cardCount; c += 1) {
     const [cx, cy, cz, cw, ch] = cardSpots[c % cardSpots.length];
-    const positions: number[] = [];
-    cardSegments(cw, ch, 0.07, positions);
+    const cardLines: number[] = [];
+    cardSegments(cw, ch, 0.07, cardLines);
     const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
-    const u = new Float32Array(positions.length / 3);
+    geometry.setAttribute("position", new Float32BufferAttribute(cardLines, 3));
+    const u = new Float32Array(cardLines.length / 3);
     for (let i = 0; i < u.length; i += 1) u[i] = i / u.length + c * 0.33;
     geometry.setAttribute("aU", new BufferAttribute(u, 1));
     const lines = place(new LineSegments(geometry, cards.material), 7);
@@ -143,18 +176,14 @@ export function createMeshWaveModel(config: SceneTierConfig, palette: ScenePalet
     cardPositions.push(cx, cy, cz);
   }
 
-  let ink = palette.mode === "ink";
   const applyPalette = (next: ScenePalette) => {
-    ink = next.mode === "ink";
-    paint(wire, next);
+    paint(grid, next);
     paint(cards, next);
-    paintPoints(nodes, next);
-    nodes.uniforms.uAlpha.value = NODE_ALPHA * (ink ? INK_SPRITES.alpha : 1);
-    nodes.uniforms.uSize.value = NODE_SIZE * (ink ? INK_SPRITES.size : 1);
-    wire.uniforms.uAlpha.value = ink ? 0.5 : 0.42;
+    grid.uniforms.uAlpha.value = GRID_ALPHA[next.mode];
   };
   applyPalette(palette);
 
+  const clock = createWaveClock();
   let lite = false;
 
   return {
@@ -163,45 +192,46 @@ export function createMeshWaveModel(config: SceneTierConfig, palette: ScenePalet
     objects: [group],
 
     resetCycle() {
-      // The wave is a pure function of time: nothing to rewind.
+      resetWaveClock(clock);
     },
 
     update(frame) {
       group.visible = frame.reveal > 0 || frame.prewarm;
       if (!group.visible) return;
-      const t = frame.time;
-      const pulseR = t % MESH_WAVE.pulsePeriod;
-      const ox = frame.tx * 0.9;
-      const oy = -frame.ty * 0.55;
-
-      wave(wire.uniforms, t, pulseR, ox, oy, frame.reveal);
-      wave(nodes.uniforms, t, pulseR, ox, oy, frame.reveal);
+      const settle = stepWaveClock(clock, frame.reveal, frame.step);
+      const t = clock.clock;
+      wave(
+        grid.uniforms,
+        t,
+        (t % MESH_WAVE.pulsePeriod) * settle,
+        frame.tx * 0.9 * settle,
+        -frame.ty * 0.55 * settle,
+        frame.reveal,
+      );
       cards.uniforms.uReveal.value = frame.reveal;
-      cards.uniforms.uTime.value = t;
-      nodes.uniforms.uHalfHeight.value = frame.halfHeightPx;
-      nodes.uniforms.uMaxSize.value = NODE_MAX_CSS_PX * frame.dpr;
+      cards.uniforms.uTime.value = frame.time;
 
       cardGroups.forEach((holder, c) => {
-        holder.position.z = cardPositions[c * 3 + 2] + Math.sin(t * 0.9 + c * 2.1) * 0.06;
-        holder.rotation.set(CARD_LIFT + Math.sin(t * 0.5 + c) * 0.06, Math.cos(t * 0.4 + c * 1.7) * 0.08, 0);
+        holder.position.z = cardPositions[c * 3 + 2] + Math.sin(frame.time * 0.9 + c * 2.1) * 0.06;
+        holder.rotation.set(
+          CARD_LIFT + Math.sin(frame.time * 0.5 + c) * 0.06,
+          Math.cos(frame.time * 0.4 + c * 1.7) * 0.08,
+          0,
+        );
       });
-      nodePoints.visible = !lite;
       cardRoot.visible = !lite;
     },
 
     setLite(next) {
       lite = next;
-      nodePoints.visible = !lite;
       cardRoot.visible = !lite;
     },
 
     setPalette: applyPalette,
 
     dispose() {
-      wireGeometry.dispose();
-      nodeGeometry.dispose();
-      wire.material.dispose();
-      nodes.material.dispose();
+      gridGeometry.dispose();
+      grid.material.dispose();
       cards.material.dispose();
       for (const holder of cardGroups) {
         for (const child of holder.children) {

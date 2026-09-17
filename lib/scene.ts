@@ -98,6 +98,11 @@ export function readMotionGate(): MotionGate {
 export type SceneTier = "high" | "mid" | "low";
 export type SceneMotion = "live" | "static";
 export type SceneQuality = "full" | "dpr" | "lite";
+/**
+ * The services entrance as the scene draws it (`data-entry` on the stage): `idle` nothing formed,
+ * `burst` the model exploding out of a speck and assembling (or imploding back), `formed` in place.
+ */
+export type SceneEntry = "idle" | "burst" | "formed";
 
 /* ---- DOM contract -------------------------------------------------------------------- */
 
@@ -120,6 +125,7 @@ export const SCENE_ATTR = {
   boost: "data-boost",
   quality: "data-quality",
   morph: "data-morph",
+  entry: "data-entry",
   scrollFx: "data-scroll-fx",
   shape: "data-shape",
   tilt: "data-tilt",
@@ -235,8 +241,11 @@ export type ScrollProbe = {
   services: DocRect | null;
   /** `#top`, "top top" → "bottom 35%". */
   heroExit: ScrollSpan;
-  /** The services anchor, "top 95%" → "center 55%". */
-  handoff: ScrollSpan;
+  /**
+   * The services anchor, "top 90%" → "top 75%": the entry gate arms once the scroll reaches its
+   * end and disarms above its start. Not a progress — the burst itself runs in time.
+   */
+  entry: ScrollSpan;
 };
 
 export function createScrollProbe(): ScrollProbe {
@@ -248,7 +257,7 @@ export function createScrollProbe(): ScrollProbe {
     hero: null,
     services: null,
     heroExit: { start: 0, end: 0 },
-    handoff: { start: 0, end: 0 },
+    entry: { start: 0, end: 0 },
   };
 }
 
@@ -297,6 +306,12 @@ export type SceneCanvasProps = {
   onQuality(step: SceneQuality): void;
   /** Only on a change: a morph started (true) or committed (false). */
   onMorph(running: boolean): void;
+  /**
+   * Only on a change, and only once the scene is ready (never while the art still shows): the
+   * services entrance as drawn — the first report is the state the scene is in (a deep link
+   * into the services says `formed` without ever bursting).
+   */
+  onEntry(state: SceneEntry): void;
 };
 
 export type SceneDirectorProps = {

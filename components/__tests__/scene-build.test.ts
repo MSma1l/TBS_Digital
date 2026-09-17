@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Matrix4, Object3D } from "three";
+import { Matrix4, Object3D, type BufferGeometry, type Points, type ShaderMaterial } from "three";
 import {
   READY_AFTER_FRAMES,
   armReady,
@@ -9,7 +9,8 @@ import {
   tickReady,
 } from "@/components/scene/three/compile";
 import { pickSceneRoles } from "@/components/scene/three/palette";
-import { createSceneWorld } from "@/components/scene/three/world";
+import { BURST_SPECK, createSceneWorld } from "@/components/scene/three/world";
+import { layoutFor, placeServices } from "@/components/scene/choreography";
 import {
   CHIP_PACKET_SPEED,
   chipArrivalPulse,
@@ -19,12 +20,13 @@ import {
   traceRibbons,
   type CoreFrame,
 } from "@/components/scene/three/core";
+import { CUBE_CYCLE } from "@/components/scene/three/models/cubes";
 import { hubArrivalPulse } from "@/components/scene/three/models/integrationHub";
 import { CHIP_LIFT, CHIP_STACK } from "@/components/scene/three/samples";
 import { watchPixelRatio, type PixelRatioHost } from "@/components/scene/pixelRatio";
-import { CHIP, chipTraces } from "@/components/scene/shapes";
+import { CHIP, MODEL_RADIUS, chipTraces } from "@/components/scene/shapes";
 import { SCENE_TIER_CONFIG, clampSceneDpr, pointsDrawn } from "@/components/scene/tiers";
-import { createSceneFx } from "@/components/scene/fx";
+import { ENTRY_SECONDS, createSceneFx } from "@/components/scene/fx";
 import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "@/lib/scene";
 
 /*
@@ -168,6 +170,106 @@ describe("the world, built one part per idle slice", () => {
     expect(world.root.visible).toBe(false);
     world.prewarm(stages[0]);
     expect(world.root.visible).toBe(true);
+    world.dispose();
+  });
+});
+
+describe("the world — the services entrance (burst out of a speck)", () => {
+  /** The page at 1280×800 (header 71): the services anchor's entry band "top 90%" → "top 75%". */
+  function desktopProbe() {
+    const probe = createScrollProbe();
+    probe.live = true;
+    probe.version = 1;
+    probe.headerH = 71;
+    probe.stage = { top: 71, bottom: 1678 };
+    probe.hero = { x: 702, y: 167, w: 538, h: 538 };
+    probe.services = { x: 610, y: 1126, w: 630, h: 248 };
+    probe.heroExit = { start: 71, end: 520 };
+    probe.entry = { start: 406, end: 526 };
+    return probe;
+  }
+
+  it("arms past the band, bursts the selected model out of its host's centre, forms in time and implodes above it", () => {
+    const world = createSceneWorld("mid", PALETTE);
+    while (!world.complete()) world.buildNext();
+    const [core, swarm, , ...models] = world.root.children;
+    const u = (swarm as Points<BufferGeometry, ShaderMaterial>).material.uniforms;
+    const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+    const probe = desktopProbe();
+    const fx = createSceneFx();
+    const frame = (scrollY: number) => world.update(1 / 20, scrollY, view, false, probe, readSceneInput(), fx);
+
+    // Above the band: nothing of the services drawn, the chip whole.
+    frame(0);
+    expect(fx.entry).toEqual({ value: 0, armed: false });
+    expect(swarm.visible).toBe(false);
+    expect(models.some((model) => model.visible)).toBe(false);
+    expect(core.visible).toBe(true);
+
+    // Past its end: the first frame of the burst.
+    const scrollY = 600;
+    frame(scrollY);
+    expect(fx.entry.armed).toBe(true);
+    expect(fx.entry.value).toBeCloseTo(1 / 20 / ENTRY_SECONDS.form, 12);
+    expect(swarm.visible).toBe(true);
+    // Both ends are the selected model's slot (shape 0 → slot 1): a speck of it, then it.
+    expect(u.uFromA.value.toArray()).toEqual(u.uToA.value.toArray());
+    expect(u.uFromB.value.toArray()).toEqual(u.uToB.value.toArray());
+    expect(u.uToA.value.toArray()).toEqual([0, 1, 0]);
+    const place = placeServices(probe, scrollY, 1280, 729, layoutFor(1280, 729, false))!;
+    const from = (u.uFromM.value as Matrix4).elements;
+    expect(from[12]).toBeCloseTo(place.x, 9);
+    expect(from[13]).toBeCloseTo(place.y, 9);
+    expect(from[0]).toBeCloseTo(place.scale * BURST_SPECK.scale, 9);
+    const to = (u.uToM.value as Matrix4).elements;
+    expect(to[12]).toBeCloseTo(from[12], 9);
+    expect(to[13]).toBeCloseTo(from[13], 9);
+    expect(u.uFromR.value).toBeCloseTo(BURST_SPECK.radius * MODEL_RADIUS * place.scale, 9);
+    expect(u.uToR.value).toBeCloseTo(MODEL_RADIUS * place.scale, 9);
+    expect(BURST_SPECK).toEqual({ scale: 0.05, radius: 1.35, sprite: 0.5 });
+
+    // Formed after ENTRY_SECONDS.form (22–23 frames at 20 Hz): the model alone, no swarm.
+    for (let i = 0; i < 22; i += 1) frame(scrollY);
+    expect(fx.entry.value).toBe(1);
+    expect(swarm.visible).toBe(false);
+    expect(models[0].visible).toBe(true);
+
+    // The model's own cycle waited for it to form: the cubes hold their block for the whole
+    // CUBE_CYCLE.hold after `formed` (a clock started at the first reveal would explode ~0.3s early).
+    const cubes = models[0].children[0].children[0] as unknown as { getMatrixAt(i: number, m: Matrix4): void };
+    const atFormed = new Matrix4();
+    const later = new Matrix4();
+    cubes.getMatrixAt(0, atFormed);
+    for (let i = 0; i < Math.floor(CUBE_CYCLE.hold * 20) - 3; i += 1) frame(scrollY);
+    cubes.getMatrixAt(0, later);
+    expect(later.elements).toEqual(atFormed.elements);
+    for (let i = 0; i < 20; i += 1) frame(scrollY);
+    cubes.getMatrixAt(0, later);
+    expect(later.elements).not.toEqual(atFormed.elements);
+
+    // Resting inside the band keeps it; above its start it implodes back into the speck.
+    frame(450);
+    expect(fx.entry.value).toBe(1);
+    frame(300);
+    expect(fx.entry.armed).toBe(false);
+    expect(fx.entry.value).toBeLessThan(1);
+    expect(swarm.visible).toBe(true);
+    for (let i = 0; i < 10; i += 1) frame(300);
+    expect(fx.entry.value).toBe(0);
+    expect(swarm.visible).toBe(false);
+    expect(models.some((model) => model.visible)).toBe(false);
+    world.dispose();
+  });
+
+  it("a deep link into the services finds the model formed on the first frame (no burst)", () => {
+    const world = createSceneWorld("mid", PALETTE);
+    while (!world.complete()) world.buildNext();
+    const [, swarm, , ...models] = world.root.children;
+    const fx = createSceneFx();
+    world.update(1 / 60, 900, { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } }, false, desktopProbe(), readSceneInput(), fx);
+    expect(fx.entry).toEqual({ value: 1, armed: true });
+    expect(swarm.visible).toBe(false);
+    expect(models[0].visible).toBe(true);
     world.dispose();
   });
 });

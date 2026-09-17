@@ -419,6 +419,31 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
   service page uses — as an inline custom property, used for borders and glows only.
 - The case card is an `--ink` block; a reference project's tags are chips joined by the tag's own
   "·" as text.
+- **The glass reveal** (IT-OS Phase 2, 2026-09-17; `app/tailwind.css`): `entry-glow` on the panel,
+  `entry-sweep` on its copy column. Both key off the stage root: `data-entry`
+  (`idle|burst|formed`, written only while a WebGL scene is mounted — see
+  [03](./03-architecture.md#the-services-entrance-it-os-phase-2-2026-09-17)) and `data-renderer`.
+  - **Edge glow:** a `color-mix(in srgb, var(--accent) 70%, transparent)` border, a 1px ring at
+    35% and a 32px glow at 18%, listed after `var(--sh-lg)`, so the depth shadow stays under it.
+    It lights under `[data-renderer="webgl"][data-entry="formed"]`, and **statically** on the `fallback` and `off`
+    renderers (no `data-entry` there). It **never** lights under `pending`, which can still turn
+    into WebGL and take it away again. The 0.5s transition (border colour and shadow,
+    `--motion-ease-out`) exists only under `[data-renderer="webgl"]`, so the static glow never
+    animates in.
+  - **`color-mix` only inside an explicit `@supports (color: color-mix(in lab, red, red))`.**
+    Without it Tailwind adds a fallback copy of every rule with the plain, fully opaque accent.
+    An engine without `color-mix` keeps the plain panel.
+  - **Sweep:** the column's `::after` (its `::before` is the top hairline, so no `after:`
+    utility may go on that column): a 115° `var(--accent)` band between transparent stops,
+    `pointer-events: none`, opacity 0 at rest. `hud-glass-sweep` plays once under
+    `[data-renderer="webgl"][data-entry="burst"]` with `prefers-reduced-motion: no-preference`, and only then the column
+    is `overflow: clip` (no scroll container, so nothing moves). Its strength is the keyframe's
+    opacity, never a colour mix, so no engine gets an opaque band over the text. At .12, the
+    worst copy under the band's centre measured **5.11:1 dark and 4.61:1 light** (the tag, the
+    tightest line in both themes, for all five accents); .16 would take the light tag to 4.38.
+  - The glow changes no pixel of the copy's text area (measured). Neither goes on
+    `[data-reveal]` or an intro marker, and neither uses `filter`, blur or `border-radius`.
+    `tailwind-contract.test.ts` pins these rules.
 - Height floors: the copy, the screen and the panel carry per-locale `min-h` values measured as
   the tallest of the five directions per width band, so selecting a direction never moves the
   page. New copy means measuring again.
@@ -782,7 +807,10 @@ Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fade
 stat holograms; `hud-swap-in` (0.32s) brings a direction's copy in. `hud-parallax-media` is a
 **top-level** keyframe, not in the animations `@theme` block: keyframes there are emitted only
 when an `--animate-*` token naming them is used, and this one is referenced from the
-`parallax-media` utility instead. The art's keyframes (`materialize`, `core-wave`, `core-packets`)
+`parallax-media` utility instead. So is `hud-glass-sweep` (1.1s, IT-OS Phase 2), referenced from
+`entry-sweep`: one band of light crossing the Directions copy (`translateX` −100% → 100%, opacity
+.12 → 0), played only under `[data-renderer="webgl"][data-entry="burst"]` with motion allowed
+([Directions — the HUD screen](#directions--the-hud-screen)). The art's keyframes (`materialize`, `core-wave`, `core-packets`)
 live in their own CSS Modules (see the gotcha below). All of them move `transform` or `opacity`
 only, and the global reduced-motion switch stops them.
 
@@ -961,6 +989,7 @@ scale.
 | Spacing | `p-4`, `gap-3`, `min-h-11`, … | `calc(var(--sp-1) * n)` |
 | Custom utilities | `glass` · `glass-text` · `cta-neon` · `cyber-grid` · `cyber-floor` · `edge-fade-x` · `fade-b` | see [HUD layer](#hud-layer--the-first-screen) |
 | | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed) | see [The interior stage](#the-interior-stage) |
+| | `entry-glow` (the Directions panel's accent edge: under `[data-renderer="webgl"][data-entry="formed"]`, static on the `fallback` / `off` renderers, never `pending`) · `entry-sweep` (its copy column's `::after` band: `hud-glass-sweep` under `[data-renderer="webgl"][data-entry="burst"]`, motion allowed) | see [Directions — the HUD screen](#directions--the-hud-screen) |
 | Variant | `menu-open:` | a desktop dropdown is open: real hover (`(hover: hover)`), `focus-within`, or `[data-open]` (first touch tap) — never with `[data-dismissed]` (Escape) |
 
 Tokens without a Tailwind name are still reachable as arbitrary values —

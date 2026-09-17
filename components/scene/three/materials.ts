@@ -8,7 +8,7 @@
  *   P4  line     — wireframes, the mesh wave, synapses, UI card outlines
  *   P5  tube     — flat or round ribbons: the chip's traces, the commerce track and gates, hub
  *                  links with packets, the cursor trail
- *   P6  points   — the morph swarm, synapse pulses, wave nodes
+ *   P6  points   — the morph swarm, synapse pulses
  *
  * A theme switch never recompiles. In three r186 a material's program cache key includes
  * `opaque = !transparent && blending === NormalBlending`, so every material here uses
@@ -302,10 +302,12 @@ void main() {
     color = mix(uColorA, uColorB, 0.5 + 0.5 * sin(vLocal.y * 5.0 + uTime * 0.9));
     strength = uAlpha * uIntensity;
   } else if (uMode < 1.5) {
-    // the wave: blue → cyan across, the pulse ring runs red
+    // the wave: blue → cyan across, the pulse ring runs red; the crossings' + (vPhase 1)
+    // stand out of the grid and flare as the ring passes
     color = mix(uColorA, uColorB, smoothstep(-1.6, 1.6, vLocal.x));
     color = mix(color, uHot, clamp(vRing * 0.85, 0.0, 1.0));
     strength = (uAlpha + vRing * 0.45) * uIntensity;
+    strength += vPhase * (0.35 + vRing * 0.8);
   } else if (uMode < 2.5) {
     // synapses: a comet runs layer by layer (uProg in layers, vPhase = this edge's layer)
     float along = uProg - vPhase;
@@ -470,8 +472,11 @@ export function createTubeMaterial(options: {
 
 /* ---- P6: points ----------------------------------------------------------------------------------- */
 
-/** 0 was the glass core's point cloud; the other modes keep their numbers. */
-export const POINTS_MODE = { swarm: 1, pulses: 2, waveNodes: 3 } as const;
+/**
+ * 0 was the glass core's point cloud and 3 the mesh wave's nodes (now `+` lines in P4); the
+ * other modes keep their numbers.
+ */
+export const POINTS_MODE = { swarm: 1, pulses: 2 } as const;
 
 export type PointsUniforms = BaseUniforms & {
   uColorC: U<Color>;
@@ -494,9 +499,6 @@ export type PointsUniforms = BaseUniforms & {
   uFromR: U<number>;
   uToR: U<number>;
   uProg: U<number>;
-  uWaveTime: U<number>;
-  uPulseR: U<number>;
-  uOrigin: U<Vector2>;
 };
 
 const POINTS_VERTEX = /* glsl */ `
@@ -524,7 +526,6 @@ uniform mat4 uToM;
 uniform float uFromR;
 uniform float uToR;
 uniform float uProg;
-${WAVE_GLSL}
 ${ROTATE_Y_GLSL}
 ${EASE_GLSL}
 varying float vAlpha;
@@ -561,7 +562,7 @@ void main() {
     scale = uScale;
     vTint = fract(aSeed.w * 7.31 + aSeed.z * 3.17);
     vHot = uT < 0.5 ? leave * (1.0 - leave) * 4.0 : arrive * (1.0 - arrive) * 4.0;
-  } else if (uMode < 2.5) {
+  } else {
     // synapse pulse heads: aS0 → aS1, layer aSeed.x
     float along = uProg - aSeed.x;
     p = mix(aS0, aS1, clamp(along, 0.0, 1.0));
@@ -569,15 +570,6 @@ void main() {
     size = 1.6;
     vHot = 1.0;
     vTint = 0.0;
-  } else {
-    // mesh-wave nodes riding the wave
-    float ring = 0.0;
-    p = aS0;
-    p.z += waveHeight(aS0.xy, ring);
-    alpha = (0.4 + 0.45 * ring) * uReveal;
-    size = 0.65 + ring * 0.6;
-    vHot = ring;
-    vTint = ring > 0.35 ? 0.95 : aSeed.y * 0.8;
   }
 
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -635,9 +627,6 @@ export function createPointsMaterial(options: {
     uFromR: { value: 1 },
     uToR: { value: 1 },
     uProg: { value: -1 },
-    uWaveTime: { value: 0 },
-    uPulseR: { value: 0 },
-    uOrigin: { value: new Vector2() },
   };
   const material = new ShaderMaterial({
     uniforms,

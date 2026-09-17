@@ -28,8 +28,11 @@ const TAU = Math.PI * 2;
 
 /* ---- shared model constants ------------------------------------------------------------ */
 
-/** The mesh-wave plane (scene units): size, height of the wave, pulse ring period (s). */
-export const MESH_WAVE = { width: 3.3, height: 2.2, amp: 0.8, pulsePeriod: 3.2 } as const;
+/**
+ * The mesh-wave plane (scene units): size, height of the wave, pulse ring period (s), and the
+ * half-length of each arm of the `+` on a grid crossing.
+ */
+export const MESH_WAVE = { width: 3.3, height: 2.2, amp: 0.8, pulsePeriod: 3.2, crossArm: 0.045 } as const;
 /**
  * Each model's resting pose inside its root group (Euler XYZ, radians): the cubes show three
  * faces, the wave lies back like a floor, the loop and the hub tip towards the viewer.
@@ -166,6 +169,17 @@ export function wavePoint(x: number, y: number, t: number, pulseR: number): Vec3
   return rotateEulerXYZ(scale3([x, y, waveHeight(x, y, t, pulseR)], MODEL_SCALES["mesh-wave"]), MODEL_POSES["mesh-wave"]);
 }
 
+/**
+ * The mesh-wave grid of `[sx, sy]` cells on the plane: the xs of its `sx + 1` columns and the ys
+ * of its `sy + 1` rows, edge to edge. A `+` sits on every crossing of an even column and an even
+ * row. The model draws these lines and the swarm lands on them.
+ */
+export function waveGridLines([sx, sy]: readonly [number, number]): { xs: number[]; ys: number[] } {
+  const xs = Array.from({ length: sx + 1 }, (_, i) => (i / sx - 0.5) * MESH_WAVE.width);
+  const ys = Array.from({ length: sy + 1 }, (_, j) => (j / sy - 0.5) * MESH_WAVE.height);
+  return { xs, ys };
+}
+
 /** The commerce track in model space (posed). */
 export function commercePoint(u: number): Vec3 {
   return rotateEulerXYZ(scale3(commerceTrackPoint(u), MODEL_SCALES["commerce-loop"]), MODEL_POSES["commerce-loop"]);
@@ -244,6 +258,7 @@ export function hubLinkPoint(position: Vec3, s: number): Vec3 {
 export type SampleTier = {
   swarm: number;
   chipTraces: number;
+  wave: readonly [number, number];
   neural: readonly number[];
   fanout: number;
   satellites: number;
@@ -366,12 +381,27 @@ export function cubeSamples(count: number, seed = SCENE_SEEDS.samples + 1): Floa
   ]);
 }
 
-/** Slot: mesh wave — the displaced plane at t = 0. */
-export function waveSamples(count: number, seed = SCENE_SEEDS.samples + 2): Float32Array {
+/**
+ * Slot: mesh wave — the tier's grid of `cells` as drawn at wave time 0 (the model holds its clock
+ * there until it has formed): 45% along the rows, 40% along the columns (uniform by length on
+ * each), 15% on the arms of the crossings' `+`.
+ */
+export function waveSamples(count: number, cells: readonly [number, number], seed = SCENE_SEEDS.samples + 2): Float32Array {
+  const { xs, ys } = waveGridLines(cells);
+  const crosses: Array<readonly [number, number]> = [];
+  for (let j = 0; j < ys.length; j += 2) for (let i = 0; i < xs.length; i += 2) crosses.push([xs[i], ys[j]]);
+  const pick = <T>(list: readonly T[], r: () => number): T => list[Math.floor(r() * list.length) % list.length];
+  const across = (r: () => number, size: number) => (r() - 0.5) * size;
   return buildSamples(count, seed, [
+    { weight: 45, point: (r) => wavePoint(across(r, MESH_WAVE.width), pick(ys, r), 0, 0) },
+    { weight: 40, point: (r) => wavePoint(pick(xs, r), across(r, MESH_WAVE.height), 0, 0) },
     {
-      weight: 1,
-      point: (r) => wavePoint((r() - 0.5) * MESH_WAVE.width, (r() - 0.5) * MESH_WAVE.height, 0, 0),
+      weight: 15,
+      point: (r) => {
+        const [x, y] = pick(crosses, r);
+        const along = (r() * 2 - 1) * MESH_WAVE.crossArm;
+        return r() < 0.5 ? wavePoint(x + along, y, 0, 0) : wavePoint(x, y + along, 0, 0);
+      },
     },
   ]);
 }
@@ -458,7 +488,7 @@ export function swarmSlots(
   const graph = neuralGraphFor(tier);
   const byModel = {
     cubes: () => cubeSamples(count),
-    "mesh-wave": () => waveSamples(count),
+    "mesh-wave": () => waveSamples(count, tier.wave),
     neural: () => neuralSamples(count, graph),
     "commerce-loop": () => commerceSamples(count),
     "integration-hub": () => hubSamples(count, tier.satellites),

@@ -12,8 +12,8 @@ import { useEffect, useRef, useState } from "react";
 import { createFpsGovernor, sampleFrame, type GovernorStep } from "@/components/three/governor";
 import { useRetainedRenderer } from "@/components/three/hooks";
 import { mediaMatches } from "@/lib/device";
-import { readSceneInput, type ScrollProbe } from "@/lib/scene";
-import { createChangeSignal, reportChange, type SceneFx } from "./fx";
+import { readSceneInput, type SceneEntry, type ScrollProbe } from "@/lib/scene";
+import { createChangeSignal, entryState, reportChange, type SceneFx } from "./fx";
 import { armReady, buildStaged, compileStaged, createReadySignal, tickReady } from "./three/compile";
 import type { ScenePalette } from "./three/palette";
 import { createSceneWorld } from "./three/world";
@@ -31,6 +31,8 @@ export type SceneWorldProps = {
   onReady(): void;
   onStep(step: GovernorStep): void;
   onMorph(running: boolean): void;
+  /** Only on a change, from the first frame after ready (the first report is the current state). */
+  onEntry(state: SceneEntry): void;
 };
 
 export function SceneWorld({
@@ -44,6 +46,7 @@ export function SceneWorld({
   onReady,
   onStep,
   onMorph,
+  onEntry,
 }: SceneWorldProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
@@ -55,12 +58,14 @@ export function SceneWorld({
   const [ready] = useState(createReadySignal);
   const [governor] = useState(() => createFpsGovernor(sceneGovernorOptions(tier, force3d, skipDpr)));
   const [morphSignal] = useState(() => createChangeSignal(false));
+  // Null: nothing reported yet, so the first frame after ready always says where the entrance is.
+  const [entrySignal] = useState(() => createChangeSignal<SceneEntry | null>(null));
   const [coarse] = useState(() => mediaMatches("(pointer: coarse)"));
 
-  const callbacks = useRef({ onReady, onStep, onMorph });
+  const callbacks = useRef({ onReady, onStep, onMorph, onEntry });
   useEffect(() => {
-    callbacks.current = { onReady, onStep, onMorph };
-  }, [onReady, onStep, onMorph]);
+    callbacks.current = { onReady, onStep, onMorph, onEntry };
+  }, [onReady, onStep, onMorph, onEntry]);
 
   useEffect(() => () => world.dispose(), [world]);
   useEffect(() => world.setPalette(palette), [world, palette]);
@@ -96,6 +101,11 @@ export function SceneWorld({
     world.update(dt, window.scrollY, state, coarse, probe, readSceneInput(), fx);
     const morph = reportChange(morphSignal, world.morphRunning());
     if (morph !== null) callbacks.current.onMorph(morph);
+    // The entrance as drawn — only once the scene is ready, so no glow keys off an invisible canvas.
+    if (ready.fired) {
+      const entry = reportChange(entrySignal, entryState(fx.entry.value));
+      if (entry !== null) callbacks.current.onEntry(entry);
+    }
     const next = sampleFrame(governor, dt);
     if (next) callbacks.current.onStep(next);
   });

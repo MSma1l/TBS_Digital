@@ -24,9 +24,9 @@ export function writeHeroSpan(probe: ScrollProbe, st: MeasuredTrigger): void {
   writeSpan(probe.heroExit, st);
 }
 
-/** `handoff`: the services anchor, "top 95%" → "center 55%". */
-export function writeServicesSpan(probe: ScrollProbe, st: MeasuredTrigger): void {
-  writeSpan(probe.handoff, st);
+/** `entry`: the services anchor, "top 90%" → "top 75%" (the entry gate's hysteresis band). */
+export function writeEntrySpan(probe: ScrollProbe, st: MeasuredTrigger): void {
+  writeSpan(probe.entry, st);
 }
 
 /** `el`'s border box in document pixels, into `into` when there is one; null without `el`. */

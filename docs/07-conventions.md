@@ -149,6 +149,12 @@ Rules, enforced by `components/__tests__/tailwind-contract.test.ts`:
   outline or ring that actually draws something — `focus-visible:outline-transparent`,
   `focus-visible:ring-0` or an offset alone do not count. The one exception is an element that
   only takes programmatic focus (`tabIndex={-1}` on the same tag, e.g. the cookie card).
+- **The services glass reveal keys off the stage root** (`entry-glow`, `entry-sweep`): the glow
+  under `[data-renderer="webgl"][data-entry="formed"]` and statically on the `fallback` / `off` renderers, never
+  `pending`; its one transition only on the WebGL path; `color-mix` only inside its own
+  `@supports`; the sweep animated only under `[data-renderer="webgl"][data-entry="burst"]` with motion allowed, by the
+  top-level `hud-glass-sweep` (transform and opacity only, opacity ≤ .12); nothing on
+  `[data-reveal]` or the intro, no filter, blur or radius. Why: [04](./04-design-system.md#directions--the-hud-screen).
 
 Not enforced by the test, but part of the convention:
 
@@ -281,10 +287,16 @@ Nothing may import the runtime statically (the ban above).
 The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's only user.
 
 - **Measure, don't drive.** Two animation-free triggers give the scroll spans (`heroExit`:
-  `#top` "top top" → "bottom 35%"; `handoff`: the services anchor "top 95%" → "center 55%"), and
+  `#top` "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%"), and
   every refresh re-reads the anchors' document boxes, the stage's top/bottom and `--header-h`
   into the probe (`scrollProbe.ts`). The scene reads `window.scrollY` against them every frame.
   No scrub drives the scene — it would lag the page by a frame.
+- **A picture that must not rest half-way runs on a timed gate, not a scroll progress.** The
+  director only measures the band; the scene's `stepGate` (`fx.ts`) arms at its end, disarms
+  above its start (hysteresis) and runs the value in time on the clamped frame step. The services
+  entrance is the one today (`ENTRY_SECONDS`); a new threshold effect gets its own `Gate` in
+  `SceneFx` and its own branch in `composeScene`, never a scrubbed progress. Whether it has
+  finished is the scene's to report (`onEntry` → `data-entry`), never the director's.
 - **Never** (`scene-contract.test.ts` scans `components/scene/**`): `pin`, `pinSpacing`,
   `pinReparent`, `anticipatePin` (spacers shift every anchor), `snap` (inline `scroll-behavior` on
   html/body), `normalizeScroll`, ScrollSmoother, `markers`, a custom `scroller`, `lagSmoothing`.
@@ -326,8 +338,9 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   token. Details in [03 — Architecture](./03-architecture.md#the-interior-stage).
 - **The `data-*` contract** (names in `SCENE_ATTR`, `lib/scene.ts`): React writes
   `data-renderer`, `data-reason`, `data-tier`, `data-paused` (only while `webgl`) and
-  `data-motion`; `data-boost`, `data-quality`, `data-morph` and the director's `data-scroll-fx`
-  are written **straight to the DOM**, never through React state. Test ids `scene-stage`,
+  `data-motion`; `data-boost`, `data-quality`, `data-morph`, `data-entry` (`idle|burst|formed`,
+  only while a scene is mounted) and the director's `data-scroll-fx` are written **straight to
+  the DOM**, never through React state. Test ids `scene-stage`,
   `scene-hero`, `scene-services`; anchors `data-scene-anchor="hero|services"`; art roots
   `data-core-art` / `data-shape-art="<slug>"`; `data-hologram`, `data-metric`, `data-tilt`,
   `data-tilting`, `data-parallax`, `data-shape`. Tests and CSS selectors read these — don't rename
@@ -348,8 +361,9 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
 - **The interior draws with five programs (P2–P6), and new parts reuse them** (`three/materials.ts`).
   The hero chip and the cursor trail added none: they are box edges, a plasma surface, lines and
   flat ribbons like the service models. A mode is a `uMode` branch, and a retired mode keeps the
-  others' numbers (`TUBE_MODE` has had no 0 since the core's rings left, `POINTS_MODE` none since
-  its cloud did).
+  others' numbers: `TUBE_MODE` has had no 0 since the core's rings left; `POINTS_MODE` has no 0
+  since the core's cloud left, and no 3 since the mesh wave's nodes became `+` lines in P4
+  (2026-09-17, the brand-ui grid: `swarm` 1 and `pulses` 2 remain).
 - **The static art** (`components/scene/art/`): no `"use client"`, tokens only, no infinite
   animation, nothing animated on `stroke-dashoffset` or `filter`, no `circle` under r=12, no round
   line caps, `aria-hidden` with no text; hidden under `[data-renderer="webgl"]`. Only the first

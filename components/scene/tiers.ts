@@ -24,8 +24,10 @@ export type SceneTierConfig = {
   /** Particles that carry a morph. */
   swarm: number;
   cubes: number;
-  /** Mesh-wave grid segments (x, y). */
+  /** Mesh-wave grid cells (x, y): a line on every cell edge, a `+` on every second crossing. */
   wave: readonly [number, number];
+  /** Segments along a mesh-wave row; a column (the plane's shorter side) gets half. */
+  waveSubdiv: number;
   uiCards: number;
   /** Nodes per layer of the neural network. */
   neural: readonly number[];
@@ -48,7 +50,8 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     chipTraces: 7,
     swarm: 720,
     cubes: 27,
-    wave: [44, 28],
+    wave: [16, 8],
+    waveSubdiv: 32,
     uiCards: 3,
     neural: [5, 8, 9, 7, 4],
     fanout: 3,
@@ -65,7 +68,8 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     chipTraces: 5,
     swarm: 420,
     cubes: 27,
-    wave: [30, 18],
+    wave: [10, 6],
+    waveSubdiv: 24,
     uiCards: 2,
     neural: [4, 6, 7, 5, 3],
     fanout: 2,

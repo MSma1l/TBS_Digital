@@ -34,6 +34,7 @@ describe("scene tiers — budgets", () => {
       ["swarm", high.swarm, mid.swarm],
       ["cubes", high.cubes, mid.cubes],
       ["wave", high.wave[0] * high.wave[1], mid.wave[0] * mid.wave[1]],
+      ["wave subdiv", high.waveSubdiv, mid.waveSubdiv],
       ["ui cards", high.uiCards, mid.uiCards],
       ["neural nodes", sum(high.neural), sum(mid.neural)],
       ["fanout", high.fanout, mid.fanout],
@@ -49,6 +50,15 @@ describe("scene tiers — budgets", () => {
   it("the hero chip: 7 traces (and pins) per side on high, 5 on mid", () => {
     expect(high.chipTraces).toBe(7);
     expect(mid.chipTraces).toBe(5);
+  });
+
+  it("the brand-ui grid: 16×8 cells and 32 segments a row on high, 10×6 and 24 on mid", () => {
+    expect(high.wave).toEqual([16, 8]);
+    expect(high.waveSubdiv).toBe(32);
+    expect(mid.wave).toEqual([10, 6]);
+    expect(mid.waveSubdiv).toBe(24);
+    // Columns get half a row's segments: both tiers split evenly.
+    for (const tier of [high, mid]) expect(tier.waveSubdiv % 2).toBe(0);
   });
 
   it("only high antialiases; no tier configures the glass core any more", () => {

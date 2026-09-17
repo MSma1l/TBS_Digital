@@ -1,9 +1,11 @@
 /**
  * The interior scene as one imperative object: the hero chip, the morph swarm, the cursor
  * trail and the five service models, composed every frame from the scroll probe, the page's
- * input store and the choreography. `SceneWorld.tsx` creates it once, builds it part by part,
- * calls `update` from `useFrame` and disposes it on unmount; every per-frame write lives here
- * (React Compiler lint).
+ * input store and the choreography. The chip dissolves on its own host as the hero leaves; the
+ * services model bursts out of a speck at its host once the entry gate arms (fx.ts), and the
+ * swarm carries that burst and every pill morph after it. `SceneWorld.tsx` creates it once,
+ * builds it part by part, calls `update` from `useFrame` and disposes it on unmount; every
+ * per-frame write lives here (React Compiler lint).
  *
  * Built in parts, one idle slice each (`buildNext`): the chip first, then the swarm, then the
  * trail, then one service model at a time. Building all of them in one go was a single
@@ -22,6 +24,7 @@ import {
   type ServiceModel,
 } from "@/lib/scene";
 import {
+  BURST,
   composeScene,
   coreExitPose,
   coreReveal,
@@ -38,7 +41,7 @@ import {
   type SceneLayout,
 } from "../choreography";
 import { stepSceneFx, type SceneFx } from "../fx";
-import { CHIP, MODEL_RADIUS } from "../shapes";
+import { MODEL_RADIUS } from "../shapes";
 import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
 import { createCommerceLoopModel } from "./models/commerceLoop";
@@ -94,6 +97,13 @@ const MODEL_FACTORIES: Readonly<Record<ServiceModel, typeof createCubesModel>> =
   "integration-hub": createIntegrationHubModel,
 };
 
+/**
+ * The burst's speck, as fractions of the services placement: the `to` shape shrunk to this
+ * scale at the host's centre, a cloud this much wider than the model (it overshoots, then
+ * converges), sprites starting at this share of their size.
+ */
+export const BURST_SPECK = { scale: 0.05, radius: 1.35, sprite: 0.5 } as const;
+
 /** Only the root: every part comes from `buildNext`, one idle slice apart. */
 export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePalette): SceneWorld {
   const config = SCENE_TIER_CONFIG[tier];
@@ -115,7 +125,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   const plan = createComposition();
   const shown = models.map(() => false);
   const prewarmQueue = new Set<Object3D>();
-  const coreMatrix = new Matrix4();
+  const burstMatrix = new Matrix4();
   const corePlace: Placement = { x: 0, y: 0, scale: 1 };
   const servicesSpot: Placement = { x: 0, y: 0, scale: 1 };
   const pose: CorePose = { scale: 1, lift: 0, dim: 1 };
@@ -134,8 +144,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   const modelFrame: ModelFrame = { time: 0, step: 0, reveal: 0, prewarm: false, tx: 0, ty: 0, halfHeightPx: 1, dpr: 1 };
   const swarmFrame: SwarmFrame = {
     plan: plan.swarm,
-    fromMatrix: coreMatrix,
-    toMatrix: coreMatrix,
+    fromMatrix: burstMatrix,
+    toMatrix: burstMatrix,
     fromRadius: 1,
     toRadius: 1,
     fromScale: 1,
@@ -155,7 +165,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let layoutInk = false;
   let layout: SceneLayout = layoutFor(1280, 800, false);
 
-  const matrixFor = (slot: number): Matrix4 => (slot === 0 ? coreMatrix : models[slot - 1].group.matrixWorld);
+  /** A planned slot's world matrix: a service model's, or the burst's speck (slot 0 is never planned). */
+  const matrixFor = (slot: number): Matrix4 => (slot >= 1 ? models[slot - 1].group.matrixWorld : burstMatrix);
 
   /** The part (a direct child of the root) an object belongs to. */
   const partOf = (object: Object3D): Object3D => {
@@ -219,17 +230,18 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       }
 
       const heroExit = probe.live ? scrollProgress(scrollY, probe.heroExit) : 0;
-      const handoff = probe.live && probe.services ? scrollProgress(scrollY, probe.handoff) : 0;
-      const step = stepSceneFx(fx, dt, input, heroExit, handoff);
-      stepMorph(morph, input.shape, step, fx.handoff < 1);
-      composeScene(fx.handoff, morph, plan);
+      const entrySpan = probe.live && probe.services ? probe.entry : null;
+      const step = stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan);
+      // Until the model has assembled, the entrance owns the swarm: a pill switch is instant.
+      stepMorph(morph, input.shape, step, fx.entry.value < 1);
+      composeScene(fx.entry.value, morph, plan);
 
       const halfHeightPx = h * dpr * 0.5;
       placeCore(probe, scrollY, w, h, layout, corePlace);
       const services = placeServices(probe, scrollY, w, h, layout, servicesSpot) ?? corePlace;
       coreExitPose(fx.heroExit, layout, pose);
 
-      /* the chip: on its own host, dissolving as the hero leaves or the handoff takes it */
+      /* the chip: on its own host, dissolving as the hero leaves */
       const coreScale = corePlace.scale * pose.scale;
       core.group.position.set(corePlace.x, corePlace.y, 0);
       core.group.scale.setScalar(coreScale);
@@ -239,18 +251,15 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       coreFrame.ty = fx.ty;
       coreFrame.boost = fx.boost;
       coreFrame.wave = fx.wave;
-      coreFrame.reveal = Math.min(plan.core, coreReveal(fx.heroExit));
+      coreFrame.reveal = coreReveal(fx.heroExit);
       coreFrame.prewarm = prewarmQueue.has(core.group);
       coreFrame.lift = pose.lift;
       coreFrame.dim = pose.dim;
       core.update(coreFrame);
-      // The swarm leaves from the chip's resting silhouette (slot 0, posed) where the chip is.
-      coreMatrix.compose(scratchPosition.set(corePlace.x, corePlace.y, 0), identity, scratchScale.setScalar(coreScale));
 
       /* the service models: placed every frame (the swarm reads their matrices), drawn when revealed */
       const sway = Math.sin(fx.time * MODEL_SWAY.speed) * MODEL_SWAY.amplitude;
       modelFrame.time = fx.time;
-      modelFrame.step = step;
       modelFrame.tx = fx.tx;
       modelFrame.ty = fx.ty;
       modelFrame.halfHeightPx = halfHeightPx;
@@ -271,20 +280,31 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         if (reveal > 0 || prewarm) {
           modelFrame.reveal = reveal;
           modelFrame.prewarm = prewarm;
+          // A model's own cycle (the cubes' hold → explode → float → assemble, a hub's packets)
+          // waits at its start until the model is fully revealed: the swarm lands on that pose,
+          // and a formed entrance begins with the whole first phase (the cubes' block held 1.4s).
+          modelFrame.step = reveal < 1 ? 0 : step;
           model.update(modelFrame);
         } else {
           group.visible = false;
         }
       }
 
-      /* the swarm */
-      const fromIsCore = plan.swarm.from === 0;
+      /* the swarm: a burst leaves from a speck of the selected model at the services centre */
+      const burst = plan.swarm.from === BURST;
+      if (burst) {
+        burstMatrix.compose(
+          scratchPosition.set(services.x, services.y, 0),
+          identity,
+          scratchScale.setScalar(services.scale * BURST_SPECK.scale),
+        );
+      }
       swarmFrame.plan = plan.swarm;
       swarmFrame.fromMatrix = matrixFor(plan.swarm.from);
       swarmFrame.toMatrix = matrixFor(plan.swarm.to);
-      swarmFrame.fromRadius = fromIsCore ? CHIP.R * coreScale : MODEL_RADIUS * services.scale;
+      swarmFrame.fromRadius = MODEL_RADIUS * services.scale * (burst ? BURST_SPECK.radius : 1);
       swarmFrame.toRadius = MODEL_RADIUS * services.scale;
-      swarmFrame.fromScale = fromIsCore ? coreScale : services.scale;
+      swarmFrame.fromScale = services.scale * (burst ? BURST_SPECK.sprite : 1);
       swarmFrame.toScale = services.scale;
       swarmFrame.time = fx.time;
       swarmFrame.halfHeightPx = halfHeightPx;

@@ -21,7 +21,7 @@ import {
   withInstantScroll,
 } from "./scrollGuard";
 import { isPageCovered, subscribePageCover } from "@/lib/scrollLock";
-import { releaseProbe, writeAnchors, writeHeroSpan, writeServicesSpan } from "./scrollProbe";
+import { releaseProbe, writeAnchors, writeEntrySpan, writeHeroSpan } from "./scrollProbe";
 
 /*
  * Registered when this chunk evaluates — outside any GSAP context, so ScrollTrigger's own
@@ -36,10 +36,12 @@ const PARALLAX_KEYS = Object.keys(PARALLAX_LAYERS) as Array<keyof typeof PARALLA
  * The interior stage's GSAP half, loaded with the scene (next/dynamic) and only on the WebGL
  * path. It draws nothing and animates nothing the scene reads. It:
  *  · MEASURES — two animation-free ScrollTriggers give the scroll spans (`heroExit`: `#top`
- *    "top top" → "bottom 35%"; `handoff`: the services anchor "top 95%" → "center 55%"), and
- *    every refresh re-reads the anchors' document boxes, the stage's top/bottom and the
- *    header height into `probe`. The scene reads `window.scrollY` against them every frame —
- *    no scrub drives the scene, so it never lags a frame behind the page;
+ *    "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%", the band
+ *    over which the scene's timed entry gate arms and disarms), and every refresh re-reads the
+ *    anchors' document boxes, the stage's top/bottom and the header height into `probe`. The
+ *    scene reads `window.scrollY` against them every frame — no scrub drives the scene, so it
+ *    never lags a frame behind the page. It only knows the threshold: whether the services
+ *    model has formed is the scene's to say (`data-entry`, written by the stage);
  *  · keeps refreshes harmless — the smooth-scroll guard (scrollGuard.ts), a refresh when the
  *    stage changes height (admin content, images, a font swap; deferred while the visitor is
  *    scrolling, because a refresh jumps the page and would kill a touch fling) and on a
@@ -130,10 +132,10 @@ export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
         if (services) {
           ScrollTrigger.create({
             trigger: services,
-            start: "top 95%",
-            end: "center 55%",
+            start: "top 90%",
+            end: "top 75%",
             onRefresh: (self) => {
-              if (uncovered()) writeServicesSpan(probe, self);
+              if (uncovered()) writeEntrySpan(probe, self);
             },
           });
         }

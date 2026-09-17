@@ -1186,7 +1186,8 @@ export type ProbeReading = { name: string; probe: number | null; dom: number };
  * A test-only read that needs nothing from production: the probe is the `probe` prop of the
  * components around the canvas, reached through React's fiber on the canvas's DOM ancestors.
  * The DOM side follows the director's triggers: `heroExit` = `#top` "top top" → "bottom 35%",
- * `handoff` = the services anchor "top 95%" → "center 55%".
+ * `entry` = the services anchor "top 90%" → "top 75%" (the band the scene's timed entry gate
+ * arms and disarms over).
  */
 export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
   page.evaluate(() => {
@@ -1197,7 +1198,7 @@ export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
       hero: { y: number } | null;
       services: { y: number } | null;
       heroExit: { start: number; end: number };
-      handoff: { start: number; end: number };
+      entry: { start: number; end: number };
     };
     type Fiber = { return: Fiber | null; memoizedProps?: { probe?: Probe } };
     const canvas = document.querySelector("[data-scene-layer] canvas");
@@ -1224,8 +1225,8 @@ export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
       { name: "live", probe: probe.live ? 1 : 0, dom: 1 },
       { name: "heroExit.start", probe: probe.heroExit.start, dom: hero.top },
       { name: "heroExit.end", probe: probe.heroExit.end, dom: hero.bottom - 0.35 * vh },
-      { name: "handoff.start", probe: probe.handoff.start, dom: services.top - 0.95 * vh },
-      { name: "handoff.end", probe: probe.handoff.end, dom: services.top + services.h / 2 - 0.55 * vh },
+      { name: "entry.start", probe: probe.entry.start, dom: services.top - 0.9 * vh },
+      { name: "entry.end", probe: probe.entry.end, dom: services.top - 0.75 * vh },
       { name: "stage.top", probe: probe.stage.top, dom: stage.top },
       { name: "stage.bottom", probe: probe.stage.bottom, dom: stage.bottom },
       { name: "hero.y", probe: probe.hero?.y ?? null, dom: heroAnchor.top },

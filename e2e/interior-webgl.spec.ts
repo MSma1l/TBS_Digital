@@ -341,17 +341,17 @@ test.describe("interior stage — forced WebGL @webgl", () => {
   test.describe("services in view (1280×1000)", () => {
     test.use({ viewport: { width: 1280, height: 1000 } });
 
-    test("W11 once the handoff is complete, a pill hover morphs the model: data-morph running → idle", async ({
+    test("W11 once the services model has formed, a pill hover morphs it: data-morph running → idle", async ({
       page,
     }) => {
       await openForced(page);
       const stage = sceneStage(page);
-      // The handoff ends when the services anchor's centre reaches 55% of the viewport.
-      const centre = await page.evaluate(() => {
+      // The entry gate arms once the services anchor's top reaches 75% of the viewport (40px past).
+      const top = await page.evaluate(() => {
         const box = document.querySelector('[data-scene-anchor="services"]')!.getBoundingClientRect();
-        return box.top + window.scrollY + box.height / 2;
+        return box.top + window.scrollY;
       });
-      await scrollToY(page, centre - 1000 * 0.45);
+      await scrollToY(page, top - 1000 * 0.75 + 40);
 
       await page.evaluate(() => {
         const w = window as unknown as { __morph?: { value: string | null; t: number }[] };
@@ -366,9 +366,10 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       const morphLog = () =>
         page.evaluate(() => (window as unknown as { __morph?: { value: string | null; t: number }[] }).__morph ?? []);
 
-      // The scene smooths the handoff towards 1 at its own frame rate (slow under SwiftShader),
-      // and until it gets there a switch is instant, with no morph to report. So hover one pill,
-      // then another, until a switch really morphs (at most ~20s), then time that morph.
+      // The scene assembles the model over 1.1s of its own frame time (at least 22 frames: under
+      // SwiftShader every frame is clamped to 1/20s, so several real seconds), and until it has
+      // formed a switch is instant, with no morph to report. So hover one pill, then another,
+      // until a switch really morphs (at most ~20s), then time that morph.
       const pills = directionPills(page);
       const order = [3, 1, 4, 2, 3, 1, 4, 2];
       let hovered = 0;
@@ -389,6 +390,85 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       expect(running, JSON.stringify(log)).toBeDefined();
       expect(idle, JSON.stringify(log)).toBeDefined();
       expect(idle!.t - running!.t).toBeLessThanOrEqual(1_500);
+    });
+  });
+
+  /*
+   * W16 · the services entrance is a timed burst, not a scroll scrub: once the services anchor's
+   * top passes 75% of the viewport the model explodes out of a speck and assembles on the scene's
+   * own clock, and the stage says so in `data-entry` (the Directions panel's edge glow keys off
+   * it). Above the band's start ("top 90%") it implodes back to idle.
+   */
+  test.describe("services entrance (1280×800)", () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    test("W16 past the services anchor the model bursts in: data-entry idle → burst → formed, the panel glows; above the band, idle", async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page);
+      await openForced(page);
+      const stage = sceneStage(page);
+      await expect(stage).toHaveAttribute("data-entry", "idle", { timeout: 10_000 });
+      await expect.poll(async () => probeMismatches(await sceneProbeVsDom(page)), { timeout: 5_000 }).toEqual([]);
+
+      await page.evaluate(() => {
+        const w = window as unknown as { __entry?: { value: string | null; t: number }[] };
+        const el = document.querySelector("[data-scene-stage]")!;
+        const log = [{ value: el.getAttribute("data-entry"), t: performance.now() }];
+        w.__entry = log;
+        new MutationObserver(() => log.push({ value: el.getAttribute("data-entry"), t: performance.now() })).observe(el, {
+          attributes: true,
+          attributeFilter: ["data-entry"],
+        });
+      });
+      const entryLog = () =>
+        page.evaluate(() => (window as unknown as { __entry?: { value: string | null; t: number }[] }).__entry ?? []);
+      const now = () => page.evaluate(() => performance.now());
+
+      const vh = 800;
+      const anchorTop = await page.evaluate(() => {
+        const box = document.querySelector('[data-scene-anchor="services"]')!.getBoundingClientRect();
+        return box.top + window.scrollY;
+      });
+      const panel = page.locator("#servicii .entry-glow");
+      await expect(panel).toHaveCount(1);
+      const idleShadow = await panel.evaluate((el) => getComputedStyle(el).boxShadow);
+
+      // To the band's end: armed. It bursts, then forms on its own clock while the page rests.
+      const scrolledAt = await now();
+      await scrollToY(page, Math.ceil(anchorTop - 0.75 * vh) + 1);
+      await expect(stage).toHaveAttribute("data-entry", "formed", { timeout: 20_000 });
+      const formed = await entryLog();
+      expect(formed.map((entry) => entry.value), JSON.stringify(formed)).toEqual(["idle", "burst", "formed"]);
+      const timings = {
+        burstAfterScrollMs: Math.round(formed[1].t - scrolledAt),
+        formedAfterBurstMs: Math.round(formed[2].t - formed[1].t),
+      };
+      test.info().annotations.push({ type: "W16 data-entry timings", description: JSON.stringify(timings) });
+      console.log(`W16 data-entry timings ${JSON.stringify(timings)}`);
+      // Never faster than the 1.1s the gate needs (frames are clamped, never stretched).
+      expect(timings.formedAfterBurstMs).toBeGreaterThanOrEqual(1_000);
+
+      // Formed: the panel's edge glows (P2-C's `entry-glow`).
+      await expect
+        .poll(() => panel.evaluate((el) => getComputedStyle(el).boxShadow), { message: "the formed panel's glow", timeout: 5_000 })
+        .not.toBe(idleShadow);
+      expect(await panel.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+
+      // Above the band's start: it implodes back to idle.
+      const upAt = await now();
+      await scrollToY(page, Math.floor(anchorTop - 0.9 * vh) - 40);
+      await expect(stage).toHaveAttribute("data-entry", "idle", { timeout: 20_000 });
+      const back = (await entryLog()).slice(formed.length);
+      expect(back.map((entry) => entry.value), JSON.stringify(back)).toEqual(["burst", "idle"]);
+      const implosion = {
+        burstAfterScrollMs: Math.round(back[0].t - upAt),
+        idleAfterBurstMs: Math.round(back[1].t - back[0].t),
+      };
+      test.info().annotations.push({ type: "W16 implosion timings", description: JSON.stringify(implosion) });
+      console.log(`W16 implosion timings ${JSON.stringify(implosion)}`);
+      await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
+      expect(errors.page).toEqual([]);
     });
   });
 
