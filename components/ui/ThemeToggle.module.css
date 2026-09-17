@@ -11,18 +11,23 @@
   justify-content: center;
   cursor: pointer;
   padding: var(--sp-1) var(--sp-2);
-  border: 1px solid var(--line);
-  background: var(--panel2);
+  /* HUD glass: the header's material as a tint and a hairline (the blur itself is the
+     header's ::before). Hover lights the blue neon, the same accent the active language
+     carries, so the group reads as one instrument panel. */
+  border: 1px solid var(--glass-line);
+  background: var(--glass-bg);
   color: var(--mut);
   transition:
     color 0.15s,
     background 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .toggle:hover {
   color: var(--txt);
-  border-color: var(--line2);
+  border-color: var(--blue);
+  box-shadow: var(--neon-blue);
 }
 
 /* Keyboard focus must be visible on its own, not only under the pointer — same ring the

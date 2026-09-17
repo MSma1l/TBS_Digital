@@ -32,7 +32,9 @@
   }
 }
 
-/* See the ≤380px note in Navbar.module.css — the row has to fit a 320px viewport. */
+/* Very small phones: the header row (logo, this group, the burger) has to fit a 320px
+   viewport. Navbar.tsx tightens its own gaps below 381px (`max-[381px]:`) and this group
+   follows; touch targets stay 44px tall, only the spacing between them shrinks. */
 @media (max-width: 380px) {
   .prefs {
     gap: var(--sp-1);

@@ -95,6 +95,147 @@ payload like `'; DROP TABLE users;--` is stored as literal text and cannot affec
 A middleware in `backend/app/main.py` rejects request bodies larger than **1 MB** with HTTP
 413 before they are parsed.
 
+## The HTML CSP and the first-visit intro (2026-09-16)
+
+The site's HTML is served with a per-request, nonce-based policy from `proxy.ts`:
+`script-src 'self' 'nonce-…' 'strict-dynamic'`, `style-src 'self' 'unsafe-inline'`,
+`connect-src 'self'` (+ the analytics pixel host, and the API origin when
+`NEXT_PUBLIC_API_URL` points at a separate one), `img-src 'self' data: blob:` (+ that API
+origin), `object-src 'none'`, `base-uri 'none'`, `frame-ancestors 'none'`, **no** `worker-src`
+(it falls back to `script-src`, which a `blob:` worker does not satisfy) and **no**
+`'wasm-unsafe-eval'`.
+
+**The HUD redesign added three.js, React Three Fiber, GSAP and Tailwind, and the CSP did not
+change.** It still holds because:
+
+- **Nothing is fetched at runtime.** The 3D scene is built procedurally from three core — the
+  environment map is rendered from emissive strips (PMREM), not loaded from an HDR — so there
+  is no `connect-src` need. The gsap and three/R3F chunks were checked for `eval(`,
+  `new Function`, `new Worker` and `WebAssembly`: none.
+- **All scripts are first-party chunks** loaded by Next under the nonce and `'strict-dynamic'`,
+  including the lazy director and scene chunks.
+- **Styles are written through the CSSOM** (GSAP tweens, R3F's canvas sizing), which a CSP does
+  not restrict. The one inline `<style>` — `<noscript><style>#tbs-intro{display:none!important}
+  </style></noscript>` in `app/(site)/layout.tsx`, which hides the overlay when scripting is
+  off — relies on the `style-src 'unsafe-inline'` that was already there. Tailwind is a build-time
+  stylesheet.
+- **Measured:** 0 `securitypolicyviolation` events on a first visit, a returning visit, reduced
+  motion, a service page, the admin and the forced-WebGL scene, and `e2e/preloader.spec.ts`
+  asserts it on every run ("needs no CSP change and logs no errors").
+
+### Imports that would break the CSP fail lint instead
+
+drei, three's loaders and decoders, physics engines and worker pools pass `tsc`, the unit tests
+and the build — and then fail only in a real browser, because they fetch from a CDN, compile
+wasm or spin up `blob:` workers. `eslint.config.mjs` bans them with `no-restricted-imports`
+**and** a `no-restricted-syntax` selector for dynamic `import()`, which the intro uses to
+code-split:
+
+| Banned | Why |
+|--------|-----|
+| `@react-three/drei`, `@react-three/drei/*` | Environment presets fetch HDRs; `<Text>` fetches fonts and runs a worker; loaders pull decoders |
+| `three/addons/loaders/*`, `three/examples/jsm/loaders/*` | Asset fetches; Draco/KTX2/Basis decoders (wasm, workers, CDN) |
+| `…/libs/*` | The decoders themselves (meshopt, draco, basis — `WebAssembly.instantiate`) |
+| `…/physics/*`, `@dimforge/*` | Rapier and friends: wasm fetched from a CDN at runtime (`@types/three` installs `@dimforge/rapier3d-compat`, so it resolves) |
+| `…/utils/WorkerPool(.js)` | `blob:` workers |
+| `…/Addons(.js)` and the bare `three/addons` | The barrel that re-exports all of the above (the bare name is an exact-path ban, so harmless addons such as controls stay allowed) |
+| `three-stdlib`, `troika-three-text` | Loader re-exports; `blob:` workers |
+
+Each `three/…` entry is listed under both spellings (`three/addons` and `three/examples/jsm`).
+The ban list was verified by linting probe sources through stdin: every banned static and
+dynamic import reported, near-misses and allowed imports clean.
+
+### The `tbs_intro` cookie
+
+| Attribute | Value | Why |
+|-----------|-------|-----|
+| Value | `seen` — the only value that counts (`isIntroSeen`) | Anything else, or no cookie, just plays the intro; the value never reaches the DOM |
+| Lifetime | session (no `Max-Age` / `Expires`) | The intro plays again in a new browser session, never twice in one |
+| `Path` | `/` | Set from the home page, read by the server gate for `/`, `/ru`, `/en` |
+| `SameSite` | `Lax` | Same as the site's other preference cookies |
+| `HttpOnly` | no — written from JS by `finishIntro()` | It carries no secret; like `tbs_theme` / `tbs_locale` it is a preference |
+| `Secure` | not set | Consistent with the other preference cookies; production is served over HTTPS with HSTS (`deploy/nginx/tbs.conf`) |
+
+It is listed as an **essential** cookie in the cookie policy (`app/(site)/cookies/content.ts`,
+RO/RU/EN). The gate compares `x-pathname` — which `proxy.ts` overwrites on every document
+request — only with `"/"`; a client that forges it on a prefetch request can only toggle the
+overlay in its own response (pages are rendered per request, and nginx does not cache them).
+
+## The interior 3D stage (2026-09-17)
+
+The interior redesign — a sticky WebGL scene behind Hero → Ticker → Directions, GSAP
+ScrollTrigger, static SVG art, holographic stat cards — added **no dependency and did not change
+the CSP** in `proxy.ts`. It still holds because:
+
+- **Nothing is fetched at runtime.** The core and the five service models are built from maths
+  in three core; the environment map is the same procedural PMREM; the static art is inline SVG
+  styled by CSS Modules.
+- **No dynamic code.** The scene, director, gsap, probe and stage chunks were checked for
+  `eval`, `new Function`, `Worker`, `WebAssembly` and `createObjectURL`: none. three core's loader
+  classes are bundled but never called.
+- **Inline style attributes come from constants and numbers**: a direction's brand `--accent`
+  (`lib/solutions.ts`), a project card's `--p1` / `--p2` gradient, the hologram transforms, the
+  tilt's `--tilt-rx` / `--tilt-ry`, R3F's canvas sizing and GSAP's parallax transforms. None of
+  them carries visitor or admin text, and `style-src 'unsafe-inline'` was already in the policy.
+- **Measured on every run:** `e2e/interior.spec.ts` (E1, the static-art path) and
+  `e2e/interior-webgl.spec.ts` (W1, the forced WebGL canvas) assert 0 `securitypolicyviolation`
+  events.
+
+### Imports that would ship GSAP or three.js to everyone fail lint
+
+`eslint.config.mjs` extends the rule block above:
+
+| Banned | Where | Why |
+|--------|-------|-----|
+| `gsap/all`, `gsap/all.js` | everywhere, as `import` and `import()` | the barrel bundles every plugin |
+| `gsap/dist/*` | everywhere, as `import` and `import()` | a second (UMD) copy of the core with its own ticker — two tickers, two ScrollTrigger registries |
+| `gsap/ScrollSmoother`, `gsap/ScrollSmoother.js` | everywhere, as `import` and `import()` | rewrites `<html>` / `<body>` styles and takes over scrolling |
+| `gsap-trial`, `gsap-trial/*` | everywhere, as `import` and `import()` | the trial package, never shipped |
+| a **static** value import of `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`, any subpath of them, or the site's modules that carry them (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector`, any spelling) | the files the page bundle reaches up front (`app/**`, the sections, layout, `ui`, `fx`, `SceneStage`, the art, `lib/**`, the intro's shell and both probe chunks) | ~290 KB gzip to every visitor; they load through `import()` behind the capability probe. `import type` stays allowed |
+
+That second block is not a security boundary, but it matters for one: flat config **replaces** a
+rule's options per matching block, so the file-scoped block **repeats** the CSP bans above —
+drop them from it and drei or a wasm decoder would lint clean in exactly the files that load
+first. `components/__tests__/scene-contract.test.ts` mirrors the lists. Verified by linting 20
+probe sources through `--stdin-filename` (no files created): value imports flagged, type imports
+and `import()` allowed, the scene chunk itself allowed.
+
+The first version matched exact package names only: `gsap/ScrollTrigger.js`, `gsap/Observer`,
+`three/webgpu` and static imports of `@/components/three/runtime` or `../scene/SceneWorld` linted
+clean in `components/sections/`, a harmless `import type { Color } from "three"` was an error, and
+several up-front files were outside the list. Fixed before release (review finding, 2026-09-17).
+
+### Browser storage the stage uses
+
+| Key | Storage | Holds | Written by | Lifetime |
+|-----|---------|-------|------------|----------|
+| `tbs_gpu_probe` | `sessionStorage` | `{"v":1,"strict":{…},"forced":{…}}`, each entry `context`, `software` and optionally `lost` / `slow` — **booleans only** | the GPU probe (`components/three/capability.ts`, called by the intro shell or the stage) and `markGpu` after a lost context or a governor bail | the tab |
+| `tbs_scene_3d` | `localStorage` | `"force"` or `"off"` | **never by the site** — QA and the E2E helpers set it; the site only reads it | until removed |
+
+- **Never the renderer string.** The probe reads `RENDERER` (and `UNMASKED_RENDERER_WEBGL` only
+  when the plain one is masked), tests it against the software-rasteriser pattern in memory, and
+  stores only the boolean: a renderer name would be a device fingerprint.
+- **Parsed defensively** (`lib/gpuProbe.ts`): versioned, rebuilt from its booleans on every read
+  and write — an unknown key never survives, a malformed entry is dropped. A tampered value can
+  only change whether that tab tries to draw the scene (and a device that cannot keep up bails
+  back to the static art).
+- The live gates (reduced motion, Save-Data, a 2G connection, `ResizeObserver`) are never cached.
+- `tbs_gpu_probe` is listed as an **essential** entry in the cookie policy
+  (`app/(site)/cookies/content.ts`, RO/RU/EN): session storage, yes/no values, identifies nobody,
+  gone when the tab closes.
+
+### Nothing asked of the visitor, nothing new exposed
+
+- **No permission prompt.** The gyroscope tilt listens to `deviceorientation` only where the
+  browser gives it without asking; `DeviceOrientationEvent.requestPermission()` (iOS) is never
+  called.
+- **Nothing new on `window`.** The E2E specs read the scene's scroll probe through React's fiber
+  props on the canvas's ancestors (`e2e/helpers.ts`, `sceneProbeVsDom`), so production exposes no
+  debug global. The two new `window` events (`tbs:intro-gone`, `tbs:page-cover`) are plain
+  `Event`s that carry no data.
+- **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
+  through React (escaped), exactly as the whole tag was rendered before.
+
 ## Authentication
 - Admin users live in the DB `users` table with **bcrypt-hashed** passwords
   (`backend/app/security.py`). Login (`POST /api/auth/login`) verifies the hash in constant

@@ -54,8 +54,8 @@ export type SoundApi = {
 const SoundContext = createContext<SoundApi | null>(null);
 
 // --- reduced motion, as an external store ------------------------------------------------
-// Same shape as the theme's `prefers-color-scheme` subscription: a value the server cannot
-// know, that changes outside React, and that must not break hydration.
+// A value the server cannot know, that changes outside React, and that must not break
+// hydration — exactly what `useSyncExternalStore` is for.
 
 function motionQuery(): MediaQueryList | null {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;

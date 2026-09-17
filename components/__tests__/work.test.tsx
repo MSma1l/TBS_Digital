@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 vi.mock("@/lib/api", () => ({
@@ -12,6 +12,7 @@ import { projects as defaultProjects } from "@/lib/content";
 import { Work } from "@/components/sections/Work";
 import { Hero } from "@/components/sections/Hero";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
+import { TILT_QUERY } from "@/lib/tilt";
 
 // <Reveal> constructs an IntersectionObserver, which jsdom doesn't implement.
 beforeAll(() => {
@@ -178,6 +179,184 @@ describe("Work section — links and image fallback", () => {
     await screen.findByText("FLIRT");
 
     expect(cardFor(container, "FLIRT").style.getPropertyValue("--p2")).toBe("#ff2d78");
+  });
+
+  /* ---- the HUD cards: tilt, parallax and tag chips ---------------------------------------
+     jsdom has no PointerEvent (testing-library falls back to a plain Event and drops
+     `pointerType` and the coordinates, so they are defined by hand), no matchMedia match and
+     no layout; the frames of the tilt hook are a manual queue. */
+
+  function pointer(
+    kind: "pointerOver" | "pointerMove" | "pointerOut",
+    el: HTMLElement,
+    pointerType: "mouse" | "touch",
+    x = 0,
+    y = 0,
+  ) {
+    const event =
+      kind === "pointerOut"
+        ? createEvent.pointerOut(el, { relatedTarget: document.body })
+        : createEvent[kind](el);
+    Object.defineProperty(event, "pointerType", { value: pointerType });
+    Object.defineProperty(event, "clientX", { value: x });
+    Object.defineProperty(event, "clientY", { value: y });
+    fireEvent(el, event);
+  }
+
+  it("renders every card with the tilt off until a fine, hovering mouse is known", async () => {
+    const { container } = withProvider(<Work />);
+    await screen.findByText("BizCheck");
+
+    const all = cards(container);
+    expect(all).toHaveLength(defaultProjects.length);
+    for (const card of all) expect(card).toHaveAttribute("data-tilt", "off");
+  });
+
+  it("a mouse tilt writes its angles next to --p1/--p2 on the card root, and settles back to them", async () => {
+    const realMatchMedia = window.matchMedia;
+    const realRequestFrame = window.requestAnimationFrame;
+    const realCancelFrame = window.cancelAnimationFrame;
+    const frames = new Map<number, FrameRequestCallback>();
+    let lastFrame = 0;
+    window.matchMedia = ((query: string) => ({
+      matches: query === TILT_QUERY,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    window.requestAnimationFrame = (callback: FrameRequestCallback) => {
+      lastFrame += 1;
+      frames.set(lastFrame, callback);
+      return lastFrame;
+    };
+    window.cancelAnimationFrame = (id: number) => {
+      frames.delete(id);
+    };
+    const flushFrames = () =>
+      act(() => {
+        const pending = [...frames.values()];
+        frames.clear();
+        for (const callback of pending) callback(0);
+      });
+
+    try {
+      vi.mocked(api.fetchContent).mockResolvedValue({
+        ...defaultSiteData,
+        projects: [project({ id: "flirt", name: "FLIRT", images: ["/projects/flirt-1.png"] })],
+      });
+      const { container } = withProvider(<Work />);
+      await screen.findByText("FLIRT");
+
+      const card = cardFor(container, "FLIRT");
+      expect(card).toHaveAttribute("data-tilt", "on");
+      card.getBoundingClientRect = () =>
+        ({ left: 0, top: 0, width: 300, height: 200, x: 0, y: 0, right: 300, bottom: 200 }) as DOMRect;
+
+      // A finger never tilts.
+      pointer("pointerMove", card, "touch", 300, 0);
+      flushFrames();
+      expect(card).not.toHaveAttribute("data-tilting");
+
+      // The mouse at the top-right corner: the full project tilt on both axes.
+      pointer("pointerOver", card, "mouse", 300, 0);
+      pointer("pointerMove", card, "mouse", 300, 0);
+      flushFrames();
+      expect(card).toHaveAttribute("data-tilting");
+      expect(card.style.getPropertyValue("--tilt-rx")).toBe("6deg");
+      expect(card.style.getPropertyValue("--tilt-ry")).toBe("6deg");
+      expect(card.style.getPropertyValue("--p1")).toBe("#1a0510");
+      expect(card.style.getPropertyValue("--p2")).toBe("#ff2d78");
+
+      pointer("pointerOut", card, "mouse");
+      expect(card).not.toHaveAttribute("data-tilting");
+      expect(card.style.getPropertyValue("--tilt-rx")).toBe("");
+      expect(card.style.getPropertyValue("--tilt-ry")).toBe("");
+      expect(card.style.getPropertyValue("--p1")).toBe("#1a0510");
+      expect(card.style.getPropertyValue("--p2")).toBe("#ff2d78");
+    } finally {
+      window.matchMedia = realMatchMedia;
+      window.requestAnimationFrame = realRequestFrame;
+      window.cancelAnimationFrame = realCancelFrame;
+    }
+  });
+
+  it("gives each screenshot exactly one parallax wrapper, which keeps the image's role; a card without one has none", async () => {
+    vi.mocked(api.fetchContent).mockResolvedValue({
+      ...defaultSiteData,
+      projects: [
+        project({ id: "cu-imagine", name: "Cu imagine", url: "https://example.md", images: ["/projects/flirt-1.png"] }),
+        project({ id: "fara-imagine", name: "Fără imagine", images: [] }),
+      ],
+    });
+
+    const { container } = withProvider(<Work />);
+    await screen.findByText("Fără imagine");
+
+    // The view timeline the wrappers play across is named on the section itself.
+    expect(container.querySelector("#lucrari")).toHaveClass("view-work");
+    expect(container.querySelectorAll('#lucrari [data-parallax="work-media"]')).toHaveLength(1);
+
+    const withImage = cardFor(container, "Cu imagine");
+    const layers = withImage.querySelectorAll<HTMLElement>('[data-parallax="work-media"]');
+    expect(layers).toHaveLength(1);
+    expect(layers[0]).toHaveClass("parallax-media");
+    expect(layers[0]).toContainElement(within(withImage).getByRole("img"));
+    // Never inside an aria-hidden layer: the screenshot stays an image with its alt.
+    expect(layers[0].closest("[aria-hidden]")).toBeNull();
+
+    const noImage = cardFor(container, "Fără imagine");
+    expect(noImage.querySelectorAll("[data-parallax]")).toHaveLength(0);
+  });
+
+  it("splits a tag into chips on its middots and keeps the · between them, so the card reads the tag as written", async () => {
+    vi.mocked(api.fetchContent).mockResolvedValue({
+      ...defaultSiteData,
+      projects: [
+        project({
+          id: "privat",
+          name: "Privat",
+          url: "https://example.md",
+          tag: { ro: "CRM PRIVAT · FĂRĂ LINK · 2024", ru: "CRM · БЕЗ ССЫЛКИ", en: "CRM · NO LINK" },
+        }),
+        project({ id: "unul", name: "Unul", tag: { ro: "PLATFORMĂ WEB", ru: "ВЕБ", en: "WEB" } }),
+      ],
+    });
+
+    const { container } = withProvider(<Work />);
+    await screen.findByText("Privat");
+
+    const card = cardFor(container, "Privat");
+    const tag = card.querySelector("small");
+    // Chip, separator, chip, separator, chip: the admin's "·" stays visible between chips
+    // (decision D7), as text — never an aria-hidden decoration.
+    expect(Array.from(tag?.children ?? [], (el) => el.textContent)).toEqual([
+      "CRM PRIVAT",
+      " · ",
+      "FĂRĂ LINK",
+      " · ",
+      "2024",
+    ]);
+    expect(tag?.textContent).toBe("CRM PRIVAT · FĂRĂ LINK · 2024");
+    expect(tag?.querySelector("[aria-hidden]")).toBeNull();
+    // …so the link's accessible name keeps a boundary between two tags.
+    expect(card).toHaveAccessibleName(expect.stringContaining("CRM PRIVAT · FĂRĂ LINK · 2024"));
+
+    // A one-segment tag is one chip and no separator.
+    const single = cardFor(container, "Unul").querySelector("small");
+    expect(Array.from(single?.children ?? [], (el) => el.textContent)).toEqual(["PLATFORMĂ WEB"]);
+  });
+
+  it("the tag chips carry no backdrop blur (they sit over the parallax screenshot)", async () => {
+    const { container } = withProvider(<Work />);
+    await screen.findByText("BizCheck");
+
+    const chips = Array.from(container.querySelectorAll<HTMLElement>("#lucrari small > span"));
+    expect(chips.length).toBeGreaterThanOrEqual(defaultProjects.length);
+    for (const chip of chips) expect(chip.getAttribute("class") ?? "").not.toMatch(/backdrop-blur/);
   });
 });
 

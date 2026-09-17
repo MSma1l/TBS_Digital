@@ -58,6 +58,42 @@ variants per field.
 > **Rule:** never hardcode user-visible copy in a component. New copy is either a catalog
 > key or a localized content field. See [07 — Conventions](./07-conventions.md).
 
+A third, narrower form exists for fixed copy that lives with one component: an inline
+trilingual literal, `const L = (ro, ru, en) => ({ ro, ru, en })`, rendered through `useLoc()`.
+The hero, the ticker, Directions and Work use it; it is still RO/RU/EN, never a bare string.
+
+### Keys added by the first-screen redesign (2026-09-16)
+
+| Key | RO | RU | EN | Notes |
+|-----|----|----|----|-------|
+| `intro.status` | SYSTEM_SYNCHRONIZATION | SYSTEM_SYNCHRONIZATION | SYSTEM_SYNCHRONIZATION | HUD code, identical in every language — still a key, so the overlay carries no hardcoded copy |
+| `intro.complete` | ACCESS_GRANTED | ACCESS_GRANTED | ACCESS_GRANTED | replaces `intro.status` at 100% |
+| `intro.progressAria` | Se încarcă TBS Digital | Загрузка TBS Digital | Loading TBS Digital | the progress bar's accessible name |
+| `intro.skip` | Sari peste intro | Пропустить интро | Skip intro | the skip button's accessible name — E2E finds the button by exactly this string |
+| `intro.skipKey` | ESC | ESC | ESC | the key-cap beside it (`aria-hidden`, fine pointers only) |
+| `header.sysTime` | SYS_TIME | SYS_TIME | SYS_TIME | the header clock's label |
+| `nav.primaryAria` | Principal | Основная | Main | the desktop `<nav>`'s label |
+
+**`nav.primaryAria` names only *which* navigation.** Screen readers already announce the
+landmark role, so "Navigație principală" would be read as "navigație principală, navigație".
+The key was first written that way and shortened after review.
+
+Removed: `hero.scrollHint` (it belonged to the deleted hero emblem).
+
+### The interior redesign (2026-09-17) adds no keys
+
+No catalog key was added or removed, and no visitor copy was written into a component:
+
+- Directions and Work were rebuilt in Tailwind with their existing `L()` copy unchanged.
+- Everything new that is visible but not text is **decorative and `aria-hidden`**: the 3D stage
+  and its canvas, the static SVG art (no `<title>`, no text), the stat holograms, the corner
+  brackets, the arrow box on a linked project card, and the **"↗" on the selected direction pill**
+  — so a pill's accessible name stays exactly its label ("Produs digital", never "Produs digital
+  north east arrow"; `directions-selector.test.tsx` pins it in every selection state).
+- The "·" between tag chips (Work cards, the Directions case card) is the admin's own text,
+  split for display and kept visible, so a card still reads — and is announced — as
+  "CRM PRIVAT · FĂRĂ LINK".
+
 ---
 
 ## 2. Crawlable per-language URLs
@@ -108,6 +144,47 @@ Because the nonce is minted per request, **every page renders dynamically** (`aw
 headers()` in the root layout). That is a deliberate trade: a nonce'd CSP over a statically
 prerendered page would ship HTML whose scripts carry a stale nonce.
 
+### The first-visit intro and SEO
+
+A full-screen overlay on a first visit to `/` could look like an interstitial hiding the
+content. It is built so that it does not:
+
+- **The content is all there, server-rendered, under the overlay.** The `<h1>`, the lead, the
+  CTAs and every section are in the HTML the server sends; the overlay is a sibling, not a
+  wrapper, and nothing on the page is `aria-hidden` while it runs. `e2e/preloader.spec.ts`
+  asserts that the `<h1>`'s computed opacity is **1** under the overlay.
+- **Nothing hides the headline, ever.** No CSS rule targets the entrance markers, and the
+  entrance animates the `<h1>` with transform and blur only — never opacity — so it paints at
+  full opacity from the first frame.
+- **It is short and skippable** (a ~2.4s minimum, 5s hard cap, then a ~1.3s burst; any key,
+  click or wheel skips), plays once per session, never on a `#section` deep link, never under
+  reduced motion, and never on any other page.
+- **Crawlers and returning visitors** without JavaScript get it hidden by a `<noscript>` rule;
+  with `tbs_intro=seen` the server does not render it at all.
+
+**Measured** (headless Chromium, production build, during review): the LCP element is the
+`<h1>` in every run — phone 260 ms on a first visit / 148 ms on a returning one, desktop
+272 / 192 ms. CLS is 0 on a returning visit. A Lighthouse pass on real mobile hardware is still
+to do.
+
+### The interior 3D stage and SEO
+
+The sticky WebGL scene behind Hero → Ticker → Directions (2026-09-17) is built to change nothing
+a crawler or an assistive technology sees:
+
+- **All content stays server-rendered HTML.** The stage is a wrapper; its canvas lives in an
+  `aria-hidden` track with no layout height, so no section moves and no text is drawn into the
+  canvas. The scene is requested only after the intro has gone and the page is idle (at least
+  1.5s of visible time), so it never competes with the `<h1>` for LCP.
+- **The static art is decoration in the HTML**: the hero's core and the first direction's
+  drawing ship as inline, `aria-hidden` SVG without text; the other four drawings load in the
+  browser only when a visitor switches direction, so they cost no HTML weight.
+- **The direction pills are real links** to `/servicii/<slug>` in every language (crawlable, as
+  the sitemap lists them); a touch visitor's first tap previews instead of navigating, which a
+  crawler never does.
+- **The entrance markers are never moved by the scroll effects** (the parallax targets wrappers),
+  and the `<h1>` is never hidden.
+
 ---
 
 ## 4. Cookie consent & analytics
@@ -119,8 +196,16 @@ prerendered page would ship HTML whose scripts carry a stale nonce.
   6 months), and a `CustomEvent` (`tbs:consent-change`) lets listeners react instantly.
 - `components/ui/CookieConsent.tsx` — the GDPR / Law-133 banner, shown until a choice is
   made. Accessible: labelled dialog region, focus moved to it, **Escape = essential only**
-  (the privacy-preserving default), reduced-motion honoured. Links to `/cookies` and
-  `/confidentialitate`.
+  (the privacy-preserving default), reduced-motion honoured. Links to `/cookies`.
+- **It waits for the first-visit intro.** Taking focus under a full-screen overlay would strand
+  a keyboard user behind it, so on a first visit to `/` the banner shows only when the intro
+  reports done (`tbs:intro-done`, via `onIntroDone()` in `lib/intro.ts`). Every other page — and
+  a home page with no overlay — shows it exactly as before, in the same effect. A backstop of
+  `WATCHDOG_MS + 1s`, counted in visible-tab time only, covers an intro that never reports back,
+  but never fires under an overlay that is still live. The effect on consent: until the banner
+  shows, nothing is decided, so the analytics pixel still does not load. After an intro that
+  played, Escape is ignored for 700ms (a second skip press must not answer the banner), and a
+  held key's repeats never answer it. Details: [05 — Page Sections](./05-page-sections.md#cookie-consent-banner).
 - `components/ui/AnalyticsPixel.tsx` — the `statistica.tbs.md` pixel. Injected **only**
   after `consent === "accepted"`; before that no request to the tracker host fires at all.
   It reacts live to the banner, so accepting loads it without a reload.
@@ -144,6 +229,15 @@ The pixel host is allow-listed in the CSP `connect-src`/`script-src` via `proxy.
 `/confidentialitate` (privacy policy) and `/cookies`, both under `app/(site)/`, with their
 copy in `content.ts` next to each page and shared styling in `LegalDoc.tsx` /
 `LegalDoc.module.css`. They are listed in the sitemap with full hreflang alternates.
+
+The cookie policy lists **`tbs_intro`** as an essential cookie in all three languages — it only
+remembers that the intro already played in this browser session, identifies nobody, and ends
+when the browser closes (last updated 16 September 2026). It also lists **`tbs_gpu_probe`** as
+essential **session storage**: whether this device can show the 3D animations, so the check is
+not repeated on every page — yes/no values only (never the graphics card's name), identifies
+nobody, gone when the tab closes. `localStorage.tbs_scene_3d` and `tbs_intro_3d` are QA
+switches the site only reads and never writes, so they are not listed. `tbs_theme` and `tbs_sound` are still
+not listed there; that gap predates the redesign.
 
 ---
 

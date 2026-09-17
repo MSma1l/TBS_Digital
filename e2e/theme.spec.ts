@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { THEME_COOKIE } from "@/lib/theme/theme";
 import { cookieValue, gotoHydrated, seedTheme, themeToggle } from "./helpers";
 
@@ -8,8 +8,9 @@ import { cookieValue, gotoHydrated, seedTheme, themeToggle } from "./helpers";
  *  2. the choice survives a reload (it lives in the `tbs_theme` cookie, not in memory);
  *  3. with that cookie set, the SERVER already stamps `<html data-theme="dark">` — the page
  *     arrives dark in its first byte, so a dark-mode visitor never sees a white flash.
- * And the negative: with no cookie, nothing is stamped, because the page must stay free to
- * follow `prefers-color-scheme`.
+ * And the default: with no cookie the server stamps dark as well (lib/theme/theme.ts
+ * DEFAULT_THEME) — the OS preference no longer decides, so only an explicit light choice
+ * paints light.
  */
 
 /** Read `data-theme` off the RAW server response — before any script has run. */
@@ -23,6 +24,14 @@ async function serverStampedTheme(
   const openingTag = /<html\b[^>]*>/i.exec(html)?.[0] ?? "";
   return /data-theme="(light|dark)"/.exec(openingTag)?.[1] ?? null;
 }
+
+/** Relative luminance (0–1, sRGB weights) of the page background as painted. */
+const bodyLuminance = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const rgb = getComputedStyle(document.body).backgroundColor;
+    const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? ["255", "255", "255"]).map(Number);
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  });
 
 test.describe("theme", () => {
   test("the toggle switches the palette @smoke", async ({ page }) => {
@@ -62,50 +71,55 @@ test.describe("theme", () => {
 
   test("with tbs_theme=dark the page is dark in its first byte", async ({ request }) => {
     expect(await serverStampedTheme(request, "/", `${THEME_COOKIE}=dark`)).toBe("dark");
-    // Not just the home page — the layout stamps it for every route.
-    expect(
-      await serverStampedTheme(request, "/servicii/produs-digital", `${THEME_COOKIE}=dark`),
-    ).toBe("dark");
   });
 
   test("with tbs_theme=light the page is light in its first byte", async ({ request }) => {
     expect(await serverStampedTheme(request, "/", `${THEME_COOKIE}=light`)).toBe("light");
+    // Not just the home page — the layout stamps it for every route. Light, because dark is
+    // what this route gets with no cookie at all: only the non-default proves it was read.
+    expect(
+      await serverStampedTheme(request, "/servicii/produs-digital", `${THEME_COOKIE}=light`),
+    ).toBe("light");
   });
 
-  test("without the cookie nothing is stamped (the OS still decides)", async ({ request }) => {
-    expect(await serverStampedTheme(request, "/")).toBeNull();
-    // A junk value counts as "no choice", not as a third palette.
-    expect(await serverStampedTheme(request, "/", `${THEME_COOKIE}=neon`)).toBeNull();
+  test("without the cookie the page is dark in its first byte", async ({ request }) => {
+    expect(await serverStampedTheme(request, "/")).toBe("dark");
+    // Every route, not just the home page: the default lives in the root layout.
+    expect(await serverStampedTheme(request, "/servicii/produs-digital")).toBe("dark");
+    // A junk value counts as "no choice", so it gets the default, not a third palette.
+    expect(await serverStampedTheme(request, "/", `${THEME_COOKIE}=neon`)).toBe("dark");
   });
 
-  test("a seeded dark cookie really paints a dark surface", async ({
-    page,
-    context,
-    baseURL,
-  }) => {
-    await seedTheme(context, "dark", baseURL!);
+  test("with no cookie the default really paints a dark surface", async ({ page }) => {
     await gotoHydrated(page, "/");
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-
     // Cheap luminance check on the page background: a dark theme must not be painting a
     // near-white surface, whatever the exact token values happen to be.
-    const luminance = await page.evaluate(() => {
-      const rgb = getComputedStyle(document.body).backgroundColor;
-      const [r, g, b] = (rgb.match(/\d+(\.\d+)?/g) ?? ["255", "255", "255"]).map(Number);
-      return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    });
-    expect(luminance, "body background should be dark").toBeLessThan(0.4);
+    expect(await bodyLuminance(page), "body background should be dark").toBeLessThan(0.4);
   });
 
-  test("the dark choice follows the visitor onto another page", async ({
+  // Seeded LIGHT: a seeded dark cookie would pass on the dark default alone.
+  test("a seeded light cookie really paints a light surface", async ({
     page,
     context,
     baseURL,
   }) => {
-    await seedTheme(context, "dark", baseURL!);
+    await seedTheme(context, "light", baseURL!);
+    await gotoHydrated(page, "/");
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    expect(await bodyLuminance(page), "body background should be light").toBeGreaterThan(0.6);
+  });
+
+  test("the light choice follows the visitor onto another page", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await seedTheme(context, "light", baseURL!);
     await gotoHydrated(page, "/en/servicii/e-commerce");
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
   });
 });

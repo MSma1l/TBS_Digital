@@ -11,6 +11,7 @@ import {
   header,
   languageGroup,
   languageOption,
+  scrollToY,
   seedTheme,
   themeToggle,
 } from "./helpers";
@@ -70,6 +71,27 @@ for (const viewport of VIEWPORTS) {
         await gotoHydrated(page, "/");
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         await expectNoHorizontalScroll(page);
+      });
+
+      test("the home page never scrolls sideways anywhere in the interior stage", async ({ page }) => {
+        await gotoHydrated(page, "/");
+        // Top, mid-hero, the services section, and the last screen of the stage: the sticky
+        // scene layer (components/scene/SceneStage.tsx) travels through all of them.
+        const marks = await page.evaluate(() => {
+          const hero = document.querySelector("#top")!.getBoundingClientRect();
+          const services = document.querySelector("#servicii")!.getBoundingClientRect();
+          const stage = document.querySelector("[data-scene-stage]")!.getBoundingClientRect();
+          return [
+            0,
+            hero.top + window.scrollY + hero.height / 2,
+            services.top + window.scrollY,
+            stage.bottom + window.scrollY - window.innerHeight,
+          ];
+        });
+        for (const y of marks) {
+          await scrollToY(page, y);
+          await expectNoHorizontalScroll(page);
+        }
       });
 
       test("a service page never scrolls sideways", async ({ page }) => {

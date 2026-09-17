@@ -73,7 +73,7 @@ export function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
 /* Whether the browser can listen is a value the server cannot know and that never changes
    afterwards, so it is read as an external store: `getServerSnapshot` returns `false`, the
    hydration render matches the server's markup exactly, and React swaps in the real answer
-   immediately after. (The same primitive the theme uses for `prefers-color-scheme`.) */
+   immediately after. (The same primitive the sound provider uses for reduced motion.) */
 const subscribeSupport = () => () => {};
 const getSupportSnapshot = () => getSpeechRecognitionCtor() !== null;
 const getServerSupportSnapshot = () => false;

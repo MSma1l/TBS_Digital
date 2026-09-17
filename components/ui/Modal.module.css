@@ -11,14 +11,17 @@
   position: fixed;
   inset: 0;
   /* A modal is the topmost interactive layer, so it sits above every other fixed thing on
-     the site. At 120 it was below several: StatusBar and the navbar dropdown (130), the
-     language popup (200), the cookie banner (280) and the scroll bar (300). The visible
-     symptom was that the top strip stayed undimmed behind the scrim and a click there hit
-     StatusBar instead of the overlay, so the dialog would not close. The cookie banner is
-     worse: it is `position: fixed` and would swallow clicks aimed at the dialog.
-     Stack, low → high: lightbox 100 · header 120 · nav overlay 125 · dropdown/StatusBar 130
-     · language popup 200 · cookie banner 280 · scroll progress 300 · THIS. */
-  z-index: 320;
+     the site. At 120 it was below several: the old top status bar and the navbar dropdown
+     (130), the language popup (200), the cookie banner (280) and the scroll bar (300). The
+     visible symptom was that the top strip stayed undimmed behind the scrim and a click
+     there hit the status bar instead of the overlay, so the dialog would not close. The
+     cookie banner is worse: it is `position: fixed` and would swallow clicks aimed at the
+     dialog.
+     Stack, low → high (the --z-* ladder in globals.css): lightbox 100 · nav overlay 115 ·
+     header 120 · dropdown 130 · language popup 200 · cookie banner 280 · scroll progress
+     300 · THIS (--z-modal) · first-visit intro 400 (it covers every CTA, so the dialog
+     cannot be opened underneath it). */
+  z-index: var(--z-modal);
 
   display: flex;
   align-items: center;
@@ -29,8 +32,10 @@
      token-derived, no local colour is introduced. */
   background: rgba(var(--scrim), 0.72);
   background: color-mix(in srgb, var(--ink) 76%, transparent);
-  backdrop-filter: blur(10px) saturate(1.1);
+  /* Prefixed line FIRST. In the other order Lightning CSS (the build's CSS minifier) keeps
+     only the -webkit- declaration, and every non-Safari browser loses the blur. */
   -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
 
   animation: modalOverlayIn 0.18s ease-out;
 }

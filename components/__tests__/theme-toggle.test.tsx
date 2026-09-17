@@ -78,22 +78,24 @@ afterEach(() => {
 /**
  * The toggle's contract: one press changes the palette the whole site is painted in, which
  * is nothing more than the value of `data-theme` on `<html>` — globals.css does the rest.
+ * A visitor who has not chosen starts on the dark default, so the first press goes to light.
  */
 describe("ThemeToggle — switching the palette", () => {
-  it("flips <html data-theme> between light and dark", async () => {
+  it("flips <html data-theme> between dark and light", async () => {
     const user = userEvent.setup();
     renderNav();
 
     const toggle = screen.getByRole("button", { name: TOGGLE });
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
-
-    await user.click(toggle);
     expect(theme()).toBe("dark");
     expect(toggle).toHaveAttribute("aria-pressed", "true");
 
     await user.click(toggle);
     expect(theme()).toBe("light");
     expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(toggle);
+    expect(theme()).toBe("dark");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows the palette that is on screen, and says what a press would do", async () => {
@@ -101,18 +103,21 @@ describe("ThemeToggle — switching the palette", () => {
     renderNav();
 
     const toggle = screen.getByRole("button", { name: TOGGLE });
-    expect(toggle).toHaveAttribute("title", ro["theme.switchToDark"]);
+    expect(toggle).toHaveAttribute("title", ro["theme.switchToLight"]);
 
     await user.click(toggle);
-    expect(toggle).toHaveAttribute("title", ro["theme.switchToLight"]);
+    expect(toggle).toHaveAttribute("title", ro["theme.switchToDark"]);
   });
 
-  it("reflects a dark choice the server already resolved", () => {
-    renderNav({ choice: "dark" });
+  // Light, not dark: with no choice at all the toggle already reads "pressed" (the dark
+  // default), so only the non-default palette proves the server's choice was used.
+  it("reflects a light choice the server already resolved", () => {
+    renderNav({ choice: "light" });
 
+    expect(theme()).toBe("light");
     expect(screen.getByRole("button", { name: TOGGLE })).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
   });
 });
@@ -129,11 +134,13 @@ describe("ThemeToggle — the choice persists", () => {
 
     await user.click(screen.getByRole("button", { name: TOGGLE }));
 
-    expect(document.cookie).toContain(`${THEME_COOKIE}=dark`);
-    expect(savedChoice()).toBe("dark");
+    expect(document.cookie).toContain(`${THEME_COOKIE}=light`);
+    expect(savedChoice()).toBe("light");
   });
 
-  it("comes back dark after a reload", async () => {
+  // Light, not dark: dark is what a reload shows with no cookie at all, so only the
+  // non-default palette proves that the choice itself came back.
+  it("comes back light after a reload", async () => {
     const user = userEvent.setup();
     const first = renderNav();
 
@@ -146,21 +153,22 @@ describe("ThemeToggle — the choice persists", () => {
 
     // The new document parses <head> and runs the anti-flash script before painting.
     new Function(THEME_INIT_SCRIPT)();
-    expect(theme()).toBe("dark");
+    expect(theme()).toBe("light");
 
-    // …then the server-seeded provider mounts on top of it, still dark.
+    // …then the server-seeded provider mounts on top of it, still light.
     renderNav({ choice: chosen });
-    expect(theme()).toBe("dark");
+    expect(theme()).toBe("light");
     expect(screen.getByRole("button", { name: TOGGLE })).toHaveAttribute(
       "aria-pressed",
-      "true",
+      "false",
     );
   });
 });
 
 /**
  * The script that runs before the first paint. It is the only thing standing between a
- * dark-mode visitor and a white flash, so its three branches are pinned here.
+ * dark page and a white flash, so both of its branches (saved choice, dark default) are
+ * pinned here, together with the tag that carries it.
  */
 describe("anti-flash script", () => {
   it("applies the saved choice even when the OS disagrees", () => {
@@ -172,20 +180,26 @@ describe("anti-flash script", () => {
     expect(theme()).toBe("light");
   });
 
-  it("follows the OS when nothing was chosen", () => {
-    mockPrefersDark(true);
+  it("is dark when nothing was chosen, whatever the OS prefers", () => {
+    for (const osPrefersDark of [false, true]) {
+      html().removeAttribute("data-theme");
+      mockPrefersDark(osPrefersDark);
 
-    new Function(THEME_INIT_SCRIPT)();
+      new Function(THEME_INIT_SCRIPT)();
 
-    expect(theme()).toBe("dark");
+      expect(theme(), `OS prefers dark: ${osPrefersDark}`).toBe("dark");
+    }
   });
 
-  it("falls back to light when the OS says nothing", () => {
+  it("keeps the provider dark too when nothing was chosen and the OS prefers light", () => {
     mockPrefersDark(false);
+    renderNav();
 
-    new Function(THEME_INIT_SCRIPT)();
-
-    expect(theme()).toBe("light");
+    expect(theme()).toBe("dark");
+    expect(screen.getByRole("button", { name: TOGGLE })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   /**
@@ -254,8 +268,8 @@ describe("ThemeToggle — accessibility", () => {
     toggle.focus();
     await user.keyboard("{Enter}");
 
-    expect(theme()).toBe("dark");
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(theme()).toBe("light");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
   it("switches with Space", async () => {
@@ -266,22 +280,22 @@ describe("ThemeToggle — accessibility", () => {
     toggle.focus();
     await user.keyboard("[Space]");
 
-    expect(theme()).toBe("dark");
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(theme()).toBe("light");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
   it("is labelled in the language the visitor is reading", () => {
     renderNav({ locale: "ru" });
 
     const toggle = screen.getByRole("button", { name: messages.ru["theme.toggleAria"] });
-    expect(toggle).toHaveAttribute("title", messages.ru["theme.switchToDark"]);
+    expect(toggle).toHaveAttribute("title", messages.ru["theme.switchToLight"]);
   });
 
   it("is labelled in English for an English visitor", () => {
     renderNav({ locale: "en" });
 
     const toggle = screen.getByRole("button", { name: messages.en["theme.toggleAria"] });
-    expect(toggle).toHaveAttribute("title", messages.en["theme.switchToDark"]);
+    expect(toggle).toHaveAttribute("title", messages.en["theme.switchToLight"]);
   });
 });
 
@@ -302,7 +316,7 @@ describe("ThemeToggle — visible on mobile without opening the menu", () => {
     expect(toggle.closest("header")).not.toBeNull();
 
     await user.click(toggle);
-    expect(theme()).toBe("dark");
+    expect(theme()).toBe("light");
   });
 
   it("is not duplicated when the hamburger menu opens", async () => {

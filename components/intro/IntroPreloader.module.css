@@ -1,0 +1,940 @@
+/*
+ * The first-visit intro overlay (IntroPreloader + IntroFallback).
+ *
+ * A CSS Module, not Tailwind, on purpose: nearly every rule here is a keyframe, a state
+ * selector ([data-live], [data-phase], [data-complete]) or something that must work BEFORE
+ * hydration — the failsafe, reduced motion, `:target`, print — and unlayered module CSS
+ * beats Tailwind's utilities layer anyway.
+ *
+ * Always dark, whatever the theme: only the fixed `--void` / `--dark-*` / brand tokens are
+ * used, never the remapped `--bg` / `--txt` pair.
+ *
+ * Motion budget: every infinite animation below moves `transform`/`opacity` of its own
+ * layer (compositor only) — except the SVG dash animations, which repaint one small,
+ * filter-free <svg>. The GSAP director only ever tweens elements that have NO CSS animation
+ * or transition on the same property (see the comments on .fallback, .skip, .hud).
+ *
+ * Layer budget: anything painted ABOVE an animated layer and overlapping it becomes a
+ * compositor layer of its own, so full-screen static paint (scanlines, vignette) lives in
+ * the overlay's own background, and animated layers are sized at the scale they animate at.
+ */
+
+.overlay {
+  /* Where the ∞ sits and how wide it is. The WebGL scene fits itself to the same numbers
+     (≈50% of the width in landscape, ≈86% in portrait, slightly above centre), so the SVG
+     fallback, the flash, the shockwave and the HUD all line up with either renderer. */
+  --intro-cy: 47%;
+  --intro-w: min(50vw, 84vh);
+  --hud-top: calc(var(--intro-cy) + var(--intro-w) * 0.2 + 40px);
+  --intro-grid: color-mix(in srgb, var(--blue) 24%, transparent);
+  --comet-dur: 2.8s;
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-intro);
+  overflow: hidden;
+  isolation: isolate;
+  contain: layout paint style;
+  touch-action: none;
+  overscroll-behavior: contain;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  color-scheme: dark;
+  /* Vignette, fine CRT lines, the void. Painted here rather than as elements over the
+     backdrop: above the animated glows, grid and sweep, each would be promoted to a
+     full-screen compositor layer (by overlap) for a paint that never changes. */
+  background:
+    radial-gradient(
+      ellipse 75% 70% at 50% var(--intro-cy),
+      transparent 45%,
+      color-mix(in srgb, var(--void) 88%, transparent) 100%
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--dark-txt) 3%, transparent) 0 1px,
+      transparent 1px 3px
+    ),
+    var(--void);
+  color: var(--dark-txt);
+  font-family: var(--font-mono-stack);
+
+  /* Pre-hydration failsafe. If JS never takes over (a blocked or broken chunk), the overlay
+     fades out on its own after FAILSAFE_MS (lib/intro.ts INTRO_TIMING — pinned by a test)
+     and ends invisible AND click-through. The first JS decision adds [data-live], which
+     cancels it; a hydration later than LATE_TAKEOVER_MS bypasses the intro instead, so a
+     half-faded overlay never snaps back. */
+  animation: introFailsafe 500ms ease-in 7000ms forwards;
+}
+
+.overlay[data-live] {
+  animation: none;
+}
+
+@keyframes introFailsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+@media (orientation: portrait) {
+  .overlay {
+    --intro-cy: 42%;
+    --intro-w: 78vw;
+  }
+}
+
+/* The director's reveal writes the same thing inline; this keeps the page clickable if a
+   render lands between the two. */
+.overlay[data-phase="revealed"] {
+  pointer-events: none;
+}
+
+/* Once the page is uncovered nothing in the overlay may catch a click during its fade — not
+   even a descendant with an explicit `pointer-events: auto` inline (R3F's canvas wrapper
+   with parallax on), which the root's inherited `none` alone would not reach. */
+.overlay[data-phase="revealed"] *,
+.overlay[data-phase="leaving"] * {
+  pointer-events: none !important;
+}
+
+/* Watchdog / error exit, without the director: a plain fade, then the shell unmounts. */
+.overlay[data-phase="leaving"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 300ms ease,
+    visibility 0s linear 300ms;
+}
+
+/* Reduced motion: never shown, not even for the frame before hydration (the shell then
+   finishes the intro and unmounts). A `/#section` deep link: the visitor asked for a place
+   on the page, so the overlay stays out of the way before JS too. */
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    display: none !important;
+  }
+}
+
+:global(html:has(:target)) .overlay {
+  display: none !important;
+}
+
+@media print {
+  .overlay {
+    display: none !important;
+  }
+}
+
+/* ---- backdrop: void, glows, perspective grid floor ----------------------------------- */
+
+.backdrop,
+.fallback,
+.canvasHost {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Sized at the largest scale they animate to (1.0 in the keyframes), so their layers are
+   never bigger than what is drawn. The gradient's closest-side scales with the box. */
+.glowRed,
+.glowBlue {
+  position: absolute;
+  top: var(--intro-cy);
+  left: 50%;
+  width: 56.24vmax;
+  height: 56.24vmax;
+  margin: -28.12vmax 0 0 -28.12vmax;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.glowRed {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--red) 30%, transparent),
+    color-mix(in srgb, var(--red) 9%, transparent) 45%,
+    transparent
+  );
+  animation: introGlowRed 9s ease-in-out infinite alternate;
+}
+
+.glowBlue {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--blue) 30%, transparent),
+    color-mix(in srgb, var(--blue) 9%, transparent) 45%,
+    transparent
+  );
+  animation: introGlowBlue 11s ease-in-out infinite alternate;
+}
+
+@keyframes introGlowRed {
+  from {
+    transform: translate(-22vw, -4vh) scale(0.8378);
+  }
+  to {
+    transform: translate(-14vw, 3vh) scale(1);
+  }
+}
+
+@keyframes introGlowBlue {
+  from {
+    transform: translate(22vw, 4vh) scale(0.9459);
+  }
+  to {
+    transform: translate(13vw, -3vh) scale(0.8108);
+  }
+}
+
+/* The floor: a rotated plane under the horizon, and a grid that slides towards the viewer
+   inside it. The slide is a translate of exactly one cell, so the loop has no seam. */
+.floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44%;
+  overflow: hidden;
+  perspective: 480px;
+  perspective-origin: 50% 0;
+  /* Fade in below the horizon, AND the overlay's vignette: that is painted underneath now
+     (see .overlay), so the grid would otherwise stay bright into the corners. The same
+     ellipse, re-expressed in this box (44% of the overlay's height, its top at 56%), as the
+     share of the grid that shows through: 1 − 0.88 at the rim. */
+  mask-image:
+    linear-gradient(to bottom, transparent, black 38%),
+    radial-gradient(
+      ellipse 75% calc(70% / 0.44) at 50% calc((var(--intro-cy) - 56%) / 0.44),
+      black 45%,
+      color-mix(in srgb, black 12%, transparent) 100%
+    );
+  mask-composite: intersect;
+}
+
+/* Only as big as rotateX(72deg) under a 480px perspective can show. The top edge sits at
+   z = 0 (scale 1) and every row below it is magnified, so the floor's own width covers it
+   (2% spare for edge antialiasing). A row y px down projects to 0.309y·480/(480 − 0.951y):
+   the floor's bottom (44vh) is reached by y < 1.7 × its height on a 320px-tall landscape
+   phone (2× holds down to ~250px), and never needs more than 480/0.951 ≈ 505px — rows past
+   that are behind the eye. */
+.floorPlane {
+  position: absolute;
+  top: 0;
+  left: -2%;
+  right: -2%;
+  height: min(200%, 510px);
+  transform-origin: 50% 0;
+  transform: rotateX(72deg);
+}
+
+.floorGrid {
+  position: absolute;
+  inset: calc(var(--grid-cell) * -1) 0 0;
+  background-image:
+    linear-gradient(var(--intro-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--intro-grid) 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell);
+  background-position: 50% 0;
+  animation: introGridDrift 1.6s linear infinite;
+  will-change: transform;
+}
+
+@keyframes introGridDrift {
+  to {
+    transform: translateY(var(--grid-cell));
+  }
+}
+
+.horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--red) 70%, transparent) 30%,
+    color-mix(in srgb, var(--dark-txt) 55%, transparent) 50%,
+    color-mix(in srgb, var(--blue) 70%, transparent) 70%,
+    transparent
+  );
+  box-shadow: 0 0 18px 1px color-mix(in srgb, var(--red) 35%, transparent);
+  opacity: 0.55;
+}
+
+/* A slow scan line over everything (the fine CRT lines are in the overlay's background). */
+.sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 12vh;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--dark-cyan) 3%, transparent) 70%,
+    color-mix(in srgb, var(--dark-cyan) 9%, transparent) 97%,
+    transparent
+  );
+  transform: translateY(-20vh);
+  animation: introSweep 5.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+  /* The vignette used to dim the band's ends; it is painted underneath now (see .overlay).
+     The mask travels with the band, so it can only follow the vignette across, not down:
+     its falloff at mid-height, a little softer towards the ends. */
+  mask-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, black 45%, transparent),
+    color-mix(in srgb, black 85%, transparent) 25%,
+    black 50%,
+    color-mix(in srgb, black 85%, transparent) 75%,
+    color-mix(in srgb, black 45%, transparent)
+  );
+}
+
+@keyframes introSweep {
+  to {
+    transform: translateY(120vh);
+  }
+}
+
+/* HUD corner brackets. */
+.corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 0 solid color-mix(in srgb, var(--dark-txt) 26%, transparent);
+}
+
+.cornerTl {
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.cornerTr {
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  border-top-width: 1px;
+  border-right-width: 1px;
+}
+
+.cornerBl {
+  bottom: max(14px, env(safe-area-inset-bottom));
+  left: max(14px, env(safe-area-inset-left));
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+}
+
+.cornerBr {
+  bottom: max(14px, env(safe-area-inset-bottom));
+  right: max(14px, env(safe-area-inset-right));
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+
+/* ---- SVG fallback ∞ (IntroFallback) --------------------------------------------------- */
+
+/* The director tweens THIS layer (heartbeat scale, crossfade to WebGL, the DOM-only burst:
+   scale + fade), so it carries no CSS animation. It zooms around the ∞'s centre. */
+.fallback {
+  transform-origin: 50% var(--intro-cy);
+}
+
+/* Hidden behind the WebGL scene, the SVG stops moving: 15 of its endless animations are
+   stroke-dashoffset, which runs on the main thread — the same thread as R3F and GSAP. When
+   the scene fails, `data-renderer` goes back to "fallback" before the SVG fades back in, and
+   the animations resume from where they paused. */
+.overlay[data-renderer="webgl"] .fallback * {
+  animation-play-state: paused;
+}
+
+.fbStage {
+  position: absolute;
+  top: var(--intro-cy);
+  left: 50%;
+  width: calc(var(--intro-w) * 1.5);
+  aspect-ratio: 480 / 300;
+  translate: -50% -50%;
+  perspective: 1400px;
+}
+
+/* The slow 3D sway and the breathing are two different properties (transform vs scale), so
+   the two animations never fight over one value. */
+.fbTilt {
+  position: absolute;
+  inset: 0;
+  animation:
+    introTilt 7s ease-in-out infinite alternate,
+    introBreathe 3.4s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes introTilt {
+  from {
+    transform: rotateX(12deg) rotateY(-20deg) rotateZ(-2deg);
+  }
+  to {
+    transform: rotateX(-8deg) rotateY(20deg) rotateZ(2deg);
+  }
+}
+
+@keyframes introBreathe {
+  from {
+    scale: 1;
+  }
+  to {
+    scale: 1.035;
+  }
+}
+
+.fbSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* The halo is blurred INSIDE the SVG (feGaussianBlur, IntroFallback) and rasterised into its
+   own layer once. A CSS `filter` here would be a compositor filter under the 3D tilt, and
+   the compositor re-runs those every frame the transform changes — i.e. every frame. */
+.fbHalo {
+  opacity: 0.55;
+  will-change: transform;
+}
+
+/* The SVG blur is in viewBox units, so it scales with the ∞; the old 16 CSS px were ~8 units
+   at 1280×800 and ~17 at 390×844. Two strengths, switched where the ∞ gets small (its width
+   `--intro-w` under ~448px, i.e. under 1.4 px per unit), keep the halo's softness in the
+   same range on every screen. */
+.fbHaloNarrow {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 574px),
+  (orientation: landscape) and (max-width: 895px),
+  (orientation: landscape) and (max-height: 533px) {
+  .fbHaloWide {
+    display: none;
+  }
+
+  .fbHaloNarrow {
+    display: inline;
+  }
+}
+
+.fbBody {
+  will-change: transform;
+}
+
+.stopRed {
+  stop-color: var(--red);
+}
+
+.stopRedLift {
+  stop-color: var(--red-lift);
+}
+
+.stopCyan {
+  stop-color: var(--dark-cyan);
+}
+
+.stopBlue {
+  stop-color: var(--blue);
+}
+
+.fbGlass {
+  fill: none;
+  stroke: color-mix(in srgb, var(--dark-txt) 6%, transparent);
+  stroke-linejoin: round;
+}
+
+.fbSheen {
+  fill: none;
+  stroke: var(--dark-txt);
+  stroke-opacity: 0.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.fbCore {
+  fill: none;
+  stroke-opacity: 0.4;
+  stroke-linejoin: round;
+}
+
+.fbRing {
+  fill: none;
+  stroke: var(--dark-ice);
+  stroke-opacity: 0.12;
+}
+
+.fbDots,
+.fbSat {
+  fill: none;
+  stroke-linecap: round;
+  animation: introOrbit var(--orbit-dur, 16s) linear infinite;
+}
+
+.fbDots {
+  stroke-width: 2.6;
+}
+
+.fbSat {
+  stroke-width: 9;
+  stroke-opacity: 0.22;
+}
+
+.fbSatCore {
+  fill: none;
+  stroke: var(--dark-txt);
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  animation: introOrbit var(--orbit-dur, 16s) linear infinite;
+}
+
+.fbOrbitA {
+  --orbit-dur: 15s;
+  stroke: var(--red-lift);
+}
+
+.fbOrbitB {
+  --orbit-dur: 21s;
+  stroke: var(--blue);
+}
+
+.fbOrbitB :is(.fbDots, .fbSat, .fbSatCore) {
+  animation-direction: reverse;
+}
+
+.fbOrbitC {
+  --orbit-dur: 11s;
+  stroke: var(--dark-cyan);
+}
+
+@keyframes introOrbit {
+  to {
+    stroke-dashoffset: -1000;
+  }
+}
+
+/* The charge line fills along the ∞ as the counter runs (the director writes its
+   stroke-dashoffset); pre-hydration it is empty. */
+.fbCharge,
+.fbChargeGlow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+}
+
+.fbCharge {
+  stroke: var(--dark-txt);
+  stroke-width: 1.8;
+}
+
+.fbChargeGlow {
+  stroke-width: 7;
+  stroke-opacity: 0.55;
+}
+
+/* Comets: three dashes of one travelling pulse — long faint trail, mid, white-hot head —
+   whose leading edges are aligned by negative delays (a dash of length L leads by L/1000 of
+   the loop). The second comet runs half a loop behind. */
+.fbComet {
+  fill: none;
+  stroke-linecap: round;
+  animation: introComet var(--comet-dur) linear infinite;
+  animation-delay: calc(var(--comet-dur) * (var(--comet-phase, 0) - var(--comet-lead, 0)));
+}
+
+.fbCometB {
+  --comet-phase: -0.5;
+}
+
+.fbTrail {
+  stroke-dasharray: 170 830;
+  stroke-width: 7;
+  stroke-opacity: 0.16;
+}
+
+.fbMid {
+  --comet-lead: 0.09;
+  stroke-dasharray: 80 920;
+  stroke-width: 3.6;
+  stroke-opacity: 0.45;
+}
+
+.fbHead {
+  --comet-lead: 0.144;
+  stroke: var(--dark-txt);
+  stroke-dasharray: 26 974;
+  stroke-width: 2.6;
+}
+
+@keyframes introComet {
+  from {
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- WebGL host, flash, shockwave ---------------------------------------------------- */
+
+/* Faded in by the director once the scene has drawn its first frame. */
+.canvasHost {
+  opacity: 0;
+}
+
+.flash,
+.shock {
+  position: absolute;
+  top: var(--intro-cy);
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flash {
+  width: 110vmax;
+  height: 110vmax;
+  margin: -55vmax 0 0 -55vmax;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--dark-txt) 92%, transparent),
+    color-mix(in srgb, var(--red-lift) 55%, transparent) 22%,
+    color-mix(in srgb, var(--blue) 22%, transparent) 52%,
+    transparent 78%
+  );
+}
+
+.shock {
+  width: 34vmin;
+  height: 34vmin;
+  margin: -17vmin 0 0 -17vmin;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--dark-txt) 85%, transparent);
+  box-shadow:
+    0 0 28px 2px color-mix(in srgb, var(--red) 70%, transparent),
+    inset 0 0 26px 2px color-mix(in srgb, var(--blue) 60%, transparent);
+}
+
+/* ---- HUD: readout, progress track, skip ---------------------------------------------- */
+
+/* The director fades and lifts .hud and .skip in the burst (opacity + transform), so
+   neither has a CSS transition on those two properties. */
+.hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--hud-top);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding-inline: var(--gutter);
+  pointer-events: none;
+}
+
+.readout {
+  position: relative;
+  padding: 9px 16px;
+  /* Particles and glow pass behind the readout; a void tint keeps it legible (≥ 9:1). */
+  background: color-mix(in srgb, var(--void) 62%, transparent);
+  font-size: clamp(11px, 3.1vw, 13px);
+  font-weight: var(--fw-semi);
+  line-height: 1.25;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: var(--dark-mut);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bracket corners around the readout. */
+.readout::before,
+.readout::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  border: 1px solid color-mix(in srgb, var(--dark-txt) 30%, transparent);
+}
+
+.readout::before {
+  left: 0;
+  border-right: 0;
+}
+
+.readout::after {
+  right: 0;
+  border-left: 0;
+}
+
+.label[data-complete] {
+  color: var(--dark-red-text);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--red) 70%, transparent);
+}
+
+.value {
+  position: relative;
+  display: inline-block;
+}
+
+.count {
+  display: inline-block;
+  min-width: 3ch;
+  text-align: right;
+  color: var(--dark-txt);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--red) 65%, transparent);
+}
+
+.pct {
+  color: var(--dark-txt);
+}
+
+/* Before hydration only "SYSTEM_SYNCHRONIZATION: ▮" shows: no number JS isn't driving yet,
+   and no skip button that couldn't do anything. */
+.overlay:not([data-live]) :is(.count, .pct, .skip) {
+  visibility: hidden;
+}
+
+.cursor {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  width: 0.62em;
+  height: 1.15em;
+  margin-top: -0.6em;
+  background: var(--red);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--red) 80%, transparent);
+  animation: introBlink 1.05s steps(1, end) infinite;
+}
+
+.overlay[data-live] .cursor {
+  display: none;
+}
+
+@keyframes introBlink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.track {
+  position: relative;
+  width: min(340px, 72vw);
+  height: 2px;
+  background: color-mix(in srgb, var(--dark-txt) 12%, transparent);
+}
+
+.bar {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, var(--blue), var(--dark-cyan) 50%, var(--red-lift));
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--red) 55%, transparent),
+    0 0 4px color-mix(in srgb, var(--blue) 70%, transparent);
+}
+
+.tick {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 10px;
+  background: color-mix(in srgb, var(--dark-txt) 22%, transparent);
+  transition:
+    background-color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.tick25 {
+  left: 25%;
+}
+
+.tick50 {
+  left: 50%;
+}
+
+.tick75 {
+  left: 75%;
+}
+
+.tick[data-lit] {
+  background: var(--dark-txt);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--red) 90%, transparent);
+}
+
+.skip {
+  position: absolute;
+  right: max(40px, env(safe-area-inset-right));
+  bottom: max(36px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 14px 0 16px;
+  appearance: none;
+  border: 1px solid var(--dark-glass-line);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--dark-panel) 55%, transparent);
+  color: var(--dark-mut);
+  font-family: var(--font-mono-stack);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+@media (hover: hover) {
+  .skip:hover {
+    color: var(--dark-txt);
+    border-color: color-mix(in srgb, var(--red) 65%, transparent);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--red) 30%, transparent);
+  }
+}
+
+.skip:focus-visible {
+  outline: 2px solid var(--dark-cyan);
+  outline-offset: 3px;
+  color: var(--dark-txt);
+}
+
+.kbd {
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--dark-txt) 22%, transparent);
+  border-radius: 4px;
+  font: inherit;
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.1em;
+  color: var(--dark-dim);
+}
+
+@media (pointer: coarse) {
+  .kbd {
+    display: none;
+  }
+}
+
+/* Phones in portrait: the skip button is centred at the bottom, clear of the HUD. No
+   translate trick — the director tweens its transform. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .skip {
+    left: 0;
+    right: 0;
+    width: fit-content;
+    margin-inline: auto;
+  }
+}
+
+/* Short screens (landscape phones): the HUD sits near the bottom edge, so skip goes to the
+   top-right corner, inside the corner brackets and the notch. */
+@media (max-height: 480px) {
+  .skip {
+    top: max(36px, env(safe-area-inset-top));
+    right: max(40px, env(safe-area-inset-right));
+    bottom: auto;
+    left: auto;
+    width: auto;
+    margin: 0;
+  }
+}
+
+/* ---- preference and forced-colour modes ---------------------------------------------- */
+
+@media (prefers-contrast: more) {
+  /* No CRT lines: the vignette and the void only. */
+  .overlay {
+    background:
+      radial-gradient(
+        ellipse 75% 70% at 50% var(--intro-cy),
+        transparent 45%,
+        color-mix(in srgb, var(--void) 88%, transparent) 100%
+      ),
+      var(--void);
+  }
+
+  .glowRed,
+  .glowBlue,
+  .sweep,
+  .flash,
+  .shock,
+  .fbHalo {
+    display: none;
+  }
+
+  .readout,
+  .skip {
+    color: var(--dark-txt);
+  }
+
+  .count,
+  .label[data-complete] {
+    text-shadow: none;
+  }
+
+  .skip {
+    border-color: var(--dark-txt);
+  }
+}
+
+@media (forced-colors: active) {
+  .overlay {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .backdrop,
+  .fallback,
+  .canvasHost,
+  .flash,
+  .shock,
+  .cursor {
+    display: none;
+  }
+
+  .readout,
+  .count,
+  .pct,
+  .label[data-complete] {
+    color: CanvasText;
+    text-shadow: none;
+  }
+
+  .track {
+    background: GrayText;
+  }
+
+  .bar {
+    forced-color-adjust: none;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .skip {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
+}

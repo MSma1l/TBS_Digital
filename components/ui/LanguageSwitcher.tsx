@@ -38,8 +38,8 @@ import styles from "./LanguageSwitcher.module.css";
  * ## Hydration
  *
  * The server cannot know the viewport width, so the width lives in a `useSyncExternalStore`
- * triple over `matchMedia` — the same shape `lib/theme/ThemeProvider.tsx` uses for
- * `prefers-color-scheme` and `lib/sound/store.ts` uses for the sound cookie. The **server
+ * triple over `matchMedia` — the same shape `lib/sound/SoundProvider.tsx` uses for
+ * `prefers-reduced-motion` and `lib/sound/store.ts` uses for the sound cookie. The **server
  * snapshot is `false` (segmented)**: it is what every viewport from 375px up gets, i.e. every
  * desktop, every tablet and the overwhelming majority of phones, so those render once and
  * never swap.

@@ -23,7 +23,6 @@ export const en: Record<MessageKey, string> = {
     "Custom software, mobile apps, AI automation, CRM, SaaS and platforms that grow your business — from strategy to launch.",
   "hero.cta.primary": "Get a price ↗",
   "hero.cta.secondary": "See services",
-  "hero.scrollHint": "SCROLL — THE SYSTEM POWERS UP ↓",
 
   // --- Principles (/02) ---
   "principles.label": "INDIVIDUAL APPROACH",
@@ -208,6 +207,8 @@ export const en: Record<MessageKey, string> = {
   "nav.cta": "START A PROJECT ↗",
   "nav.burgerAria": "Menu",
   "nav.closeAria": "Close",
+  "nav.primaryAria": "Main",
+  "header.sysTime": "SYS_TIME",
 
   // --- Theme toggle ---
   "theme.toggleAria": "Dark mode",
@@ -257,4 +258,11 @@ export const en: Record<MessageKey, string> = {
   "cookie.accept": "Accept",
   "cookie.reject": "Reject",
   "cookie.settings": "Essential only",
+
+  // --- Intro preloader ---
+  "intro.status": "SYSTEM_SYNCHRONIZATION",
+  "intro.complete": "ACCESS_GRANTED",
+  "intro.progressAria": "Loading TBS Digital",
+  "intro.skip": "Skip intro",
+  "intro.skipKey": "ESC",
 };

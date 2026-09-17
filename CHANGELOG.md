@@ -16,6 +16,765 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Interiorul devine o scenă 3D: Cybernetic Core, cinci modele de servicii, carduri holografice
+
+Clientul a cerut ca interiorul site-ului să fie dinamic, cu modele 3D desenate procedural pe tema
+IT / Software / AI, gândite întâi pentru telefon: un „Cybernetic Core" în hero (sferă de sticlă,
+trei inele, nor de particule, tilt la mouse sau giroscop, puls la hover pe butoane), servicii cu
+modele care se transformă la selecție, carduri de statistici holografice, GSAP ScrollTrigger
+(modelul din hero trece în fundalul secțiunii următoare, parallax) și eliminarea punctelor
+decorative. Contractele existente rămân: testele (nicio aserțiune veche slăbită), CSP-ul din
+`proxy.ts`, regula „fără text hardcodat" și vizitatorul care revine fără three.js și fără GSAP.
+
+Decizii confirmate cu clientul înainte de cod (D1–D8): **toate** bulinele decorative dispar, dar
+„TBS." și punctul final al titlului rămân, fără halo și fără blink; **cinci modele, unul pe
+direcție** (Produs digital → cuburi care se asamblează · Brand & UI → rețea wireframe cu valuri ·
+Asistenți IA → rețea neuronală cu impulsuri · E-commerce → bucla Ofertă → Plată → Acces ·
+Automatizare & API → hub de integrări); cardurile de proiecte primesc doar tilt și parallax, fără
+model nou; 3D **doar pe dispozitive capabile**, încărcat după ce textul e pe ecran, iar telefoanele
+slabe, Save-Data și animațiile reduse primesc **ilustrații statice** în același stil; pe telefon
+**primul tap selectează, al doilea deschide** (ca dropdown-ul din header); „·" din texte rămâne;
+restilizare HUD completă pentru Servicii și Proiecte (Tailwind), restul secțiunilor doar fără
+buline. Arhitectura e în [03 — Architecture](./docs/03-architecture.md#the-interior-stage).
+
+**Added** — scena interioară: un singur canvas WebGL sub pagină (`components/scene/`)
+
+- **Un singur context WebGL, doar pe homepage.** `SceneStage` învelește Hero → Ticker → Directions.
+  Primul lui copil e un track poziționat absolut (fără înălțime în layout, deci niciun offset de
+  secțiune nu se mișcă) care ține un strat `sticky` sub header (`h-scene`: `100lvh` minus
+  `--header-h`). Canvas-ul desenează acolo, iar cele trei secțiuni trec peste el. Ordinea de
+  pictare: placa opacă a hero-ului (-20) → fundalul HUD (-10) → canvas → scrim-ul de telefon →
+  textul. `isolate` pe stage ține totul sub header, meniul burger și bannerul de cookie. Pe stage
+  și pe strămoșii stratului nu are voie să apară `transform`, `filter`, `contain` sau `overflow`
+  (ar strica `sticky`).
+- **Cybernetic Core**: sferă de sticlă (transmission cu mediu PMREM procedural pe tier-ul high,
+  un shader „frost" pe mid), nucleu wireframe, trei inele torus cu înclinările orbitelor din
+  intro, nor de particule. Tilt la mouse (`pointermove` pasiv pe `window`) și la giroscop pe
+  touch, **doar unde merge fără permisiune**: `DeviceOrientationEvent.requestPermission()` nu e
+  apelat niciodată, deci iOS păstrează legănarea lentă și nu arată niciun prompt. Hover sau focus
+  de tastatură pe un CTA din hero luminează nucleul (fără sunet).
+- **Cinci modele + un roi de particule care se transformă între ele** (`three/models/*`,
+  `three/swarm.ts`): 0.32s dizolvare, 0.5s reformare. Morph-ul pornește doar după ce predarea
+  hero → servicii e completă; în timpul predării o schimbare de direcție e instantanee. Modelele
+  se leagănă ±0.42 rad în loc să se rotească complet (o tură întreagă le-ar pune pe muchie).
+- **Coregrafia** (`choreography.ts`, pură, testată ca tabele): directorul măsoară spanurile de
+  scroll, scena citește `window.scrollY` o dată pe cadru și urmează ancorele DOM cu un factor de
+  parallax sub 1 (≤0.65 pe touch), ca decalajul de un cadru al canvas-ului lipit să arate ca
+  adâncime. Sub 861px nucleul stă **în spatele textului**, estompat pe temă (vezi *Fixed*).
+- **Tier-uri** (`tiers.ts`): high — sticlă cu transmission, 1.400 de particule în nor, roi de 720,
+  DPR 1–1.75 într-un buget de 2.6M pixeli; mid — frost, 700 / 420, DPR 1–1.5 în 1.25M; low nu
+  primește niciodată canvas. „Lite" (pasul terminal al governor-ului) înjumătățește punctele.
+- **Governor-ul FPS poate renunța** (`components/three/governor.ts`, opțiunea nouă `bail`): după
+  „lite", 4 ferestre la rând sub 28 fps → `bail`, iar dispozitivul rămâne pe ilustrația statică
+  toată sesiunea. Intro-ul nu trimite opțiunea (comportament neschimbat); scena forțată pentru QA
+  nu renunță niciodată.
+- **Șase familii de shadere** (`three/materials.ts`), toate cu `CustomBlending`: schimbarea temei
+  comută doar factorii de blend („glow" pe dark, „ink" pe light), **fără recompilare**. Culorile
+  vin din tokenuri (`--cyan --blue --blue-text --red-lift --red-text --txt --bg --on-accent`,
+  obligatoriu hex sau `rgb()`); un token ilizibil la montare ajunge la error boundary, iar pagina
+  rămâne pe ilustrație.
+
+**Added** — încărcarea, în ordinea în care se întâmplă (`SceneStage.tsx`)
+
+1. **La montare**, porți citite live, niciodată din cache: `localStorage.tbs_scene_3d=off` → `off`;
+   fără `ResizeObserver` → `fallback`; reduced motion / Save-Data / 2G → `off`; tier low →
+   `fallback`. `data-motion="live"` doar cu toate porțile deschise și un tier peste low.
+2. **După ce intro-ul a plecat** (`tbs:intro-gone`) și un slot idle (`afterIdle`: 1.5s de timp
+   vizibil, +0.6s după un intro, cât îi ia R3F să elibereze contextul intro-ului): răspunsul GPU
+   din `sessionStorage.tbs_gpu_probe`, altfel chunk-ul de probe, care creează un context
+   de test pe un canvas detașat și îl eliberează imediat.
+3. **`detectSceneTier`** (`lib/device.ts`), intenționat mai larg decât al intro-ului: Chrome rotunjește
+   `deviceMemory` în jos (un telefon de 6 GB raportează 4), deci pe touch doar sub 4 GB e low,
+   altfel mid (niciodată high). „Capabil" îl decide governor-ul, nu specificațiile.
+4. **WebGL decis** → `SceneCanvas` (three + R3F) și `SceneDirector` (GSAP + ScrollTrigger) se
+   montează în același commit, prin `next/dynamic`. Scena vine prin **`components/three/runtime.tsx`**,
+   aceeași țintă `import()` ca intro-ul: un singur chunk three/R3F pentru ambele scene (înainte
+   erau două copii identice de 238.715 B gzip).
+5. **Construită și compilată în felii idle**: nucleul, roiul, apoi câte un model pe felie; apoi un
+   obiect de desenat compilat pe felie. **Gata** abia după ce R3F a desenat efectiv două cadre ale
+   scenei compilate (numărat din `useFrame`); `data-renderer="webgl"` când scena e gata **și**
+   directorul a măsurat. Ilustrația face crossfade în 500ms (CSS).
+6. **La rulare**: reduced motion pornit → `off`; context pierdut cu tab-ul vizibil sau `bail` →
+   `fallback` pentru restul sesiunii (`markGpu`); context pierdut cu tab-ul ascuns (iOS în
+   background) → un singur remount la revenire; o eroare de randare → `fallback`.
+- **Pauză** (`frameloop="never"`, contextul se păstrează) cât stage-ul e în afara ecranului, tab-ul
+  e ascuns sau ceva acoperă pagina (burger, intro, dialog — `tbs:page-cover`).
+- **DPR-ul se recalculează** la resize (debounce 200ms) și la mutarea ferestrei pe un ecran cu alt
+  pixel ratio (`pixelRatio.ts`).
+
+**Added** — GSAP ScrollTrigger doar ca instrument de măsură (`SceneDirector.tsx`, `scrollGuard.ts`,
+`scrollProbe.ts`)
+
+- Două ScrollTrigger fără animație dau spanurile: `heroExit` (`#top`, „top top" → „bottom 35%") și
+  `handoff` (ancora serviciilor, „top 95%" → „center 55%"); fiecare refresh recitește în `probe`
+  cutiile ancorelor, marginile stage-ului și `--header-h`. **Niciun scrub nu mișcă scena**, deci
+  nu rămâne cu un cadru în urma paginii.
+- **Parallax în hero doar pe desktop capabil** (`PARALLAX_MEDIA`: ≥861px, hover + pointer fin,
+  fără reduced motion): `data-parallax="hero-backdrop"` +12% și `"hero-stats"` −8%, identitate la
+  scroll 0. Niciodată pe un marker de intrare, pe un `[data-reveal]`, pe `<html>` sau `<body>`.
+- **Interzise** sub `components/scene/**`: pin, snap, `normalizeScroll`, ScrollSmoother, markers,
+  scroller propriu, `lagSmoothing` (test de contract).
+- **Refresh-urile rămân inofensive**: `html[data-scroll-measure]` face instant saltul la 0 și
+  înapoi (altfel gsap lăsa `scroll-behavior` inline pe `<html>`); `ResizeObserver` pe **stage** (nu
+  pe `<main>`, ca pașii estimatorului să nu coste un refresh complet), amânat cât vizitatorul
+  derulează, deduplicat; un refresh la restaurarea din bfcache; **nicio măsurătoare sub un cover**
+  (vezi *Fixed*).
+- **ScrollTrigger e oprit când nu-l mai folosește nimeni** (`quietScrollTrigger` /
+  `wakeScrollTrigger`): după plecarea de pe `/`, bucla lui rAF și intervalul de 250ms rulau tot
+  restul vizitei — măsurat pe 10s idle: 64 de callback-uri rAF și 4 treziri de timer pe secundă,
+  12.3–12.6 ms/s de main thread; acum 0 rAF și 1.54–1.58 ms/s (pagina fără el: 1.5–1.7).
+  Depinde de interne din gsap 3.15.0 (versiune fixată exact).
+
+**Added** — ilustrațiile statice (`components/scene/art/`)
+
+- `HeroCoreArt` (un singur SVG: sferă, nucleu, inele proiectate exact din înclinările scenei,
+  particule ca liniuțe și cruci) și `ServiceArt` (câte un desen pe direcție), cu proporțiile
+  modelelor 3D. Server components cu câte un CSS Module, nu Tailwind; doar tokenuri, linii
+  `non-scaling-stroke`, capete drepte, niciun cerc sub r=12; `aria-hidden`, fără text.
+- **Statice prin decizie** (D4): nicio animație infinită. Singurele mișcări sunt o singură intrare
+  (`materialize`, 0.45s) la schimbarea direcției și un val de lumină (1.1s) pe
+  `[data-scene-stage][data-boost]` cât un CTA din hero e sub mouse sau în focus de tastatură; ambele
+  dispar la reduced motion. Sub `data-renderer="webgl"` ilustrația se stinge în 500ms.
+- **Doar desenul primei direcții e în HTML** (slotul `initialArt` din `page.tsx`); celelalte patru
+  vin dintr-un chunk lazy (6.372 B gzip) la prima schimbare de direcție. Toate cinci plecau înainte
+  în payload-ul RSC al fiecărui răspuns HTML (vezi *Fixed*).
+
+**Changed** — Hero (`components/sections/Hero.tsx`) — vezi [05](./docs/05-page-sections.md#01--hero)
+
+- **Ancora nucleului** (`data-testid="scene-hero"`, `data-scene-anchor="hero"`): pe telefon centrată
+  în spatele titlului, la `--hero-core-phone`; între 861 și 1024px **pe cusătura dintre coloane,
+  ridicată sus** (cardurile acopereau 86–88% din sferă; acum 34–39%, 16% la 900×800); de la 1025px
+  în coloana din dreapta, la putere plină.
+- **Scrim de telefon** (`data-scene-scrim`, sub 861px) cu tăria din tokenul `--hero-scrim`.
+- **Boost pe CTA-uri**: hover cu mouse sau stylus (niciodată cu degetul — un tap nu are hover care
+  să se termine) și focus **vizibil** de tastatură; hover și focus sunt motive separate, iar scena
+  aude „oricare".
+- **Carduri de statistici holografice**: un octaedru wireframe (portofoliu) și un giroscop din patru
+  cercuri mari (automatizări), CSS 3D pe linii de 1px, fără puncte în vârfuri (`lib/hologram.ts`).
+  Se rotesc doar cu `data-motion="live"`, intro-ul plecat și hero-ul pe ecran; altfel stau pe o
+  poză de trei sferturi. **Tilt 8°** sub mouse (`usePointerTilt`): tilt-ul e `transform`, ridicarea
+  la hover `translate`, deci nu se bat; markerul de intrare nu primește niciodată stil.
+- Straturile de fundal și statisticile au învelișuri `data-parallax` pentru parallax-ul de desktop.
+  `isolate` și `bg-bg` au plecat de pe secțiune (ar fi ridicat placa peste canvas).
+
+**Changed** — Directions, rescris în Tailwind (`Directions.module.css` șters) — vezi [05](./docs/05-page-sections.md#directions)
+
+- **Pastilele sunt linkuri reale.** Mouse: hover selectează, click deschide pagina. Tastatură:
+  focus selectează, Enter deschide; **←/→ trec între pastile și sar la capete, Home/End la prima /
+  ultima**; ↑/↓ derulează pagina ca înainte; combinațiile cu Alt/Ctrl/Meta nu sunt interceptate;
+  niciun tab stop nou. **Touch / stylus**: primul tap pe **altă** pastilă o selectează (modelul și
+  previzualizarea se schimbă) și rămâne pe pagină, al doilea o deschide; **pastila deja selectată
+  se deschide din primul tap**; „Deschide serviciul →" navighează mereu din primul tap; un swipe
+  care devine `pointercancel` nu lasă nimic armat. Regula e `shouldInterceptTap`, mutată în
+  `lib/tapIntent.ts` și comună cu dropdown-urile din header.
+- Pastila selectată arată un „↗" `aria-hidden`: numele accesibil rămâne eticheta.
+- **Ecranul HUD** (`data-testid="scene-services"`, `data-shape=<slug>`): grilă cu fade radial,
+  lumină în culoarea direcției, linie de scanare (pe pauză sub intro și în afara ecranului, ascunsă
+  la reduced motion), colțare; ancora `data-scene-anchor="services"` unde scena pune modelul, apoi
+  cardul de caz. Sub 861px ecranul vine **primul**, chiar sub pastile, ca tap-ul să schimbe modelul
+  din fața ochilor; de la 1025px modelul stă lângă card. Sub 641px rândul de pastile e o bandă care
+  derulează în ea însăși.
+- **Înălțimi minime măsurate pe limbă și pe bandă de lățime**: selectarea unei direcții nu mai
+  mișcă nimic sub secțiune (verificat pe 92 de lățimi × RO/RU/EN × 5 direcții, iar după ultimele
+  reparații pe 27 de cazuri limbă × lățime).
+- Etichetele proiectului din cardul de caz păstrează „·" între chip-uri.
+
+**Changed** — Work, rescris în Tailwind (`Work.module.css` șters) — vezi [05](./docs/05-page-sections.md#work)
+
+- **Card HUD**: gradientul proiectului (`--p1/--p2`), margine neon în culoarea lui la hover și la
+  focus de tastatură, colțare care se desenează din colțuri, linie de accent sus, reflexie de
+  sticlă **fără** `backdrop-filter`, indexul `01`… cu contur, o casetă-săgeată pe cardurile cu link.
+- **Tilt 6°** doar cu mouse și doar de la 641px (sub, cardurile sunt o bandă derulabilă).
+- **Parallax CSS pe captura de ecran**, pe compozitor și fără JavaScript: `view-work` pe secțiune,
+  `parallax-media` pe învelișul imaginii (scroll-driven animations). Unde nu există (Firefox) sau la
+  reduced motion, imaginea stă pe loc.
+- **Etichetele sunt chip-uri pe o placă de cerneală de 72%**, iar „·"-ul din admin rămâne text
+  vizibil între ele (numele accesibil e tot „CRM PRIVAT · FĂRĂ LINK"); chip-urile nu mai au blur.
+- ≤900px două coloane, cu ultimul card impar pe tot rândul; ≤640px o bandă cu snap, fără
+  auto-derulare.
+
+**Changed** — Ticker: separatoarele rotunde devin **linii neon înclinate** de 1px (lățimea în layout
+rămâne 1px, deci bucla fără cusătură se păstrează).
+
+**Removed** — punctele decorative (D1)
+
+- Bulina ceasului `SYS_TIME`, bulina clipitoare din eyebrow-ul hero, bulinele din notițele
+  cardurilor de statistici și glow-ul lor de colț, halo-ul punctului din logo și glow-ul punctului
+  final al titlului, punctele roșii dintre cuvintele ticker-ului, bulina de stare din chatul
+  estimatorului, animația `hud-blink`.
+- **Rămân, intenționat**: „TBS." din logo și punctul final roșu al titlului (glife simple, fără glow),
+  „." roșu din footer, bulina de înregistrare a butonului de dictare (indicator de
+  confidențialitate), marcajele „✓", fiecare „·" din texte și date, fallback-ul intro-ului.
+- Păzite de `decorative-dots.test.tsx` (sursă + randare în trei limbi) și de E2/E3, care scanează
+  pagina randată la 1280 și 390px.
+
+**Added** — module comune
+
+- `components/three/*` — ajutoarele 3D mutate din intro și folosite de ambele scene: `capability`
+  (probe-ul GPU), `renderer`, `governor` (+ `bail`), `motion`, `random`, `palette`, `glow`,
+  `environment`, `hooks`, `RenderErrorBoundary` (fostul `IntroErrorBoundary`) și `runtime.tsx`.
+  `components/intro/three/*` reexportă ce s-a mutat; `intro/three/renderer.ts` e șters;
+  tier-urile intro-ului sunt în `components/intro/tiers.ts`.
+- `components/fx/useOffscreenAttribute.ts` (mutat din Hero) și `usePointerTilt.ts`.
+- `lib/scene.ts` — contractul stage-ului: cheia QA, porțile, atributele `data-*`, maparea direcții →
+  modele, **store-ul de input pagină → scenă** (boost, `waveSeq`, forma selectată; fără eveniment pe
+  `window`) și `ScrollProbe`. `lib/gpuProbe.ts` — cache-ul probe-ului, fără importuri, ca chunk-ul
+  de probe al intro-ului să nu tragă după el tot contractul (3.195 → 1.945 B).
+- `lib/device.ts`, `lib/tapIntent.ts`, `lib/tilt.ts`, `lib/idle.ts` (`afterIdle`), `lib/hologram.ts`.
+- **Două evenimente noi pe `window`**: `tbs:intro-gone` (`lib/intro.ts`: overlay-ul a plecat din DOM;
+  `onIntroGone()` răspunde sincron când nu există) și `tbs:page-cover` (`lib/scrollLock.ts`:
+  `coverPage()` cu contor de referințe, ținut de lock-ul burger / intro și de lock-ul `Modal`).
+
+**Added** — teste
+
+- **Unitare** — 21 de fișiere noi (înainte: 566 de teste în 36 de fișiere; totalul final e în tabelul
+  *Verificare*; numerele de mai jos sunt din rularea de verificare): `lib/__tests__/` `scene` (53),
+  `device` (24), `tilt` (15), `idle` (10), `tapIntent` (7), `hologram` (7); `service-art` (43),
+  `scene-choreography` (38), `scroll-guard` (30), `scene-stage` (29), `hero-interior` (22),
+  `three-shared` (21), `scene-shapes` (20), `hero-core-art` (20), `decorative-dots` (12),
+  `scene-tiers` (12), `scene-build` (12), `scene-input` (11), `scene-contract` (10),
+  `scene-palette` (10), `pointer-tilt` (10). Extinse: `directions-selector` 12 → 32, `work` 9 → 14,
+  `intro-capability` 18 → 26, `intro` 20 → 26, `scrollLock` 12 → 17, `intro-preloader` 24 → 27,
+  `modal` 18 → 20. `scroll-guard` rulează gsap 3.15.0 real în jsdom (firul de declanșare pentru
+  internele de care depind garda și quiet/wake). Reparațiile au fost verificate prin mutații
+  (codul stricat intenționat face testul să pice; la reparațiile din Directions / Work / hero 14
+  din 15 mutații prinse — scăparea e o marjă de rotunjire pe care seed-ul actual nu o atinge).
+- **E2E** — `e2e/interior.spec.ts` (drumul implicit: ilustrația statică, E1–E16) și
+  `e2e/interior-webgl.spec.ts` (WebGL forțat, eticheta `@webgl`, 120s pe test, W1–W14), plus un
+  test „fără scroll lateral în stage" pe fiecare viewport și temă în `responsive.spec.ts`.
+  `gotoHydrated` seedează acum și `sessionStorage.tbs_gpu_probe` cu răspunsul SwiftShader
+  (`{ seedGpuProbe: false }` pentru testele despre probe), ca stage-ul să nu mai creeze un context
+  de test în ferestrele de timp ale altor specuri. Helperi noi: `forceScene3d` / `disableScene3d`,
+  `seedGpuProbe`, `trackWebGLContexts` / `liveWebGLContexts`, `recordSceneAttributes`,
+  `sceneProbeVsDom` / `probeMismatches` (citesc probe-ul prin props-urile React), `decorativeDots`,
+  `scrollToY`; `burgerRoundTrip` s-a mutat din `hud-shell.spec.ts`. Vezi
+  [14 — Testing](./docs/14-testing.md) și [`e2e/README.md`](./e2e/README.md).
+- **Nicio aserțiune veche slăbită.** Verificările de buline din `ticker` și `hud-shell` au devenit
+  verificări mai stricte de linii; `preloader.spec.ts` a primit cele cinci modificări planificate
+  pentru stage, cu toate aserțiunile păstrate. Singura aserțiune schimbată cu permisiune e cea
+  care fixa bug-ul: „pastila selectată implicit cere și ea un prim tap" → „pastila deja selectată
+  se deschide din primul tap". Câteva teste noi ale redesign-ului au fost corectate odată cu
+  reparațiile lor (semnele inversate 90/270 ale giroscopului, `ResizeObserver` pe `<main>` → pe
+  stage, un import `three/addons/math/*` acum interzis).
+
+**Fixed**
+
+- **Sticla ieșea gri, și în intro.** `installTransmissionClear` curăța ținta liniară a
+  transmission-ului cu o culoare deja convertită în sRGB: pe o pagină aproape neagră ~0.04 în loc
+  de ~0.003. Compensarea e acum centrală (`linearTargetClearColor`), scenele trimit culoarea
+  paginii ca atare. **Tubul de sticlă al intro-ului e vizibil mai închis** — cere acordul
+  clientului.
+- **Cardul de proiect pe tot rândul** (641–900px) mărea captura de ~2× și adresa de e-mail din
+  captura Flirt se putea citi. Captura stă acum pe jumătatea din dreapta, la mărimea unui card
+  normal (442px față de 435px la 1280).
+- **Nucleul pe telefon** (`--hero-core-phone`, `--hero-scrim`, noi în `globals.css`): pe dark
+  ilustrația avea luminozitate 0.3 față de 1.03 a canvas-ului, deci pagina se lumina vizibil la
+  trecerea pe WebGL (acum 0.95–1.01 față de 1.02–1.04); pe light, peste WebGL forțat la 390px, 5.7%
+  din pixelii lead-ului erau sub 4.5:1 (minim 4.17) — acum 100% (minim 4.63).
+- **Găsite de cele trei review-uri și reparate** (fiecare verificat întâi pe codul curent):
+  - **(înalt) Un refresh ScrollTrigger cu dialogul de cerere deschis salva poziții greșite cu
+    offset-ul de scroll** și rămâneau greșite după închidere (dialogul fixează `<body>`, deci
+    `scrollY` e 0): desktop la Y=3000, resize 1280→1100 → `stage.top` −2929 în loc de 71; telefon
+    la Y=2500, tastatura Android 844→450→844 → `handoff` [−1832, −1508] în loc de [293, 775]. Sus,
+    în capul paginii, nucleul dispărea. Acum sub un cover nu se scrie nimic în probe, un refresh
+    rulat totuși se refă la un cadru după ce cover-ul se ridică, iar `Modal` și `lockRootScroll`
+    **eliberează cover-ul ultimul**, după ce au pus pagina la loc. Restaurarea scroll-ului din
+    `Modal` e acum `behavior: "instant"` (urca de la 0 în ~26 de cadre, cu `<body>` încă fix).
+  - **(mediu) Stage-ul trecea pe `webgl` înainte să fi desenat ceva**: încărcat cu stage-ul în afara
+    ecranului (reload cu scroll restaurat, deep link), ilustrația dispărea și la întoarcere ecranul
+    rămânea gol ~457ms. „Gata" se numără acum în cadre desenate; un canvas pe pauză rămâne `pending`
+    și își păstrează ilustrația.
+  - **(mediu) Lead-ul hero pe telefoane light peste WebGL**: 89.6–94.9% din pixeli ≥4.5:1 (minim
+    4.02). Nucleul din spatele textului e acum estompat pe temă: sub 641px 0.55 dark / 0.4 light;
+    641–860px 0.35 dark / 0.3 light (înainte 0.8).
+  - **(mediu) HTML-ul de pe `/` depășea bugetul H** cu desenele din payload-ul RSC: H de la 25.821 la
+    22.091 B (vizită nouă 28.205 → 24.586, payload RSC 9.097 → 5.599). Varianta „desenate în
+    browser" a fost construită și măsurată: H 21.865, dar +6.973 B de JS pe pagină, deci respinsă.
+  - **(mediu) Primul tap pe pastila deja selectată nu făcea nimic** pe touch — acum o deschide.
+  - **(mediu, perf.) ScrollTrigger rula după plecarea de pe `/`** — vezi quiet/wake mai sus; testat și
+    pentru bail, eroare și demontarea paginii.
+  - (scăzut) Tilt-ul de giroscop se bloca la limită în landscape (90 și 270 erau inversate, iar
+    înclinarea de repaus se lua pe axa greșită); `ResizeObserver` pe `<main>` → pe stage; DPR-ul
+    fixat la montare; interdicția de importuri grele vedea doar numele exacte (vezi *Security*);
+    boost-ul rămânea aprins după închiderea dialogului cu mouse-ul (focusul returnat de dialog nu e
+    `:focus-visible`); detectorul de buline rata `rounded-pill` și `rounded-[50%]`; nimic nu fixa
+    că „↗" e `aria-hidden`; „·" dispărea dintre etichetele din Work; blur live pe ~14 chip-uri peste
+    capturi animate.
+- **TBT**: construcția scenei (181–192ms) și compilarea shaderelor (96–119ms), două task-uri lungi,
+  sunt acum felii idle; cel mai mare task nou rămas: 52–86ms. JS-ul scenei a scăzut de la 448 la
+  **299ms** TBT (sub 350), dar TBT-ul adăugat total rămâne peste buget — vezi *Rămâne deschis*.
+- Intro-ul nu mai descarcă three.js de două ori (vezi pasul 4 al încărcării).
+
+**Security**
+
+- **CSP-ul din `proxy.ts` e neschimbat.** Scena e procedurală (fără fetch, workers, wasm); chunk-urile
+  scenei, directorului, gsap, probe-ului și stage-ului nu conțin `eval`, `new Function`, `Worker`,
+  `WebAssembly` sau `createObjectURL`. Stilurile inline (`--accent`, `--p1/--p2`, transformările
+  hologramelor, scrierile R3F și GSAP) vin din constante și intră în `style-src 'unsafe-inline'`,
+  care exista deja. `interior.spec.ts` și `interior-webgl.spec.ts` verifică 0 încălcări CSP la
+  fiecare rulare.
+- **ESLint interzice ce ar strica CSP-ul sau greutatea**: peste tot `gsap/all`, `gsap/dist/*`,
+  ScrollSmoother și `gsap-trial` (ca `import` și ca `import()`); în fișierele care ajung în
+  bundle-ul paginii (`app/**`, secțiuni, layout, `ui`, `fx`, `SceneStage`, arta, `lib/**`, shell-ul
+  intro-ului și ambele chunk-uri de probe) orice import **static** de `three`, `@react-three/fiber`,
+  `gsap`, `@gsap/react`, orice subcale a lor (`gsap/ScrollTrigger.js`, `three/webgpu`…) și
+  modulele proprii care le poartă (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`,
+  `IntroScene`, `IntroDirector`), în orice scriere. `import type` rămâne permis.
+  `scene-contract.test.ts` oglindește lista. Verificat cu 20 de probe de lint prin stdin.
+- **`tbs_gpu_probe`** (`sessionStorage`): doar booleeni (`context`, `software`, opțional `lost` /
+  `slow`), versionat, reconstruit la citire și scriere — **niciodată șirul renderer-ului**, care ar
+  fi o amprentă. Listat ca esențial în politica de cookie, RO/RU/EN. `tbs_scene_3d`
+  (`localStorage`) e o cheie de QA doar citită.
+- Testele E2E citesc probe-ul scenei prin props-urile React, deci producția nu expune nimic nou pe
+  `window`. Vezi [11 — Security](./docs/11-security.md#the-interior-3d-stage-2026-09-17) și
+  [`SECURITY.md`](./SECURITY.md).
+
+**Deploy**
+
+- **Nicio dependență nouă**: ScrollTrigger vine în pachetul `gsap` deja fixat; `package.json` și
+  lockfile-ul sunt neschimbate. Nicio variabilă de mediu nouă, nicio schimbare în compose sau nginx.
+
+**Docs**
+
+[02](./docs/02-tech-stack.md) ScrollTrigger, fără dependențe noi ·
+[03](./docs/03-architecture.md) arborele (`components/scene/**`, `components/three/**`,
+`components/fx/*`, modulele noi din `lib/`), încărcarea stage-ului, evenimentele, store-ul de input ·
+[04](./docs/04-design-system.md) ordinea de pictare, utilitarele și keyframe-urile noi, tokenurile
+`--hero-core-phone` / `--hero-scrim`, regulile ilustrațiilor, holograme, tilt, cardurile Work ·
+[05](./docs/05-page-sections.md) scena interioară, Hero, Ticker, Directions, Work rescrise (textul
+vechi despre galerie și lightbox scos) · [07](./docs/07-conventions.md) fișierele Tailwind, regulile
+3D / GSAP / stage · [09](./docs/09-admin.md) · [11](./docs/11-security.md) +
+[`SECURITY.md`](./SECURITY.md) · [14](./docs/14-testing.md) · [16](./docs/16-i18n-seo.md) ·
+[`e2e/README.md`](./e2e/README.md) · tabelul de documente din [`README.md`](./README.md).
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, arborele final) | curate: exit 0 · 0 · 0 (lint fără output; tsc și lint rerulate după ultimele editări de comentarii) |
+| `npm test` (node:22-alpine) | **1.031 passed / 0 failed** în 57 de fișiere, rulat de 2 ori (înainte: 566 în 36 de fișiere) |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă) | **256 passed / 0 failed / 0 skipped** în 15 specuri (înainte: 206 în 13 specuri) |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl`, `--repeat-each=3` | **267 passed** (89 × 3), 0 failed, 0 flaky |
+| TBT, WebGL forțat, tier mid, 390×844, CPU 4×, 3 rulări (mediane) | fără scenă 120ms · cu scena forțată 938ms · adăugat 818ms (JS-ul scenei singur ≈299ms după reparația D1; restul e evaluarea chunk-ului three ≈250–285ms și așteptarea SwiftShader ≈550ms, specifică randării software headless) |
+| CSP | 0 încălcări cerute de `interior.spec.ts` (E1) și `interior-webgl.spec.ts` (W1) la fiecare rulare; rezultatul e în rândul E2E |
+| Contrast (pixeli sub textul ascuns; măsurat la integrare și la reparații) | peste WebGL forțat, 4 cadre pe caz: tot textul din hero 100% ≥4.5:1 la 375 / 390 / 412 / 768px în ambele teme (lead minim 4.51 light, 5.49 dark) și la 844×390; dark 320–1280 100% (minim 5.67), textul din Directions 100% (minim 6.01); light 1024 / 1280 100% (minim 4.51); light 861: lead 99.97% (minim 4.50), eyebrow 99.69% (minim 4.09, pe linia de 1px a grilei HUD, identic fără WebGL); titlul 98.6–99.98% ≥4.5:1, minim 3.3 (text mare: pragul lui e 3:1). Chip-urile Work ≥9.34:1 și separatoarele „·" ≥9.40:1, ambele teme, 1280 și 390px |
+
+Greutate (gzip, bytes; același script ca în intrarea din 2026-09-16, extins în Stage 0 cu
+`SCROLL`, `FORCE_SCENE`, `MOBILE`, `REDUCED_MOTION`). **Bugetele sunt re-stabilite explicit aici:**
+coloana *Final* e noua bază față de care se măsoară următoarea schimbare, inclusiv pe rândurile
+unde depășește limita planului — o decizie, nu o scăpare.
+
+| Buget | Caz | B0 (Stage 0, înainte de redesign) | Limita din plan | Final — noua bază |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine | total 244.904 · referit din HTML 240.731 · JS târziu 3.219 | ≤ 258.000 · ≤ 253.000 · ≤ 5.000; fără three, fără gsap | total **261.169** · referit din HTML **256.279** · JS târziu 3.936; fără three/gsap — peste limita planului cu 3.169 / 3.279 (CSS Tailwind + rescrierile Directions/Work + SceneStage), acceptat ca nouă bază |
+| B1s | B1 + scroll până jos | JS târziu 3.219 (scroll-ul adaugă 0) | ≤ 5.019 | 3.936 ✓ |
+| B2 | `/` care revine, scenă forțată + scroll | JS târziu 3.219 (stage-ul nu exista) | ≤ B1s + 316.000; `webgl`; fiecare marker într-un singur fișier | JS târziu 314.114 ✓ · `webgl` · fiecare marker într-un fișier ✓ |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 277.815 | ≤ 330.000; `__THREE__` într-un fișier; o singură versiune gsap | JS târziu 322.881 ✓ · `__THREE__` într-un fișier · 1 versiune gsap |
+| B3i | prima vizită, intro forțat | JS târziu 277.815 | ≤ 300.000 | **303.826** — peste cu 3.826 (chunk-ul comun aduce și scena interiorului), acceptat |
+| B4 | prima vizită | JS târziu 35.570 | ≤ 36.500; fără three | 35.774 ✓ |
+| B5 | `/servicii/e-commerce` | total 217.912 | ≤ 224.000; fără three, gsap, probe sau stage | 222.472 ✓ |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte WebGL | ≤ 3.500; 0 contexte | 3.219 ✓ · 0 contexte |
+| B7 | B1 și B2 pe mobil (390×844) | ca B1 / B2 | aceleași limite; B2 cu `data-tier="mid"` | B1 mobil ca B1 (261.169, peste, acceptat) · B2 mobil 314.114 ✓ cu `data-tier="mid"` |
+| H | documentul HTML `/`, care revine | ~14.230 (14.227–14.234) | ≤ 22.230 (+8.000) | 22.087 ✓ (prima vizită 24.590) |
+| — | chunk-ul comun three + R3F + ambele scene | 242.108 (doar three + R3F, al intro-ului) | ≤ 260.500 (242.500 + 18.000 scena) | **261.252** — peste cu 752, conține three + R3F + ambele scene, acceptat |
+| CSS | cele două module ale ilustrațiilor | — | ≤ 2.500 | 1.113 ✓ |
+| TBT | adăugat de scenă (tier mid forțat, CPU 4×) | — (fără scenă; baza măsurată: mediană 271ms) | ≤ 350ms; niciun task al scenei > 400ms | adăugat 818ms (bază 120 → 938); JS-ul scenei ≈299ms ✓; cel mai lung task JS 246–284ms ✓; task-ul de 548–568ms e așteptare SwiftShader (headless) — de verificat pe dispozitive reale |
+
+Istoric, pentru context: la integrare (Stage C) erau peste limită TBT-ul, B1 (total 260.861,
+referit din HTML 255.971), H (25.820), B3i (301.442), chunk-ul comun (261.228, +728) și B7 pentru
+B1. Reparațiile au adus H sub limită (22.091) și JS-ul scenei la 299ms TBT; totalul B1 a crescut cu
+307 B (261.168). TBT-ul adăugat total rămânea 943ms (mediană): evaluarea
+chunk-ului 3D (267–289ms, pe care feliile nu îl pot scurta), crearea contextului (92–97ms) și
+citirea înapoi din SwiftShader (579–598ms, randare software headless).
+
+> **Rămâne deschis, cu cifre:**
+> - **Bugetele peste limită** în coloana *Final* de mai sus rămân re-stabilite, nu rezolvate:
+>   CSS-ul Tailwind (+3.814 B la integrare) și JS-ul paginii (+11.404 B: stage, `lib/scene`,
+>   rescrierile Directions și Work) sunt prețul redesign-ului pe B1.
+> - **TBT-ul e măsurat pe SwiftShader**, care amestecă așteptări după GPU; trebuie verificat pe un
+>   dispozitiv real.
+> - **Neverificat pe hardware real**: FPS-ul pe telefoane iOS și Android, timpul de compilare pe iOS,
+>   Low Power Mode, VoiceOver / TalkBack față de regula primului tap (dacă activarea din cititorul de
+>   ecran nu trimite `pointerdown` de touch).
+> - **Giroscopul pe iOS** nu e folosit deloc (nu cerem permisiunea, deci nu apare niciun prompt);
+>   iOS păstrează legănarea lentă. Maparea landscape pe Android e calculată din specificație, nu
+>   verificată pe dispozitiv.
+> - **Captura Flirt** (`public/projects/flirt-1.png`) conține o adresă de e-mail. Acum apare mică, la
+>   aceeași scară în fiecare card; înlocuirea imaginii e o decizie de conținut.
+> - **Sticla intro-ului e mai închisă** după reparația culorii de clear — cere acordul clientului.
+> - **Ilustrația statică la 768px, tema light**: lead-ul are 99.6–99.7% din pixeli ≥4.5:1 (minim
+>   4.18). `--hero-core-phone` n-a fost remăsurat după noile estompări ale nucleului (0.4 light pe
+>   telefon, 641–860px mai închis în ambele teme), deci crossfade-ul ilustrație → canvas poate să nu
+>   mai fie perfect egal.
+> - La 861px inelele nucleului trec pe sub capătul titlului.
+> - **Înălțimile minime din Directions sunt valori măsurate**: text nou, un proiect mai lung în admin
+>   sau metricile fonturilor în Safari / Firefox pot readuce o deplasare de câțiva pixeli (unealta
+>   de măsurare e în scratchpad-ul lucrării, nu în repo).
+> - Quiet/wake-ul ScrollTrigger și garda de smooth-scroll depind de interne din gsap 3.15.0: la
+>   orice upgrade, W1, W4 și `scroll-guard.test.ts` sunt firele de declanșare.
+> - Nouă învelișuri de imagine animate în Work = nouă straturi GPU; nemăsurat pe dispozitive slabe.
+> - Umplerile `color-mix()` cad pe `var(--bg)` în browserele vechi; lungimile de liniuță cu
+>   `non-scaling-stroke` au fost verificate doar în Chromium.
+
+## 2026-09-16 — Primul ecran devine HUD: preloader 3D, header cu ceas, dark implicit
+
+Clientul a cerut primul ecran în stil hi-tech / cyberpunk HUD: un preloader cu un ∞ din sticlă
+și `SYSTEM_SYNCHRONIZATION: NN%`, un header cu logo „TBS." și ceas `SYS_TIME`, meniu cu „+",
+un hero cu neon și statistici din sticlă, un ticker cu puncte roșii și un banner de cookie din
+sticlă, totul gândit întâi pentru telefon. Explorarea a arătat că **~80% din piese existau
+deja**, deci lucrarea e în principal o restilizare plus câteva piese noi, cu contractele
+existente păstrate: testele, CSP-ul strict din `proxy.ts` și regula „fără text hardcodat".
+
+Decizii confirmate cu clientul înainte de cod: se înlocuiește **doar primul ecran**; Tailwind v4
+**doar** pentru fișierele lui, fără preflight; intro-ul apare **o dată pe sesiune** și niciodată
+la `prefers-reduced-motion`; GSAP pentru timeline; **dark implicit**; `StatusBar` dispare, iar
+ceasul trece în header.
+
+**Added** — preloader-ul de la prima vizită (`components/intro/`, `lib/intro.ts`)
+
+- **Un singur contract**, `lib/intro.ts` — fără `"use client"` și fără DOM la import, fiindcă
+  îl citesc serverul, clientul și `e2e/helpers.ts`: cookie-ul de sesiune `tbs_intro=seen`,
+  evenimentul `tbs:intro-done` (al treilea canal `window`, după consimțământ și estimator),
+  id-ul `#tbs-intro`, timpii (`MIN_SYNC_MS` 2.4s, `HARD_CAP_MS` 5s, failsafe CSS la 7s,
+  watchdog 9s) și cele 8 ținte ale intrării paginii (`data-intro-reveal`). Un flag de modul
+  închide o cursă reală: efectele rulează în ordinea arborelui, deci un bypass sincron ar fi
+  emis evenimentul înainte ca bannerul de cookie să se aboneze.
+- **Poarta stă în `app/(site)/layout.tsx`, nu în pagină**: `x-pathname === "/"` (deci și `/ru`,
+  `/en`) și niciun cookie `tbs_intro`. Un layout nu se re-randează la navigarea client, deci
+  intro-ul apare **doar la o încărcare directă** a homepage-ului — niciodată după
+  `/servicii/x` → Home sau la Back. Overlay-ul e primul copil, deci „Sari peste intro" e
+  primul Tab.
+- **Trei niveluri de încărcare**, ca un vizitator care revine să nu descarce nimic în plus:
+  shell-ul (`IntroPreloader`, randat pe server, fără GSAP și fără three.js) → directorul
+  (`IntroDirector`, GSAP) → scena (`IntroScene`, three.js + R3F), ultimele două prin
+  `next/dynamic` cu `ssr: false`. Shell-ul sondează dispozitivul dintr-un chunk de ~1 KB și cere
+  three.js **în paralel** cu directorul: la 150 ms RTT / 4 Mbit, chunk-ul three pleacă după
+  1.8–2.3s în loc de 3.3–3.8s.
+- **Fallback SVG** (`IntroFallback.tsx`): ∞ animat doar din CSS, pe ecran din primul paint. E
+  renderer-ul fără WebGL2, cu Save-Data și pe **rasterizatoare software** (SwiftShader,
+  llvmpipe, WARP — `SOFTWARE_RENDERER_PATTERN`): un tub de sticlă la 5 fps arată mai rău decât
+  SVG-ul. `localStorage.tbs_intro_3d = "force"` forțează scena — doar pentru QA și E2E.
+- **Scena 3D**: lemniscata ca tub de sticlă, particule pe 3 orbite (toată mișcarea în shader),
+  mediu PMREM **procedural** (fără HDR, fără rețea), trei tier-uri (high / mid / low) și un
+  „FPS governor" în `three/rig.ts` în locul lui drei: coboară întâi DPR-ul la 1×, apoi trece pe
+  „lite". O cadență **constantă** de cel puțin 24 fps (iOS Low Power, Energy Saver) e un plafon
+  de refresh, nu un dispozitiv lent, și nu mai costă calitate: fiecare fereastră de ~1s își
+  măsoară cadența (`CAP_STEADINESS` p90/p10 < 1.25, `CAP_MIN_FPS` 24) și e lentă doar sub
+  `CAP_SLACK` 0.8 × cadența ei — niciun pas de calitate nu ridică un plafon.
+- **Progresul e readiness reală**, ponderată (hidratare .15, fonturi .15, `load` .30, scena .40),
+  sub o curbă cinematică de minimum 2.4s. Contorul nu arată 100 înainte de explozie. Explozia:
+  lock (`ACCESS_GRANTED`) → implozie → burst cu dolly în cameră → dezvăluire → intrarea paginii
+  (GSAP, `expo.out`). `<h1>` nu primește niciodată `opacity` (e elementul LCP); header-ul și
+  statisticile primesc doar `transform`, altfel și-ar pierde blur-ul sticlei.
+- **Când nu apare**: reduced motion (din CSS înainte de hidratare, apoi din JS), un `#hash` care
+  țintește pagina, JS sosit după 6.4s, fără JS (`<noscript><style>`), JS care nu vine deloc
+  (failsafe CSS la 7s: invizibil și click-through), `/servicii/*`, orice navigare client. Într-un
+  tab ascuns ceasul și watchdog-ul numără doar timpul vizibil.
+- **Skip**: butonul, Esc / Enter / Space / Tab / săgeți / PageUp / PageDown / Home / End, un click
+  sau rotița — timeline-ul rulează de 2.4× mai repede. Tastele de skip sunt **consumate** (nu
+  mai ajung la banner sau la meniu); Tab mută în continuare focusul.
+- **Accesibilitate**: fără `role` pe root, fără `aria-hidden` pe pagină, fără capcană de focus;
+  `role="progressbar"` cu `aria-valuenow` din 10 în 10; butonul de skip e **frate** cu
+  progressbar-ul (copiii unui progressbar sunt prezentaționali), 44px, fără autofocus. Reguli
+  pentru `prefers-contrast`, `forced-colors` și print. Overlay-ul e **mereu dark**, și pe tema
+  light.
+
+**Added** — Tailwind v4, doar utilitare, fără preflight
+
+- `postcss.config.mjs` + `app/tailwind.css`, importat din `app/(site)/layout.tsx`: admin-ul nu îl
+  încarcă. Se importă doar `theme.css` și `utilities.css` — **fără preflight**, care ar fi
+  restilizat fiecare buton și titlu de pe site.
+- Tema Tailwind e golită și mapată **pe tokenuri**: `bg-red-500` sau `text-lg` cu mărimea
+  Tailwind pur și simplu nu există. Breakpoint-uri `xs 401 · sm 641 · md 861 · lg 1025 · xl 1180`,
+  complementul exact al `max-width` 400/640/860/1024 din module.
+- `@source` explicit (contextul Docker nu are `.git`, deci detecția automată ar fi scanat alte
+  fișiere decât local), `@utility glass | glass-text | cta-neon | cyber-grid | cyber-floor |
+  edge-fade-x | fade-b`, varianta `menu-open`, animații cu prefix `hud-*`.
+- **Doar cinci fișiere** îl folosesc: `Navbar`, `HeaderClock`, `Hero`, `Ticker`, `CookieConsent`.
+  Intro-ul rămâne CSS Module — aproape totul acolo e keyframe, selector de stare sau failsafe
+  care trebuie să meargă înainte de hidratare.
+- **De ce `properties` e primul în declarația `@layer`** (prima linie din `globals.css` și din
+  `tailwind.css`): Tailwind 4.3 pune acolo valorile implicite `--tw-*` pentru browserele fără
+  `@property` (Firefox 111–127, în intervalul suportat de Next). Nedeclarat, stratul ar fi fost
+  adăugat **după** `utilities` și ar fi resetat fiecare umbră, translate și gradient pus de un
+  utilitar.
+- Doar trei reguli de element au trecut în `@layer base` (`box-sizing`, `font-family: inherit`,
+  `a { color: inherit }`), altfel ar fi bătut utilitarele. Restul CSS-ului e nestratificat și
+  câștigă în continuare în fața oricărui utilitar, deci nicio pagină existentă nu se schimbă.
+- `components/__tests__/tailwind-contract.test.ts` impune regulile: fișierele Tailwind sunt
+  Tailwind pur; fără `.disp` / `.mono` / `.container`, fără `!`, culori brute (inclusiv nume CSS
+  în `[...]`), `dark:` sau `!important`; `outline-none` / `outline-hidden` / `outline-0` doar
+  lângă un inel `focus-visible:` real; orice `.tsx` cu utilitare cu variantă trebuie să fie în
+  `@source`.
+
+**Added** — tokenurile HUD (`app/globals.css`) — vezi [04 — Design System](./docs/04-design-system.md)
+
+- `--void` `#0a0b10`, niciodată remapat; sticlă `--glass-bg` / `--glass-bg-text` /
+  `--glass-bg-solid` / `--glass-line` / `--glass-blur` (14px, 8px pe telefon), cu variante
+  `--dark-*`; neon `--neon-red`, `--neon-red-strong`, `--neon-blue`, `--glow-red`; `--hero-glow-red`
+  și `--hero-glow-blue`; `--hud-grid-line`, `--grid-cell`, `--gutter`, `--header-h` 71px,
+  `--ticker-h` 64px; scara `--z-*` (115 → 400) și `--motion-*`.
+- **`--grad-red-cta`** (`#e0213a → #b50e22`): alb pe el măsoară **4.72:1 / 6.88:1**. `--grad-red`
+  rămâne decor — alb pe oprirea deschisă are doar 3.15:1 și ar fi picat AA pe CTA-urile mici.
+- `Modal.module.css` și bara de progres folosesc acum `--z-modal` și `--z-progress` — scara nu mai
+  e doar un comentariu.
+
+**Added** — ceasul `SYS_TIME` din header (`lib/clock.ts`, `components/layout/HeaderClock.tsx`)
+
+- Ora **Chișinăului**, cu offset-ul real (UTC+3 vara, UTC+2 iarna), oricare ar fi fusul orar al
+  vizitatorului. Repară bug-ul din `StatusBar`, unde ora locală stătea sub un „UTC+3" fix.
+- Un singur interval de 500 ms pentru toate ceasurile, oprit într-un tab ascuns. Ceasul din
+  bară se abonează **doar unde e vizibil** (`BAR_CLOCK_QUERY`): altfel fiecare telefon ar fi
+  re-randat de două ori pe secundă un element cu `display: none`.
+- `aria-hidden`, fără tab stop; serverul randează `--:--:--`, deci hidratarea nu are mismatch.
+
+**Added** — `lib/scrollLock.ts` și `lib/visibleTimeout.ts`
+
+- `lockRootScroll()`: lock cu contor de referințe pe `<html>`, folosit de meniul burger și de
+  intro (`Modal` își păstrează lock-ul pe `<body>`). Pune `body { overflow-x: visible }`, altfel
+  body-ul devine container de scroll și header-ul sticky dispare după scroll. `scrollbar-gutter:
+  stable` se pune **doar** când o bară de scroll clasică ocupă lățime.
+- `visibleTimeout(ms, onFire)`: un `setTimeout` care numără doar timpul cu tab-ul vizibil și se
+  declanșează o singură dată. Îl folosesc watchdog-ul intro-ului și așteptarea bannerului.
+
+**Added** — dependențe (versiuni exacte la runtime)
+
+| Pachet | Versiune | Licență |
+|---|---|---|
+| `three` | 0.186.0 | MIT |
+| `@react-three/fiber` | 9.7.0 | MIT |
+| `gsap` · `@gsap/react` | 3.15.0 · 2.1.2 | GSAP Standard „no charge" |
+| `tailwindcss` · `@tailwindcss/postcss` (dev) | ^4.3.3 | MIT |
+| `@types/three` (dev) | ~0.186.0 | MIT |
+
+Licența GSAP **nu e open-source**, dar permite folosirea gratuită pe un site comercial ca acesta;
+se recitește la fiecare upgrade. **Nu** folosim drei, postprocessing sau framer-motion — motivele
+sunt în [02 — Tech Stack](./docs/02-tech-stack.md). Efect secundar în lockfile: `nanoid`
+3.3.15 → 3.3.19.
+
+**Added** — teste
+
+- **Unitare** — 15 fișiere noi (înainte: 316 teste în 21 de fișiere; totalul final e în tabelul
+  *Verificare*): `intro-preloader` (24), `intro-scene-math` (24), `intro-math` (21),
+  `intro-capability` (18), `intro-reveal-contract` (8), `navbar-menu` (29), `cookie-consent`
+  (21), `tailwind-contract` (21), `header-clock` (16), `ticker` (6), plus `lib/__tests__/`
+  `intro` (20), `intro.server` (4), `clock` (19), `scrollLock` (12), `visibleTimeout` (7). Cele
+  noi au fost verificate prin mutații: componenta stricată intenționat face testul să pice.
+- **E2E** — două specuri noi, `e2e/preloader.spec.ts` (prima vizită, fallback SVG și WebGL
+  forțat, telefoane în portrait și landscape) și `e2e/hud-shell.spec.ts` (ceas, banner, inel de
+  focus, ticker, rândul header-ului, burger, dropdown-uri), plus un test nou în `theme.spec.ts`
+  (înainte: 156 de teste; totalul final e în tabelul *Verificare*). `gotoHydrated()` seedează
+  acum `tbs_intro=seen`, deci fiecare spec vechi e un vizitator care revine;
+  `{ seedIntro: false }` testează prima vizită. Vezi [14 — Testing](./docs/14-testing.md) și
+  [`e2e/README.md`](./e2e/README.md).
+
+**Changed** — dark implicit, pe toate rutele
+
+- `DEFAULT_THEME = "dark"` (`lib/theme/theme.ts`). Fără cookie, serverul ștampilează
+  `data-theme="dark"`, iar scriptul inline din `<head>` cade tot pe dark. **Preferința OS nu mai
+  decide**; light rămâne alegerea explicită (`tbs_theme=light`). Și admin-ul e dark implicit,
+  fiindcă îl ștampilează layout-ul root.
+- Paleta dark coboară pe negrul HUD-ului: `--dark-bg` `#101422` → `#0a0b10`, `--dark-bg2`
+  `#0b0e18` → `#06070b`. Fiecare pereche de text câștigă: txt 17.13 → **18.36:1**, mut 9.18 → 9.85,
+  dim 7.04 → 7.54, blue-text 8.58 → 9.19, red-text 6.67 → 7.15; cardurile se separă mai bine
+  (panel pe bg 1.11 → 1.19).
+- Patru teste de temă au trecut pe **light**, fiindcă dark ar fi trecut acum și fără cookie:
+  ștampila pe `/servicii/produs-digital`, suprafața pictată (luminanță > 0.6), preferința care
+  urmează vizitatorul pe altă pagină și `aria-pressed` din `theme-toggle.test.tsx`. Un test nou
+  păstrează verificarea pentru dark (luminanță < 0.4) pe cazul implicit.
+
+**Changed** — header-ul (`components/layout/Navbar.tsx`, rescris în Tailwind)
+
+- Logo „TBS" cu punct roșu, ceasul, `<nav aria-label="Principal">`, preferințele, CTA-ul neon și
+  burger-ul. Ordinea DOM și cele **18 opriri de Tab** de dinaintea CTA-ului sunt neschimbate.
+- Sticla (`glass-text`) stă pe `::before`, nu pe `<header>`: un `backdrop-filter` pe header l-ar
+  face backdrop root, iar dropdown-urile din sticlă n-ar mai avea ce să blureze. Sub 861px e o
+  foaie aproape opacă, fără blur. Jos, o linie neon roșie.
+- Dropdown-uri cu un „+" care devine „×". Se deschid la hover real (`(hover: hover)`), la focus
+  sau la primul tap pe touch; al doilea tap navighează. **Esc** închide și un dropdown deschis
+  cu mouse-ul, oriunde ar fi focusul (WCAG 1.4.13).
+- Meniul burger: focusul merge pe „×"; Esc și „×" îl readuc pe burger; Tab în afara meniului sau
+  lărgirea ferestrei peste 861px îl închid; link-uri mari, numerotate; fundal opac sub sticlă
+  (la 94% fără blur, titlurile paginii se vedeau prin el).
+- `LanguageSwitcher`, `ThemeToggle` și `SoundToggle` primesc doar CSS: sticlă și neon albastru,
+  fără nicio schimbare de dimensiune. Textul mic din selectorul de limbă trece de la `--dim` la
+  `--mut` (`--dim` are 4.45:1 pe alb, sub AA la 11px).
+
+**Changed** — hero, ticker și bannerul de cookie (rescrise în Tailwind)
+
+- **Hero**: fundal HUD (lumini roșu / albastru, grilă, podea în perspectivă, scanner) pus pe pauză
+  cât timp overlay-ul intro-ului există, cât hero-ul e în afara ecranului și la reduced motion;
+  `<h1>` între 34 și 92px, cu punctul final roșu; CTA-ul principal `cta-neon` cu o săgeată SVG
+  `aria-hidden`; link secundar în stil ghost; statistici din sticlă (sticlă solidă sub 861px).
+  Contractele rămân: `source: "hero"`, grupul „Indicatori", valoarea într-un `<b>` separat.
+- **Ticker**: 5 grupuri identice, fiecare **terminat** cu un punct roșu, deci bucla nu mai are
+  cusătură; pauză la hover; la reduced motion, un singur grup static.
+- **Bannerul de cookie**: card de sticlă jos-dreapta de la 641px. **Pe telefon e un panou opac,
+  fără blur** — stă peste grila și ticker-ul animate, iar blur-ul recalculat la fiecare cadru
+  costa ~7.1 ms/cadru față de 4.4. **Așteaptă intro-ul** (`onIntroDone`), cu o limită de
+  `WATCHDOG_MS + 1000` în timp vizibil, și nu apare niciodată peste un intro încă viu. Esc e
+  ignorat 700 ms după un intro care a rulat, iar repetițiile unei taste ținute nu mai contează
+  niciodată ca răspuns.
+- **Inelul de focus al butoanelor neon** e `--txt`, nu cyan: cyan cădea pe glow-ul roșu și măsura
+  1.2–2.5:1 pe light; acum **≥6.4:1** pe light și **≥6.75:1** pe dark, măsurat pe pixeli. În
+  repaus au un contur transparent, pe care Windows High Contrast îl desenează.
+
+**Changed** — i18n și politica de cookie
+
+- Chei noi în RO/RU/EN: `intro.status`, `intro.complete`, `intro.progressAria`, `intro.skip`,
+  `intro.skipKey`, `header.sysTime`, `nav.primaryAria`. `nav.primaryAria` e „Principal" /
+  „Основная" / „Main": cititorul de ecran anunță deja „navigation", deci „Navigație principală"
+  s-ar fi auzit „navigație principală, navigație".
+- `app/(site)/cookies/content.ts` listează `tbs_intro` (esențial, până la închiderea browserului)
+  în toate trei limbile; data politicii devine 16 septembrie 2026.
+
+**Fixed** — blur-ul modalului și al bannerului lipsea în afara Safari
+
+Cu `backdrop-filter` scris **înaintea** `-webkit-backdrop-filter`, Lightning CSS (minifierul din
+build) păstra doar linia prefixată, pe care Chromium n-o suportă. Scrim-ul modalului și bannerul
+de cookie aveau `backdrop-filter: none` în producție. Ordinea e inversată, iar regula e scrisă în
+[04 — Design System](./docs/04-design-system.md).
+
+**Fixed** — găsite la integrare și de cele trei review-uri independente, reparate înainte de
+livrare
+
+- **Banner sub un intro nepornit**: limita bannerului număra și timpul cu tab-ul ascuns, deci
+  apărea și lua focusul sub un intro care nici nu rulase; același Esc care sărea intro-ul salva
+  apoi „rejected" pentru 6 luni. Acum limita numără timp vizibil (`visibleTimeout`) și nu arată
+  bannerul peste un intro încă viu (`data-live`), tastele de skip se opresc la intro, iar un Esc
+  ținut sau dublu nu mai răspunde bannerului. `visibleTimeout` avea și el un bug: după ce se
+  declanșa, o ascundere și o reafișare a tab-ului îl rearmau — acum se declanșează o singură
+  dată.
+- **Click pierdut în fade**: pe WebGL cu mouse (paralaxă), canvas-ul (`pointer-events: auto`
+  inline) înghițea click-urile pe header timp de 0.55s după dezvăluire. Nimic din overlay nu mai
+  prinde click-uri din fazele `revealed` și `leaving`, iar scena își pune `pointer-events: none`
+  când e pe pauză.
+- **Intro la navigare client din admin**: linkul „vezi site-ul" monta intro-ul în mijlocul
+  sesiunii, comprimat și cu scroll-ul blocat. Shell-ul randează acum doar când hidratează HTML de
+  la server; următoarea încărcare directă îl joacă normal.
+- **Mobil în landscape** (568×320, 640×360): butonul de skip acoperea contorul. Acum e centrat jos
+  doar în portrait ≤640px și sus-dreapta pe ecrane ≤480px înălțime.
+- **Contrast, tema light**: luminile din hero coborau textul lead la 3.8–4.1:1 la 861–1280px și
+  la 3.7 pe telefon, iar eyebrow-ul la 3.6 → tokenurile `--hero-glow-red` / `--hero-glow-blue`
+  (.08 / .06 pe light; dark păstrează lumina plină), lead ≥4.53:1 pe fiecare pixel la 861 și
+  1280px. Inelul de focus al butoanelor neon: vezi mai sus.
+- **Contrast, sticla header-ului**: peste o fotografie deschisă, pe dark, linkurile și ceasul
+  coborau la 2.34:1 (3.09 pe light peste un bloc `--ink`) → `--glass-bg-text` (dark .84, light
+  .90) și utilitarul `glass-text`, pe header și pe dropdown-uri: ≥5.02:1 peste alb pe dark,
+  ≥4.56:1 peste negru pe light.
+- **Performanță**: halo-ul fallback-ului SVG avea un `filter: blur()` CSS, reblurat la fiecare
+  cadru (~18.5 fps față de ~27 pe randare software) → două filtre `feGaussianBlur` în SVG (8 sau
+  16 unități, alese prin media query), rasterizate o dată; cele 17 animații ale fallback-ului
+  rulau ascunse sub WebGL (111 față de 14 recalculări de stil la 2s) → pauză cât desenează scena;
+  scanline-urile și vigneta devin fundaluri ale overlay-ului, iar suprafața layerelor de
+  compoziție scade cu 37%; bannerul pe telefon nu mai are blur (vezi mai sus); ceasul ascuns din
+  bară nu mai ticăie, iar observer-ul hero-ului citește cea mai nouă intrare, nu prima.
+- **Integrare**: `scrollbar-gutter: stable` sub bare de scroll ascunse îngusta pagina și, după
+  deschiderea meniului burger la 320px, scroll-ul sărea din 800 în 759; după lock, revertul GSAP
+  rescria contorul din 100 înapoi în 70.
+- Mărunte: `ESC` de pe butonul de skip e cheia de catalog `intro.skipKey`; `nav.primaryAria`
+  scurtat; un comentariu în rusă tradus; testul de contract Tailwind prinde acum
+  `outline-hidden`, `outline-0`, `[outline:none]`, culori cu nume și `!important` în valori
+  arbitrare, un inel `focus-visible` care nu desenează nimic și utilitarele cu variantă din
+  fișiere care nu sunt în `@source`; testele de temă verifică acum light, varianta ne-implicită.
+
+**Security**
+
+- **CSP-ul din `proxy.ts` e neschimbat și rămâne valabil**: scena e construită procedural — fără
+  fetch, workers, wasm sau `eval` (verificat în chunk-urile gsap și three), GSAP și R3F scriu
+  stiluri prin CSSOM, iar `<noscript><style>` se bazează pe `style-src 'unsafe-inline'`, care
+  exista deja. **0 încălcări CSP** măsurate pe vizita nouă, vizita repetată, reduced motion,
+  pagina de serviciu, admin și WebGL forțat.
+- **ESLint interzice importurile 3D care ar sparge CSP-ul** și ar pica doar în browser: drei,
+  loaderele three, `libs/*` (decodoare wasm), `physics/*` (wasm de pe CDN), `WorkerPool`,
+  barrel-ul `three/addons`, `three-stdlib`, `troika-three-text`, `@dimforge/*` — atât ca `import`,
+  cât și ca `import()`.
+- **`tbs_intro`**: cookie de sesiune, `path=/`, `SameSite=Lax`, scris din JS ca celelalte cookie-uri
+  de preferință; contează doar valoarea literală `seen`, care nu ajunge niciodată în DOM.
+  `x-pathname` e suprascris de `proxy.ts` și comparat doar cu `"/"`. Vezi
+  [11 — Security](./docs/11-security.md) și [`SECURITY.md`](./SECURITY.md).
+
+**Deploy**
+
+- `package-lock.json` regenerat în `node:22-alpine`, **pe un volum gol**, ca npm să nu rezolve
+  pornind de la un `node_modules` existent (și să nu scoată intrările native ale altor platforme).
+  Verificat: **6 intrări native** (`lightningcss` și `@tailwindcss/oxide` pentru
+  linux-musl, linux-gnu și win32), **o singură copie** de `three`, `npm ci` curat pe alpine (imaginea
+  de producție) și pe noble (Playwright). Rețeta e în [12 — Deployment](./docs/12-deployment.md).
+- Nicio variabilă de mediu nouă și nicio schimbare în compose sau nginx. Uneltele frontend rulează
+  doar în Docker; când există worktree-uri de agent, containerele montează `--tmpfs /app/.claude`,
+  altfel tsc, ESLint și Vitest ar citi și copiile de acolo.
+
+**Removed**
+
+- `components/layout/StatusBar.tsx` + `.module.css` (ceasul e acum în header).
+- `components/sections/HeroEmblem.tsx` — cod mort, încă importa `Hero.module.css`.
+- `Navbar.module.css`, `Hero.module.css`, `Ticker.module.css`, `CookieConsent.module.css`
+  (componentele sunt Tailwind pur).
+- Cheia `hero.scrollHint` din RO/RU/EN; `PREFERS_DARK` și abonarea la preferința OS din
+  `ThemeProvider`.
+
+**Docs**
+
+[02](./docs/02-tech-stack.md) stack-ul nou, licența GSAP, ce nu folosim ·
+[03](./docs/03-architecture.md) arborele, poarta, încărcarea pe trei niveluri, canalul
+`tbs:intro-done` · [04](./docs/04-design-system.md) tokenurile HUD, maparea Tailwind, dark implicit,
+paleta light la zi, regula prefixelor · [05](./docs/05-page-sections.md) intro, header, hero, ticker,
+banner · [07](./docs/07-conventions.md) secțiunile Tailwind și 3D · [09](./docs/09-admin.md) ·
+[11](./docs/11-security.md) + [`SECURITY.md`](./SECURITY.md) · [12](./docs/12-deployment.md) ·
+[14](./docs/14-testing.md) · [16](./docs/16-i18n-seo.md) · [`e2e/README.md`](./e2e/README.md)
+(specurile noi, bypass-ul intro-ului, WebGL forțat) · rezumatul și tabelul de documente din
+[`README.md`](./README.md); `npm ci` în loc de `npm install` pentru dezvoltarea locală (README,
+docs/12).
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, pe arborele final) | curate: exit 0 · exit 0 · exit 0 (lint fără output) |
+| `npm test` (node:22-alpine) | **566 passed / 0 failed** în 36 de fișiere, rulat de 2 ori, fără flaky (înainte 316 teste în 21) |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă) | **206 passed / 0 failed / 0 skipped** (13 specuri; înainte 156) |
+| `preloader.spec.ts` + `hud-shell.spec.ts`, `--repeat-each=3` | **147 passed** (49 × 3), 0 failed, 0 flaky |
+| Prefixe CSS în build (`-webkit-backdrop-filter` · `-webkit-mask` · `-webkit-` total) | baseline `7c77240`: 5 · 4 · 25 → acum 15 · 10 · 44 (10 declarații reale `-webkit-backdrop-filter`, fiecare urmată de `backdrop-filter` neprefixat în aceeași regulă) — numerele nu au voie să scadă |
+| CSP | 0 încălcări în 6 scenarii (review: prima vizită, vizita repetată, reduced motion, pagină de serviciu, admin, WebGL forțat); `preloader.spec.ts` o verifică la fiecare rulare |
+| LCP / CLS (Chromium headless, review) | LCP = `<h1>` în toate rulările: telefon 260 ms prima vizită / 148 ms repetată, desktop 272 / 192 ms; CLS 0 la vizita repetată |
+| Contrast | `--grad-red-cta` 4.72 / 6.88 · lead hero pe light ≥4.53 (861, 1280px) · sticla cu text ≥4.64 dark / ≥4.56 light peste cel mai rău fundal · inel de focus neon ≥6.4 / ≥6.75 · banner pe telefon 5.69 / 7.75 · readout intro ≥9:1 |
+
+Greutate (gzip, bytes; baseline `7c77240` măsurat cu același script):
+
+| Pagină | Baseline | Acum (arborele final) | Buget |
+|---|---|---|---|
+| `/`, vizitator care revine | 225.920 | 244.904 (+18.984; fără three.js/GSAP; marjă 1.016) | ≤ 245.920 (+20.000) |
+| `/`, prima vizită — JS lazy, fallback SVG | 3.219 (prefetch) | 35.570 (fără three.js) | — |
+| `/`, prima vizită — JS lazy cu scena WebGL | — | 277.815 | ≤ 300.000 |
+| `/servicii/e-commerce` | 203.699 | 217.912 (fără three.js/GSAP) | — |
+
+Vizitatorul care revine nu descarcă nici GSAP, nici three.js; creșterea e CSS-ul Tailwind, modulul
+intro-ului (care intră în CSS-ul layout-ului) și JS-ul shell-ului, header-ului și ceasului.
+`/admin-tbs-digital` nu încarcă nici Tailwind, nici CSS-ul intro-ului.
+
+> **Rămâne deschis, cu cifre:**
+> - **Lead-ul hero pe telefon, tema light**: ~1% din pixelii de sub text măsoară încă
+>   4.07–4.46:1, fix pe liniile de 1px ale grilei HUD. Reparația ar fi un `--hud-grid-line` light
+>   mai deschis, pe care îl folosesc și alte componente.
+> - **Marjă de greutate**: la verificarea finală, vizitatorul care
+>   revine are 244.904 B, adică 1.016 B sub buget; orice creștere a shell-ului sau a CSS-ului îl depășește.
+> - **Neverificat pe hardware real**: FPS-ul scenei, iOS Safari (nu raportează nuclee și memorie,
+>   deci toate iPhone-urile pot ajunge în același tier), Android, Firefox, `forced-colors` randat.
+>   Trecerea Lighthouse manuală din plan nu s-a făcut.
+> - **Testele WebGL forțate** cer scenei să fie gata înainte de 80% (~3s aici); pe un CI mai lent
+>   pot cădea pe SVG și pica, deși intro-ul se termină corect. Verificarea click-ului în fade
+>   are nevoie de cel puțin un eșantion într-o fereastră de ~0.4s (8 și 26 la probe); o mașină
+>   foarte lentă ar putea să nu prindă niciunul.
+> - **Ceasul din bară**: testul fixează șirul `BAR_CLOCK_QUERY`, nu și potrivirea lui cu clasele
+>   `sm:flex md:hidden lg:flex` — se schimbă împreună.
+> - **Governor-ul** tratează un dispozitiv lent dar constant la 30 fps ca pe unul plafonat și îi
+>   păstrează calitatea.
+> - **Cuplaj de păstrat**: bannerul citește atributul `data-live` pus de shell-ul intro-ului —
+>   nu se redenumește. Cu bannerul focusat și un dropdown sub mouse, un singur Esc face ambele.
+> - Modificatorii de opacitate decorativi (`via-red/80`, `via-blue/45`, `from-red/70`) cad pe
+>   culoarea plină fără `color-mix()` (Firefox 111–112) — doar cosmetic.
+
 ## 2026-08-17 — Cererea din modal devine un flux pe pași, cu asistentul la cerere
 
 **Changed** — modalul nu mai e o secțiune de pagină înghesuită

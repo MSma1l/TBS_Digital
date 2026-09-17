@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { LOCALES } from "@/lib/i18n/locales";
 import { DIRECTIONS_BASE, LEGACY_DIRECTIONS_BASE, directions } from "@/lib/directions";
-import { PUBLIC_PATHS, header, localePath } from "./helpers";
+import { PUBLIC_PATHS, header, localePath, seedIntroSeen } from "./helpers";
 
 /*
  * Routing: every public page resolves in every language, and every legacy `/solutions/...`
@@ -13,6 +13,10 @@ import { PUBLIC_PATHS, header, localePath } from "./helpers";
  */
 
 test.describe("public routes", () => {
+  // Raw `page.goto` here (the status code is the point), so the intro is seeded by hand:
+  // these tests are about routing, not about a first visit's overlay.
+  test.beforeEach(async ({ context, baseURL }) => seedIntroSeen(context, baseURL!));
+
   for (const locale of LOCALES) {
     for (const path of PUBLIC_PATHS) {
       const url = localePath(locale, path);
@@ -77,6 +81,8 @@ test.describe("legacy /solutions redirects", () => {
 });
 
 test.describe("SEO wiring the routes depend on", () => {
+  test.beforeEach(async ({ context, baseURL }) => seedIntroSeen(context, baseURL!));
+
   test("each locale self-canonicalises and links its hreflang alternates", async ({ page }) => {
     for (const locale of LOCALES) {
       await page.goto(localePath(locale, "/"));

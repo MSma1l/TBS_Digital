@@ -4,7 +4,8 @@
  *
  * Three states, exactly as `app/globals.css` documents them:
  *  · `"light"` / `"dark"` — an explicit choice, stamped on `<html data-theme>`;
- *  · `"system"` — no choice yet, follow `prefers-color-scheme`.
+ *  · `"system"` — no choice yet. It resolves to `DEFAULT_THEME` (dark), whatever the OS
+ *    prefers: the site's look is a dark HUD, and light is the visitor's opt-out.
  *
  * The palettes themselves live ONLY in globals.css. Nothing here defines a colour: the
  * whole mechanism is "put the right value in `data-theme` as early as possible".
@@ -14,8 +15,11 @@
 export const THEMES = ["light", "dark"] as const;
 export type Theme = (typeof THEMES)[number];
 
-/** What the visitor picked. `"system"` means: nothing picked — follow the OS. */
+/** What the visitor picked. `"system"` means: nothing picked — `DEFAULT_THEME` applies. */
 export type ThemeChoice = Theme | "system";
+
+/** The palette of a visitor who has not chosen. The OS setting is deliberately not read. */
+export const DEFAULT_THEME: Theme = "dark";
 
 /**
  * The cookie the explicit choice is stored in.
@@ -29,9 +33,6 @@ export const THEME_COOKIE = "tbs_theme";
 
 /** One year, like the language cookie. */
 export const THEME_COOKIE_MAX_AGE = 31536000;
-
-/** The media query that decides the theme while the visitor has made no choice. */
-export const PREFERS_DARK = "(prefers-color-scheme: dark)";
 
 export function isTheme(value: unknown): value is Theme {
   return value === "light" || value === "dark";
@@ -48,10 +49,12 @@ export function toThemeChoice(value: unknown): ThemeChoice {
  * It is injected inline in `<head>` (see `app/layout.tsx`) and therefore runs synchronously
  * while the browser is still parsing the document — before the first paint, and long before
  * React hydrates. It resolves the theme the same way the provider does (saved cookie first,
- * `prefers-color-scheme` otherwise) and stamps it on `<html>`, so a dark-mode visitor never
- * sees a white flash.
+ * `DEFAULT_THEME` otherwise) and stamps it on `<html>`, so a dark page never flashes white.
+ * The server stamps the same value from the same cookie, so the script usually rewrites what
+ * is already there; it stays as the guarantee that holds before first paint whatever
+ * produced the HTML.
  *
- * It always stamps an explicit value, including for the "follow the system" state. That is
+ * It always stamps an explicit value, including for the "no choice yet" state. That is
  * deliberate: it also pins `color-scheme` (globals.css sets it per `data-theme`), so form
  * controls and scrollbars match from the first frame too.
  *
@@ -66,6 +69,6 @@ export function toThemeChoice(value: unknown): ThemeChoice {
 export const THEME_INIT_SCRIPT =
   `(function(){try{` +
   `var m=document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=(dark|light)/);` +
-  `var t=m?m[1]:(window.matchMedia&&window.matchMedia("${PREFERS_DARK}").matches?"dark":"light");` +
+  `var t=m?m[1]:"${DEFAULT_THEME}";` +
   `document.documentElement.setAttribute("data-theme",t);` +
   `}catch(e){}})();`;

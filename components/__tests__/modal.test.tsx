@@ -19,6 +19,7 @@ import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Modal } from "@/components/ui/Modal";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { PAGE_COVER_EVENT, isPageCovered } from "@/lib/scrollLock";
 import type { Locale } from "@/lib/i18n/locales";
 
 const TITLE = {
@@ -345,7 +346,29 @@ describe("Modal — background scroll", () => {
     expect(body.style.position).toBe("");
     expect(body.style.top).toBe("");
     expect(body.style.paddingRight).toBe("");
-    expect(scrollToSpy).toHaveBeenCalledWith(0, SCROLL_Y);
+    // Put back at once: the page's `html { scroll-behavior: smooth }` must not animate the
+    // restore up from the top (it used to, over ~25 frames).
+    expect(scrollToSpy).toHaveBeenCalledWith({ top: SCROLL_Y, left: 0, behavior: "instant" });
+  });
+
+  it("lifts the page cover only after the body is unpinned and the scroll position is back", async () => {
+    const atRelease: Array<{ covered: boolean; position: string; top: string; scrolled: number }> = [];
+    const listener = () =>
+      atRelease.push({
+        covered: isPageCovered(),
+        position: document.body.style.position,
+        top: document.body.style.top,
+        scrolled: scrollToSpy.mock.calls.length,
+      });
+    const { user } = await openModal();
+    window.addEventListener(PAGE_COVER_EVENT, listener);
+    try {
+      await user.keyboard("{Escape}");
+    } finally {
+      window.removeEventListener(PAGE_COVER_EVENT, listener);
+    }
+    // One announcement — the cover lifting — seen by a listener that could measure the page.
+    expect(atRelease).toEqual([{ covered: false, position: "", top: "", scrolled: 1 }]);
   });
 
   it("leaves inline body styles it did not set untouched", async () => {
@@ -356,5 +379,22 @@ describe("Modal — background scroll", () => {
 
     expect(document.body.style.background).toBe("red");
     expect(document.body.style.overflow).toBe("");
+  });
+
+  it("covers the page while open (the interior 3D stage stops drawing under it)", async () => {
+    const announced = vi.fn();
+    window.addEventListener(PAGE_COVER_EVENT, announced);
+    try {
+      expect(isPageCovered()).toBe(false);
+      const { user } = await openModal();
+      expect(isPageCovered()).toBe(true);
+      expect(announced).toHaveBeenCalledTimes(1);
+
+      await user.keyboard("{Escape}");
+      expect(isPageCovered()).toBe(false);
+      expect(announced).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener(PAGE_COVER_EVENT, announced);
+    }
   });
 });

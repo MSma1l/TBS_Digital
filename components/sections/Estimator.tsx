@@ -994,7 +994,6 @@ export function Estimator({
   const chatBody = (
     <>
       <div className={`mono ${styles.chatHead}`}>
-        <span className={styles.chatDot} />
         {l(SECTION.assistant)}
       </div>
       <div className={styles.chatLog} aria-live="polite">

@@ -7,6 +7,17 @@ Postgres**, wired together, with a login-gated admin and a one-command Docker de
 - **Frontend:** Next.js (React) in the repo root. A login-gated, tabbed
   [admin panel](./docs/09-admin.md) at `/admin-tbs-digital` edits site content and shows
   incoming requests. Reads content from the API (localStorage is just an offline cache).
+- **Look:** a dark HUD theme by default (light is the visitor's choice). The home page's first
+  screen — a once-per-session 3D intro (three.js + GSAP, with an SVG fallback), the header,
+  hero, ticker and cookie banner — and its interior — one sticky 3D stage behind the hero, ticker
+  and service chooser (a Cybernetic Core and five service models, static SVG art on devices that
+  should not draw it), holographic stat cards, and the rebuilt Directions and Work sections — are
+  built in Tailwind v4 on the same design tokens; the rest of the site stays on CSS Modules. See
+  [04 — Design System](./docs/04-design-system.md) and
+  [05 — Page Sections](./docs/05-page-sections.md).
+- **Tooling:** frontend build, checks and tests run in Docker containers, not on the host — see
+  [12 — Deployment](./docs/12-deployment.md#frontend-tooling-in-docker-build-checks-lockfile)
+  and [14 — Testing](./docs/14-testing.md).
 - **Backend:** Python + FastAPI in [`backend/`](./backend/README.md) — content + contact +
   auth API, backed by a **real SQL database** (SQLModel; SQLite dev / Postgres prod) with
   **bcrypt** auth. See [10 — Backend](./docs/10-backend.md).
@@ -31,21 +42,21 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | Doc | What it covers |
 |-----|----------------|
 | [01 — Project Overview](./docs/01-project-overview.md) | What we're building, goals, current phase |
-| [02 — Tech Stack](./docs/02-tech-stack.md) | Chosen technologies and why |
-| [03 — Architecture](./docs/03-architecture.md) | Folder structure, routing, component layout |
-| [04 — Design System](./docs/04-design-system.md) | Colors, fonts, spacing, effects |
-| [05 — Page Sections](./docs/05-page-sections.md) | Breakdown of every section on the landing page |
+| [02 — Tech Stack](./docs/02-tech-stack.md) | Chosen technologies and why — incl. three.js, GSAP + ScrollTrigger (licence) and Tailwind for the first screen and the interior stage, and what is deliberately not used |
+| [03 — Architecture](./docs/03-architecture.md) | Folder structure, routing, component layout, the intro gate and its three loading tiers, the interior stage (DOM, loading pipeline, the shared 3D runtime, stores and events) |
+| [04 — Design System](./docs/04-design-system.md) | Colors (dark default), fonts, spacing, effects, HUD tokens (glass, neon, z-index, motion), Tailwind theme mapping, the interior stage (paint order, hero core tokens, static art, holograms, tilt, the Work card) |
+| [05 — Page Sections](./docs/05-page-sections.md) | Breakdown of every section on the landing page, incl. the first-visit intro, the HUD header, the interior 3D stage, Directions, Work and the cookie banner |
 | [06 — Placeholder Rules](./docs/06-placeholder-rules.md) | Exactly what content to remove / stub out |
-| [07 — Conventions](./docs/07-conventions.md) | Coding rules: content/i18n boundary, styling, components, changelog duty |
+| [07 — Conventions](./docs/07-conventions.md) | Coding rules: content/i18n boundary, styling (Tailwind rules), 3D / GSAP / ScrollTrigger / interior-stage rules, the heavy-import ban, components, changelog duty |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
 | [09 — Admin Panel](./docs/09-admin.md) | The `/admin-tbs-digital` tabbed editor + Cereri tab (real login) |
 | [10 — Backend](./docs/10-backend.md) | The FastAPI content + contact + auth API (real DB) |
-| [11 — Security](./docs/11-security.md) | Input validation & security (XSS, SQLi, lengths, auth) |
-| [12 — Deployment](./docs/12-deployment.md) | Docker Compose + Makefile + production `.env` |
+| [11 — Security](./docs/11-security.md) | Input validation & security (XSS, SQLi, lengths, auth), the HTML CSP, the 3D and GSAP import bans, the stage's browser storage |
+| [12 — Deployment](./docs/12-deployment.md) | Docker Compose + Makefile + production `.env`; frontend tooling in Docker and the lockfile recipe |
 | [13 — Telegram Bot](./docs/13-telegram.md) | Lead-notification bot: per-service topics, classification buttons, /stats |
-| [14 — Testing](./docs/14-testing.md) | Vitest UI/UX tests, backend pytest, live API verification script |
+| [14 — Testing](./docs/14-testing.md) | Vitest unit tests and Playwright E2E (in Docker, incl. the forced-WebGL `@webgl` specs), backend pytest, live API verification script |
 | [15 — Security Skills](./docs/15-security-skills.md) | Per-topic security skills (validation, XSS, SQLi, auth, rate-limit, pentest) |
-| [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, cookie consent + analytics |
+| [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, the intro and the 3D stage and SEO, cookie consent + analytics |
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for the running record of every change, and
 [`SECURITY.md`](./SECURITY.md) for the pentest findings, fixes, and production checklist.
@@ -66,8 +77,9 @@ make up                  # db + backend + frontend
 ### Locally without Docker
 
 ```bash
-# Frontend
-npm install && npm run dev          # http://localhost:3000
+# Frontend (npm ci, not npm install: install can drop other platforms' native entries from
+# the lockfile and break the Docker image — see docs/12)
+npm ci && npm run dev               # http://localhost:3000
 
 # Backend (SQLite by default — no Postgres needed)
 cd backend

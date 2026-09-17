@@ -95,13 +95,6 @@
   font-weight: var(--fw-extra);
   font-size: 13px;
 }
-.chatDot {
-  width: 10px;
-  height: 10px;
-  background: var(--green);
-  border-radius: 50%;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 18%, transparent);
-}
 .chatLog {
   max-height: 360px;
   overflow-y: auto;

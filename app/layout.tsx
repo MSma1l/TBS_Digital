@@ -22,7 +22,6 @@ import { SoundProvider, SOUND_COOKIE, toSoundChoice } from "@/lib/sound";
 import {
   THEME_COOKIE,
   THEME_INIT_SCRIPT,
-  isTheme,
   toThemeChoice,
 } from "@/lib/theme/theme";
 
@@ -160,8 +159,8 @@ export default async function RootLayout({
   // Same idea for the theme: the visitor's explicit choice lives in a cookie, so the server
   // can stamp `data-theme` into the HTML it sends. A visitor who has chosen therefore gets
   // the right palette in the very first byte — no script needed, and it works with
-  // JavaScript off. Nothing is stamped for "no choice yet": globals.css then falls back to
-  // `prefers-color-scheme`, and the inline script below pins the resolved value.
+  // JavaScript off. "No choice yet" is stamped too: it is the dark default, not the OS setting
+  // (lib/theme/theme.ts DEFAULT_THEME), so only an explicit light choice paints light.
   const themeChoice = toThemeChoice((await cookies()).get(THEME_COOKIE)?.value);
 
   // Interface sound, read the same way. Nothing plays until the visitor touches the page —
@@ -211,7 +210,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      data-theme={isTheme(themeChoice) ? themeChoice : undefined}
+      data-theme={themeChoice === "light" ? "light" : "dark"}
       className={`${archivo.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
       // The inline script below rewrites `data-theme` before React hydrates (that is the
       // whole point of it), so React must accept the DOM's value instead of treating the
@@ -223,7 +222,7 @@ export default async function RootLayout({
         {/*
           Anti-FOUC: runs synchronously while the browser parses <head>, i.e. BEFORE the
           first paint and long before hydration, so a dark-mode visitor never sees a white
-          flash. It reads the saved choice (cookie), falls back to prefers-color-scheme, and
+          flash. It reads the saved choice (cookie), falls back to the dark default, and
           stamps `data-theme` on <html>. See lib/theme/theme.ts for the script itself.
 
           The nonce is not optional decoration: proxy.ts serves a strict `script-src` with

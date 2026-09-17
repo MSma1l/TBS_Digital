@@ -7,11 +7,10 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
-  PREFERS_DARK,
+  DEFAULT_THEME,
   THEME_COOKIE,
   THEME_COOKIE_MAX_AGE,
   isTheme,
@@ -23,22 +22,19 @@ import {
  * The theme the site is painted in, plus the switcher.
  *
  * `theme` is the RESOLVED palette — what is actually on screen. `choice` is what the visitor
- * picked, which may be `"system"` (nothing picked yet). Keeping the two apart is what lets
- * the site follow the OS until the visitor overrides it, and stop following it the moment
- * they do.
+ * picked, which may be `"system"` (nothing picked yet). Nothing picked resolves to
+ * `DEFAULT_THEME` (dark); the OS preference is deliberately not consulted.
  *
  * The choice is resolved on the server (root layout, from the cookie) and passed in, so SSR
- * and the first client render agree. The one thing the server cannot know is the OS setting
- * of a visitor who has never chosen — that is read from `prefers-color-scheme` through
- * `useSyncExternalStore` below, and painted before any of this runs by the inline script in
- * `<head>`.
+ * and the first client render agree — and since the default is a constant rather than a
+ * media query, there is nothing left that only the client can know.
  */
 type ThemeContextValue = {
   /** The palette currently painted: what `<html data-theme>` says. */
   theme: Theme;
   /** What the visitor chose — `"system"` while they haven't. */
   choice: ThemeChoice;
-  /** Pick a palette explicitly, or hand control back to the OS with `"system"`. */
+  /** Pick a palette explicitly, or drop the choice (back to the default) with `"system"`. */
   setTheme: (next: ThemeChoice) => void;
   /** Flip between light and dark. Always results in an explicit choice. */
   toggleTheme: () => void;
@@ -51,8 +47,8 @@ function persistChoice(choice: ThemeChoice) {
   try {
     document.cookie =
       choice === "system"
-        ? // Back to "follow the OS" — drop the cookie rather than store a third value, so
-          // the server sees exactly what the visitor means: no choice.
+        ? // Back to the default — drop the cookie rather than store a third value, so the
+          // server sees exactly what the visitor means: no choice.
           `${THEME_COOKIE}=;path=/;max-age=0;samesite=lax`
         : `${THEME_COOKIE}=${choice};path=/;max-age=${THEME_COOKIE_MAX_AGE};samesite=lax`;
   } catch {
@@ -66,26 +62,6 @@ function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
 }
 
-// --- the OS preference, as an external store -------------------------------------------
-// `useSyncExternalStore` is the primitive for exactly this: a value React cannot render on
-// the server, that must not cause a hydration mismatch, and that changes outside React.
-// The server snapshot is `false` (light), matching the markup the server sends; React swaps
-// in the real value right after hydration, and re-renders whenever the OS setting flips.
-
-function darkQuery(): MediaQueryList | null {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
-  return window.matchMedia(PREFERS_DARK);
-}
-
-function subscribeSystemTheme(onChange: () => void): () => void {
-  const query = darkQuery();
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
-
-const getSystemPrefersDark = () => darkQuery()?.matches ?? false;
-const getServerSystemPrefersDark = () => false;
-
 export function ThemeProvider({
   initialChoice = "system",
   children,
@@ -95,18 +71,13 @@ export function ThemeProvider({
 }) {
   const [choice, setChoiceState] = useState<ThemeChoice>(initialChoice);
 
-  const systemPrefersDark = useSyncExternalStore(
-    subscribeSystemTheme,
-    getSystemPrefersDark,
-    getServerSystemPrefersDark,
-  );
-
-  // Derived, never stored: an explicit choice IS the palette; otherwise the OS decides.
-  const theme: Theme = isTheme(choice) ? choice : systemPrefersDark ? "dark" : "light";
+  // Derived, never stored: an explicit choice IS the palette; otherwise the default applies.
+  const theme: Theme = isTheme(choice) ? choice : DEFAULT_THEME;
 
   // Keep the document in sync with the resolved theme — the one external system this
-  // provider owns. Idempotent: on first mount it rewrites the value the inline script has
-  // already painted, and it is what carries an OS flip through to the page.
+  // provider owns. Idempotent: on first mount it rewrites the value the server and the
+  // inline script have already painted, and it is what carries `setTheme("system")` through
+  // to the page.
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
@@ -133,12 +104,12 @@ export function ThemeProvider({
 
 /**
  * Fallback for a component rendered outside a provider (e.g. an isolated unit test) — the
- * same shape `LanguageProvider` uses: the light palette and a no-op switcher. The site
+ * same shape `LanguageProvider` uses: the default palette and a no-op switcher. The site
  * always wraps everything in a provider, so this branch never runs in production; it just
  * keeps a stray render from crashing.
  */
 const FALLBACK: ThemeContextValue = {
-  theme: "light",
+  theme: DEFAULT_THEME,
   choice: "system",
   setTheme: () => {},
   toggleTheme: () => {},

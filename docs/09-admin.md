@@ -24,7 +24,7 @@ section. Order (the **Cereri** tab is first and is the default on open):
 | Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
 | Statistici | value, label → /02 stats row | content API |
 | Echipă | name, role, bio → /05 team cards | content API |
-| Proiecte | name, category, description, project link, App Store / Google Play links, and a gallery of screenshots (upload, reorder, remove) → /04 project cards | content API + `POST /api/admin/uploads` |
+| Proiecte | name, category, description, project link, App Store / Google Play links, and a gallery of screenshots (upload, reorder, remove) → the home page's Work cards, which show the **first** screenshot, split the category on "·" into chips (the "·" stays visible between them) and link out only when a project link is set; the Directions case card reads the same project | content API + `POST /api/admin/uploads` |
 | Parteneri | name, site URL, logo, site preview (both uploadable) → /06 partners strip **and** the footer partners row | content API + `POST /api/admin/uploads` |
 | Contact | type (email/phone/other), value → footer contact column | content API |
 
@@ -95,9 +95,22 @@ GET /api/content  ──►  lib/api.ts  ──►  lib/siteContent.tsx  ──�
 The admin lives **outside** the public site's chrome. `app/` uses a route group:
 
 - `app/layout.tsx` — `<html>`, fonts, and the `SiteContentProvider` (wraps everything).
-- `app/(site)/` — the marketing chrome (StatusBar, Navbar, Footer, ScrollProgress) + the
-  landing page. The `(site)` group adds **no** URL segment.
+- `app/(site)/` — the marketing chrome (the first-visit intro gate, Navbar, Footer,
+  ScrollProgress, CookieConsent) + the landing page. The `(site)` group adds **no** URL segment.
 - `app/admin-tbs-digital/` — the panel, with no marketing chrome.
+
+Two consequences of that split since the 2026-09-16 redesign:
+
+- **The admin is dark by default too.** The theme is stamped by the root layout, which wraps
+  every route: an admin who has never chosen gets `data-theme="dark"`, and the panel's
+  stylesheet reads the same tokens, so it follows. The admin has no toggle of its own; a light
+  choice made on the public site (`tbs_theme=light`, `path=/`) applies here as well.
+- **The admin does not load Tailwind or the intro.** Both are imported from
+  `app/(site)/layout.tsx`. (Next never unloads a stylesheet on client navigation, so arriving
+  at the admin *from* the site would keep the utilities CSS in the page — harmless, it only
+  styles the five first-screen components. The site has no link to the admin, so in practice
+  the admin is a direct load.) Its "view site" and back links (`<Link href="/">`) are client
+  navigations into `(site)`, and those never play the intro; the next hard load of `/` does.
 
 ## Frontend ↔ backend seam (implemented)
 

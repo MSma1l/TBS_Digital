@@ -1,0 +1,202 @@
+/**
+ * The first-visit intro contract — names, timings and the one "the intro is over" signal,
+ * shared by the server gate, the preloader, the cookie banner and the E2E helpers.
+ *
+ * Deliberately NOT a `"use client"` module and nothing here touches the DOM at import
+ * time: a server component that imported a constant from a client module would receive a
+ * client reference instead of the value, and `e2e/helpers.ts` imports it into Node. Every
+ * function that needs `window`/`document` checks for it first and is a no-op on the server.
+ */
+
+/** The session cookie that says "this visitor has already seen the intro". */
+export const INTRO_COOKIE = "tbs_intro";
+
+/** The only value that counts. Anything else (or no cookie) means "play it". */
+export const INTRO_SEEN = "seen";
+
+/**
+ * Exactly what `finishIntro` writes. No `max-age`/`expires`, on purpose: a session cookie,
+ * so the intro plays again in a new browser session but never twice in one.
+ */
+export const INTRO_COOKIE_STRING = `${INTRO_COOKIE}=${INTRO_SEEN};path=/;samesite=lax`;
+
+/** Fired once on `window` when the intro stops covering the page (played, skipped or bypassed). */
+export const INTRO_EVENT = "tbs:intro-done";
+
+/** The server-rendered overlay root. Its presence in the DOM is what "an intro is pending" means. */
+export const INTRO_OVERLAY_ID = "tbs-intro";
+
+/**
+ * `localStorage[INTRO_FORCE_3D_KEY] === "force"` drops `failIfMajorPerformanceCaveat`, so a
+ * software renderer (SwiftShader in headless Chromium) still gets the WebGL scene. QA/E2E
+ * only; it changes what is drawn, never what the page does.
+ */
+export const INTRO_FORCE_3D_KEY = "tbs_intro_3d";
+
+/** `detail` of `INTRO_EVENT`: did the animation actually run, or was it bypassed? */
+export type IntroDoneDetail = { played: boolean };
+
+export const INTRO_TIMING = {
+  /** Cinematic minimum for 0→100%, counted from navigation start. */
+  MIN_SYNC_MS: 2400,
+  /** The progress target is forced to 100% at this point, whatever is still loading. */
+  HARD_CAP_MS: 5000,
+  /** Once JS takes over, the counter visibly runs for at least this long. */
+  MIN_JS_RUN_MS: 600,
+  /** Hydration later than this (read off the CSS failsafe clock) bypasses the intro. */
+  LATE_TAKEOVER_MS: 6400,
+  /** The pre-hydration CSS failsafe's animation-delay — pinned against the CSS module by a test. */
+  FAILSAFE_MS: 7000,
+  /** The shell forces the overlay out if the director never reveals the page. */
+  WATCHDOG_MS: 9000,
+  /** WebGL scene not ready by this share of the progress → the burst plays on the SVG. */
+  SCENE_CUTOFF: 0.8,
+} as const;
+
+/** The attribute the page entrance looks up its targets by. No CSS rule may target it. */
+export const INTRO_REVEAL_ATTR = "data-intro-reveal";
+
+/** Entrance targets, in the order they come in after the burst. One element each. */
+export const INTRO_REVEAL_ORDER = [
+  "grid",
+  "header",
+  "eyebrow",
+  "title",
+  "lead",
+  "cta",
+  "stats",
+  "ticker",
+] as const;
+
+export type IntroRevealTarget = (typeof INTRO_REVEAL_ORDER)[number];
+
+/** Narrow a raw cookie value: only the literal `seen` counts. */
+export function isIntroSeen(value: string | null | undefined): boolean {
+  return value === INTRO_SEEN;
+}
+
+/** Read the intro cookie out of a `document.cookie` / `Cookie:` header string. */
+export function readIntroSeen(cookieString: string | null | undefined): boolean {
+  if (!cookieString) return false;
+  const match = cookieString.match(new RegExp(`(?:^|;\\s*)${INTRO_COOKIE}=([^;]*)`));
+  return isIntroSeen(match?.[1]);
+}
+
+/**
+ * The server gate `app/(site)/layout.tsx` renders the overlay behind. True only for the home
+ * page — `pathname` is proxy.ts's locale-stripped `x-pathname`, so `/ru` and `/en` count as
+ * "/" — and only while the session cookie is absent (or holds anything but `seen`).
+ *
+ * It lives in the LAYOUT on purpose: layouts don't re-render on client navigation, so the
+ * intro plays on a hard landing only, never on `/servicii/x` → Home or a Back into the cache.
+ */
+export function shouldPlayIntro(
+  pathname: string | null | undefined,
+  cookieValue: string | null | undefined,
+): boolean {
+  return pathname === "/" && !isIntroSeen(cookieValue);
+}
+
+/*
+ * The module-level "done" flag closes a race the DOM alone cannot. `(site)/layout.tsx`
+ * renders the preloader BEFORE `<CookieConsent/>`, and effects run in tree order — so a
+ * synchronous bypass (reduced motion, a `#hash` deep link) finishes the intro and fires the
+ * event before the banner has subscribed, while the overlay root is still in the DOM until
+ * the next render. Without the flag the banner would see "pending", wait for an event that
+ * already happened, and sit out the whole watchdog.
+ */
+let done = false;
+
+/**
+ * The intro is over: remember it for the session and tell every listener, once.
+ * Idempotent — skip and the end of the timeline can both call it in the same frame.
+ */
+export function finishIntro(detail: IntroDoneDetail): void {
+  if (done || typeof window === "undefined") return;
+  done = true;
+  try {
+    document.cookie = INTRO_COOKIE_STRING;
+  } catch {
+    /* cookies blocked — the intro plays again next load, which is the harmless direction */
+  }
+  try {
+    window.dispatchEvent(new CustomEvent<IntroDoneDetail>(INTRO_EVENT, { detail }));
+  } catch {
+    /* CustomEvent unsupported — `isIntroPending()` still reads false from the flag */
+  }
+}
+
+/** Is an overlay on screen that has not finished yet? `false` on the server and on every page without one. */
+export function isIntroPending(): boolean {
+  return (
+    !done && typeof document !== "undefined" && document.getElementById(INTRO_OVERLAY_ID) !== null
+  );
+}
+
+/**
+ * Run `callback` once the intro is over. When nothing is pending (no overlay on this page,
+ * or it already finished) the callback runs SYNCHRONOUSLY with `{ played: false }` — the
+ * caller was not kept waiting, and a banner can show in the same effect as it always did.
+ * Returns an unsubscribe for effect cleanup.
+ */
+export function onIntroDone(callback: (detail: IntroDoneDetail) => void): () => void {
+  if (!isIntroPending()) {
+    callback({ played: false });
+    return () => {};
+  }
+  const listener = (event: Event) => callback((event as CustomEvent<IntroDoneDetail>).detail);
+  window.addEventListener(INTRO_EVENT, listener, { once: true });
+  return () => window.removeEventListener(INTRO_EVENT, listener);
+}
+
+/**
+ * Fired once on `window` when the overlay has actually LEFT the document — not at reveal
+ * (`INTRO_EVENT`), which comes while the entrance still moves the page for up to ~2s. The
+ * interior stage waits for this one before it measures or creates a WebGL context.
+ */
+export const INTRO_GONE_EVENT = "tbs:intro-gone";
+
+let gone = false;
+
+/**
+ * The overlay is gone: tell every listener, once. A no-op while the overlay root is still in
+ * the document — StrictMode's effect replay and a cleanup that runs before the commit both
+ * land there — and on the server.
+ */
+export function markIntroGone(): void {
+  if (gone || typeof window === "undefined" || typeof document === "undefined") return;
+  if (document.getElementById(INTRO_OVERLAY_ID) !== null) return;
+  gone = true;
+  try {
+    window.dispatchEvent(new Event(INTRO_GONE_EVENT));
+  } catch {
+    /* Event unsupported — `isIntroOnScreen()` still reads false from the flag */
+  }
+}
+
+/** Is the overlay still covering the page (in the document, and not marked gone)? `false` on the server. */
+export function isIntroOnScreen(): boolean {
+  return (
+    !gone && typeof document !== "undefined" && document.getElementById(INTRO_OVERLAY_ID) !== null
+  );
+}
+
+/**
+ * Run `callback` once the overlay is gone. SYNCHRONOUSLY when there is none on screen (a
+ * returning visit, a client navigation back to the home page). Returns an unsubscribe.
+ */
+export function onIntroGone(callback: () => void): () => void {
+  if (!isIntroOnScreen()) {
+    callback();
+    return () => {};
+  }
+  const listener = () => callback();
+  window.addEventListener(INTRO_GONE_EVENT, listener, { once: true });
+  return () => window.removeEventListener(INTRO_GONE_EVENT, listener);
+}
+
+/** Unit tests only: forget that an intro finished (or left) in this module instance. */
+export function resetIntroForTests(): void {
+  done = false;
+  gone = false;
+}

@@ -27,7 +27,6 @@ export const ro = {
     "Software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme care îți cresc afacerea — de la strategie până la execuție.",
   "hero.cta.primary": "Calculează prețul ↗",
   "hero.cta.secondary": "Vezi serviciile",
-  "hero.scrollHint": "DERULEAZĂ — SISTEMUL SE ACTIVEAZĂ ↓",
 
   // --- Principles (/02) ---
   "principles.label": "ABORDARE INDIVIDUALĂ",
@@ -212,6 +211,11 @@ export const ro = {
   "nav.cta": "START PROIECT ↗",
   "nav.burgerAria": "Meniu",
   "nav.closeAria": "Închide",
+  // Screen readers already announce the landmark as "navigation": the label only names which one.
+  "nav.primaryAria": "Principal",
+  // The header clock's label: a HUD code, the same in every language, but still a key so
+  // the header carries no hardcoded copy.
+  "header.sysTime": "SYS_TIME",
 
   // --- Theme toggle ---
   // `theme.toggleAria` is the button's accessible NAME and never changes with the state —
@@ -266,6 +270,16 @@ export const ro = {
   "cookie.accept": "Accept",
   "cookie.reject": "Refuz",
   "cookie.settings": "Doar esențiale",
+
+  // --- Intro preloader ---
+  // `intro.status` / `intro.complete` are HUD codes shown identically in every language;
+  // `intro.progressAria` is what a screen reader announces for the progress bar.
+  // `intro.skipKey` is the key-cap beside the skip label (aria-hidden, fine pointers only).
+  "intro.status": "SYSTEM_SYNCHRONIZATION",
+  "intro.complete": "ACCESS_GRANTED",
+  "intro.progressAria": "Se încarcă TBS Digital",
+  "intro.skip": "Sari peste intro",
+  "intro.skipKey": "ESC",
 } as const;
 
 export type MessageKey = keyof typeof ro;

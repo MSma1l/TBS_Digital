@@ -1,0 +1,392 @@
+/* ============================================================
+   TBS Digital — Tailwind CSS v4, UTILITIES ONLY
+   ------------------------------------------------------------
+   Used by the first screen and the interior stage (Hero → Directions, Work) — the components
+   listed in the @source block below — and by nothing else. Imported from
+   app/(site)/layout.tsx, so the admin route never loads it.
+
+   No preflight: only theme.css and utilities.css are imported, never "tailwindcss" (its
+   index also pulls in the global reset, which would restyle every button and heading on
+   the site). Everything here is layered; globals.css and every *.module.css are not, so
+   existing CSS always wins over a utility — see the @layer base note in globals.css.
+
+   Rules for the files that use it (docs/07, enforced by
+   components/__tests__/tailwind-contract.test.ts): pure Tailwind (no *.module.css), no
+   `disp` / `mono` / `container` helpers, no `!` modifier, no raw colours, no `dark:`,
+   `outline-none` only next to a `focus-visible:` outline or ring.
+   ============================================================ */
+
+/* Same statement as line 1 of globals.css: whichever stylesheet the browser meets first
+   fixes the order (globals.css, in practice), and both say the same thing. `properties`
+   must come first: it is where Tailwind puts the `--tw-*` defaults for browsers without
+   @property (Firefox 111–127 is one, and inside Next's supported range). Left undeclared it
+   would be appended AFTER utilities, and there it would reset every `--tw-shadow`,
+   `--tw-translate-*` and gradient stop a utility sets. */
+@layer properties, theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+/* Automatic source detection is off (`source(none)` above): it reads .gitignore, and the
+   Docker build context has no .git/.gitignore (.dockerignore), so a local build and an
+   image build would scan different files. Every file that uses utilities is listed here.
+   The intro preloader (components/intro) is deliberately NOT listed: its rules are keyframes,
+   state selectors and a pre-hydration failsafe, so it renders through its own CSS Module.
+   Neither is the interior's static art (components/scene/art): pure components with a CSS
+   Module each (server-rendered into the HTML, or drawn in the browser when another direction
+   is selected), never styled by a utility. */
+@source "../components/layout/Navbar.tsx";
+@source "../components/layout/HeaderClock.tsx";
+@source "../components/sections/Hero.tsx";
+@source "../components/sections/Ticker.tsx";
+@source "../components/sections/Directions.tsx";
+@source "../components/sections/Work.tsx";
+@source "../components/scene/SceneStage.tsx";
+@source "../components/ui/CookieConsent.tsx";
+
+/* `.container` is a global helper (globals.css) that Navbar and Hero use today. Tailwind's
+   own `container` utility would add `width: 100%` and breakpoint max-widths on top of it. */
+@source not inline("container");
+
+/* ---- theme: the default scales are removed ---------------------------------------------
+   Colours, fonts, type sizes, radii, shadows, animations and breakpoints come only from
+   the tokens below, so a raw palette value (`bg-red-500`, `text-lg` at Tailwind's size)
+   simply does not exist. Kept on purpose: the numeric spacing scale (rebased onto --sp-1,
+   i.e. 4px, so `min-h-11` is the 44px tap target) and the `--blur-*` scale. */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  /* not covered by `--font-*` (verified in the build: `font-thin` survived it) */
+  --font-weight-*: initial;
+  --text-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --animate-*: initial;
+  --breakpoint-*: initial;
+}
+
+/* `inline`: utilities emit `var(--token)` itself rather than a copy on :root, so they
+   resolve on the element and follow the dark remap in globals.css. A Tailwind key never
+   shares its name with the token it points at (`--font-hud`, not `--font-mono`: the
+   `--font-mono` / `--font-display` names belong to next/font on <html>). */
+@theme inline {
+  --spacing: var(--sp-1);
+
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-panel: var(--panel);
+  --color-panel2: var(--panel2);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-txt: var(--txt);
+  --color-mut: var(--mut);
+  --color-dim: var(--dim);
+  --color-red: var(--red);
+  --color-red-text: var(--red-text);
+  --color-red-lift: var(--red-lift);
+  --color-blue: var(--blue);
+  --color-blue2: var(--blue2);
+  --color-blue-text: var(--blue-text);
+  --color-cyan: var(--cyan);
+  --color-ice: var(--ice);
+  --color-green-text: var(--green-text);
+  --color-on-accent: var(--on-accent);
+  --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
+  --color-void: var(--void);
+  --color-glass: var(--glass-bg);
+  --color-glass-solid: var(--glass-bg-solid);
+  --color-glass-line: var(--glass-line);
+
+  --font-disp: var(--font-display-stack);
+  --font-hud: var(--font-mono-stack);
+  --font-copy: var(--font-body-stack);
+
+  --text-2xs: var(--fs-2xs);
+  --text-xs: var(--fs-xs);
+  --text-sm: var(--fs-sm);
+  --text-md: var(--fs-md);
+  --text-base: var(--fs-base);
+  --text-lg: var(--fs-lg);
+  --text-xl: var(--fs-xl);
+  --text-2xl: var(--fs-2xl);
+
+  /* Tailwind's own weight names, so `font-bold` reads as usual but lands on the token. */
+  --font-weight-normal: var(--fw-normal);
+  --font-weight-medium: var(--fw-med);
+  --font-weight-semibold: var(--fw-semi);
+  --font-weight-bold: var(--fw-bold);
+  --font-weight-extrabold: var(--fw-extra);
+  --font-weight-black: var(--fw-black);
+
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+  --radius-pill: var(--r-pill);
+
+  --shadow-sm: var(--sh-sm);
+  --shadow-md: var(--sh-md);
+  --shadow-lg: var(--sh-lg);
+  --shadow-neon-red: var(--neon-red);
+  --shadow-neon-red-strong: var(--neon-red-strong);
+  --shadow-neon-blue: var(--neon-blue);
+
+  /* min-width steps that are the exact complement of the max-width queries the CSS
+     Modules use (400 / 640 / 860 / 1024): `max-md:` is `width < 861px`, i.e. the burger
+     range of `max-width: 860px`. xl is where the header has room for the full clock. */
+  --breakpoint-xs: 401px;
+  --breakpoint-sm: 641px;
+  --breakpoint-md: 861px;
+  --breakpoint-lg: 1025px;
+  --breakpoint-xl: 1180px;
+}
+
+/* ---- variants ---------------------------------------------------------------------------
+   A desktop dropdown is open while its `[data-menu-item]` is hovered (real hover only —
+   `(hover: hover)` keeps touch tablets from a sticky-hover flash), holds focus, or carries
+   `data-open` (first tap on touch). `data-dismissed` (Escape) wins over all three. The
+   CSS half works before hydration and without JavaScript. */
+@custom-variant menu-open {
+  @media (hover: hover) {
+    &:where(
+      [data-menu-item]:not([data-dismissed]):hover,
+      [data-menu-item]:not([data-dismissed]):hover *
+    ) {
+      @slot;
+    }
+  }
+  &:where(
+    [data-menu-item]:not([data-dismissed]):focus-within,
+    [data-menu-item]:not([data-dismissed]):focus-within *
+  ) {
+    @slot;
+  }
+  &:where(
+    [data-menu-item][data-open]:not([data-dismissed]),
+    [data-menu-item][data-open]:not([data-dismissed]) *
+  ) {
+    @slot;
+  }
+}
+
+/* ---- utilities --------------------------------------------------------------------------
+   What utilities express badly: masks, multi-layer backgrounds, the one neon CTA. */
+
+/* Frosted glass. On a pseudo-element (`before:glass`) when the host also holds glass
+   descendants: a backdrop-filter makes its element the backdrop root, so a glass dropdown
+   inside a glass header would have nothing to blur. The prefixed line comes FIRST — with
+   the unprefixed one first, Lightning CSS keeps only the prefixed declaration. */
+@utility glass {
+  background-color: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--glass-bg-solid);
+  }
+}
+
+/* The same glass, denser: for glass that carries small text over content we do not control
+   (the sticky header over photos, its dropdowns over the headline). `glass` is measured
+   against our own backdrops only — see --glass-bg-text in globals.css for the numbers. */
+@utility glass-text {
+  background-color: var(--glass-bg-text);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--glass-bg-solid);
+  }
+}
+
+/* The one red call to action (bar, burger overlay, hero, cookie "accept"); sizes come from
+   utilities. The gradient is --grad-red-cta, the text-bearing one (white clears AA on both
+   stops). Hover lifts through `translate`, not `transform`, so a GSAP entrance writing
+   `transform` on a wrapper never fights it.
+   The resting outline is transparent, so nothing shows — except in forced colours (Windows
+   High Contrast), which drop the gradient and the glow and paint the outline instead: the
+   button keeps a visible boundary. The focus ring is --txt, not the site's usual cyan: the
+   ring lands on the red glow on both sides, and cyan there measured 1.2–2.5:1 in the light
+   theme. --txt, rendered on the hero, header, cookie and open-burger neon: ≥6.4:1 against
+   the gap and the glow around it in the light theme, ≥6.7:1 in the dark one. */
+@utility cta-neon {
+  border: 0;
+  outline: 1px solid transparent;
+  outline-offset: -1px;
+  cursor: pointer;
+  color: var(--on-accent);
+  background-image: var(--grad-red-cta);
+  box-shadow: var(--neon-red);
+  transition:
+    translate 0.2s var(--motion-ease-out),
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+
+  @media (hover: hover) {
+    &:hover {
+      translate: 0 -2px;
+      filter: saturate(1.12);
+      box-shadow: var(--neon-red-strong);
+    }
+  }
+  &:focus-visible {
+    outline: 2px solid var(--txt);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover {
+      translate: none;
+    }
+  }
+}
+
+/* The HUD grid, one --grid-cell per square. */
+@utility cyber-grid {
+  background-image:
+    linear-gradient(var(--hud-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hud-grid-line) 1px, transparent 1px);
+  background-size: var(--grid-cell) var(--grid-cell);
+}
+
+/* The same grid laid down as a floor, fading into the horizon. It owns `transform`, so
+   `animate-grid-drift` goes on a child, never on this element. */
+@utility cyber-floor {
+  transform: perspective(700px) rotateX(64deg);
+  transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 80%);
+  mask-image: linear-gradient(to top, #000 10%, transparent 80%);
+}
+
+/* Horizontal edge fade (the ticker band). Masks read alpha only: #000 is "keep". */
+@utility edge-fade-x {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* Bottom fade (the hero grid dissolving into the page). */
+@utility fade-b {
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+}
+
+/* Radial fade (the Directions HUD screen's grid dissolving towards its edges). */
+@utility fade-radial {
+  -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent);
+  mask-image: radial-gradient(closest-side, #000 55%, transparent);
+}
+
+/* The interior stage's sticky layer: one viewport under the sticky header. `lvh` so the
+   mobile address bar never resizes the canvas; the `vh` line is the fallback for engines
+   without it (iOS below 15.4), where the model sits a little low while the bar shows. */
+@utility h-scene {
+  height: calc(100vh - var(--header-h));
+  height: calc(100lvh - var(--header-h));
+}
+
+/* Work's image parallax, on the compositor and without JavaScript: `view-work` names the
+   section's view timeline, `parallax-media` (on each card's image wrapper) plays
+   hud-parallax-media across it. Only where scroll-driven animations exist and motion is
+   allowed; everywhere else the image simply sits still. */
+@utility view-work {
+  view-timeline-name: --work-view;
+  view-timeline-axis: block;
+}
+@utility parallax-media {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: hud-parallax-media linear both;
+      animation-timeline: --work-view;
+      animation-range: cover 0% cover 100%;
+    }
+  }
+}
+
+/* Top level, not in the animations @theme block below: keyframes there are emitted only when
+   an `--animate-*` token that names them is used, and hud-parallax-media is referenced from
+   the `parallax-media` utility instead of a token. */
+@keyframes hud-parallax-media {
+  from {
+    transform: translate3d(0, -5%, 0) scale(1.12);
+  }
+  to {
+    transform: translate3d(0, 5%, 0) scale(1.12);
+  }
+}
+
+/* ---- animations -------------------------------------------------------------------------
+   Every one is transform- or opacity-only, so the compositor runs it, and the reduced-motion
+   switch in globals.css (`* { animation: none !important }`) stops all of them. Keyframe
+   names carry a `hud-` prefix: globals.css already owns `spin`, `pulse` and `blink`.
+   `marquee` moves one copy of its track per loop: the track renders --marquee-copies (5)
+   identical groups, so the seam lands exactly on the next group. */
+@theme inline {
+  --animate-marquee: hud-marquee var(--motion-marquee) linear infinite;
+  --animate-grid-drift: hud-grid-drift 2.4s linear infinite;
+  --animate-menu-in: hud-menu-in 0.28s var(--motion-ease-out);
+  --animate-cookie-rise: hud-cookie-rise 0.45s var(--motion-ease-reveal);
+  --animate-scan: hud-scan 7s linear infinite;
+  --animate-holo-spin: hud-holo-spin 18s linear infinite;
+  --animate-swap-in: hud-swap-in 0.32s var(--motion-ease-out);
+
+  @keyframes hud-marquee {
+    to {
+      transform: translate3d(calc(-100% / var(--marquee-copies, 5)), 0, 0);
+    }
+  }
+  @keyframes hud-grid-drift {
+    to {
+      transform: translate3d(0, var(--grid-cell), 0);
+    }
+  }
+  @keyframes hud-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes hud-cookie-rise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes hud-scan {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(100cqh);
+    }
+  }
+  /* The stat cards' wireframe hologram: a slow turn about y at a fixed downward tilt. */
+  @keyframes hud-holo-spin {
+    from {
+      transform: rotateX(-20deg) rotateY(0deg);
+    }
+    to {
+      transform: rotateX(-20deg) rotateY(360deg);
+    }
+  }
+  /* A direction's copy arriving when another pill is selected. */
+  @keyframes hud-swap-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

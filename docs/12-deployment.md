@@ -370,11 +370,74 @@ curl -s -o /dev/null -w "%{http_code}\n" https://tbs.md/api/content
 Pentru botul de notificare vezi [13 — Telegram](./13-telegram.md), secțiunea *Verificare după
 deploy*.
 
+## Frontend tooling in Docker (build, checks, lockfile)
+
+The frontend's checks run in throwaway containers, never on the host: the production image is
+`node:22-alpine` (musl), the E2E image is Playwright's `noble` (glibc), and Tailwind v4 brings
+**native binaries** (`lightningcss`, `@tailwindcss/oxide`) that differ per platform. A
+`node_modules` built on Windows is useless in either image, so `node_modules` and `.next` live
+in **named volumes**, one pair per image, and the host tree only holds the source.
+
+| Volume | Mounted at | Image |
+|--------|-----------|-------|
+| `tbs_nm_alpine` / `tbs_next_alpine` | `/app/node_modules` / `/app/.next` | `node:22-alpine` |
+| `tbs_nm_noble` / `tbs_next_noble` | `/app/node_modules` / `/app/.next` | `mcr.microsoft.com/playwright:v1.62.1-noble` |
+
+Git Bash (`MSYS_NO_PATHCONV=1` stops MSYS rewriting `/app`; in PowerShell drop it and use
+`${PWD}` instead of `$(pwd -W)`):
+
+```bash
+# build → type-check → lint → unit tests (alpine = the production platform)
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/app" \
+  -v tbs_nm_alpine:/app/node_modules -v tbs_next_alpine:/app/.next \
+  --tmpfs /app/.claude -w /app -e NEXT_TELEMETRY_DISABLED=1 -e NEXT_PUBLIC_API_URL= \
+  node:22-alpine sh -c "npm ci && npm run build && npx tsc --noEmit && npm run lint && npm test"
+```
+
+- **`next build` before `tsc`**: the build generates `next-env.d.ts` and the route types under
+  `.next/` that the type check reads; on a fresh checkout `tsc` alone fails.
+- **`--tmpfs /app/.claude`** whenever agent worktrees exist under `.claude/worktrees/`: without
+  it the `tsconfig` includes, ESLint and Vitest also pick up those copies of the source.
+- `npm ci` is only needed when the volume is empty or `package-lock.json` changed.
+- E2E runs in the noble image with its own volumes — the command is in
+  [14 — Testing](./14-testing.md#end-to-end--playwright).
+
+### Changing a dependency: regenerate the lockfile in Linux
+
+Don't change `package.json` / `package-lock.json` from the host. npm can leave another
+platform's optional native packages out of the lockfile when it resolves against an existing
+`node_modules`, and a lockfile without the **musl** entries breaks the alpine image: Lightning
+CSS and Tailwind's oxide have no binary to load. So a dependency change is made in
+`node:22-alpine`, against a **fresh, empty** volume used for nothing else:
+
+```bash
+docker volume create tbs_nm_lockgen        # new and empty
+MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/app" -v tbs_nm_lockgen:/app/node_modules \
+  --tmpfs /app/.claude -w /app node:22-alpine \
+  sh -c "npm install --save-exact <package>@<version>"   # add --save-dev for build-time tools
+docker volume rm tbs_nm_lockgen            # then `npm ci` into the usual volumes
+```
+
+Runtime dependencies are pinned **exactly** (`--save-exact`); `@types/three` is held to three's
+minor with `~` (npm writes `^`, so fix `package.json` and the lockfile's root entry by hand, then
+confirm with `npm ci`). Never use `--force` or `--legacy-peer-deps`: an ERESOLVE is the answer.
+
+Then check, before committing:
+
+```bash
+# 1. all six native entries are in the lockfile (lightningcss + oxide × musl, glibc, win32)
+grep -cE '"node_modules/(@tailwindcss/oxide|lightningcss)-(linux-x64-musl|linux-x64-gnu|win32-x64-msvc)"' package-lock.json   # → 6
+# 2. exactly one copy of three
+grep -cE '"node_modules/[^"]+/node_modules/three"' package-lock.json                                                            # → 0
+# 3. npm ci works on BOTH platforms: the alpine command above, and the noble one in docs/14
+```
+
 ## Local dev without Docker
 
 ```bash
-# Frontend
-npm install && npm run dev            # http://localhost:3000
+# Frontend — `npm ci`, never `npm install`: install can drop other platforms' native entries
+# from the lockfile (see "Changing a dependency" above). The checks themselves run in Docker.
+npm ci && npm run dev                 # http://localhost:3000
 
 # Backend
 cd backend && python -m venv .venv && source .venv/bin/activate

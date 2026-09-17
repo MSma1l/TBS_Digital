@@ -13,6 +13,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useLoc, type LocalizedText, type MaybeLocalized } from "@/lib/i18n/content";
+import { coverPage } from "@/lib/scrollLock";
 import styles from "./Modal.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -58,6 +59,10 @@ function focusableWithin(root: HTMLElement): HTMLElement[] {
    Shared module state, not per-instance: two stacked modals must lock once and
    unlock once. Without the counter the inner modal's cleanup would "restore"
    the styles the *outer* lock had already applied and scroll the page to 0.
+
+   The lock also holds one page cover (lib/scrollLock.ts) for as long as any dialog is up:
+   `body{position:fixed}` makes `scrollY` read 0 and the backdrop blurs the whole page, so
+   the interior WebGL stage stops drawing underneath.
    --------------------------------------------------------------------------- */
 
 type BodyStyleSnapshot = {
@@ -73,9 +78,11 @@ type BodyStyleSnapshot = {
 let lockCount = 0;
 let lockedSnapshot: BodyStyleSnapshot | null = null;
 let lockedScrollY = 0;
+let releaseCover: (() => void) | null = null;
 
 function lockBodyScroll() {
   if (lockCount++ > 0) return;
+  releaseCover = coverPage();
 
   const body = document.body;
   lockedScrollY = window.scrollY;
@@ -110,13 +117,20 @@ function unlockBodyScroll() {
   if (lockCount === 0) return;
   if (--lockCount > 0) return;
 
+  const release = releaseCover;
+  releaseCover = null;
   const snapshot = lockedSnapshot;
   lockedSnapshot = null;
-  if (!snapshot) return;
-
-  Object.assign(document.body.style, snapshot);
-  // The body was pinned, so the viewport sat at 0 — put it back where it was.
-  window.scrollTo(0, lockedScrollY);
+  if (snapshot) {
+    Object.assign(document.body.style, snapshot);
+    /* The body was pinned, so the viewport sat at 0 — put it back where it was, at once.
+       A plain `scrollTo(0, y)` follows `html { scroll-behavior: smooth }` (globals.css): the
+       page reappeared at the top and scrolled down to the visitor's place over ~25 frames. */
+    window.scrollTo({ top: lockedScrollY, left: 0, behavior: "instant" });
+  }
+  /* The cover goes last: whoever hears it lift (the interior stage re-measures the page then)
+     must find the body unpinned and the scroll position back. */
+  release?.();
 }
 
 export type ModalProps = {

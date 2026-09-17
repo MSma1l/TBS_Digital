@@ -1,7 +1,15 @@
+@layer properties, theme, base, components, utilities;
 /* ============================================================
    TBS Digital — global styles
    Design tokens, base typography, keyframes and shared utilities.
    See docs/04-design-system.md
+
+   The @layer statement above must stay the first rule of the file. It fixes the cascade
+   order of Tailwind's layers before any of them appears; app/tailwind.css repeats it and
+   explains why `properties` leads.
+   Everything in this file is unlayered except the `@layer base` element rules below, and
+   unlayered CSS beats layered CSS whatever its specificity: these globals and every
+   *.module.css always win over a Tailwind utility.
    ============================================================ */
 
 :root {
@@ -42,7 +50,7 @@
 
      ⚠ --green and --amber were previously described here as clearing AA as text. They do
      not; the numbers above are measured. --amber and --cyan are still used as text in
-     places (Partners, StatusBar, the legal pages, the admin panel) and want the same
+     places (Partners, the legal pages, the admin panel) and want the same
      *-text treatment — see docs/04-design-system.md. */
   --red: #ef263d;
   --blue: #3970ff;
@@ -97,6 +105,82 @@
   --grad-red: linear-gradient(135deg, var(--red-lift), var(--red));
   --sh-red: 0 10px 24px rgba(245, 51, 63, 0.3);
   --sh-red-strong: 0 14px 30px rgba(245, 51, 63, 0.42);
+  /* --grad-red is decoration, not a text background: white on it measures 3.15:1 at the
+     --red-lift stop and 4.19:1 at --red. A button LABEL sits on this deeper twin instead —
+     white measures 4.72:1 on #e0213a (its lightest stop) and 6.88:1 on #b50e22, so small
+     bold CTA text clears AA everywhere along the gradient. Same hue family as --red. */
+  --grad-red-cta: linear-gradient(135deg, #e0213a, #b50e22);
+
+  /* ---- HUD layer: the first screen (preloader, header, hero, ticker, cookie banner) ----
+     --void is the preloader's backdrop and the dark page colour. It is NEVER remapped: the
+     intro overlay stays dark in the light theme too, and the 3D scene reads it as hex. */
+  --void: #0a0b10;
+  /* Glass. The -solid twin replaces the blur where backdrop-filter is missing or too
+     costly (phones). Text on glass is measured against the WORST pixel that can show
+     through — the darkest under this light sheet, the brightest under the dark one — not
+     against the glass tint alone.
+     --glass-bg is decorative glass over a backdrop we control (hero cards, the secondary
+     hero CTA): over --bg, --mut measures 5.59:1, but over --ink only 3.09:1 and over black
+     2.86:1. Glass that carries small text over whatever scrolls by (the sticky header, its
+     dropdowns) uses the -text twin: --mut 4.54:1 and --blue-text 4.93:1 even over black
+     (4.65 / 5.04 over --ink; rendered over a black block, 4.56 / 4.90), blur kept. */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-text: rgba(255, 255, 255, 0.9);
+  --glass-bg-solid: rgba(255, 255, 255, 0.94);
+  --glass-line: rgba(16, 23, 42, 0.12);
+  --glass-blur: 14px;
+  /* Neon: stacked shadows (hairline ring + near glow + far glow) for fills that read as lit. */
+  --glow-red: rgba(239, 38, 61, 0.45);
+  /* The hero's two key lights (Hero.tsx) sit behind its copy: the red one (at opacity .6)
+     under the lead from 861px up, the blue one under the eyebrow and the lead on phones.
+     At the shared --glow-red / --glow strengths the light page dropped the lead (--mut) to
+     3.8–4.1:1 at 861–1280px and 3.7 at 390, and the eyebrow (--red-text) to 3.6 at 390.
+     With these twins, measured on rendered pixels: the lead ≥4.53:1 on every pixel behind
+     it at 861 and 1280, and ≥4.57 on 95% of them at 390 (the rest are the 1px HUD grid
+     lines); the eyebrow ≥4.68 on 95% at 390. Dark keeps the full glows (lead ≥7.2:1). */
+  --hero-glow-red: rgba(239, 38, 61, 0.08);
+  --hero-glow-blue: rgba(47, 107, 239, 0.06);
+  /* The hero core illustration behind the copy on phones (Hero.tsx, below 861px). Measured as
+     the mean luminance change over the core's box with the text hidden (×1000, 320–390px):
+     light, at .4 the art already matches the WebGL core it crossfades into (art 2.6–3.2,
+     canvas 2.5–2.9 under the scrim below), so the dark ink under dark text stays faded; dark,
+     at .4 the art measured 0.3 against the canvas's 1.03 and the hero visibly brightened when
+     WebGL took over — see --dark-hero-core-phone. */
+  --hero-core-phone: 0.4;
+  /* The phone scrim's strength (Hero.tsx [data-scene-scrim], below 861px): the pool of page
+     colour between the core and the copy. The light lead (--mut) needs more of it: at .8, over
+     the forced WebGL core, 5.7% of its pixels measured under 4.5:1 at 390px (min 4.17) and the
+     static art took it to 4.38; at .92 the lead clears 4.5 again. Dark keeps .8 (lead ≥5.6:1). */
+  --hero-scrim: 0.92;
+  --neon-red:
+    0 0 0 1px rgba(255, 83, 98, 0.5), 0 0 18px rgba(239, 38, 61, 0.45),
+    0 8px 24px rgba(239, 38, 61, 0.3);
+  --neon-red-strong:
+    0 0 0 1px rgba(255, 83, 98, 0.7), 0 0 26px rgba(239, 38, 61, 0.65),
+    0 0 60px rgba(239, 38, 61, 0.4), 0 14px 34px rgba(239, 38, 61, 0.42);
+  --neon-blue: 0 0 0 1px rgba(57, 112, 255, 0.45), 0 0 16px rgba(57, 112, 255, 0.35);
+  --hud-grid-line: rgba(57, 112, 255, 0.1);
+  --grid-cell: 64px;
+
+  /* ---- stacking order -------------------------------------------------------
+     One ladder for every fixed/sticky layer, low → high. The header sits ABOVE the burger
+     overlay on purpose: the overlay slides in under it, so the burger stays usable. The
+     request dialog outranks everything interactive; only the first-visit intro is above it. */
+  --z-nav-overlay: 115;
+  --z-header: 120;
+  --z-dropdown: 130;
+  --z-lang-popup: 200;
+  --z-cookie: 280;
+  --z-progress: 300;
+  --z-modal: 320;
+  --z-intro: 400;
+
+  /* ---- motion -------------------------------------------------------------- */
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* the ease of the [data-reveal] scroll reveal below */
+  --motion-ease-reveal: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* one ticker group per loop — the speed the -50%/28s two-copy ticker already had */
+  --motion-marquee: 28s;
 
   /* ---- elevation ---------------------------------------------------------- */
   --sh-sm: 0 2px 8px rgba(17, 24, 39, 0.06);
@@ -151,6 +235,13 @@
      still carry a few older thresholds; don't churn them just to align — changing a
      breakpoint changes a layout someone signed off on. */
   --maxw: 1280px;
+  /* The site's horizontal gutter (see .section below), named so new code can use it. */
+  --gutter: clamp(16px, 4vw, 40px);
+  /* The header row is 13px padding + the 44px tap-target row + 13px + a 1px border, at
+     every width; the ticker band under the hero is built to 64px. Anything that has to
+     clear the sticky header (the burger overlay's top padding) reads these. */
+  --header-h: 71px;
+  --ticker-h: 64px;
 
   /* font families (bound to next/font variables in layout.tsx) */
   /* Archivo first (Latin), Montserrat second for Cyrillic glyphs Archivo lacks —
@@ -167,17 +258,24 @@
    remap the real tokens onto them, so the palette cannot drift between "the visitor
    chose dark" and "the OS is dark".
 
-   Three states, deliberately:
-     · an explicit choice stamps data-theme="dark" | "light" (set before first paint
-       by the inline script in app/layout.tsx, so there is no light flash);
-     · no choice at all -> follow the OS, unless the visitor explicitly picked light.
+   Dark is the default:
+     · an explicit choice is stamped as data-theme="dark" | "light" by the server (from the
+       tbs_theme cookie) and again by the inline script in app/layout.tsx;
+     · no choice at all is stamped data-theme="dark" the same way — the OS setting no
+       longer decides. The prefers-color-scheme block below is only the fallback for a
+       document that arrives with no data-theme at all.
 
    Text tones are NOT the light ones reused: --green, --amber and --red-text are darkened
    for a light background and would fall under AA on #181e30, so dark gets its own set.
    ============================================================ */
 :root {
-  --dark-bg: #101422;
-  --dark-bg2: #0b0e18;
+  /* The page is the HUD's near-black (#0a0b10, same as --void), bg2 one step deeper so it
+     still reads as "below" the page. Against the previous #101422 every text pairing gains:
+     --dark-txt 17.13 -> 18.36:1, --dark-mut 9.18 -> 9.85, --dark-dim 7.04 -> 7.54,
+     --dark-blue-text 8.58 -> 9.19, and the --red border/glow 4.38 -> 4.69. Cards separate
+     more clearly too (--dark-panel on bg: 1.11 -> 1.19). */
+  --dark-bg: #0a0b10;
+  --dark-bg2: #06070b;
   --dark-panel: #181e30;
   --dark-panel2: #1f2639;
   --dark-line: #2c354c;
@@ -197,8 +295,8 @@
   /* the small-text red, lifted for a dark surface. Same hue as --red (H354 vs H353),
      saturation pushed to 100% so it stays a brand red rather than a dusty pink, and
      lightness raised L54% -> L71% — only a step above --red-lift (L66%), which the CTA
-     gradient already puts on screen. Measured: --panel 6.03:1, --bg 6.67:1,
-     --panel2 5.48:1, --bg2 7.01:1, the Estimator summary tint 4.68:1. */
+     gradient already puts on screen. Measured: --panel 6.03:1, --bg 7.15:1,
+     --panel2 5.48:1, --bg2 7.33:1, the Estimator summary tint 4.68:1. */
   --dark-red-text: #ff6b7b;
   --dark-blue-text: #8fb0ff;
   /* On dark, --dark-green already clears AA (8.92:1 on --panel), so it doubles as the
@@ -215,6 +313,31 @@
   --dark-sh-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
   --dark-sh-md: 0 10px 28px rgba(0, 0, 0, 0.5);
   --dark-sh-lg: 0 18px 55px rgba(0, 0, 0, 0.53);
+  /* Dark glass is the panel colour, a little more see-through than the light sheet. Over
+     --dark-bg, --dark-txt measures 16.72:1, --dark-mut 8.97:1, --dark-red-text 6.51:1 — but
+     over a white photo only 4.39 / 2.36 / 1.71, which is why it stays decorative. The -text
+     twin (header, dropdowns) keeps --dark-mut at 5.02:1 and --dark-blue-text at 4.68:1
+     over pure white (rendered: 5.02 / 4.64; 8.59 / 8.02 over --dark-bg); the -solid one
+     7.01 / 6.54. */
+  --dark-glass-bg: rgba(24, 30, 48, 0.62);
+  --dark-glass-bg-text: rgba(24, 30, 48, 0.84);
+  --dark-glass-bg-solid: rgba(24, 30, 48, 0.94);
+  --dark-glass-line: rgba(246, 247, 251, 0.12);
+  --dark-hud-grid-line: rgba(120, 150, 255, 0.09);
+  /* the full key lights: over the near-black page the lead keeps 7:1 and more under them */
+  --dark-hero-glow-red: var(--glow-red);
+  --dark-hero-glow-blue: var(--glow);
+  /* Light strokes on the near-black page: whole, the art (0.95–1.01) is about as present as
+     the canvas that replaces it (1.02–1.04), and the copy over it keeps ≥5.6:1. */
+  --dark-hero-core-phone: 1;
+  --dark-hero-scrim: 0.8;
+}
+
+/* Phones: a lighter blur (the GPU cost of backdrop-filter scales with its radius). */
+@media (max-width: 640px) {
+  :root {
+    --glass-blur: 8px;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -243,6 +366,15 @@
     --sh-sm: var(--dark-sh-sm);
     --sh-md: var(--dark-sh-md);
     --sh-lg: var(--dark-sh-lg);
+    --glass-bg: var(--dark-glass-bg);
+    --glass-bg-text: var(--dark-glass-bg-text);
+    --glass-bg-solid: var(--dark-glass-bg-solid);
+    --glass-line: var(--dark-glass-line);
+    --hud-grid-line: var(--dark-hud-grid-line);
+    --hero-glow-red: var(--dark-hero-glow-red);
+    --hero-glow-blue: var(--dark-hero-glow-blue);
+    --hero-core-phone: var(--dark-hero-core-phone);
+    --hero-scrim: var(--dark-hero-scrim);
   }
 }
 
@@ -271,6 +403,15 @@
   --sh-sm: var(--dark-sh-sm);
   --sh-md: var(--dark-sh-md);
   --sh-lg: var(--dark-sh-lg);
+  --glass-bg: var(--dark-glass-bg);
+  --glass-bg-text: var(--dark-glass-bg-text);
+  --glass-bg-solid: var(--dark-glass-bg-solid);
+  --glass-line: var(--dark-glass-line);
+  --hud-grid-line: var(--dark-hud-grid-line);
+  --hero-glow-red: var(--dark-hero-glow-red);
+  --hero-glow-blue: var(--dark-hero-glow-blue);
+  --hero-core-phone: var(--dark-hero-core-phone);
+  --hero-scrim: var(--dark-hero-scrim);
 }
 
 /* Let the browser paint form controls, scrollbars and the like to match. */
@@ -281,12 +422,36 @@
   color-scheme: light;
 }
 
-* {
-  box-sizing: border-box;
+/* The three element rules a Tailwind utility must be able to override. Unlayered, `a { color:
+   inherit }` would beat `text-*` on a link and `button { font-family: inherit }` would beat
+   `font-hud` on a button, whatever the specificity. In the base layer they lose to utilities
+   and still lose to every unlayered module class, so nothing else changes. */
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  input,
+  textarea,
+  button {
+    font-family: inherit;
+  }
+
+  a {
+    color: inherit;
+  }
 }
 
 html {
   scroll-behavior: smooth;
+}
+
+/* While the interior stage's ScrollTrigger measures (it jumps the page to 0 and back), the
+   jump must be instant: a smooth one would leave its inline `scroll-behavior` on <html> and
+   measure mid-animation. `data-scroll-measure` is set only around a refresh
+   (components/scene/scrollGuard.ts). */
+html[data-scroll-measure] {
+  scroll-behavior: auto;
 }
 
 body {
@@ -314,16 +479,6 @@ body {
 ::selection {
   background: var(--blue);
   color: var(--on-accent);
-}
-
-input,
-textarea,
-button {
-  font-family: inherit;
-}
-
-a {
-  color: inherit;
 }
 
 /* ---------- typographic helpers ---------- */
@@ -419,7 +574,7 @@ a {
   left: 0;
   height: 2px;
   width: 0%;
-  z-index: 300;
+  z-index: var(--z-progress);
   background: linear-gradient(90deg, var(--blue), var(--violet2), var(--cyan));
   box-shadow: 0 0 10px var(--glow);
 }

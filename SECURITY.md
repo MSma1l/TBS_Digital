@@ -62,6 +62,70 @@ Regression tests: `backend/tests/test_security_hardening.py` (XFF spoof, prod gu
 plus upload polyglot/re-encode/storage-budget cases in `test_uploads.py` and the CSP assertion
 in `test_security_http.py`.
 
+## Round 3 — first-screen HUD redesign (2026-09-16)
+
+The redesign added the frontend's first third-party runtime libraries — three.js,
+@react-three/fiber, GSAP — plus Tailwind at build time, a session cookie and an inline
+`<noscript>` style. A read-only performance / CSP / security review covered the whole diff and
+ran the built site under a browser; no CRITIC, ÎNALT or MEDIU security finding.
+
+| # | Finding | Severity | Status | Where fixed |
+|---|---------|----------|--------|-------------|
+| SEC-1 | The ESLint rule that keeps CSP-breaking 3D imports out missed three.js paths that need wasm, workers or a CDN fetch (`three/addons` barrel, `libs/*` decoders, `physics/*`, `WorkerPool`, `troika-three-text`, `@dimforge/*`) — they would lint clean and fail only in the browser | SCĂZUT | **Fixed** | Ban list + dynamic-`import()` selector extended, both spellings (`eslint.config.mjs`); verified by linting probe sources through stdin |
+
+Verified, no change needed:
+
+- **CSP unchanged** (`proxy.ts`): 0 `securitypolicyviolation` events across first visit,
+  returning visit, reduced motion, a service page, the admin and forced WebGL. The gsap and
+  three/R3F chunks contain no `eval(`, `new Function`, `new Worker` or `WebAssembly`; the 3D
+  environment is procedural (no fetch); GSAP/R3F write styles through the CSSOM. The
+  `<noscript><style>` that hides the intro without JS relies on the existing
+  `style-src 'unsafe-inline'`. Details: [docs/11-security.md](docs/11-security.md).
+- **`tbs_intro` cookie**: session, `path=/`, `SameSite=Lax`, written from JS like the other
+  preference cookies; only the literal `seen` counts and the value never reaches the DOM.
+  Listed as essential in the cookie policy.
+- **`x-pathname`**: overwritten by `proxy.ts` on document requests and only compared with `"/"`;
+  a forged header on a prefetch request can only toggle the overlay in the sender's own
+  response (no page caching).
+- **User input into the DOM**: the intro's `location.hash` check goes through
+  `getElementById`; nothing reaches `innerHTML`.
+- **Dependencies**: runtime packages pinned exactly (three 0.186.0 and @react-three/fiber 9.7.0,
+  MIT; gsap 3.15.0 and @gsap/react 2.1.2, GSAP Standard "no charge" licence). 54 lockfile
+  entries added, none with install scripts. `@types/three` pulls dev-only packages (Rapier,
+  meshoptimizer, fflate, tween.js) that are never bundled.
+- **Admin route**: loads neither Tailwind nor the intro; now dark by default, which only raises
+  contrast on its fixed colours.
+
+## Round 4 — interior 3D stage (2026-09-17)
+
+The interior redesign — a sticky WebGL scene behind the home page's first three sections, GSAP
+ScrollTrigger, static SVG art, holographic stat cards, Directions and Work rebuilt in Tailwind —
+added **no dependency** (`package.json` and the lockfile are unchanged). Three read-only reviews
+covered it (correctness and lifecycle; accessibility and UX; performance, weight, CSP and
+security) on built snapshots in a browser, and all their findings were fixed. One finding
+touched the security tooling; no CRITIC, ÎNALT or MEDIU security finding.
+
+| # | Finding | Severity | Status | Where fixed |
+|---|---------|----------|--------|-------------|
+| SEC-2 | The ESLint ban that keeps three.js / R3F / GSAP out of the up-front bundle matched exact package names only: subpaths (`gsap/ScrollTrigger.js`, `gsap/Observer`, `three/webgpu`) and the site's own heavy modules (`@/components/three/runtime`, `SceneDirector`, `SceneWorld`) linted clean in section files, several up-front files were outside its list, and `import type` was wrongly refused. The same file-scoped block must repeat the CSP bans | SCĂZUT | **Fixed** | `eslint.config.mjs` (subpath patterns, a regex for the site's modules, `allowTypeImports`, 7 more files), mirrored in `components/__tests__/scene-contract.test.ts`; verified with 20 lint probes through stdin |
+
+Verified, no change needed:
+
+- **CSP unchanged** (`proxy.ts`). The scene is procedural (no fetch, workers or wasm); the scene,
+  director, gsap, probe and stage chunks contain no `eval`, `new Function`, `Worker`,
+  `WebAssembly` or `createObjectURL`. Inline style attributes (`--accent`, `--p1/--p2`, hologram
+  and tilt transforms, R3F and GSAP writes) come from constants and fall under the existing
+  `style-src 'unsafe-inline'`. `e2e/interior.spec.ts` and `e2e/interior-webgl.spec.ts` assert 0
+  CSP violations on every run. Details: [docs/11-security.md](docs/11-security.md#the-interior-3d-stage-2026-09-17).
+- **`tbs_gpu_probe`** (`sessionStorage`): booleans only (`context`, `software`, optional `lost` /
+  `slow`), versioned, rebuilt on every read and write; the WebGL renderer string is never stored
+  (it would be a fingerprint). Listed as essential in the cookie policy (RO/RU/EN).
+  `tbs_scene_3d` (`localStorage`) is a QA key the site only reads.
+- **No permission prompts**: iOS's `DeviceOrientationEvent.requestPermission()` is never called.
+- **No debug global**: the E2E specs read the scene's probe through React fiber props.
+- **Admin data into the DOM**: the Work and Directions tag chips split the admin's text on "·" and
+  render it through React, as before; no `innerHTML`.
+
 ## Verified secure (no change needed)
 
 - **SQL injection:** 100% ORM/parameterized; zero raw SQL / `text()` / f-string queries.

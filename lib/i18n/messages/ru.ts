@@ -20,7 +20,6 @@ export const ru: Record<MessageKey, string> = {
     "Индивидуальный софт, мобильные приложения, автоматизация на ИИ, CRM, SaaS и платформы, которые растят ваш бизнес — от стратегии до запуска.",
   "hero.cta.primary": "Рассчитать цену ↗",
   "hero.cta.secondary": "Смотреть услуги",
-  "hero.scrollHint": "ЛИСТАЙ — СИСТЕМА АКТИВИРУЕТСЯ ↓",
 
   // --- Principles (/02) ---
   "principles.label": "ИНДИВИДУАЛЬНЫЙ ПОДХОД",
@@ -205,6 +204,8 @@ export const ru: Record<MessageKey, string> = {
   "nav.cta": "НАЧАТЬ ПРОЕКТ ↗",
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",
+  "nav.primaryAria": "Основная",
+  "header.sysTime": "SYS_TIME",
 
   // --- Theme toggle ---
   "theme.toggleAria": "Тёмная тема",
@@ -254,4 +255,11 @@ export const ru: Record<MessageKey, string> = {
   "cookie.accept": "Принять",
   "cookie.reject": "Отклонить",
   "cookie.settings": "Только необходимые",
+
+  // --- Intro preloader ---
+  "intro.status": "SYSTEM_SYNCHRONIZATION",
+  "intro.complete": "ACCESS_GRANTED",
+  "intro.progressAria": "Загрузка TBS Digital",
+  "intro.skip": "Пропустить интро",
+  "intro.skipKey": "ESC",
 };
