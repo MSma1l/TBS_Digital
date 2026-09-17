@@ -43,6 +43,11 @@ describe("scene tiers — budgets", () => {
       ["packages", high.packages, mid.packages],
       ["satellites", high.satellites, mid.satellites],
       ["link", high.link[0] * high.link[1], mid.link[0] * mid.link[1]],
+      ["helix tube", high.helixTube[0] * high.helixTube[1], mid.helixTube[0] * mid.helixTube[1]],
+      ["helix chips", high.helixChips, mid.helixChips],
+      ["helix rungs", high.helixRungs, mid.helixRungs],
+      ["helix bits", high.helixBits, mid.helixBits],
+      ["hologram", high.hologram[0] * high.hologram[1], mid.hologram[0] * mid.hologram[1]],
     ];
     for (const [name, h, m] of counts) expect(h, name).toBeGreaterThanOrEqual(m);
   });
@@ -59,6 +64,30 @@ describe("scene tiers — budgets", () => {
     expect(mid.waveSubdiv).toBe(24);
     // Columns get half a row's segments: both tiers split evenly.
     for (const tier of [high, mid]) expect(tier.waveSubdiv % 2).toBe(0);
+  });
+
+  it("the Work helix: 160×4 tubes, 80 chips, 22 rungs, 36 bits, a 384×240 hologram on high; 100×3, 52, 14, 20, 256×160 on mid", () => {
+    expect([high.helixTube, high.helixChips, high.helixRungs, high.helixBits, high.hologram]).toEqual([
+      [160, 4],
+      80,
+      22,
+      36,
+      [384, 240],
+    ]);
+    expect([mid.helixTube, mid.helixChips, mid.helixRungs, mid.helixBits, mid.hologram]).toEqual([
+      [100, 3],
+      52,
+      14,
+      20,
+      [256, 160],
+    ]);
+    for (const tier of [high, mid]) {
+      // Chips split evenly between the two strands; the hologram is 16:10 and never above 384px
+      // wide, so a screenshot's fine print stays illegible on it.
+      expect(tier.helixChips % 2).toBe(0);
+      expect(tier.hologram[0] / tier.hologram[1]).toBe(1.6);
+      expect(tier.hologram[0]).toBeLessThanOrEqual(384);
+    }
   });
 
   it("only high antialiases; no tier configures the glass core any more", () => {

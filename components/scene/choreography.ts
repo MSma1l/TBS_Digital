@@ -14,7 +14,7 @@
  */
 
 import type { DocRect, ScrollProbe } from "@/lib/scene";
-import { CHIP, MODEL_RADIUS } from "./shapes";
+import { CHIP, HELIX, MODEL_RADIUS } from "./shapes";
 
 export const SCENE_CAMERA = { z: 10, fov: 35, near: 0.1, far: 60 } as const;
 
@@ -240,6 +240,86 @@ export function coreReveal(e: number): number {
   return 1 - smoothstep(0.6, 1, e);
 }
 
+/* ---- the Work helix -------------------------------------------------------------------- */
+
+/** The spiral's helix is this share of its sticky zone's height tall (the zone: one layer). */
+export const HELIX_ZONE_FILL = 0.9;
+/**
+ * The ambient helix (phones, or fewer than three cards): lying down in the free band above Work's
+ * heading (`probe.workGap`: the previous section's bottom padding plus Work's top padding, ~84px on
+ * a phone), this share of the canvas's width long — never taller on screen than `maxPx`, nor than
+ * the band less `clear` px above and below, so it touches neither the Directions panel nor the
+ * eyebrow. At full brightness: behind the copy the chips' flares and the packet comets had to be
+ * dimmed to nothing to keep the text's contrast (0.07 on the dark page, 0 on the light one); in the
+ * band it lies over no text at all (measured 2026-09-17, see `CHANGELOG.md`, Faza 3).
+ */
+export const HELIX_AMBIENT = { length: 0.6, maxPx: 120, clear: 10 } as const;
+/**
+ * How far the helix reaches from its axis, local units: a strand plus a chip riding on it (under
+ * 1.0), and the 0/1 bits drifting up to 1.2 from the axis plus half a glyph's diagonal
+ * (models/helix.ts `HELIX_BIT`; scene-helix-model.test.ts checks every part against it).
+ */
+export const HELIX_REACH = 1.26;
+
+/**
+ * The document y of the spiral's sticky zone (one layer tall): under the header while the track
+ * scrolls past, never above the track's top nor below its bottom — where the sticky cards are.
+ */
+export function helixZoneTop(track: DocRect, scrollY: number, headerH: number, zoneH: number): number {
+  const y = Number.isFinite(scrollY) ? scrollY : 0;
+  return Math.min(Math.max(y + headerH, track.y), Math.max(track.y, track.y + track.h - zoneH));
+}
+
+/**
+ * The spiral's helix at `scrollY`: its axis at `cx` of the track's width (helix.ts
+ * `HELIX_LAYOUT.cx`, the same axis the cards orbit), centred on the sticky zone, as tall as
+ * `HELIX_ZONE_FILL` of it. A rigid follow — the zone is stuck under the header while the cards
+ * turn, so nothing drifts against them. Null before the director has measured the track.
+ */
+export function placeHelixSpiral(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  cx: number,
+  out: Placement = { x: 0, y: 0, scale: 1 },
+): Placement | null {
+  const track = probe.work;
+  if (!probe.live || !track) return null;
+  const zoneH = probe.layerH > 0 ? probe.layerH : h;
+  const top = canvasDocTop(scrollY, probe, h);
+  const k = worldPerPx(h);
+  const zoneCentre = helixZoneTop(track, scrollY, probe.headerH, zoneH) + zoneH / 2;
+  out.x = (track.x + cx * track.w - w / 2) * k;
+  out.y = -(zoneCentre - top - h / 2) * k;
+  out.scale = (HELIX_ZONE_FILL * zoneH * k) / HELIX.height;
+  return out;
+}
+
+/**
+ * The ambient helix at `scrollY`: lying in the band above Work's heading (`probe.workGap`), centred
+ * on it, `HELIX_AMBIENT.length` of the canvas's width long and at most `HELIX_AMBIENT.maxPx` — or
+ * the band less `HELIX_AMBIENT.clear` on each side — tall once lying down (all of `HELIX_REACH`,
+ * bits included). A band too thin for it gives scale 0. Null before the director has measured Work.
+ */
+export function placeHelixAmbient(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  out: Placement = { x: 0, y: 0, scale: 1 },
+): Placement | null {
+  const gap = probe.workGap;
+  if (!probe.live || !gap) return null;
+  const top = canvasDocTop(scrollY, probe, h);
+  const k = worldPerPx(h);
+  const tall = Math.max(0, Math.min(HELIX_AMBIENT.maxPx, gap.h - 2 * HELIX_AMBIENT.clear));
+  out.x = (gap.x + gap.w / 2 - w / 2) * k;
+  out.y = -(gap.y + gap.h / 2 - top - h / 2) * k;
+  out.scale = Math.min((HELIX_AMBIENT.length * w * k) / HELIX.height, (tall * k) / (2 * HELIX_REACH));
+  return out;
+}
+
 /* ---- morph between service models ---------------------------------------------------- */
 
 /**
@@ -266,7 +346,8 @@ const MORPH_STEP_MAX = 1 / 20;
  *  · before the cloud (t < .5) nothing on screen depends on `to`, so a new target simply
  *    replaces it — unless it is `from` again, which dissolves back the way it came;
  *  · while re-forming (t > .5) a new target first walks back to the cloud;
- *  · `instant` (the services entrance owns the swarm) jumps straight to the target, formed.
+ *  · `instant` (the services entrance or the Work handoff owns the swarm) jumps straight to the
+ *    target, formed.
  */
 export function stepMorph(state: MorphState, target: number, dt: number, instant = false): void {
   if (instant) {
@@ -325,14 +406,16 @@ export type ModelReveal = { index: number; reveal: number };
  */
 export const BURST = -1;
 
+/** The swarm slot of the Work helix's silhouette (`aS0`): past Work's band the services model's swarm lands on it. */
+export const HELIX_SLOT = 0;
+
 export type SceneComposition = {
-  /**
-   * Swarm slots: 1 + i = service model i; `from` may be `BURST`. Slot 0 (the chip's silhouette
-   * until the Work helix takes it) is never planned.
-   */
+  /** Swarm slots: 1 + i = service model i, `HELIX_SLOT` the Work helix; `from` may be `BURST`. */
   swarm: SwarmPlan;
   /** At most two models are drawn; the same index twice means one model (take the max). */
   models: [ModelReveal, ModelReveal];
+  /** The Work helix's reveal: 0 not drawn → 1 formed. */
+  helix: number;
 };
 
 export function createComposition(): SceneComposition {
@@ -342,6 +425,7 @@ export function createComposition(): SceneComposition {
       { index: 0, reveal: 0 },
       { index: 0, reveal: 0 },
     ],
+    helix: 0,
   };
 }
 
@@ -360,23 +444,35 @@ function setModels(out: SceneComposition, a: number, revealA: number, b: number,
 }
 
 /**
- * The frame's plan from the services entry gate's value `entry` (fx.ts, run in time) and the
- * morph. Written into `out` (no allocation per frame). One branch owns the swarm at a time:
+ * The frame's plan from the services entry gate's value `entry`, the Work gate's value `work`
+ * (fx.ts, both run in time) and the morph. Written into `out` (no allocation per frame). One
+ * branch owns the swarm at a time:
+ *  · work > 0 — the Work handoff: the selected model's swarm flies to the helix
+ *    (1 + m.to → `HELIX_SLOT`) while the model dissolves over the first stretch and the helix
+ *    forms over the last; at 1 the helix alone. The morph is instant meanwhile;
  *  · entry < 1 — the entrance: the selected model bursts out of a speck at its host's centre
  *    (`BURST` → 1 + m.to) and is revealed over the last stretch, or implodes back the same way;
  *    at 0 nothing is drawn. The morph is instant meanwhile (see `stepMorph`);
  *  · entry = 1 — formed: the pill morph owns the swarm, the two models' reveals cross over.
- * Both hand over continuously: at entry → 1 the swarm's alpha falls to 0 as the model's reveal
- * reaches 1, which is exactly the formed picture.
+ * Every branch hands over continuously: at entry → 1 the swarm's alpha falls to 0 as the model's
+ * reveal reaches 1, which is exactly the formed picture; at work = ε the swarm leaves the whole
+ * model at alpha ≈ 0, and at work → 1 it fades onto the formed helix.
  */
-export function composeScene(entry: number, m: MorphState, out: SceneComposition): SceneComposition {
+export function composeScene(entry: number, work: number, m: MorphState, out: SceneComposition): SceneComposition {
   const e = clamp01(entry);
-  if (e < 1) {
+  const k = clamp01(work);
+  if (k > 0) {
+    setSwarm(out.swarm, k < 1, 1 + m.to, HELIX_SLOT, k);
+    setModels(out, m.to, 1 - smoothstep(0, 0.3, k), m.to, 0);
+    out.helix = smoothstep(0.7, 1, k);
+  } else if (e < 1) {
     setSwarm(out.swarm, e > 0, BURST, 1 + m.to, e);
     setModels(out, m.to, smoothstep(0.72, 1, e), m.to, 0);
+    out.helix = 0;
   } else {
     setSwarm(out.swarm, m.t > 0, 1 + m.from, 1 + m.to, m.t);
     setModels(out, m.from, 1 - smoothstep(0, 0.3, m.t), m.to, smoothstep(0.7, 1, m.t));
+    out.helix = 0;
   }
   return out;
 }

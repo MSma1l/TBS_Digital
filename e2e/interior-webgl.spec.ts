@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { messages } from "@/lib/i18n/messages";
 import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { SCENE_SHAPES, type GpuProbeCache } from "@/lib/scene";
@@ -29,6 +29,7 @@ import {
   resetDrawCalls,
   sceneProbeVsDom,
   sceneAttributeValues,
+  sceneServices,
   sceneStage,
   scrollToY,
   seedConsent,
@@ -47,7 +48,9 @@ import {
  * smooth-scroll guard's tripwire), the scene pauses when nothing of it is visible, the one
  * context is released when the visitor leaves and comes back once, a renderer that cannot
  * start or a missing WebGL ends in the static art, and the intro and the stage never draw at
- * the same time.
+ * the same time. Work is inside the stage too: from 768px its project cards turn round the
+ * scene's DNA helix (sticky, laid out inline by the scene), below it a small helix lies behind
+ * the heading and the band stays as it is.
  */
 
 test.describe.configure({ timeout: 120_000 });
@@ -73,6 +76,70 @@ async function openForced(page: Page, url = "/"): Promise<void> {
 
 const styledMarkers = (page: Page) =>
   page.evaluate((attr) => document.querySelectorAll(`[${attr}][style]`).length, INTRO_REVEAL_ATTR);
+
+/* ---- Work's helix ---------------------------------------------------------------------------- */
+
+/** Built after ready (one slice, then a compile slice per draw object), then applied while Work is below. */
+const HELIX = { timeout: 60_000 };
+
+const workCards = (page: Page): Locator => page.locator("[data-work-track] > *");
+
+/** Every card's `style` attribute, in order (React renders exactly `--p1:…;--p2:…`). */
+const cardStyles = (page: Page) =>
+  page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).map((el) => el.getAttribute("style")),
+  );
+
+/** Work's track, `#lucrari` and the helix span as the DOM says right now (document px). */
+const workGeometry = (page: Page) =>
+  page.evaluate(() => {
+    const doc = (el: Element) => {
+      const box = el.getBoundingClientRect();
+      return { top: box.top + window.scrollY, bottom: box.bottom + window.scrollY, height: box.height };
+    };
+    const track = doc(document.querySelector("[data-work-track]")!);
+    const section = doc(document.querySelector("#lucrari")!);
+    const headerH = Number.parseFloat(getComputedStyle(document.querySelector("[data-scene-layer]")!).top) || 0;
+    return {
+      track,
+      section,
+      headerH,
+      span: { start: track.top - headerH, end: track.bottom - window.innerHeight },
+    };
+  });
+
+/**
+ * The spiral at rest: the front card (`data-helix-front`) takes a pointer at its centre, and no
+ * card behind the helix (`z-index` < 0) takes one anywhere — its own centre lands elsewhere.
+ */
+const spiralHits = (page: Page) =>
+  page.evaluate(() => {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *"));
+    const centre = (el: Element) => {
+      const box = el.getBoundingClientRect();
+      return [box.left + box.width / 2, box.top + box.height / 2] as const;
+    };
+    const front = cards.find((el) => el.hasAttribute("data-helix-front")) ?? null;
+    const hitFront = front ? document.elementFromPoint(...centre(front)) : null;
+    const back = cards.filter((el) => Number(el.style.zIndex) < 0);
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    return {
+      front: front ? cards.indexOf(front) : -1,
+      frontTakesClick: !!front && !!hitFront && front.contains(hitFront),
+      frontZ: front ? Number(front.style.zIndex) : null,
+      back: back.length,
+      backPointer: back.map((el) => getComputedStyle(el).pointerEvents),
+      // Only centres on screen say anything about a hit test.
+      backStealing: back.filter((el) => {
+        const [x, y] = centre(el);
+        if (x < 0 || y < 0 || x > vw || y > vh) return false;
+        const hit = document.elementFromPoint(x, y);
+        return !!hit && el.contains(hit);
+      }).length,
+      sticky: cards.every((el) => getComputedStyle(el).position === "sticky"),
+    };
+  });
 
 test.describe("interior stage — forced WebGL @webgl", () => {
   test.beforeEach(async ({ context, baseURL }) => {
@@ -165,10 +232,11 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       const stage = sceneStage(page);
       await expect(stage).toHaveAttribute("data-paused", "false");
 
-      const workTop = await page.evaluate(
-        () => document.querySelector("#lucrari")!.getBoundingClientRect().top + window.scrollY,
+      // The stage ends after Work (its last section): 300px past its bottom nothing of it is on screen.
+      const stageBottom = await page.evaluate(
+        () => document.querySelector("[data-scene-stage]")!.getBoundingClientRect().bottom + window.scrollY,
       );
-      await scrollToY(page, workTop + 300);
+      await scrollToY(page, stageBottom + 300);
       await expect(stage).toHaveAttribute("data-paused", "true");
       await scrollToY(page, 0);
       await expect(stage).toHaveAttribute("data-paused", "false");
@@ -230,14 +298,20 @@ test.describe("interior stage — forced WebGL @webgl", () => {
 
       test(`W5 no sideways scroll anywhere in the stage with the canvas (${width})`, async ({ page }) => {
         await openForced(page);
+        // Work laid out by the scene first: the spiral from 768px, the ambient helix below.
+        await expect(sceneStage(page)).toHaveAttribute("data-helix", width >= 768 ? "spiral" : "ambient", HELIX);
         const marks = await page.evaluate(() => {
           const top = document.querySelector("#top")!.getBoundingClientRect();
           const services = document.querySelector("#servicii")!.getBoundingClientRect();
+          const work = document.querySelector("#lucrari")!.getBoundingClientRect();
+          const track = document.querySelector("[data-work-track]")!.getBoundingClientRect();
           const stage = document.querySelector("[data-scene-stage]")!.getBoundingClientRect();
           return [
             0,
             (top.height / 2) + window.scrollY + top.top,
             services.top + window.scrollY,
+            work.top + window.scrollY,
+            track.top + track.height / 2 + window.scrollY - window.innerHeight / 2,
             stage.bottom + window.scrollY - window.innerHeight,
           ];
         });
@@ -535,11 +609,311 @@ test.describe("interior stage — forced WebGL @webgl", () => {
         await scrollToY(page, 0);
         await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
         await expect(sceneStage(page)).toHaveAttribute("data-paused", "false");
-        expect(probeMismatches(await sceneProbeVsDom(page))).toEqual([]);
+        // Polled: back above Work the spiral may apply right now (the helix can finish building while
+        // the dialog is open), growing the track; the boxes follow at once, the spans with the stage's
+        // resize refresh (debounced, after the scroll ends).
+        await expect
+          .poll(async () => probeMismatches(await sceneProbeVsDom(page)), {
+            message: "the probe back at the top",
+            timeout: 5_000,
+          })
+          .toEqual([]);
         expect(errors.page).toEqual([]);
       });
     });
   }
+
+  /*
+   * W15 · Work's spiral (from 768px): once the helix is built the cards become sticky grid items
+   * the scene lays out inline every frame round it. The front card must take the click, a card
+   * behind the helix (under the canvas) never; tabbing to a project scrolls it to the front; no
+   * sideways scroll; <html>/<body> untouched; and leaving the page puts every card's style back.
+   */
+  test.describe("Work spiral (1280×800)", () => {
+    test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false, isMobile: false });
+
+    test("W15 the cards turn round the helix: the front card takes the click, back cards none, Tab brings each project to the front, a round trip restores the cards", async ({
+      page,
+    }) => {
+      await watchCsp(page);
+      const errors = consoleErrors(page);
+      await forceScene3d(page);
+      await seedGpuProbe(page, FORCED_PROBE);
+      await gotoHydrated(page, "/");
+      const stage = sceneStage(page);
+      // As React rendered them, long before the scene (let alone the helix) can exist.
+      const rendered = await cardStyles(page);
+      expect(rendered.length).toBeGreaterThanOrEqual(3);
+      const gridHeight = (await workGeometry(page)).section.height;
+      await expect(stage).toHaveAttribute("data-renderer", "webgl", WEBGL);
+      const builtAt = Date.now();
+      await expect(stage).toHaveAttribute("data-helix", "spiral", HELIX);
+      test.info().annotations.push({ type: "W15 spiral after webgl (ms)", description: String(Date.now() - builtAt) });
+
+      await expect(page.locator("canvas")).toHaveCount(1);
+      const geometry = await workGeometry(page);
+      expect(geometry.section.height, "the track grew into the spiral's scroll").toBeGreaterThan(gridHeight);
+      // Every card keeps its own colours inline, next to the scene's layout.
+      const colours = await page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).map(
+          (el) => `--p1:${el.style.getPropertyValue("--p1").trim()};--p2:${el.style.getPropertyValue("--p2").trim()}`,
+        ),
+      );
+      expect(colours).toEqual(rendered.map((style) => style!.replace(/\s/g, "")));
+
+      // Three marks along the spiral: its start, the middle, its end.
+      const { span } = geometry;
+      const mid = Math.round((span.start + span.end) / 2);
+      for (const y of [Math.ceil(span.start) + 2, mid, Math.floor(span.end) - 2]) {
+        await scrollToY(page, y);
+        await page.waitForTimeout(300);
+        await expectNoHorizontalScroll(page);
+        await expectRootUntouched(page, `inside the spiral at ${y}`);
+      }
+
+      // Mid-span, at rest: the front card takes the click, no back card takes one.
+      await scrollToY(page, mid);
+      await expect
+        .poll(async () => (await spiralHits(page)).frontTakesClick, { message: "the front card takes the click", timeout: 20_000 })
+        .toBe(true);
+      const hits = await spiralHits(page);
+      test.info().annotations.push({ type: "W15 hits at mid-span", description: JSON.stringify(hits) });
+      expect(hits.sticky).toBe(true);
+      expect(hits.frontZ).toBeGreaterThan(0);
+      expect(hits.back).toBeGreaterThan(0);
+      expect(hits.backPointer.every((value) => value === "none")).toBe(true);
+      expect(hits.backStealing).toBe(0);
+      expect(await styledMarkers(page)).toBe(0);
+
+      // Tab through every project that is a link: each one comes to the front within 3s. From the
+      // spiral's start, once the first card is at the front again.
+      await scrollToY(page, Math.ceil(span.start) + 2);
+      const cards = workCards(page);
+      await expect(cards.first()).toHaveAttribute("data-helix-front", "", { timeout: 20_000 });
+      const links = await page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *"))
+          .map((el, i) => (el.matches("a[href]") ? i : -1))
+          .filter((i) => i >= 0),
+      );
+      expect(links.length).toBeGreaterThan(1);
+      const timings: number[] = [];
+      for (const [n, index] of links.entries()) {
+        const started = Date.now();
+        if (n === 0) await cards.nth(index).focus();
+        else await page.keyboard.press("Tab");
+        await expect(cards.nth(index), `Tab ${n} reaches project ${index}`).toBeFocused();
+        await expect(cards.nth(index), `project ${index} comes to the front`).toHaveAttribute("data-helix-front", "", {
+          timeout: 3_000,
+        });
+        timings.push(Date.now() - started);
+      }
+      test.info().annotations.push({ type: "W15 Tab → front (ms)", description: JSON.stringify(timings) });
+      console.log(`W15 Tab → front (ms) ${JSON.stringify(timings)}`);
+
+      // Out of the spiral at once (a window below 768px): every card's attribute comes back byte for
+      // byte as it was right before the driver first touched it — the server's, hydrated as is.
+      await page.setViewportSize({ width: 700, height: 800 });
+      await expect(stage).toHaveAttribute("data-helix", "ambient", { timeout: 20_000 });
+      expect(await cardStyles(page)).toEqual(rendered);
+      await expectNoHorizontalScroll(page);
+      // Back to 1280 and up past Work (through it, as a scroll does): the spiral applies again once
+      // Work is below the viewport. (An instant jump from past Work's end straight to the top never
+      // crosses it, so the driver's observer would not report it: see the P3-C report.)
+      await page.setViewportSize({ width: 1280, height: 800 });
+      await scrollToY(page, (await workGeometry(page)).section.top);
+      await page.waitForTimeout(300);
+      await scrollToY(page, 0);
+      await expect(stage).toHaveAttribute("data-helix", "spiral", { timeout: 30_000 });
+
+      // To a service page (a pill, above Work) and back: new cards, which App Router renders on
+      // the client (React writes their colours through the CSSOM: "--p1: #192f6f; --p2: …;"). They
+      // carry the same two colours and nothing of the spiral.
+      const pill = directionPills(page).first();
+      await pill.scrollIntoViewIfNeeded();
+      await pill.click();
+      await page.waitForURL(`**/servicii/${SCENE_SHAPES[0]}`);
+      await expect(page.locator("[data-work-track]")).toHaveCount(0);
+      await expectRootUntouched(page, "on the service page");
+      await page.goBack();
+      await expect(page.locator("[data-work-track]")).toHaveCount(1);
+      const colour = (style: string | null, name: "--p1" | "--p2") =>
+        new RegExp(`${name}:\\s*([^;]+)`).exec(style ?? "")?.[1].trim() ?? null;
+      const returned = await page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).map((el) => ({
+          length: el.style.length,
+          p1: el.style.getPropertyValue("--p1").trim(),
+          p2: el.style.getPropertyValue("--p2").trim(),
+          layout: [
+            el.style.transform,
+            el.style.position,
+            el.style.zIndex,
+            el.style.opacity,
+            el.style.pointerEvents,
+            el.style.transitionProperty,
+            el.style.gridRowStart,
+            el.style.top,
+            el.style.width,
+          ].join(""),
+          front: el.hasAttribute("data-helix-front"),
+        })),
+      );
+      expect(returned).toEqual(
+        rendered.map((style) => ({ length: 2, p1: colour(style, "--p1"), p2: colour(style, "--p2"), layout: "", front: false })),
+      );
+      expect(await page.evaluate(() => document.querySelector("[data-work-track]")!.getAttribute("style"))).toBeNull();
+      // And the scene lays them out again once it is back.
+      await expect(sceneStage(page)).toHaveAttribute("data-helix", "spiral", { timeout: 90_000 });
+      await expect(page.locator("canvas")).toHaveCount(1);
+      await expectRootUntouched(page, "back home");
+      expect(await cspViolations(page)).toEqual([]);
+      expect(errors.page).toEqual([]);
+      expect(errors.console).toEqual([]);
+    });
+
+    /*
+     * W19 · a reload (or deep link) inside Work keeps the grid: the spiral would grow the track by
+     * thousands of px under the visitor. It is applied once they are back above Work.
+     */
+    test("W19 a reload scrolled into #lucrari keeps the grid (height unchanged); back at the top the spiral applies", async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page);
+      await forceScene3d(page);
+      await seedGpuProbe(page, FORCED_PROBE);
+      await gotoHydrated(page, "/");
+      const into = async () => {
+        const { section } = await workGeometry(page);
+        return scrollToY(page, section.top + 200);
+      };
+      await into();
+      await page.reload();
+      await expect(page.locator("[data-work-track]")).toHaveCount(1);
+      const y = await into();
+      const before = await workGeometry(page);
+      const rendered = await cardStyles(page);
+      const stage = sceneStage(page);
+      await expect(stage).toHaveAttribute("data-renderer", "webgl", WEBGL);
+      // Long past the helix's build (it is ready to spiral): still the grid, not a pixel taller.
+      const heights: number[] = [];
+      for (let i = 0; i < 8; i += 1) {
+        await page.waitForTimeout(1_000);
+        heights.push((await workGeometry(page)).section.height);
+        expect(await stage.getAttribute("data-helix")).not.toBe("spiral");
+      }
+      expect(heights.every((height) => Math.abs(height - before.section.height) < 1), JSON.stringify(heights)).toBe(true);
+      expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(y);
+      expect(await cardStyles(page)).toEqual(rendered);
+
+      await scrollToY(page, 0);
+      await expect(stage).toHaveAttribute("data-helix", "spiral", HELIX);
+      const after = await workGeometry(page);
+      expect(after.section.height).toBeGreaterThan(before.section.height);
+      await expect.poll(async () => probeMismatches(await sceneProbeVsDom(page)), { timeout: 10_000 }).toEqual([]);
+      expect(errors.page).toEqual([]);
+    });
+  });
+
+  test.describe("Work spiral on a tablet (768×1024, touch)", () => {
+    test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true, isMobile: true });
+
+    test("W15t the tablet gets the spiral too: the front card takes a tap, back cards none, no sideways scroll", async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page);
+      await openForced(page);
+      const stage = sceneStage(page);
+      await expect(stage).toHaveAttribute("data-helix", "spiral", HELIX);
+      await expect(page.locator("canvas")).toHaveCount(1);
+      const { span } = await workGeometry(page);
+      const mid = Math.round((span.start + span.end) / 2);
+      for (const y of [Math.ceil(span.start) + 2, mid, Math.floor(span.end) - 2]) {
+        await scrollToY(page, y);
+        await page.waitForTimeout(300);
+        await expectNoHorizontalScroll(page);
+      }
+      await scrollToY(page, mid);
+      await expect
+        .poll(async () => (await spiralHits(page)).frontTakesClick, { message: "the front card takes a tap", timeout: 20_000 })
+        .toBe(true);
+      const hits = await spiralHits(page);
+      test.info().annotations.push({ type: "W15t hits at mid-span", description: JSON.stringify(hits) });
+      expect(hits.back).toBeGreaterThan(0);
+      expect(hits.backPointer.every((value) => value === "none")).toBe(true);
+      expect(hits.backStealing).toBe(0);
+      await expectRootUntouched(page, "inside the tablet spiral");
+      expect(errors.page).toEqual([]);
+    });
+  });
+
+  test.describe("Work on a phone (390×844, touch)", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    /*
+     * W18 · below 768px the band stays exactly as it is (no inline layout on a card) and a small
+     * helix lies behind the heading, coloured after the card nearest the band's middle.
+     */
+    test("W18 the phone keeps the band: ambient helix, no inline layout on a card, a swipe moves the front card, Work does not move", async ({
+      page,
+    }) => {
+      const errors = consoleErrors(page);
+      await forceScene3d(page);
+      await seedGpuProbe(page, FORCED_PROBE);
+      await gotoHydrated(page, "/");
+      const rendered = await cardStyles(page);
+      const workTop = (await workGeometry(page)).section.top;
+      const stage = sceneStage(page);
+      await expect(stage).toHaveAttribute("data-renderer", "webgl", WEBGL);
+      await expect(stage).toHaveAttribute("data-helix", "ambient", HELIX);
+      expect(Math.abs((await workGeometry(page)).section.top - workTop)).toBeLessThan(1);
+
+      // Work in view: the card nearest the band's middle is the front one.
+      await scrollToY(page, workTop - 100);
+      const front = () =>
+        page.evaluate(() =>
+          Array.from(document.querySelectorAll("[data-work-track] > *")).findIndex((el) => el.hasAttribute("data-helix-front")),
+        );
+      await expect.poll(front, { message: "a front card in the band", timeout: 20_000 }).toBeGreaterThanOrEqual(0);
+      const first = await front();
+      expect(await cardStyles(page)).toEqual(rendered);
+      expect(
+        await page.evaluate(() =>
+          Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).every(
+            (el) => el.style.transform === "" && el.style.position === "" && el.style.length === 2,
+          ),
+        ),
+      ).toBe(true);
+
+      // A swipe along the band (two cards on): another card is nearest the middle.
+      const track = page.locator("[data-work-track]");
+      const box = (await track.boundingBox())!;
+      const y = box.y + box.height / 2;
+      const client = await page.context().newCDPSession(page);
+      const touch = (type: "touchStart" | "touchMove" | "touchEnd", x: number) =>
+        client.send("Input.dispatchTouchEvent", {
+          type,
+          touchPoints: type === "touchEnd" ? [] : [{ x: Math.round(x), y: Math.round(y) }],
+        });
+      await touch("touchStart", 340);
+      for (let step = 1; step <= 12; step += 1) await touch("touchMove", 340 - step * 26);
+      await touch("touchEnd", 28);
+      await expect.poll(async () => (await track.evaluate((el) => el.scrollLeft)) > 0, { timeout: 5_000 }).toBe(true);
+      await expect.poll(front, { message: "the front card follows the swipe", timeout: 20_000 }).not.toBe(first);
+
+      // E9's check with the helix drawing: a first tap on another pill moves nothing below it.
+      await scrollToY(page, 0);
+      const pill = directionPills(page).nth(1);
+      await pill.scrollIntoViewIfNeeded();
+      const top = (await workGeometry(page)).section.top;
+      await pill.tap();
+      await page.waitForTimeout(500);
+      expect(new URL(page.url()).pathname).toBe("/");
+      await expect(sceneServices(page)).toHaveAttribute("data-shape", SCENE_SHAPES[1]);
+      expect((await workGeometry(page)).section.top).toBe(top);
+      expect(Math.abs(top - workTop)).toBeLessThan(1);
+      await expect(stage).toHaveAttribute("data-helix", "ambient");
+      expect(errors.page).toEqual([]);
+    });
+  });
 
   test.describe("W14 phone (390×844, touch)", () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });

@@ -1,9 +1,9 @@
 /**
  * The morph swarm: one set of light particles that carries every change of shape — the
  * services model bursting out of a speck at its host (and imploding back), and one service
- * model turning into another. Each particle knows its place on all six shapes (`aS0` the
- * chip's silhouette, unplanned until the Work helix takes the slot; `aS1…aS5` the service
- * models in `SCENE_SHAPES` order), fixed for life, so a morph only sets uniforms: which two
+ * model turning into another — and the selected model handing over to Work's DNA helix. Each
+ * particle knows its place on all six shapes (`aS0` the helix, upright in its own frame;
+ * `aS1…aS5` the service models in `SCENE_SHAPES` order), fixed for life, so a morph only sets uniforms: which two
  * slots, the two ends' world matrices, and the progress. The vertex shader does the rest
  * (materials.ts, `POINTS_MODE.swarm`); nothing moves on the CPU.
  *

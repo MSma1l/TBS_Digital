@@ -653,6 +653,28 @@ describe("SceneStage — the WebGL path", () => {
     expect(stage().hasAttribute("data-entry")).toBe(false);
   });
 
+  it("writes data-helix for the spiral and the ambient helix only, straight to the DOM, and drops it with the scene", async () => {
+    await loadScene();
+    const props = h.canvasProps!;
+    // Built is not a mode: the cards are still as the server rendered them.
+    act(() => props.onHelix("built"));
+    expect(stage().hasAttribute("data-helix")).toBe(false);
+    act(() => props.onHelix("spiral"));
+    expect(attr("data-helix")).toBe("spiral");
+    act(() => props.onHelix("ambient"));
+    expect(attr("data-helix")).toBe("ambient");
+    // Off (the driver restored the cards): gone.
+    act(() => props.onHelix("off"));
+    expect(stage().hasAttribute("data-helix")).toBe(false);
+    act(() => props.onHelix("spiral"));
+    expect(attr("data-helix")).toBe("spiral");
+
+    // The fallback the scene fell back to never carries it (whatever the driver reported last).
+    act(() => props.onLost());
+    expect(attr("data-renderer")).toBe("fallback");
+    expect(stage().hasAttribute("data-helix")).toBe(false);
+  });
+
   it("a governor bail marks the session slow: fallback, slow, static motion, the scene gone", async () => {
     await loadScene();
     act(() => h.canvasProps!.onReady());
@@ -730,10 +752,12 @@ describe("SceneStage — the WebGL path", () => {
     act(() => h.canvasProps!.onReady());
     act(() => h.directorProps!.onLive());
     act(() => h.canvasProps!.onEntry("formed"));
+    act(() => h.canvasProps!.onHelix("spiral"));
 
     setReducedMotion(true);
     expect([attr("data-renderer"), attr("data-reason"), attr("data-motion")]).toEqual(["off", "reduced-motion", "static"]);
     expect(stage().hasAttribute("data-entry")).toBe(false);
+    expect(stage().hasAttribute("data-helix")).toBe(false);
     expect(stage().querySelector('[data-mock="scene-director"]')).toBeNull();
     expect(canvas()).toBeNull();
   });

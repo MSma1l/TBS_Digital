@@ -195,7 +195,8 @@ helpers called from `useFrame` keep the components to "create once, call per fra
 `components/intro/three/{rig,core,particles}.ts` for the intro; `components/scene/three/world.ts`
 (which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners, which also
 lay the cursor trail), `trail.ts` (the trail's ring buffer; `three/trail.ts` uploads what it
-wrote) and `scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
+wrote), `workHelix.ts` (Work's spiral driver, which writes the project cards' inline layout) and
+`scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
 never re-renders React per frame either: it writes `textContent`, attributes and `quickSetter` values straight to the DOM,
 and tweens a plain `fx` object the scene reads.
 
@@ -286,17 +287,33 @@ Nothing may import the runtime statically (the ban above).
 
 The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's only user.
 
-- **Measure, don't drive.** Two animation-free triggers give the scroll spans (`heroExit`:
-  `#top` "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%"), and
-  every refresh re-reads the anchors' document boxes, the stage's top/bottom and `--header-h`
-  into the probe (`scrollProbe.ts`). The scene reads `window.scrollY` against them every frame.
-  No scrub drives the scene — it would lag the page by a frame.
+- **Measure, don't drive.** Four animation-free triggers give the scroll spans (`heroExit`:
+  `#top` "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%";
+  `workSpan`: Work's track (`[data-work-track]`) "top 70%" → "top 55%"; `helix`: the track "top
+  top" less the header → "bottom bottom"), and every refresh re-reads the anchors' and the
+  track's document boxes, Work's heading block, the stage's top/bottom, the layer's height and
+  `--header-h` into the probe (`scrollProbe.ts`). The scene reads `window.scrollY` against them
+  every frame. No scrub drives the scene — it would lag the page by a frame. A measuring trigger
+  has no `animation` and reads its span in `onRefresh` (`scroll-guard.test.ts` pins exactly these
+  four, with their start and end).
 - **A picture that must not rest half-way runs on a timed gate, not a scroll progress.** The
   director only measures the band; the scene's `stepGate` (`fx.ts`) arms at its end, disarms
-  above its start (hysteresis) and runs the value in time on the clamped frame step. The services
-  entrance is the one today (`ENTRY_SECONDS`); a new threshold effect gets its own `Gate` in
-  `SceneFx` and its own branch in `composeScene`, never a scrubbed progress. Whether it has
-  finished is the scene's to report (`onEntry` → `data-entry`), never the director's.
+  above its start (hysteresis) and runs the value in time on the clamped frame step. There are two:
+  the services entrance (`fx.entry`, `ENTRY_SECONDS`) and the Work handoff to the helix
+  (`fx.work`, `WORK_SECONDS`). A new threshold effect gets its own `Gate` in `SceneFx` and its own
+  branch in `composeScene`, never a scrubbed progress. Whether it has finished is the scene's to
+  report (`onEntry` → `data-entry`, `onHelix` → `data-helix`), never the director's.
+- **The work gate only opens onto a helix that can be drawn.** The world passes `stepSceneFx` the
+  `workSpan` band only while the helix is built, the spiral driver's mode is not `off` and the
+  track is measured; otherwise the gate gets no band (it stays shut, and an open one closes in
+  time). Two gates never run against each other: while the Work gate is armed the entry gate sits
+  on its armed value, and an entry gate disarmed above the services snaps the Work gate shut.
+- **The scene may change the page's layout in one place only — Work's spiral — and says so.**
+  When the driver switches mode the track's height changes at once; `SceneWorld` dispatches
+  `SCENE_LAYOUT_EVENT` (`tbs:scene-layout`) on the stage root, and the director re-reads the boxes
+  into the probe right then (never under a cover), without a ScrollTrigger refresh (a refresh
+  would stop a touch fling). The stage's own resize refresh still follows for the spans. Any
+  future layout change the scene makes goes through the same event.
 - **Never** (`scene-contract.test.ts` scans `components/scene/**`): `pin`, `pinSpacing`,
   `pinReparent`, `anticipatePin` (spacers shift every anchor), `snap` (inline `scroll-behavior` on
   html/body), `normalizeScroll`, ScrollSmoother, `markers`, a custom `scroller`, `lagSmoothing`.
@@ -334,24 +351,57 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
 ### The interior stage's contracts
 
 - **The stage DOM** (`SceneStage.tsx`): no `transform`, `filter`, `contain` or `overflow` on the
-  stage or any ancestor of the sticky layer; the canvas is `pointer-events: none`; no new z-index
-  token. Details in [03 — Architecture](./03-architecture.md#the-interior-stage).
+  stage, on any ancestor of the sticky layer or on any ancestor of Work's cards (each card is
+  `sticky` in the spiral, and its negative `z-index` must reach the stage's stacking context); the
+  canvas is `pointer-events: none`; no new z-index token. Details in
+  [03 — Architecture](./03-architecture.md#the-interior-stage).
 - **The `data-*` contract** (names in `SCENE_ATTR`, `lib/scene.ts`): React writes
   `data-renderer`, `data-reason`, `data-tier`, `data-paused` (only while `webgl`) and
   `data-motion`; `data-boost`, `data-quality`, `data-morph`, `data-entry` (`idle|burst|formed`,
-  only while a scene is mounted) and the director's `data-scroll-fx` are written **straight to
-  the DOM**, never through React state. Test ids `scene-stage`,
+  only while a scene is mounted), `data-helix` (`spiral|ambient`, likewise; never `off` or
+  `built` — those remove it) and the director's `data-scroll-fx` are written **straight to
+  the DOM**, never through React state. On Work: `data-work-track` (the card grid,
+  `WORK_TRACK_ATTR`) and the driver's `data-helix-front` on one card (`HELIX_FRONT_ATTR`,
+  `helix.ts`). Test ids `scene-stage`,
   `scene-hero`, `scene-services`; anchors `data-scene-anchor="hero|services"`; art roots
   `data-core-art` / `data-shape-art="<slug>"`; `data-hologram`, `data-metric`, `data-tilt`,
   `data-tilting`, `data-parallax`, `data-shape`. Tests and CSS selectors read these — don't rename
   them in passing.
 - **`lib/scene.ts` stays DOM-free at import and has no `"use client"`**: server components and
   `e2e/helpers.ts` import it. Anything that needs `window` checks for it first.
+- **Work's cards belong to React; their layout, in the spiral, to the scene chunk's driver**
+  (`workHelix.ts`, see [03](./03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17)).
+  The rules it keeps, and that anything else touching those cards must keep with it:
+  - **it only switches into the spiral while Work is below the viewport** (the section's rect,
+    read in the frame that lays it out; an IntersectionObserver may only veto) — the track grows
+    by thousands of px, so doing it on screen would jump the page. It leaves the spiral at once,
+    and then puts the scroll back under the visitor;
+  - **the restore contract**: every property it writes is inline and listed (`CARD_PROPS`,
+    `TRACK_PROPS`); the original `style` attribute comes back byte for byte when nobody else
+    touched the style meanwhile, otherwise only its own properties are removed. Read the `style`
+    attribute before removing it (Blink serializes a CSSOM-written style lazily and would leave
+    `style=""`). The E2E checks the round trip (W15);
+  - Work itself renders only `--p1` / `--p2` inline and no card `transform` or `position`
+    (`work.test.tsx`); a CSS rule for the grid that must not apply in the spiral keys off
+    `[data-scene-stage][data-helix=spiral]` (the odd last card's screenshot shift does);
+  - **a card is never capped below its content**: the spiral writes `min-height`, never `height`
+    (a card clips with `overflow: hidden`, and its description may be showing), and centres each
+    card's measured box under the header — a ResizeObserver re-centres it when the content changes.
+    Work's own description cap (`max-h-35`, the reveal's transition) is lifted inside the spiral
+    (`[data-scene-stage][data-helix=spiral] …:max-h-none`, only where the description is shown):
+    at a spiral card's 240px a long description runs past 140px;
+  - never touch tab order, `inert` or `aria-hidden`; focus scrolls a card to the front.
+- **Decoration never sits behind copy it could make unreadable.** The ambient helix first lay
+  behind Work's heading; its flares saturate towards white, and keeping the heading's contrast left
+  it invisible. It now lies in the measured empty band above the heading (`probe.workGap`, clear of
+  the band's edges by `HELIX_AMBIENT.clear`). A new scene part next to text gets a band of its own,
+  measured into the probe, before it gets a dim.
 - **Nothing heavy up front on the WebGL path either**: the scene is **built** one part per idle
   slice (core, swarm, each model) and **compiled** one draw object per idle slice
   (`components/scene/three/compile.ts`); it is **ready** only once R3F has drawn two frames of the
   compiled scene, counted from `useFrame` — never from a timer, which also ticks while the canvas
-  is paused.
+  is paused. A part that is not needed for the first picture is built **after ready**, the same
+  way (Work's helix: `stageHelix`, one build slice, one compile slice per draw object).
 - **The transmission clear is compensated in one place** — the intro's glass only: since the hero
   became a chip (2026-09-17) the interior has no transmission pass. `installTransmissionClear`
   (`components/three/environment.ts`) pre-compensates three's output-space conversion of the clear
@@ -363,7 +413,9 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   flat ribbons like the service models. A mode is a `uMode` branch, and a retired mode keeps the
   others' numbers: `TUBE_MODE` has had no 0 since the core's rings left; `POINTS_MODE` has no 0
   since the core's cloud left, and no 3 since the mesh wave's nodes became `+` lines in P4
-  (2026-09-17, the brand-ui grid: `swarm` 1 and `pulses` 2 remain).
+  (2026-09-17, the brand-ui grid: `swarm` 1 and `pulses` 2 remain). Work's helix added no program
+  either, only two modes: `SURFACE_MODE.holo` (4; 3 was the glass shell's) for the hologram and
+  `LINE_MODE.bits` (4) for its 0/1 glyphs.
 - **The static art** (`components/scene/art/`): no `"use client"`, tokens only, no infinite
   animation, nothing animated on `stroke-dashoffset` or `filter`, no `circle` under r=12, no round
   line caps, `aria-hidden` with no text; hidden under `[data-renderer="webgl"]`. Only the first

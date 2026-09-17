@@ -13,10 +13,14 @@ import {
   withInstantScroll,
 } from "@/components/scene/scrollGuard";
 import {
+  readHeaderHeight,
   releaseProbe,
+  translateYOf,
   writeAnchors,
   writeEntrySpan,
+  writeHelixSpan,
   writeHeroSpan,
+  writeWorkSpan,
 } from "@/components/scene/scrollProbe";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import { INTRO_REVEAL_ATTR } from "@/lib/intro";
@@ -25,6 +29,7 @@ import {
   INSTANT_SCROLL_ATTR,
   PARALLAX_MEDIA,
   SCENE_ATTR,
+  SCENE_LAYOUT_EVENT,
   SCENE_TIMING,
   createScrollProbe,
   type ScrollProbe,
@@ -319,11 +324,48 @@ describe("scroll probe writes", () => {
     expect(probe.entry).toEqual({ start: 0, end: 0 });
   });
 
-  function buildStage() {
+  it("copies Work's two spans: the work band as measured, the helix span's start moved up by the header", () => {
+    const probe = createScrollProbe();
+    const workSpan = probe.workSpan;
+    const helix = probe.helix;
+    writeWorkSpan(probe, { start: 2300, end: 2420 } as ScrollTrigger);
+    writeHelixSpan(probe, { start: 2860, end: 5100 } as ScrollTrigger, 71);
+    expect(probe.workSpan).toEqual({ start: 2300, end: 2420 });
+    // "top top" less the header: the sticky zone starts under the header.
+    expect(probe.helix).toEqual({ start: 2789, end: 5100 });
+    expect(probe.workSpan).toBe(workSpan);
+    expect(probe.helix).toBe(helix);
+
+    // Never a non-finite number: an unmeasured side is 0 (a 0 start is not moved), a bad header counts as none.
+    writeWorkSpan(probe, { start: Number.NaN, end: Number.NEGATIVE_INFINITY } as ScrollTrigger);
+    expect(probe.workSpan).toEqual({ start: 0, end: 0 });
+    writeHelixSpan(probe, { start: Number.POSITIVE_INFINITY, end: Number.NaN } as ScrollTrigger, 71);
+    expect(probe.helix).toEqual({ start: 0, end: 0 });
+    writeHelixSpan(probe, { start: 2860, end: 5100 } as ScrollTrigger, Number.NaN);
+    expect(probe.helix).toEqual({ start: 2860, end: 5100 });
+  });
+
+  it("reads a computed transform's y translation (a scroll reveal's offset), 0 for anything else", () => {
+    expect(translateYOf("matrix(1, 0, 0, 1, 0, 28)")).toBe(28);
+    expect(translateYOf("matrix(1, 0, 0, 1, 12.5, -7.25)")).toBe(-7.25);
+    expect(translateYOf("matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 3, 14, 0, 1)")).toBe(14);
+    expect(translateYOf("none")).toBe(0);
+    expect(translateYOf("")).toBe(0);
+    expect(translateYOf("translateY(28px)")).toBe(0);
+  });
+
+  function buildStage(work = false) {
     const stage = document.createElement("div");
     stage.innerHTML = `
       <div aria-hidden="true"><div data-scene-layer="" style="top: 72px"></div></div>
       <div data-scene-anchor="hero"></div>`;
+    if (work) {
+      // Work.tsx: the heading block (a scroll reveal) right before the card track.
+      stage.insertAdjacentHTML(
+        "beforeend",
+        `<section id="lucrari"><div><div id="head" data-reveal=""></div><div data-work-track=""></div></div></section>`,
+      );
+    }
     document.body.append(stage);
     return stage;
   }
@@ -345,6 +387,10 @@ describe("scroll probe writes", () => {
       expect(probe.stage).toEqual({ top: 350, bottom: 1950 });
       expect(probe.hero).toEqual({ x: 603, y: 200, w: 480, h: 480 });
       expect(probe.services).toBeNull();
+      // No Work on this page: no track, no heading, no band above it.
+      expect(probe.work).toBeNull();
+      expect(probe.workHead).toBeNull();
+      expect(probe.workGap).toBeNull();
       expect(probe.headerH).toBe(71);
       expect(probe.version).toBe(1);
       expect(probe.live).toBe(true);
@@ -361,6 +407,55 @@ describe("scroll probe writes", () => {
       expect(probe.live).toBe(false);
       expect(probe.version).toBe(2);
     } finally {
+      stage.remove();
+    }
+  });
+
+  it("writes Work's track, its heading (the scroll reveal's offset taken out), the band above it and the layer's height", () => {
+    const stage = buildStage(true);
+    const probe = createScrollProbe();
+    root().style.setProperty("--header-h", "71px");
+    setScroll(0, 2000);
+    stubBox(stage, { left: 0, top: -1929, width: 1280, height: 6000 });
+    stubBox(stage.querySelector("[data-scene-layer]")!, { left: 0, top: 71, width: 1280, height: 729 });
+    const track = stage.querySelector("[data-work-track]")!;
+    const head = stage.querySelector("#head")!;
+    stubBox(track, { left: 64, top: 540, width: 1152, height: 3100 });
+    // A heading that has not been revealed yet sits 28px below its place (globals.css [data-reveal]);
+    // jsdom resolves no transform, so the computed matrix is stubbed.
+    stubBox(head, { left: 64, top: 330, width: 1152, height: 150 });
+    // The section before Work ends its content 36px above its bottom (its padding); Work starts at 282.
+    const section = stage.querySelector("#lucrari")!;
+    const services = document.createElement("section");
+    services.id = "servicii";
+    services.style.paddingBottom = "36px";
+    section.before(services);
+    stubBox(services, { left: 0, top: -800, width: 1280, height: 1034 });
+    stubBox(section, { left: 0, top: 282, width: 1280, height: 3400 });
+    const computed = window.getComputedStyle.bind(window);
+    const styles = vi.spyOn(window, "getComputedStyle").mockImplementation((el, pseudo) =>
+      el === head ? ({ transform: "matrix(1, 0, 0, 1, 0, 28)" } as CSSStyleDeclaration) : computed(el, pseudo),
+    );
+    try {
+      writeAnchors(probe, stage);
+      expect(probe.layerH).toBe(729);
+      expect(probe.work).toEqual({ x: 64, y: 2540, w: 1152, h: 3100 });
+      expect(probe.workHead).toEqual({ x: 64, y: 2302, w: 1152, h: 150 });
+      // From the services' content end (2234 − 36) to the heading's revealed top.
+      expect(probe.workGap).toEqual({ x: 0, y: 2198, w: 1280, h: 104 });
+      // Updated in place on the next refresh.
+      const work = probe.work;
+      const workHead = probe.workHead;
+      const workGap = probe.workGap;
+      writeAnchors(probe, stage);
+      expect(probe.workGap).toBe(workGap);
+      expect(probe.workGap).toEqual({ x: 0, y: 2198, w: 1280, h: 104 });
+      expect(probe.work).toBe(work);
+      expect(probe.workHead).toBe(workHead);
+      expect(probe.workHead).toEqual({ x: 64, y: 2302, w: 1152, h: 150 });
+      expect(readHeaderHeight(stage)).toBe(71);
+    } finally {
+      styles.mockRestore();
       stage.remove();
     }
   });
@@ -424,6 +519,7 @@ describe("SceneDirector", () => {
           <div id="marker" data-parallax="hero-stats" ${INTRO_REVEAL_ATTR}="cta"></div>
         </section>
         <section id="servicii"><div data-scene-anchor="services"></div></section>
+        <section id="lucrari"><div><div data-reveal=""></div><div data-work-track=""></div></div></section>
       </div>`;
     document.body.append(main);
     const stage = main.querySelector<HTMLDivElement>("[data-scene-stage]")!;
@@ -462,14 +558,21 @@ describe("SceneDirector", () => {
     expect(probe.version).toBe(1);
     expect(probe.hero).not.toBeNull();
     expect(probe.services).not.toBeNull();
+    expect(probe.work).not.toBeNull();
+    expect(probe.workHead).not.toBeNull();
+    expect(probe.workGap).not.toBeNull();
     expect(stage.getAttribute(SCENE_ATTR.scrollFx)).toBe("on");
-    // Two measurement triggers, no parallax (the media query does not match in jsdom): the hero
-    // exit, and the services entry band the scene's timed gate arms over.
+    // Four measurement triggers, no parallax (the media query does not match in jsdom): the hero
+    // exit, the services entry band the scene's timed gate arms over, Work's band (the work gate)
+    // and the span Work's spiral turns over.
     const triggers = ScrollTrigger.getAll();
-    expect(triggers).toHaveLength(2);
+    expect(triggers).toHaveLength(4);
+    const track = stage.querySelector("[data-work-track]");
     expect(triggers.map((st) => [st.trigger, st.vars.start, st.vars.end])).toEqual([
       [stage.querySelector("#top"), "top top", "bottom 35%"],
       [stage.querySelector('[data-scene-anchor="services"]'), "top 90%", "top 75%"],
+      [track, "top 70%", "top 55%"],
+      [track, "top top", "bottom bottom"],
     ]);
     for (const st of triggers) expect(st.animation).toBeUndefined();
     expect(gsap.getTweensOf("#backdrop, #stats")).toHaveLength(0);
@@ -503,7 +606,7 @@ describe("SceneDirector", () => {
     const probe = createScrollProbe();
     const second = mountDirector(ref, probe);
     expect(start.mock.calls.some(([, ms]) => ms === 250)).toBe(true);
-    expect(ScrollTrigger.getAll()).toHaveLength(2);
+    expect(ScrollTrigger.getAll()).toHaveLength(4);
     expect(probe.live).toBe(true);
     act(() => ScrollTrigger.refresh());
     expect(probe.version).toBe(2);
@@ -544,7 +647,7 @@ describe("SceneDirector", () => {
         expect(trigger.trigger).toBe(stage.querySelector("#top"));
         expect(trigger.vars).toMatchObject({ start: "top top", end: "bottom top", scrub: true });
       }
-      expect(ScrollTrigger.getAll()).toHaveLength(4);
+      expect(ScrollTrigger.getAll()).toHaveLength(6);
       expect(marker.getAttribute("style")).toBeNull();
 
       unmount();
@@ -632,6 +735,53 @@ describe("SceneDirector", () => {
     expect(addListener.mock.calls.filter(([type]) => type === "scrollEnd")).toHaveLength(1);
   });
 
+  it("the scene's layout event re-reads the boxes at once — no refresh, not counted as one, never under a cover", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { stage, ref } = buildPage();
+    pageAt3000(stage);
+    const probe = createScrollProbe();
+    const { unmount } = mountDirector(ref, probe);
+    const refresh = vi.spyOn(ScrollTrigger, "refresh").mockImplementation(() => {});
+    const track = stage.querySelector("[data-work-track]")!;
+    expect(probe.version).toBe(1);
+
+    // The spiral grew the track (and the stage) under the visitor: the boxes follow at once.
+    stubBox(stage, { left: 0, top: 71 - PAGE_Y, width: 1280, height: 4000 });
+    stubBox(track, { left: 64, top: 900, width: 1152, height: 3100 });
+    act(() => void stage.dispatchEvent(new Event(SCENE_LAYOUT_EVENT)));
+    expect(probe.version).toBe(2);
+    expect(probe.stage).toEqual({ top: 71, bottom: 4071 });
+    expect(probe.work).toEqual({ x: 64, y: 3900, w: 1152, h: 3100 });
+    expect(refresh).not.toHaveBeenCalled();
+    // The stage's resize refresh that follows still runs (it brings the spans): the event was no refresh.
+    resize?.([{ contentRect: { height: 1600 } }]);
+    resize?.([{ contentRect: { height: 4000 } }]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    // Under a cover it measures nothing (and a redo is owed once the cover lifts).
+    let release = () => {};
+    try {
+      act(() => {
+        release = coverPage();
+      });
+      setScroll(0, 0);
+      act(() => void stage.dispatchEvent(new Event(SCENE_LAYOUT_EVENT)));
+      expect(probe.version).toBe(2);
+      setScroll(0, PAGE_Y);
+      act(() => release());
+      await act(() => new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve())));
+      expect(refresh).toHaveBeenCalledTimes(2);
+    } finally {
+      release();
+    }
+
+    // After an unmount nobody listens.
+    unmount();
+    act(() => void stage.dispatchEvent(new Event(SCENE_LAYOUT_EVENT)));
+    expect(probe.version).toBe(2);
+  });
+
   it("refreshes on a back/forward-cache restore only", () => {
     const { ref } = buildPage();
     const { unmount } = mountDirector(ref, createScrollProbe());
@@ -692,7 +842,7 @@ describe("SceneDirector", () => {
     const onError = vi.fn();
     const props = { stage: ref, live: true, broken: false, onError };
     const view = render(createElement(StageHost, props));
-    expect(ScrollTrigger.getAll()).toHaveLength(2);
+    expect(ScrollTrigger.getAll()).toHaveLength(4);
     // Awake: ScrollTrigger's repaint loop asks for a frame every frame.
     expect(await framesRequestedOver(150)).toBeGreaterThan(2);
 
@@ -709,7 +859,7 @@ describe("SceneDirector", () => {
     // Back on the home page: awake again.
     view.unmount();
     const again = render(createElement(StageHost, props));
-    expect(ScrollTrigger.getAll()).toHaveLength(2);
+    expect(ScrollTrigger.getAll()).toHaveLength(4);
     expect(await framesRequestedOver(150)).toBeGreaterThan(2);
     again.unmount();
     await act(() => Promise.resolve());
@@ -742,6 +892,9 @@ describe("SceneDirector", () => {
     const version = probe.version;
     const heroExit = { ...probe.heroExit };
     const entry = { ...probe.entry };
+    const workSpan = { ...probe.workSpan };
+    const helix = { ...probe.helix };
+    const work = { ...probe.work! };
 
     let release = () => {};
     try {
@@ -755,6 +908,9 @@ describe("SceneDirector", () => {
       expect(probe.stage).toEqual({ top: 71, bottom: 1671 });
       expect(probe.heroExit).toEqual(heroExit);
       expect(probe.entry).toEqual(entry);
+      expect(probe.workSpan).toEqual(workSpan);
+      expect(probe.helix).toEqual(helix);
+      expect(probe.work).toEqual(work);
 
       // The dialog closes: the page is back at 3000 BEFORE the cover lifts (Modal.tsx).
       setScroll(0, PAGE_Y);
@@ -856,7 +1012,12 @@ describe("SceneDirector", () => {
     expect(ScrollTrigger.getAll()).toHaveLength(0);
     expect(probe.hero).toBeNull();
     expect(probe.services).toBeNull();
+    expect(probe.work).toBeNull();
+    expect(probe.workHead).toBeNull();
+    expect(probe.workGap).toBeNull();
     expect(probe.heroExit).toEqual({ start: 0, end: 0 });
+    expect(probe.workSpan).toEqual({ start: 0, end: 0 });
+    expect(probe.helix).toEqual({ start: 0, end: 0 });
     expect(onLive).toHaveBeenCalledTimes(1);
   });
 });

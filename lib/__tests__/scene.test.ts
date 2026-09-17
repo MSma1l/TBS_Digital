@@ -5,10 +5,13 @@ import {
   PARALLAX_LAYERS,
   SCENE_3D_KEY,
   SCENE_ATTR,
+  SCENE_LAYOUT_EVENT,
   SCENE_SHAPES,
   SCENE_TESTID,
   SCENE_TIMING,
   SERVICE_MODEL,
+  WORK_ID,
+  WORK_TRACK_ATTR,
   createScrollProbe,
   decideWebGL,
   markGpu,
@@ -249,11 +252,17 @@ describe("scrollProgress", () => {
       live: false,
       version: 0,
       headerH: 0,
+      layerH: 0,
       stage: { top: 0, bottom: 0 },
       hero: null,
       services: null,
+      work: null,
+      workHead: null,
+      workGap: null,
       heroExit: { start: 0, end: 0 },
       entry: { start: 0, end: 0 },
+      workSpan: { start: 0, end: 0 },
+      helix: { start: 0, end: 0 },
     });
     expect(createScrollProbe()).not.toBe(createScrollProbe());
   });
@@ -366,6 +375,12 @@ describe("the DOM contract", () => {
     expect(new Set(Object.values(SCENE_ATTR)).size).toBe(Object.values(SCENE_ATTR).length);
     // The services entrance as the scene draws it (the Directions panel's glow keys off it).
     expect(SCENE_ATTR.entry).toBe("data-entry");
+    // Work's helix mode (spiral | ambient) and the card track the director measures it against.
+    expect(SCENE_ATTR.helix).toBe("data-helix");
+    expect(WORK_TRACK_ATTR).toBe("data-work-track");
+    expect(WORK_ID).toBe("lucrari");
+    // The scene tells the director it changed the layout itself (on the stage root).
+    expect(SCENE_LAYOUT_EVENT).toBe("tbs:scene-layout");
     expect(Object.keys(PARALLAX_LAYERS)).toEqual(["hero-backdrop", "hero-stats"]);
     expect(SCENE_TIMING.AFTER_INTRO_MS).toBeGreaterThan(500);
   });

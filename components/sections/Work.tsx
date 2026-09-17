@@ -164,18 +164,25 @@ const chipClasses = (n: number, count: number) =>
 /* The description is not a hover reward on a screen that cannot hover: `(hover: none)` also
    covers a touch tablet at 768/1024, and `max-sm:` keeps a narrowed desktop window showing
    the same thing (the same OR as the card wash above). A desktop pointer at full width
-   keeps the reveal, on hover and on keyboard focus. */
+   keeps the reveal, on hover and on keyboard focus.
+   Inside the scene's spiral (`[data-scene-stage][data-helix=spiral]`, workHelix.ts) a card is
+   narrower (240–340px) and as tall as its content, so a shown description is not capped there:
+   at 240px a long one (IQ Arena, ~9 lines) ran past the 140px cap and the card's
+   `overflow: hidden` cut its last lines. The selector outweighs the states it overrides. */
 const DESC_CLASSES =
   "m-0 max-h-0 translate-y-2.5 font-copy text-[13px] leading-normal text-[color-mix(in_srgb,var(--on-accent)_82%,transparent)] opacity-0 transition-[max-height,opacity,translate] duration-250 " +
   "group-hover/card:max-h-35 group-hover/card:translate-y-0 group-hover/card:opacity-100 group-focus-visible/card:max-h-35 group-focus-visible/card:translate-y-0 group-focus-visible/card:opacity-100 " +
-  "max-sm:max-h-35 max-sm:translate-none max-sm:opacity-100 motion-reduce:transition-none [@media(hover:none)]:max-h-35 [@media(hover:none)]:translate-none [@media(hover:none)]:opacity-100";
+  "max-sm:max-h-35 max-sm:translate-none max-sm:opacity-100 motion-reduce:transition-none [@media(hover:none)]:max-h-35 [@media(hover:none)]:translate-none [@media(hover:none)]:opacity-100 " +
+  "group-hover/card:[[data-scene-stage][data-helix=spiral]_&]:max-h-none group-focus-visible/card:[[data-scene-stage][data-helix=spiral]_&]:max-h-none [@media(hover:none)]:[[data-scene-stage][data-helix=spiral]_&]:max-h-none";
 
 /* Three columns; two up to 900px (`max-[901px]:` is `width < 901px`, i.e. ≤900), where an
    odd last card takes the whole row instead of leaving a hole. That wide card keeps its
    screenshot at a normal card's size, on its right half with softened edges: stretched over
    ~800px, `object-cover` enlarged the top of the image ~2× (the Flirt screenshot's sign-up
    form showed its e-mail address legibly), and admin screenshots may hold anything. The
-   ≤640 band is a flex row, so none of this applies there (`sm:`).
+   ≤640 band is a flex row, so none of this applies there (`sm:`). Nor does it inside the
+   scene's spiral (`[data-scene-stage][data-helix=spiral]`, workHelix.ts): every card is laid
+   out alone there, at a normal card's width, so the screenshot fills it like any other.
    ≤640px, one snapping band instead of nine stacked cards (~2400px of scroll before the next
    section): the portfolio is one screenful and reads as a collection. The band bleeds to the
    screen edges so the next card peeks all the way out; `scroll-padding` snaps each card back
@@ -184,7 +191,7 @@ const DESC_CLASSES =
    into the back gesture). The bottom padding is the scrollbar's lane. */
 const GRID_CLASSES =
   "mt-7 grid grid-cols-3 gap-3.5 max-[901px]:grid-cols-2 max-[901px]:[&>:nth-child(odd):last-child]:col-span-2 " +
-  "sm:max-[901px]:[&>:nth-child(odd):last-child_[data-parallax=work-media]]:left-1/2 sm:max-[901px]:[&>:nth-child(odd):last-child_[data-parallax=work-media]]:edge-fade-x " +
+  "sm:max-[901px]:[&:not([data-scene-stage][data-helix=spiral]_*)>:nth-child(odd):last-child_[data-parallax=work-media]]:left-1/2 sm:max-[901px]:[&:not([data-scene-stage][data-helix=spiral]_*)>:nth-child(odd):last-child_[data-parallax=work-media]]:edge-fade-x " +
   "max-sm:-mx-(--gutter) max-sm:flex max-sm:snap-x max-sm:snap-mandatory max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:px-(--gutter) max-sm:pt-0.5 max-sm:pb-3.5 max-sm:[scroll-padding-inline:var(--gutter)] max-sm:[scrollbar-width:thin] max-sm:[scrollbar-color:var(--red)_transparent]";
 
 export function Work() {
@@ -218,7 +225,7 @@ export function Work() {
           </p>
         </Reveal>
 
-        <div className={GRID_CLASSES}>
+        <div className={GRID_CLASSES} data-work-track="">
           {projects.map((p, i) => {
             const [p1, p2] = gradientFor(p, i);
             const style = { "--p1": p1, "--p2": p2 } as CSSProperties;

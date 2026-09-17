@@ -23,6 +23,7 @@ import {
   type GpuMode,
   type MotionGate,
   type SceneEntry,
+  type SceneHelix,
   type SceneMotion,
   type SceneQuality,
   type SceneReason,
@@ -90,15 +91,18 @@ const readTabHidden = () => document.visibilityState === "hidden";
 const serverFalse = () => false;
 
 /**
- * The interior stage: one wrapper around Hero → Ticker → Directions whose first child is an
- * absolutely positioned track holding a sticky layer. The layer is where the one WebGL
- * canvas draws, stuck under the header while the three sections scroll over it; the track
+ * The interior stage: one wrapper around Hero → Ticker → Directions → Work whose first child is
+ * an absolutely positioned track holding a sticky layer. The layer is where the one WebGL
+ * canvas draws, stuck under the header while the four sections scroll over it; the track
  * has no layout height, so every section offset stays exactly where it was.
  *
  * Paint order: the track is positioned and first in tree order, so every positioned section
  * after it paints on top. `isolate` keeps whatever the stage stacks below the header, the
- * burger overlay and the cookie banner. No transform, filter, contain or overflow may ever
- * go on the stage or an ancestor of the layer — any of them breaks `sticky`.
+ * burger overlay and the cookie banner — and makes the stage the stacking context of Work's
+ * spiral: a sticky card the scene gives a negative `z-index` paints in the stage's negative
+ * layer, under the canvas track, and one with a positive `z-index` over it (real depth round
+ * the helix). No transform, filter, contain or overflow may ever go on the stage, an ancestor
+ * of the layer or an ancestor of Work's cards — any of them breaks `sticky` (or that depth).
  *
  * Loading (never a static import of three.js, R3F or GSAP — eslint.config.mjs):
  *  1. on mount: the QA flag, the device tier and the live gates. `tbs_scene_3d=off` → off;
@@ -116,10 +120,12 @@ const serverFalse = () => false;
  *
  * Paused (`frameloop="never"`, context kept) while the stage is off screen, the tab hidden
  * or something full-screen covers the page (burger, intro, dialog). `data-boost`,
- * `data-quality`, `data-morph`, `data-entry` (and the director's `data-scroll-fx`) are written
- * straight to the DOM, never through React state. `data-entry` (`idle|burst|formed`, the
- * services entrance as the ready scene draws it) exists only while a scene is mounted: the
- * fallback and off stages never carry it.
+ * `data-quality`, `data-morph`, `data-entry`, `data-helix` (and the director's `data-scroll-fx`)
+ * are written straight to the DOM, never through React state. `data-entry` (`idle|burst|formed`,
+ * the services entrance as the ready scene draws it) and `data-helix` (`spiral|ambient`, the
+ * Work helix's mode while the scene's driver lays the cards out or draws the small helix) exist
+ * only while a scene is mounted: the fallback and off stages never carry them, and Work's cards
+ * are then exactly as the server rendered them.
  */
 export function SceneStage({ children }: { children: ReactNode }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -259,7 +265,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
     return subscribeSceneInput(write);
   }, []);
 
-  // The scene's quality, morph and entry reports belong to the scene that made them.
+  // The scene's quality, morph, entry and helix reports belong to the scene that made them.
   useEffect(() => {
     const el = stageRef.current;
     if (!loading || !el) return;
@@ -267,6 +273,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
       el.removeAttribute(SCENE_ATTR.quality);
       el.removeAttribute(SCENE_ATTR.morph);
       el.removeAttribute(SCENE_ATTR.entry);
+      el.removeAttribute(SCENE_ATTR.helix);
     };
   }, [loading, attempt]);
 
@@ -317,6 +324,14 @@ export function SceneStage({ children }: { children: ReactNode }) {
     stageRef.current?.setAttribute(SCENE_ATTR.entry, entry);
   }, []);
 
+  // Only a mode that changes the page is on the stage: `built` and `off` say nothing is laid out.
+  const onHelix = useCallback((helix: SceneHelix) => {
+    const el = stageRef.current;
+    if (!el) return;
+    if (helix === "spiral" || helix === "ambient") el.setAttribute(SCENE_ATTR.helix, helix);
+    else el.removeAttribute(SCENE_ATTR.helix);
+  }, []);
+
   // ---- render --------------------------------------------------------------------------
   const webgl = loading && readyAttempt === attempt && liveAttempt === attempt;
   const renderer: SceneRenderer = webgl
@@ -362,6 +377,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
                   onQuality={onQuality}
                   onMorph={onMorph}
                   onEntry={onEntry}
+                  onHelix={onHelix}
                 />
               </div>
               <SceneDirector stage={stageRef} probe={probe} onLive={onLive} />

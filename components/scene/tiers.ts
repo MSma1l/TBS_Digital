@@ -40,6 +40,16 @@ export type SceneTierConfig = {
   satellites: number;
   /** Hub link tube segments (along, around). */
   link: readonly [number, number];
+  /** The Work helix: segments along each strand's tube and around it. */
+  helixTube: readonly [number, number];
+  /** Chips riding the two strands (instanced boxes), shared between them. */
+  helixChips: number;
+  /** Base pairs (rungs) along the helix. */
+  helixRungs: number;
+  /** Seven-segment 0/1 glyph slots drifting up the axis. */
+  helixBits: number;
+  /** The hologram's canvas texture (px): small on purpose, so a screenshot's fine print stays illegible. */
+  hologram: readonly [number, number];
 };
 
 export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig>> = {
@@ -60,6 +70,11 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     packages: 18,
     satellites: 6,
     link: [56, 5],
+    helixTube: [160, 4],
+    helixChips: 80,
+    helixRungs: 22,
+    helixBits: 36,
+    hologram: [384, 240],
   },
   mid: {
     dpr: [1, 1.5],
@@ -78,6 +93,11 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     packages: 12,
     satellites: 5,
     link: [36, 4],
+    helixTube: [100, 3],
+    helixChips: 52,
+    helixRungs: 14,
+    helixBits: 20,
+    hologram: [256, 160],
   },
 };
 

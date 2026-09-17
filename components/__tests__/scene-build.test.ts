@@ -9,8 +9,10 @@ import {
   tickReady,
 } from "@/components/scene/three/compile";
 import { pickSceneRoles } from "@/components/scene/three/palette";
-import { BURST_SPECK, createSceneWorld } from "@/components/scene/three/world";
-import { layoutFor, placeServices } from "@/components/scene/choreography";
+import { BURST_SPECK, HELIX_BOUND, createSceneWorld, stageHelix } from "@/components/scene/three/world";
+import type { WorkHelixDriver, WorkHelixMode } from "@/components/scene/workHelix";
+import { layoutFor, placeHelixSpiral, placeServices } from "@/components/scene/choreography";
+import { HELIX_LAYOUT } from "@/components/scene/helix";
 import {
   CHIP_PACKET_SPEED,
   chipArrivalPulse,
@@ -26,7 +28,7 @@ import { CHIP_LIFT, CHIP_STACK } from "@/components/scene/three/samples";
 import { watchPixelRatio, type PixelRatioHost } from "@/components/scene/pixelRatio";
 import { CHIP, MODEL_RADIUS, chipTraces } from "@/components/scene/shapes";
 import { SCENE_TIER_CONFIG, clampSceneDpr, pointsDrawn } from "@/components/scene/tiers";
-import { ENTRY_SECONDS, createSceneFx } from "@/components/scene/fx";
+import { ENTRY_SECONDS, WORK_SECONDS, createSceneFx } from "@/components/scene/fx";
 import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "@/lib/scene";
 
 /*
@@ -271,6 +273,330 @@ describe("the world — the services entrance (burst out of a speck)", () => {
     expect(swarm.visible).toBe(false);
     expect(models[0].visible).toBe(true);
     world.dispose();
+  });
+});
+
+describe("the world — Work's helix, built after ready", () => {
+  /** A renderer that only records what it was asked to compile (no WebGL in jsdom). */
+  function recordingRenderer() {
+    const compiled: Object3D[] = [];
+    const renderer = {
+      extensions: { has: () => false },
+      compile: (object: Object3D) => compiled.push(object),
+    } as unknown as Parameters<typeof stageHelix>[1];
+    return { renderer, compiled };
+  }
+
+  it("is no part of `complete`: built in an idle slice of its own, compiled one object per slice, then marked built once", async () => {
+    const world = createSceneWorld("mid", PALETTE);
+    while (!world.complete()) world.buildNext();
+    const parts = world.root.children.length;
+    expect(parts).toBe(3 + SCENE_SHAPES.length);
+    // Complete, compiled and ready without it.
+    expect(world.helixObjects()).toEqual([]);
+    expect(world.helixBuilt()).toBe(false);
+
+    const { renderer, compiled } = recordingRenderer();
+    const slices = manualIdle();
+    const built = vi.fn();
+    const done = stageHelix(world, renderer, {} as never, {} as never, { cancelled: () => false, idle: slices.idle }).then(
+      (ok) => {
+        if (ok) built();
+        return ok;
+      },
+    );
+    await Promise.resolve();
+    // Nothing is built in the task that asked for it.
+    expect(world.root.children).toHaveLength(parts);
+
+    await slices.step();
+    // One slice: the helix exists, hidden, and its first object compiled.
+    expect(world.root.children).toHaveLength(parts + 1);
+    const group = world.root.children[parts];
+    expect(group.visible).toBe(false);
+    const objects = world.helixObjects();
+    expect(objects.length).toBeGreaterThan(1);
+    for (const object of objects) {
+      let node: Object3D | null = object;
+      while (node && node !== group) node = node.parent;
+      expect(node, object.type).toBe(group);
+    }
+    expect(compiled).toEqual([objects[0]]);
+    expect(world.helixBuilt()).toBe(false);
+
+    // Then exactly one more object per slice.
+    for (let i = 1; i < objects.length; i += 1) {
+      await slices.step();
+      expect(compiled).toEqual(objects.slice(0, i + 1));
+      expect(world.helixBuilt()).toBe(false);
+    }
+    // The slice after the last compile queues its pre-warm and marks it built.
+    await slices.step();
+    await expect(done).resolves.toBe(true);
+    expect(slices.pending()).toBe(0);
+    expect(built).toHaveBeenCalledTimes(1);
+    expect(world.helixBuilt()).toBe(true);
+    expect(world.complete()).toBe(true);
+
+    // The pre-warm frame draws it once (every fragment discards); with no driver it stays hidden after.
+    const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+    const fx = createSceneFx();
+    world.update(1 / 60, 0, view, false, createScrollProbe(), readSceneInput(), fx);
+    expect(group.visible).toBe(true);
+    world.update(1 / 60, 0, view, false, createScrollProbe(), readSceneInput(), fx);
+    expect(group.visible).toBe(false);
+    expect(world.helixMode()).toBe("off");
+
+    // Building again changes nothing: one helix per canvas.
+    world.buildHelix();
+    expect(world.root.children).toHaveLength(parts + 1);
+    world.dispose();
+  });
+
+  it("an unmount part-way stops it: never marked built", async () => {
+    const world = createSceneWorld("mid", PALETTE);
+    while (!world.complete()) world.buildNext();
+    const { renderer, compiled } = recordingRenderer();
+    const slices = manualIdle();
+    let cancelled = false;
+    const done = stageHelix(world, renderer, {} as never, {} as never, { cancelled: () => cancelled, idle: slices.idle });
+    await slices.step();
+    cancelled = true;
+    await slices.step();
+    await expect(done).resolves.toBe(false);
+    expect(compiled).toHaveLength(1);
+    expect(world.helixBuilt()).toBe(false);
+
+    // Cancelled before its slice: not even built.
+    const early = createSceneWorld("mid", PALETTE);
+    while (!early.complete()) early.buildNext();
+    const parts = early.root.children.length;
+    const earlySlices = manualIdle();
+    const stopped = stageHelix(early, renderer, {} as never, {} as never, { cancelled: () => true, idle: earlySlices.idle });
+    await earlySlices.step();
+    await expect(stopped).resolves.toBe(false);
+    expect(early.root.children).toHaveLength(parts);
+    world.dispose();
+    early.dispose();
+  });
+});
+
+describe("the world — the Work handoff (services model → helix) with the spiral driver", () => {
+  /** 1280×800, services formed above; nine cards: the track grown to one layer plus eight 304px steps. */
+  function workProbe() {
+    const probe = createScrollProbe();
+    probe.live = true;
+    probe.version = 1;
+    probe.headerH = 71;
+    probe.layerH = 729;
+    probe.stage = { top: 71, bottom: 6240 };
+    probe.hero = { x: 702, y: 167, w: 538, h: 538 };
+    probe.services = { x: 610, y: 1126, w: 630, h: 248 };
+    probe.work = { x: 64, y: 2600, w: 1152, h: 729 + 8 * 304 };
+    probe.workHead = { x: 64, y: 2380, w: 1152, h: 150 };
+    probe.workGap = { x: 0, y: 2296, w: 1280, h: 84 };
+    probe.heroExit = { start: 71, end: 520 };
+    probe.entry = { start: 406, end: 526 };
+    probe.workSpan = { start: 2040, end: 2160 };
+    probe.helix = { start: 2529, end: 4961 };
+    return probe;
+  }
+
+  /** What the world asks of the driver, recorded; `mode` and `focus` set by the test. */
+  function fakeDriver(initial: WorkHelixMode = "spiral") {
+    const state = { mode: initial, focus: 2.5, writes: [] as Array<{ focus: number; built: boolean }>, focusAsked: [] as number[] };
+    const driver: WorkHelixDriver = {
+      focus: (scrollY) => {
+        state.focusAsked.push(scrollY);
+        return state.mode === "spiral" ? state.focus : 0;
+      },
+      write: vi.fn((s: { focus: number; built: boolean }) => {
+        state.writes.push({ ...s });
+      }),
+      front: () => -1,
+      cards: () => [],
+      mode: () => state.mode,
+      dispose: vi.fn(),
+    };
+    return { driver, state };
+  }
+
+  async function builtWorld() {
+    const world = createSceneWorld("mid", PALETTE);
+    while (!world.complete()) world.buildNext();
+    const renderer = { extensions: { has: () => false }, compile: () => {} } as unknown as Parameters<typeof stageHelix>[1];
+    await stageHelix(world, renderer, {} as never, {} as never, { cancelled: () => false, idle: () => Promise.resolve() });
+    // Its pre-warm frame, at the top of the page (no driver yet).
+    world.update(1 / 60, 0, { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } }, false, workProbe(), readSceneInput(), createSceneFx());
+    return world;
+  }
+
+  it("no helix drawn, no handoff: before it is built, without a driver, or while the driver is off, the work gate stays shut", async () => {
+    const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+    const probe = workProbe();
+    // Not built: the driver hears `built: false` and the gate stays shut past Work's band.
+    const bare = createSceneWorld("mid", PALETTE);
+    while (!bare.complete()) bare.buildNext();
+    const unbuilt = fakeDriver("off");
+    bare.attachWork(unbuilt.driver);
+    const fx = createSceneFx();
+    for (let i = 0; i < 5; i += 1) bare.update(1 / 20, 3000, view, false, probe, readSceneInput(), fx);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    expect(unbuilt.state.writes.every((w) => !w.built)).toBe(true);
+    expect(unbuilt.state.writes).toHaveLength(5);
+
+    // Built, driver off (a deep link into Work keeps the grid): still shut, and the driver hears `built`.
+    const world = await builtWorld();
+    const off = fakeDriver("off");
+    world.attachWork(off.driver);
+    const fxOff = createSceneFx();
+    for (let i = 0; i < 5; i += 1) world.update(1 / 20, 3000, view, false, probe, readSceneInput(), fxOff);
+    expect(fxOff.work).toEqual({ value: 0, armed: false });
+    expect(off.state.writes.at(-1)).toEqual({ focus: 0, built: true });
+    expect(off.state.focusAsked).toEqual([]);
+    // Without a driver at all: shut.
+    world.attachWork(null);
+    expect(off.driver.dispose).toHaveBeenCalledTimes(1);
+    const fxNone = createSceneFx();
+    world.update(1 / 20, 3000, view, false, probe, readSceneInput(), fxNone);
+    expect(fxNone.work).toEqual({ value: 0, armed: false });
+    bare.dispose();
+    world.dispose();
+  });
+
+  it("spiral: past Work's band the model's swarm flies to the helix on its zone, the helix forms in time and turns to the driver's focus", async () => {
+    const world = await builtWorld();
+    const [, swarm, , ...rest] = world.root.children;
+    const models = rest.slice(0, SCENE_SHAPES.length);
+    const helix = rest[SCENE_SHAPES.length];
+    const u = (swarm as Points<BufferGeometry, ShaderMaterial>).material.uniforms;
+    const { driver, state } = fakeDriver("spiral");
+    world.attachWork(driver);
+    const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+    const probe = workProbe();
+    const fx = createSceneFx();
+    const frame = (scrollY: number) => world.update(1 / 20, scrollY, view, false, probe, readSceneInput(), fx);
+
+    // At the services: the model formed, no helix; the driver gets the (unused) focus and `built`.
+    frame(1000);
+    expect(fx.entry.value).toBe(1);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    expect(models[0].visible).toBe(true);
+    expect(helix.visible).toBe(false);
+    expect(world.helixMode()).toBe("spiral");
+    expect(state.writes.at(-1)).toEqual({ focus: 2.5, built: true });
+    expect(state.focusAsked.at(-1)).toBe(1000);
+
+    // Past the band: the first frame of the handoff, from the selected model's slot to the helix's.
+    const scrollY = 2200;
+    frame(scrollY);
+    expect(fx.work.armed).toBe(true);
+    expect(fx.work.value).toBeCloseTo(1 / 20 / WORK_SECONDS.form, 12);
+    expect(swarm.visible).toBe(true);
+    expect(u.uFromA.value.toArray()).toEqual([0, 1, 0]);
+    expect(u.uToA.value.toArray()).toEqual([1, 0, 0]);
+    expect(u.uToB.value.toArray()).toEqual([0, 0, 0]);
+    const place = placeHelixSpiral(probe, scrollY, 1280, 729, HELIX_LAYOUT.cx)!;
+    const to = (u.uToM.value as Matrix4).elements;
+    expect(to[12]).toBeCloseTo(place.x, 9);
+    expect(to[13]).toBeCloseTo(place.y, 9);
+    expect(u.uToR.value).toBeCloseTo(HELIX_BOUND * place.scale, 9);
+    const from = (u.uFromM.value as Matrix4).elements;
+    const services = placeServices(probe, scrollY, 1280, 729, layoutFor(1280, 729, false))!;
+    expect(from[12]).toBeCloseTo(services.x, 9);
+    expect(u.uFromR.value).toBeCloseTo(MODEL_RADIUS * services.scale, 9);
+
+    // Formed after WORK_SECONDS.form (24–25 frames at 20 Hz): the helix alone, the model gone.
+    for (let i = 0; i < 24; i += 1) frame(scrollY);
+    expect(fx.work.value).toBe(1);
+    expect(swarm.visible).toBe(false);
+    expect(models.some((model) => model.visible)).toBe(false);
+    expect(helix.visible).toBe(true);
+    // The helix sits on its zone; the driver is written every frame with the focus the helix turned to.
+    expect(helix.position.x).toBeCloseTo(place.x, 9);
+    state.focus = 4.25;
+    frame(3400);
+    expect(state.writes.at(-1)).toEqual({ focus: 4.25, built: true });
+    const stuck = placeHelixSpiral(probe, 3400, 1280, 729, HELIX_LAYOUT.cx)!;
+    expect(helix.position.y).toBeCloseTo(stuck.y, 9);
+    expect(helix.scale.x).toBeCloseTo(stuck.scale, 9);
+
+    // Back above the band: the helix hands back to the model in time.
+    frame(1900);
+    expect(fx.work.armed).toBe(false);
+    expect(fx.work.value).toBeCloseTo(1 - 1 / 20 / WORK_SECONDS.unform, 12);
+    for (let i = 0; i < 12; i += 1) frame(1900);
+    expect(fx.work.value).toBe(0);
+    expect(helix.visible).toBe(false);
+    expect(models[0].visible).toBe(true);
+    expect(ENTRY_SECONDS.form).toBeLessThan(WORK_SECONDS.form);
+    world.dispose();
+    expect(driver.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a driver whose mode falls to off mid-handoff closes the gate in time and hides the helix at once (no swarm left flying)", async () => {
+    const world = await builtWorld();
+    const [, swarm, , ...rest] = world.root.children;
+    const helix = rest[SCENE_SHAPES.length];
+    const { driver, state } = fakeDriver("spiral");
+    world.attachWork(driver);
+    const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+    const probe = workProbe();
+    const fx = createSceneFx();
+    const frame = (scrollY: number) => world.update(1 / 20, scrollY, view, false, probe, readSceneInput(), fx);
+    frame(1000);
+    for (let i = 0; i < 12; i += 1) frame(2200);
+    expect(swarm.visible).toBe(true);
+    state.mode = "off";
+    frame(2200);
+    expect(world.helixMode()).toBe("off");
+    expect(fx.work.armed).toBe(false);
+    expect(swarm.visible).toBe(false);
+    expect(helix.visible).toBe(false);
+    world.dispose();
+  });
+
+  it("an error in the driver's frame lets it go (the cards come back), reports it once, and the scene draws on without the helix", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const world = await builtWorld();
+      const [, , , ...rest] = world.root.children;
+      const models = rest.slice(0, SCENE_SHAPES.length);
+      const helix = rest[SCENE_SHAPES.length];
+      const { driver } = fakeDriver("spiral");
+      vi.mocked(driver.write).mockImplementation(() => {
+        throw new Error("layout failed");
+      });
+      const onRelease = vi.fn();
+      world.attachWork(driver, onRelease);
+      const view = { size: { width: 1280, height: 729 }, viewport: { dpr: 1 } };
+      const fx = createSceneFx();
+      const frame = (scrollY: number) => world.update(1 / 20, scrollY, view, false, workProbe(), readSceneInput(), fx);
+
+      expect(() => frame(3000)).not.toThrow();
+      expect(driver.dispose).toHaveBeenCalledTimes(1);
+      expect(onRelease).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(world.helixBuilt()).toBe(false);
+      expect(world.helixMode()).toBe("off");
+      // The next frames: no driver, no helix, the gate closing, the model back.
+      for (let i = 0; i < 15; i += 1) frame(3000);
+      expect(driver.write).toHaveBeenCalledTimes(1);
+      expect(fx.work.value).toBe(0);
+      expect(helix.visible).toBe(false);
+      expect(models[0].visible).toBe(true);
+      // A driver handed over afterwards is disposed straight away: this canvas has no helix any more.
+      const late = fakeDriver("spiral");
+      world.attachWork(late.driver);
+      expect(late.driver.dispose).toHaveBeenCalledTimes(1);
+      frame(3000);
+      expect(late.state.writes).toEqual([]);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      world.dispose();
+      expect(onRelease).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
 

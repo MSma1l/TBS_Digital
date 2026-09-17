@@ -5,6 +5,10 @@ import {
   CORE_BEHIND_COPY_BELOW,
   CORE_BEHIND_COPY_DIM,
   CORE_BEHIND_COPY_WIDE_FROM,
+  HELIX_AMBIENT,
+  HELIX_REACH,
+  HELIX_SLOT,
+  HELIX_ZONE_FILL,
   MORPH_SECONDS,
   SCENE_CAMERA,
   SCENE_LAYOUTS,
@@ -15,10 +19,13 @@ import {
   createComposition,
   createMorph,
   fitAnchor,
+  helixZoneTop,
   layoutFor,
   morphRunning,
   parallax,
   placeCore,
+  placeHelixAmbient,
+  placeHelixSpiral,
   placeServices,
   revealOf,
   smoothstep,
@@ -39,15 +46,15 @@ import {
   stepGate,
   stepSceneFx,
   WAVE_GAP_SECONDS,
+  WORK_SECONDS,
 } from "@/components/scene/fx";
-import { CHIP, CHIP_POSE, MODEL_RADIUS, type Vec3 } from "@/components/scene/shapes";
+import { CHIP, HELIX, MODEL_RADIUS } from "@/components/scene/shapes";
 import {
-  CHIP_STACK,
   COMMERCE_GATE_RADIUS,
-  chipSamples,
+  HELIX_PARTS,
   commerceGateFrame,
   commerceGatePoint,
-  rotateEulerXYZ,
+  helixSamples,
   swarmSlots,
 } from "@/components/scene/three/samples";
 import { SCENE_TIER_CONFIG } from "@/components/scene/tiers";
@@ -254,6 +261,112 @@ describe("scene space — the sticky canvas and its hosts", () => {
   });
 });
 
+describe("scene space — the Work helix", () => {
+  /** 1280×800 with nine cards: the track grown to one layer plus eight 304px steps (workHelix.ts). */
+  function workProbe(): ScrollProbe {
+    const probe = desktopProbe();
+    probe.layerH = 729;
+    probe.stage = { top: 71, bottom: 6240 };
+    probe.work = { x: 64, y: 2600, w: 1152, h: 729 + 8 * 304 };
+    probe.workHead = { x: 64, y: 2380, w: 1152, h: 150 };
+    probe.workGap = { x: 0, y: 2280, w: 1280, h: 100 };
+    return probe;
+  }
+  const h = 729;
+  const k = worldPerPx(h);
+
+  it("the sticky zone: at the track's top until the track reaches the header, under the header, then at the track's end", () => {
+    const track = workProbe().work!;
+    const end = track.y + track.h - 729;
+    expect(helixZoneTop(track, 0, 71, 729)).toBe(2600);
+    expect(helixZoneTop(track, 2529, 71, 729)).toBe(2600);
+    expect(helixZoneTop(track, 3000, 71, 729)).toBe(3071);
+    expect(helixZoneTop(track, end - 71, 71, 729)).toBe(end);
+    expect(helixZoneTop(track, 99_999, 71, 729)).toBe(end);
+    expect(helixZoneTop(track, Number.NaN, 71, 729)).toBe(2600);
+    // A track shorter than one zone never lets it rise above its own top.
+    expect(helixZoneTop({ ...track, h: 300 }, 3000, 71, 729)).toBe(2600);
+  });
+
+  it("spiral: on the cards' axis (cx of the track), centred on the zone, as tall as HELIX_ZONE_FILL of it", () => {
+    const probe = workProbe();
+    const axis = (64 + 0.34 * 1152 - 1280 / 2) * k;
+    // Inside the span the zone and the canvas are both stuck under the header: the helix holds still.
+    for (const scrollY of [2600, 3400, 4600]) {
+      const place = placeHelixSpiral(probe, scrollY, 1280, h, 0.34)!;
+      expect(place.x).toBeCloseTo(axis, 9);
+      expect(place.y).toBeCloseTo(0, 9);
+      expect((place.scale * HELIX.height) / k).toBeCloseTo(HELIX_ZONE_FILL * 729, 6);
+    }
+    // Before the zone sticks (the track scrolling in) and past its end (the last card leaving) it
+    // moves up the stuck canvas exactly with the page; once the stage itself leaves, the canvas
+    // carries it away (it holds still on the canvas).
+    for (const [a, b, moved] of [
+      [2000, 2100, 100],
+      [5000, 5100, 100],
+      [5600, 5700, 0],
+    ]) {
+      const from = placeHelixSpiral(probe, a, 1280, h, 0.34)!;
+      const to = placeHelixSpiral(probe, b, 1280, h, 0.34)!;
+      expect((to.y - from.y) / k, `${a} → ${b}`).toBeCloseTo(moved, 6);
+      expect(to.x).toBe(from.x);
+    }
+    // Written into `out`; nothing measured, no track: null. An unmeasured layer counts as the canvas.
+    const out = { x: 0, y: 0, scale: 0 };
+    expect(placeHelixSpiral(probe, 3400, 1280, h, 0.34, out)).toBe(out);
+    expect(placeHelixSpiral(createScrollProbe(), 3400, 1280, h, 0.34)).toBeNull();
+    expect(placeHelixSpiral(desktopProbe(), 3400, 1280, h, 0.34)).toBeNull();
+    const unmeasured = { ...workProbe(), layerH: 0 };
+    expect(placeHelixSpiral(unmeasured, 3400, 1280, h, 0.34)).toEqual(placeHelixSpiral(probe, 3400, 1280, h, 0.34));
+  });
+
+  it("ambient: lying in the band above Work's heading, centred on it, 0.6 of the width long, clear of the band's edges and never over 120px tall", () => {
+    expect(HELIX_AMBIENT).toEqual({ length: 0.6, maxPx: 120, clear: 10 });
+    // The strands and chips (radius + 0.1) and the 0/1 bits (1.2 plus half a glyph) all fit in the reach.
+    expect(HELIX_REACH).toBe(1.26);
+    expect(HELIX_REACH).toBeGreaterThan(HELIX.radius + 0.1);
+    const phone = 780;
+    const kp = worldPerPx(phone);
+    const binding: string[] = [];
+    for (const [w, band] of [
+      [320, 84],
+      [390, 84],
+      [412, 84],
+      [640, 84],
+      [767, 90],
+      [390, 400],
+    ] as const) {
+      const probe = workProbe();
+      probe.headerH = 64;
+      probe.layerH = phone;
+      probe.stage = { top: 64, bottom: 4000 };
+      probe.workHead = { x: 16, y: 2380, w: w - 32, h: 190 };
+      probe.workGap = { x: 0, y: 2380 - band, w, h: band };
+      const scrollY = 2200;
+      const place = placeHelixAmbient(probe, scrollY, w, phone)!;
+      const length = (place.scale * HELIX.height) / kp;
+      const tall = (place.scale * 2 * HELIX_REACH) / kp;
+      expect(length, `${w}`).toBeLessThanOrEqual(0.6 * w + 1e-6);
+      expect(tall, `${w}`).toBeLessThanOrEqual(Math.min(120, band - 20) + 1e-6);
+      binding.push(Math.abs(length - 0.6 * w) < 1e-6 ? "length" : Math.abs(tall - Math.min(120, band - 20)) < 1e-6 ? "band" : "none");
+      expect(place.x).toBeCloseTo(0, 9);
+      // The band's centre, in the canvas stuck under the header: never the heading's.
+      expect(place.y).toBeCloseTo(-(2380 - band / 2 - (scrollY + 64) - phone / 2) * kp, 9);
+    }
+    // The ~84px band binds a phone's helix (64px tall); in a tall band the width binds again.
+    expect(binding).toEqual(["band", "band", "band", "band", "band", "length"]);
+    // A band too thin for any helix gives scale 0; nothing measured, or no Work: null.
+    const thin = workProbe();
+    thin.workGap = { x: 0, y: 2370, w: 390, h: 12 };
+    expect(placeHelixAmbient(thin, 2200, 390, phone)!.scale).toBe(0);
+    expect(placeHelixAmbient(createScrollProbe(), 0, 390, phone)).toBeNull();
+    expect(placeHelixAmbient(desktopProbe(), 0, 390, phone)).toBeNull();
+    const noGap = workProbe();
+    noGap.workGap = null;
+    expect(placeHelixAmbient(noGap, 2200, 390, phone)).toBeNull();
+  });
+});
+
 /* ---- morph -------------------------------------------------------------------------------- */
 
 const DISSOLVE_RATE = 0.5 / MORPH_SECONDS.dissolve;
@@ -381,28 +494,28 @@ describe("morph — who draws what (composeScene)", () => {
   const swarmDrawn = (plan: SceneComposition) => (plan.swarm.active ? swarmAlpha(plan.swarm.t) : 0);
 
   it("above the services (entry 0): nothing drawn", () => {
-    const plan = composeScene(0, createMorph(2), createComposition());
+    const plan = composeScene(0, 0, createMorph(2), createComposition());
     expect(plan.swarm).toEqual({ active: false, from: 0, to: 0, t: 0 });
     for (let index = 0; index < SCENE_SHAPES.length; index += 1) expect(revealOf(plan, index)).toBe(0);
   });
 
   it("the entrance bursts the selected model out of a speck and reveals it over the last stretch", () => {
     expect(BURST).toBe(-1);
-    const plan = composeScene(0.6, createMorph(3), createComposition());
+    const plan = composeScene(0.6, 0, createMorph(3), createComposition());
     expect(plan.swarm).toEqual({ active: true, from: BURST, to: 4, t: 0.6 });
     expect(revealOf(plan, 3)).toBe(0);
-    expect(composeScene(0.85, createMorph(3), createComposition()).models).toEqual([
+    expect(composeScene(0.85, 0, createMorph(3), createComposition()).models).toEqual([
       { index: 3, reveal: smoothstep(0.72, 1, 0.85) },
       { index: 3, reveal: 0 },
     ]);
     // Imploding runs the same picture backwards; out of range is clamped.
-    expect(composeScene(0.3, createMorph(1), createComposition()).swarm).toEqual({ active: true, from: BURST, to: 2, t: 0.3 });
-    expect(composeScene(-2, createMorph(1), createComposition()).swarm.active).toBe(false);
-    expect(composeScene(7, createMorph(1), createComposition())).toEqual(composeScene(1, createMorph(1), createComposition()));
+    expect(composeScene(0.3, 0, createMorph(1), createComposition()).swarm).toEqual({ active: true, from: BURST, to: 2, t: 0.3 });
+    expect(composeScene(-2, 0, createMorph(1), createComposition()).swarm.active).toBe(false);
+    expect(composeScene(7, 0, createMorph(1), createComposition())).toEqual(composeScene(1, 0, createMorph(1), createComposition()));
   });
 
   it("formed and not morphing: the selected model alone, no swarm", () => {
-    const plan = composeScene(1, createMorph(4), createComposition());
+    const plan = composeScene(1, 0, createMorph(4), createComposition());
     expect(plan.swarm.active).toBe(false);
     expect(revealOf(plan, 4)).toBe(1);
     for (const index of [0, 1, 2, 3]) expect(revealOf(plan, index)).toBe(0);
@@ -410,12 +523,12 @@ describe("morph — who draws what (composeScene)", () => {
 
   it("once formed the morph owns the swarm, and the reveals cross over", () => {
     const m: MorphState = { from: 0, to: 2, t: 0.2 };
-    const plan = composeScene(1, m, createComposition());
+    const plan = composeScene(1, 0, m, createComposition());
     expect(plan.swarm).toEqual({ active: true, from: 1, to: 3, t: 0.2 });
     expect(revealOf(plan, 0)).toBeCloseTo(1 - smoothstep(0, 0.3, 0.2), 12);
     expect(revealOf(plan, 2)).toBe(0);
     // just before the commit the new model is formed, exactly as after it
-    const late = composeScene(1, { from: 0, to: 2, t: 1 - 1e-9 }, createComposition());
+    const late = composeScene(1, 0, { from: 0, to: 2, t: 1 - 1e-9 }, createComposition());
     expect(revealOf(late, 2)).toBeCloseTo(1, 6);
     expect(revealOf(late, 0)).toBe(0);
   });
@@ -426,12 +539,12 @@ describe("morph — who draws what (composeScene)", () => {
     // flat at those ends (|Δ| ≤ 3·(ε/0.28)² and 3·(ε/0.12)²).
     for (let shape = 0; shape < SCENE_SHAPES.length; shape += 1) {
       const m = createMorph(shape);
-      const formed = composeScene(1, m, createComposition());
-      const idle = composeScene(0, m, createComposition());
+      const formed = composeScene(1, 0, m, createComposition());
+      const idle = composeScene(0, 0, m, createComposition());
       for (const eps of [1e-2, 1e-3, 1e-4, 1e-6]) {
         const bound = 300 * eps * eps;
-        const arriving = composeScene(1 - eps, m, createComposition());
-        const leaving = composeScene(eps, m, createComposition());
+        const arriving = composeScene(1 - eps, 0, m, createComposition());
+        const leaving = composeScene(eps, 0, m, createComposition());
         for (let index = 0; index < SCENE_SHAPES.length; index += 1) {
           expect(Math.abs(revealOf(arriving, index) - revealOf(formed, index)), `shape ${shape} → 1`).toBeLessThanOrEqual(bound);
           expect(Math.abs(revealOf(leaving, index) - revealOf(idle, index)), `shape ${shape} → 0`).toBeLessThanOrEqual(bound);
@@ -442,14 +555,79 @@ describe("morph — who draws what (composeScene)", () => {
       expect(swarmDrawn(formed)).toBe(0);
       expect(swarmDrawn(idle)).toBe(0);
       // Mid-burst the swarm really is on screen.
-      expect(swarmDrawn(composeScene(0.5, m, createComposition()))).toBe(1);
+      expect(swarmDrawn(composeScene(0.5, 0, m, createComposition()))).toBe(1);
     }
   });
 
   it("writes into the composition it is given (no allocation per frame)", () => {
     const out = createComposition();
-    expect(composeScene(0.3, createMorph(0), out)).toBe(out);
-    expect(composeScene(1, { from: 1, to: 2, t: 0.4 }, out)).toBe(out);
+    expect(composeScene(0.3, 0, createMorph(0), out)).toBe(out);
+    expect(composeScene(1, 0, { from: 1, to: 2, t: 0.4 }, out)).toBe(out);
+    expect(composeScene(1, 0.4, createMorph(3), out)).toBe(out);
+  });
+
+  it("past Work's band (work > 0) the selected model's swarm flies to the helix: the model dissolves first, the helix forms last", () => {
+    expect(HELIX_SLOT).toBe(0);
+    expect(createComposition().helix).toBe(0);
+    const plan = composeScene(1, 0.4, createMorph(2), createComposition());
+    expect(plan.swarm).toEqual({ active: true, from: 3, to: HELIX_SLOT, t: 0.4 });
+    expect(plan.helix).toBe(0);
+    for (let index = 0; index < SCENE_SHAPES.length; index += 1) expect(revealOf(plan, index)).toBe(0);
+    const early = composeScene(1, 0.1, createMorph(2), createComposition());
+    expect(revealOf(early, 2)).toBeCloseTo(1 - smoothstep(0, 0.3, 0.1), 12);
+    expect(early.helix).toBe(0);
+    const late = composeScene(1, 0.85, createMorph(2), createComposition());
+    expect(late.helix).toBeCloseTo(smoothstep(0.7, 1, 0.85), 12);
+    expect(revealOf(late, 2)).toBe(0);
+
+    // Formed: the helix alone, no swarm, no service model (whatever pill is selected).
+    const formed = composeScene(1, 1, createMorph(4), createComposition());
+    expect(formed.swarm.active).toBe(false);
+    expect(formed.helix).toBe(1);
+    for (let index = 0; index < SCENE_SHAPES.length; index += 1) expect(revealOf(formed, index)).toBe(0);
+    // The work gate owns the frame whatever the entry gate says; out of range is clamped.
+    expect(composeScene(0.2, 0.4, createMorph(2), createComposition())).toEqual(plan);
+    expect(composeScene(1, 5, createMorph(4), createComposition())).toEqual(formed);
+    expect(composeScene(1, -1, createMorph(4), createComposition())).toEqual(composeScene(1, 0, createMorph(4), createComposition()));
+    // No other branch draws the helix, and a composition reused from a handoff forgets it.
+    const out = composeScene(1, 1, createMorph(0), createComposition());
+    for (const [entry, m] of [
+      [0, createMorph(1)],
+      [0.5, createMorph(1)],
+      [1, createMorph(1)],
+      [1, { from: 0, to: 2, t: 0.4 }],
+    ] as const) {
+      expect(composeScene(entry, 0, m, out).helix).toBe(0);
+    }
+  });
+
+  it("property: continuous where the model hands over to the helix (work = ε) and where the helix has formed (work → 1)", () => {
+    // While work > 0 the morph is instant (world.ts), so the handoff always leaves a formed morph.
+    // Both ends agree to second order again: every reveal and the swarm's alpha are smoothsteps.
+    for (let shape = 0; shape < SCENE_SHAPES.length; shape += 1) {
+      const m = createMorph(shape);
+      const model = composeScene(1, 0, m, createComposition());
+      const helix = composeScene(1, 1, m, createComposition());
+      for (const eps of [1e-2, 1e-3, 1e-4, 1e-6]) {
+        const bound = 300 * eps * eps;
+        const leaving = composeScene(1, eps, m, createComposition());
+        const arriving = composeScene(1, 1 - eps, m, createComposition());
+        for (let index = 0; index < SCENE_SHAPES.length; index += 1) {
+          expect(Math.abs(revealOf(leaving, index) - revealOf(model, index)), `shape ${shape} leaving`).toBeLessThanOrEqual(bound);
+          expect(Math.abs(revealOf(arriving, index) - revealOf(helix, index)), `shape ${shape} arriving`).toBeLessThanOrEqual(bound);
+        }
+        expect(Math.abs(leaving.helix - model.helix)).toBeLessThanOrEqual(bound);
+        expect(Math.abs(arriving.helix - helix.helix)).toBeLessThanOrEqual(bound);
+        expect(swarmDrawn(leaving)).toBeLessThanOrEqual(bound);
+        expect(swarmDrawn(arriving)).toBeLessThanOrEqual(bound);
+        // It leaves from the selected model's silhouette and lands on the helix's.
+        expect([leaving.swarm.from, leaving.swarm.to]).toEqual([1 + shape, HELIX_SLOT]);
+      }
+      expect(revealOf(model, shape)).toBe(1);
+      expect(swarmDrawn(model)).toBe(0);
+      expect(swarmDrawn(helix)).toBe(0);
+      expect(swarmDrawn(composeScene(1, 0.5, m, createComposition()))).toBe(1);
+    }
   });
 });
 
@@ -459,9 +637,11 @@ describe("gates — stepGate (armed by scroll, run in time)", () => {
   const span = { start: 406, end: 526 };
   const rates = ENTRY_SECONDS;
 
-  it("burst in 1.1 s, implode in 0.45 s", () => {
+  it("burst in 1.1 s, implode in 0.45 s; the helix forms in 1.2 s and comes apart in 0.5 s", () => {
     expect(ENTRY_SECONDS).toEqual({ form: 1.1, unform: 0.45 });
+    expect(WORK_SECONDS).toEqual({ form: 1.2, unform: 0.5 });
     expect(createGate()).toEqual({ value: 0, armed: false });
+    expect(createSceneFx().work).toEqual({ value: 0, armed: false });
   });
 
   it("hysteresis: arms at the span's end, disarms only above its start, keeps its state in between", () => {
@@ -596,6 +776,96 @@ describe("fx — per-frame smoothing, the entry gate and the light wave", () => 
     expect(early.entry).toEqual({ value: 1, armed: true });
   });
 
+  /* Work's band on the same page: the track's top "top 70%" → "top 55%" of the 800px viewport. */
+  const work = { start: 2300, end: 2420 };
+
+  it("the work gate arms past Work's band and forms on the clamped frame step; a deep link into Work finds the helix formed", () => {
+    const deep = createSceneFx();
+    stepSceneFx(deep, 1 / 60, input(), 1, 3000, span, work);
+    expect(deep.work).toEqual({ value: 1, armed: true });
+    expect(deep.entry).toEqual({ value: 1, armed: true });
+
+    const fx = createSceneFx();
+    stepSceneFx(fx, 1 / 20, input(), 1, 1000, span, work);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    expect(fx.entry.value).toBe(1);
+    // Resting inside the band (hysteresis) keeps it shut…
+    stepSceneFx(fx, 1 / 20, input(), 1, 2350, span, work);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    // …its end arms it, and the helix forms in time: 24 frames at the 20 Hz clamp, a hitch included.
+    let frames = 0;
+    while (fx.work.value < 1 && frames < 100) {
+      stepSceneFx(fx, frames === 3 ? 1 : 1 / 20, input(), 1, 2420, span, work);
+      frames += 1;
+      if (frames === 1) expect(fx.work.value).toBeCloseTo(1 / 20 / WORK_SECONDS.form, 12);
+    }
+    expect(frames).toBeGreaterThanOrEqual(24);
+    expect(frames).toBeLessThanOrEqual(25);
+    // Back inside the band it stays formed; above its start it comes apart in time, the services model still formed.
+    stepSceneFx(fx, 1 / 20, input(), 1, 2350, span, work);
+    expect(fx.work).toEqual({ value: 1, armed: true });
+    stepSceneFx(fx, 1 / 20, input(), 1, 2200, span, work);
+    expect(fx.work.armed).toBe(false);
+    expect(fx.work.value).toBeCloseTo(1 - 1 / 20 / WORK_SECONDS.unform, 12);
+    expect(fx.entry).toEqual({ value: 1, armed: true });
+  });
+
+  it("no helix to hand over to (no work span): the work gate stays shut, and one already open closes in time", () => {
+    const fx = createSceneFx();
+    for (let i = 0; i < 40; i += 1) stepSceneFx(fx, 1 / 20, input(), 1, 5000, span, null);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    expect(fx.entry).toEqual({ value: 1, armed: true });
+    // The six-argument call (the entrance alone) is the same thing.
+    const plain = createSceneFx();
+    stepSceneFx(plain, 1 / 20, input(), 1, 5000, span);
+    expect(plain.work).toEqual({ value: 0, armed: false });
+
+    const open = createSceneFx();
+    stepSceneFx(open, 1 / 20, input(), 1, 5000, span, work);
+    expect(open.work.value).toBe(1);
+    stepSceneFx(open, 1 / 20, input(), 1, 5000, span, null);
+    expect(open.work.armed).toBe(false);
+    expect(open.work.value).toBeCloseTo(1 - 1 / 20 / WORK_SECONDS.unform, 12);
+  });
+
+  it("while the work gate is armed the entry gate sits on its armed value: no burst plays hidden behind the helix", () => {
+    const fx = createSceneFx();
+    stepSceneFx(fx, 1 / 20, input(), 1, 1000, span, work);
+    // The entrance caught half-way (a fast scroll): arming the work gate settles it at once.
+    fx.entry.value = 0.4;
+    stepSceneFx(fx, 1 / 20, input(), 1, 2420, span, work);
+    expect(fx.work.armed).toBe(true);
+    expect(fx.entry).toEqual({ value: 1, armed: true });
+    stepSceneFx(fx, 1 / 20, input(), 1, 2420, span, work);
+    expect(fx.entry.value).toBe(1);
+
+    // Without a measured services anchor there is no model to hand over: the work gate never opens.
+    const noServices = createSceneFx();
+    for (let i = 0; i < 10; i += 1) stepSceneFx(noServices, 1 / 20, input(), 1, 5000, null, work);
+    expect(noServices.entry.value).toBe(0);
+    expect(noServices.work.value).toBe(0);
+  });
+
+  it("flung back above the services, a Work gate still open snaps shut instead of handing back to an imploding model", () => {
+    const fx = createSceneFx();
+    stepSceneFx(fx, 1 / 20, input(), 1, 3000, span, work);
+    expect([fx.entry.value, fx.work.value]).toEqual([1, 1]);
+    stepSceneFx(fx, 1 / 20, input(), 0.6, 300, span, work);
+    expect(fx.entry.armed).toBe(false);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    // The entrance itself implodes in time from there (the hero's exit has not rewound).
+    expect(fx.entry.value).toBeCloseTo(1 - 1 / 20 / ENTRY_SECONDS.unform, 12);
+    // Half-formed and flung up: the same.
+    const half = createSceneFx();
+    stepSceneFx(half, 1 / 20, input(), 1, 1000, span, work);
+    for (let i = 0; i < 10; i += 1) stepSceneFx(half, 1 / 20, input(), 1, 2420, span, work);
+    expect(half.work.value).toBeGreaterThan(0);
+    expect(half.work.value).toBeLessThan(1);
+    stepSceneFx(half, 1 / 20, input(), 0, 0, span, work);
+    expect(half.work).toEqual({ value: 0, armed: false });
+    expect(half.entry).toEqual({ value: 0, armed: false });
+  });
+
   it("a new boost starts a wave, but never sooner than the gap after the last one", () => {
     const fx = createSceneFx();
     stepSceneFx(fx, 1 / 60, input(0), 0, 0, span);
@@ -643,54 +913,51 @@ describe("samples — the swarm's six silhouettes", () => {
 
   it("every point fits the shape it belongs to", () => {
     const models = SCENE_SHAPES.map((shape) => SERVICE_MODEL[shape]);
-    const [chip, ...services] = swarmSlots(SCENE_TIER_CONFIG.high, models);
+    const [helix, ...services] = swarmSlots(SCENE_TIER_CONFIG.high, models);
     const radius = (buffer: Float32Array) => {
       let max = 0;
       for (let i = 0; i < buffer.length; i += 3) max = Math.max(max, Math.hypot(buffer[i], buffer[i + 1], buffer[i + 2]));
       return max;
     };
-    // Slot 0 is the hero chip (Phase 1: until the Work helix takes the slot).
-    expect(radius(chip)).toBeLessThanOrEqual(CHIP.R + 1e-6);
+    // Slot 0 is the Work helix: inside its radius (plus a chip's lift and box) and its height.
+    for (let i = 0; i < helix.length; i += 3) {
+      expect(Math.hypot(helix[i], helix[i + 2])).toBeLessThanOrEqual(HELIX.radius + HELIX_PARTS.chip.lift + 0.1);
+      expect(Math.abs(helix[i + 1])).toBeLessThanOrEqual(HELIX.height / 2 + HELIX_PARTS.chip.length);
+    }
     // Models may break out of the host a little (MODEL_SCALES), never far.
     for (const buffer of services) expect(radius(buffer)).toBeLessThanOrEqual(MODEL_RADIUS * 1.25);
   });
 
-  /** A slot-0 sample back in the chip's own plane (CHIP_POSE undone: Rz(-c)·Ry(-b)·Rx(-a)). */
-  const unposed = (buffer: Float32Array, i: number): Vec3 => {
-    const [a, b, c] = CHIP_POSE;
-    const p: Vec3 = [buffer[i * 3], buffer[i * 3 + 1], buffer[i * 3 + 2]];
-    return rotateEulerXYZ(rotateEulerXYZ(rotateEulerXYZ(p, [-a, 0, 0]), [0, -b, 0]), [0, 0, -c]);
-  };
-
-  it("slot 0 lies on the chip as it is drawn at rest: between the board and the die's top, on the tier's traces", () => {
+  it("slot 0 is the Work helix at rest, built from the tier's chips and rungs (scene-helix-model.test.ts pins every part)", () => {
     for (const tier of [SCENE_TIER_CONFIG.high, SCENE_TIER_CONFIG.mid]) {
       const models = SCENE_SHAPES.map((shape) => SERVICE_MODEL[shape]);
       const samples = swarmSlots(tier, models)[0];
-      expect(samples).toEqual(chipSamples(tier.swarm, undefined, tier.chipTraces));
+      expect(samples).toEqual(helixSamples(tier.swarm, undefined, tier));
+      // Upright and centred: the samples span the helix's whole height, both strands.
+      let low = Infinity;
+      let high = -Infinity;
       for (let i = 0; i < tier.swarm; i += 1) {
-        const [x, y, z] = unposed(samples, i);
-        expect(z).toBeGreaterThanOrEqual(CHIP_STACK.board - 1e-5);
-        expect(z).toBeLessThanOrEqual(CHIP_STACK.die + CHIP.thick.die / 2 + 1e-5);
-        expect(Math.max(Math.abs(x), Math.abs(y))).toBeLessThanOrEqual(CHIP.board + CHIP.via + 1e-5);
+        low = Math.min(low, samples[i * 3 + 1]);
+        high = Math.max(high, samples[i * 3 + 1]);
       }
+      expect(low).toBeLessThan(-HELIX.height * 0.45);
+      expect(high).toBeGreaterThan(HELIX.height * 0.45);
     }
   });
 
   it("any half of a buffer still covers every part in proportion (the lite step draws a prefix)", () => {
-    const samples = chipSamples(720);
-    // Beyond the pins' ends lie only the traces (40%) and the vias round their ends (5%).
-    const board = CHIP.pkg + CHIP.pinSize.l + 1e-4;
+    const samples = helixSamples(720);
+    // Exactly on a strand's radius lie only the strands' samples (50%).
     const share = (from: number, to: number) => {
       let out = 0;
       for (let i = from; i < to; i += 1) {
-        const [x, y] = unposed(samples, i);
-        if (Math.max(Math.abs(x), Math.abs(y)) > board) out += 1;
+        if (Math.abs(Math.hypot(samples[i * 3], samples[i * 3 + 2]) - HELIX.radius) < 1e-5) out += 1;
       }
       return out / (to - from);
     };
-    expect(share(0, 720)).toBeCloseTo(0.45, 2);
-    expect(Math.abs(share(0, 360) - 0.45)).toBeLessThan(0.1);
-    expect(Math.abs(share(360, 720) - 0.45)).toBeLessThan(0.1);
+    expect(share(0, 720)).toBeCloseTo(0.5, 2);
+    expect(Math.abs(share(0, 360) - 0.5)).toBeLessThan(0.1);
+    expect(Math.abs(share(360, 720) - 0.5)).toBeLessThan(0.1);
   });
 
   it("commerce gates: an orthonormal frame, rings at their radius, turned towards the viewer", () => {

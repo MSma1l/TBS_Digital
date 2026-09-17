@@ -1178,16 +1178,20 @@ export async function settledRenderer(
 export type ProbeReading = { name: string; probe: number | null; dom: number };
 
 /**
- * The scroll probe the interior scene reads every frame (lib/scene.ts `ScrollProbe`: the two
- * scroll spans, the stage's top and bottom, both anchors' document y), each next to the same
- * value measured from the DOM right now — what the director SHOULD have stored at its last
- * refresh. Null while no canvas (or no probe) is mounted.
+ * The scroll probe the interior scene reads every frame (lib/scene.ts `ScrollProbe`: the four
+ * scroll spans, the stage's top and bottom, both anchors' and Work's track's document y), each
+ * next to the same value measured from the DOM right now — what the director SHOULD have stored
+ * at its last refresh. Null while no canvas (or no probe) is mounted.
  *
  * A test-only read that needs nothing from production: the probe is the `probe` prop of the
  * components around the canvas, reached through React's fiber on the canvas's DOM ancestors.
  * The DOM side follows the director's triggers: `heroExit` = `#top` "top top" → "bottom 35%",
  * `entry` = the services anchor "top 90%" → "top 75%" (the band the scene's timed entry gate
- * arms and disarms over).
+ * arms and disarms over), `workSpan` = Work's track "top 70%" → "top 55%" (the same kind of band
+ * for the work gate) and `helix` = the track "top top" less the header → "bottom bottom" (the
+ * scroll Work's spiral turns over; the header height is the sticky layer's resolved `top`). Like
+ * ScrollTrigger, an end before the trigger's own start is clamped to it: a phone's band is
+ * shorter than the viewport.
  */
 export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
   page.evaluate(() => {
@@ -1197,8 +1201,11 @@ export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
       stage: { top: number; bottom: number };
       hero: { y: number } | null;
       services: { y: number } | null;
+      work: { y: number } | null;
       heroExit: { start: number; end: number };
       entry: { start: number; end: number };
+      workSpan: { start: number; end: number };
+      helix: { start: number; end: number };
     };
     type Fiber = { return: Fiber | null; memoizedProps?: { probe?: Probe } };
     const canvas = document.querySelector("[data-scene-layer] canvas");
@@ -1221,16 +1228,23 @@ export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
     const stage = doc("[data-scene-stage]");
     const heroAnchor = doc('[data-scene-anchor="hero"]');
     const services = doc('[data-scene-anchor="services"]');
+    const track = doc("[data-work-track]");
+    const headerH = Number.parseFloat(getComputedStyle(document.querySelector("[data-scene-layer]")!).top) || 0;
     return [
       { name: "live", probe: probe.live ? 1 : 0, dom: 1 },
       { name: "heroExit.start", probe: probe.heroExit.start, dom: hero.top },
       { name: "heroExit.end", probe: probe.heroExit.end, dom: hero.bottom - 0.35 * vh },
       { name: "entry.start", probe: probe.entry.start, dom: services.top - 0.9 * vh },
       { name: "entry.end", probe: probe.entry.end, dom: services.top - 0.75 * vh },
+      { name: "work.start", probe: probe.workSpan.start, dom: track.top - 0.7 * vh },
+      { name: "work.end", probe: probe.workSpan.end, dom: track.top - 0.55 * vh },
+      { name: "helix.start", probe: probe.helix.start, dom: track.top - headerH },
+      { name: "helix.end", probe: probe.helix.end, dom: Math.max(track.top, track.bottom - vh) },
       { name: "stage.top", probe: probe.stage.top, dom: stage.top },
       { name: "stage.bottom", probe: probe.stage.bottom, dom: stage.bottom },
       { name: "hero.y", probe: probe.hero?.y ?? null, dom: heroAnchor.top },
       { name: "services.y", probe: probe.services?.y ?? null, dom: services.top },
+      { name: "work.y", probe: probe.work?.y ?? null, dom: track.top },
     ];
   });
 

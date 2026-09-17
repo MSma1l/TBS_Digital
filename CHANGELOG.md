@@ -16,6 +16,538 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Faza 3: ADN-ul proiectelor (elicoid 3D, carduri în spirală, hologramă)
+
+A patra fază a experienței IT aprobate. Clientul a cerut ca **cardurile existente ale proiectelor**
+(„Proiectele care ne reprezintă”, `#lucrari`) să se rotească în jurul unui ADN: „cardurile cele să
+fie la ADN”. Secțiunea Work intră acum în scena interioară. După ce scena a desenat primul cadru, ea
+își construiește un **elicoid ADN neon**, iar roiul modelului de servicii selectat zboară pe el.
+
+- **De la 768px lățime și 600px înălțime** cardurile ies din grilă și **se rotesc în jurul
+  elicoidului** pe măsură ce pagina se derulează. Fiecare card e `sticky` sub header. Cel din față
+  stă peste canvas și primește click-ul; cele din spatele elicoidului trec **pe sub** el, adâncime
+  reală, nu un fade.
+- Lângă elicoid plutește o **hologramă** a cardului din față: captura lui ca luminanță cu scanlines,
+  tag-urile, numele, numărul.
+- **Pe telefoane** banda de carduri rămâne exact cum era. Un elicoid mic stă culcat, la
+  luminozitate plină, **în banda goală de deasupra titlului** secțiunii, între panoul Directions și
+  eyebrow.
+
+Patru owneri, pe fișiere disjuncte:
+- modelul elicoidului și holograma (P3-A);
+- layout-ul pur și driver-ul DOM al spiralei (P3-B);
+- integrarea în stage, E2E (P3-C);
+- calibrarea, finisajul, documentația (P3-D).
+
+Niciun program WebGL nou, nicio dependență nouă. JS-ul paginii crește cu **+202 B** și CSS-ul cu
+**+106 B** (`data-work-track`, `data-helix`, `SCENE_LAYOUT_EVENT`, clasele din `Work.tsx`); tot restul
+e în chunk-ul scenei. Nu există copie nouă pentru vizitator: totul e canvas `aria-hidden`, iar holograma desenează
+textul deja localizat al cardului. CSP-ul e neschimbat și nimic nu se scrie în storage.
+
+**Înregistrare de decizie**: decizia R1 din critica IT-OS, „Work nu primește model 3D”, e înlocuită
+de deciziile 10 și 12 ale clientului.
+
+**Added** — Work în scenă: cardurile în spirală în jurul elicoidului (`app/(site)/page.tsx`,
+`components/scene/helix.ts`, `workHelix.ts`, `SceneWorld.tsx`, `SceneStage.tsx`, `SceneCanvas.tsx`,
+`SceneDirector.tsx`, `scrollProbe.ts`, `fx.ts`, `choreography.ts`, `three/world.ts`, `lib/scene.ts`,
+`components/sections/Work.tsx`) — vezi
+[03](./docs/03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17),
+[05](./docs/05-page-sections.md#work) și [07](./docs/07-conventions.md#the-interior-stages-contracts)
+
+- **`<SceneStage>` învelește acum și Work** (Hero → Ticker → Directions → Work). Grila de carduri are
+  `data-work-track` (`WORK_TRACK_ATTR`). Pe calea implicită (`pending`, `fallback`, `off`, reduced
+  motion, fără GPU) nu se creează niciun driver: niciun atribut, niciun stil inline, niciun three.js.
+- **Modurile** (`SceneHelixMode`, raportate prin `onHelix`, scrise ca `data-helix` pe
+  `[data-scene-stage]`):
+  - `spiral` — elicoidul construit, cel puțin `HELIX_MIN_CARDS` (3) carduri și
+    `WORK_HELIX_MEDIA` = `(min-width: 768px) and (min-height: 600px)`;
+  - `ambient` — elicoidul construit, altfel (telefoane, fereastră scundă, mai puțin de 3 carduri);
+    grila sau banda rămâne neatinsă;
+  - `off` — înainte de construcție, fără scenă sau după o eroare. `built` și `off` scot atributul.
+- **Spirala** (driver-ul `createWorkHelixDriver`, fără React și fără three.js; `SceneWorld` îl
+  creează pe toată viața scenei, lumea îl apelează în fiecare cadru și îl distruge odată cu ea):
+  - La intrare, track-ul devine o singură celulă de grilă (`display: grid`,
+    `grid-template-columns: 100%`, un rând de `sceneH + (n − 1) · pas`), cu pasul
+    `clamp(240, 0.38·vh, 380)`.
+  - Fiecare card devine `position: sticky` în acea celulă: `grid-row/column-start: 1` (anulează și
+    `col-span-2` al ultimului card impar), `align-self: start`, `justify-self: center`, `top` centrat
+    sub header, lățime `clamp(240, 0.27·w, 340)`, `min-height: min(0.36·sceneH, 260)` (niciodată
+    `height`, vezi *Fixed*), `margin: 0`.
+  - `transition-property: translate, box-shadow, border-color` inline: tranziția de 300ms pe
+    `transform` din `Work.tsx` ar fi făcut cardurile să rămână în urma elicoidului.
+  - **Pe cadru**, doar când focusul s-a mișcat (≥ 1e-4): `transform: translate3d(x, y, 0) scale(s)`,
+    `z-index`, `opacity`, `pointer-events`, din `helixLayout(i, focus, w, sceneH)`. Cardul `i` stă la
+    `d = i − focus` pași: `d · HELIX_ANGLE` (2π/9, același pas cu care se rotește modelul) în jurul
+    firului și `0.18 · sceneH · d` pe verticală. Orbita e `min(0.17·w, 230)`, iar x e limitat la
+    `helixEdge(w)` = 16px, plus 44px de la 861px (culoarul șinei din Faza 5).
+  - **Ordinea de pictare**: un card cu fața spre vizitator (`cos θ ≥ 0`) primește `z-index` 1…11 și
+    `pointer-events: auto`. Unul din spatele firului primește −1…−9 și `pointer-events: none`: se
+    pictează în stratul negativ al stage-ului (`isolate`), **sub** canvas. `data-helix-front` e pe
+    cardul de la focusul rotunjit.
+  - **Focusul** e progresul scroll-ului pe intervalul propriu al driver-ului (vârful track-ului sub
+    header → baza lui la baza viewport-ului), `× (n − 1)`. Lumea cere focusul, rotește elicoidul la
+    el, apoi driver-ul așază cardurile pentru același focus, în același cadru.
+- **Comutare sigură**:
+  - **În spirală doar cât Work e sub viewport.** Track-ul crește cu mii de px, iar sub vizitator
+    asta nu mută nimic din ce vede. Decide dreptunghiul secțiunii, citit în cadrul care ar așeza
+    cardurile; IntersectionObserver-ul poate doar să oprească.
+  - Un reload sau un deep link în Work păstrează grila până când vizitatorul e din nou deasupra.
+  - **Ieșirea e imediată** (media nu mai corespunde, mai puține carduri, elicoidul dispare, dispose,
+    eroare), cu scroll-ul pus la loc: în spirală, la poziția din grilă a cardului focusat
+    (`top − headerH − 24`, instant); după capătul ei, tot ce urmează track-ului rămâne pe loc.
+- **Contractul de restaurare**: tot ce scrie driver-ul e inline și listat (`CARD_PROPS`,
+  `TRACK_PROPS`). Atributul `style` original al fiecărui card și al track-ului revine **byte cu
+  byte** (`--p1` / `--p2` exact cum le-a scris React). Dacă altcineva a schimbat stilul între timp
+  (un tilt în curs, culori noi din admin), se scot doar proprietățile driver-ului. Re-render-urile
+  React (schimbarea limbii) compară doar cheile de stil ale React-ului, deci layout-ul rămâne.
+- **Tastatura**: Tab trece prin carduri în ordinea normală. Cardul focusat derulează în față (cu
+  `scroll-behavior`-ul paginii) și e complet opac. Un focus venit dintr-un click (sub 800ms) nu
+  derulează nimic. Ordinea tab-urilor, `inert` și `aria-hidden` nu sunt atinse niciodată.
+- **`MutationObserver`** pe `childList`-ul track-ului: o listă re-keyed (`/api/content` care înlocuiește
+  seed-ul) e recolectată și reașezată; sub 3 carduri, modul trece în `ambient`.
+- **Erori**: orice excepție din driver restaurează tot și îl lasă `off` definitiv. O excepție în
+  cadrul elicoidului (`failHelix` în `world.ts`, care nu ajunge la error boundary-ul stage-ului)
+  eliberează driver-ul (cardurile revin), ascunde elicoidul și loghează o singură dată; restul
+  scenei desenează mai departe.
+- **Poarta Work** (`fx.work`, `WORK_SECONDS = { form: 1.2, unform: 0.5 }`): a doua poartă temporizată,
+  pe banda `workSpan` a directorului (track-ul, „top 70%” → „top 55%”).
+  - Se deschide doar spre un elicoid care poate fi desenat: `stepSceneFx(…, entrySpan, workSpan)`
+    primește banda doar cu elicoidul construit, driver-ul în alt mod decât `off` și track-ul măsurat.
+    Altfel rămâne închisă, iar una deschisă se închide în timp.
+  - `composeScene(entry, work, m, out)`: cu `work > 0` roiul modelului selectat zboară din slotul lui
+    în `HELIX_SLOT` (0); modelul se dizolvă pe primele 30%, elicoidul se formează pe ultimele 30%.
+  - Cât poarta Work e armată, poarta de intrare stă pe valoarea armată (nicio explozie ascunsă în
+    spatele elicoidului). O poartă de intrare dezarmată deasupra serviciilor închide brusc poarta Work.
+  - Primul cadru le fixează pe amândouă: un deep link în Work găsește elicoidul format.
+- **`SCENE_LAYOUT_EVENT`** (`tbs:scene-layout`, un `Event` simplu pe rădăcina stage-ului): la o
+  schimbare de mod track-ul își schimbă înălțimea imediat. Directorul recitește atunci toate cutiile
+  în probă, fără refresh ScrollTrigger (un refresh ar opri un fling pe touch); refresh-ul de resize
+  al stage-ului urmează pentru benzi. Niciodată sub un cover.
+- **Proba de scroll** are câmpuri noi: `layerH`, `work`, `workHead` (blocul titlului, fără offset-ul
+  de reveal, `translateYOf`), `workGap` (banda liberă de deasupra titlului, vezi *Changed*),
+  `workSpan`, `helix` (track-ul „top top” minus header → „bottom bottom”).
+  **Directorul are 4 trigger-e** de măsurare (`heroExit`, `entry`, `workSpan`, `helix`).
+- **Plasare** (`choreography.ts`):
+  - spirală, `placeHelixSpiral`: axa la `HELIX_LAYOUT.cx` (0.34) din lățimea track-ului, aceeași axă
+    pe care orbitează cardurile, centrat pe zona sticky (`helixZoneTop`), înalt de
+    `HELIX_ZONE_FILL` (0.9) din zonă, urmărire rigidă;
+  - ambient, `placeHelixAmbient`: culcat (`HELIX_AMBIENT_ROLL`), centrat pe `probe.workGap`,
+    `HELIX_AMBIENT.length` (0.6) din lățime, cel mult `HELIX_AMBIENT.maxPx` (120px) sau banda minus
+    `HELIX_AMBIENT.clear` (10px) sus și jos, la luminozitate plină (vezi *Changed*).
+- **Recolorare**: elicoidul și holograma iau `--p2` al cardului din față (în spirală cardul focusat,
+  în ambient cardul cel mai apropiat de mijlocul benzii, `nearestCard`), în 0.4s.
+- **Măsurat** (laboratoarele P3-B și P3-C, noble, SwiftShader):
+  - `webgl` → `data-helix="spiral"` în 260–630ms;
+  - hit test-uri la start, mijloc și capăt: cardul din față ia click-ul, **0 din 32** de puncte pe
+    cardurile din spate nu sunt „furate”;
+  - fără scroll lateral la 768, 861, 1024, 1280 și 1920; offset-ul sticky ≤ 0.05px;
+  - Tab → card în față în 30–400ms (W15);
+  - reload în Work: grila păstrată 8s (înălțime 1.031,69px), apoi spirala la 3.432,69px după urcarea
+    sus;
+  - 0 încălcări CSP, 0 erori de pagină.
+
+**Added** — modelul elicoidului (`components/scene/three/models/helix.ts`, `shapes.ts`,
+`three/samples.ts`, `three/materials.ts`, `tiers.ts`, `three/swarm.ts`)
+
+- **Geometria** în `shapes.ts`: `HELIX = { radius: 0.9, height: 5.4, turns: 2.5 }` și
+  `HELIX_ANGLE = 2π/9`, comun modelului și layout-ului.
+- **Cinci draw-uri pe programele existente**, fiecare compilat în felia lui:
+  - firele (P5 links, `aTag` 0 pe A cu pachete care urcă, 1.5 pe B cu pachete care coboară, „hot”);
+  - cipurile de pe fire (P3 instanțiat; cele din față se aprind);
+  - treptele (P4 synapse, cu o cometă care urcă treaptă cu treaptă);
+  - biții 0/1 în șapte segmente (P4, **`LINE_MODE.bits` = 4**, glife billboard);
+  - holograma (P2, **`SURFACE_MODE.holo` = 4**; 3 a fost învelișul sticlei), doar în spirală.
+- Fără rotire proprie: firele se rotesc cu `−focus · HELIX_ANGLE`. Lite ascunde biții și glitch-ul.
+- **`HelixFrame.dim`** (0..1, implicit 1): înmulțește `uIntensity` pe toate cele 5 draw-uri, în ambele
+  teme (`helixDim`: lipsă sau non-finit → 1, limitat la 0..1). Holograma pornește de la 1 (glow) /
+  0.85 (ink). Uniformele se rescriu doar la schimbare.
+- **Construit după ready** (`stageHelix`): o felie idle de construcție, o felie de compilare pe obiect,
+  un cadru de pre-warm, apoi `onHelix("built")`. Nu întârzie niciodată prima imagine.
+- **Slotul 0 al roiului** e acum silueta elicoidului (`helixSamples`): 50% fire, 25% cipuri, 19%
+  trepte, 6% noduri, păstrat în orice jumătate a buffer-ului (prefixul lite).
+- **Tier-uri**:
+
+  | | `helixTube` | `helixChips` | `helixRungs` | `helixBits` | `hologram` |
+  |---|---|---|---|---|---|
+  | high | [160, 4] | 80 | 22 | 36 | [384, 240] |
+  | mid | [100, 3] | 52 | 14 | 20 | [256, 160] |
+
+- **Draw-uri** (laboratorul P3-A, 12 cazuri, 0 erori): high 5 (436 de segmente, 3.522 de triunghiuri),
+  mid 5, ambient 4, lite 4; niciun sprite de puncte.
+- **Modulul**: ≈ +6,5 KB (elicoid 2.939, hologramă 2.342, materiale 654, mostre 402, tier-uri 72,
+  forme 49) față de ≈ +4,4 estimat.
+
+**Added** — holograma (`components/scene/three/hologram.ts`) — vezi
+[11](./docs/11-security.md#the-work-hologram-canvas2d-2026-09-17)
+
+- Un singur `CanvasTexture` Canvas2D, compus din DOM-ul cardului din față, fără mipmap-uri:
+  - captura (doar imaginea same-origin a cardului, decodată în 1.5s) ca luminanță peste negru;
+  - scanlines la 3px;
+  - chip-urile tag-ului (fără „·”), numele (900, majuscule în limba paginii), indexul în contur;
+  - colțuri de paranteză drepte (fără arce, fără puncte).
+- Recompusă într-o felie idle doar când cardul din față se schimbă, cu histerezis:
+  `|focus − index| > 0.5 + HOLOGRAM_HYSTERESIS` (0.3). Un glitch de 0.35s la fiecare schimbare. O
+  schimbare de `<html lang>` o recompune.
+- **Confidențialitate**: banda capturii e desenată în **celule de 2px**, apoi mărită. Cu celule de
+  1px, e-mailul din formularul de înregistrare FLIRT (`public/projects/flirt-1.png`) era parțial
+  lizibil la zoom 3×; cu 2px nu e, nici la 384×240, nici la 256×160 (P3-A). **Verificat pe pagina
+  reală** (P3-D): WebGL forțat, 1280×800, FLIRT în față, captură nativă și mărită 3×, ambele teme:
+  câmpul de e-mail e o bandă luminoasă fără caractere lizibile.
+- `getContext("2d", { willReadFrequently: true })`: o singură citire de 1×1 pixel pe compunere (sonda
+  de taint). Avertismentele „GPU stall due to ReadPixels” au dispărut.
+
+**Added** — E2E (`e2e/interior-webgl.spec.ts`, `e2e/interior.spec.ts`, `e2e/helpers.ts`) — vezi
+[`e2e/README.md`](./e2e/README.md)
+
+- **W15** (1280×800): `data-helix="spiral"` și secțiunea crește; fiecare card își păstrează culorile
+  inline; fără scroll lateral și `<html>`/`<body>` neatinse la start, mijloc și capăt; la mijloc
+  cardul din față ia click-ul (sticky, `z-index` pozitiv), cardurile din spate au
+  `pointer-events: none` și nu primesc niciun hit; Tab prin fiecare proiect-link îl aduce în față în
+  cel mult 3s; o fereastră îngustată la 700px iese din spirală cu fiecare `style` înapoi byte cu byte;
+  înapoi la 1280 și deasupra lui Work, spirala revine; o navigare client la o pagină de serviciu și
+  înapoi dă carduri noi doar cu cele două culori, iar spirala le reașază; 0 CSP, 0 erori.
+- **W15t** (768×1024, touch): spirala pe tabletă, cardul din față ia tap-ul, cele din spate niciunul,
+  fără scroll lateral.
+- **W18** (390×844, touch): `data-helix="ambient"`, `#lucrari` nu se mișcă, niciun card nu primește
+  layout inline, un swipe CDP pe bandă mută `data-helix-front`, iar un prim tap pe altă pastilă nu
+  mută nimic dedesubt.
+- **W19** (1280×800): un reload derulat în `#lucrari` păstrează grila (înălțimea și scroll-ul
+  neschimbate 8s după `webgl`, niciun `spiral`); sus, spirala se aplică și proba corespunde DOM-ului.
+- **E1** (calea implicită): `#lucrari` e în `[data-scene-stage]`, un singur `data-work-track`, fiecare
+  card cu `style.length === 2`, fără `data-helix-front` și fără `data-helix`.
+
+**Changed** — elicoidul ambient: din spatele titlului în banda de deasupra lui (decizia lead-ului,
+R9.4 amendat) (`components/scene/choreography.ts`, `scrollProbe.ts`, `lib/scene.ts`, `three/world.ts`)
+— vezi [03](./docs/03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17),
+[04](./docs/04-design-system.md#works-ambient-helix-and-its-band-it-os-phase-3) și
+[05](./docs/05-page-sections.md#work)
+
+Măsurat ca la cip (P1-D):
+- textul ascuns, WebGL forțat, **12 cadre** pe caz, fiecare pixel sub casetele de rând ale textului:
+  ≥4.5:1, iar h2 (text mare) ≥3:1;
+- plus un cadru cu canvas-ul ascuns („fără canvas”), ca să se vadă ce vine din pagină;
+- ambele teme.
+
+În light, eyebrow-ul și lead-ul lui Work au deja pixeli sub 4.5:1 pe liniile de 1px ale grilei HUD
+(eyebrow 92.99–99.92%, lead 99.94–99.98%, minim 4.07–4.49, după poziția de scroll). Sunt identici pe
+ilustrația statică a HEAD-ului `aeea067`, deci existau dinainte. Acolo criteriul e „niciun pixel nou
+care pică”.
+
+**1. În spatele titlului (plasarea din R9.4) elicoidul nu putea rămâne vizibil.** P3-D l-a calibrat
+întâi acolo, la 320, 375, 390, 412, 640, 641, 700 și 767px:
+
+Contrast în spatele titlului (cel mai mic raport; % = pixeli care trec, doar sub 100%):
+
+| Caz | dim 1 (P3-C) | planul 0.55 / 0.4 | calibrat 0.07 / 0 |
+|---|---|---|---|
+| dark 320 | h2 98.77% (1.0) · lead 99.56% (1.0) | h2 99.54% (1.01) · lead 99.67% (1.26) | h2 7.78 · lead 6.88 |
+| dark 390 | h2 98.93% (1.01) · lead 98.92% (1.04) | h2 99.64% (1.03) · lead 99.19% (1.13) | h2 8.22 · lead 6.70 |
+| dark 412 | h2 98.68% (1.0) · lead 98.78% (1.02) | h2 99.58% (1.01) · lead 99.10% (1.01) | h2 7.99 · lead 5.59 |
+| dark 640 | h2 98.75% (1.0) · lead 98.18% (1.0) | h2 99.45% (1.0) · lead 98.47% (1.0) | h2 8.27 · lead **4.60** |
+| dark 700 | h2 98.50% (1.01) · lead 97.01% (1.0) | h2 99.23% (1.06) · lead 98.03% (1.01) | h2 7.50 · lead 5.42 |
+| light 320 | h2 99.99% (2.89) · lead 98.99% (1.54) | lead 99.20% (2.49) | = fără canvas |
+| light 390 | h2 99.99% (2.99) · lead 97.53% (1.54) | lead 97.95% (2.15) | = fără canvas |
+| light 640 | lead 94.94% (1.08) | lead 95.46% (1.72) | = fără canvas |
+| light 700 | h2 99.99% (2.74) · lead 90.57% (1.06) | lead 93.12% (2.23) | = fără canvas |
+
+Cu 0.07 / 0, pe build-ul de atunci, tot textul din titlu era 100% la toate cele 8 lățimi, în ambele
+teme (dark: eyebrow ≥5.42, h2 ≥7.50, lead ≥4.60; light: identic cu pagina fără canvas).
+
+- **De ce atât de jos.** Cei mai răi pixeli sunt muchiile cipurilor din față, care se aprind
+  (`gain` 1.8 plus amestecul „hot”), și cometele pachetelor (până la 2.1 × dim).
+  - Se saturează spre alb: la 0.4, pe 390 dark, pixelul cel mai rău era (236, 255, 255) sub h2.
+  - **Dark** pe telefoane: 0.4 lasă h2 la 1.0–1.04, 0.25 la 1.63–1.93, iar 0.15 pică la 320, 390 și
+    412 (h2 1.6, lead 3.62 / 3.24). Mai sus, 0.1 pică la 640 și 700 (lead 3.81 / 4.12), iar 0.08 la
+    640 (4.15). 0.07 trece peste tot.
+  - **Light**: griul lead-ului nu are rezervă. 0.01 a coborât deja un pixel la 4.22 (la 641, față
+    de 4.24 fără canvas); 0.02 adaugă pixeli care pică la 412, 640, 700 și 767.
+  - Ascunderea cipurilor (încercată în laborator) ar fi permis abia 0.15 în dark: cometele rămân.
+- **Vizibilitatea** (schimbarea medie de luminanță pe blocul titlului, ×1000):
+  - dark: 4.7–8.7 la dim 1 → **0.12–0.25** la 0.07, o urmă slabă;
+  - light: 15–33 → **0**.
+- **Concluzia**: în spatele copiei elicoidul nu poate rămâne vizibil în niciuna din teme. Lead-ul a
+  ales plasarea măsurată ca alternativă.
+
+**2. Decizia: elicoidul stă în banda goală de deasupra titlului, la luminozitate plină.**
+- **Proba are câmpul `workGap`** (după modelul `workHead`, în `writeAnchors`): lățimea secțiunii Work,
+  de la sfârșitul conținutului secțiunii anterioare (baza ei minus `padding-bottom` calculat) până
+  la vârful titlului, fără offset-ul de reveal. Pe telefoane: `pb` 36px al Directions plus `pt` 48px
+  al Work, ~84px. Fără Work, null.
+- **`placeHelixAmbient`** centrează elicoidul pe bandă: 0.6 din lățime, cel mult 120px și cel mult
+  banda minus `HELIX_AMBIENT.clear` (10px) sus și jos. O bandă prea subțire dă scale 0.
+- **`HELIX_REACH` 1.0 → 1.26**: biții 0/1 se depărtează de axă până la 1.2, plus jumătate din
+  diagonala glifei, deci mai departe decât firele și cipurile. `scene-helix-model` verifică fiecare
+  parte față de el.
+- **`HELIX_BEHIND_COPY_DIM` și `helixBehindCopyDim` sunt scoase**, cu testele lor (vezi *Removed*):
+  ambele moduri desenează la 1, iar `world.ts` nu mai pasează `dim` și nu mai sare draw-ul.
+
+**Poarta pe build-ul final** (320×568, 375×812, 390×844, 412×915, 640×900, 700×900, 767×1024, ambele
+teme, 12 cadre):
+
+| Țintă | Dark (minim) | Light (minim) |
+|---|---|---|
+| eyebrow | 100% (≥5.40) | = fără canvas (pixelii grilei de dinainte) |
+| h2 | 100% (≥14.22) | 100% (≥13.55) |
+| lead | 100% (≥7.92) | = fără canvas |
+| „Deschide serviciul” (panoul Directions) | 100% (≥15.32) | 100% (≥16.95) |
+
+- **Geometria**, din pixelii pe care canvas-ul îi schimbă (≥3% luminanță), sub header:
+  - **0 pixeli** peste panoul Directions, la sau sub vârful eyebrow-ului și peste banda de carduri, la
+    toate cele 7 lățimi, în ambele teme;
+  - elicoidul are 57–67px înălțime, cu 9–16px liberi sub panou și 9–11px deasupra eyebrow-ului.
+- **La 320×568**, cât elicoidul e format, link-ul e sub header. Banda însăși e sub header în
+  momentul în care poarta Work se armează (track-ul la 55%) și intră în vedere la un mic scroll
+  înapoi: poarta ține până la 70%.
+- Capturi: `SCRATCH/itos/p3/d/shots/ambient-gap/` (390 dark și light, 700 dark). Laboratorul:
+  `lab/calib-work.mjs` (`CASES=gap`), rezultate în `lab/res/gap*.json`.
+
+**3. Spirala: neschimbată (luminozitate 1).**
+- La 1280×800 și 1024×768, cu track-ul la 50% și 30% din viewport, canvas-ul nu schimbă niciun pixel
+  din titlu (energia 0). Pixelii light sub 4.5 sunt cei de dinainte.
+- Textul cardului din față (numele și chip-urile) e **100%** la 8 poziții de focus, la 1280, 1024 și
+  768, în ambele teme: numele ≥3.14 în mijlocul unei rotiri (text mare), chip-urile ≥9.1.
+- Pixelii care pică pe cardurile laterale sunt cei acoperiți de cardul din față, identici fără canvas.
+- Doar un card lateral care se stinge (opacitate ~0.5–0.9) lasă elicoidul să treacă: numele lui
+  99.96% (2.52; fără canvas 4.65) la 1024 dark și 98.29% (1.84; fără canvas 4.64) la 768 dark.
+
+**Changed** — ultimul card impar în spirală (`components/sections/Work.tsx`)
+
+- La 768–900px, ultimul card impar (FLIRT) își păstra în spirală mutarea capturii pe jumătatea
+  dreaptă (`left-1/2 edge-fade-x`), deși acolo e un card normal. Varianta arbitrară are acum
+  `&:not([data-scene-stage][data-helix=spiral] *)`:
+  `.…:not([data-scene-stage][data-helix=spiral] *)>:nth-child(odd):last-child [data-parallax=work-media]`.
+- Calea implicită, grila și banda sunt neschimbate: la 861px pe fallback, captura are tot 395px pe o
+  carte de 792px, cu aceeași mască, în ambele teme (capturi înainte / după).
+
+**Changed** — aserțiuni de test schimbate deliberat (niciuna slăbită)
+
+`scroll-guard.test.ts` (30 → 34):
+- Testul de montare al directorului: exact **4** trigger-e de măsurare (erau 2), inclusiv track-ul
+  „top 70%” → „top 55%” și „top top” → „bottom bottom”, toate fără animație; `ScrollTrigger.getAll()`
+  2 → 4 fără paralaxă și 4 → 6 cu cele două straturi ale hero-ului.
+- Fixture-ul paginii adaugă `<section id="lucrari"><div><div data-reveal></div><div data-work-track>`;
+  testul „fără ancore” verifică și `work` / `workHead` null; testul de cover copiază și benzile Work.
+- Noi: benzile Work (`writeWorkSpan`, `writeHelixSpan`), `translateYOf`, `writeAnchors` pentru
+  track, titlu și `layerH`, evenimentul de layout.
+
+`scene-choreography.test.ts` (48 → 57):
+- Toate apelurile `composeScene(e, m, out)` primesc `work`: `composeScene(e, 0, m, out)`.
+- „Burst în 1.1s, implozie în 0.45s” verifică și 1.2s / 0.5s ale elicoidului.
+- **Slotul 0**: „stă pe cip” devine „e elicoidul în repaus, din cipurile și treptele tier-ului”
+  (potrivit cu raza și înălțimea `HELIX`); proporțiile prefixului devin 50% fire (în loc de 0.45 „în
+  afara pinilor”). Testul pe `chipSamples` e șters odată cu funcția.
+- Noi: zona sticky, plasarea în spirală și ambient, ramura `work`, proprietatea de continuitate la
+  ambele capete, patru teste pentru poarta Work.
+- **Plasarea ambient** (P3-D, schimbată deliberat odată cu decizia): „culcat în spatele titlului,
+  centrat pe el, cel mult 120px” devine „culcat în banda de deasupra titlului (`workGap`), centrat
+  pe ea, cel mult banda minus 10px sus și jos sau 120px”; `HELIX_AMBIENT` are `clear: 10`, iar
+  `HELIX_REACH` e fixat la 1.26. Se adaugă cazurile benzii prea subțiri (scale 0) și fără `workGap`
+  (null).
+
+`lib/__tests__/scene.test.ts` (53, aceleași teste): forma probei are în plus `layerH`, `work`,
+`workHead`, `workGap`, `workSpan`, `helix`, iar `SCENE_ATTR.helix === "data-helix"`.
+
+`scene-helix.test.ts` (39 → 41): în testul „se aplică doar cu elicoidul construit…”, `style.height`
+„260px” devine `min-height` „260px” și `height` gol (P3-D, schimbat deliberat: cardul nu mai are
+înălțime fixă). Noi: un card cu conținut mai înalt își păstrează înălțimea, centrat, iar unul mai
+înalt decât stratul începe sub header; un ResizeObserver recentrează cardul al cărui conținut s-a
+schimbat și e deconectat la ieșire. Testele de restaurare byte cu byte sunt neschimbate.
+
+Doar teste noi:
+- `scene-shapes` (45 → 47);
+- `scene-tiers` (14 → 15): cinci rânduri noi în tabelul de buget (high ≥ mid) și un test pentru
+  valorile elicoidului și ale hologramei (16:10, cel mult 384px);
+- `scene-build` (18 → 24);
+- `scene-helix-model` (P3-A 28 → 29, P3-D: fiecare parte a modelului în `HELIX_REACH`);
+- `scroll-guard` (34, aceleași teste): `workGap` în testul `writeAnchors` pentru Work (secțiunea
+  anterioară cu `padding-bottom` 36px → bandă `{ x: 0, y: 2198, w: 1280, h: 104 }`, actualizată pe
+  loc), null fără Work, prezent la montarea directorului;
+- `scene-stage` (29 → 30, `data-helix`);
+- `work.test.tsx` (14 → 15).
+
+Fișiere noi: `scene-helix.test.ts` (41), `scene-helix-model.test.ts` (29), `scene-hologram.test.ts`
+(15).
+
+**E2E**:
+- **W2** pauza: 300px sub **baza stage-ului** (era `#lucrari` + 300; stage-ul se termină acum după Work).
+- **W5** așteaptă `data-helix` (`spiral` de la 768px, `ambient` sub) și are două repere noi: vârful
+  `#lucrari` și mijlocul track-ului.
+- `sceneProbeVsDom`: 5 citiri noi (`work.start/end`, `helix.start/end`, `work.y`); `helix.end` oglindește
+  limitarea ScrollTrigger `max(track.top, bottom − vh)` (vezi *Fixed*).
+- **W13** (P3-D): ultima verificare a probei, înapoi sus, e acum **așteptată** (`expect.poll`, 5s),
+  ca celelalte două din test; înainte era o citire imediată. Motivul e la *Fixed*. Aserțiunea
+  (nicio nepotrivire peste 2px) e aceeași.
+- W15, W15t, W18, W19 sunt noi; E1 are verificările de mai sus.
+
+**Removed**
+
+- `chipSamples` și testul lui: slotul 0 e elicoidul. Comentariile vechi („până ia elicoidul slotul”,
+  `aS0` = silueta cipului) sunt actualizate în `swarm.ts`, `choreography.ts` și docs/03.
+- `HELIX_BEHIND_COPY_DIM`, `helixBehindCopyDim`, pasarea `dim` din `world.ts`, draw-ul sărit la 0 și
+  cele două teste ale lor (`scene-choreography`, `scene-build`). Toate fuseseră adăugate de P3-D în
+  aceeași fază, pentru calibrarea din spatele titlului, și n-au fost comise. Nimic nu le mai
+  folosește. `HelixFrame.dim` (API-ul modelului, P3-A) rămâne, cu implicit 1.
+
+**Fixed**
+
+- **Cardurile din spirală tăiau descrierile lungi** (P3-D, cerut de lead; `components/scene/workHelix.ts`,
+  `components/sections/Work.tsx`):
+  - Cauza 1, driver-ul: scria `height` = `min(0.36·sceneH, 260px)`, iar cardul are
+    `overflow: hidden`. Pe o tabletă touch (`hover: none`) descrierea e mereu afișată.
+  - Acum driver-ul scrie `min-height`, niciodată `height`. `top` centrează cutia măsurată
+    (`offsetHeight`) sub header; un card mai înalt decât stratul începe chiar sub header. Un
+    ResizeObserver pe carduri le recentrează când conținutul se schimbă (limba, hover).
+    `CARD_PROPS` listează `min-height` în loc de `height`.
+  - Cauza 2, `Work.tsx`: descrierea are `max-h-35` (140px, tranziția reveal-ului), iar la 240px
+    lățime IQ Arena (~9 rânduri) trecea de el. În spirală plafonul e ridicat, doar unde descrierea e
+    afișată (hover, focus, `hover: none`):
+    `[data-scene-stage][data-helix=spiral] …:max-h-none`, cu specificitate peste stările pe care le
+    înlocuiește.
+  - **Verificat** pe build-ul final, cu WebGL forțat. Fiecare din cele 9 carduri e adus în față, în
+    ambele teme; la 1024 și 1280 și cu hover pe cardul din față:
+    - **90 / 90** verificări: niciun rând de text sub marginea cardului, descrierea în cutia
+      cardului, cardul din față în viewport (sub header, deasupra bazei), niciun `height` scris;
+    - înainte, IQ Arena avea ultimele rânduri tăiate cu 56px la 768 și 34px la 1024 cu hover;
+    - înălțimile la 768×1024: 260, 280, 298, 279, 260, **360**, 283, 298, 273px.
+
+- **`below` învechit după un salt instant** (P3-B, găsit de P3-C în `jump-lab`): un reload sub Work,
+  apoi un salt instant sus (logo) nu mai aplica spirala până când Work nu intra în viewport, pentru
+  că IntersectionObserver-ul nu raportează un salt peste Work. `isSafe()` citește acum dreptunghiul
+  secțiunii în cadrul care ar așeza cardurile, iar observer-ul doar oprește. Spirala se aplică la
+  ~500ms după salt (era „off” și după 20s). Două teste noi în `scene-helix`.
+- **Chrome și `removeAttribute("style")`** (P3-B): Blink serializează leneș un stil scris prin CSSOM;
+  scos cât serializarea era în așteptare, atributul revenea ca `style=""`. Restaurarea citește acum
+  atributul înainte să-l scoată.
+- **W13 pe telefon** (P3-C): `helix.end` din probă (2383) nu corespundea DOM-ului (1832). Banda de pe
+  telefon e mai scurtă decât viewport-ul, iar ScrollTrigger limitează capătul la început. Helper-ul
+  oglindește acum aceeași limitare.
+- **W15, round trip-ul de stil după o navigare client** (P3-C): la întoarcere App Router randează
+  cardurile pe client, iar React scrie culorile prin CSSOM (`--p1: #192f6f; --p2: #4b7dff;`), nu ca
+  șirul din HTML-ul serverului. Testul compară acum proprietățile (`style.length === 2`, `--p1`,
+  `--p2`, niciun layout), iar comparația byte cu byte rămâne pe ieșirea din spirală fără navigare.
+- **Holograma**: avertismentele „GPU stall due to ReadPixels” / `willReadFrequently` (P3-A).
+- **W13 desktop instabil** (P3-D, 1 din 4 în gate):
+  - Eroarea: `helix.end: probe 1940, DOM 4301`.
+  - Cauza e o cursă în test, nu în scenă. Elicoidul poate termina de construit după ce testul a
+    derulat la Y=3000, adică în Work, unde spirala nu se aplică. Revenit sus, Work e sub viewport,
+    spirala se aplică pe loc și track-ul crește.
+  - Cutiile probei urmează imediat (`SCENE_LAYOUT_EVENT`). Benzile vin cu refresh-ul de resize al
+    stage-ului (debounce 200ms, după terminarea scroll-ului), iar testul le citea fără să aștepte.
+  - Scena nu folosește `probe.helix`: driver-ul își măsoară singur intervalul, iar `workSpan` nu se
+    mișcă, pentru că vârful track-ului rămâne pe loc.
+  - Verificarea e acum așteptată; W13 ×4 a trecut după reparație.
+
+**Docs**
+
+- [03](./docs/03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17):
+  - secțiunea nouă „The project DNA helix”: moduri, media, comutarea sigură, spirala sticky și
+    ordinea de pictare, restaurarea, focusul, `MutationObserver`, erorile, poarta Work, plasarea,
+    modelul, holograma, recolorarea, `SCENE_LAYOUT_EVENT`;
+  - arborele (`helix.ts`, `workHelix.ts`, `three/models/helix.ts`, `three/hologram.ts`, exporturile
+    noi), DOM-ul stage-ului cu Work, `data-helix` / `data-helix-front`, câmpurile probei, cele 4
+    trigger-e, „Who owns what” (chunk-ul scenei scrie layout-ul inline al cardurilor în spirală);
+  - înregistrarea: R1 „Work nu primește model 3D” e înlocuită de deciziile 10 și 12;
+  - mențiunile `chipSamples` scoase; semnăturile `stepSceneFx` / `composeScene` actualizate.
+- [04](./docs/04-design-system.md#works-ambient-helix-and-its-band-it-os-phase-3): elicoidul ambient
+  și banda lui — de ce nu în spatele titlului, contrastul în bandă, spirala.
+- [05](./docs/05-page-sections.md#work): elicoidul în scenă; Work în stage — spirala de la 768×600,
+  cardul cât conținutul lui, ambient în banda de deasupra titlului, grila sau banda pe calea implicită,
+  holograma, tastatura, reload-ul în Work.
+- [07](./docs/07-conventions.md#gsap-and-scrolltrigger): cele 4 trigger-e, cele două porți, regula
+  porții Work, evenimentul de layout; contractul driver-ului (doar cu Work sub viewport, restaurarea,
+  cine deține cardurile, cardul niciodată plafonat sub conținut, plafonul descrierii ridicat în
+  spirală); decorul nu stă în spatele copiei (o bandă măsurată, nu un dim); modurile `holo` / `bits`.
+- [11](./docs/11-security.md#the-work-hologram-canvas2d-2026-09-17): holograma Canvas2D — doar
+  imaginea same-origin, sonda de taint, celule de 2px, text din `textContent` prin `fillText`, fără
+  loadere / fetch / blob, CSP neschimbat.
+- [14](./docs/14-testing.md): numărătorile pe fișier, fișierele noi, W15 / W15t / W18 / W19 / E1, W2 / W5.
+- [`e2e/README.md`](./e2e/README.md): W15, W15t, W18, W19, E1, W2, W5, `sceneProbeVsDom`.
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, arborele final) | exit 0 · 0 · 0 (snapshot exportat din indexul comis) |
+| `npm test` (node:22-alpine), rulat de 2 ori | **1.309 passed / 0 failed** în 68 de fișiere, de ambele dăți (înainte: 1.200 în 65) |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă) | **261 passed / 1 failed**: `preloader` „forced WebGL renders the canvas and completes at 100” (click-ul pe CTA-ul din header în timpul fade-ului nu a ajuns în 60s), rulat în paralel cu build-urile agentului Fazei 4; același test trece de 3 ori din 3 în rularea repetată de mai jos, iar Faza 3 nu atinge intro-ul |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl`, `--repeat-each=3` | **285 passed / 0 failed / 0 flaky** |
+| E2E rulat de agenți (noble) | P3-C: `interior-webgl` 24 + `interior` 22 + `preloader` 24 + `hud-shell` 25 + `responsive` 66 = **161 passed**; W15 / W15t / W18 ×3 → 9 / 9, W19 12 / 12. P3-D: pe primul build final aceleași 5 spec-uri → 160 passed / 1 failed (W13 desktop, `helix.end`, vezi *Fixed*); `-g "W15\|W18\|W19\|W13\|W14" --repeat-each=3` → 21 / 21; după reparația W13: W13 `--repeat-each=4` → 8 / 8 și cele 5 spec-uri → 161 / 161. **După ambele decizii** (build nou): cele 5 spec-uri → **161 passed / 0 failed** (24 + 22 + 24 + 25 + 66), repetarea → **21 / 21** (W15, W15t, W18, W19, W13 ×2, W14, de câte 3 ori). W15 Tab → front: 37–400ms în toate rulările |
+| Contrast R9.4 amendat (12 cadre, canvas forțat, text ascuns; P3-D, build-ul final) | elicoidul ambient în bandă, la luminozitate plină, 320–767px (7 lățimi), ambele teme: eyebrow, h2, lead și „Deschide serviciul” **100%** (light: titlul identic cu pagina fără canvas); **0 pixeli** schimbați peste panou, eyebrow sau carduri. Tabelele la *Changed* |
+| Cardurile din spirală cât conținutul lor (P3-D, build-ul final) | 9 carduri aduse pe rând în față, ambele teme, la 768×1024 (touch), 1024×768 și 1280×800 (și cu hover): **90 / 90**, niciun rând tăiat, cardul din față în viewport, niciun `height` scris |
+| Titlul Work la 1280 și 1024 peste zona spiralei | canvas-ul nu schimbă niciun pixel din titlu (energie 0) — identic cu ilustrația HEAD; în light, pixelii sub 4.5 sunt cei de dinainte (liniile grilei HUD) |
+| TBT, WebGL forțat, tier mid, 390×844, CPU 4×, 3 rulări (mediane); după `webgl`, 1.5s, apoi salt la titlul Work (modul ambient se aplică, poarta Work predă elicoidului) și încă 8s; HEAD `aeea067` și arborele final construite și măsurate unul după altul, pe aceeași mașină liniștită (P3-D) | fără scenă 168 → 162ms (aceeași cale, zgomot) · cu scena 587 → **630ms** · adăugat 419 → **468ms** (+49) · task-urile scenei 443 → **476ms** · cel mai lung task al scenei 339 → **377ms** (maxim 343 → **395**, sub limita de 400, dar cu doar 5ms rezervă) · creșterea stă în cadrul „ready” (așteptarea GPU SwiftShader 323–342 → 325–362ms) · **construirea și compilarea elicoidului după ready nu produc niciun task ≥ 50ms** (`built` la ~3.43s, nimic lung după) · după saltul în Work: 0 task-uri lungi, înainte și după · JS-ul scenei singur (trace, task-urile deduplicate: trace-ul din Faza 1 număra fiecare `RunTask` de două ori, deci 266 / 276 de acolo înseamnă 133 / 138) 136 → **129ms** TBT doar JS, 226 → 221ms JS în task-urile lungi, cel mai lung task JS 186 → 179ms — plat, sub bugetul de 350ms |
+| Confidențialitatea hologramei (FLIRT în față, 1280×800, tier high, nativ și 3×; P3-D) | e-mailul (`comf003114@gmail.com` în captura sursă) **nu e lizibil** în niciuna din teme: câmpul e o bandă luminoasă cu pete, fără caractere. Capturi: `SCRATCH/itos/p3/d/shots/holo-final/` |
+| `__THREE__` într-un singur chunk | da (P3-C; P3-D pe build-ul final: `2cmn-bxww_8n_.js`, 271.060 B gzip) |
+| Ultimul card impar, 861px, calea implicită (capturi înainte pe HEAD, după pe arborele final) | cardul identic pixel cu pixel în ambele teme (captura 395px din 792, `left: 395.06px`, aceeași mască); `#lucrari` diferă doar prin capturile lazy încă nedecodate ale altor carduri |
+
+Greutate (gzip, bytes; același script și aceleași cazuri ca la Faza 2; baza e coloana *Faza 2* de acolo).
+Măsurat de P3-D pe arborele final, după ambele decizii (`weight-cases.sh`, `BUILD=1`, noble, toate cele
+11 cazuri, exit 0); măsurat de P3-D pe arborele final, după ambele decizii (bundle identic cu snapshot-ul comis: fișierele Fazei 4 din arbore nu erau importate de nimic):
+
+| Buget | Caz | Bază (Faza 2) | Faza 3 | Diferență |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine | total 262.391 · referit din HTML 257.501 · JS târziu 3.936 | total **262.699** · referit din HTML 257.809 · JS târziu 3.936 | +308 (JS-ul paginii +202: `data-work-track`, `data-helix`, `SCENE_LAYOUT_EVENT`, `workGap` în forma probei și clasele din `Work.tsx`; CSS +106: selectorul ultimului card impar și plafonul descrierii ridicat în spirală) |
+| B1s / B7 | B1 + scroll · pe mobil | JS târziu 3.936 | 3.936 | 0 |
+| B2 | scenă forțată + scroll (desktop și mobil) | JS târziu 315.109 | **324.687** ✗ (limita B1s + 316.000 = 319.936; **peste cu 4.751**) | +9.578 (chunk-ul comun +9.091: elicoidul, holograma, driver-ul și layout-ul, poarta Work, integrarea; chunk-ul directorului +445: benzile Work și `workGap`) |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 324.177 (total 582.632) | **333.894** ✗ (limita 330.000; **peste cu 3.894**; total 592.657) | +9.717 |
+| B3i | prima vizită, intro forțat | 305.128 | **314.400** | +9.272 — peste limita planului (300.000), ca în fazele anterioare: chunk-ul comun aduce și scena interiorului |
+| B4 | prima vizită | JS târziu 35.775 | 35.777 ✓ (≤ 36.500) | +2 |
+| B5 | `/servicii/e-commerce` | total 222.906 (limită 224.000) | **223.013** ✓ | +107 (CSS; 987 B rezervă) |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte | 3.219; 0 contexte ✓ | 0 |
+| H | documentul HTML `/`, care revine | 21.579 | **21.651** ✓ (≤ 22.230) | +72 (atributul și clasele, o dată în markup și o dată în RSC) |
+| — | chunk-ul comun three + R3F + scene | 261.969 | **271.060** | +9.091 |
+
+**Re-baseline-uri cerute (explicit, cu motiv):**
+- **B2** și **B3** depășesc limitele planului; **B3i** era deja peste și crește.
+- Motivul: tot ce adaugă Faza 3 pentru scenă stă în chunk-ul comun three + R3F + scene, cerut doar după
+  decizia WebGL (+9,1 KB gzip), plus +0,4 KB în chunk-ul directorului. Planul estima ≈ +6,2 KB și
+  prevedea deja „B2 peste, B3 la limită”.
+- Măsurate de P3-A: modelul elicoidului 2.939, holograma 2.342, materialele 654, mostrele 402,
+  tier-urile 72, formele 49. Restul vine din driver și layout (P3-B) și din integrare (P3-C, P3-D).
+- Noile baze propuse: **B2 ≤ B1s + 321.000**, **B3 ≤ 335.000**, **B3i 314.400** și chunk-ul comun
+  **271.060**.
+- Vizitatorii fără WebGL (B1, B1s, B4, B5, B6, H) plătesc doar +2…+308 B.
+- HUD-ul se încarcă după prima interacțiune, deci rândurile ne-armate nu îl arată (vezi B1h / B5h /
+  B6h din Faza 4).
+
+> **Rămâne deschis:**
+> - **Pe un telefon foarte scund (568px)** banda de deasupra titlului e sub header în momentul în care
+>   poarta Work se armează (track-ul la 55%). Elicoidul se vede abia după un mic scroll înapoi (poarta
+>   ține până la 70%); cât e format, link-ul „Deschide serviciul” e tot sub header.
+> - **Cardurile laterale care se sting depășesc marginea viewport-ului cu câțiva pixeli.** Cele de la
+>   două poziții de focus distanță (opacitate 0.53) ies cu cel mult 9px la 768×1024 (sub header sau
+>   dincolo de bază), cu 2px la 1024×768 și cu 0 la 1280×800. Cauza: cardurile sunt acum cât
+>   conținutul lor (IQ Arena are 360px).
+>   - Cardul din față și vecinii lui imediați rămân în viewport.
+>   - O limită verticală în `helixLayout` ar schimba pozițiile fixate de P3-B.
+> - **Un card cu hover pe desktop se recentrează** cât îi crește descrierea: ResizeObserver-ul îl mută
+>   în sus cu jumătate din creștere, în 250ms. Pointerul rămâne în card.
+> - **Ordinea de pictare și scroll anchoring pe WebKit nu sunt verificate.** Cardurile sticky cu
+>   `z-index` negativ sub canvas și compensarea scroll-ului la ieșirea din spirală au fost văzute doar
+>   în Chromium (SwiftShader).
+> - **W15 are un buget de 3s pentru Tab → card în față**; măsurat 30–400ms. Sub un CPU foarte
+>   încărcat (build-uri în paralel), testul poate deveni instabil.
+> - **Bătaia scanline-urilor hologramei**: textura are scanlines la 3px, iar shader-ul adaugă 120 de
+>   benzi pe înălțimea planului. La unele mărimi ale planului apare un moiré discret.
+> - **Saltul inelului de puls** în Brand & UI există dinainte (ceasul modulo 3.2s).
+> - **Cel mai lung task al scenei (395ms la maxim) are doar 5ms rezervă față de limita de 400ms**, pe
+>   SwiftShader, headless. Creșterea stă în așteptarea GPU din cadrul „ready”, nu în JS. TBT-ul a fost
+>   măsurat înainte de mutarea elicoidului în bandă și de regula înălțimii cardurilor. Niciuna nu
+>   adaugă muncă la construcție sau la ready: o altă plasare și un ResizeObserver doar în spirală.
+> - **Un card lateral care se stinge lasă elicoidul să treacă**: câțiva pixeli din numele lui coboară
+>   la 1.84:1 (768 dark). Cardul din față nu e afectat.
+> - **Pixelii light sub 4.5:1 din titlul Work** (eyebrow 92.99–99.92%, lead 99.94–99.98%, după poziția
+>   de scroll) stau pe liniile de 1px ale grilei HUD și existau dinainte (identici pe HEAD). Faza 3 nu
+>   îi schimbă.
+> - **În arbore apar fișiere necomise care nu țin de Faza 3**: `components/hud/guide/`,
+>   `lib/hud/linger.ts` și testele lor (`guide-assistant`, `guide-linger`), din Faza 4.
+>   - P3-D le-a găsit în timpul gate-ului.
+>   - Nu sunt importate de nimic din pagină, deci nu intră în build, în greutate sau în TBT.
+>   - Numărătorile de mai sus le exclud; `npm test` pe arborele de lucru a dat 70 de fișiere /
+>     1.424 de teste cu ele (ultima rulare).
+
+---
+
 ## 2026-09-17 — Faza 2: intrarea serviciilor (explozie și asamblare), panoul care se aprinde, Brand & UI ca grilă
 
 A treia fază a experienței IT aprobate. Până acum scroll-ul „trecea” cipul în modelul direcției

@@ -30,8 +30,8 @@ so the data source can change without touching markup.
 │  │  ├─ layout.tsx        # Chrome: the intro gate (IntroPreloader, first child), ScrollProgress,
 │  │  │                    #   Navbar, Footer, CookieConsent, AnalyticsPixel (consent-gated);
 │  │  │                    #   imports ../tailwind.css
-│  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions (with the
-│  │  │                    #   server-rendered art slots), then Work, Principles, Team,
+│  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
+│  │  │                    #   (with the server-rendered art slots), then Principles, Team,
 │  │  │                    #   RequestSection, BottomCTA
 │  │  ├─ confidentialitate/ # Privacy policy (content.ts + LegalDoc)
 │  │  └─ cookies/          # Cookie policy (content.ts, reuses LegalDoc)
@@ -70,16 +70,23 @@ so the data source can change without touching markup.
 │  │  ├─ scrollGuard.ts · scrollProbe.ts   # smooth-scroll guard, quiet/wake, parallax targets;
 │  │  │                    #   the writes into the scroll probe
 │  │  ├─ choreography.ts · fx.ts · tiers.ts · input.ts · trail.ts · pixelRatio.ts · shapes.ts
-│  │  │                    #   pure placement/morph maths, per-frame fx and the timed services
-│  │  │                    #   entry gate, tier budgets, pointer and
+│  │  │                    #   pure placement/morph maths (and the helix's: placeHelixSpiral,
+│  │  │                    #   placeHelixAmbient, HELIX_SLOT, HELIX_AMBIENT, HELIX_REACH), per-frame fx
+│  │  │                    #   and the timed gates (services entry, Work handoff), tier budgets, pointer and
 │  │  │                    #   gyroscope tilt (a mouse or pen also writes the cursor trail), the
 │  │  │                    #   cursor trail's ring buffer, the DPR watcher, model geometry shared
-│  │  │                    #   with the art (the chip: CHIP, CHIP_POSE, chipTraces, chipPins)
-│  │  ├─ three/            # imperative three.js: world · core (the hero microprocessor) · swarm ·
-│  │  │                    #   trail (the cursor trail's ribbon) · materials (five programs,
-│  │  │                    #   P2–P6) · glsl · palette · samples · compile (staged build,
-│  │  │                    #   frame-counted ready) · models/{cubes,commerceLoop,integrationHub,
-│  │  │                    #   neural,meshWave}
+│  │  │                    #   with the art (the chip: CHIP, CHIP_POSE, chipTraces, chipPins; the
+│  │  │                    #   helix: HELIX, HELIX_ANGLE)
+│  │  ├─ helix.ts · workHelix.ts   # Work's spiral: the pure layout (WORK_HELIX_MEDIA, HELIX_LAYOUT,
+│  │  │                    #   helixLayout, focusFromProgress, scrollForCard, nearestCard) and the
+│  │  │                    #   framework-free DOM driver that lays the project cards out round the
+│  │  │                    #   helix (createWorkHelixDriver) — see "The project DNA helix" below
+│  │  ├─ three/            # imperative three.js: world (+ stageHelix) · core (the hero
+│  │  │                    #   microprocessor) · swarm · trail (the cursor trail's ribbon) ·
+│  │  │                    #   materials (five programs, P2–P6) · glsl · palette · samples (slot 0:
+│  │  │                    #   helixSamples) · compile (staged build, frame-counted ready) ·
+│  │  │                    #   hologram (Work's Canvas2D hologram texture) ·
+│  │  │                    #   models/{cubes,commerceLoop,integrationHub,neural,meshWave,helix}
 │  │  └─ art/              # static SVG art, CSS Modules, no "use client": HeroCoreArt (+ heroArt.ts)
 │  │                       #   and ServiceArt (+ serviceArtPaths.ts)
 │  ├─ fx/                  # DOM hooks: useOffscreenAttribute (data-offscreen) · usePointerTilt
@@ -93,7 +100,8 @@ so the data source can change without touching markup.
 │  │  │                    #   holographic stat cards
 │  │  ├─ Ticker.tsx        # the trust ticker under the hero (Tailwind)
 │  │  ├─ Directions.tsx    # the direction chooser (Tailwind): pills, preview, HUD screen
-│  │  ├─ Work.tsx          # the portfolio's HUD cards (Tailwind): tilt, CSS parallax
+│  │  ├─ Work.tsx          # the portfolio's HUD cards (Tailwind): tilt, CSS parallax; the grid is
+│  │  │                    #   `data-work-track`, which the scene turns into the helix spiral
 │  │  ├─ Principles.tsx    # principles grid + stats row
 │  │  ├─ RequestSection.tsx · BottomCTA.tsx · DirectionPage.tsx (the /servicii/<slug> pages)
 │  │  ├─ Team.tsx          # team + system-status panel
@@ -118,7 +126,8 @@ so the data source can change without touching markup.
 │  ├─ scrollLock.ts        # Reference-counted <html> scroll lock (burger menu + intro) and the
 │  │                       #   page cover (coverPage, tbs:page-cover), held by every lock
 │  ├─ scene.ts             # The interior stage contract: QA flag, gates, data-* names, directions →
-│  │                       #   models, the page → scene input store, the scroll probe
+│  │                       #   models, the page → scene input store, the scroll probe; Work's
+│  │                       #   WORK_TRACK_ATTR, SceneHelixMode / SceneHelix, SCENE_LAYOUT_EVENT
 │  ├─ gpuProbe.ts          # The GPU probe's session cache (tbs_gpu_probe) + decideWebGL; no imports
 │  ├─ device.ts            # Device profile, detectTier (intro), detectSceneTier (interior)
 │  ├─ idle.ts              # afterIdle: visible-time delay + an idle slot
@@ -231,11 +240,13 @@ target on the page by `data-intro-reveal`.
 
 ## The interior stage
 
-The home page's first three sections — Hero, Ticker, Directions — scroll over **one** WebGL
+The home page's first four sections — Hero, Ticker, Directions, Work — scroll over **one** WebGL
 canvas: the hero's neon microprocessor (the chip), which dissolves as the hero leaves; the
 selected direction's model, which bursts out of a point and assembles once the visitor reaches
-the services; and a cursor circuit trail behind a mouse or pen.
-Devices that should not draw it get static SVG art in the same places (no trail).
+the services; a cursor circuit trail behind a mouse or pen; and Work's DNA helix, which the
+project cards turn round from 768px (a small helix lying above Work's heading below that).
+Devices that should not draw it get static SVG art in the same places (no trail, and Work's
+cards as the server rendered them).
 What the visitor sees is in [05 — Page Sections](./05-page-sections.md#interior-stage-3d);
 the styling rules in [04 — Design System](./04-design-system.md#the-interior-stage); the coding
 rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage).
@@ -253,15 +264,19 @@ rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage
     Hero        section#top … [data-testid="scene-hero"] > [data-scene-anchor="hero"] > the core art
     Ticker
     Directions  #servicii … [data-testid="scene-services"] > [data-scene-anchor="services"] > the art
-  Work · Principles · Team · RequestSection · BottomCTA        ← outside the stage
+    Work        section#lucrari … heading block + div[data-work-track] > a | article   ← the cards
+  Principles · Team · RequestSection · BottomCTA        ← outside the stage
 ```
 
 - The track is positioned and first in tree order, so every positioned section after it paints
   on top of the canvas; the hero's opaque plate (`-z-20`) and backdrop (`-z-10`) sit below it
   inside the stage's stacking context (`isolate`), which keeps the whole stage under the header,
   the burger overlay and the cookie banner without a new z-index token.
-- **No `transform`, `filter`, `contain` or `overflow` on the stage or on any ancestor of the
-  layer** — each one breaks `sticky`.
+- The same stacking context holds Work's spiral: a sticky card the scene gives a negative
+  `z-index` paints in the stage's negative layer, **under** the canvas track; one with a positive
+  `z-index` paints over it — real depth round the helix.
+- **No `transform`, `filter`, `contain` or `overflow` on the stage, on any ancestor of the
+  layer or on any ancestor of Work's cards** — each one breaks `sticky` (or that depth).
 - The canvas is `pointer-events: none` (R3F writes `auto` inline; the canvas style overrides it)
   and R3F's pointer events are unused: tilt comes from passive `window` listeners.
 
@@ -313,20 +328,25 @@ Also on the stage root: `data-tier` (from mount; `mid` while a forced low-tier d
 it), `data-paused` (only while `webgl`). Written straight to the DOM, never through React
 state: `data-boost` (a hero CTA is boosted), `data-quality` (`full|dpr|lite`, once the governor
 steps), `data-morph` (`running|idle`), `data-entry` (`idle|burst|formed`, the services entrance
-as the scene draws it — see [below](#the-services-entrance-it-os-phase-2-2026-09-17)), and the
-director's `data-scroll-fx` (`on` once measured). `data-quality`, `data-morph` and `data-entry`
-belong to the mounted scene: they are removed with it, so a `fallback` or `off` stage never
-carries them.
+as the scene draws it — see [below](#the-services-entrance-it-os-phase-2-2026-09-17)),
+`data-helix` (`spiral|ambient`, the mode Work's helix is in while the scene lays the cards out or
+draws the small helix — see [below](#the-project-dna-helix-it-os-phase-3-2026-09-17)), and the
+director's `data-scroll-fx` (`on` once measured). `data-quality`, `data-morph`, `data-entry` and
+`data-helix` belong to the mounted scene: they are removed with it, so a `fallback` or `off` stage
+never carries them. On a card, `data-helix-front` marks the spiral's front card (or, in ambient
+mode, the card nearest the band's middle).
 
 ### Who owns what
 
 | Piece | Owns |
 |-------|------|
-| `lib/scene.ts` (+ `lib/gpuProbe.ts`) | The contract: `SCENE_3D_KEY`, the live gates (`readMotionGate`), the probe cache and `decideWebGL` / `reasonFor`, the `data-*` names and test ids, `SCENE_SHAPES` → `SERVICE_MODEL`, the input store, the `ScrollProbe` type, `SCENE_TIMING`, `PARALLAX_MEDIA` / `PARALLAX_LAYERS`. No `"use client"`, no DOM at import (server components and `e2e/helpers.ts` import it) |
-| `SceneStage` | The pipeline and its state, pausing, the React-written attributes and the DOM-written reports, the error boundary, the session marks |
-| `SceneDirector` + `scrollGuard.ts` / `scrollProbe.ts` | ScrollTrigger: measuring into the probe, when to refresh, no measurement under a cover, the smooth-scroll guard, quiet/wake, the desktop hero parallax |
-| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` and never touches the page |
+| `lib/scene.ts` (+ `lib/gpuProbe.ts`) | The contract: `SCENE_3D_KEY`, the live gates (`readMotionGate`), the probe cache and `decideWebGL` / `reasonFor`, the `data-*` names and test ids, `SCENE_SHAPES` → `SERVICE_MODEL`, the input store, the `ScrollProbe` type, `SCENE_TIMING`, `PARALLAX_MEDIA` / `PARALLAX_LAYERS`, `WORK_TRACK_ATTR`, `SceneHelixMode` / `SceneHelix`, `SCENE_LAYOUT_EVENT`. No `"use client"`, no DOM at import (server components and `e2e/helpers.ts` import it) |
+| `SceneStage` | The pipeline and its state, pausing, the React-written attributes and the DOM-written reports (`data-helix` included), the error boundary, the session marks |
+| `SceneDirector` + `scrollGuard.ts` / `scrollProbe.ts` | ScrollTrigger: the four measuring triggers (`heroExit`, `entry`, `workSpan`, `helix`), when to refresh, re-reading the boxes on `SCENE_LAYOUT_EVENT`, no measurement under a cover, the smooth-scroll guard, quiet/wake, the desktop hero parallax |
+| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate and the Work gate, Work's helix (built after ready) and its hologram. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` / `onHelix`. It touches the page in **one** place only: in spiral mode the scene chunk's driver (`workHelix.ts`, created by `SceneWorld`, called by the world every frame, disposed with it) writes Work's cards' inline layout, and puts every card back when it leaves |
+| `helix.ts` / `workHelix.ts` | The spiral's pure layout; the DOM driver: which mode, when it may switch, the cards' inline poses, focus, the restore contract |
 | `Hero`, `Directions` | The anchors the scene fits its models into, the art slots, and the inputs: `setSceneBoost` (CTA hover / keyboard focus), `selectSceneShape` (the selected pill) |
+| `Work` | The cards as React renders them (`--p1` / `--p2` inline, nothing else) and the track attribute (`data-work-track`); it knows nothing of the spiral, and React re-renders never undo it (they diff only React's own style keys) |
 | `components/scene/art/*` | The static drawings (server-rendered first, see below) |
 
 ### Stores and channels
@@ -334,11 +354,20 @@ carries them.
 - **The scroll probe** — a plain mutable object the stage creates once and hands to both halves.
   The director writes it at every ScrollTrigger refresh; the scene reads it, with
   `window.scrollY`, once per frame. No React state, no events. Its shape (`ScrollProbe`,
-  `lib/scene.ts`): `live`, `version`, `headerH`, `stage: { top, bottom }`, `hero` and `services`
-  (document boxes, null while the anchor is not in the page), and two scroll spans — `heroExit`
-  (`#top` "top top" → "bottom 35%", a progress the chip's exit follows) and `entry` (the services
-  anchor "top 90%" → "top 75%", the band the services entry gate arms and disarms over; not a
-  progress).
+  `lib/scene.ts`): `live`, `version`, `headerH`, `layerH` (the sticky layer's height),
+  `stage: { top, bottom }`, `hero` and `services` (document boxes, null while the anchor is not in
+  the page), `work` (Work's card track), `workHead` (its heading block, eyebrow to lead, the
+  scroll reveal's `translateY` taken out) and `workGap` (the free band above that heading: from the
+  previous section's content end — its bottom less its bottom padding — to the heading's top, as
+  wide as Work's section), and four scroll spans — `heroExit` (`#top` "top top" →
+  "bottom 35%", a progress the chip's exit follows), `entry` (the services anchor "top 90%" →
+  "top 75%", the band the services entry gate arms and disarms over; not a progress), `workSpan`
+  (the track "top 70%" → "top 55%", the Work gate's band) and `helix` (the track "top top" less the
+  header → "bottom bottom"; ScrollTrigger clamps an end before its start, so a phone's band ends at
+  its top). The scene can also say it changed the layout itself: `SCENE_LAYOUT_EVENT`
+  (`tbs:scene-layout`, a plain `Event` on the stage root) makes the director re-read every box at
+  once — no refresh, which would stop a touch fling — while the stage's resize refresh follows for
+  the spans. Never under a cover.
 - **The scene input store** (`lib/scene.ts`) — `{ boost, waveSeq, shape }`, a frozen snapshot
   replaced on every change (so it works with `useSyncExternalStore`). `boost` is 1 while any CTA
   source is active; `waveSeq` counts only the 0 → 1 edges, so moving between the two CTAs never
@@ -347,8 +376,8 @@ carries them.
 - **`tbs:intro-gone`** (`lib/intro.ts`) and **`tbs:page-cover`** (`lib/scrollLock.ts`) — see
   [Data flow](#data-flow) below.
 - **The scene's fx** (`fx.ts`, one per canvas) — the tilt targets the listeners write, what the
-  world smooths every frame, the services entry gate (`fx.entry`), and the cursor trail's ring
-  buffer (`fx.trail`). `input.ts` pushes a
+  world smooths every frame, the services entry gate (`fx.entry`), the Work gate (`fx.work`), and
+  the cursor trail's ring buffer (`fx.trail`). `input.ts` pushes a
   segment for a **mouse or pen** move only (in the fine-pointer branch): `pushTrail` snaps the
   point to a 20px **document** grid (`clientX + scrollX`, `clientY + scrollY`, `event.timeStamp`)
   and marks the slots it wrote; `three/trail.ts` uploads just those slots and draws.
@@ -369,9 +398,8 @@ carries them.
   `components/scene/**` for GSAP pinning and would read the key as a ScrollTrigger pin.
 - **Along the hero exit** the chip shrinks, lifts apart (`coreExitPose().lift`: heat spreader and
   die rise off the substrate) and dissolves (`coreReveal`); it no longer drifts to the services
-  host, and no swarm carries it anywhere: swarm slot 0 still holds the chip's silhouette
-  (`chipSamples`) but no plan uses it since the services entrance (Phase 2) — the Work helix takes
-  the slot in Phase 3.
+  host, and no swarm carries it anywhere: the chip has no swarm slot, and slot 0 is the Work
+  helix's silhouette since Phase 3 (`helixSamples`).
 - **The cursor trail** is one more part (built after the swarm, compiled in its own slice): one P5
   ribbon of `TRAIL.cap` (64) segments × 6 vertices in document px, drawn over the rest of the scene
   (render order 9, no depth test), and only while a segment is still fading (`TRAIL.life` 0.9s).
@@ -396,15 +424,17 @@ brand-ui wave read as noise. The entrance is now a **timed gate** (decisions D-C
   reaches the band's end and disarms only above its start; in between it keeps what it has.
   `value` runs in **time**, not scroll: 0 → 1 in `ENTRY_SECONDS.form` (1.1s) while armed, back in
   `.unform` (0.45s) while not — on the clamped frame step, so SwiftShader's 20 Hz clamp makes it
-  at least 22 frames. `stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan)` snaps the gate on
-  the first frame (a deep link into the services finds the model formed), keeps it shut while the
-  services anchor is not measured (`entrySpan` null), and snaps a disarmed gate to 0 once the page
-  is back at the hero (`heroExit` 0).
-- **The composition** (`composeScene(entry, morph, out)`, `choreography.ts`): below 1 the
+  at least 22 frames. `stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan, workSpan)` snaps
+  the gate on the first frame (a deep link into the services finds the model formed), keeps it
+  shut while the services anchor is not measured (`entrySpan` null), and snaps a disarmed gate to
+  0 once the page is back at the hero (`heroExit` 0). (`workSpan` and the Work gate came with
+  Phase 3, [below](#the-project-dna-helix-it-os-phase-3-2026-09-17).)
+- **The composition** (`composeScene(entry, work, morph, out)`, `choreography.ts`): below 1 the
   entrance owns the swarm — `from = BURST` (−1, not a slot), `to = 1 + selected`, `t = entry` —
   and the model is revealed by `smoothstep(.72, 1, entry)`; the pill morph is instant meanwhile.
-  At 1 the morph owns the swarm as before. Both ends meet continuously (unit-tested): the swarm's
-  alpha reaches 0 exactly as the model's reveal reaches 1.
+  At 1 the morph owns the swarm as before (unless the Work handoff has it: `work` > 0). Both ends
+  meet continuously (unit-tested): the swarm's alpha reaches 0 exactly as the model's reveal
+  reaches 1.
 - **The burst** (`world.ts`, `swarm.ts`, no shader change): a `BURST` plan uses the selected
   model's slot at both ends; the `from` matrix shrinks it to a speck at the services host's centre
   (`BURST_SPECK`: scale × 0.05, a cloud 1.35 × the model's radius so it overshoots and converges,
@@ -422,6 +452,131 @@ brand-ui wave read as noise. The entrance is now a **timed gate** (decisions D-C
   `formed` at 1. `SceneStage` writes it on the stage root and removes it with the scene; the
   Directions panel's edge glow and glass sweep (`entry-glow`, `entry-sweep` in `app/tailwind.css`)
   key off it. Nothing is written while the art shows (`pending`, `fallback`, `off`).
+
+### The project DNA helix (IT-OS Phase 3, 2026-09-17)
+
+The client asked for the **existing project cards** to turn round a DNA helix ("cardurile cele să
+fie la ADN"). Work (`#lucrari`) is now inside the stage, and the scene chunk lays its cards out
+round a 3D helix. **Decision record:** decision R1 of the IT-OS critique, "Work gets no 3D model",
+is superseded by the client's decisions 10 and 12.
+
+- **Modes** (`SceneHelixMode`, reported through `onHelix` and written as `data-helix` on the
+  stage root): `spiral` — the helix built, at least `HELIX_MIN_CARDS` (3) cards and
+  `WORK_HELIX_MEDIA` = `(min-width: 768px) and (min-height: 600px)`; `ambient` — the helix built
+  otherwise (phones, a short window, fewer cards): the grid or band stays exactly as it is and a
+  small helix lies in the band above Work's heading; `off` — before the helix is built, without the scene, or
+  after an error (`wantedHelixMode`, `helix.ts`). The default path (`pending`, `fallback`, `off`
+  renderer, reduced motion) creates no driver at all: no attribute, and every card as the server
+  rendered it.
+- **The driver** (`workHelix.ts`, `createWorkHelixDriver({ track, section, probe, onMode })`) is
+  framework-free — no React, no three.js. `SceneWorld` creates it for the scene's whole life and
+  hands it to the world (`attachWork`); the world disposes it, so every way the scene goes (a
+  bail, a lost context, an error, reduced motion, leaving the page) puts the cards back. Each
+  frame the world asks it for the focus (`focus(scrollY)`), turns the helix to it, then calls
+  `write({ focus, built })`, which applies the wanted mode when it may and lays the cards out for
+  that same focus — the helix and the cards never disagree by a frame.
+- **Safe switching.** Into the spiral **only while Work is below the viewport**: the track grows
+  by thousands of px, and below the visitor that moves nothing they see. The section's rect is
+  read in the frame that would lay it out; an IntersectionObserver on the section only vetoes
+  while it says Work is on screen (it never fires for an instant jump across Work, so it cannot
+  decide alone). A reload or deep link inside Work keeps the grid until the visitor is back above
+  it. **Out of it at once** (the media query stops matching, fewer cards, the helix gone,
+  dispose, an error), with the scroll put back under the visitor: inside the spiral, to the
+  focused card's grid position (`top − headerH − 24`, instant); past its end, keeping whatever
+  follows the track still.
+- **The sticky-card spiral.** On entry the track becomes one tall grid cell (`display: grid`,
+  `grid-template-columns: 100%`, one row of `sceneH + (n − 1) · helixStep(innerHeight)`, the step
+  `clamp(240px, 38% of the viewport, 380px)`), and every card a `position: sticky` item in it:
+  `grid-row/column-start: 1` (which also cancels the odd last card's `col-span-2`),
+  `align-self: start`, `justify-self: center`, width `clamp(240, 0.27·w, 340)`,
+  `min-height: min(0.36·sceneH, 260)` — **never a `height`**: a card clips with `overflow: hidden`
+  and a touch screen always shows its description, so its content decides how tall it is — `top`
+  centring its measured box (`offsetHeight`) in the layer under the header (a card taller than the
+  layer starts right under it; a ResizeObserver on the cards centres them again when their content
+  changes, e.g. a locale switch or a hover revealing the description; Work lifts its description's
+  `max-h-35` cap inside the spiral for the same reason), `margin: 0`, and `transition-property: translate, box-shadow, border-color` (Work's 300ms
+  `transform` transition would make the cards trail the helix). Per frame, only when the focus
+  moved: `transform: translate3d(x, y, 0) scale(s)`, `z-index`, `opacity` and `pointer-events`,
+  from `helixLayout(i, focus, w, sceneH)` — card `i` sits `d = i − focus` steps along the strand,
+  `d · HELIX_ANGLE` (2π/9, the step the model turns by too) round it and `0.18 · sceneH · d` down
+  it, its x clamped `helixEdge(w)` inside the zone (16px, plus 44px from 861px for the Phase 5
+  rail). The focus is the scroll's progress over the driver's own span (the track's top under the
+  header → its bottom at the viewport's), `× (n − 1)`.
+- **Paint order and hits.** A card facing the visitor (`cos θ ≥ 0`) gets `z-index` 1…11 and
+  `pointer-events: auto`: it paints over the canvas and takes the click. One behind the strand
+  gets −1…−9 and `pointer-events: none`: it paints under the canvas track (the stage's `isolate`
+  makes that real depth) and never takes a click. `data-helix-front` marks the card at the
+  rounded focus.
+- **The restore contract.** Every property is inline, and every card's (and the track's)
+  original `style` attribute comes back **byte for byte** (`--p1` / `--p2` exactly as React
+  rendered them), saved as the attribute string when the spiral was entered. Should someone else
+  have changed the style meanwhile (a tilt in progress, new admin colours), only the driver's own
+  longhands are removed. Blink serializes a CSSOM-written style lazily: removing the attribute
+  while that is pending left `style=""` behind, so the driver reads the attribute first. React
+  re-renders (a locale switch) diff only React's own style keys, so the layout survives them.
+- **Focus.** Tabbing to a card scrolls to where it is the focus (`scrollForCard`, the page's own
+  `scroll-behavior`), so it comes to the front; a card holding focus is fully opaque. A focus a
+  pointer press caused (within 800ms) scrolls nothing. Tab order, `inert` and `aria-hidden` are
+  never touched.
+- **A new card list.** A `MutationObserver` on the track's `childList` catches a re-keyed list
+  (`/api/content` replacing the seed): the cards are collected again and laid out again — still
+  three or more in the spiral, otherwise ambient.
+- **Errors.** Any exception inside the driver restores everything and leaves it `off` for good.
+  An exception in the helix's frame (`failHelix`, `world.ts`) — which never reaches the stage's
+  error boundary — lets the driver go (the cards come back), hides the helix and logs once; the
+  rest of the scene draws on. A helix that fails to build leaves the cards as they are.
+- **`SCENE_LAYOUT_EVENT`.** A mode change grows or shrinks the track at once, and the director's
+  resize refresh for it may wait for a scroll to end. So the driver's `onMode` dispatches
+  `tbs:scene-layout` on the stage root, and the director re-reads every box into the probe then
+  and there (never under a cover); the refresh still follows for the spans.
+- **The Work gate** (`fx.work`, `WORK_SECONDS` = 1.2s to form, 0.5s back): a second timed gate
+  like the services entrance, over the director's `workSpan` band (the track "top 70%" →
+  "top 55%"). It only ever opens onto a helix that can be drawn: `stepSceneFx` gets the band only
+  while the helix is built, the driver's mode is not `off` and the track is measured — otherwise
+  it stays shut, and an open one closes in time. `composeScene(entry, work, morph, out)`: with
+  `work` > 0 the selected model's swarm flies from its slot to `HELIX_SLOT` (0), the model dissolves
+  over the first 30% and the helix forms over the last 30%; at 1, the helix alone. While the Work
+  gate is armed the entry gate sits on its armed value (no burst plays hidden behind the helix),
+  and an entry gate disarmed above the services snaps an open Work gate shut. The first frame snaps
+  both, so a deep link into Work finds the helix formed. With no helix placed to land on, the
+  swarm stays hidden.
+- **Placement** (`choreography.ts`). Spiral: `placeHelixSpiral` — its axis at `HELIX_LAYOUT.cx`
+  (0.34) of the track's width, the axis the cards orbit; centred on the sticky zone
+  (`helixZoneTop`: under the header, never above the track's top nor below its bottom);
+  `HELIX_ZONE_FILL` (0.9) of the zone tall; a rigid follow, since the zone is stuck while the
+  cards turn. Ambient: `placeHelixAmbient` — lying down (`HELIX_AMBIENT_ROLL`) in
+  `probe.workGap`, the free band between the Directions panel and Work's eyebrow (Directions' 36px
+  bottom padding plus Work's 48px top padding on a phone), centred on it, `HELIX_AMBIENT.length`
+  (0.6) of the canvas's width long and at most `HELIX_AMBIENT.maxPx` (120px) — or the band less
+  `HELIX_AMBIENT.clear` (10px) above and below — tall, measured with `HELIX_REACH` (1.26: the bits
+  drift further from the axis than the strands). Both modes draw at full brightness: behind the
+  copy (the first placement) the chips' flares and the packet comets forced a dim of 0.07 on the
+  dark page and 0 on the light one to keep the heading's contrast; in the band it lies over no
+  text (see `CHANGELOG.md`, Faza 3, for the numbers). On a 568px-tall phone the band is under the
+  header at the moment the Work gate arms (the track at 55%) and comes into view as soon as the
+  visitor scrolls back a little (the gate holds until 70%).
+- **The model** (`three/models/helix.ts`, `HELIX` = radius 0.9, height 5.4, 2.5 turns in
+  `shapes.ts`): five draws on the programs the scene already compiled — the two strands (P5
+  links: packets climbing A, running down B), chips riding them (P3 instanced boxes, the ones at
+  the front brightening), base-pair rungs with a comet sweeping up them (P4), seven-segment 0/1
+  bits drifting up the axis (P4, hidden when lite), and the hologram (P2, spiral only). No idle
+  spin: the strands turn by `HELIX_ANGLE` per card of focus. **Built after ready**
+  (`stageHelix`): one idle slice to build, one compile slice per draw object, a pre-warm frame, then
+  `onHelix("built")` — it never delays the first picture, and until then the work gate stays shut
+  and the cards stay as rendered. Swarm slot 0 is its silhouette (`helixSamples`). Tier rows:
+  `helixTube` [160, 4] / [100, 3], `helixChips` 80 / 52, `helixRungs` 22 / 14, `helixBits` 36 / 20.
+- **The hologram** (`three/hologram.ts`): a plane beside the helix, in the spiral layout's
+  `holo` box (centre at 0.76 × 0.45 of the zone, `min(0.34·w, 440px)` wide), showing the front
+  card as one Canvas2D `CanvasTexture` composed from the card's own DOM: its screenshot as
+  luminance in 2px cells under scanlines, its tag chips, name and index, bracket corners. The
+  texture is `hologram` [384, 240] on high, [256, 160] on mid, never larger than `HOLOGRAM_MAX`.
+  It is redrawn in an idle slot once the focus is `0.5 + HOLOGRAM_HYSTERESIS` (0.3) past the card
+  it shows — resting between two cards never flips it — with a 0.35s glitch on each swap; the
+  source is created at the first spiral request and disposed with the world. Security rules in
+  [11](./11-security.md#the-work-hologram-canvas2d-2026-09-17).
+- **Recolour.** The helix and the hologram take the front card's `--p2` (in the spiral the
+  focused card; in ambient mode the card nearest the band's middle, `nearestCard`), settling in
+  0.4s; with no card, the palette's cyan.
 
 ### The art: one drawing in the HTML, the rest on demand
 

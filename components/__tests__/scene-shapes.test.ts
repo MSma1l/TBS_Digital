@@ -4,6 +4,8 @@ import {
   CHIP_POSE,
   COMMERCE_GATES,
   CUBE_LAYOUTS,
+  HELIX,
+  HELIX_ANGLE,
   MODEL_RADIUS,
   buildNeuralGraph,
   chipPins,
@@ -131,6 +133,21 @@ describe("the chip", () => {
     }
     expect(chipTraces(0)).toHaveLength(4);
     expect(chipPins(2.7)).toHaveLength(8);
+  });
+});
+
+describe("the Work helix", () => {
+  it("is 0.9 wide in radius, 5.4 tall, 2.5 turns: taller than wide, narrower than a service model", () => {
+    expect(HELIX).toEqual({ radius: 0.9, height: 5.4, turns: 2.5 });
+    expect(HELIX.height).toBeGreaterThan(2 * HELIX.radius);
+    expect(HELIX.radius).toBeLessThan(MODEL_RADIUS);
+    // A turn climbs 2.16: roughly ten base pairs' worth of DNA per turn at the high tier's 22 rungs.
+    expect(HELIX.height / HELIX.turns).toBeCloseTo(2.16, 12);
+  });
+
+  it("turns one ninth of a turn per project card (the layout and the model share the step)", () => {
+    expect(HELIX_ANGLE).toBeCloseTo((2 * Math.PI) / 9, 15);
+    expect(9 * HELIX_ANGLE).toBeCloseTo(2 * Math.PI, 12);
   });
 });
 

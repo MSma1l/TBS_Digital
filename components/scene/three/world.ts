@@ -1,30 +1,47 @@
 /**
  * The interior scene as one imperative object: the hero chip, the morph swarm, the cursor
- * trail and the five service models, composed every frame from the scroll probe, the page's
- * input store and the choreography. The chip dissolves on its own host as the hero leaves; the
- * services model bursts out of a speck at its host once the entry gate arms (fx.ts), and the
- * swarm carries that burst and every pill morph after it. `SceneWorld.tsx` creates it once,
- * builds it part by part, calls `update` from `useFrame` and disposes it on unmount; every
- * per-frame write lives here (React Compiler lint).
+ * trail, the five service models and Work's DNA helix, composed every frame from the scroll
+ * probe, the page's input store and the choreography. The chip dissolves on its own host as the
+ * hero leaves; the services model bursts out of a speck at its host once the entry gate arms
+ * (fx.ts), and the swarm carries that burst and every pill morph after it — and, past Work's
+ * band (the work gate), the selected model's swarm over to the helix. `SceneWorld.tsx` creates
+ * it once, builds it part by part, calls `update` from `useFrame` and disposes it on unmount;
+ * every per-frame write lives here (React Compiler lint), the Work spiral driver's included
+ * (`attachWork`: the world asks it for the focus, turns the helix to it, then lets it lay the
+ * cards out for the same focus).
  *
  * Built in parts, one idle slice each (`buildNext`): the chip first, then the swarm, then the
  * trail, then one service model at a time. Building all of them in one go was a single
  * 181–229ms main-thread task on the mid-tier phone profile (4× CPU). Until every part exists
  * nothing is composed, and the root draws nothing until its first compiled part is queued for
- * the pre-warm frame — so a frame between two slices never compiles a shader.
+ * the pre-warm frame — so a frame between two slices never compiles a shader. The helix is not
+ * one of those parts: it is built after ready (`stageHelix`: one slice, then one compile slice
+ * per draw object, on the programs the scene already compiled), so it never delays the first
+ * picture. Until it is built the work gate stays shut and the cards stay as the server rendered them.
  */
 
-import { Group, Matrix4, Quaternion, Vector3, type Object3D } from "three";
+import {
+  Group,
+  Matrix4,
+  Quaternion,
+  Vector3,
+  type Camera,
+  type Object3D,
+  type Scene,
+  type WebGLRenderer,
+} from "three";
 import {
   SCENE_SHAPES,
   SERVICE_MODEL,
   scrollProgress,
+  type SceneHelixMode,
   type SceneInput,
   type ScrollProbe,
   type ServiceModel,
 } from "@/lib/scene";
 import {
   BURST,
+  HELIX_SLOT,
   composeScene,
   coreExitPose,
   coreReveal,
@@ -34,23 +51,38 @@ import {
   layoutFor,
   morphRunning,
   placeCore,
+  placeHelixAmbient,
+  placeHelixSpiral,
   placeServices,
   revealOf,
   stepMorph,
+  worldPerPx,
   type Placement,
   type SceneLayout,
 } from "../choreography";
 import { stepSceneFx, type SceneFx } from "../fx";
-import { MODEL_RADIUS } from "../shapes";
+import { HELIX_LAYOUT } from "../helix";
+import { HELIX, MODEL_RADIUS } from "../shapes";
 import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
+import type { WorkHelixDriver } from "../workHelix";
+import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
+import { createHologramSource, type HologramSource } from "./hologram";
+import { toColor } from "./materials";
 import { createCommerceLoopModel } from "./models/commerceLoop";
 import { createCubesModel } from "./models/cubes";
+import {
+  createHelixModel,
+  helixLandingMatrix,
+  layoutHelixHologram,
+  type HelixFrame,
+  type HelixModel,
+} from "./models/helix";
 import { createIntegrationHubModel } from "./models/integrationHub";
 import { createMeshWaveModel } from "./models/meshWave";
 import { createNeuralModel } from "./models/neural";
 import { MODEL_SWAY, type ModelFrame, type SceneModel } from "./models/types";
-import type { ScenePalette } from "./palette";
+import { parseTokenColor, type ScenePalette } from "./palette";
 import { createSwarm, type Swarm, type SwarmFrame } from "./swarm";
 import { createTrailMesh, type TrailFrame, type TrailMesh } from "./trail";
 
@@ -84,6 +116,22 @@ export type SceneWorld = {
     fx: SceneFx,
   ): void;
   morphRunning(): boolean;
+  /** Build Work's helix (one idle slice, after ready — never one of the parts `complete` counts). */
+  buildHelix(): void;
+  /** The helix's draw objects, to compile one per idle slice (empty until it is built). */
+  helixObjects(): Object3D[];
+  /** The helix compiled and queued for its pre-warm frame: from the next frame the driver hears `built`. */
+  markHelixBuilt(): void;
+  helixBuilt(): boolean;
+  /**
+   * Hand over Work's spiral driver (workHelix.ts): from then on every `update` reads its focus,
+   * turns the helix to it and lets it write the cards for that same focus — and the world disposes
+   * it. `onRelease` runs when the world lets it go on its own (an error in the helix's frame).
+   * Null disposes the one attached (the scene is going).
+   */
+  attachWork(driver: WorkHelixDriver | null, onRelease?: () => void): void;
+  /** The helix's mode as the last frame drew it: the driver's, `off` without one. */
+  helixMode(): SceneHelixMode;
   setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
   dispose(): void;
@@ -104,7 +152,44 @@ const MODEL_FACTORIES: Readonly<Record<ServiceModel, typeof createCubesModel>> =
  */
 export const BURST_SPECK = { scale: 0.05, radius: 1.35, sprite: 0.5 } as const;
 
-/** Only the root: every part comes from `buildNext`, one idle slice apart. */
+/** The helix's bounding radius in its own units: the swarm's cloud swells to it. */
+export const HELIX_BOUND = Math.hypot(HELIX.radius, HELIX.height / 2);
+
+/**
+ * The hologram follows the focus with this much hysteresis past a card's half-way point:
+ * resting between two cards never flips its texture back and forth.
+ */
+export const HOLOGRAM_HYSTERESIS = 0.3;
+
+/** What `stageHelix` needs of the world. */
+export type HelixStaging = Pick<SceneWorld, "buildHelix" | "helixObjects" | "prewarm" | "markHelixBuilt">;
+
+/**
+ * Work's helix, after ready: built in an idle slice of its own, compiled one draw object per
+ * idle slice (on programs the scene already compiled — only its buffers are new), queued for a
+ * pre-warm frame, then marked built. Resolves `true` once built, `false` when cancelled part-way.
+ */
+export async function stageHelix(
+  world: HelixStaging,
+  renderer: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  options: StagedOptions,
+): Promise<boolean> {
+  const idle = options.idle ?? (() => nextIdle());
+  await idle();
+  if (options.cancelled()) return false;
+  world.buildHelix();
+  const compiled = await compileStaged(renderer, scene, camera, [world.helixObjects()], {
+    ...options,
+    compiled: (objects) => world.prewarm(objects),
+  });
+  if (!compiled) return false;
+  world.markHelixBuilt();
+  return true;
+}
+
+/** Only the root: every part comes from `buildNext`, one idle slice apart (the helix from `buildHelix`). */
 export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePalette): SceneWorld {
   const config = SCENE_TIER_CONFIG[tier];
   const root = new Group();
@@ -121,13 +206,31 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let trail: TrailMesh | null = null;
   const models: SceneModel[] = [];
 
+  /* Work: the helix, its hologram and the spiral driver the page hands over. */
+  let helix: HelixModel | null = null;
+  let helixDone = false;
+  /** An error in the helix's frame: hidden, the driver gone, for the rest of this canvas's life. */
+  let helixFailed = false;
+  let hologram: HologramSource | null = null;
+  let driver: WorkHelixDriver | null = null;
+  let onWorkRelease: (() => void) | undefined;
+  /** The mode the helix was last set to, the card it is coloured after, the hologram's card. */
+  let drawnMode: SceneHelixMode = "off";
+  let accentCard: HTMLElement | null = null;
+  let hologramIndex = -1;
+  /** The hologram box the plane was last laid out for (zone width, zone height, px per model unit). */
+  const hologramBox = { w: -1, h: -1, pxPerUnit: -1 };
+
   const morph = createMorph(0);
   const plan = createComposition();
   const shown = models.map(() => false);
   const prewarmQueue = new Set<Object3D>();
   const burstMatrix = new Matrix4();
+  /** Slot 0's landing: the helix's placement, with the roll it lies down by in ambient mode. */
+  const helixMatrix = new Matrix4();
   const corePlace: Placement = { x: 0, y: 0, scale: 1 };
   const servicesSpot: Placement = { x: 0, y: 0, scale: 1 };
+  const helixSpot: Placement = { x: 0, y: 0, scale: 1 };
   const pose: CorePose = { scale: 1, lift: 0, dim: 1 };
   const coreFrame: CoreFrame = {
     time: 0,
@@ -142,6 +245,17 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     dim: 1,
   };
   const modelFrame: ModelFrame = { time: 0, step: 0, reveal: 0, prewarm: false, tx: 0, ty: 0, halfHeightPx: 1, dpr: 1 };
+  const helixFrame: HelixFrame = {
+    time: 0,
+    step: 0,
+    focus: 0,
+    reveal: 0,
+    tx: 0,
+    ty: 0,
+    prewarm: false,
+    halfHeightPx: 1,
+    dpr: 1,
+  };
   const swarmFrame: SwarmFrame = {
     plan: plan.swarm,
     fromMatrix: burstMatrix,
@@ -165,14 +279,152 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let layoutInk = false;
   let layout: SceneLayout = layoutFor(1280, 800, false);
 
-  /** A planned slot's world matrix: a service model's, or the burst's speck (slot 0 is never planned). */
-  const matrixFor = (slot: number): Matrix4 => (slot >= 1 ? models[slot - 1].group.matrixWorld : burstMatrix);
+  /** A planned slot's world matrix: a service model's, the helix's (as `frameHelix` placed it), or the burst's speck. */
+  const matrixFor = (slot: number): Matrix4 =>
+    slot >= 1 ? models[slot - 1].group.matrixWorld : slot === HELIX_SLOT && helix ? helixMatrix : burstMatrix;
 
   /** The part (a direct child of the root) an object belongs to. */
   const partOf = (object: Object3D): Object3D => {
     let node = object;
     while (node.parent && node.parent !== root) node = node.parent;
     return node;
+  };
+
+  /** Let the driver go: it puts every card back as React rendered it; `onRelease` hears of it. */
+  const releaseWork = () => {
+    const released = driver;
+    const onRelease = onWorkRelease;
+    driver = null;
+    onWorkRelease = undefined;
+    accentCard = null;
+    hologramIndex = -1;
+    if (!released) return;
+    try {
+      released.dispose();
+    } catch {
+      // the driver restores what it can on its own; the scene goes on without it
+    }
+    onRelease?.();
+  };
+
+  /**
+   * The helix's frame threw. A `useFrame` error never reaches the stage's error boundary, so the
+   * cards would stay laid out round a helix that no longer turns: the page comes first.
+   */
+  const failHelix = (error: unknown) => {
+    if (helixFailed) return;
+    helixFailed = true;
+    releaseWork();
+    if (helix) helix.group.visible = false;
+    drawnMode = "off";
+    console.error("3D scene: the Work helix stopped", error);
+  };
+
+  /**
+   * The helix this frame: the driver's mode, the focus it turns to, where it sits, its colour (the
+   * front card's `--p2`) and the hologram's card. Drawn while the work gate reveals it. Returns its
+   * placement (the swarm's landing spot), or null: nothing built, no mode, nothing measured.
+   */
+  const frameHelix = (
+    scrollY: number,
+    w: number,
+    h: number,
+    probe: ScrollProbe,
+    fx: SceneFx,
+    step: number,
+    halfHeightPx: number,
+    dpr: number,
+  ): Placement | null => {
+    helixFrame.focus = 0;
+    if (!helix || helixFailed) return null;
+    const group = helix.group;
+    const prewarm = prewarmQueue.has(group);
+    const mode: SceneHelixMode = driver && helixDone ? driver.mode() : "off";
+    if (mode !== drawnMode) {
+      drawnMode = mode;
+      if (mode !== "off") helix.setMode(mode);
+      if (mode !== "spiral") hologramIndex = -1;
+    }
+    const focus = mode === "spiral" && driver ? driver.focus(scrollY) : 0;
+    helixFrame.focus = focus;
+    const place =
+      mode === "spiral"
+        ? placeHelixSpiral(probe, scrollY, w, h, HELIX_LAYOUT.cx, helixSpot)
+        : mode === "ambient"
+          ? placeHelixAmbient(probe, scrollY, w, h, helixSpot)
+          : null;
+    const reveal = place ? plan.helix : 0;
+    if (place && mode !== "off") {
+      group.position.set(place.x, place.y, 0);
+      group.scale.setScalar(place.scale);
+      // Only this group's own matrix is needed now (the swarm reads it); render updates the rest.
+      group.updateMatrix();
+      group.matrixWorld.multiplyMatrices(root.matrixWorld, group.matrix);
+      helixLandingMatrix(group, mode, helixMatrix);
+      // The hologram beside it, on the spiral layout's box: `holo` of the zone, centre and width.
+      const zoneW = probe.work?.w ?? w;
+      const zoneH = probe.layerH > 0 ? probe.layerH : h;
+      const pxPerUnit = place.scale / worldPerPx(h);
+      if (mode === "spiral" && (zoneW !== hologramBox.w || zoneH !== hologramBox.h || pxPerUnit !== hologramBox.pxPerUnit)) {
+        hologramBox.w = zoneW;
+        hologramBox.h = zoneH;
+        hologramBox.pxPerUnit = pxPerUnit;
+        const holo = HELIX_LAYOUT.holo;
+        layoutHelixHologram(
+          group,
+          (holo.x - HELIX_LAYOUT.cx) * zoneW,
+          (0.5 - holo.y) * zoneH,
+          Math.min(holo.w[0] * zoneW, holo.w[1]),
+          pxPerUnit,
+        );
+      }
+    }
+
+    if (driver && mode !== "off") {
+      // Coloured after the front card: the focus in the spiral, the card nearest the middle in the band.
+      const cards = driver.cards();
+      const card = cards[driver.front()] ?? null;
+      if (card !== accentCard) {
+        accentCard = card;
+        const rgb = card ? parseTokenColor(card.style.getPropertyValue("--p2")) : null;
+        helix.setAccent(rgb ? toColor(rgb) : null);
+      }
+      // The hologram shows the focused card, redrawn once the focus is well past half-way.
+      if (mode === "spiral" && reveal > 0 && cards.length > 0) {
+        if (hologramIndex < 0 || Math.abs(focus - hologramIndex) > 0.5 + HOLOGRAM_HYSTERESIS) {
+          hologramIndex = Math.min(cards.length - 1, Math.max(0, Math.round(focus)));
+          if (!hologram) {
+            // Handed to the model on its first drawn card (no empty frame before), glitching every swap.
+            const model = helix;
+            let handed = false;
+            const source = createHologramSource(config.hologram, () => {
+              if (!handed) {
+                handed = true;
+                model.setHologram(source.texture);
+              }
+              model.glitch();
+            });
+            hologram = source;
+          }
+          hologram.request(cards[hologramIndex] ?? null, hologramIndex);
+        }
+      }
+    }
+
+    if (reveal > 0 || prewarm) {
+      helixFrame.time = fx.time;
+      helixFrame.step = step;
+      helixFrame.reveal = reveal;
+      helixFrame.tx = fx.tx;
+      helixFrame.ty = fx.ty;
+      helixFrame.prewarm = prewarm;
+      helixFrame.halfHeightPx = halfHeightPx;
+      helixFrame.dpr = dpr;
+      helix.update(helixFrame);
+    } else {
+      group.visible = false;
+    }
+    return place;
   };
 
   return {
@@ -231,10 +483,13 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
 
       const heroExit = probe.live ? scrollProgress(scrollY, probe.heroExit) : 0;
       const entrySpan = probe.live && probe.services ? probe.entry : null;
-      const step = stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan);
-      // Until the model has assembled, the entrance owns the swarm: a pill switch is instant.
-      stepMorph(morph, input.shape, step, fx.entry.value < 1);
-      composeScene(fx.entry.value, morph, plan);
+      // The work gate only ever opens onto a helix that can be drawn: built, and a mode applied.
+      const helixLive = helixDone && !helixFailed && driver !== null && driver.mode() !== "off";
+      const workSpan = helixLive && probe.live && probe.work ? probe.workSpan : null;
+      const step = stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan, workSpan);
+      // Until the model has assembled, and while it hands over to the helix, a pill switch is instant.
+      stepMorph(morph, input.shape, step, fx.entry.value < 1 || fx.work.value > 0);
+      composeScene(fx.entry.value, fx.work.value, morph, plan);
 
       const halfHeightPx = h * dpr * 0.5;
       placeCore(probe, scrollY, w, h, layout, corePlace);
@@ -290,6 +545,16 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         }
       }
 
+      /* Work's helix: on its sticky zone (spiral) or in the band above the heading (ambient) */
+      let helixPlace: Placement | null = null;
+      try {
+        helixPlace = frameHelix(scrollY, w, h, probe, fx, step, halfHeightPx, dpr);
+      } catch (error) {
+        failHelix(error);
+      }
+      // No helix drawn to land on: the swarm stays hidden while the model dissolves.
+      if (plan.swarm.active && plan.swarm.to === HELIX_SLOT && !helixPlace) plan.swarm.active = false;
+
       /* the swarm: a burst leaves from a speck of the selected model at the services centre */
       const burst = plan.swarm.from === BURST;
       if (burst) {
@@ -299,13 +564,14 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
           scratchScale.setScalar(services.scale * BURST_SPECK.scale),
         );
       }
+      const toHelix = plan.swarm.to === HELIX_SLOT ? helixPlace : null;
       swarmFrame.plan = plan.swarm;
       swarmFrame.fromMatrix = matrixFor(plan.swarm.from);
       swarmFrame.toMatrix = matrixFor(plan.swarm.to);
       swarmFrame.fromRadius = MODEL_RADIUS * services.scale * (burst ? BURST_SPECK.radius : 1);
-      swarmFrame.toRadius = MODEL_RADIUS * services.scale;
+      swarmFrame.toRadius = toHelix ? HELIX_BOUND * toHelix.scale : MODEL_RADIUS * services.scale;
       swarmFrame.fromScale = services.scale * (burst ? BURST_SPECK.sprite : 1);
-      swarmFrame.toScale = services.scale;
+      swarmFrame.toScale = toHelix ? toHelix.scale : services.scale;
       swarmFrame.time = fx.time;
       swarmFrame.halfHeightPx = halfHeightPx;
       swarmFrame.dpr = dpr;
@@ -326,10 +592,60 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       trail.update(trailFrame);
 
       prewarmQueue.clear();
+
+      /* the cards, laid out for the focus the helix just turned to (nothing before it is built) */
+      if (driver) {
+        try {
+          driver.write({ focus: helixFrame.focus, built: helixDone && !helixFailed });
+        } catch (error) {
+          failHelix(error);
+        }
+      }
     },
 
     morphRunning() {
       return morphRunning(morph);
+    },
+
+    buildHelix() {
+      if (helix) return;
+      helix = createHelixModel(config, palette);
+      helix.setLite(lite);
+      helix.group.visible = false;
+      if (!helix.group.name) helix.group.name = "scene-helix";
+      root.add(helix.group);
+    },
+
+    helixObjects() {
+      return helix ? helix.objects : [];
+    },
+
+    markHelixBuilt() {
+      if (helix) helixDone = true;
+    },
+
+    helixBuilt() {
+      return helixDone && !helixFailed;
+    },
+
+    attachWork(next, onRelease) {
+      if (next === driver) return;
+      releaseWork();
+      if (!next) return;
+      if (helixFailed) {
+        try {
+          next.dispose();
+        } catch {
+          // nothing was laid out yet
+        }
+        return;
+      }
+      driver = next;
+      onWorkRelease = onRelease;
+    },
+
+    helixMode() {
+      return drawnMode;
     },
 
     setLite(next) {
@@ -337,6 +653,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       core?.setLite(lite);
       swarm?.setLite(lite);
       for (const model of models) model.setLite(lite);
+      helix?.setLite(lite);
     },
 
     setPalette(next) {
@@ -345,13 +662,17 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       swarm?.setPalette(next);
       trail?.setPalette(next);
       for (const model of models) model.setPalette(next);
+      helix?.setPalette(next);
     },
 
     dispose() {
+      releaseWork();
       core?.dispose();
       swarm?.dispose();
       trail?.dispose();
       for (const model of models) model.dispose();
+      helix?.dispose();
+      hologram?.dispose();
       root.clear();
     },
   };

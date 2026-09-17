@@ -122,6 +122,22 @@ export function chipPins(perSide: number): ChipPin[] {
   return out;
 }
 
+/* ---- the projects' DNA helix (Work) --------------------------------------------------- */
+
+/**
+ * The Work section's DNA helix, in its own frame: y up the axis, two strands of `radius` half a
+ * turn apart, `turns` turns over `height` (centred on the origin). The WebGL model
+ * (`three/models/helix.ts`) and the swarm's slot 0 (`three/samples.ts`) build from it; the world
+ * scales it to its zone.
+ */
+export const HELIX = { radius: 0.9, height: 5.4, turns: 2.5 } as const;
+
+/**
+ * One project card's step around the helix, radians: the spiral layout turns the cards by it
+ * and the model turns its strands by it, so both move together.
+ */
+export const HELIX_ANGLE = (2 * Math.PI) / 9;
+
 /* ---- neural network (asistenti-ia) ------------------------------------------------------ */
 
 export type NeuralNode = {

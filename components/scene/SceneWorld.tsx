@@ -3,8 +3,10 @@
 /**
  * The R3F side of the interior scene: creates the world once, builds and then compiles it in
  * idle slices, reports ready once the compiled scene has drawn two frames, and drives the world
- * every frame. Everything imperative lives in `./three/*` and `./fx.ts`; this component only
- * wires it to R3F and to the canvas's callbacks.
+ * every frame. After ready it builds Work's helix the same way (one slice, then one compile slice
+ * per draw object) and hands the world Work's spiral driver (`workHelix.ts`), which lays the
+ * project cards out round that helix. Everything imperative lives in `./three/*`, `./fx.ts` and
+ * `./workHelix.ts`; this component only wires it to R3F and to the canvas's callbacks.
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -12,12 +14,22 @@ import { useEffect, useRef, useState } from "react";
 import { createFpsGovernor, sampleFrame, type GovernorStep } from "@/components/three/governor";
 import { useRetainedRenderer } from "@/components/three/hooks";
 import { mediaMatches } from "@/lib/device";
-import { readSceneInput, type SceneEntry, type ScrollProbe } from "@/lib/scene";
+import {
+  SCENE_LAYOUT_EVENT,
+  SCENE_STAGE_ATTR,
+  WORK_ID,
+  WORK_TRACK_ATTR,
+  readSceneInput,
+  type SceneEntry,
+  type SceneHelix,
+  type ScrollProbe,
+} from "@/lib/scene";
 import { createChangeSignal, entryState, reportChange, type SceneFx } from "./fx";
 import { armReady, buildStaged, compileStaged, createReadySignal, tickReady } from "./three/compile";
 import type { ScenePalette } from "./three/palette";
-import { createSceneWorld } from "./three/world";
+import { createSceneWorld, stageHelix } from "./three/world";
 import { sceneGovernorOptions, type SceneCanvasTier } from "./tiers";
+import { createWorkHelixDriver } from "./workHelix";
 
 export type SceneWorldProps = {
   tier: SceneCanvasTier;
@@ -33,6 +45,8 @@ export type SceneWorldProps = {
   onMorph(running: boolean): void;
   /** Only on a change, from the first frame after ready (the first report is the current state). */
   onEntry(state: SceneEntry): void;
+  /** `built` once the helix compiled, then every mode the driver applies (`off` last). */
+  onHelix(state: SceneHelix): void;
 };
 
 export function SceneWorld({
@@ -47,6 +61,7 @@ export function SceneWorld({
   onStep,
   onMorph,
   onEntry,
+  onHelix,
 }: SceneWorldProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
@@ -62,17 +77,18 @@ export function SceneWorld({
   const [entrySignal] = useState(() => createChangeSignal<SceneEntry | null>(null));
   const [coarse] = useState(() => mediaMatches("(pointer: coarse)"));
 
-  const callbacks = useRef({ onReady, onStep, onMorph, onEntry });
+  const callbacks = useRef({ onReady, onStep, onMorph, onEntry, onHelix });
   useEffect(() => {
-    callbacks.current = { onReady, onStep, onMorph, onEntry };
-  }, [onReady, onStep, onMorph, onEntry]);
+    callbacks.current = { onReady, onStep, onMorph, onEntry, onHelix };
+  }, [onReady, onStep, onMorph, onEntry, onHelix]);
 
   useEffect(() => () => world.dispose(), [world]);
   useEffect(() => world.setPalette(palette), [world, palette]);
   useEffect(() => world.setLite(lite), [world, lite]);
   useRetainedRenderer(gl);
 
-  // Build, then compile, one piece per idle slice; then count drawn frames (below).
+  // Build, then compile, one piece per idle slice; then count drawn frames (below). Once the
+  // scene is ready to draw, the helix — never before, so it never delays the first picture.
   useEffect(() => {
     let cancelled = false;
     const options = { cancelled: () => cancelled };
@@ -86,12 +102,46 @@ export function SceneWorld({
           : false,
       )
       .then((compiled) => {
-        if (compiled && !cancelled) armReady(ready);
-      });
+        if (!compiled || cancelled) return false;
+        armReady(ready);
+        return stageHelix(world, gl, scene, camera, options);
+      })
+      .then(
+        (helixBuilt) => {
+          if (helixBuilt && !cancelled) callbacks.current.onHelix("built");
+        },
+        (error: unknown) => {
+          // The helix (or a part after ready) failed to build: the cards stay as they are.
+          if (!cancelled) console.error("3D scene: the Work helix was not built", error);
+        },
+      );
     return () => {
       cancelled = true;
     };
   }, [world, ready, gl, scene, camera]);
+
+  // Work's spiral driver, for the scene's whole life: the world calls it every frame and disposes
+  // it — so every way the scene goes (a bail, a lost context, an error, reduced motion, leaving the
+  // page) puts the cards back as React rendered them.
+  useEffect(() => {
+    const track = document.querySelector<HTMLElement>(`[${WORK_TRACK_ATTR}]`);
+    const section = document.getElementById(WORK_ID);
+    if (!track || !section) return;
+    const stage = track.closest<HTMLElement>(`[${SCENE_STAGE_ATTR}]`);
+    const driver = createWorkHelixDriver({
+      track,
+      section,
+      probe,
+      onMode: (mode) => {
+        // The spiral changes the track's height (and so the stage's) at once, and the director's
+        // refresh for it may wait for a scroll to end: it re-reads the boxes now (never under a cover).
+        stage?.dispatchEvent(new Event(SCENE_LAYOUT_EVENT));
+        callbacks.current.onHelix(mode);
+      },
+    });
+    world.attachWork(driver, () => callbacks.current.onHelix("off"));
+    return () => world.attachWork(null);
+  }, [world, probe]);
 
   useFrame((state, dt) => {
     // Ready from inside the frame loop: the canvas really drew the compiled scene — never from

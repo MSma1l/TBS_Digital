@@ -1,7 +1,7 @@
 /**
  * The interior scene's per-frame state: what the input listeners wrote (pointer / gyro tilt,
  * the cursor trail's segments) and what the world advances every frame (scroll progress, the
- * services entry gate, tilt, the CTA boost and its light wave). One plain mutable object — no
+ * services entry gate and the Work gate, tilt, the CTA boost and its light wave). One plain mutable object — no
  * React state per frame, no three.js, no DOM — created once per canvas
  * (`useState(createSceneFx)`) and only ever written by the `.ts` helpers.
  */
@@ -18,6 +18,8 @@ export type Gate = { value: number; armed: boolean };
 
 /** Seconds for the services model to burst out and assemble (`form`) and to implode (`unform`). */
 export const ENTRY_SECONDS = { form: 1.1, unform: 0.45 } as const;
+/** Seconds for the services model to hand its swarm over to the Work helix (`form`) and back (`unform`). */
+export const WORK_SECONDS = { form: 1.2, unform: 0.5 } as const;
 
 export function createGate(): Gate {
   return { value: 0, armed: false };
@@ -75,6 +77,8 @@ export type SceneFx = {
   heroExit: number;
   /** The services entrance: armed past the services anchor, 1 once the model has assembled. */
   entry: Gate;
+  /** The Work handoff: armed past Work's band, 1 once the helix has formed (the model gone). */
+  work: Gate;
   /** A hero CTA is hovered or focused, eased 0..1. */
   boost: number;
   /** The input's `waveSeq` already answered (-1 before the first frame). */
@@ -98,6 +102,7 @@ export function createSceneFx(): SceneFx {
     ty: 0,
     heroExit: 0,
     entry: createGate(),
+    work: createGate(),
     boost: 0,
     waveSeq: -1,
     wave: 1,
@@ -121,13 +126,20 @@ function settle(current: number, target: number, lambda: number, step: number): 
 
 /**
  * One frame: clamp the step, advance time, ease tilt / scroll / boost towards their targets,
- * run the services entry gate and the light wave. `heroExit` is the raw progress read from the
- * probe this frame; `entry` the entry span (null while the services anchor is not measured:
- * the gate stays shut). Returns the clamped step the rest of the frame should use.
+ * run the services entry gate, the Work gate and the light wave. `heroExit` is the raw progress
+ * read from the probe this frame; `entry` the entry span (null while the services anchor is not
+ * measured: the gate stays shut); `work` Work's band (null while there is no helix to hand over
+ * to: that gate stays shut, and an open one closes in time). Returns the clamped step the rest of
+ * the frame should use.
  *
- * The first frame snaps everything, the entry gate included: a deep link into the services
- * finds the model formed, it never bursts in. Flung back up to the hero (its exit not even
- * started) the disarmed gate snaps to idle — the services host is far below the canvas there.
+ * The first frame snaps everything, both gates included: a deep link into the services finds
+ * the model formed, one into Work the helix formed — nothing bursts in. Flung back up to the hero
+ * (its exit not even started) the disarmed entry gate snaps to idle — the services host is far
+ * below the canvas there. The two gates never run against each other:
+ *  · while the Work gate is armed the entry gate sits on its armed value (no burst plays hidden
+ *    behind the helix);
+ *  · once the entry gate has disarmed (flung above the services) a Work gate still open snaps
+ *    shut — the helix never hands back to a model that is imploding.
  */
 export function stepSceneFx(
   fx: SceneFx,
@@ -136,6 +148,7 @@ export function stepSceneFx(
   heroExit: number,
   scrollY: number,
   entry: Readonly<ScrollSpan> | null,
+  work: Readonly<ScrollSpan> | null = null,
 ): number {
   const step = Math.min(Math.max(Number.isFinite(dt) ? dt : 0, 0), MAX_FRAME_STEP);
   fx.time += step;
@@ -153,8 +166,12 @@ export function stepSceneFx(
     fx.boost = settle(fx.boost, input.boost, 6, step);
   }
 
-  stepGate(fx.entry, Number.isFinite(scrollY) ? scrollY : 0, entry ?? NEVER, step, ENTRY_SECONDS, first);
+  const y = Number.isFinite(scrollY) ? scrollY : 0;
+  stepGate(fx.entry, y, entry ?? NEVER, step, ENTRY_SECONDS, first);
+  stepGate(fx.work, y, work ?? NEVER, step, WORK_SECONDS, first);
+  if (fx.work.armed) fx.entry.value = fx.entry.armed ? 1 : 0;
   if (!fx.entry.armed && heroExit <= 0) fx.entry.value = 0;
+  if (!fx.entry.armed && fx.work.value > 0) fx.work.value = 0;
 
   // Tilt: the pointer / gyro when there is one, otherwise a slow idle sway.
   const targetX = fx.tiltLive ? fx.tiltX : Math.sin(0.23 * t) * 0.35;

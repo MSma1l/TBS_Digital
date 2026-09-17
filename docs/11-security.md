@@ -163,7 +163,8 @@ overlay in its own response (pages are rendered per request, and nginx does not 
 
 ## The interior 3D stage (2026-09-17)
 
-The interior redesign — a sticky WebGL scene behind Hero → Ticker → Directions, GSAP
+The interior redesign — a sticky WebGL scene behind Hero → Ticker → Directions (and, since IT-OS
+Phase 3, Work, whose cards turn round a DNA helix), GSAP
 ScrollTrigger, static SVG art, holographic stat cards — added **no dependency and did not change
 the CSP** in `proxy.ts`. It still holds because:
 
@@ -181,8 +182,43 @@ the CSP** in `proxy.ts`. It still holds because:
   tilt's `--tilt-rx` / `--tilt-ry`, R3F's canvas sizing and GSAP's parallax transforms. None of
   them carries visitor or admin text, and `style-src 'unsafe-inline'` was already in the policy.
 - **Measured on every run:** `e2e/interior.spec.ts` (E1, the static-art path) and
-  `e2e/interior-webgl.spec.ts` (W1, the forced WebGL canvas) assert 0 `securitypolicyviolation`
-  events.
+  `e2e/interior-webgl.spec.ts` (W1, the forced WebGL canvas; W15, Work's spiral) assert 0
+  `securitypolicyviolation` events.
+
+### The Work hologram (Canvas2D, 2026-09-17)
+
+Work's spiral shows the front project card as a hologram beside the helix
+(`components/scene/three/hologram.ts`): one small Canvas2D canvas uploaded as a `CanvasTexture`.
+It draws admin-editable content (the card's screenshot, name and tags), so it is built to add no
+way in and to leak nothing, and **the CSP is unchanged**:
+
+- **Only the card's own `<img>`, and only same-origin.** The image's `currentSrc` must resolve to
+  `location.origin` and must have decoded within 1.5s (`img.decode()`); anything else — a
+  cross-origin URL an admin might paste, a broken or slow image — gives a text-only hologram.
+  **No loader, no `fetch`, no `blob:` / `createObjectURL`, no `TextureLoader`, no new origin**: the
+  pixels come from the image the page already shows.
+- **The taint probe.** Should the canvas still end up tainted (a redirect, a future CDN), the
+  hologram reads back one pixel (`getImageData(0, 0, 1, 1)`, which throws on a tainted canvas),
+  redraws itself text-only and only then flags the texture — three never uploads a tainted canvas,
+  so no `SecurityError` is thrown mid-frame. The context is created with `willReadFrequently`, and
+  the probe is the only read-back.
+- **Fine print stays illegible.** The canvas is at most 384 × 240 (`HOLOGRAM_MAX`; 256 × 160 on
+  the mid tier) and the screenshot band is drawn at half resolution, in **2px cells**, then scaled
+  up — as luminance under scanlines. The FLIRT screenshot's sign-up form holds a visible e-mail
+  address; at 1px cells it was partly legible at 3× zoom, at 2px it is not (checked on the page
+  at 1280 × 800, native and 3×). Admin screenshots may hold anything, so this is a property of the
+  hologram, not of one image.
+- **Text is text.** The name and the tags are the DOM's `textContent` (whitespace collapsed,
+  upper-cased in the page's language), drawn with `fillText` in the card's computed font; the
+  index is the card's position, drawn with `strokeText`. Nothing is parsed as HTML, and the 2D
+  canvas is never inserted into the page (only its texture is drawn, on the `aria-hidden` WebGL
+  canvas).
+- **Nothing kept.** One canvas per scene, redrawn in an idle slot only when the front card
+  changes (or the page's language does), disposed with the scene; nothing is stored or sent.
+
+The spiral itself writes only layout properties inline on the cards (`transform`, `z-index`,
+`opacity`, sticky placement — numbers the scene computes) and puts every original `style`
+attribute back; it reads no content and adds no text.
 
 ### Imports that would ship GSAP or three.js to everyone fail lint
 
@@ -243,7 +279,8 @@ several up-front files were outside the list. Fixed before release (review findi
 - **Nothing new on `window`.** The E2E specs read the scene's scroll probe through React's fiber
   props on the canvas's ancestors (`e2e/helpers.ts`, `sceneProbeVsDom`), so production exposes no
   debug global. The two new `window` events (`tbs:intro-gone`, `tbs:page-cover`) are plain
-  `Event`s that carry no data.
+  `Event`s that carry no data, and so is `tbs:scene-layout` (IT-OS Phase 3), dispatched on the
+  stage element only.
 - **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
   through React (escaped), exactly as the whole tag was rendered before.
 

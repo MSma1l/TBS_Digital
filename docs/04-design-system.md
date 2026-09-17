@@ -353,6 +353,31 @@ both themes. The gate is **every** pixel under a text line box: ≥4.5:1, or ≥
   861px the light eyebrow (99.69%, 4.09) and lead (99.97%, 4.50) sit on the 1px HUD grid line,
   identical with the chip hidden. See `CHANGELOG.md` (2026-09-17, Faza 1).
 
+### Work's ambient helix and its band (IT-OS Phase 3)
+
+Below 768px Work's DNA helix lies **in the empty band above `#lucrari`'s eyebrow** — Directions'
+36px bottom padding plus Work's 48px top padding, measured into the probe as `workGap` — at full
+brightness, never behind text ([05](./05-page-sections.md#work)). Measured like the hero chip: text
+hidden, forced WebGL, **12 frames**, every pixel under a text line box.
+
+- **Behind the heading (the first placement) it could not stay visible.** The helix's front chips
+  flare and its packets run as comets, and both saturate towards white. At 0.4 of full brightness
+  the dark h2 fell to 1.0–1.07:1 and the lead to 1.15–2.28:1; 100% needed 0.07 on the dark page.
+  The light lead's grey (4.24–4.28:1 on the HUD grid lines without any canvas) allowed no ink at all.
+- **In the band, at full brightness** (320, 375, 390, 412, 640, 700, 767px, both themes): the
+  eyebrow, h2, lead and the Directions panel's "Deschide serviciul" link are 100% (dark: eyebrow
+  ≥5.4, h2 ≥14.2, lead ≥7.9, link ≥15.3; light: the link ≥16.9, the heading identical to the page
+  without the canvas). The canvas changes no pixel over the panel, at or below the eyebrow's top or
+  over the band of cards. The helix is 57–67px tall (the band less `HELIX_AMBIENT.clear`, 10px each
+  side), with 9–16px of clear space above it and 9–11px below. At 320×568 the link is under the
+  header whenever the helix is formed.
+- **Spiral (from 768px): the canvas changes no pixel of Work's heading** at 1280×800 and 1024×768,
+  and the front card's name and chips stay 100% at every focus measured at 1280, 1024 and 768 (the
+  name ≥ 3.14:1 mid-turn, large text; the chips ≥ 9.1:1). Only a side card fading out lets a little
+  of the helix through (a few pixels of its name down to 1.84:1 at 768).
+- The light theme's heading has pixels under 4.5:1 on the HUD grid's 1px lines (eyebrow 92.99–99.92%,
+  lead 99.94–99.98%, minimum 4.07–4.49), with or without the canvas and before Phase 3 alike.
+
 ### Static art (`components/scene/art/`)
 
 What every device without the WebGL scene sees, and what the canvas crossfades from.

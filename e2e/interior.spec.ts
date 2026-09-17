@@ -77,6 +77,20 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     expect(await gsapLoaded(page)).toBe(false);
     expect(await webglContextCount(page)).toBe(0);
     expect(await markerState(page)).toEqual({ count: 8, styled: 0 });
+    // Work is inside the stage now, and without the scene its cards are exactly as React rendered
+    // them: two colours inline, no layout (the spiral is the WebGL path's), no helix mode.
+    const work = await page.evaluate(() => ({
+      inStage: !!document.querySelector("[data-scene-stage] #lucrari"),
+      track: document.querySelectorAll("#lucrari [data-work-track]").length,
+      styles: Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).map((el) => el.style.length),
+      front: document.querySelectorAll("[data-helix-front]").length,
+    }));
+    expect(work.inStage).toBe(true);
+    expect(work.track).toBe(1);
+    expect(work.styles.length).toBeGreaterThan(0);
+    expect(work.styles.every((length) => length === 2), JSON.stringify(work.styles)).toBe(true);
+    expect(work.front).toBe(0);
+    await expect(stage).not.toHaveAttribute("data-helix", /.*/);
     expect(await cspViolations(page)).toEqual([]);
     expect(errors.page).toEqual([]);
     expect(errors.console).toEqual([]);

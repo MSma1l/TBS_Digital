@@ -103,6 +103,14 @@ export type SceneQuality = "full" | "dpr" | "lite";
  * `burst` the model exploding out of a speck and assembling (or imploding back), `formed` in place.
  */
 export type SceneEntry = "idle" | "burst" | "formed";
+/**
+ * The Work helix's mode, as the spiral driver applies it: `spiral` (the project cards turn round
+ * the helix, sticky, laid out inline), `ambient` (a small helix in the band above the heading; the
+ * grid or band stays as it is) or `off` (the page as the server rendered it).
+ */
+export type SceneHelixMode = "off" | "spiral" | "ambient";
+/** What the scene reports about the helix: `built` once its model compiled (after ready), then each mode. */
+export type SceneHelix = SceneHelixMode | "built";
 
 /* ---- DOM contract -------------------------------------------------------------------- */
 
@@ -126,6 +134,7 @@ export const SCENE_ATTR = {
   quality: "data-quality",
   morph: "data-morph",
   entry: "data-entry",
+  helix: "data-helix",
   scrollFx: "data-scroll-fx",
   shape: "data-shape",
   tilt: "data-tilt",
@@ -138,6 +147,8 @@ export const INSTANT_SCROLL_ATTR = "data-scroll-measure";
 export const HERO_ID = "top";
 export const SERVICES_ID = "servicii";
 export const WORK_ID = "lucrari";
+/** On Work's card grid: the track the helix and its spiral are measured against. */
+export const WORK_TRACK_ATTR = "data-work-track";
 
 /* ---- directions → models ------------------------------------------------------------- */
 
@@ -236,9 +247,24 @@ export type ScrollProbe = {
   version: number;
   /** `--header-h` in px. */
   headerH: number;
+  /** The sticky layer's height in px (`h-scene`: one viewport under the header), 0 until measured. */
+  layerH: number;
   stage: { top: number; bottom: number };
   hero: DocRect | null;
   services: DocRect | null;
+  /** Work's card track (`[data-work-track]`), null while it is not in the page. */
+  work: DocRect | null;
+  /**
+   * Work's heading block, from the eyebrow's top to the lead's bottom (the track's previous
+   * sibling, its scroll-reveal offset taken out). Null without Work.
+   */
+  workHead: DocRect | null;
+  /**
+   * The free band above Work's heading, as wide as Work's section: from the end of the previous
+   * section's content (its bottom less its bottom padding) down to the heading's top (`workHead.y`).
+   * The ambient helix lies in it, clear of any text. Null without Work.
+   */
+  workGap: DocRect | null;
   /** `#top`, "top top" → "bottom 35%". */
   heroExit: ScrollSpan;
   /**
@@ -246,6 +272,16 @@ export type ScrollProbe = {
    * end and disarms above its start. Not a progress — the burst itself runs in time.
    */
   entry: ScrollSpan;
+  /**
+   * Work's track, "top 70%" → "top 55%": the work gate's band (the services model hands its
+   * swarm over to the helix), armed and disarmed like `entry`. Not a progress either.
+   */
+  workSpan: ScrollSpan;
+  /**
+   * Work's track, "top top" less the header → "bottom bottom": the scroll the spiral turns over
+   * (the sticky zone is under the header from its start to its end).
+   */
+  helix: ScrollSpan;
 };
 
 export function createScrollProbe(): ScrollProbe {
@@ -253,13 +289,27 @@ export function createScrollProbe(): ScrollProbe {
     live: false,
     version: 0,
     headerH: 0,
+    layerH: 0,
     stage: { top: 0, bottom: 0 },
     hero: null,
     services: null,
+    work: null,
+    workHead: null,
+    workGap: null,
     heroExit: { start: 0, end: 0 },
     entry: { start: 0, end: 0 },
+    workSpan: { start: 0, end: 0 },
+    helix: { start: 0, end: 0 },
   };
 }
+
+/**
+ * Dispatched on the stage root by the scene when it changed the page's layout itself (Work's
+ * spiral grows or shrinks the card track at once). The director re-reads every box into the probe
+ * then and there — no ScrollTrigger refresh, which would stop a touch fling and waits for the
+ * scroll to end; the stage's own resize refresh still follows for the spans. Never under a cover.
+ */
+export const SCENE_LAYOUT_EVENT = "tbs:scene-layout";
 
 /** Pure. 0 → 1 across `span`, clamped; an empty or inverted span is a step at `start`. */
 export function scrollProgress(scroll: number, span: ScrollSpan): number {
@@ -312,6 +362,11 @@ export type SceneCanvasProps = {
    * into the services says `formed` without ever bursting).
    */
   onEntry(state: SceneEntry): void;
+  /**
+   * The Work helix: `built` once, when its model compiled (after ready); then every mode the
+   * spiral driver applies, `off` last when the scene goes (the cards' own styles are back).
+   */
+  onHelix(state: SceneHelix): void;
 };
 
 export type SceneDirectorProps = {

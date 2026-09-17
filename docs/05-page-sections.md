@@ -180,8 +180,8 @@ estimator *is* the contact form, so there is no CTA between those two.
 
 ## Interior stage (3D)
 
-On the home page, **Hero, Ticker and Directions scroll over one 3D scene**, drawn on a canvas
-that stays stuck under the header (`components/scene/`, 2026-09-17; wiring in
+On the home page, **Hero, Ticker, Directions and Work scroll over one 3D scene**, drawn on a
+canvas that stays stuck under the header (`components/scene/`, 2026-09-17; wiring in
 [03 — Architecture](./03-architecture.md#the-interior-stage)). Everything in it is decorative
 and `aria-hidden`: the page reads, works and navigates the same without it.
 
@@ -206,9 +206,9 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
     under reduced motion;
   - **the WebGL path only** — the static art has no trail;
   - **over the stage only**: it is drawn on the stage's canvas, under the page, so it shows over
-    Hero, Ticker and Directions only where the page lets the canvas through — **never over an
-    opaque card** (the Directions case card, the header), faint at most under glass — and nowhere
-    outside the stage;
+    Hero, Ticker, Directions and Work only where the page lets the canvas through — **never over
+    an opaque card** (the Directions case card, a project card that faces the visitor, the
+    header), faint at most under glass — and nowhere outside the stage;
   - a pause over 0.35s, or a jump of more than 12 grid cells (240px), starts a new line instead of
     drawing a wire across the page. At most 64 segments live at once.
 - **The selected direction's model.** The chip dissolves on its own as the hero leaves. Once the
@@ -240,8 +240,16 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
   light sweeps its copy while the model bursts in, and its edge lights up in the direction's accent
   once it has formed. On the static art (`fallback`, `off`) there is no `data-entry` and the
   panel's edge is simply lit; while the stage is still deciding (`pending`) it stays plain.
+- **The project DNA helix** (IT-OS Phase 3, 2026-09-17: the client's "cardurile cele să fie la
+  ADN"). Once the top of Work's cards passes 55% of the viewport, the selected direction's model
+  flies apart into a swarm that lands on a neon **DNA helix** in 1.2s (back in 0.5s above 70%): two
+  strands carrying packets, chips riding them (the ones facing the visitor brighten), base-pair
+  rungs with a light sweeping up them, and 0/1 digits drifting up the axis. It never spins on its
+  own; it turns with the project cards. What the cards do depends on the screen — see
+  [Work](#work).
 - Each model follows its place on the page at a parallax factor below 1, so the canvas's
-  one-frame lag behind a scrolling page reads as depth.
+  one-frame lag behind a scrolling page reads as depth (the helix follows Work rigidly: its zone
+  is stuck while the cards turn).
 - **Below 861px the chip sits behind the headline**, dimmed so the copy keeps its contrast (0.55
   dark / 0.4 light under 641px; 0.25 / 0.15 from 641 to 860px, where its centre is under the
   lead), with a scrim of the page colour between them; the static art is faded to match
@@ -282,7 +290,9 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
 
 **Static art.** Where the scene does not draw, SVG illustrations in the same places and
 proportions stand in: the microprocessor in the hero (the same silhouette as the WebGL chip,
-drawn through its pose), the selected direction's model on the services screen. They never loop.
+drawn through its pose), the selected direction's model on the services screen. Work has no
+drawing: without the scene it is the grid (or band) of cards, exactly as the server rendered it.
+They never loop.
 A new direction's drawing plays a one-shot entrance; hovering or keyboard-focusing a hero CTA
 sends one square light wave out across the chip while its packets flicker. Both are gone under
 reduced motion.
@@ -427,7 +437,48 @@ card per project from the store — fully editable from the admin's **Proiecte**
 - **Layout:** three columns; two up to 900px, where an odd last card spans the row and keeps its
   screenshot at a normal card's size on its right half (stretched, the screenshot was enlarged
   ~2× and small print in it became legible); at 640px and below, one horizontal snap band that
-  bleeds to the screen edges.
+  bleeds to the screen edges. That is the page as rendered, and all anyone gets on the static art
+  (`fallback`, `off`, reduced motion, no usable GPU).
+
+**In the 3D stage** (IT-OS Phase 3, 2026-09-17; wiring in
+[03](./03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17)). Work is inside the
+interior stage. Once the scene has drawn and built its DNA helix (after its first picture):
+
+- **Spiral — screens at least 768px wide and 600px tall** (tablets in portrait too). The cards
+  leave the grid and **turn round the helix** as the page scrolls: each one sticks under the
+  header while a scroll of about 38% of the viewport (240–380px) brings the next one to the
+  front. The card at the front is the largest and sits over the canvas; the cards behind the
+  helix are smaller, fainter and pass **under** it — real depth, not a fade. Only a card facing
+  the visitor takes a click or a tap; one behind the helix never does. The section grows by that
+  scroll (one sticky screen plus one step per card); nothing sideways, and no card slips under
+  the Phase 5 rail's lane (44px from 861px). A card in the spiral is **as tall as its content**
+  (at least the spiral's even height): a long description — always shown on a touch tablet,
+  revealed on hover on a desktop — is never cut off.
+- **The hologram.** Beside the helix floats a hologram of the front card: its screenshot as a
+  scanlined luminance image in 2px cells (small on purpose: fine print in a screenshot, such as
+  the e-mail in the FLIRT sign-up form, is not legible on it), its tags, name and number. It
+  glitches briefly when the front card changes and is redrawn only once the next card is well
+  past half-way. The helix and the hologram take the front card's accent colour.
+- **Keyboard.** Tab moves through the cards in their normal order; each focused card scrolls to
+  the front (with the page's own smooth scrolling) and is fully opaque. Nothing leaves the tab
+  order and no card is hidden from assistive technology. A card focused by a click does not
+  scroll.
+- **Ambient — below 768px (or a window under 600px tall, or fewer than three projects).** The
+  band (or grid) stays exactly as it is, and a small helix lies on its side, at full brightness,
+  **in the empty band above the heading** — between the Directions panel and the "Portofoliu TBS"
+  eyebrow (about 84px on a phone), about 60px tall there and at most 0.6 of the screen wide,
+  touching no text and no card — coloured after the card nearest the middle of the band. It is not behind the
+  heading: there its flaring chips and packets turned the headline's pixels near-white, and keeping
+  the copy readable left it a faint trace in the dark theme and nothing at all in the light one. The
+  services model's swarm flies to it once Work's cards pass 55% of the viewport; on a very short
+  phone (568px tall) the band is under the header at that moment and comes into view when the page
+  is scrolled back a little.
+- **Arriving inside Work** (a reload or a link while Work is on screen) keeps the grid: switching
+  to the spiral there would grow the section by thousands of pixels under the visitor. The
+  spiral applies the next time the visitor is above Work. Leaving the spiral (a narrower window,
+  the scene switched off) puts the grid back at once, with the focused card where the visitor was
+  looking.
+- Without the scene nothing of this exists: no helix, no inline layout, no `data-helix`.
 
 Seeded content (`lib/content.ts`, nine projects): BizCheck, Itara Global, DocuSafe, Crowe Portal,
 CGAM, IQ Arena, Balloons Breeze, Statistic, FLIRT. Note that **CGAM and IQ Arena are two different projects** — CGAM is

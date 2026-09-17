@@ -12,17 +12,16 @@
 import { mulberry32 } from "@/components/three/random";
 import {
   CHIP,
-  CHIP_POSE,
   CUBE_LAYOUTS,
+  HELIX,
   buildNeuralGraph,
-  chipPins,
-  chipTraces,
   commerceTrackPoint,
   COMMERCE_GATES,
   hubLayout,
   type NeuralGraph,
   type Vec3,
 } from "../shapes";
+import { SCENE_TIER_CONFIG } from "../tiers";
 
 const TAU = Math.PI * 2;
 
@@ -253,15 +252,140 @@ export function hubLinkPoint(position: Vec3, s: number): Vec3 {
   return mix3(a, b, s);
 }
 
+/* ---- the Work helix ------------------------------------------------------------------------ */
+
+/**
+ * The helix's parts in `HELIX` units: the strands' tube radius; a chip's box (length along its
+ * strand, width across it, thickness out from the axis) and how far outside the strand's centre
+ * line it sits; a rung's half starts `inset` inside its strand and ends on a square node outline
+ * of half-size `node`, whose inner side stops `gap` short of the axis (the gap between a base
+ * pair's two nodes is twice that).
+ */
+export const HELIX_PARTS = {
+  tube: 0.012,
+  chip: { length: 0.16, width: 0.09, thickness: 0.03, lift: 0.02 },
+  inset: 0.02,
+  node: 0.03,
+  gap: 0.05,
+} as const;
+
+/**
+ * Strand `strand` (0 = A; 1 = B, half a turn on) at share `t` ∈ [0, 1] of its length, from the
+ * bottom. Right-handed, like DNA: turning the helix by −angle about y reads as the strands
+ * climbing, the way the cards do.
+ */
+export function helixStrandPoint(strand: number, t: number): Vec3 {
+  const a = TAU * HELIX.turns * t + strand * Math.PI;
+  return [HELIX.radius * Math.sin(a), (t - 0.5) * HELIX.height, HELIX.radius * Math.cos(a)];
+}
+
+/** Unit tangent of a strand at `t`, pointing up it. */
+export function helixStrandTangent(strand: number, t: number): Vec3 {
+  const w = TAU * HELIX.turns;
+  const a = w * t + strand * Math.PI;
+  return normalize3([HELIX.radius * w * Math.cos(a), HELIX.height, -HELIX.radius * w * Math.sin(a)]);
+}
+
+export type HelixChip = {
+  strand: 0 | 1;
+  /** Share of its strand's length. */
+  t: number;
+  centre: Vec3;
+  /** The box's axes (right-handed): along the strand (length), across it (width), out from the axis (thickness). */
+  along: Vec3;
+  across: Vec3;
+  out: Vec3;
+};
+
+/** `count` chips shared by the two strands (A takes an odd one), evenly along each, B's half a spacing on. */
+export function helixChips(count: number): HelixChip[] {
+  const n = Math.max(0, Math.floor(count));
+  const out: HelixChip[] = [];
+  for (const strand of [0, 1] as const) {
+    const m = strand === 0 ? Math.ceil(n / 2) : Math.floor(n / 2);
+    for (let i = 0; i < m; i += 1) {
+      const t = (i + 0.25 + 0.5 * strand) / m;
+      const p = helixStrandPoint(strand, t);
+      const along = helixStrandTangent(strand, t);
+      const radial = normalize3([p[0], 0, p[2]]);
+      const lift = HELIX_PARTS.chip.lift;
+      out.push({
+        strand,
+        t,
+        centre: [p[0] + radial[0] * lift, p[1], p[2] + radial[2] * lift],
+        along,
+        across: cross3(radial, along),
+        out: radial,
+      });
+    }
+  }
+  return out;
+}
+
+export type HelixSegment = { a: Vec3; b: Vec3 };
+
+export type HelixRung = {
+  /** Share of the height (both strands' `t`). */
+  t: number;
+  /** A's half then B's: a line from inside the strand to its node, and the node square's four sides. */
+  halves: ReadonlyArray<{ strand: 0 | 1; line: HelixSegment; node: readonly HelixSegment[] }>;
+};
+
+/** `count` base pairs, evenly up the helix: each joins A and B across the axis, broken by a gap. */
+export function helixRungs(count: number): HelixRung[] {
+  const n = Math.max(0, Math.floor(count));
+  const { inset, node, gap } = HELIX_PARTS;
+  return Array.from({ length: n }, (_, r) => {
+    const t = (r + 0.5) / n;
+    const y = (t - 0.5) * HELIX.height;
+    const halves = ([0, 1] as const).map((strand) => {
+      const a = TAU * HELIX.turns * t + strand * Math.PI;
+      const dx = Math.sin(a);
+      const dz = Math.cos(a);
+      // A point `radius` out from the axis towards this strand, `up` above the rung.
+      const at = (radius: number, up = 0): Vec3 => [dx * radius, y + up, dz * radius];
+      const inner = gap;
+      const outer = gap + 2 * node;
+      const corners = [at(inner, -node), at(outer, -node), at(outer, node), at(inner, node)];
+      return {
+        strand,
+        line: { a: at(HELIX.radius - inset), b: at(outer) },
+        node: corners.map((corner, k) => ({ a: corner, b: corners[(k + 1) % 4] })),
+      };
+    });
+    return { t, halves };
+  });
+}
+
+/** A point on a chip's twelve box edges, an edge picked by its length. */
+function helixChipEdgePoint(chip: HelixChip, r: () => number): Vec3 {
+  const { length, width, thickness } = HELIX_PARTS.chip;
+  const sizes = [length, width, thickness];
+  let pick = r() * (length + width + thickness);
+  let axis = 0;
+  while (axis < 2 && pick > sizes[axis]) {
+    pick -= sizes[axis];
+    axis += 1;
+  }
+  const local = sizes.map((size, k) => (k === axis ? r() - 0.5 : r() < 0.5 ? -0.5 : 0.5) * size);
+  const { centre, along, across, out } = chip;
+  return [
+    centre[0] + along[0] * local[0] + across[0] * local[1] + out[0] * local[2],
+    centre[1] + along[1] * local[0] + across[1] * local[1] + out[1] * local[2],
+    centre[2] + along[2] * local[0] + across[2] * local[1] + out[2] * local[2],
+  ];
+}
+
 /* ---- swarm sample sets (one per slot) -------------------------------------------------------- */
 
 export type SampleTier = {
   swarm: number;
-  chipTraces: number;
   wave: readonly [number, number];
   neural: readonly number[];
   fanout: number;
   satellites: number;
+  helixChips: number;
+  helixRungs: number;
 };
 
 /** The neural graph a tier draws (the model and the samples must agree). */
@@ -269,78 +393,38 @@ export function neuralGraphFor(tier: Pick<SampleTier, "neural" | "fanout">): Neu
   return buildNeuralGraph(tier.neural, tier.fanout, SCENE_SEEDS.neural);
 }
 
-/** The point at share `s` ∈ [0, 1] of a chip-plane polyline's length. */
-function polylinePoint(run: ReadonlyArray<readonly [number, number]>, s: number): [number, number] {
-  let total = 0;
-  for (let i = 1; i < run.length; i += 1) total += Math.hypot(run[i][0] - run[i - 1][0], run[i][1] - run[i - 1][1]);
-  let left = Math.min(1, Math.max(0, s)) * total;
-  for (let i = 1; i < run.length; i += 1) {
-    const [ax, ay] = run[i - 1];
-    const [bx, by] = run[i];
-    const length = Math.hypot(bx - ax, by - ay);
-    if (length > 0 && left <= length) return [ax + ((bx - ax) * left) / length, ay + ((by - ay) * left) / length];
-    left -= length;
-  }
-  const last = run[run.length - 1];
-  return [last[0], last[1]];
-}
-
-/** The point at share `s` of the outline of a square of half-size `half` centred on (cx, cy). */
-function squarePoint(cx: number, cy: number, half: number, s: number): [number, number] {
-  const u = (((s % 1) + 1) % 1) * 4;
-  const side = Math.floor(u);
-  const t = -half + 2 * half * (u - side);
-  if (side === 0) return [cx + t, cy - half];
-  if (side === 1) return [cx + half, cy + t];
-  if (side === 2) return [cx - t, cy + half];
-  return [cx - half, cy - t];
-}
-
 /**
- * Slot 0: the hero chip at rest (lift 0), posed by `CHIP_POSE` — 40% along the traces, 20% the
- * substrate's outline, 12% the heat spreader's, 13% over the die, 10% on the pins, 5% round the
- * vias. `perSide` is the tier's `chipTraces`, so the swarm leaves the traces the chip draws.
- * Phase 1 only: the chip keeps the swarm's slot 0 until the Work helix takes it over.
+ * Slot 0: the Work helix at rest, in its model's frame (upright, focus 0) — 50% along the two
+ * strands' centre lines, 25% on the chips' box edges, 19% along the rungs' halves and 6% round
+ * their node squares. `tier` places the chips and rungs the model draws (its `helixChips` and
+ * `helixRungs`; the high tier's by default).
  */
-export function chipSamples(count: number, seed = SCENE_SEEDS.samples, perSide = 7): Float32Array {
-  const traces = chipTraces(perSide);
-  const pins = chipPins(perSide);
-  const posed = (x: number, y: number, z: number): Vec3 => rotateEulerXYZ([x, y, z], CHIP_POSE);
+export function helixSamples(
+  count: number,
+  seed: number = SCENE_SEEDS.samples,
+  tier: Pick<SampleTier, "helixChips" | "helixRungs"> = SCENE_TIER_CONFIG.high,
+): Float32Array {
+  const chips = helixChips(tier.helixChips);
+  const halves = helixRungs(tier.helixRungs).flatMap((rung) => rung.halves);
   const pick = <T>(list: readonly T[], r: () => number): T => list[Math.floor(r() * list.length) % list.length];
-  const outline = (half: number, z: number) => (r: () => number) => {
-    const [x, y] = squarePoint(0, 0, half, r());
-    return posed(x, y, z);
-  };
+  const strand = (r: () => number) => helixStrandPoint(r() < 0.5 ? 0 : 1, r());
   return buildSamples(count, seed, [
+    { weight: 50, point: strand },
+    { weight: 25, point: (r) => (chips.length > 0 ? helixChipEdgePoint(pick(chips, r), r) : strand(r)) },
     {
-      weight: 40,
+      weight: 19,
       point: (r) => {
-        const [x, y] = polylinePoint(pick(traces, r), r());
-        return posed(x, y, CHIP_STACK.board);
-      },
-    },
-    { weight: 20, point: outline(CHIP.pkg, CHIP_STACK.pkg + CHIP.thick.pkg / 2) },
-    { weight: 12, point: outline(CHIP.ihs, CHIP_STACK.ihs + CHIP.thick.ihs / 2) },
-    {
-      weight: 13,
-      point: (r) => posed((r() * 2 - 1) * CHIP.die, (r() * 2 - 1) * CHIP.die, CHIP_STACK.die + CHIP.thick.die / 2),
-    },
-    {
-      weight: 10,
-      point: (r) => {
-        const pin = pick(pins, r);
-        const x = pin.center[0] + (r() - 0.5) * pin.size[0];
-        const y = pin.center[1] + (r() - 0.5) * pin.size[1];
-        return posed(x, y, CHIP_STACK.board + CHIP.pinSize.t);
+        if (halves.length === 0) return strand(r);
+        const { line } = pick(halves, r);
+        return mix3(line.a, line.b, r());
       },
     },
     {
-      weight: 5,
+      weight: 6,
       point: (r) => {
-        const end = pick(traces, r);
-        const [ex, ey] = end[end.length - 1];
-        const [x, y] = squarePoint(ex, ey, CHIP.via, r());
-        return posed(x, y, CHIP_STACK.board);
+        if (halves.length === 0) return strand(r);
+        const side = pick(pick(halves, r).node, r);
+        return mix3(side.a, side.b, r());
       },
     },
   ]);
@@ -477,7 +561,7 @@ export function hubSamples(count: number, satellites: number, seed = SCENE_SEEDS
 }
 
 /**
- * All six slots for a tier, in the swarm's order: the hero chip, then the service models in
+ * All six slots for a tier, in the swarm's order: the Work helix, then the service models in
  * `SCENE_SHAPES` order through `models` (the model kind of each shape).
  */
 export function swarmSlots(
@@ -493,7 +577,7 @@ export function swarmSlots(
     "commerce-loop": () => commerceSamples(count),
     "integration-hub": () => hubSamples(count, tier.satellites),
   } as const;
-  return [chipSamples(count, SCENE_SEEDS.samples, tier.chipTraces), ...models.map((model) => byModel[model]())];
+  return [helixSamples(count, SCENE_SEEDS.samples, tier), ...models.map((model) => byModel[model]())];
 }
 
 /* ---- per-particle seeds -------------------------------------------------------------------- */

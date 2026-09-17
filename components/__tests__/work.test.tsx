@@ -360,6 +360,36 @@ describe("Work section — links and image fallback", () => {
   });
 });
 
+describe("Work section — the helix track", () => {
+  /* The interior scene measures the card grid (`data-work-track`) and, on the WebGL path only,
+     lays the cards out round its helix inline (components/scene/workHelix.ts). What the server
+     and React render stays the plain grid: nothing positions or transforms a card up front. */
+  it("marks the card grid as the scene's track, and renders each card with only its two colours inline", async () => {
+    const { container } = withProvider(<Work />);
+    expect(await screen.findByText("BizCheck")).toBeInTheDocument();
+
+    const tracks = container.querySelectorAll<HTMLElement>("#lucrari [data-work-track]");
+    expect(tracks).toHaveLength(1);
+    const track = tracks[0];
+    expect(track.getAttribute("data-work-track")).toBe("");
+    // The track is the grid itself: every card is a direct child, and it has no inline style.
+    expect(track.hasAttribute("style")).toBe(false);
+    const all = cards(container);
+    expect(all).toHaveLength(defaultProjects.length);
+    for (const card of all) {
+      expect(card.parentElement).toBe(track);
+      expect(card.style.transform).toBe("");
+      expect(card.style.position).toBe("");
+      expect(card.style.zIndex).toBe("");
+      expect(card.style.length).toBe(2);
+      expect(card.style.getPropertyValue("--p1")).not.toBe("");
+      expect(card.style.getPropertyValue("--p2")).not.toBe("");
+    }
+    // The heading block (eyebrow → lead) is the track's previous sibling: the ambient helix sits behind it.
+    expect(track.previousElementSibling?.querySelector("h2")).not.toBeNull();
+  });
+});
+
 describe("Hero metrics", () => {
   it("counts the real portfolio instead of claiming a hardcoded number", async () => {
     withProvider(<Hero />);

@@ -3,9 +3,9 @@
  * by one of these, so the whole scene compiles to five programs (the numbering is historical:
  * P1, the hero's transmission / frost glass, is gone with the glass core):
  *
- *   P2  surface  — plasma / fresnel / box edges (non-instanced)
+ *   P2  surface  — plasma / fresnel / box edges / the Work hologram (non-instanced)
  *   P3  surface  — the same source on an `InstancedMesh` (three adds the instancing defines)
- *   P4  line     — wireframes, the mesh wave, synapses, UI card outlines
+ *   P4  line     — wireframes, the mesh wave, synapses, UI card outlines, the helix's 0/1 bits
  *   P5  tube     — flat or round ribbons: the chip's traces, the commerce track and gates, hub
  *                  links with packets, the cursor trail
  *   P6  points   — the morph swarm, synapse pulses
@@ -28,6 +28,7 @@ import {
   SRGBColorSpace,
   Vector2,
   Vector3,
+  type Texture,
 } from "three";
 import {
   DISSOLVE_GLSL,
@@ -114,11 +115,16 @@ export function paint(item: Paintable, palette: ScenePalette): void {
 
 /* ---- P2 / P3: surface ------------------------------------------------------------------------ */
 
-export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2 } as const;
+/** 3 was the glass core's shell; the other modes keep their numbers. */
+export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2, holo: 4 } as const;
 
 export type SurfaceUniforms = BaseUniforms & {
   uPulse: U<number>;
   uExtrude: U<number>;
+  /** The hologram's texture (null draws the renderer's empty texture; only `holo` samples it). */
+  uMap: U<Texture | null>;
+  /** The hologram's swap glitch, 1 → 0. */
+  uGlitch: U<number>;
 };
 
 const SURFACE_VERTEX = /* glsl */ `
@@ -128,6 +134,7 @@ varying vec3 vViewV;
 varying vec3 vLocal;
 varying vec3 vBox;
 varying vec3 vTint;
+varying vec2 vUv;
 
 void main() {
   vec4 local = vec4(position + normal * uExtrude, 1.0);
@@ -136,6 +143,7 @@ void main() {
     local = instanceMatrix * local;
     n = mat3(instanceMatrix) * n;
   #endif
+  vUv = uv;
   vBox = position;
   vLocal = local.xyz;
   vTint = vec3(1.0);
@@ -157,11 +165,14 @@ uniform vec3 uColorB;
 uniform vec3 uHot;
 uniform float uIntensity;
 uniform float uPulse;
+uniform sampler2D uMap;
+uniform float uGlitch;
 varying vec3 vNormalV;
 varying vec3 vViewV;
 varying vec3 vLocal;
 varying vec3 vBox;
 varying vec3 vTint;
+varying vec2 vUv;
 ${SCENE_OUTPUT_GLSL}
 ${HASH_GLSL}
 ${DISSOLVE_GLSL}
@@ -191,7 +202,7 @@ void main() {
     // fresnel body: a thin bright rim, a faint face
     color = mix(uColorA, uColorB, 0.5 + 0.5 * n.y) * hue;
     strength = (0.1 + fres * 1.5) * uIntensity;
-  } else {
+  } else if (uMode < 2.5) {
     // box edges: faces faint, the second-largest |coordinate| near 1 is an edge
     vec3 a = abs(vBox) * 2.0;
     float hi = max(a.x, max(a.y, a.z));
@@ -199,6 +210,16 @@ void main() {
     float edge = smoothstep(0.84, 0.96, a.x + a.y + a.z - hi - lo);
     color = mix(uColorA * hue, uHot, edge * 0.45 * hotness * smoothstep(1.2, 2.6, lum));
     strength = (0.035 + edge * 0.9 + fres * 0.05) * uIntensity;
+  } else {
+    // the Work hologram (models/helix.ts): the front card as a Canvas2D texture (hologram.ts:
+    // r = luminance, a = coverage) under scanlines, in a hairline frame; a glitch shears and
+    // flickers it for a moment while the texture is swapped
+    vec2 uvg = vec2(vUv.x + uGlitch * 0.02 * sin(vUv.y * 90.0 + uTime * 40.0), vUv.y);
+    vec4 tex = texture2D(uMap, uvg);
+    float scan = 0.78 + 0.22 * step(0.5, fract(vUv.y * 120.0));
+    float frame = 1.0 - step(0.006, min(min(vUv.x, vUv.y), min(1.0 - vUv.x, 1.0 - vUv.y)));
+    color = mix(uColorA, uHot, tex.r * 0.35 * hotness);
+    strength = (tex.a * tex.r * 1.1 * scan + frame * 0.55) * uIntensity * (1.0 - 0.6 * uGlitch * step(0.5, fract(uTime * 30.0)));
   }
 
   strength *= gain;
@@ -222,6 +243,8 @@ export function createSurfaceMaterial(options: SurfaceOptions): Paintable & { un
     ...baseUniforms(options.mode),
     uPulse: { value: 0 },
     uExtrude: { value: options.extrude ?? 0 },
+    uMap: { value: null },
+    uGlitch: { value: 0 },
   };
   uniforms.uIntensity.value = options.intensity ?? 1;
   const material = new ShaderMaterial({
@@ -238,7 +261,7 @@ export function createSurfaceMaterial(options: SurfaceOptions): Paintable & { un
 
 /* ---- P4: line ----------------------------------------------------------------------------------- */
 
-export const LINE_MODE = { wire: 0, wave: 1, synapse: 2, card: 3 } as const;
+export const LINE_MODE = { wire: 0, wave: 1, synapse: 2, card: 3, bits: 4 } as const;
 
 export type LineUniforms = BaseUniforms & {
   uAlpha: U<number>;
@@ -247,12 +270,17 @@ export type LineUniforms = BaseUniforms & {
   uWaveTime: U<number>;
   uPulseR: U<number>;
   uOrigin: U<Vector2>;
+  /** Bits: the height they drift over along local y (centred on 0) before wrapping. */
+  uSpan: U<number>;
 };
 
 const LINE_VERTEX = /* glsl */ `
 attribute float aU;
 attribute float aPhase;
+attribute vec2 aGlyph;
 uniform float uMode;
+uniform float uTime;
+uniform float uSpan;
 ${WAVE_GLSL}
 varying float vU;
 varying float vPhase;
@@ -266,11 +294,20 @@ void main() {
     float ring = 0.0;
     p.z += waveHeight(p.xy, ring);
     vRing = ring;
+  } else if (uMode > 3.5) {
+    // bits (models/helix.ts): position is a glyph's centre, aPhase its seed; it drifts up local
+    // y over uSpan and wraps, fading out at both ends (vRing)
+    float cy = mod(aPhase * uSpan + uTime * 0.12, uSpan) - 0.5 * uSpan;
+    p.y += cy;
+    vRing = 1.0 - smoothstep(0.35, 0.5, abs(cy) / uSpan);
   }
   vU = aU;
   vPhase = aPhase;
   vLocal = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  // A bit's stroke (aGlyph, model units from its centre) faces the camera, upright, at the model's scale.
+  if (uMode > 3.5) mv.xy += aGlyph * length(modelViewMatrix[0].xyz);
+  gl_Position = projectionMatrix * mv;
 }
 `;
 
@@ -315,9 +352,16 @@ void main() {
     float comet = d >= 0.0 ? exp(-d * 9.0) : 0.0;
     color = mix(uColorA, uDir > 0.0 ? uColorB : uHot, clamp(comet * 1.5, 0.0, 1.0));
     strength = (uAlpha + comet * 1.6) * uIntensity;
-  } else {
+  } else if (uMode < 3.5) {
     color = mix(uColorA, uColorB, 0.5 + 0.5 * sin(vU * 6.2832 + uTime));
     strength = uAlpha * uIntensity;
+  } else {
+    // bits: every slot holds a seven-segment 0 (vU 0) and a 1 (vU 1) and shows one at a time
+    float on = step(0.5, fract(uTime * 0.7 + vPhase * 7.0));
+    float show = vU < 0.5 ? on : 1.0 - on;
+    if (show < 0.5) discard;
+    color = vU < 0.5 ? uColorA : uColorB;
+    strength = uAlpha * vRing * uIntensity;
   }
 
   color = mix(color, mix(uColorA, uHot, hotness), heat * 0.8);
@@ -339,6 +383,7 @@ export function createLineMaterial(options: {
     uWaveTime: { value: 0 },
     uPulseR: { value: 0 },
     uOrigin: { value: new Vector2() },
+    uSpan: { value: 1 },
   };
   const material = new ShaderMaterial({
     uniforms,
