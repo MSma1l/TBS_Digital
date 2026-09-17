@@ -35,11 +35,15 @@ import {
   HELIX_AMBIENT_ROLL,
   HELIX_ANGLE as MODEL_HELIX_ANGLE,
   HELIX_BIT,
+  HELIX_DRIVE,
+  HELIX_EXIT,
   HELIX_GLITCH_SECONDS,
   HELIX_HOLOGRAM,
+  HELIX_PULSE_SECONDS,
   createHelixModel,
   helixBitStrokes,
   helixDim,
+  helixExitPose,
   helixFrontFlare,
   helixLandingMatrix,
   helixRungSweep,
@@ -552,16 +556,77 @@ describe("helix model — behaviour", () => {
     model.update(frame({ dim: 0.4, time: 0.2 }));
     expect(intensities().slice(0, 4)).toEqual([0.4, 0.4, 0.4, 0.4]);
     expect(intensities()[4]).toBeCloseTo(0.85 * 0.4, 12);
-    // Accent, glitch and flares never touch it.
+    // The accent and the flares never touch it.
     model.setAccent(new Color("#ff2d78"));
-    model.glitch();
     model.update(frame({ dim: 0.4, time: 0.3, focus: 3 }));
-    expect(intensities()[0]).toBe(0.4);
+    expect(intensities().slice(0, 4)).toEqual([0.4, 0.4, 0.4, 0.4]);
+    // A swap's flare lifts each draw over the dim by its own share, and decays away again.
+    model.glitch();
+    model.update(frame({ dim: 0.4, time: 0.35, focus: 3 }));
+    const flared = intensities();
+    for (let i = 0; i < 4; i += 1) expect(flared[i]).toBeGreaterThan(0.4);
+    expect(flared[1]).toBeGreaterThan(flared[0]); // the chips answer hardest
+    // A frame advances the decay by at most MAX_FRAME_STEP, so it takes a few of them.
+    let t = 0.35;
+    for (let i = 0; i < 12; i += 1) model.update(frame({ dim: 0.4, time: (t += 0.05), focus: 3 }));
+    expect(intensities().slice(0, 4)).toEqual([0.4, 0.4, 0.4, 0.4]);
     // Back to today's look without a dim.
-    model.update(frame({ time: 0.4 }));
+    model.update(frame({ time: t + 0.05 }));
     expect(intensities().slice(0, 4)).toEqual([1, 1, 1, 1]);
     expect(intensities()[4]).toBeCloseTo(0.85, 12);
     expect([helixDim(undefined), helixDim(Number.NaN), helixDim(-0.5), helixDim(3), helixDim(0.3)]).toEqual([1, 1, 0, 1, 0.3]);
+    model.dispose();
+  });
+
+  it("helixExitPose: nothing at 0, gone at 1, and every step in between goes one way", () => {
+    expect(helixExitPose(0)).toEqual({ reveal: 1, spin: 0, narrow: 1, tall: 1 });
+    const spent = helixExitPose(1);
+    expect(spent.reveal).toBe(0);
+    expect(spent.spin).toBeCloseTo(HELIX_EXIT.spin, 12);
+    expect(spent.narrow).toBeCloseTo(HELIX_EXIT.narrow, 12);
+    expect(spent.tall).toBeCloseTo(HELIX_EXIT.tall, 12);
+    expect(helixExitPose(Number.NaN)).toEqual(helixExitPose(0));
+    expect(helixExitPose(5)).toEqual(helixExitPose(1));
+    // The strands hold their shape while the deck folds, then draw in and dissolve.
+    expect(helixExitPose(0.5).reveal).toBe(1);
+    let last = helixExitPose(0);
+    for (let e = 0.02; e <= 1; e += 0.02) {
+      const now = helixExitPose(e);
+      expect(now.reveal, `exit ${e}`).toBeLessThanOrEqual(last.reveal);
+      expect(now.spin).toBeGreaterThanOrEqual(last.spin);
+      expect(now.narrow).toBeLessThanOrEqual(last.narrow);
+      expect(now.tall).toBeGreaterThanOrEqual(last.tall);
+      last = now;
+    }
+  });
+
+  it("the finish winds the helix up, draws it into a beam and dissolves it away", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.mid, PALETTE);
+    const { strands } = parts(model);
+    const spin = () => (strands.parent as { rotation: { y: number } }).rotation.y;
+    const shape = () => {
+      const orient = (strands.parent as { parent: { scale: { x: number; y: number } } }).parent;
+      return [orient.scale.x, orient.scale.y];
+    };
+    model.update(frame({ time: 1, focus: 2, reveal: 1 }));
+    expect(shape()).toEqual([1, 1]);
+    expect(spin()).toBeCloseTo(-2 * MODEL_HELIX_ANGLE, 12);
+    expect(uniforms(strands).uReveal.value).toBe(1);
+
+    model.update(frame({ time: 1.05, focus: 2, reveal: 1, exit: 0.5 }));
+    const half = helixExitPose(0.5);
+    expect(spin()).toBeCloseTo(-2 * MODEL_HELIX_ANGLE - half.spin, 12);
+    expect(shape()[0]).toBeCloseTo(half.narrow, 12);
+    expect(shape()[1]).toBeCloseTo(half.tall, 12);
+    expect(uniforms(strands).uReveal.value).toBe(1);
+
+    model.update(frame({ time: 1.1, focus: 2, reveal: 1, exit: 0.8 }));
+    expect(uniforms(strands).uReveal.value).toBeLessThan(1);
+    expect(uniforms(strands).uReveal.value).toBeGreaterThan(0);
+
+    // Spent: nothing of the helix is drawn at all, however revealed the frame says it is.
+    model.update(frame({ time: 1.15, focus: 2, reveal: 1, exit: 1 }));
+    expect(model.group.visible).toBe(false);
     model.dispose();
   });
 

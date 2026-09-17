@@ -245,11 +245,12 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
   flies apart into a swarm that lands on a neon **DNA helix** in 1.2s (back in 0.5s above 70%): two
   strands carrying packets, chips riding them (the ones facing the visitor brighten), base-pair
   rungs with a light sweeping up them, and 0/1 digits drifting up the axis. It never spins on its
-  own; it turns with the project cards. What the cards do depends on the screen — see
-  [Work](#work).
+  own; it turns with the project cards, speeds up while the visitor scrolls, and flares when a new
+  project reaches the front. At the end of the section it winds up, closes into a beam and
+  dissolves. What the cards do depends on the screen — see [Work](#work).
 - Each model follows its place on the page at a parallax factor below 1, so the canvas's
   one-frame lag behind a scrolling page reads as depth (the helix follows Work rigidly: its zone
-  is stuck while the cards turn).
+  is stuck while the cards turn, and stays stuck through the finish, so the two never part).
 - **Below 861px the chip sits behind the headline**, dimmed so the copy keeps its contrast (0.55
   dark / 0.4 light under 641px; 0.25 / 0.15 from 641 to 860px, where its centre is under the
   lead), with a scrim of the page colour between them; the static art is faded to match
@@ -447,13 +448,40 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
 - **Spiral — screens at least 768px wide and 600px tall** (tablets in portrait too). The cards
   leave the grid and **turn round the helix** as the page scrolls: each one sticks under the
   header while a scroll of about 38% of the viewport (240–380px) brings the next one to the
-  front. The card at the front is the largest and sits over the canvas; the cards behind the
+  front. **Each card turns with the helix**: it is posed in 3D from its own angle round the
+  strand — it rotates away as it goes behind and back as it returns to the front, leans a little
+  along the strand's rise, and the far half of the orbit is pushed away from the camera. The
+  perspective is written per card, never on the track: a `perspective` on the track would make it
+  a stacking context and lift the cards behind the helix out from under the canvas. Because every
+  card sits in the same grid cell, the vanishing point is still shared. The front card is posed
+  at zero, so its rendering — and its contrast — is identical to a card in the grid.
+  The card at the front is the largest and sits over the canvas; the cards behind the
   helix are smaller, fainter and pass **under** it — real depth, not a fade. Only a card facing
-  the visitor takes a click or a tap; one behind the helix never does. The section grows by that
-  scroll (one sticky screen plus one step per card); nothing sideways, and no card slips under
-  the Phase 5 rail's lane (44px from 861px). A card in the spiral is **as tall as its content**
+  the visitor takes a click or a tap; one behind the helix never does, and neither does a card
+  faded under 8% opacity. The section grows by that
+  scroll (one sticky screen plus one step per card, plus the finish below); nothing sideways, and
+  no card slips under the Phase 5 rail's lane (44px from 861px). A card in the spiral is **as tall as its content**
   (at least the spiral's even height): a long description — always shown on a touch tablet,
   revealed on hover on a desktop — is never cut off.
+- **The entrance is timed, not scrubbed.** The cards do not simply appear on the helix. They
+  arrive on the Work gate that already brings the services swarm over and forms the helix (1.2s,
+  `fx.ts`), staggered card by card along the strand — a card starts folded onto the strand's
+  axis, small and turned away, and unfolds onto its slot. The gate runs on its own clock, so it
+  always finishes and can never rest half-formed, however the visitor scrolls. Without the scene
+  (reduced motion, fallback) there is no entrance: the cards are simply in the grid.
+- **The finish.** The run used to end on a freeze: the front card reached the last project about
+  234px (346px on a tablet) before its sticky slot released it, so every card held one identical
+  pose while the helix — clamped differently — slid out of the top of the screen without them.
+  Now the track carries **1.35 card-steps more**, the focus runs on past the last card at exactly
+  the same rate (no change of pace at the hand-over), and over that stretch the cards fold onto
+  the strand's axis and fade while the helix winds up, draws its strands into a beam and
+  dissolves. The hologram goes with it. It is timed to land as the cards come unstuck and the
+  next section arrives, so there is no dead screen between them, and the scene stops drawing
+  entirely once the section is behind the visitor.
+- **The helix answers the visitor.** Scrolling faster speeds up the packets, the 0/1 bits and the
+  comet running the rungs, and lifts the glow; a new project arriving at the front, or the
+  hologram swapping, flares the strands for about half a second. This is all done by changing
+  values already sent to the GPU — no extra geometry and no extra draw per frame.
 - **The hologram.** Beside the helix floats a hologram of the front card: its screenshot as a
   scanlined luminance image in 2px cells (small on purpose: fine print in a screenshot, such as
   the e-mail in the FLIRT sign-up form, is not legible on it), its tags, name and number. It

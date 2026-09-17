@@ -60,6 +60,7 @@ import {
   type Placement,
   type SceneLayout,
 } from "../choreography";
+import { damp } from "@/components/three/motion";
 import { stepSceneFx, type SceneFx } from "../fx";
 import { HELIX_LAYOUT } from "../helix";
 import { HELIX, MODEL_RADIUS } from "../shapes";
@@ -161,6 +162,11 @@ export const HELIX_BOUND = Math.hypot(HELIX.radius, HELIX.height / 2);
  */
 export const HOLOGRAM_HYSTERESIS = 0.3;
 
+/** A scroll of this many viewports a second is `speed` 1 for the helix (`HelixFrame.speed`). */
+export const SCROLL_SPEED_FULL = 1.6;
+/** …and it falls back to a still page at this rate (about a third of a second), never up. */
+export const SCROLL_SPEED_LAMBDA = 4.5;
+
 /** What `stageHelix` needs of the world. */
 export type HelixStaging = Pick<SceneWorld, "buildHelix" | "helixObjects" | "prewarm" | "markHelixBuilt">;
 
@@ -255,7 +261,12 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     prewarm: false,
     halfHeightPx: 1,
     dpr: 1,
+    exit: 0,
+    speed: 0,
   };
+  /** The scroll's own speed, smoothed: 0 still → 1 at `SCROLL_SPEED_FULL` viewports a second. */
+  let scrollSpeed = 0;
+  let lastScrollY = Number.NaN;
   const swarmFrame: SwarmFrame = {
     plan: plan.swarm,
     fromMatrix: burstMatrix,
@@ -347,6 +358,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     }
     const focus = mode === "spiral" && driver ? driver.focus(scrollY) : 0;
     helixFrame.focus = focus;
+    helixFrame.exit = mode === "spiral" && driver ? driver.exit(scrollY) : 0;
+    helixFrame.speed = scrollSpeed;
     const place =
       mode === "spiral"
         ? placeHelixSpiral(probe, scrollY, w, h, HELIX_LAYOUT.cx, helixSpot)
@@ -385,14 +398,19 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const cards = driver.cards();
       const card = cards[driver.front()] ?? null;
       if (card !== accentCard) {
+        const first = accentCard === null;
         accentCard = card;
         const rgb = card ? parseTokenColor(card.style.getPropertyValue("--p2")) : null;
         helix.setAccent(rgb ? toColor(rgb) : null);
+        // A new project has arrived at the front: the strands answer it.
+        if (!first && card) helix.pulse();
       }
       // The hologram shows the focused card, redrawn once the focus is well past half-way.
       if (mode === "spiral" && reveal > 0 && cards.length > 0) {
-        if (hologramIndex < 0 || Math.abs(focus - hologramIndex) > 0.5 + HOLOGRAM_HYSTERESIS) {
-          hologramIndex = Math.min(cards.length - 1, Math.max(0, Math.round(focus)));
+        const wanted = Math.min(cards.length - 1, Math.max(0, Math.round(focus)));
+        // `focus` runs on past the last card through the finish: never re-compose the same one.
+        if (wanted !== hologramIndex && (hologramIndex < 0 || Math.abs(focus - hologramIndex) > 0.5 + HOLOGRAM_HYSTERESIS)) {
+          hologramIndex = wanted;
           if (!hologram) {
             // Handed to the model on its first drawn card (no empty frame before), glitching every swap.
             const model = helix;
@@ -480,6 +498,14 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         layoutInk = ink;
         layout = layoutFor(w, h, coarse, ink);
       }
+
+      // The scroll's speed, in viewports a second, eased so a flick decays instead of flickering.
+      if (dt > 0 && Number.isFinite(lastScrollY) && h > 0) {
+        const rate = Math.abs(scrollY - lastScrollY) / dt / h / SCROLL_SPEED_FULL;
+        const target = rate > 1 ? 1 : rate;
+        scrollSpeed = target > scrollSpeed ? target : damp(scrollSpeed, target, SCROLL_SPEED_LAMBDA, dt);
+      }
+      lastScrollY = scrollY;
 
       const heroExit = probe.live ? scrollProgress(scrollY, probe.heroExit) : 0;
       const entrySpan = probe.live && probe.services ? probe.entry : null;
@@ -596,7 +622,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       /* the cards, laid out for the focus the helix just turned to (nothing before it is built) */
       if (driver) {
         try {
-          driver.write({ focus: helixFrame.focus, built: helixDone && !helixFailed });
+          // `fx.work` is the timed Work gate: the cards assemble onto the helix as it forms.
+          driver.write({ focus: helixFrame.focus, built: helixDone && !helixFailed, enter: fx.work.value });
         } catch (error) {
           failHelix(error);
         }

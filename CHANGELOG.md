@@ -16,6 +16,77 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: spirala ADN — intrare animată, circulație 3D reală și un final care se încheie
+
+Clientul s-a uitat la spirala din „Proiectele care ne reprezintă” și a spus că e prea simplă, că
+rotirea prin ADN arată urât și că finalul „pur și simplu se blochează”. Toate trei erau adevărate.
+
+**Rotirea.** Cardurile nu se întorceau deloc: driverul le scria doar poziție, scară și opacitate,
+deci alunecau lateral una peste alta. Acum fiecare card primește o **poziție 3D derivată din
+propriul unghi pe elice** — se rotește în lături pe măsură ce trece în spate și revine cu fața când
+se întoarce în față, se înclină ușor pe panta firului și e împins în adâncime pe jumătatea
+îndepărtată a orbitei (niciodată spre cameră, deci cutia lui proiectată doar se micșorează).
+`perspective(1200px)` se scrie **pe card**, nu pe pistă: pe pistă ar crea un context de stivuire și
+ar scoate cardurile din spate de sub canvas. Cum toate cardurile stau în aceeași celulă de grilă,
+punctul de fugă rămâne comun. Cardul din față e la zero, deci randarea și contrastul lui nu se
+schimbă cu nimic. Un test nou mătură focusul 0→8 la cinci lățimi și verifică să nu existe niciun
+salt între carduri vecine.
+
+**Intrarea.** Înainte cardurile pur și simplu *erau* acolo. Acum secțiunea are o intrare
+**cronometrată**, pe poarta Work existentă (1,2s), eșalonată card cu card de-a lungul firului: un
+card pornește pliat pe axa firului, mic și întors, și se desface pe locul lui, în timp ce roiul vine
+de la modelul de servicii și elicea se formează. Poarta merge pe ceasul ei, nu pe scroll, deci se
+termină întotdeauna și nu poate rămâne pe jumătate.
+
+**Finalul.** Cauza blocajului, măsurată: focusul ajungea pe ultimul card cu **234px** de scroll
+înainte ca acesta să se desprindă din poziția lipită (346px pe tabletă), iar în banda aceea
+transformarea fiecărui card era identică octet cu octet. Mai rău, elicea *nu* îngheța odată cu ele —
+zona ei se oprea în alt punct, așa că pleca din cadru fără carduri. Acum pista primește încă **1,35
+pași de card**, focusul curge mai departe cu exact aceeași viteză (fără schimbare de ritm la
+predare), cardurile se pliază pe axa firului și dispar, iar elicea se răsucește, își strânge firele
+într-un fascicul și se dizolvă — fix când cardurile se desprind și secțiunea următoare intră în
+cadru. Elicea și cardurile rămân legate pe tot parcursul finalului.
+
+**Elicea răspunde vizitatorului**, fără niciun desen nou: viteza scrollului accelerează pachetele,
+biții 0/1 și cometa de pe trepte și ridică strălucirea; sosirea unui proiect în față sau schimbul
+hologramei aprind firele ~0,55s. Sunt doar valori trimise altfel către placa video.
+
+Un card estompat sub 8% opacitate nu mai preia clicul (înainte îl prelua).
+
+### Verificare
+
+| Ce | Rezultat |
+| --- | --- |
+| Unit | 1.534 teste / 72 fișiere (erau 1.531); build + `tsc` + lint curate |
+| E2E | `interior-webgl` 24 + `interior` 22 = 46, rulate de două ori pe două build-uri |
+| Teste noi | 8: poziția 3D, invariantul „niciodată spre cameră”, continuitatea rotirii, eșalonarea intrării, lungimea și ritmul finalului |
+| Contrast card-front | 100% din pixeli trec, pe 48 de combinații (nume min 4,19 · etichete 7,83 · descriere 6,16) |
+| Titlul „Lucrări” | 0 pixeli schimbați de scenă în modul spirală |
+| Desene/cadru | 5 în spirală (neschimbat), **0 la finalul secțiunii** (înainte: 5) |
+
+### Greutate (gzip)
+
+| Caz | Înainte | Acum | Δ |
+| --- | --- | --- | --- |
+| bucata comună three | 271.060 | 271.950 | +890 B |
+| B2 total | 597.292 | 598.187 | +895 B |
+| B3 total | 606.499 | 607.394 | +895 B |
+| B1 / B4 total | 295.301 / 263.460 | 295.306 / 263.465 | +5 B |
+| JS târziu | — | — | 0 |
+
+Pagina crește cu ~410px la 1280×800 (530px la 768×1024) — scrollul propriu al finalului, care
+înlocuiește ~234px de scroll înghețat.
+
+**Rămâne de îmbunătățit:** la 1280px cardurile acoperă elicea aproape tot parcursul (se vede ca ADN
+abia la final); laboratorul de contrast măsoară o cutie aliniată pe axe, care pentru un card rotit
+prinde și pixeli din afara lui; ultimii ~150px dinaintea secțiunii următoare rămân goi; WebKit nu e
+verificat (suita e Chromium).
+
+Fișiere: `components/scene/helix.ts`, `components/scene/workHelix.ts`,
+`components/scene/three/models/helix.ts`, `components/scene/three/world.ts` și testele
+`scene-helix`, `scene-helix-model`, `scene-build`.
+Documentație: [docs/05](./docs/05-page-sections.md) · [docs/04](./docs/04-design-system.md).
+
 ## 2026-09-18 — Fixed: trei teste care cădeau doar când mașina e încărcată
 
 Trei teste măsurau, fără să vrea, viteza mașinii, nu comportamentul aplicației. Cădeau la rulările

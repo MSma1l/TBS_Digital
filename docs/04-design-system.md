@@ -373,8 +373,19 @@ hidden, forced WebGL, **12 frames**, every pixel under a text line box.
   header whenever the helix is formed.
 - **Spiral (from 768px): the canvas changes no pixel of Work's heading** at 1280×800 and 1024×768,
   and the front card's name and chips stay 100% at every focus measured at 1280, 1024 and 768 (the
-  name ≥ 3.14:1 mid-turn, large text; the chips ≥ 9.1:1). Only a side card fading out lets a little
-  of the helix through (a few pixels of its name down to 1.84:1 at 768).
+  name ≥ 4.19:1 mid-turn, large text; the chips ≥ 7.83:1; the description ≥ 6.16:1 — re-measured
+  over 48 combinations after the cards were given their 3D pose). Only a side card fading out lets
+  a little of the helix through.
+- **The card's 3D pose** (the same measurement): a card is turned by 0.62 of its own angle round
+  the strand, leans up to 0.055rad along the strand's rise and is pushed **away** from the camera
+  by up to 260px — never towards it, so its projected box only ever shrinks and the layout clamp
+  stays a valid bound. `perspective(1200px)` is written **on the card**, not on the track: on the
+  track it would make a stacking context and lift the cards behind the helix out from under the
+  canvas. The front card is posed at zero, so the contrast figures above are measured on exactly
+  the transform a grid card has. Side and back cards are translucent by design and the helix shows
+  through them; note that the calibration lab samples an axis-aligned box, which for a turned card
+  now also catches pixels outside it, so those readings are no longer comparable with the ones
+  taken before the pose.
 - The light theme's heading has pixels under 4.5:1 on the HUD grid's 1px lines (eyebrow 92.99–99.92%,
   lead 99.94–99.98%, minimum 4.07–4.49), with or without the canvas and before Phase 3 alike.
 

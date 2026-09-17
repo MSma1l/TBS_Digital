@@ -9,19 +9,27 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Work } from "@/components/sections/Work";
 import {
+  HELIX_ENTER,
   HELIX_FRONT_ATTR,
   HELIX_LAYOUT,
+  HELIX_OUTRO,
   WORK_HELIX_MEDIA,
   createCardPose,
   focusFromProgress,
   helixCardHeight,
   helixCardWidth,
   helixEdge,
+  helixExitAt,
+  helixExitLength,
+  helixFocusAt,
+  helixForm,
   helixLayout,
+  helixOutro,
   helixStep,
   nearestCard,
   scrollForCard,
   wantedHelixMode,
+  type CardPhase,
   type CardPose,
 } from "@/components/scene/helix";
 import { HELIX_ANGLE } from "@/components/scene/shapes";
@@ -42,8 +50,18 @@ const SCENE_HEIGHTS = [529, 697, 729, 953] as const;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const r4 = (v: number) => Math.round(v * 10000) / 10000;
 
-function poses(n: number, focus: number, w: number, sceneH: number): CardPose[] {
-  return Array.from({ length: n }, (_, i) => helixLayout(i, focus, w, sceneH, createCardPose()));
+function poses(n: number, focus: number, w: number, sceneH: number, phase?: CardPhase): CardPose[] {
+  return Array.from({ length: n }, (_, i) => helixLayout(i, focus, w, sceneH, createCardPose(), phase));
+}
+
+/** The transform the driver writes for a pose (workHelix.ts). */
+function transformOf(p: CardPose): string {
+  const deg = (r: number) => r2((r * 180) / Math.PI);
+  return (
+    `perspective(${HELIX_LAYOUT.camera.depth}px) ` +
+    `translate3d(${r2(p.x)}px, ${r2(p.y)}px, ${r2(p.tz)}px) ` +
+    `scale(${r4(p.scale)}) rotateY(${deg(p.rotY)}deg) rotateX(${deg(p.rotX)}deg)`
+  );
 }
 
 describe("helix layout — constants and clamps", () => {
@@ -145,6 +163,154 @@ describe("helixLayout — the spiral", () => {
   });
 });
 
+describe("helixLayout — the 3D pose", () => {
+  it("the card at the focus is square to the camera; every other one turns with its own angle", () => {
+    const at = (d: number) => helixLayout(0, -d, 1280, 729, createCardPose());
+    expect(at(0).rotY).toBe(0);
+    expect(at(0).rotX).toBeCloseTo(0, 12);
+    expect(at(0).tz).toBeCloseTo(0, 12);
+    // rotateY follows the angle round the strand, damped; rotateX leans along its rise.
+    for (const d of [-2.4, -1, -0.3, 0.3, 1, 2.4]) {
+      const p = at(d);
+      expect(p.rotY).toBeCloseTo(HELIX_LAYOUT.turn.y * d * HELIX_ANGLE, 12);
+      expect(Math.sign(p.rotY)).toBe(Math.sign(d));
+      expect(Math.abs(p.rotX)).toBeLessThanOrEqual(HELIX_LAYOUT.turn.x * HELIX_LAYOUT.turn.xMax + 1e-12);
+      expect(Math.sign(p.rotX || 1)).toBe(-Math.sign(d) || 1);
+    }
+    // The lean is capped, so a far card never lies flat.
+    expect(at(9).rotX).toBeCloseTo(-HELIX_LAYOUT.turn.x * HELIX_LAYOUT.turn.xMax, 12);
+  });
+
+  it("depth is never towards the camera: the far half of the orbit is pushed away, and only that", () => {
+    for (let d = -4.5; d <= 4.5; d += 0.01) {
+      const p = helixLayout(0, -d, 1280, 729, createCardPose());
+      expect(p.tz, `d ${d}`).toBeLessThanOrEqual(0);
+      expect(p.tz, `d ${d}`).toBeGreaterThanOrEqual(-HELIX_LAYOUT.camera.back);
+      // Back of the strand ⇒ furthest away; facing ⇒ on the camera's plane.
+      expect(p.tz).toBeCloseTo((-HELIX_LAYOUT.camera.back * (1 - p.z)) / 2, 12);
+    }
+  });
+
+  it("turns continuously: no step in any channel between neighbouring focuses", () => {
+    const keys = ["x", "y", "tz", "scale", "rotY", "rotX", "opacity"] as const;
+    for (const w of WIDTHS) {
+      let previous = poses(9, 0, w, 729);
+      for (let focus = 0.02; focus <= 8; focus += 0.02) {
+        const now = poses(9, focus, w, 729);
+        for (let i = 0; i < 9; i += 1) {
+          for (const key of keys) {
+            const jump = Math.abs(now[i][key] - previous[i][key]);
+            const limit = key === "y" || key === "x" || key === "tz" ? 12 : 0.15;
+            expect(jump, `w ${w} focus ${focus} card ${i} ${key}`).toBeLessThan(limit);
+          }
+        }
+        previous = now;
+      }
+    }
+  });
+});
+
+describe("the entrance and the finish", () => {
+  it("helixForm: timed, staggered along the strand, and always reaching 1", () => {
+    // A shut gate has nothing formed; a closed one has everything, whatever the stagger.
+    for (let i = 0; i < 9; i += 1) {
+      expect(helixForm(0, i, 0)).toBe(0);
+      expect(helixForm(1, i, 0)).toBe(1);
+    }
+    // The card at the focus leads; each one further along the strand lands later, up to `span`.
+    const at = (gate: number) => Array.from({ length: 5 }, (_, i) => helixForm(gate, i, 0));
+    const mid = at(0.75);
+    for (let i = 1; i < mid.length; i += 1) expect(mid[i]).toBeLessThanOrEqual(mid[i - 1]);
+    expect(mid[0]).toBeGreaterThan(0);
+    expect(helixForm(HELIX_ENTER.from, 0, 0)).toBe(0);
+    // Beyond `span` steps away they share the last slot: a long list still finishes with the gate.
+    expect(helixForm(0.8, 8, 0)).toBe(helixForm(0.8, HELIX_ENTER.span, 0));
+    // Monotone in the gate, for every card.
+    for (let i = 0; i < 9; i += 1) {
+      let last = -1;
+      for (let g = 0; g <= 1; g += 0.02) {
+        const now = helixForm(g, i, 0);
+        expect(now, `card ${i} gate ${g}`).toBeGreaterThanOrEqual(last);
+        last = now;
+      }
+    }
+  });
+
+  it("helixExitAt: 0 up to the last card's focus, 1 by the end of the finish", () => {
+    const span = { start: 1000, end: 3432 };
+    const len = helixExitLength(VH, LAYER);
+    expect(helixExitAt(span.start, span, len)).toBe(0);
+    expect(helixExitAt(span.end, span, len)).toBe(0);
+    expect(helixExitAt(span.end + len / 2, span, len)).toBeCloseTo(0.5, 12);
+    expect(helixExitAt(span.end + len, span, len)).toBe(1);
+    expect(helixExitAt(span.end + 9999, span, len)).toBe(1);
+    expect(helixExitAt(Number.NaN, span, len)).toBe(0);
+    expect(helixExitAt(span.end + 100, span, 0)).toBe(0);
+  });
+
+  it("helixFocusAt runs the focus on through the finish at exactly the cards' own rate", () => {
+    const span = { start: 1000, end: 1000 + 8 * STEP };
+    const len = helixExitLength(VH, LAYER);
+    const at = (y: number) => helixFocusAt(y, span, 9, STEP, len);
+    for (let i = 0; i <= 8; i += 1) expect(at(span.start + i * STEP)).toBeCloseTo(i, 9);
+    // One step of scroll is one card of focus either side of the last card's.
+    expect(at(span.end + STEP) - at(span.end)).toBeCloseTo(1, 9);
+    expect(at(span.end) - at(span.end - STEP)).toBeCloseTo(1, 9);
+    expect(at(span.end + len)).toBeCloseTo(8 + len / STEP, 9);
+    expect(at(span.end + len + 5000)).toBeCloseTo(8 + len / STEP, 9);
+    expect(at(span.start - 5000)).toBe(0);
+  });
+
+  it("the finish runs past the track it added: over the slack a sticky card still has", () => {
+    // The track carries `helixOutro`; the finish also uses the centring slack under the layer,
+    // which is exactly the stretch the spiral used to freeze in.
+    expect(helixOutro(800)).toBeCloseTo(HELIX_OUTRO.steps * helixStep(800), 12);
+    expect(helixOutro(500)).toBeCloseTo(HELIX_OUTRO.steps * 240, 12);
+    for (const sceneH of SCENE_HEIGHTS) {
+      const slack = (sceneH - helixCardHeight(sceneH)) / 2;
+      expect(helixExitLength(VH, sceneH)).toBeCloseTo(helixOutro(VH) + slack, 12);
+      expect(helixExitLength(VH, sceneH)).toBeGreaterThan(helixOutro(VH));
+    }
+    // The floor card is `helixCardHeight` of the layer, so the slack grows with it, never negative.
+    expect(helixExitLength(VH, 0)).toBeCloseTo(helixOutro(VH), 12);
+  });
+
+  it("both ends fold the deck onto the strand's axis, and neither leaves the zone", () => {
+    const axis = (HELIX_LAYOUT.cx - 0.5) * 1280;
+    const settled = poses(9, 4, 1280, 729);
+    for (const phase of [{ form: 0, exit: 0 }, { form: 1, exit: 1 }]) {
+      const folded = poses(9, 4, 1280, 729, phase);
+      for (let i = 0; i < 9; i += 1) {
+        expect(folded[i].opacity, `card ${i}`).toBe(0);
+        expect(folded[i].scale).toBeLessThan(settled[i].scale);
+        expect(folded[i].tz).toBeLessThan(settled[i].tz + 1e-9);
+        expect(Math.abs(folded[i].x - axis)).toBeLessThan(Math.abs(settled[i].x - axis) + 1e-9);
+      }
+    }
+    // Every part-way pose is inside the zone too, at every width.
+    for (const w of WIDTHS) {
+      const edge = helixEdge(w);
+      const cardW = helixCardWidth(w);
+      for (const t of [0.15, 0.4, 0.7, 0.95]) {
+        for (const phase of [{ form: 1 - t, exit: 0 }, { form: 1, exit: t }]) {
+          for (let focus = 0; focus <= 8; focus += 0.5) {
+            for (const p of poses(9, focus, w, 729, phase)) {
+              expect(w / 2 + p.x - (cardW * p.scale) / 2).toBeGreaterThanOrEqual(edge - 1e-9);
+              expect(w / 2 + p.x + (cardW * p.scale) / 2).toBeLessThanOrEqual(w - edge + 1e-9);
+              expect(p.tz).toBeLessThanOrEqual(0);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("a settled phase is the pose the spiral has all the way through", () => {
+    const row = (p: CardPose) => [r2(p.x), r2(p.y), r4(p.scale), r2(p.opacity), p.zIndex];
+    expect(poses(9, 3.4, 1280, 729, { form: 1, exit: 0 }).map(row)).toEqual(poses(9, 3.4, 1280, 729).map(row));
+  });
+});
+
 describe("scroll ↔ focus", () => {
   const span = { start: 2929, end: 5361 };
 
@@ -207,6 +373,12 @@ const TRACK_LEFT = 40;
 const TRACK_W = 1200;
 const GRID = { cardH: 244, gap: 14, cols: 3 };
 const STEP = helixStep(VH);
+/** The finish's own scroll: part of the track, never part of the focus span… */
+const OUTRO = helixOutro(VH);
+/** …and how far it runs, which is that plus a sticky card's centring slack under the layer. */
+const EXIT_LEN = helixExitLength(VH, LAYER);
+/** The whole track the driver lays out: the layer, one step per card after the first, the finish. */
+const TRACK_H = LAYER + 8 * STEP + OUTRO;
 
 class FakeIO {
   static all: FakeIO[] = [];
@@ -394,7 +566,8 @@ describe("workHelix — when the spiral applies", () => {
     driver.write({ focus: 0, built: true });
     expect(driver.mode()).toBe("spiral");
     expect(modes).toEqual(["spiral"]);
-    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${LAYER + 8 * STEP}px`);
+    // The layer, one `helixStep` per card after the first, then the finish's own scroll.
+    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${TRACK_H}px`);
     expect(track.style.getPropertyValue("grid-template-columns")).toBe("100%");
     for (const card of cards) {
       expect(card.style.position).toBe("sticky");
@@ -486,13 +659,24 @@ describe("workHelix — when the spiral applies", () => {
     }
   });
 
-  it("measures its own span: track top under the header → track bottom at the viewport's", () => {
+  it("measures its own span: track top under the header → track bottom at the viewport's, less the finish", () => {
     const { driver } = spiral(9);
     const span = { start: TRACK_TOP - HEADER, end: TRACK_TOP - HEADER + 8 * STEP };
     expect(driver.focus(span.start - 500)).toBe(0);
     expect(driver.focus(span.start)).toBe(0);
     expect(driver.focus(scrollForCard(4, 9, span))).toBeCloseTo(4, 9);
-    expect(driver.focus(span.end + 900)).toBe(8);
+    // Past the last card the focus keeps running at the same rate over the finish, then stops.
+    expect(driver.focus(span.end)).toBeCloseTo(8, 9);
+    expect(driver.focus(span.end + STEP)).toBeCloseTo(9, 9);
+    expect(driver.focus(span.end + EXIT_LEN)).toBeCloseTo(8 + EXIT_LEN / STEP, 9);
+    expect(driver.focus(span.end + EXIT_LEN + 900)).toBeCloseTo(8 + EXIT_LEN / STEP, 9);
+    // The finish's own 0..1, which is what the helix and the fold read.
+    expect(driver.exit(span.end)).toBe(0);
+    expect(driver.exit(span.end + EXIT_LEN / 2)).toBeCloseTo(0.5, 9);
+    expect(driver.exit(span.end + EXIT_LEN)).toBeCloseTo(1, 12);
+    expect(driver.exit(span.end + 9999)).toBe(1);
+    // …and the cards' own cadence is untouched: one `helixStep` apart, as before the finish.
+    expect(driver.focus(span.start + 3 * STEP)).toBeCloseTo(3, 9);
     driver.dispose();
   });
 
@@ -501,10 +685,10 @@ describe("workHelix — when the spiral applies", () => {
     probe.layerH = 529;
     Object.defineProperty(window, "innerHeight", { configurable: true, writable: true, value: 600 });
     driver.write({ focus: 0, built: true });
-    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${LAYER + 8 * STEP}px`); // same version: kept
+    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${TRACK_H}px`); // same version: kept
     probe.version += 1;
     driver.write({ focus: 0, built: true });
-    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${529 + 8 * 240}px`);
+    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${529 + 8 * 240 + helixOutro(600)}px`);
     expect(driver.focus(TRACK_TOP - HEADER + 4 * 240)).toBeCloseTo(4, 9);
     driver.dispose();
   });
@@ -520,10 +704,11 @@ describe("workHelix — the spiral per frame", () => {
       expect(cards.filter((c) => c.hasAttribute(HELIX_FRONT_ATTR))).toEqual([cards[front]]);
       for (const [i, card] of cards.entries()) {
         const p = helixLayout(i, focus, TRACK_W, LAYER, createCardPose());
-        expect(card.style.transform).toBe(`translate3d(${r2(p.x)}px, ${r2(p.y)}px, 0) scale(${r4(p.scale)})`);
+        expect(card.style.transform).toBe(transformOf(p));
         expect(card.style.zIndex).toBe(String(p.zIndex));
         expect(Number(card.style.opacity)).toBeCloseTo(p.opacity, 3);
-        expect(card.style.pointerEvents).toBe(p.face === "front" ? "auto" : "none");
+        // A card faded out of the picture takes no pointer either, whichever way it faces.
+        expect(card.style.pointerEvents).toBe(p.face === "front" && p.opacity >= 0.08 ? "auto" : "none");
       }
     }
     expect(cards.some((c) => Number(c.style.zIndex) < 0)).toBe(true);
@@ -592,7 +777,7 @@ describe("workHelix — the spiral per frame", () => {
     driver.write({ focus: 2.40005, built: true });
     expect(cards[2].style.transform).toBe("none");
     driver.write({ focus: 2.41, built: true });
-    expect(cards[2].style.transform).toMatch(/^translate3d\(/);
+    expect(cards[2].style.transform).toMatch(/^perspective\(1200px\) translate3d\(/);
     driver.dispose();
   });
 
@@ -690,12 +875,15 @@ describe("workHelix — restore", () => {
   it("past the spiral's end it keeps what follows the track still; below Work it scrolls nothing", () => {
     const past = spiral(9);
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
-    const y = TRACK_TOP + LAYER + 8 * STEP - 600; // the track's bottom is on screen
+    const y = TRACK_TOP + TRACK_H - 600; // the track's bottom is on screen
     setScroll(y);
-    const bottomBefore = TRACK_TOP + LAYER + 8 * STEP - y;
+    const bottomBefore = TRACK_TOP + TRACK_H - y;
     past.driver.dispose();
     const gridBottom = TRACK_TOP + 3 * GRID.cardH + 2 * GRID.gap - y;
-    expect(scrollTo).toHaveBeenCalledWith({ top: y + (gridBottom - bottomBefore), behavior: "instant" });
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    const to = scrollTo.mock.calls[0][0] as ScrollToOptions;
+    expect(to.behavior).toBe("instant");
+    expect(to.top).toBeCloseTo(y + (gridBottom - bottomBefore), 6);
 
     scrollTo.mockClear();
     const above = spiral(9);
@@ -922,7 +1110,7 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
     expect(styleOf(cards)).toEqual(laidOut);
     expect(cards[0].style.getPropertyValue("--p1")).toBe(p1);
     expect(cards[1].style.position).toBe("sticky");
-    expect(cards[1].style.transform).toMatch(/^translate3d\(/);
+    expect(cards[1].style.transform).toMatch(/^perspective\(1200px\) translate3d\(/);
 
     driver.dispose();
     expect(styleOf(cards)).toEqual(rendered);

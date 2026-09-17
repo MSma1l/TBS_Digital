@@ -7,6 +7,14 @@
  * together; there is no idle spin (life comes from the packets, the rung sweep, the bits and the
  * chips at the front brightening).
  *
+ * What the visitor does reaches it through the frame, without a single extra draw:
+ *   · `speed` — the scroll's own pace runs the packet clock and lifts the glow, so a flick down
+ *     the page races the strand and a still page settles back;
+ *   · `pulse()` — a project arriving at the front, or the hologram swapping to it, flares the
+ *     strands, the chips and the rungs over `HELIX_PULSE_SECONDS` (uniforms only, no new draw);
+ *   · `exit` — the spiral's finish (helix.ts `helixExitAt`): the pivot winds up, the strands are
+ *     drawn into a beam and the whole model dissolves away, so Work ends instead of stopping.
+ *
  * Draws (one idle compile slice each), all on the existing programs:
  *   · strands (P5 links): both tubes in one geometry, `aTag` 0 on A (outgoing: packets climb) and
  *     1.5 on B (incoming: packets run down, hot);
@@ -84,6 +92,18 @@ export type HelixFrame = {
    * text). Out of range clamps; not finite counts as 1.
    */
   dim?: number;
+  /**
+   * The spiral's finish, 0..1 (helix.ts `helixExitOf`): past the last card the helix winds up,
+   * draws itself into a beam and dissolves, so the section resolves instead of stopping dead.
+   * Absent or not finite counts as 0.
+   */
+  exit?: number;
+  /**
+   * How fast the page is being scrolled, 0 (still) .. 1 (a viewport and more per second): the
+   * packets, the bits and the rung comet run with it, so the strand answers the visitor's hand.
+   * Absent or not finite counts as 0.
+   */
+  speed?: number;
 };
 
 export type HelixModel = {
@@ -96,6 +116,8 @@ export type HelixModel = {
   setAccent(color: Color | null): void;
   setHologram(texture: CanvasTexture | null): void;
   glitch(): void;
+  /** A card has arrived at the front: the strands, chips and rungs flare for `HELIX_PULSE_SECONDS`. */
+  pulse(): void;
   setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
   dispose(): void;
@@ -114,6 +136,24 @@ export const HELIX_ACCENT_SECONDS = 0.4;
 export const HELIX_GLITCH_SECONDS = 0.35;
 /** Seconds for one comet sweep up the rungs. */
 export const HELIX_SWEEP_SECONDS = 5;
+/** Seconds for an arrival flare to decay from 1 to 0. */
+export const HELIX_PULSE_SECONDS = 0.55;
+/**
+ * The finish, as the model draws it (`helixExitPose`): the pivot winds up `spin` radians on top of
+ * the focus's own turn, the strands are drawn in to `narrow` of their radius and stretched to
+ * `tall` of their height — a beam — and the voxel dissolve takes them away over `fade`. The
+ * hologram shrinks to `holo` of its size on the way out.
+ */
+export const HELIX_EXIT = { spin: 2.2, narrow: 0.42, tall: 1.5, fade: [0.55, 1], holo: 0.55 } as const;
+/**
+ * How much a flare (`pulse`) and the scroll's own speed add: a multiplier on each draw's
+ * `uIntensity`, and — for the speed — on the packet clock, so a fast scroll races the strand.
+ * Both are 0 on a still page with no arrival, which is exactly `dim` on every draw.
+ */
+export const HELIX_DRIVE = {
+  pulse: { strands: 0.55, chips: 0.95, rungs: 0.6, bits: 0.5 },
+  speed: { clock: 2.6, glow: 0.35 },
+} as const;
 /** Tilt, radians at full pointer lean: the helix a little, the hologram a little more. */
 const TILT = { x: 0.08, y: 0.12, holo: 1.35 } as const;
 /** A bit glyph (model units): its box and the break at each seven-segment joint. */
@@ -134,6 +174,27 @@ export function helixDim(dim: number | undefined): number {
 
 const AMBIENT_ROLL_MATRIX = new Matrix4().makeRotationZ(HELIX_AMBIENT_ROLL);
 
+const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
+const smoothstep = (a: number, b: number, v: number) => {
+  const t = clamp01((v - a) / (b - a || 1));
+  return t * t * (3 - 2 * t);
+};
+
+/**
+ * Pure. What the finish does to the model at `exit` (0..1): how much of the frame's reveal is
+ * left (the dissolve eats the rest), the extra wind-up in radians, and the strand's shape — it
+ * narrows and stretches into a beam as it goes.
+ */
+export function helixExitPose(exit: number): { reveal: number; spin: number; narrow: number; tall: number } {
+  const e = clamp01(exit);
+  return {
+    reveal: 1 - smoothstep(HELIX_EXIT.fade[0], HELIX_EXIT.fade[1], e),
+    spin: HELIX_EXIT.spin * e * e,
+    narrow: 1 - (1 - HELIX_EXIT.narrow) * e,
+    tall: 1 + (HELIX_EXIT.tall - 1) * e,
+  };
+}
+
 /**
  * Lay the hologram out from screen px (the spiral layout's `holo` box): its centre `dx` right of
  * and `dy` above the helix's centre, `width` px wide (16:10), for a `group` drawn at `pxPerUnit`
@@ -144,8 +205,14 @@ export function layoutHelixHologram(group: Object3D, dx: number, dy: number, wid
   const hologram = group.getObjectByName(HELIX_HOLOGRAM.name);
   if (!hologram || !(pxPerUnit > 0) || !(width > 0)) return;
   hologram.position.set(dx / pxPerUnit, dy / pxPerUnit, HELIX_HOLOGRAM.z);
-  hologram.scale.setScalar(width / pxPerUnit / HELIX_HOLOGRAM.width);
+  const scale = width / pxPerUnit / HELIX_HOLOGRAM.width;
+  hologram.scale.setScalar(scale);
+  // The size a frame's swap flinch and the finish's shrink are measured against.
+  hologram.userData[HOLOGRAM_BASE] = scale;
 }
+
+/** `userData` key holding the hologram's laid-out scale, so `update` can ripple around it. */
+const HOLOGRAM_BASE = "helixHologramBase";
 
 /**
  * Where the swarm's slot 0 lands: `helixSamples` are the helix upright in `group`'s frame, so in
@@ -345,9 +412,13 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
   let clock = 0;
   let lastTime = Number.NaN;
   let glitchLeft = 0;
+  let pulseLeft = 0;
   let turn = 0;
   let flaredTurn = Number.NaN;
   let dim = 1;
+  /** The last intensities written, so a still frame rewrites nothing. */
+  let drive = Number.NaN;
+  let holoBase = 1;
   /** Where the accent is heading (the card's colour, or the palette's cyan) and where it is. */
   let accentSet = false;
   const accentTarget = new Color();
@@ -368,12 +439,17 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
     if (chipMesh.instanceColor) chipMesh.instanceColor.needsUpdate = true;
   };
 
-  /** Every draw's intensity: `dim` over each one's own base (the hologram's depends on the theme). */
-  const writeIntensity = () => {
-    strands.uniforms.uIntensity.value = dim;
-    chips.uniforms.uIntensity.value = dim;
-    rungs.uniforms.uIntensity.value = dim;
-    bits.uniforms.uIntensity.value = dim;
+  /**
+   * Every draw's intensity: `dim` over each one's own base (the hologram's depends on the theme),
+   * lifted by the arrival flare, the scroll's speed and the strands' slow breath. One number
+   * stands for all three, so a frame where nothing drives it rewrites no uniform.
+   */
+  const writeIntensity = (lift = 0) => {
+    drive = lift;
+    strands.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.strands);
+    chips.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.chips);
+    rungs.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.rungs);
+    bits.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.bits);
     holo.uniforms.uIntensity.value = HOLO_INTENSITY[current.mode] * dim;
   };
 
@@ -406,31 +482,43 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
     objects: [strandMesh, chipMesh, rungLines, bitLines, holoMesh],
 
     update(frame) {
-      const reveal = frame.reveal;
+      const exit = helixExitPose(frame.exit ?? 0);
+      // The finish takes the reveal down itself: what is left of the frame's is what is drawn.
+      const reveal = frame.reveal * exit.reveal;
       group.visible = reveal > 0 || frame.prewarm;
       const dt = Number.isFinite(lastTime) ? Math.min(0.1, Math.max(0, frame.time - lastTime)) : 0;
       lastTime = frame.time;
       if (!group.visible) return;
 
       turn = -frame.focus * HELIX_ANGLE;
-      pivot.rotation.y = turn;
+      pivot.rotation.y = turn - exit.spin;
+      // Spiral only: the finish draws the strands into a beam. Ambient never has an exit.
+      orient.scale.set(exit.narrow, exit.tall, exit.narrow);
       tilt.rotation.set(-frame.ty * TILT.x, frame.tx * TILT.y, 0);
       holoMesh.rotation.set(-frame.ty * TILT.x * TILT.holo, frame.tx * TILT.y * TILT.holo, 0);
       showHologram(frame.prewarm);
       const nextDim = helixDim(frame.dim);
-      if (nextDim !== dim) {
-        dim = nextDim;
-        writeIntensity();
-      }
 
-      clock += Number.isFinite(frame.step) && frame.step > 0 ? frame.step : 0;
+      const speed = clamp01(frame.speed ?? 0);
+      const step = Number.isFinite(frame.step) && frame.step > 0 ? frame.step : 0;
+      // The packets, the bits and the rung comet run on this clock: the faster the page moves, the
+      // faster the strand carries. A still page still has them — the clock keeps its own step.
+      clock += step * (1 + HELIX_DRIVE.speed.clock * speed);
       if (Math.abs(turn - flaredTurn) > 1e-4 || !Number.isFinite(flaredTurn)) writeFlares();
 
       if (dt > 0) {
         accentNow.lerp(accentTarget, 1 - Math.exp(-dt / (HELIX_ACCENT_SECONDS / 3)));
         glitchLeft = Math.max(0, glitchLeft - dt / HELIX_GLITCH_SECONDS);
+        pulseLeft = Math.max(0, pulseLeft - dt / HELIX_PULSE_SECONDS);
       }
       writeAccent();
+
+      // Nothing driving it is exactly `dim`: a still page rewrites no uniform.
+      const lift = pulseLeft * pulseLeft + HELIX_DRIVE.speed.glow * speed;
+      if (nextDim !== dim || lift !== drive) {
+        dim = nextDim;
+        writeIntensity(lift);
+      }
 
       strands.uniforms.uTime.value = clock;
       strands.uniforms.uReveal.value = reveal;
@@ -444,6 +532,12 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       holo.uniforms.uTime.value = frame.time;
       holo.uniforms.uReveal.value = reveal;
       holo.uniforms.uGlitch.value = glitchLeft;
+      // The hologram flinches on a swap and shrinks away with the finish.
+      const base = holoMesh.userData[HOLOGRAM_BASE];
+      holoBase = typeof base === "number" && base > 0 ? base : holoBase;
+      holoMesh.scale.setScalar(
+        holoBase * (1 + 0.07 * glitchLeft) * (1 - (1 - HELIX_EXIT.holo) * clamp01(frame.exit ?? 0)),
+      );
     },
 
     setMode(next) {
@@ -465,6 +559,12 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
 
     glitch() {
       if (!lite) glitchLeft = 1;
+      // The flare is a uniform, not a draw: a swap reads as an event on lite too.
+      pulseLeft = 1;
+    },
+
+    pulse() {
+      pulseLeft = 1;
     },
 
     setLite(next) {
