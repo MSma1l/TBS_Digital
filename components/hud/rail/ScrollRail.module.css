@@ -1,0 +1,362 @@
+/* The fibre-optic scroll rail (ScrollRail.tsx).
+
+   Placement is the HUD contract in docs/04 (critique R2): a fixed 44px column on the right edge,
+   from 16px under the header down to --hud-bottom (4px above the Ghid TBS avatar's box), at
+   --z-rail — under the OS layer, the guide, the burger overlay, the dialog and the intro, which
+   cover it with no hide logic. Desktop only: HudChrome mounts it at 861px and up, and the media
+   query below is the safety net.
+
+   Inside the column, the fibre and the nav are inset by half a marker (22px) at both ends, so
+   every 44×44 button stays inside the rail box: clear of the header above and the avatar below.
+   Ticks and buttons share that origin — a button is centred on its tick.
+
+   Material: Neon Cyan graphics (≥3:1 in both themes), labels in --txt on --glass-bg-solid
+   composited over --bg. No backdrop-filter and no filter: the rail sits over the live WebGL
+   canvas.
+
+   Shapes: a line, a streak, diamonds (rotated squares, no radius) and square rings — no dots
+   (decorative-dots rule).
+
+   Motion (WCAG 2.2.2): the flow streak travels only while the visitor scrolls (`data-flowing`,
+   dropped 180ms after the last scroll event) and a crossed tick pulses once (0.7s). Keyframes
+   animate transform-family properties and opacity only, and every animation and transition lives
+   inside `prefers-reduced-motion: no-preference`: under reduce the rail is static. The thread and
+   the head follow the scroll position itself, which is the visitor's own movement. */
+
+/* ---- the column ------------------------------------------------------------------------------ */
+
+/* Takes no pointer events: only the marker buttons do. */
+.root {
+  position: fixed;
+  top: calc(var(--header-h) + 16px);
+  right: 0;
+  bottom: var(--hud-bottom);
+  z-index: var(--z-rail);
+  width: var(--hud-rail-w);
+  pointer-events: none;
+}
+
+@media (max-width: 860px) {
+  .root {
+    display: none;
+  }
+}
+
+/* ---- the fibre ------------------------------------------------------------------------------- */
+
+/* A 12px column centred on the rail (its centre line is the buttons' centre), inset half a marker
+   at both ends. Its height is the length the markers are laid out over (railLayout's railPx). */
+.fibre {
+  position: absolute;
+  top: calc(var(--hud-rail-w) / 2);
+  bottom: calc(var(--hud-rail-w) / 2);
+  left: 50%;
+  width: 12px;
+  margin-left: -6px;
+}
+
+/* The unlit core runs the whole rail, fading out at both ends. */
+.core {
+  position: absolute;
+  top: calc(var(--hud-rail-w) / -2);
+  bottom: calc(var(--hud-rail-w) / -2);
+  left: 5px;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    color-mix(in srgb, var(--neon-cyan) 30%, transparent) 10% 90%,
+    transparent
+  );
+}
+
+/* The lit thread: the scroll progress, brightest at its leading end. */
+.thread {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--neon-cyan) 30%, transparent), var(--neon-cyan));
+  box-shadow: 0 0 8px var(--glow-cyan);
+  transform-origin: 50% 0;
+  transform: scaleY(var(--rail-p, 0));
+}
+
+/* The travelling light: a box as long as the lit thread (so a translate of 100% is its end), with
+   a 28px streak painted at its top. Drawn only while the visitor scrolls. */
+.flow {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  width: 2px;
+  height: calc(var(--rail-p, 0) * 100%);
+  overflow: hidden;
+  opacity: 0;
+}
+
+.flow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent, var(--on-accent), transparent) 0 0 / 100% 28px no-repeat;
+  transform: translateY(-28px);
+}
+
+/* The head: a glowing 18px streak riding the thread's end. The box runs the rail less the streak,
+   so translating it by --rail-p × 100% takes the streak from the top (0) to the bottom (1). */
+.head {
+  position: absolute;
+  top: 0;
+  bottom: 18px;
+  left: 4px;
+  width: 4px;
+  transform: translateY(calc(var(--rail-p, 0) * 100%));
+}
+
+.head::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 18px;
+  border-radius: 0;
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--neon-cyan) 35%, transparent), var(--neon-cyan));
+  box-shadow:
+    0 0 10px var(--glow-cyan),
+    0 0 3px var(--neon-cyan);
+}
+
+/* A section's tick: a diamond centred on the line at --y. Hollow ahead, lit once passed. */
+.tick {
+  position: absolute;
+  top: var(--y, 0px);
+  left: 2px;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 0;
+  background-color: var(--bg);
+  rotate: 45deg;
+}
+
+.tick[data-passed] {
+  background-color: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--glow-cyan);
+}
+
+/* The crossing pulse's square ring (a diamond, like its tick). At rest it is not drawn. */
+.tick::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 0;
+  opacity: 0;
+}
+
+/* ---- the nav --------------------------------------------------------------------------------- */
+
+.nav {
+  position: absolute;
+  top: calc(var(--hud-rail-w) / 2);
+  right: 0;
+  bottom: calc(var(--hud-rail-w) / 2);
+  left: 0;
+}
+
+.list {
+  position: relative;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A 44×44 slot centred on its tick. */
+.item {
+  position: absolute;
+  top: var(--y, 0px);
+  right: 0;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+}
+
+/* The hit area: 44×44 (WCAG 2.5.5), transparent over the fibre's tick. The only part of the rail
+   that takes pointer events. */
+.marker {
+  position: relative;
+  display: block;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--txt);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.marker:focus-visible {
+  outline: 2px solid var(--txt);
+  outline-offset: -2px;
+}
+
+/* "You are here" and hover/focus: a short streak leading into the tick from the page side. */
+.markerTick {
+  position: absolute;
+  top: 50%;
+  right: 30px;
+  width: 10px;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--neon-cyan);
+  opacity: 0;
+  scale: 0.3 1;
+  transform-origin: 100% 50%;
+}
+
+.marker[aria-current="true"] .markerTick {
+  opacity: 0.85;
+  scale: 1;
+}
+
+.marker:hover .markerTick,
+.marker:focus-visible .markerTick {
+  opacity: 1;
+  scale: 1;
+  box-shadow: 0 0 6px var(--glow-cyan);
+}
+
+/* The label: the button's accessible name, seen on hover and focus. Hidden by clip and opacity
+   only, so it stays the name; it takes no pointer events, so the hit area stays 44×44.
+   --txt on --glass-bg-solid over --bg: ≥15:1 in both themes. */
+.markerLabel {
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  display: block;
+  max-width: min(420px, calc(100vw - 120px));
+  margin-right: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  translate: 0 -50%;
+  overflow: hidden;
+  border: 1px solid var(--neon-cyan);
+  border-radius: 0;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--glass-bg-solid), var(--glass-bg-solid));
+  box-shadow: var(--sh-md);
+  color: var(--txt);
+  font: var(--fw-bold) var(--fs-xs) / 1.3 var(--font-mono-stack);
+  letter-spacing: 0.08em;
+  text-align: right;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0;
+  clip-path: inset(50%);
+  pointer-events: none;
+}
+
+.marker:hover .markerLabel,
+.marker:focus-visible .markerLabel {
+  opacity: 1;
+  clip-path: none;
+}
+
+/* ---- motion: only when the visitor allows it --------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .markerTick {
+    transition:
+      opacity 0.15s,
+      scale 0.15s;
+  }
+
+  .markerLabel {
+    transition: opacity 0.15s;
+  }
+
+  /* The flow: continuous only while scrolling. */
+  .root[data-flowing] .flow {
+    opacity: 1;
+  }
+
+  .root[data-flowing] .flow::before {
+    animation: rail-flow 0.9s linear infinite;
+  }
+
+  /* The crossing pulse: one shot. The TSX swaps a ↔ b to restart it. */
+  .tick[data-pulse="a"] {
+    animation: rail-pulse-a 0.7s var(--motion-ease-out);
+  }
+
+  .tick[data-pulse="b"] {
+    animation: rail-pulse-b 0.7s var(--motion-ease-out);
+  }
+
+  .tick[data-pulse="a"]::after {
+    animation: rail-ring-a 0.7s var(--motion-ease-out);
+  }
+
+  .tick[data-pulse="b"]::after {
+    animation: rail-ring-b 0.7s var(--motion-ease-out);
+  }
+}
+
+@keyframes rail-flow {
+  from {
+    transform: translateY(-28px);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes rail-pulse-a {
+  from {
+    scale: 1.8;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+@keyframes rail-pulse-b {
+  from {
+    scale: 1.8;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+@keyframes rail-ring-a {
+  from {
+    opacity: 0.9;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 3.2;
+  }
+}
+
+@keyframes rail-ring-b {
+  from {
+    opacity: 0.9;
+    scale: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 3.2;
+  }
+}

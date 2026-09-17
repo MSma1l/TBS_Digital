@@ -16,6 +16,66 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Faza 5: șina de fibră optică (bara de derulare care devine navigație)
+
+A șasea fază a experienței IT aprobate. Pe **desktop (≥861px)**, pe marginea din dreapta, sub
+header și până deasupra colțului ghidului, apare o **șină de fibră optică** de 44px: un fir stins pe
+toată înălțimea, un fir aprins care se umple odată cu derularea, un cap luminos, o dâră care
+călătorește **doar cât timp vizitatorul derulează** și câte un **romb** pentru fiecare secțiune,
+aprins după ce a fost depășit și pulsând o dată la trecerea în jos.
+
+Peste fibră stă o **navigație reală**: `<nav aria-label="Secțiunile paginii">` cu butoane de 44×44,
+fiecare cu eticheta lui la hover și la focus. Apăsat, butonul derulează la secțiunea lui — lin, sau
+instant sub „reduced motion”; activat de la tastatură, **mută și focusul** în secțiune. Fibra în
+sine e `aria-hidden` și nu primește clicuri.
+
+**Derularea nativă rămâne.** Nu e un scroll fals: bara nativă e doar subțiată și colorată cyan
+(`scrollbar-width: thin`). Bara de progres de sus dispare **doar acolo unde există șina**
+(`body:has([data-rail])`); **sub 861px** nu există șină, iar bara de sus e restilizată ca o fibră, cu
+un cap de 18×2px — numai din CSS.
+
+Șina se măsoară singură: marcajele se recalculează la `ResizeObserver` pe document și la evenimentul
+de layout al scenei, pentru că **spirala ADN din Faza 3 crește pista secțiunii „Lucrări”** după ce
+se formează. Cât timp pagina e acoperită (dialog, meniu), șina nu mai scrie nimic.
+
+- matematica pură, în `lib/hud/rail.ts` (progres, secțiuni, marcaje, ținte);
+- interfața, în `components/hud/rail/` (`ScrollRail.tsx`, `ScrollRail.module.css`, `copy.ts`);
+- montarea: `HudChrome` randează șina **numai** cât timp `(min-width: 861px)` se potrivește, citit
+  prin `useSyncExternalStore` — pe telefon bucata de cod nici nu se descarcă.
+
+### Verificare
+
+| Ce | Rezultat |
+| --- | --- |
+| Unit (alpine) | 1.523 teste / 72 fișiere, build + `tsc --noEmit` + lint: 0 erori |
+| E2E (noble) | suita completă 306; `scroll-rail.spec` 9 noi; `hud-integration` 17→23 (HI9–HI11) |
+| Repetări ×3 | `preloader`, `hud-shell`, `interior`, `interior-webgl`, `scroll-rail`: 273 trecute |
+| Mutanți | 4 în `HudChrome` + 1 în `ScrollRail`, toți prinși |
+| Contrast | etichete și marcaje ≥4,5:1 în ambele teme, 320–1280 |
+
+### Greutate (gzip, pagina principală)
+
+| Rând | Înainte | Acum | Notă |
+| --- | --- | --- | --- |
+| B1 | 263.172 | 263.460 | +288 B (CSS-ul fibrei) |
+| B5 | — | 223.976 | limita proprie 224.000 — au rămas 24 B |
+| B1h (după armare) | 9.834 | 13.270 | +3.436 B, bucata șinei, doar pe desktop |
+| H (HTML) | 21.667 | 21.667 | neschimbat — nimic nu se randează pe server |
+
+Bucata șinei: 3.436 B JS + 1.398 B CSS gzip, descărcată abia după armarea HUD-ului.
+
+**Abateri și riscuri:** B5 are doar 24 B marjă, deci orice adăugire la scenă trebuie măsurată; la
+861–1100px zona de atingere a unui marcaj se suprapune cu marginea conținutului pe cel mult 10px;
+culoarea cyan a barei native se moștenește și în dialoguri (acceptat și documentat).
+
+Fișiere: `lib/hud/rail.ts`, `components/hud/rail/*`, `components/hud/HudChrome.tsx`,
+`app/globals.css`, `e2e/{helpers,scroll-rail.spec,hud-integration.spec}.ts`, `e2e/README.md`,
+teste noi `lib/__tests__/rail.test.ts` și `components/__tests__/scroll-rail.test.tsx`.
+Documentație: [docs/03](./docs/03-architecture.md) · [docs/04](./docs/04-design-system.md) ·
+[docs/05](./docs/05-page-sections.md) · [docs/07](./docs/07-conventions.md) ·
+[docs/11](./docs/11-security.md) · [docs/14](./docs/14-testing.md) ·
+[docs/16](./docs/16-i18n-seo.md).
+
 ## 2026-09-17 — Faza 4: Ghid TBS (asistentul holografic care deschide cererea ghidată)
 
 A cincea fază a experienței IT aprobate. În colțul din dreapta-jos al **fiecărei pagini a site-ului**

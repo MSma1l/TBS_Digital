@@ -121,6 +121,19 @@ attribute (`data-guide-topic="service"` on the steps section), not text, so it c
 crawler or a screen reader sees; the guide itself is client-only, rendered after an interaction,
 and never in the server HTML.
 
+**The fibre rail (Phase 5) adds no key either, and reuses four.** `components/hud/rail/copy.ts`
+holds `RAIL_COPY` — the `<nav>`'s name **"Secțiunile paginii" / "Разделы страницы" / "Page
+sections"** and the three home markers the menu has no word for: `top` ("Început" / "Начало" /
+"Start"), `estimare` ("Cerere" / "Заявка" / "Request") and `contact` ("Contact" / "Контакт" /
+"Contact"). The other four home markers read the **header's own catalog keys** through `useT()`
+(`nav.services`, `nav.work`, `nav.about`, `nav.team`, critique R10.4), so the rail and the menu can
+never name the same section differently. On any other page a marker's label is the section's own
+first heading, already localized by the page — whitespace-collapsed and clipped to 60 characters
+with an ellipsis, counted in code points so a clip never splits a character. The rail promises
+nothing: every string is a section's name. Like the guide's, the file has no directive and only
+type imports, so the E2E specs import `RAIL_COPY` and `RAIL_HOME_SECTIONS` instead of retyping the
+words.
+
 ---
 
 ## 2. Crawlable per-language URLs

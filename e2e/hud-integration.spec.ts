@@ -18,6 +18,8 @@ import {
   languageOption,
   liveWebGLContexts,
   modalDialog,
+  railNav,
+  railRoot,
   scrollToY,
   seedConsent,
   seedTheme,
@@ -29,11 +31,13 @@ import {
 
 /*
  * The HUD chrome living on the real site (critique §4, HI1–HI8), with the HUD ARMED: consent
- * seeded, `tbs_hud` not switched off (`HUD_ON`), one pointer move (`armHud`). In Phase 4 the
- * chrome is the Ghid TBS guide alone; these checks are about what it must never take from the
- * page — taps, the header's tab budget, the single dialog and cookie banner, the layout width,
- * the no-dots rule, an untouched <html>/<body>, a clean console and CSP, the lazy heavy
- * libraries, the service pages' lightness, and the home page's own request form.
+ * seeded, `tbs_hud` not switched off (`HUD_ON`), one pointer move (`armHud`). The chrome is the
+ * Ghid TBS guide (Phase 4) and, from 861px, the fibre rail (Phase 5); these checks are about what
+ * it must never take from the page — taps, the header's tab budget, the single dialog and cookie
+ * banner, the layout width, the no-dots rule, an untouched <html>/<body>, a clean console and
+ * CSP, the lazy heavy libraries, the service pages' lightness, and the home page's own request
+ * form. HI9–HI11 are the rail's: no sideways scroll at 861 and 1280, the root untouched after its
+ * jumps, and never under the guide.
  */
 
 test.use({ storageState: HUD_ON });
@@ -153,6 +157,7 @@ test.describe("HUD integration", () => {
     await gotoHydrated(page, "/");
     await armHud(page);
     await expect(guideAvatar(page)).toBeVisible();
+    await expect(railNav(page)).toBeAttached();
     await scrollThrough(page);
     await page.waitForTimeout(1_000);
 
@@ -167,6 +172,8 @@ test.describe("HUD integration", () => {
     await gotoHydrated(page, "/");
     await armHud(page);
     await expect(guideAvatar(page)).toBeVisible();
+    // At 1280 the rail is armed too: its fibre, ticks and markers are inside the scan.
+    await expect(railNav(page)).toBeAttached();
     await scrollThrough(page);
     expect(await decorativeDots(page)).toEqual([]);
     await expectRootUntouched(page, "after arming the HUD and a full scroll");
@@ -182,7 +189,10 @@ test.describe("HUD integration", () => {
     await expect(page.locator("canvas")).toHaveCount(0);
     await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(0);
     expect(await liveWebGLContexts(page)).toBe(0);
-    await expect(page.locator("[data-hud]")).toHaveCount(1);
+    // Two parts at 1280 since Phase 5: the guide and the rail.
+    await expect(page.locator("[data-hud]")).toHaveCount(2);
+    await expect(guideRoot(page)).toHaveCount(1);
+    await expect(railRoot(page)).toHaveCount(1);
   });
 
   test("HI8 the guide is away while #estimare's request form is in view", async ({ page }) => {
@@ -243,4 +253,79 @@ for (const theme of ["light", "dark"] as const satisfies readonly Theme[]) {
       });
     });
   }
+}
+
+/** Two boxes overlap when they share any area (touching edges do not count). */
+type Box = { left: number; top: number; right: number; bottom: number };
+const overlaps = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+
+/** The guide's box, the rail's box and every rail marker's box, in viewport px. */
+const hudBoxes = (page: Page) =>
+  page.evaluate(() => {
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    };
+    return {
+      guide: box(document.querySelector("[data-hud][data-guide]")!),
+      rail: box(document.querySelector("[data-hud][data-rail]")!),
+      markers: Array.from(document.querySelectorAll("[data-hud][data-rail] nav button"), box),
+    };
+  });
+
+for (const width of [861, 1280]) {
+  test.describe(`HUD integration — the fibre rail at ${width}px`, () => {
+    test.use({ viewport: { width, height: 800 } });
+
+    test.beforeEach(async ({ context, baseURL }) => {
+      await seedConsent(context, baseURL!);
+    });
+
+    test(`HI9 no sideways scroll with the rail armed, and the rail inside the right edge (${width})`, async ({ page }) => {
+      await gotoHydrated(page, "/");
+      await armHud(page);
+      await expect(railNav(page)).toBeAttached();
+      await expectNoHorizontalScroll(page);
+      const box = (await railRoot(page).boundingBox())!;
+      expect({ right: Math.round(box.x + box.width), width: Math.round(box.width) }).toEqual({ right: width, width: 44 });
+      await scrollThrough(page);
+      await scrollToY(page, 1e6);
+      await expectNoHorizontalScroll(page);
+    });
+
+    test(`HI10 <html>/<body> untouched after rail jumps (${width})`, async ({ page }) => {
+      await gotoHydrated(page, "/");
+      await armHud(page);
+      const markers = railNav(page).getByRole("button");
+      await expect(markers.first()).toBeAttached();
+      const count = await markers.count();
+      expect(count).toBeGreaterThanOrEqual(3);
+      // Down the page, back to the top, then one keyboard jump (it also moves focus).
+      for (const index of [2, count - 1, 0]) {
+        await markers.nth(index).click();
+        await expect(markers.nth(index)).toHaveAttribute("aria-current", "true", { timeout: 10_000 });
+      }
+      await markers.nth(1).focus();
+      await page.keyboard.press("Enter");
+      await expect(markers.nth(1)).toHaveAttribute("aria-current", "true", { timeout: 10_000 });
+      await expectRootUntouched(page, "after rail jumps");
+      expect(await decorativeDots(page)).toEqual([]);
+    });
+
+    test(`HI11 the guide avatar and the rail never overlap, top and bottom of the page (${width})`, async ({ page }) => {
+      await gotoHydrated(page, "/");
+      await armHud(page);
+      await expect(guideAvatar(page)).toBeVisible();
+      await expect(railNav(page)).toBeAttached();
+      for (const y of [0, 1e6]) {
+        await scrollToY(page, y);
+        await page.waitForTimeout(300);
+        const boxes = await hudBoxes(page);
+        expect(overlaps(boxes.guide, boxes.rail), `guide vs rail at y=${y}`).toBe(false);
+        for (const marker of boxes.markers) {
+          expect(overlaps(boxes.guide, marker), `guide vs marker ${JSON.stringify(marker)} at y=${y}`).toBe(false);
+        }
+      }
+    });
+  });
 }

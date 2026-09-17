@@ -168,6 +168,17 @@ export const guideAvatar = (page: Page): Locator => guideRoot(page).locator('[da
 
 export const guideTip = (page: Page): Locator => guideRoot(page).locator('[data-testid="guide-tip"]');
 
+/**
+ * The fibre-optic scroll rail (components/hud/rail/ScrollRail.tsx), a desktop-only HUD part
+ * (≥861px): its root on the right edge (`[data-hud][data-rail]`, which carries `--rail-p`), and
+ * the real `<nav>` of section buttons on it (absent when a page has no sections, or more than
+ * eight). The decorative fibre is the root's `aria-hidden` child. The nav's name and the home
+ * labels are the rail's copy (components/hud/rail/copy.ts), which a spec imports.
+ */
+export const railRoot = (page: Page): Locator => page.locator("[data-hud][data-rail]");
+
+export const railNav = (page: Page): Locator => railRoot(page).locator("nav");
+
 /** Read one cookie's value out of the browser context (`undefined` when unset). */
 export async function cookieValue(
   context: BrowserContext,

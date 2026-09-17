@@ -527,8 +527,16 @@
   }
 }
 
+/* The native scrollbar stays the page's scrollbar (IT-OS decision 5: the fibre rail only draws
+   progress next to it). Thin, with a --neon-cyan thumb on a clear track: 3.44:1 against the
+   light --bg, 12.53:1 against the dark one. A stylesheet rule, never an inline style on <html>.
+   `scrollbar-color` is inherited, so every inner scroller that sets no colour of its own (the
+   request dialog's body, the burger menu, the guide's tip) gets the same cyan thumb; the chat
+   log and Work's phone band keep theirs. `scrollbar-width` is not inherited. */
 html {
   scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--neon-cyan) transparent;
 }
 
 /* While the interior stage's ScrollTrigger measures (it jumps the page to 0 and back), the
@@ -662,6 +670,40 @@ body {
   z-index: var(--z-progress);
   background: linear-gradient(90deg, var(--blue), var(--violet2), var(--cyan));
   box-shadow: 0 0 10px var(--glow);
+}
+
+/* From 861px the fibre rail (components/hud/rail, a HUD part) draws the page's progress on the
+   right edge, so the top bar steps aside, but only while the rail is really there: before the
+   HUD arms (or with it switched off) the bar is the only progress a visitor has. CSS only;
+   ScrollProgress keeps writing its width. */
+@media (min-width: 861px) {
+  body:has([data-rail]) [data-progress] {
+    display: none;
+  }
+}
+
+/* Below 861px there is no rail: the top bar itself is the fibre. A thread that lights up towards
+   its end, and an 18×2 head streak (square, never a dot) at the tip. The head sits inside the
+   bar's right edge, so at 0% it is outside the viewport on the left, like the bar. */
+@media (max-width: 860px) {
+  [data-progress] {
+    background: linear-gradient(90deg, transparent, var(--neon-cyan));
+    box-shadow: 0 0 8px var(--glow-cyan);
+  }
+  [data-progress]::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 18px;
+    height: 2px;
+    border-radius: 0;
+    background: var(--neon-cyan);
+    /* The rail head's glow (ScrollRail.module.css): a wide soft halo and a tight hot one. */
+    box-shadow:
+      0 0 10px var(--glow-cyan),
+      0 0 3px var(--neon-cyan);
+  }
 }
 
 /* ---------- hazard stripes ---------- */

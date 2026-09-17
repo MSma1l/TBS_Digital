@@ -661,6 +661,72 @@ the estimator already writes:
 
 Nothing is sent when the guide merely shows or a tip is dismissed: no analytics event, no request.
 
+## The fibre rail
+
+IT-OS Phase 5 (2026-09-17). A **neon fibre-optic line on the right edge** of every site page, at
+**861px and wider**, next to the browser's own scrollbar — which stays the scrollbar (the client's
+decision: the native scroll is kept). It shows how far down the page the visitor is and where the
+page's sections are, and it jumps to one. Code: `components/hud/rail/*`, `lib/hud/rail.ts`,
+mounted by `components/hud/HudChrome.tsx`
+([03](./03-architecture.md#the-rails-wiring-it-os-phase-5-2026-09-17)); look:
+[04](./04-design-system.md#the-fibre-rail).
+
+**When it is there.** Like the guide: nothing renders or downloads until the cookie question is
+answered, the visitor has interacted, the intro is gone and the browser has an idle slot — and
+then only while the window is at least 861px wide. Narrowing the window below 861px removes it;
+widening brings it back. `localStorage.tbs_hud = "off"` switches it off with the rest of the HUD.
+
+**What it shows.** A faint core line from under the header (16px below it) down to 112px above the
+bottom, just above the guide. A lit thread fills it with the scroll progress (top of the page →
+empty, bottom → full), with a glowing head at its end and a short light streak that travels along
+it **only while the page is scrolling**. One **diamond tick per section** sits where the thread
+ends when that section is scrolled to (kept at least 44px apart): hollow ahead, lit once passed,
+and it pulses once when a downward scroll passes it.
+
+**The sections** (a real `<nav>` named **"Secțiunile paginii" / "Разделы страницы" / "Page
+sections"**, one 44×44 button per tick; the label shows beside it on hover and keyboard focus):
+
+| Page | Markers |
+|------|---------|
+| Home (`/`, `/ru`, `/en`) | **Început** (`#top`) · **Servicii** (`#servicii`, `nav.services`) · **Lucrări** (`#lucrari`, `nav.work`) · **Despre** (`#despre`, `nav.about`) · **Echipă** (`#echipa`, `nav.team`) · **Cerere** (`#estimare`) · **Contact** (`#contact`) — the header's own catalog words where the menu has them, `RAIL_COPY` for the other three |
+| A service page | one per `section` named by its first `h1`/`h2`: 3 to 5 today (e.g. `/servicii/produs-digital`: "Produs digital", "Proiecte relevante", "Cum lucrăm", "Ai un proiect în minte?"; `/servicii/e-commerce` has 3) |
+| `/cookies` | its 7 numbered headings ("01 Ce sunt cookie-urile" …) |
+| `/confidentialitate` | 14 sections: **more than 8, so the fibre and ticks only, no `<nav>`** (a list of buttons that long is not a shortcut) |
+
+Headings inside the header, the footer, a dialog, an `aria-hidden` subtree, the guide or the rail
+never name a section, nor does a section holding more than one `h2` (a list of items). A label is
+the heading's text, whitespace collapsed, at most 60 characters. The home list is used only when
+all seven ids are on the page; a client navigation re-reads the sections.
+
+**A marker jumps.** Clicking one scrolls its section to just under the header — smoothly, or
+instantly under reduced motion — and that marker becomes the current one (`aria-current="true"`,
+a short lit streak beside it). The current marker is the last section the scroll has reached.
+
+**Keyboard.** The buttons are real tab stops, **after the footer** (and after the guide) in the
+tab order, so the header's tab budget and the intro's "skip is the first Tab stop" hold.
+**Enter or Space** jumps like a click and also **moves focus to the section** (a temporary
+`tabindex="-1"`, removed when focus leaves it), so the next Tab continues inside that section. A
+mouse click never moves focus. Every button shows a 2px focus ring and its label.
+
+**It stays out of the way.** The column takes no pointer events except its 44×44 buttons. The
+fibre and the markers are inset by **half a marker (22px)** at both ends of the column, so every
+44×44 button stays inside it — clear of the header above and of the guide's avatar box below. It sits under
+the guide, the burger menu, the request dialog and the intro (z 104). While the dialog or the burger
+covers the page it holds still and re-measures when they close. It never blocks or takes over
+scrolling (only passive listeners), writes nothing on `<html>` or `<body>`, stores nothing and
+sends nothing. It re-measures as the page grows — images and fonts arriving, Work's project spiral
+lengthening its track — so the ticks stay on their sections. Between 861 and about 1,100px the
+page's side gutter (`clamp(16px, 4vw, 40px)`) is narrower than the 44px column, so the buttons'
+hit areas reach a few pixels over the right edge of full-width content there.
+
+**Under reduced motion** the rail is static: no travelling streak, no pulse, no fades; the thread
+still follows the scroll position, and a jump is instant.
+
+**Below 861px there is no rail.** The 2px top progress bar is the fibre there: a thread lighting
+up in Neon Cyan towards an 18×2px glowing head. From 861px the top bar keeps its old gradient until
+the rail appears, and is hidden while the rail is on the page — a visitor who has not interacted
+(or with the HUD off) still sees progress.
+
 ## Legal pages
 
 `/confidentialitate` and `/cookies` — outside the landing scroll, same chrome, linked from

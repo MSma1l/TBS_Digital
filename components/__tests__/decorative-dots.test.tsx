@@ -46,13 +46,14 @@ const SCANNED_SOURCES = [
   "components/scene/art/HeroCoreArt.tsx",
   "components/scene/art/ServiceArt.tsx",
   "components/hud/guide/GuideAssistant.tsx",
+  "components/hud/rail/ScrollRail.tsx",
 ];
 
 /**
- * The HUD chrome's CSS Modules (critique R13/§4: the guide now, the rail and the OS layer
- * later). The guide's is named so a rename cannot silently drop it from the scan.
+ * The HUD chrome's CSS Modules (critique R13/§4: the guide and the fibre rail now, the OS layer
+ * later). Each is named so a rename cannot silently drop it from the scan.
  */
-const HUD_STYLES = ["components/hud/guide/GuideAssistant.module.css"];
+const HUD_STYLES = ["components/hud/guide/GuideAssistant.module.css", "components/hud/rail/ScrollRail.module.css"];
 
 /**
  * Round boxes of dot size in a CSS Module: a rule whose `border-radius` is `50%` or
@@ -179,6 +180,24 @@ describe("decorative dots — source", () => {
     const src = read("components/hud/guide/GuideAssistant.tsx");
     expect(src).not.toMatch(/strokeLinecap=["']round["']|stroke-linecap=["']round["']/);
     expect(src).toMatch(/strokeLinecap="square"/);
+  });
+
+  it("the rail asks for no round caps, and any lucide icon it draws is squared off", () => {
+    const src = read("components/hud/rail/ScrollRail.tsx");
+    expect(src).not.toMatch(/strokeLinecap=["']round["']|stroke-linecap=["']round["']/);
+    if (/from\s+["']lucide-react["']/.test(src)) expect(src).toMatch(/strokeLinecap="square"/);
+  });
+
+  it("the phone's fibre top bar (globals.css) ends in a square 18×2 head streak, never a dot", () => {
+    const css = read("app/globals.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    const phone = css.match(/@media\s*\(max-width:\s*860px\)\s*\{\s*\[data-progress\]\s*\{[\s\S]*?\n\}/);
+    expect(phone, "the ≤860px [data-progress] block").not.toBeNull();
+    const head = phone![0].match(/\[data-progress\]::after\s*\{([^{}]*)\}/);
+    expect(head, "its ::after head").not.toBeNull();
+    expect(head![1]).toMatch(/(?:^|[;\s])width:\s*18px/);
+    expect(head![1]).toMatch(/(?:^|[;\s])height:\s*2px/);
+    expect(head![1]).toMatch(/border-radius:\s*0\s*;/);
+    expect(cssDots(phone![0])).toEqual([]);
   });
 
   it("no scanned file uses the blink animation, and the keyframe is gone", () => {

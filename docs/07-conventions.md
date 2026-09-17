@@ -462,23 +462,28 @@ three languages and checks one marker per target with no style attribute, and sc
 
 ## The HUD chrome (`components/hud/**`, `lib/hud/**`)
 
-The IT-OS HUD (the Ghid TBS guide since Phase 4; the rail and the OS layer later) is built to
-these rules. Wiring in [03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17), the
-visual contract in [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-black).
+The IT-OS HUD (the Ghid TBS guide since Phase 4, the fibre scroll rail since Phase 5; the OS
+layer later) is built to these rules. Wiring in
+[03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17), the visual contract in
+[04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-black).
 
 - **One mount.** Every part is a `next/dynamic(…, { ssr: false })` entry in `PARTS` in
   `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />` and
   `<CookieConsent />`. A part is never imported anywhere else, so nothing of it reaches the page
   bundle or the HTML, and nothing loads before the gate opens (flag → consent → interaction →
   intro gone → idle). A part also renders nothing on its own while the banner is unanswered or
-  the intro is on screen.
+  the intro is on screen. A part that exists only on desktop (the rail) is flagged
+  `desktopOnly: true` in `PARTS`: HudChrome renders it through `DesktopOnly`, a
+  `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`, never with a CSS-only hide, so a
+  phone never downloads it and a breakpoint crossing mounts or unmounts that part alone. Its own
+  module CSS still carries a `max-width: 860px` `display: none` as a safety net.
 - **CSS Modules, not Tailwind.** One `*.module.css` per part, next to it; keyframes in the same
   file; not in `@source` (so the global Tailwind chunk and the HTML do not grow — the module
   becomes a lazy CSS chunk with the part). Tokens only, as everywhere (`--neon-cyan`,
   `--glass-bg-solid`, `--z-guide`, `--hud-*`); the placement boxes in docs/04 are the contract
   and may be literals.
 - **Root attributes.** Every part's root carries `data-hud=""` plus its own name (`data-guide`,
-  later `data-rail`, `data-os-layer`, `data-hud-dock`). E2E finds the HUD by `[data-hud]`, and
+  `data-rail`, later `data-os-layer`, `data-hud-dock`). E2E finds the HUD by `[data-hud]`, and
   `decorativeDots` scans inside it.
 - **Away and yield hide by opacity only.** `opacity: 0`, `pointer-events: none` and the part's own
   buttons at `tabIndex -1` — **never** `display: none`, `visibility: hidden` or `inert`, so the
@@ -487,7 +492,9 @@ visual contract in [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-bl
   "the focused element overlaps the part" (`lib/hud/obscure.ts`). No `animation-fill-mode` that
   would outrank the faded opacity.
 - **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger, the
-  intro's lock) a part shows no new prompt and clears a shown one; the z-order (`--z-guide` 112 <
+  intro's lock) a part shows no new prompt and clears a shown one, and the rail neither measures
+  nor writes (the page's positions are not real while the body is pinned; the same holds while
+  `html[data-scroll-measure]` is set); the z-order (`--z-rail` 104, `--z-guide` 112 <
   `--z-nav-overlay` 115) does the covering.
 - **No blur, no filter.** No `backdrop-filter` or `filter` on a part or any ancestor of a CSS
   `preserve-3d` element: it sits over the live WebGL canvas, and a blur flattens the 3D.
@@ -496,18 +503,36 @@ visual contract in [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-bl
 - **No dots.** Bars, streaks, squares; a ring is ≥38px. `decorative-dots.test.tsx` scans each
   part's TSX and CSS Module (`border-radius: 50%` or `var(--r-pill)` at ≤8px fails, a
   `var(--token)` size resolved against the file).
-- **Motion** (WCAG 2.2.2): short bursts only (an entrance, a pulse of ≤5s), continuous motion only
-  while hovered (`(hover: hover)`) or scrolled; every animation and transition inside
-  `@media (prefers-reduced-motion: no-preference)`.
-- **No writes to `<html>` / `<body>`**, no new storage keys and no cookies (memory is a module
-  variable); `tbs_hud` is read, never written.
+- **Motion** (WCAG 2.2.2): short bursts only (an entrance, a pulse of ≤5s, the rail's 0.7s tick
+  pulse), continuous motion only while hovered (`(hover: hover)`) or scrolled (the rail's flow
+  streak: `data-flowing`, dropped 180ms after the last scroll event); every animation and
+  transition inside `@media (prefers-reduced-motion: no-preference)`. Something that follows the
+  scroll position itself (the rail's thread and head) is the visitor's own movement, not an
+  animation.
+- **No writes to `<html>` / `<body>`.** A part's live values go on its own root — the rail's
+  `--rail-p` through `style.setProperty` on `[data-rail]`, only when the 4-decimal value changes —
+  and every placement token is a static stylesheet value. `expectRootUntouched` checks it after
+  the rail's jumps and a full scroll.
+- **Listen passively, never take the scroll.** Window `scroll` and `resize` listeners are
+  `{ passive: true }` and coalesced to one `requestAnimationFrame` per burst; layout changes come
+  from a `ResizeObserver` on `<html>` and the scene's `tbs:scene-layout`. No `wheel`, `touchstart`,
+  `touchmove` or pointer listener, nothing that could `preventDefault` a scroll: the native
+  scrollbar stays the page's scrollbar, and a part scrolls the page only when the visitor asks (a
+  rail marker: `scrollTo`, smooth, or `"instant"` under reduced motion). The arming listeners
+  (capture, passive) are HudChrome's and go the moment one fires.
+- **No new storage keys and no cookies** (memory is a module variable); `tbs_hud` is read, never
+  written.
 - **Imports.** No three, R3F or GSAP (the heavy-import ban above covers `components/hud/**`);
   `lucide-react` only here, by name from the package root, `aria-hidden`, `strokeWidth={1.75}`,
   square caps. Pure decisions live in `lib/hud/*.ts` (no DOM at import, no directive) and are
   unit-tested there.
 - **Copy** is `{ ro, ru, en }` objects in the part's own `copy.ts` (no directive, type-only imports,
-  so the E2E specs import it), never catalog keys and never "AI" (see
-  [16](./16-i18n-seo.md#the-hud-chrome-adds-no-keys)).
+  so the E2E specs import it), and never "AI" (see
+  [16](./16-i18n-seo.md#the-hud-chrome-adds-no-keys)). **No key is ever added to the catalog** —
+  but a part reuses an existing key (through `useT()`) where the site already names the same thing:
+  the rail's home markers are `nav.services`, `nav.work`, `nav.about` and `nav.team`, the header's
+  own words, so the rail and the menu cannot disagree (critique R10.4). Everything the catalog does
+  not already name stays an `L()` object in `copy.ts`.
 
 ## Components
 

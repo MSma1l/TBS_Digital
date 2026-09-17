@@ -210,7 +210,7 @@ One ladder for every fixed or sticky layer, low → high:
 | `--z-dropdown` | 130 | desktop dropdowns |
 | `--z-lang-popup` | 200 | compact language popup |
 | `--z-cookie` | 280 | cookie banner |
-| `--z-progress` | 300 | scroll progress bar |
+| `--z-progress` | 300 | scroll progress bar (the fibre below 861px; hidden while the rail exists) |
 | `--z-modal` | 320 | the request dialog — above everything interactive |
 | `--z-intro` | 400 | first-visit intro — covers every CTA, so the dialog cannot open under it |
 
@@ -514,12 +514,13 @@ onto tokens that already existed, and the new tokens follow the same rules as th
 file (a graphic tone and a text tone, dark twins remapped in one place, always-dark islands never
 remapped).
 
-> **Status (2026-09-17): the Ghid TBS guide is the first part built on them (IT-OS Phase 4,
-> [below](#ghid-tbs--the-guide)).** The tokens are in `app/globals.css` and `app/tailwind.css`;
-> when they landed alone, the home page rendered byte-identical screenshots with and without them
-> (1280 and 390px, both themes, five scroll positions) and the Tailwind CSS chunk did not change.
-> The rail, the OS layer and the Command Center land later; the rules in this section are the
-> contract those parts are built to.
+> **Status (2026-09-17): the Ghid TBS guide (IT-OS Phase 4, [below](#ghid-tbs--the-guide)) and the
+> fibre rail with the thin cyan scrollbar (Phase 5, [below](#the-fibre-rail)) are built on them.**
+> The tokens are in `app/globals.css` and `app/tailwind.css`; when they landed alone, the home page
+> rendered byte-identical screenshots with and without them (1280 and 390px, both themes, five
+> scroll positions) and the Tailwind CSS chunk did not change.
+> The OS layer and the Command Center land later; the rules in this section are the contract those
+> parts are built to.
 
 ### Palette mapping
 
@@ -674,9 +675,16 @@ field fill is `color-mix(in srgb, var(--on-obsidian) 4%, var(--obsidian))`, whic
    - reduced motion is static.
 9. **Nothing writes a custom property onto `<html>` or `<body>`.** The placement tokens below are
    static and read from stylesheets only (the E2E `expectRootUntouched` check).
-10. **The thin cyan scrollbar, when it is switched on,** is `scrollbar-color: var(--neon-cyan)
-    transparent` on `html`. That property is inherited, so the request Modal's own scrollbar turns
-    cyan too. This is accepted. The estimator chat log keeps the colour it sets itself.
+10. **The thin cyan scrollbar** (since Phase 5) is `scrollbar-width: thin; scrollbar-color:
+    var(--neon-cyan) transparent` on `html`, a stylesheet rule next to `scroll-behavior: smooth`.
+    The thumb is 3.44:1 against the light `--bg` and 12.53:1 against the dark one.
+    `scrollbar-color` is inherited and `scrollbar-width` is not, so every inner scroller without a
+    colour of its own gets a cyan thumb at the normal width: the request dialog's body, the burger
+    menu (with classic scrollbars), the guide's tip. Checked with classic scrollbars at 1280 and
+    390px in both themes (P5-C lab): it reads as the HUD's information colour and is accepted, so
+    no module overrides it. The estimator chat log (`--line2`) and Work's phone band (`--red`) keep
+    the colours they set. Classic scrollbars still take width (10px thin on the page, 15px in the
+    dialog), so the scroll lock's reserved gutter still applies.
 
 ### Stacking and placement
 
@@ -810,6 +818,67 @@ cover them with no hide logic.
 4.72 / 6.88. Composited over `--bg` the backdrop is fixed, so the values are the "over `--bg`"
 column of the glass table above (`--txt` 17.75 / 15.68, `--mut` 5.67 / 8.41, `--cyan-text` 5.34 /
 10.70). The droid's cyan strokes clear 3:1 in both themes.
+
+### The fibre rail
+
+The second HUD part (IT-OS Phase 5, 2026-09-17): `components/hud/rail/ScrollRail.tsx` and its CSS
+Module, loaded by `HudChrome` after arming, **from 861px only**. A map of the page next to the
+native scrollbar, which stays the scrollbar. Behaviour is in
+[05](./05-page-sections.md#the-fibre-rail).
+
+**Placement** (critique R2): `position: fixed; top: calc(var(--header-h) + 16px); right: 0;
+bottom: var(--hud-bottom); width: var(--hud-rail-w)` (44px) at `--z-rail` (104) — under the OS
+layer, the guide, the burger overlay, the request dialog and the intro, which cover it with no
+hide logic. The root takes no pointer events; only the marker buttons do. Inside it the fibre and
+the nav are inset by half a marker (22px) at both ends, so every 44×44 button stays inside the
+rail box: clear of the header above, and 4px above the guide's 88px avatar box below (the rail
+ends at 112px, the avatar box at 108px). A `max-width: 860px` `display: none` backs up HudChrome's
+media gate.
+
+**The fibre** (`aria-hidden`, `pointer-events: none`; a 12px column on the rail's centre line):
+
+- **Core:** a 2px unlit line the whole rail long, `--neon-cyan` at 30%, fading out at both ends.
+- **Thread:** a 2px line from `--neon-cyan` 30% at the top to full `--neon-cyan` at its leading
+  end, `box-shadow: 0 0 8px var(--glow-cyan)`, drawn to scroll progress with
+  `transform: scaleY(var(--rail-p))` (origin top).
+- **Head:** an 18×4px streak (square, `border-radius: 0`) riding the thread's end, `--neon-cyan`
+  35% → 100%, glowing `0 0 10px var(--glow-cyan), 0 0 3px var(--neon-cyan)`; moved with
+  `translateY(var(--rail-p) × 100%)` over the rail less its own length.
+- **Flow:** a 28px `--on-accent` streak that travels down the lit thread (0.9s) **only while the
+  visitor scrolls** (`data-flowing`, dropped 180ms after the last scroll event).
+- **Ticks:** one 8×8 **diamond** per section (a square rotated 45°, `border-radius: 0`): a 1px
+  `--neon-cyan` edge over `--bg` ahead; filled `--neon-cyan` with a `--glow-cyan` glow once passed
+  (`data-passed`). A downward scroll that passes a tick pulses it once, 0.7s: the diamond scales
+  1.8 → 1 while a square ring expands 1 → 3.2 and fades (`data-pulse` swapped `a` ↔ `b`).
+
+**The markers** (a real `<nav>`): 44×44 transparent `<button>`s centred on the ticks.
+
+- **Current section** (`aria-current="true"`): a 10×2px `--neon-cyan` streak leading into the tick
+  from the page side, at 85%; full, with a `--glow-cyan` glow, on hover or focus.
+- **Label** on hover and `:focus-visible` only: to the left of the button, mono bold `--fs-xs`,
+  uppercase, tracking .08em, `--txt` on `--glass-bg-solid` composited over `--bg` (≥15:1 in both
+  themes, the guide tip's recipe), a 1px `--neon-cyan` edge, square corners, `--sh-md`, at most
+  `min(420px, 100vw − 120px)` wide with an ellipsis. Hidden by `opacity: 0` and
+  `clip-path: inset(50%)` — never `display: none` — so it stays the button's accessible name.
+- **Focus ring:** `outline: 2px solid var(--txt); outline-offset: -2px`.
+
+**Motion** (WCAG 2.2.2; transform-family and opacity only; keyframes in the module): the flow
+streak only while scrolling, the one-shot tick pulse, and 0.15s fades on the current-section
+streak and the label. All of it inside `prefers-reduced-motion: no-preference`: under reduce the
+rail is static (no pulse is even requested). The thread and the head follow the scroll position
+itself, which is the visitor's own movement.
+
+**Never** a round dot, `backdrop-filter` or `filter` (the rail sits over the live WebGL canvas).
+
+**Below 861px: the top bar is the fibre.** There is no rail on phones and tablets in portrait.
+The existing 2px progress bar (`components/ui/ScrollProgress.tsx`, `[data-progress]`, unchanged;
+`globals.css` only) becomes a thread that lights up towards its end:
+`background: linear-gradient(90deg, transparent, var(--neon-cyan))`,
+`box-shadow: 0 0 8px var(--glow-cyan)`, and an **18×2px head streak** (`::after`, `right: 0`,
+`border-radius: 0`, solid `--neon-cyan`, the rail head's glow). From 861px the bar keeps its
+blue → violet → cyan gradient, and it is hidden **only while a rail exists**
+(`body:has([data-rail]) [data-progress] { display: none }`), so a visitor who has not armed the
+HUD (or has it switched off) still has a progress indicator.
 
 ### Tailwind names
 

@@ -95,9 +95,12 @@ so the data source can change without touching markup.
 │  │  │                    #   layout since Phase 4) — gate (tbs_hud ≠ off → consent → first
 │  │  │                    #   interaction → intro gone → idle), then its lazy parts in one commit.
 │  │  │                    #   CSS Modules only; lucide-react may be imported only here
-│  │  └─ guide/            # Ghid TBS (Phase 4, a next/dynamic part): GuideAssistant.tsx (avatar,
-│  │                       #   tip, centre-line observer, away/yield) + .module.css, copy.ts
-│  │                       #   (GUIDE_COPY as { ro, ru, en } objects; no directive, e2e imports it)
+│  │  ├─ guide/            # Ghid TBS (Phase 4, a next/dynamic part): GuideAssistant.tsx (avatar,
+│  │  │                    #   tip, centre-line observer, away/yield) + .module.css, copy.ts
+│  │  │                    #   (GUIDE_COPY as { ro, ru, en } objects; no directive, e2e imports it)
+│  │  └─ rail/             # the fibre scroll rail (Phase 5, a desktop-only next/dynamic part):
+│  │                       #   ScrollRail.tsx (fibre, section markers, jumps) + .module.css, copy.ts
+│  │                       #   (RAIL_COPY, RAIL_HOME_SECTIONS; no directive, e2e imports it)
 │  ├─ layout/              # Navbar (Tailwind) · HeaderClock (Tailwind) · Footer
 │  ├─ sections/
 │  │  ├─ Hero.tsx          # hero (Tailwind) — HUD backdrop, the core's anchor, h1, neon CTA,
@@ -143,7 +146,9 @@ so the data source can change without touching markup.
 │  │                       #   playwright.config.ts imports it) · busy.ts (the "busy with the HUD"
 │  │                       #   store) · obscure.ts (covers / overlaps, focus-not-obscured guards) ·
 │  │                       #   topics.ts (the guide's topic ids) · linger.ts (Phase 4: the guide's
-│  │                       #   limits, memory store, canPrompt / pickTopic / isTypingTarget; pure)
+│  │                       #   limits, memory store, canPrompt / pickTopic / isTypingTarget; pure) ·
+│  │                       #   rail.ts (Phase 5: the rail's maths — progress, section targets,
+│  │                       #   marker layout, current / crossed sections, heading discovery; pure)
 │  ├─ request/             # RequestFlowProvider.tsx (the one request dialog; RequestContext,
 │  │                       #   RequestSource, RequestAttachment) · catalog.ts (the estimator's
 │  │                       #   project types and options with stable ids, SERVICE_FOR_TYPE) ·
@@ -595,12 +600,13 @@ A bare render without the slot (unit tests) draws no illustration at all.
 
 ## The HUD chrome (IT-OS Phase 4, 2026-09-17)
 
-The IT-OS HUD — the Ghid TBS guide now; the fibre rail and the OS layer in later phases — has
-**one mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between
-`<Footer />` and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget and
-"the intro's skip is the first Tab stop" both hold. Behaviour and limits are in
-[05 — Page Sections](./05-page-sections.md#ghid-tbs-the-guide); the visual contract in
-[04](./04-design-system.md#ghid-tbs--the-guide).
+The IT-OS HUD — the Ghid TBS guide (Phase 4) and the fibre scroll rail (Phase 5) now; the OS layer
+in a later phase — has **one mount**, `components/hud/HudChrome.tsx`, rendered by
+`app/(site)/layout.tsx` between `<Footer />` and `<CookieConsent />`. After the footer in the DOM,
+so the header's tab budget and "the intro's skip is the first Tab stop" both hold. Behaviour and
+limits are in [05 — Page Sections](./05-page-sections.md#ghid-tbs-the-guide) and
+[05 — the fibre rail](./05-page-sections.md#the-fibre-rail); the visual contract in
+[04](./04-design-system.md#ghid-tbs--the-guide) and [04](./04-design-system.md#the-fibre-rail).
 
 ### Arming order
 
@@ -616,13 +622,20 @@ The IT-OS HUD — the Ghid TBS guide now; the fibre rail and the OS layer in lat
 4. the intro overlay is gone (`onIntroGone`);
 5. an idle slot (`afterIdle(0)`).
 
-Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk.
-Phase 4's only part is `GuideAssistant` (`components/hud/guide/GuideAssistant.tsx`). A visitor who
+Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk, in
+this DOM order: `GuideAssistant` (`components/hud/guide/GuideAssistant.tsx`), then `ScrollRail`
+(`components/hud/rail/ScrollRail.tsx`, Phase 5). The rail is flagged `desktopOnly`: HudChrome
+renders it through `DesktopOnly`, a `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`
+(`(min-width: 861px)`), mounted only once the gate is open — so nothing reads the query before
+arming, a phone never requests the rail's chunk, and crossing 861px mounts or unmounts the rail
+alone (the guide is not even re-rendered). A visitor who
 never interacts, never answers the banner, or carries `tbs_hud=off` downloads no part: the page
-bundle carries only `HudChrome` itself (+473 B gzip on `/`; +675 B on a service page, which did not
-already load `lib/idle` and `lib/intro`), and the guide's JS (5.9 KB gzip, with its copy, the linger
-engine, lucide's `X` and a copy of `lib/directions.ts`) and CSS Module (2.3 KB) arrive as late chunks
-after arming (the B1h / B5h / B6h rows in `CHANGELOG.md`).
+bundle carries only `HudChrome` itself (+473 B gzip on `/` in Phase 4, +166 B more for the rail's
+reference and `DesktopOnly` in Phase 5; a service page paid +675 B, which did not already load
+`lib/idle` and `lib/intro`), and the parts arrive as late chunks after arming (the B1h / B5h / B6h
+rows in `CHANGELOG.md`): the guide's JS 5.9 KB gzip (its copy, the linger engine, lucide's `X` and a
+copy of `lib/directions.ts`) with a 2.3 KB CSS Module, and — on a viewport of 861px or more only —
+the rail's JS 3.4 KB with a 1.4 KB CSS Module.
 
 ### The guide's wiring
 
@@ -644,6 +657,25 @@ too. Inside it:
 The tip and the away state are tied to the pathname they were set on, so a client navigation
 clears them without an effect. The estimator (`Estimator.tsx`) honours `openAssistant` (the
 dialog opens on the chat, focus inside it) and writes the origin block the lead carries.
+
+### The rail's wiring (IT-OS Phase 5, 2026-09-17)
+
+`ScrollRail` keeps its per-frame state in `createRail()`, a plain object outside React (the React
+Compiler rule): React re-renders only when the markers or the current section change
+(`useSyncExternalStore` over the object's `read` / `subscribe`). The maths is `lib/hud/rail.ts`.
+
+| Piece | What it does |
+|-------|--------------|
+| Sections | `discoverSections()`: the home page's curated list (`RAIL_HOME_SECTIONS` in `components/hud/rail/copy.ts`) when every id is on the page (`#top #servicii #lucrari #despre #echipa #estimare #contact`); otherwise one marker per `section` in `main`, named by its first `h1`/`h2` (`pickRailSections`: not inside `header`, `footer`, a dialog, an `aria-hidden` subtree, the guide or the rail; not a section holding more than one `h2`; the label whitespace-collapsed and clipped to 60 characters). More than 8 → the fibre only, no `<nav>` (`railHasNav`). |
+| Measure | Each section's target is `sectionTarget(docTop, --header-h, max)` (its top right under the header, clamped to `[0, scrollHeight − innerHeight]`); `railLayout(targets, max, fibre.clientHeight)` places the markers proportionally, at least 44px apart, inside the fibre. Re-measured on mount, one `requestAnimationFrame` per burst of: a `ResizeObserver` on `<html>` (the page grows as content loads; Work's spiral lengthens its track), `resize`, `tbs:scene-layout` (`SCENE_LAYOUT_EVENT`, heard in the capture phase on `document`, since the stage dispatches it without bubbling), the page cover lifting (`subscribePageCover`), `document.fonts.ready`, and a pathname change. |
+| Scroll frame | One passive `scroll` listener on `window`, one frame per burst: `--rail-p` (`progressOf`, 4 decimals) written on the rail's own root with `style.setProperty` only when it changes; the current section (`activeIndex`, within 1px); the ticks a downward scroll crossed (`crossedDown`) get `data-pulse` swapped `a` ↔ `b` to restart their one-shot animation (not under reduced motion); `data-flowing` on the root until 180ms after the last scroll. |
+| Held | While `isPageCovered()` (the dialog pins the body, the burger locks `<html>`) or `html[data-scroll-measure]` (ScrollTrigger measuring), the positions are not the page's: nothing is measured or written, and the cover lifting measures again. |
+| Jump | A marker `<button>` calls `window.scrollTo({ top: sectionTarget(…), behavior })` — `"smooth"`, or `"instant"` under `prefers-reduced-motion: reduce`. A keyboard activation (`event.detail === 0`) also focuses the section (`tabindex="-1"` added only if it had none, removed on blur; `focus({ preventScroll: true })`). A mouse click never moves focus. |
+| Never | No write to `<html>` or `<body>`, no `wheel` / `touch*` / `pointer*` listener, no scroll of its own except the jump asked for, no storage. |
+
+**Below 861px there is no rail.** The layout's `ScrollProgress` (unchanged) is the progress
+indicator at every width; `globals.css` hides it from 861px only while a rail exists
+(`body:has([data-rail]) [data-progress] { display: none }`), and draws it as a fibre below 861px.
 
 ## Styling layers
 

@@ -315,6 +315,31 @@ change**:
   and opened) and `e2e/hud-integration.spec.ts` (HI6, the home page armed and scrolled through)
   assert 0 `securitypolicyviolation` events and no console error.
 
+### The fibre rail (IT-OS Phase 5, 2026-09-17)
+
+The rail (`components/hud/rail/*`, `lib/hud/rail.ts`; behaviour in
+[05](./05-page-sections.md#the-fibre-rail)) added **no dependency, no storage, no cookie, no
+request and no CSP change**:
+
+- **Nothing stored, nothing sent.** It keeps its positions in a plain object for the page
+  lifetime. It reads no storage key (the HUD's `tbs_hud` switch is read by `HudChrome`, listed
+  above), sets no cookie, fetches nothing and sends nothing; a marker only scrolls the page. The
+  cookie policy does not change.
+- **It reads only geometry and the page's own headings**: `getBoundingClientRect` of the
+  sections, `scrollY` / `scrollHeight` / `innerHeight`, `--header-h`, and the text of `h1` / `h2`
+  headings already on the page. A label is rendered as React text (escaped), never as HTML; the
+  home labels are static catalog keys and `{ ro, ru, en }` copy.
+- **It writes only on its own root** (`--rail-p`, `data-flowing`, `data-pulse` on its ticks) and a
+  temporary `tabindex="-1"` on a section a keyboard jump focuses (removed on blur). Nothing on
+  `<html>` or `<body>`, no new `window` global, no new event (it listens to the stage's existing
+  `tbs:scene-layout`).
+- **Passive listeners only** (`scroll`, `resize`), so it can never block or hijack scrolling.
+- **The thin cyan scrollbar** is a stylesheet rule on `html` (`scrollbar-width`,
+  `scrollbar-color`), not an inline style: nothing in the CSP or the root-style checks changes.
+- **Measured on every run:** `e2e/scroll-rail.spec.ts` and `e2e/hud-integration.spec.ts` (HI6 at
+  1280 with the rail armed: 0 CSP violations, no console error; HI10: `<html>` / `<body>` untouched
+  after the rail's jumps).
+
 ## Authentication
 - Admin users live in the DB `users` table with **bcrypt-hashed** passwords
   (`backend/app/security.py`). Login (`POST /api/auth/login`) verifies the hash in constant
