@@ -3,7 +3,8 @@
  * `pointer-events: none`, R3F events are unused): passive listeners on `window` write -1..1
  * targets into the scene's fx, and the world eases towards them.
  *
- *  · fine pointer — `pointermove` anywhere on the page;
+ *  · fine pointer — `pointermove` anywhere on the page; a mouse or pen also lays the cursor
+ *    circuit trail (trail.ts) in document px;
  *  · touch-first  — `deviceorientation`, but only where it works without asking: iOS Safari
  *    gates it behind `DeviceOrientationEvent.requestPermission()`, which needs a gesture and
  *    shows a prompt. The site never asks — iOS keeps the idle sway.
@@ -13,8 +14,9 @@
  */
 
 import type { SceneFx } from "./fx";
+import { pushTrail } from "./trail";
 
-type TiltTarget = Pick<SceneFx, "tiltX" | "tiltY" | "tiltLive">;
+type TiltTarget = Pick<SceneFx, "tiltX" | "tiltY" | "tiltLive" | "trail">;
 
 const clampUnit = (v: number) => Math.max(-1, Math.min(1, v));
 
@@ -88,6 +90,9 @@ type OrientationCtor = { requestPermission?: unknown };
 export type TiltHost = Pick<Window, "addEventListener" | "removeEventListener" | "matchMedia"> & {
   innerWidth: number;
   innerHeight: number;
+  /** The page's scroll offsets: the cursor trail is laid in document px. */
+  scrollX: number;
+  scrollY: number;
   screen?: { orientation?: { angle?: number } };
   DeviceOrientationEvent?: unknown;
 };
@@ -113,6 +118,10 @@ export function attachTiltInput(fx: TiltTarget, host: TiltHost = window): () => 
       fx.tiltX = clampUnit((event.clientX / w) * 2 - 1);
       fx.tiltY = clampUnit((event.clientY / h) * 2 - 1);
       fx.tiltLive = true;
+      // The circuit trail follows a mouse or a pen only (event.timeStamp shares performance.now()'s clock).
+      if (event.pointerType === "mouse" || event.pointerType === "pen") {
+        pushTrail(fx.trail, event.clientX + host.scrollX, event.clientY + host.scrollY, event.timeStamp / 1000);
+      }
     };
     const onLeave = (event: MouseEvent) => {
       if (event.relatedTarget === null) fx.tiltLive = false;

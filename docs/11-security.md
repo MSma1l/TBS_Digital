@@ -167,9 +167,12 @@ The interior redesign — a sticky WebGL scene behind Hero → Ticker → Direct
 ScrollTrigger, static SVG art, holographic stat cards — added **no dependency and did not change
 the CSP** in `proxy.ts`. It still holds because:
 
-- **Nothing is fetched at runtime.** The core and the five service models are built from maths
-  in three core; the environment map is the same procedural PMREM; the static art is inline SVG
-  styled by CSS Modules.
+- **Nothing is fetched at runtime.** The hero chip and the five service models are built from
+  maths in three core, with no environment map at all since the chip replaced the glass core
+  (2026-09-17; the intro keeps its procedural PMREM); the static art is inline SVG styled by CSS
+  Modules. The cursor trail (same date) is a ring buffer filled from passive `pointermove`
+  listeners — coordinates and `event.timeStamp` only, in an in-memory ring of 64 segments that
+  each fade out after 0.9s; never stored, sent or written to the DOM.
 - **No dynamic code.** The scene, director, gsap, probe and stage chunks were checked for
   `eval`, `new Function`, `Worker`, `WebAssembly` and `createObjectURL`: none. three core's loader
   classes are bundled but never called.

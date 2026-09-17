@@ -10,7 +10,7 @@ Postgres**, wired together, with a login-gated admin and a one-command Docker de
 - **Look:** a dark HUD theme by default (light is the visitor's choice). The home page's first
   screen — a once-per-session 3D intro (three.js + GSAP, with an SVG fallback), the header,
   hero, ticker and cookie banner — and its interior — one sticky 3D stage behind the hero, ticker
-  and service chooser (a Cybernetic Core and five service models, static SVG art on devices that
+  and service chooser (a neon microprocessor, a cursor circuit trail and five service models, static SVG art on devices that
   should not draw it), holographic stat cards, and the rebuilt Directions and Work sections — are
   built in Tailwind v4 on the same design tokens; the rest of the site stays on CSS Modules. See
   [04 — Design System](./docs/04-design-system.md) and

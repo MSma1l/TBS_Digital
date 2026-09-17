@@ -16,6 +16,250 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Faza 1: microprocesorul din hero și urma de circuite a cursorului
+
+A doua fază a experienței IT aprobate. Nucleul de sticlă din hero („Cybernetic Core”: sferă de
+sticlă, inele, nor de particule) devine un **microprocesor neon procedural**, iar un mouse sau un
+creion care se mișcă peste scenă lasă în urmă o **urmă de circuite**: segmente neon în unghi drept,
+lipite de o grilă a paginii, care se sting în 0.9s. Servicii, elicoidul și HUD-ul vin în fazele
+următoare. Patru owneri: scena WebGL (P1-A), ilustrația statică (P1-B), urma (P1-C), apoi
+calibrarea contrastului, E2E și documentația (P1-D). Nimic nou în bundle-ul paginii, CSP-ul e
+neschimbat.
+
+**Added** — microprocesorul WebGL (`components/scene/three/core.ts`, `shapes.ts`, `three/samples.ts`,
+`tiers.ts`) — vezi [03](./docs/03-architecture.md#the-hero-chip-and-the-cursor-trail-it-os-phase-1-2026-09-17)
+și [05](./docs/05-page-sections.md#interior-stage-3d)
+
+- **Construit numai din programele existente** (decizia D-A): muchii de cutii instanțiate (P3) pentru
+  substrat, heat spreader, rama die-ului și pini; die-ul cu plasmă (P2); linii (P4) pentru via-uri,
+  teșitura IHS, crestătura pinului 1 și grila die-ului; panglici plate pe trasee cu pachete (P5); un
+  val pătrat (P4) doar cât rulează boost-ul. **4 draw-uri pe cadru** sus pe `/` (înainte 10 pe high,
+  8 pe mid); SwiftShader la 1280, tier high: 132 de cadre în 2.5s față de 41.
+- **Geometria e în `shapes.ts`**: `CHIP`, `CHIP_POSE`, `chipTraces(perSide)`, `chipPins(perSide)`,
+  comune scenei și ilustrației. `CHIP.R` = 2.45, raza vechiului nucleu, deci toate încadrările în
+  host rămân identice. Tier-uri: `chipTraces` 7 pe latură pe high, 5 pe mid.
+- **Animație**: înclinare după pointer / giroscop, pachete pe trasee dus-întors, pinii se aprind la
+  plecarea și sosirea unui pachet, boost-ul CTA accelerează pachetele (`1 + 1.5·boost`) și trimite
+  un val pătrat. La ieșirea din hero cipul se micșorează, IHS-ul și die-ul se ridică (vedere
+  explodată, `coreExitPose().lift`: +0.22 / +0.4) și se dizolvă (`coreReveal`, de la 60% din ieșire).
+  Nu mai alunecă spre servicii; slotul 0 al roiului ține temporar silueta cipului (`chipSamples`).
+
+**Added** — urma de circuite a cursorului (`components/scene/trail.ts`, `three/trail.ts`, `input.ts`,
+`fx.ts`, `three/materials.ts`) — vezi [05](./docs/05-page-sections.md#interior-stage-3d)
+
+- **Model pur** (`trail.ts`): buffer circular de 64 de segmente; fiecare mostră e lipită de o grilă de
+  20px a **documentului** și legată de precedenta printr-un L (latura lungă întâi); o pauză peste
+  0.35s sau un salt peste 12 celule începe un lanț nou, fără segment.
+- **Listener**: în ramura de pointer fin din `input.ts`, doar pentru `pointerType` mouse sau pen:
+  `clientX + scrollX`, `clientY + scrollY`, `event.timeStamp`. Touch și pointerii grosieri nu
+  atașează nimic; nu rulează sub reduced motion și nici pe ilustrația statică.
+- **Mesh** (`three/trail.ts`): o singură panglică P5 (`TUBE_MODE.trail = 4`, **niciun program nou**),
+  64 × 6 vârfuri, urcă doar sloturile scrise (`addUpdateRange`), desenată peste restul scenei
+  (render order 9, fără depth test) și **doar cât un segment încă se stinge** (+1 draw).
+- **Limite, documentate**: apare doar unde pagina lasă canvas-ul să se vadă (Hero, Ticker,
+  Directions), niciodată peste carduri opace; ~1.7 KB gzip module + ~0.2 KB GLSL.
+- **Securitate**: nicio cerere, niciun loader, nimic scris în storage sau în DOM; coordonatele stau
+  doar într-un inel de 64 de segmente în memorie, fiecare stins după 0.9s. CSP-ul din `proxy.ts` e
+  neschimbat.
+
+**Added** — ilustrația statică a microprocesorului (`components/scene/art/heroArt.ts`,
+`HeroCoreArt.tsx`, `HeroCoreArt.module.css`) — vezi [04](./docs/04-design-system.md#static-art-componentssceneart)
+
+- Un singur `<svg data-core-art>` cu 23 de elemente, fără `<circle>`: totul desenat în planul cipului
+  printr-un singur `<g>` cu `CHIP_ART_MATRIX` (poza WebGL proiectată), deci crossfade-ul aterizează pe
+  aceeași siluetă. Pini dreptunghiulari, via-uri pătrate, trasee `chipTraces(5)`, **8 pachete ca
+  dâre roșii de cel puțin `PARTICLE_MIN_LENGTH` = 6 unități pe ecran**.
+- Boost-ul pe ilustrație: valul pătrat `core-wave` (0.95 → 2.3) și `core-packets` (pachetele pâlpâie,
+  doar opacitate; înlocuiește `core-push`). Tot fără animație infinită.
+- **H: 22.088 → ≈21.556 B** (−532; ilustrația apare de două ori, markup + RSC), totalul B1
+  262.165 → 262.123 (măsurat de P1-B; de re-măsurat de lead după calibrare, vezi *Verificare*).
+
+**Added** — E2E W17 (`e2e/interior-webgl.spec.ts`, `e2e/helpers.ts`) — vezi [`e2e/README.md`](./e2e/README.md)
+
+- **W17 (1280×800, mouse, WebGL forțat)**: după ce scena se așază pe un număr fix de draw-uri pe cadru,
+  60 de mișcări de pointer peste hero (zig-zag prin banda eyebrow/titlu și peste cip, departe de CTA-uri)
+  → **exact un draw în plus pe cadru** cât trăiește urma și înapoi la numărul de repaus după 1.5s;
+  apoi 1 canvas, 1 context viu, click-ul în centrul `#top button`, `#top a[href="#servicii"]` și al
+  comutatorului de temă aterizează pe control, 0 erori în consolă, 0 încălcări CSP.
+- Helper nou `countDrawCalls` + `drawCallsPerFrame` / `resetDrawCalls`: învelește metodele de draw ale
+  ambelor prototipuri de context dintr-un init script și numără pe cadru de animație. **Codul de
+  producție nu e atins.**
+
+**Changed** — calibrarea contrastului (R31) după cip (`components/scene/choreography.ts`,
+`app/globals.css`) — vezi [04](./docs/04-design-system.md#hero-core-tokens-phones)
+
+Măsurat cu textul ascuns, pe fiecare pixel din casetele de rând ale textului (≥4.5:1; titlul, text
+mare, ≥3:1), peste canvas-ul WebGL forțat (**12 cadre** pe caz: pachetele și pinii care se aprind mută
+cel mai rău pixel, iar 4 cadre ratau unele cazuri) și peste ilustrația statică, la 320, 375, 390, 412,
+768, 861, 1024, 1280 și 844×390, ambele teme.
+
+| Constantă | Înainte | Acum |
+|---|---|---|
+| `CORE_BEHIND_COPY_DIM.narrow` (<641px) | glow 0.55 · ink 0.4 | **neschimbat** |
+| `CORE_BEHIND_COPY_DIM.wide` (641–860px) | glow 0.35 · ink 0.3 | **glow 0.25 · ink 0.15** |
+| `--hero-core-phone` (<641px) | 0.4 | **0.3** |
+| `--dark-hero-core-phone` (<641px) | 1 | **0.65** |
+| `--hero-core-phone` / `--dark-` (641–860px, `@media (min-width: 641px)` nou) | 0.4 / 1 | **0.11 / 0.27** |
+| `--hero-scrim` / `--dark-hero-scrim` | 0.92 / 0.8 | **neschimbate** |
+
+Contrast (cel mai mic raport; % = pixeli care trec, doar unde e sub 100%):
+
+| Caz | Înainte | Acum |
+|---|---|---|
+| dark, canvas, <641 | lead 5.45 · titlu 3.59 | lead 5.49 · titlu 3.59 |
+| dark, ilustrație, <641 | lead 6.34 · titlu 3.37 | lead 7.58 · titlu 3.84 |
+| light, canvas, <641 | lead 4.59 (12 cadre: 4.50) · titlu 3.58 | lead **4.50** · titlu 3.58 |
+| light, ilustrație, <641 | lead 4.73 · titlu 3.68 | lead 4.78 · titlu 3.74 |
+| dark, canvas, 768×1024 | titlu **2.76** (<3:1); 12 cadre: lead **99.94% (3.78)**, titlu 2.74 | lead 5.05 · titlu 3.62 |
+| dark, ilustrație, 768×1024 | lead **99.92% (4.28)** | lead 8.19 · titlu 4.39 |
+| light, canvas, 768×1024 | lead **99.84% (4.06)** | lead 4.53 · titlu 3.77 |
+| light, ilustrație, 768×1024 | lead **99.13% (4.17)** | lead 4.69 · titlu 3.83 |
+| 844×390 (eyebrow și titlu pe ecran), ambele | 100% | 100% (dark titlu ≥4.21, light ≥3.76) |
+
+Toată copia din hero (eyebrow, titlu, lead, CTA secundar, cardurile de statistici) e **100% sub 861px,
+în ambele teme și pe ambele căi**. Eyebrow-ul light (4.55–4.68) e limita propriei culori pe pagină.
+
+Luminozitate ilustrație ÷ canvas unde cipul e în spatele textului (schimbarea medie de luminanță,
+ancoră ∩ coloana textului):
+
+| | 320 | 375 | 390 | 412 | 768×1024 | 844×390 |
+|---|---|---|---|---|---|---|
+| dark înainte | 2.11 | 1.62 | 1.60 | 1.98 | 3.75 | 4.03 |
+| dark acum | 1.17 | 0.91 | 0.91 | 1.12 | 0.97 | 1.10 |
+| light înainte | 1.55 | 1.26 | 1.23 | 1.38 | 1.64 | 2.41 |
+| light acum | 1.26 | 0.94 | 0.92 | 1.01 | 0.92 | 1.37 |
+
+- **Dark**: ilustrația era de 1.6–2.1 ori mai luminoasă decât canvas-ul (și de 4 ori la 641–860px),
+  deci hero-ul se stingea vizibil când prelua WebGL-ul. Acum ±10% la 375/390/768/844×390, +12% la 412.
+- **Light**: ±8% la 375–412 și 768. 320px rămâne peste (+17% dark, +26% light): trăsăturile de lățime
+  fixă ale ilustrației cântăresc mai mult pe un cip de 294px, iar o singură valoare nu poate acoperi
+  toate lățimile. La 844×390 cipul light nu schimbă niciun pixel cu 3%, în ambele căi.
+- **De ce cipul light nu poate fi mai vizibil pe telefon** (P1-A îl găsise abia vizibil): centrul lui
+  stă sub lead, iar culoarea lead-ului are 4.87:1 pe pagina goală. La 390px, pe 12 cadre, cel mai rău
+  pixel e deja exact 4.50. Încercat: ink 0.6 / 0.7 / 0.8 sub scrim 0.95 → 99.98% (4.45) / 99.98%
+  (4.41) / 99.94% (4.40); ink 0.5 sub 0.95 trece, dar e **mai puțin** vizibil decât acum; scrim 0.98
+  șterge cipul. Mai multă vizibilitate cere altă formă a scrim-ului (`Hero.tsx`), nu un token.
+- **641–860px au acum valori proprii** pentru ilustrație, ca și canvas-ul: cipul (480px) e centrat
+  sub lead, sub bazinul plin al scrim-ului, deci o cincime din el se vede oricare ar fi scrim-ul.
+
+**Changed** — aserțiuni de test schimbate deliberat (niciuna slăbită fără motiv)
+
+- `scene-shapes.test.ts` (20 → 45): „nucleul” (sferă, nucleu, inele în raza exterioară) → cipul: die <
+  IHS < substrat < board ≤ R, poza, iar pentru 1–9 trasee pe latură: tronsoane orizontale / verticale /
+  la 45° în interiorul board-ului, fără încrucișări, simetrie de ordin 4, pinii la începutul traseelor,
+  determinist și fără `-0`. **Șters testul „inelele = cele trei orbite ale intro-ului”** (D-I). Bucla
+  `toCssRotation` rulează pe `CHIP_POSE`.
+- `scene-choreography.test.ts` (38 → 39): `coreExitPose` dă `lift` în loc de `rings`; nou `coreReveal`
+  (tabel + monoton); încadrarea hero-ului cu `CHIP.R`; slotul 0 al roiului e pe cip (între board și
+  vârful die-ului, pe traseele tier-ului); ponderea „în afara pinilor” a mostrelor 0.45 (în loc de
+  0.55 pe sferă); **șters testul norului de particule**. Tabelul dim-urilor: aceeași structură, cu
+  valorile fixate explicit și banda largă re-măsurată (0.35 / 0.3 → 0.25 / 0.15).
+- `scene-tiers.test.ts` (12 → 13): rândurile de buget au `chipTraces` în loc de sferă / inele / nor /
+  transmission; „doar high face antialiasing, niciun tier nu mai configurează sticla”; nou: 7 / 5 trasee.
+- `scene-build.test.ts` (12 → 16): părțile sunt cipul, roiul, **urma**, apoi modelele (build și compile);
+  `setLite(lite)` fără renderer; noi: cipul are cinci obiecte pe patru programe, vederea explodată,
+  panglicile traseelor, aprinderea pinilor.
+- `hero-core-art.test.tsx` (20 → 28): importuri și id-uri de gradient noi; „niciun cerc” (în loc de
+  „niciun cerc sub r=12”); fiecare punct absolut, prin matrice, în cadru; „un circuit, nu particule”
+  (tronsoane h/v/45°, pini dreptunghiuri închise, via-uri pătrate, pachete ≥ lungimea minimă pe ecran);
+  proporțiile cipului WebGL (matricea = baza proiectată, trasee = `chipTraces(5)`, `chipLift`).
+- `scene-input.test.ts`: evenimentul de mouse are `timeStamp`; o mostră de mouse pornește lanțul urmei,
+  una de touch nu.
+- `scene-palette.test.ts`: `glassTint` / `attenuation` scoase; testul fixează acum că paleta are exact
+  rolurile `bg, blue, cyan, hot, mode, red` și că `--on-accent` nu mai e citit.
+- `scene-trail.test.ts` e nou (17). **Niciun test E2E existent schimbat**; W17 e adăugat.
+
+**Changed**
+
+- **`CHIP.pin` → `CHIP.pinSize`**: `scene-contract.test.ts` caută în `components/scene/**` cheia `pin`
+  (pinning-ul ScrollTrigger interzis) și o citea ca pin GSAP.
+- `components/sections/Hero.tsx`, 861–1024px: ancora cipului stă la `right: calc(var(--gutter) + 6vw)`
+  în loc de `+ 11.5vw`. La 11.5vw urmele din stânga ale cipului treceau pe sub capătul titlului
+  (1024×768: dark canvas minim **1.22:1**, dark ilustrație 1.92, light canvas 2.38 — o regresie a cipului;
+  vechiul nucleu avea minim 3.3). La 6vw tot textul din hero e 100% ≥4.5:1 la 900 și 1024, ambele teme
+  și căi; cipul e acoperit ceva mai mult de cardul de statistici. Comentariul și docs/05 descriu motivul.
+- `e2e/helpers.ts` `scrollToY`: limita de scroll se recitește la fiecare poll și pagina e derulată din
+  nou dacă documentul a crescut după primul scroll (layout târziu imediat după hidratare). W14
+  („până jos”) pica 1 din 3 în `--repeat-each=3`: aștepta 6382, pagina ajunsese la 6450. Aserțiunile
+  rămân aceleași; doar ținta urmărește capătul real al paginii.
+
+**Removed**
+
+- **Sticla din interior** (D-A): `createPhysicalGlass`, `createFrostGlass`, programul P1,
+  `installEnvironment` (benzile PMREM), pasul de transmission, `setTransmissionScale`
+  (`components/three/renderer.ts`), `SURFACE_MODE.shell`, `POINTS_MODE.cloud`, `coreSamples`,
+  `cloudPositions`, `mixPlacement`; cheile de tier `glass`, `sphere`, `ringTubular`, `ringRadial`,
+  `cloud`, `transmissionScale`. `components/three/environment.ts` rămâne pentru intro.
+- **Legătura inele ≡ `ORBITS` din intro (D-I)**: `CORE`, `RING_TILTS`, `RING_OMEGA` și testul lor; intro-ul
+  își păstrează `ORBITS`.
+- **Cod mort după cip** (verificat cu grep, inclusiv intro-ul): `TUBE_MODE.ring` și ramura lui din shader,
+  cu uniformele pe care numai ea le folosea (`uHead`, `uHead2`, `uCometGain`, `uTicks`), **fără
+  renumerotare** (`track` 1, `gates` 2, `links` 3, `trail` 4); `ScenePalette.glassTint` / `.attenuation`
+  și citirea `--on-accent` care le alimenta (intro-ul are paleta lui, `components/three/palette.ts`).
+
+**Fixed**
+
+- Lead-ul din hero la 641–860px trecea sub 4.5:1 pe ilustrație (light 99.13%, dark 99.92%) și pe canvas
+  (light 99.84%; dark 99.94% pe 12 cadre), iar titlul dark ajungea la 2.74:1 — acum 100% (tabelul de mai sus).
+- 861–1024px: urmele cipului sub titlu (minim 1.22:1 la 1024×768) — ancora mutată spre dreapta, vezi
+  *Changed*; acum 100% la 900 și 1024.
+- Crossfade-ul ilustrație → canvas pe telefoane dark: hero-ul se stingea (ilustrația de 1.6–2.1× mai
+  luminoasă); acum ±10% la lățimile uzuale.
+
+**Docs**
+
+[02](./docs/02-tech-stack.md) · [03](./docs/03-architecture.md) arborele (`trail.ts`, `three/trail.ts`,
+cipul în `three/core.ts`, exporturile din `shapes.ts`, `input.ts` scrie urma), secțiunea nouă despre cip
+și urmă, înregistrarea D-I · [04](./docs/04-design-system.md) ilustrația statică (pachete-dâre ≥ 6 unități,
+`core-packets`), tokenurile hero re-măsurate · [05](./docs/05-page-sections.md) microprocesorul, urma și
+limitele ei, fără sticlă · [07](./docs/07-conventions.md) PMREM și transmission clear doar în intro,
+`trail.ts` printre helperii per cadru, cele cinci programe · [11](./docs/11-security.md) nicio hartă de
+mediu în interior, urma nu stochează nimic · [14](./docs/14-testing.md) numărătorile pe fișier,
+`scene-trail`, W17 · [`e2e/README.md`](./e2e/README.md) · [`README.md`](./README.md).
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, arborele final) | exit 0 · 0 · 0 |
+| `npm test` (node:22-alpine) | **1.172 passed / 0 failed** în 64 de fișiere (înainte: 1.116 în 63) |
+| `interior-webgl` + `interior` + `preloader` + `hud-shell` + `responsive` (noble, build proaspăt) | **156 passed / 0 failed** (19 + 22 + 24 + 25 + 66; `interior-webgl` cu W17) |
+| W17 `--repeat-each=3` | 3 passed (P1-D) |
+| `npm test` rulat de 2 ori pe arborele final (snapshot, node:22-alpine) | 1.172 / 1.172, de ambele dăți; build · tsc · lint exit 0 |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă, snapshot) | **257 passed / 0 failed / 0 skipped** (înainte: 256; + W17) |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl`, `--repeat-each=3` | 269 passed, **1 failed**: W14 (vezi `scrollToY` la *Changed*) |
+| după reparația `scrollToY`: W2 + W13 + W14, `--repeat-each=8` | **32 passed / 0 failed** (W14 8 / 8) |
+| Contrast R31 (12 cadre canvas, 2 ilustrație) | sub 861px: 100% peste tot (tabelul de mai sus); de la 861px vezi *Rămâne deschis* |
+| TBT, WebGL forțat, tier mid, 390×844, CPU 4×, 3 rulări (mediane), HEAD `a0935fe` și arborele final construite și măsurate unul după altul pe aceeași mașină | fără scenă 137 → 151ms (aceeași cale, zgomot) · cu scena 666 → **595ms** · adăugat 529 → **444ms** · task-urile scenei (de la primul chunk târziu) 520 → **450ms** · cel mai lung task al scenei 405–451 → **348–365ms** (din care așteptarea SwiftShader 411–418 → 344–362ms: programele sticlei, PMREM-ul și pasul de transmission nu mai există) · JS-ul scenei singur (trace, fără compilare și așteptări GPU) ≈133 → ≈138ms, neschimbat în zgomot, cel mai mare task JS 183 → 188ms. Baza de 299ms din intrarea interiorului a fost măsurată altă zi, pe altă încărcare a mașinii: pe aceeași mașină, acum, aceeași metrică dă ≈135ms înainte și după |
+| `__THREE__` într-un singur chunk | da, în toate cazurile cu WebGL (`12kvyg_4r4ncd.js`, 261.439 B gzip); niciun chunk din HTML-ul `/` nu conține three |
+
+Greutate (gzip, bytes; același script și aceleași cazuri ca la Faza 0):
+
+| Buget | Caz | Bază (Faza 0) | Faza 1 | Diferență |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine | total 262.164 · referit din HTML 257.274 · JS târziu 3.936 | total **262.140** · referit din HTML 257.250 · JS târziu 3.936 | −24 (CSS −28: modulul ilustrației rescris, plus noul `@media` din `globals.css`; JS +4) |
+| B1s / B7 | B1 + scroll · pe mobil | JS târziu 3.936 | 3.936 | 0 |
+| B2 | scenă forțată + scroll (desktop și mobil) | JS târziu 314.114 | **314.585** ✓ (≤ B1s + 316.000) | +471 (cipul, urma, fără sticlă) |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 322.881 | **323.648** ✓ (≤ 330.000) | +767 |
+| B3i | prima vizită, intro forțat | 303.826 | **304.593** | +767 — peste limita planului (300.000) ca și înainte; chunk-ul comun aduce și scena interiorului, acceptat ca nouă bază |
+| B4 | prima vizită | JS târziu 35.774 | 35.776 | +2 |
+| B5 | `/servicii/e-commerce` | total 222.671 | **222.689** ✓ (≤ 224.000) | +18 (CSS) |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte | 3.219; 0 contexte | 0 |
+| H | documentul HTML `/`, care revine | 22.085 | **21.560** ✓ | −525 (ilustrația cipului, de două ori: markup + RSC) |
+| — | chunk-ul comun three + R3F + scene | 261.252 | **261.439** | +187 (cip + urmă − sticlă, PMREM, transmission, inele, nor) |
+
+> **Rămâne deschis:**
+> - La 861px eyebrow-ul light (99.69%, 4.09) și lead-ul (99.97%, 4.50) stau pe linia de 1px a grilei
+>   HUD — identic cu cipul ascuns, deja cunoscut.
+> - Cipul light rămâne discret pe telefoane (vezi mai sus), iar la 641–860px aproape invizibil în
+>   light (0.15 / 0.11): constrângerea e contrastul lead-ului, nu gustul.
+> - Urma: originea lui `event.timeStamp` pe browsere non-Chromium, `scrollX/Y` citite la fiecare
+>   mișcare (pot forța layout), strălucirea de 2px e discretă pe SwiftShader; ilustrația folosește
+>   `<use>` pentru halo (depinde de căile referite fără grosime proprie de linie).
+> - TBT-ul e măsurat pe SwiftShader, headless.
+
+---
+
 ## 2026-09-17 — Fundație pentru experiența IT: paletă, plumbing cerere, infrastructură HUD
 
 Clientul a aprobat planul „experiență IT imersivă”: microprocesor neon în hero, intrare 3D la

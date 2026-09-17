@@ -10,6 +10,7 @@ import {
   canvasDocTop,
   composeScene,
   coreExitPose,
+  coreReveal,
   createComposition,
   createMorph,
   fitAnchor,
@@ -26,13 +27,14 @@ import {
   type MorphState,
 } from "@/components/scene/choreography";
 import { createChangeSignal, createSceneFx, reportChange, stepSceneFx, WAVE_GAP_SECONDS } from "@/components/scene/fx";
-import { CORE, MODEL_RADIUS } from "@/components/scene/shapes";
+import { CHIP, CHIP_POSE, MODEL_RADIUS, type Vec3 } from "@/components/scene/shapes";
 import {
+  CHIP_STACK,
   COMMERCE_GATE_RADIUS,
-  cloudPositions,
+  chipSamples,
   commerceGateFrame,
   commerceGatePoint,
-  coreSamples,
+  rotateEulerXYZ,
   swarmSlots,
 } from "@/components/scene/three/samples";
 import { SCENE_TIER_CONFIG } from "@/components/scene/tiers";
@@ -111,8 +113,11 @@ describe("scene space — layouts", () => {
     expect(CORE_BEHIND_COPY_BELOW).toBe(861);
     expect(CORE_BEHIND_COPY_WIDE_FROM).toBe(641);
     const { narrow, wide } = CORE_BEHIND_COPY_DIM;
+    // The values measured over the forced WebGL chip, text hidden, 12 frames per case (R31; the
+    // numbers are in choreography.ts): the wide band dropped from 0.35 / 0.3 with the chip.
+    expect(CORE_BEHIND_COPY_DIM).toEqual({ narrow: { glow: 0.55, ink: 0.4 }, wide: { glow: 0.25, ink: 0.15 } });
     // Never brighter than the portrait layout's own dim; ink (dark strokes under dark text)
-    // dimmer than glow; the wide band (a core wider than the copy's column) dimmer than phones.
+    // dimmer than glow; the wide band (a chip centred under the lead) dimmer than phones.
     for (const band of [narrow, wide]) {
       expect(band.glow).toBeLessThanOrEqual(SCENE_LAYOUTS.portrait.core.dim);
       expect(band.ink).toBeLessThan(band.glow);
@@ -155,14 +160,33 @@ describe("scene space — layouts", () => {
     expect(coreExitPose(0, tablet).dim).toBe(wide.ink);
   });
 
-  it("the hero exit shrinks the core, opens its rings and brightens a dimmed phone core", () => {
+  it("the hero exit shrinks the chip, lifts it apart (exploded view) and brightens a dimmed phone chip", () => {
     const portrait = SCENE_LAYOUTS.portrait;
-    expect(coreExitPose(0, portrait)).toEqual({ scale: 1, rings: 1, dim: portrait.core.dim });
+    expect(coreExitPose(0, portrait)).toEqual({ scale: 1, lift: 0, dim: portrait.core.dim });
+    const half = coreExitPose(0.5, portrait);
+    expect(half.lift).toBe(0.5);
+    expect(half.scale).toBeCloseTo(0.825, 12);
     const out = coreExitPose(1, portrait);
     expect(out.scale).toBeCloseTo(0.65, 12);
-    expect(out.rings).toBeCloseTo(1.25, 12);
+    expect(out.lift).toBe(1);
     expect(out.dim).toBeCloseTo(0.9, 12);
     expect(coreExitPose(7, portrait)).toEqual(out);
+    expect(coreExitPose(-3, portrait)).toEqual({ scale: 1, lift: 0, dim: portrait.core.dim });
+    // Written into the pose it is given (no allocation per frame).
+    const pose = { scale: 0, lift: 0, dim: 0 };
+    expect(coreExitPose(0.2, portrait, pose)).toBe(pose);
+  });
+
+  it("the chip dissolves as the hero leaves: whole until 60% of the exit, gone at its end", () => {
+    for (const e of [-1, 0, 0.3, 0.6]) expect(coreReveal(e)).toBe(1);
+    for (const e of [1, 1.5]) expect(coreReveal(e)).toBe(0);
+    expect(coreReveal(0.8)).toBeCloseTo(1 - smoothstep(0.6, 1, 0.8), 12);
+    expect(coreReveal(0.8)).toBeCloseTo(0.5, 12);
+    let previous = 1;
+    for (let e = 0; e <= 1.0001; e += 0.01) {
+      expect(coreReveal(e)).toBeLessThanOrEqual(previous + 1e-12);
+      previous = coreReveal(e);
+    }
   });
 });
 
@@ -188,7 +212,7 @@ describe("scene space — the sticky canvas and its hosts", () => {
     const probe = desktopProbe();
     const hero = probe.hero!;
     const place = placeCore(probe, 0, 1280, h, SCENE_LAYOUTS.desktop);
-    const expected = fitAnchor(1280, h, hero.x + hero.w / 2, hero.y + hero.h / 2 - 71, hero.w, CORE.R, SCENE_LAYOUTS.desktop.core.fill);
+    const expected = fitAnchor(1280, h, hero.x + hero.w / 2, hero.y + hero.h / 2 - 71, hero.w, CHIP.R, SCENE_LAYOUTS.desktop.core.fill);
     expect(place.x).toBeCloseTo(expected.x, 9);
     expect(place.y).toBeCloseTo(expected.y, 9);
     expect(place.scale).toBeCloseTo(expected.scale, 9);
@@ -456,39 +480,54 @@ describe("samples — the swarm's six silhouettes", () => {
 
   it("every point fits the shape it belongs to", () => {
     const models = SCENE_SHAPES.map((shape) => SERVICE_MODEL[shape]);
-    const [core, ...services] = swarmSlots(SCENE_TIER_CONFIG.high, models);
+    const [chip, ...services] = swarmSlots(SCENE_TIER_CONFIG.high, models);
     const radius = (buffer: Float32Array) => {
       let max = 0;
       for (let i = 0; i < buffer.length; i += 3) max = Math.max(max, Math.hypot(buffer[i], buffer[i + 1], buffer[i + 2]));
       return max;
     };
-    expect(radius(core)).toBeLessThanOrEqual(CORE.R + 1e-6);
+    // Slot 0 is the hero chip (Phase 1: until the Work helix takes the slot).
+    expect(radius(chip)).toBeLessThanOrEqual(CHIP.R + 1e-6);
     // Models may break out of the host a little (MODEL_SCALES), never far.
     for (const buffer of services) expect(radius(buffer)).toBeLessThanOrEqual(MODEL_RADIUS * 1.25);
   });
 
-  it("any half of a buffer still covers every part in proportion (the lite step draws a prefix)", () => {
-    const samples = coreSamples(720);
-    const share = (from: number, to: number) => {
-      let sphere = 0;
-      for (let i = from; i < to; i += 1) {
-        const r = Math.hypot(samples[i * 3], samples[i * 3 + 1], samples[i * 3 + 2]);
-        if (Math.abs(r - CORE.sphere) < 1e-4) sphere += 1;
+  /** A slot-0 sample back in the chip's own plane (CHIP_POSE undone: Rz(-c)·Ry(-b)·Rx(-a)). */
+  const unposed = (buffer: Float32Array, i: number): Vec3 => {
+    const [a, b, c] = CHIP_POSE;
+    const p: Vec3 = [buffer[i * 3], buffer[i * 3 + 1], buffer[i * 3 + 2]];
+    return rotateEulerXYZ(rotateEulerXYZ(rotateEulerXYZ(p, [-a, 0, 0]), [0, -b, 0]), [0, 0, -c]);
+  };
+
+  it("slot 0 lies on the chip as it is drawn at rest: between the board and the die's top, on the tier's traces", () => {
+    for (const tier of [SCENE_TIER_CONFIG.high, SCENE_TIER_CONFIG.mid]) {
+      const models = SCENE_SHAPES.map((shape) => SERVICE_MODEL[shape]);
+      const samples = swarmSlots(tier, models)[0];
+      expect(samples).toEqual(chipSamples(tier.swarm, undefined, tier.chipTraces));
+      for (let i = 0; i < tier.swarm; i += 1) {
+        const [x, y, z] = unposed(samples, i);
+        expect(z).toBeGreaterThanOrEqual(CHIP_STACK.board - 1e-5);
+        expect(z).toBeLessThanOrEqual(CHIP_STACK.die + CHIP.thick.die / 2 + 1e-5);
+        expect(Math.max(Math.abs(x), Math.abs(y))).toBeLessThanOrEqual(CHIP.board + CHIP.via + 1e-5);
       }
-      return sphere / (to - from);
-    };
-    expect(share(0, 720)).toBeCloseTo(0.55, 2);
-    expect(Math.abs(share(0, 360) - 0.55)).toBeLessThan(0.1);
-    expect(Math.abs(share(360, 720) - 0.55)).toBeLessThan(0.1);
+    }
   });
 
-  it("the cloud lives in its shell", () => {
-    const cloud = cloudPositions(700);
-    for (let i = 0; i < cloud.length; i += 3) {
-      const r = Math.hypot(cloud[i], cloud[i + 1] / 0.82, cloud[i + 2]);
-      expect(r).toBeGreaterThanOrEqual(CORE.cloud[0] - 1e-6);
-      expect(r).toBeLessThanOrEqual(CORE.cloud[1] + 1e-6);
-    }
+  it("any half of a buffer still covers every part in proportion (the lite step draws a prefix)", () => {
+    const samples = chipSamples(720);
+    // Beyond the pins' ends lie only the traces (40%) and the vias round their ends (5%).
+    const board = CHIP.pkg + CHIP.pinSize.l + 1e-4;
+    const share = (from: number, to: number) => {
+      let out = 0;
+      for (let i = from; i < to; i += 1) {
+        const [x, y] = unposed(samples, i);
+        if (Math.max(Math.abs(x), Math.abs(y)) > board) out += 1;
+      }
+      return out / (to - from);
+    };
+    expect(share(0, 720)).toBeCloseTo(0.45, 2);
+    expect(Math.abs(share(0, 360) - 0.45)).toBeLessThan(0.1);
+    expect(Math.abs(share(360, 720) - 0.45)).toBeLessThan(0.1);
   });
 
   it("commerce gates: an orthonormal frame, rings at their radius, turned towards the viewer", () => {

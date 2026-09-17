@@ -11,10 +11,12 @@
 
 import { mulberry32 } from "@/components/three/random";
 import {
-  CORE,
+  CHIP,
+  CHIP_POSE,
   CUBE_LAYOUTS,
-  RING_TILTS,
   buildNeuralGraph,
+  chipPins,
+  chipTraces,
   commerceTrackPoint,
   COMMERCE_GATES,
   hubLayout,
@@ -56,8 +58,21 @@ export const COMMERCE_GATE_RADIUS = 0.32;
 export const COMMERCE_GATE_FACE = 1.4;
 /** Hub: plasma core, wire shell, satellite glyph size, link lift towards the viewer. */
 export const HUB = { core: 0.42, wire: 0.55, glyph: 0.3, lift: 0.35 } as const;
+/**
+ * The hero chip's layers along its local z (scene units): the board — traces, vias, pins — at
+ * z = 0, then the centres of the substrate on it, the heat spreader on the substrate and the die
+ * on the spreader. The static art stacks the same slabs from the same board (art/heroArt.ts).
+ */
+export const CHIP_STACK = {
+  board: 0,
+  pkg: CHIP.thick.pkg / 2,
+  ihs: CHIP.thick.pkg + CHIP.thick.ihs / 2,
+  die: CHIP.thick.pkg + CHIP.thick.ihs + CHIP.thick.die / 2,
+} as const;
+/** The exploded view: how far the heat spreader and the die rise along local z at lift 1. */
+export const CHIP_LIFT = { ihs: 0.22, die: 0.4 } as const;
 /** Seeds, fixed so the site draws the same scene on every visit. */
-export const SCENE_SEEDS = { neural: 0x5eed1, cloud: 0xc10d, swarm: 0x5a7a, samples: 0xa11ce } as const;
+export const SCENE_SEEDS = { neural: 0x5eed1, swarm: 0x5a7a, samples: 0xa11ce } as const;
 
 /* ---- vector helpers ----------------------------------------------------------------------- */
 
@@ -134,11 +149,6 @@ export function shuffleTriplets(buffer: Float32Array, random: () => number): voi
 }
 
 /* ---- the models' shapes as functions ------------------------------------------------------ */
-
-/** A point on core ring `i` at angle `a` (the ring's rest pose, before it spins). */
-export function coreRingPoint(i: number, a: number, radius: number = CORE.rings[i]): Vec3 {
-  return rotateEulerXYZ([radius * Math.cos(a), radius * Math.sin(a), 0], RING_TILTS[i]);
-}
 
 /** The mesh wave's height at plane point (x, y) and time t, with a pulse ring of radius `pulseR` around `origin`. */
 export function waveHeight(x: number, y: number, t: number, pulseR: number, ox = 0, oy = 0): number {
@@ -233,6 +243,7 @@ export function hubLinkPoint(position: Vec3, s: number): Vec3 {
 
 export type SampleTier = {
   swarm: number;
+  chipTraces: number;
   neural: readonly number[];
   fanout: number;
   satellites: number;
@@ -243,11 +254,80 @@ export function neuralGraphFor(tier: Pick<SampleTier, "neural" | "fanout">): Neu
   return buildNeuralGraph(tier.neural, tier.fanout, SCENE_SEEDS.neural);
 }
 
-/** Slot 0: the core — 55% its glass sphere, 45% its three rings. */
-export function coreSamples(count: number, seed = SCENE_SEEDS.samples): Float32Array {
+/** The point at share `s` ∈ [0, 1] of a chip-plane polyline's length. */
+function polylinePoint(run: ReadonlyArray<readonly [number, number]>, s: number): [number, number] {
+  let total = 0;
+  for (let i = 1; i < run.length; i += 1) total += Math.hypot(run[i][0] - run[i - 1][0], run[i][1] - run[i - 1][1]);
+  let left = Math.min(1, Math.max(0, s)) * total;
+  for (let i = 1; i < run.length; i += 1) {
+    const [ax, ay] = run[i - 1];
+    const [bx, by] = run[i];
+    const length = Math.hypot(bx - ax, by - ay);
+    if (length > 0 && left <= length) return [ax + ((bx - ax) * left) / length, ay + ((by - ay) * left) / length];
+    left -= length;
+  }
+  const last = run[run.length - 1];
+  return [last[0], last[1]];
+}
+
+/** The point at share `s` of the outline of a square of half-size `half` centred on (cx, cy). */
+function squarePoint(cx: number, cy: number, half: number, s: number): [number, number] {
+  const u = (((s % 1) + 1) % 1) * 4;
+  const side = Math.floor(u);
+  const t = -half + 2 * half * (u - side);
+  if (side === 0) return [cx + t, cy - half];
+  if (side === 1) return [cx + half, cy + t];
+  if (side === 2) return [cx - t, cy + half];
+  return [cx - half, cy - t];
+}
+
+/**
+ * Slot 0: the hero chip at rest (lift 0), posed by `CHIP_POSE` — 40% along the traces, 20% the
+ * substrate's outline, 12% the heat spreader's, 13% over the die, 10% on the pins, 5% round the
+ * vias. `perSide` is the tier's `chipTraces`, so the swarm leaves the traces the chip draws.
+ * Phase 1 only: the chip keeps the swarm's slot 0 until the Work helix takes it over.
+ */
+export function chipSamples(count: number, seed = SCENE_SEEDS.samples, perSide = 7): Float32Array {
+  const traces = chipTraces(perSide);
+  const pins = chipPins(perSide);
+  const posed = (x: number, y: number, z: number): Vec3 => rotateEulerXYZ([x, y, z], CHIP_POSE);
+  const pick = <T>(list: readonly T[], r: () => number): T => list[Math.floor(r() * list.length) % list.length];
+  const outline = (half: number, z: number) => (r: () => number) => {
+    const [x, y] = squarePoint(0, 0, half, r());
+    return posed(x, y, z);
+  };
   return buildSamples(count, seed, [
-    { weight: 55, point: (r) => scale3(randomDirection(r), CORE.sphere) },
-    { weight: 45, point: (r) => coreRingPoint(Math.floor(r() * 3) % 3, r() * TAU) },
+    {
+      weight: 40,
+      point: (r) => {
+        const [x, y] = polylinePoint(pick(traces, r), r());
+        return posed(x, y, CHIP_STACK.board);
+      },
+    },
+    { weight: 20, point: outline(CHIP.pkg, CHIP_STACK.pkg + CHIP.thick.pkg / 2) },
+    { weight: 12, point: outline(CHIP.ihs, CHIP_STACK.ihs + CHIP.thick.ihs / 2) },
+    {
+      weight: 13,
+      point: (r) => posed((r() * 2 - 1) * CHIP.die, (r() * 2 - 1) * CHIP.die, CHIP_STACK.die + CHIP.thick.die / 2),
+    },
+    {
+      weight: 10,
+      point: (r) => {
+        const pin = pick(pins, r);
+        const x = pin.center[0] + (r() - 0.5) * pin.size[0];
+        const y = pin.center[1] + (r() - 0.5) * pin.size[1];
+        return posed(x, y, CHIP_STACK.board + CHIP.pinSize.t);
+      },
+    },
+    {
+      weight: 5,
+      point: (r) => {
+        const end = pick(traces, r);
+        const [ex, ey] = end[end.length - 1];
+        const [x, y] = squarePoint(ex, ey, CHIP.via, r());
+        return posed(x, y, CHIP_STACK.board);
+      },
+    },
   ]);
 }
 
@@ -367,7 +447,7 @@ export function hubSamples(count: number, satellites: number, seed = SCENE_SEEDS
 }
 
 /**
- * All six slots for a tier, in the swarm's order: the core, then the service models in
+ * All six slots for a tier, in the swarm's order: the hero chip, then the service models in
  * `SCENE_SHAPES` order through `models` (the model kind of each shape).
  */
 export function swarmSlots(
@@ -383,7 +463,7 @@ export function swarmSlots(
     "commerce-loop": () => commerceSamples(count),
     "integration-hub": () => hubSamples(count, tier.satellites),
   } as const;
-  return [coreSamples(count), ...models.map((model) => byModel[model]())];
+  return [chipSamples(count, SCENE_SEEDS.samples, tier.chipTraces), ...models.map((model) => byModel[model]())];
 }
 
 /* ---- per-particle seeds -------------------------------------------------------------------- */
@@ -393,28 +473,5 @@ export function seedAttributes(count: number, seed: number): Float32Array {
   const random = mulberry32(seed);
   const out = new Float32Array(Math.max(0, Math.floor(count)) * 4);
   for (let i = 0; i < out.length; i += 1) out[i] = random();
-  return out;
-}
-
-/**
- * The core's point cloud home positions: a shell between `CORE.cloud` radii, densest near
- * r ≈ 2 (a triangular distribution), squashed a little in y so it reads as an orbit field.
- */
-export function cloudPositions(count: number, seed = SCENE_SEEDS.cloud): Float32Array {
-  const random = mulberry32(seed);
-  const n = Math.max(0, Math.floor(count));
-  const out = new Float32Array(n * 3);
-  const [inner, outer] = CORE.cloud;
-  for (let i = 0; i < n; i += 1) {
-    const u = random();
-    const peak = (2 - inner) / (outer - inner);
-    // Inverse CDF of a triangular distribution on [0, 1] with its mode at `peak`.
-    const v = u < peak ? Math.sqrt(u * peak) : 1 - Math.sqrt((1 - u) * (1 - peak));
-    const radius = inner + (outer - inner) * v;
-    const d = randomDirection(random);
-    out[i * 3] = d[0] * radius;
-    out[i * 3 + 1] = d[1] * radius * 0.82;
-    out[i * 3 + 2] = d[2] * radius;
-  }
   return out;
 }

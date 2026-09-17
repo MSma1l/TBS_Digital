@@ -1,28 +1,18 @@
 /**
- * The interior scene as one imperative object: the hero core, the morph swarm and the five
- * service models, composed every frame from the scroll probe, the page's input store and the
- * choreography. `SceneWorld.tsx` creates it once, builds it part by part, calls `update` from
- * `useFrame` and disposes it on unmount; every per-frame write lives here (React Compiler lint).
+ * The interior scene as one imperative object: the hero chip, the morph swarm, the cursor
+ * trail and the five service models, composed every frame from the scroll probe, the page's
+ * input store and the choreography. `SceneWorld.tsx` creates it once, builds it part by part,
+ * calls `update` from `useFrame` and disposes it on unmount; every per-frame write lives here
+ * (React Compiler lint).
  *
- * Built in parts, one idle slice each (`buildNext`): the core first, then the swarm, then one
- * service model at a time. Building all seven in one go was a single 181–229ms main-thread
- * task on the mid-tier phone profile (4× CPU). Until every part exists nothing is composed,
- * and the root draws nothing until its first compiled part is queued for the pre-warm frame —
- * so a frame between two slices never compiles a shader.
+ * Built in parts, one idle slice each (`buildNext`): the chip first, then the swarm, then the
+ * trail, then one service model at a time. Building all of them in one go was a single
+ * 181–229ms main-thread task on the mid-tier phone profile (4× CPU). Until every part exists
+ * nothing is composed, and the root draws nothing until its first compiled part is queued for
+ * the pre-warm frame — so a frame between two slices never compiles a shader.
  */
 
-import {
-  Color,
-  Group,
-  Matrix4,
-  Quaternion,
-  Vector3,
-  type Object3D,
-  type Scene,
-  type WebGLRenderer,
-} from "three";
-import { createStripEnvironment, installTransmissionClear, type EnvStrip } from "@/components/three/environment";
-import { setTransmissionScale } from "@/components/three/renderer";
+import { Group, Matrix4, Quaternion, Vector3, type Object3D } from "three";
 import {
   SCENE_SHAPES,
   SERVICE_MODEL,
@@ -34,25 +24,23 @@ import {
 import {
   composeScene,
   coreExitPose,
+  coreReveal,
   type CorePose,
   createComposition,
   createMorph,
   layoutFor,
-  mixPlacement,
   morphRunning,
   placeCore,
   placeServices,
   revealOf,
-  smoothstep,
   stepMorph,
   type Placement,
   type SceneLayout,
 } from "../choreography";
 import { stepSceneFx, type SceneFx } from "../fx";
-import { CORE, MODEL_RADIUS } from "../shapes";
-import { SCENE_LITE, SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
-import { createCyberneticCore, type CoreFrame, type CyberneticCore } from "./core";
-import { toColor } from "./materials";
+import { CHIP, MODEL_RADIUS } from "../shapes";
+import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
+import { createChipCore, type ChipCore, type CoreFrame } from "./core";
 import { createCommerceLoopModel } from "./models/commerceLoop";
 import { createCubesModel } from "./models/cubes";
 import { createIntegrationHubModel } from "./models/integrationHub";
@@ -61,19 +49,20 @@ import { createNeuralModel } from "./models/neural";
 import { MODEL_SWAY, type ModelFrame, type SceneModel } from "./models/types";
 import type { ScenePalette } from "./palette";
 import { createSwarm, type Swarm, type SwarmFrame } from "./swarm";
+import { createTrailMesh, type TrailFrame, type TrailMesh } from "./trail";
 
 /** What the world needs of R3F's root state (structural, so the world stays R3F-free). */
 export type WorldView = { size: { width: number; height: number }; viewport: { dpr: number } };
 
 export type SceneWorld = {
   root: Group;
-  /** Build the next missing part: the core, the swarm, then each service model in order. */
+  /** Build the next missing part: the chip, the swarm, the trail, then each service model in order. */
   buildNext(): void;
   /** Every part is built (`update` composes nothing before). */
   complete(): boolean;
   /**
-   * What to compile once complete, in order, one stage per part: the core (each of its draw
-   * objects on its own), the swarm, then one stage per model.
+   * What to compile once complete, in order, one stage per part: the chip (each of its draw
+   * objects on its own), the swarm, the trail, then one stage per model.
    */
   compileStages(): Object3D[][];
   /**
@@ -92,10 +81,8 @@ export type SceneWorld = {
     fx: SceneFx,
   ): void;
   morphRunning(): boolean;
-  setLite(lite: boolean, renderer: WebGLRenderer): void;
+  setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
-  /** High tier: the glass's strip environment and the transmission clear; returns the undo. */
-  installEnvironment(renderer: WebGLRenderer, scene: Scene, palette: ScenePalette): () => void;
   dispose(): void;
 };
 
@@ -106,27 +93,6 @@ const MODEL_FACTORIES: Readonly<Record<ServiceModel, typeof createCubesModel>> =
   "commerce-loop": createCommerceLoopModel,
   "integration-hub": createIntegrationHubModel,
 };
-
-/**
- * The glass's neon room: a cyan arc of short strips upper left, a red bar on the right, a
- * soft white box in front and above, a blue floor strip — on the page's own colour.
- */
-function environmentStrips(palette: ScenePalette): EnvStrip[] {
-  const cyan = toColor(palette.cyan);
-  const red = toColor(palette.red);
-  const blue = toColor(palette.blue);
-  const soft = toColor(palette.glassTint);
-  const light = palette.mode === "ink" ? 0.45 : 0.7;
-  return [
-    { color: cyan, intensity: 6 * light, size: [1.5, 0.2], position: [-4.4, 2.6, 2.4] },
-    { color: cyan, intensity: 6 * light, size: [1.5, 0.2], position: [-3.6, 3.6, 1.9] },
-    { color: cyan, intensity: 6 * light, size: [1.4, 0.2], position: [-2.4, 4.4, 1.4] },
-    { color: cyan, intensity: 5 * light, size: [1.2, 0.18], position: [-4.8, 1.4, 2.8] },
-    { color: red, intensity: 6 * light, size: [0.3, 6], position: [4.6, 0.2, 1.0] },
-    { color: soft, intensity: 3.5 * light, size: [2.2, 0.8], position: [0.8, 3.4, 4.4] },
-    { color: blue, intensity: 4 * light, size: [7, 0.4], position: [0, -4.6, 0.6] },
-  ];
-}
 
 /** Only the root: every part comes from `buildNext`, one idle slice apart. */
 export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePalette): SceneWorld {
@@ -140,8 +106,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   /** The palette and the lite step as they are now: a part built later starts from them. */
   let palette = initialPalette;
   let lite = false;
-  let core: CyberneticCore | null = null;
+  let core: ChipCore | null = null;
   let swarm: Swarm | null = null;
+  let trail: TrailMesh | null = null;
   const models: SceneModel[] = [];
 
   const morph = createMorph(0);
@@ -149,10 +116,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   const shown = models.map(() => false);
   const prewarmQueue = new Set<Object3D>();
   const coreMatrix = new Matrix4();
-  const coreSpot: Placement = { x: 0, y: 0, scale: 1 };
   const corePlace: Placement = { x: 0, y: 0, scale: 1 };
   const servicesSpot: Placement = { x: 0, y: 0, scale: 1 };
-  const pose: CorePose = { scale: 1, rings: 1, dim: 1 };
+  const pose: CorePose = { scale: 1, lift: 0, dim: 1 };
   const coreFrame: CoreFrame = {
     time: 0,
     step: 0,
@@ -162,10 +128,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     wave: 1,
     reveal: 1,
     prewarm: false,
-    rings: 1,
+    lift: 0,
     dim: 1,
-    halfHeightPx: 1,
-    dpr: 1,
   };
   const modelFrame: ModelFrame = { time: 0, step: 0, reveal: 0, prewarm: false, tx: 0, ty: 0, halfHeightPx: 1, dpr: 1 };
   const swarmFrame: SwarmFrame = {
@@ -180,6 +144,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     halfHeightPx: 1,
     dpr: 1,
   };
+  /** Created on the first frame, when the trail buffer (in `fx`) is known; then only rewritten. */
+  let trailFrame: TrailFrame | null = null;
   const identity = new Quaternion();
   const scratchPosition = new Vector3();
   const scratchScale = new Vector3();
@@ -203,7 +169,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
 
     buildNext() {
       if (!core) {
-        core = createCyberneticCore(config, palette);
+        core = createChipCore(config, palette);
         core.setLite(lite);
         core.group.visible = true;
         root.add(core.group);
@@ -211,6 +177,10 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         swarm = createSwarm(config, kinds, palette);
         swarm.setLite(lite);
         root.add(swarm.points);
+      } else if (!trail) {
+        trail = createTrailMesh(palette);
+        trail.mesh.name = "scene-trail";
+        root.add(trail.mesh);
       } else if (models.length < kinds.length) {
         const model = MODEL_FACTORIES[kinds[models.length]](config, palette);
         model.setLite(lite);
@@ -221,12 +191,12 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     },
 
     complete() {
-      return core !== null && swarm !== null && models.length === kinds.length;
+      return core !== null && swarm !== null && trail !== null && models.length === kinds.length;
     },
 
     compileStages() {
-      if (!core || !swarm) return [];
-      return [core.objects, [swarm.points], ...models.map((model) => [model.group])];
+      if (!core || !swarm || !trail) return [];
+      return [core.objects, [swarm.points], [trail.mesh], ...models.map((model) => [model.group])];
     },
 
     prewarm(objects) {
@@ -235,7 +205,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     },
 
     update(dt, scrollY, view, coarse, probe, input, fx) {
-      if (!core || !swarm || models.length < kinds.length) return;
+      if (!core || !swarm || !trail || models.length < kinds.length) return;
       const w = view.size.width;
       const h = view.size.height;
       const dpr = view.viewport.dpr;
@@ -259,10 +229,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const services = placeServices(probe, scrollY, w, h, layout, servicesSpot) ?? corePlace;
       coreExitPose(fx.heroExit, layout, pose);
 
-      /* the core, drifting to the services host as it collapses */
-      mixPlacement(corePlace, services, smoothstep(0, 0.5, fx.handoff), coreSpot);
+      /* the chip: on its own host, dissolving as the hero leaves or the handoff takes it */
       const coreScale = corePlace.scale * pose.scale;
-      core.group.position.set(coreSpot.x, coreSpot.y, 0);
+      core.group.position.set(corePlace.x, corePlace.y, 0);
       core.group.scale.setScalar(coreScale);
       coreFrame.time = fx.time;
       coreFrame.step = step;
@@ -270,15 +239,13 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       coreFrame.ty = fx.ty;
       coreFrame.boost = fx.boost;
       coreFrame.wave = fx.wave;
-      coreFrame.reveal = plan.core;
+      coreFrame.reveal = Math.min(plan.core, coreReveal(fx.heroExit));
       coreFrame.prewarm = prewarmQueue.has(core.group);
-      coreFrame.rings = pose.rings;
+      coreFrame.lift = pose.lift;
       coreFrame.dim = pose.dim;
-      coreFrame.halfHeightPx = halfHeightPx;
-      coreFrame.dpr = dpr;
       core.update(coreFrame);
-      // The swarm leaves from the core's un-collapsed silhouette at its current spot.
-      coreMatrix.compose(scratchPosition.set(coreSpot.x, coreSpot.y, 0), identity, scratchScale.setScalar(coreScale));
+      // The swarm leaves from the chip's resting silhouette (slot 0, posed) where the chip is.
+      coreMatrix.compose(scratchPosition.set(corePlace.x, corePlace.y, 0), identity, scratchScale.setScalar(coreScale));
 
       /* the service models: placed every frame (the swarm reads their matrices), drawn when revealed */
       const sway = Math.sin(fx.time * MODEL_SWAY.speed) * MODEL_SWAY.amplitude;
@@ -315,7 +282,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       swarmFrame.plan = plan.swarm;
       swarmFrame.fromMatrix = matrixFor(plan.swarm.from);
       swarmFrame.toMatrix = matrixFor(plan.swarm.to);
-      swarmFrame.fromRadius = fromIsCore ? CORE.R * coreScale : MODEL_RADIUS * services.scale;
+      swarmFrame.fromRadius = fromIsCore ? CHIP.R * coreScale : MODEL_RADIUS * services.scale;
       swarmFrame.toRadius = MODEL_RADIUS * services.scale;
       swarmFrame.fromScale = fromIsCore ? coreScale : services.scale;
       swarmFrame.toScale = services.scale;
@@ -325,6 +292,19 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       swarm.update(swarmFrame);
       if (prewarmQueue.has(swarm.points)) swarm.points.visible = true;
 
+      /* the cursor trail, in document px */
+      if (!trailFrame) {
+        trailFrame = { trail: fx.trail, scrollY, probe, w, h, ink };
+      } else {
+        trailFrame.trail = fx.trail;
+        trailFrame.scrollY = scrollY;
+        trailFrame.probe = probe;
+        trailFrame.w = w;
+        trailFrame.h = h;
+        trailFrame.ink = ink;
+      }
+      trail.update(trailFrame);
+
       prewarmQueue.clear();
     },
 
@@ -332,39 +312,25 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       return morphRunning(morph);
     },
 
-    setLite(next, renderer) {
+    setLite(next) {
       lite = next;
       core?.setLite(lite);
       swarm?.setLite(lite);
       for (const model of models) model.setLite(lite);
-      if (config.glass === "physical") {
-        setTransmissionScale(renderer, lite ? SCENE_LITE.transmissionScale : config.transmissionScale);
-      }
     },
 
     setPalette(next) {
       palette = next;
       core?.setPalette(next);
       swarm?.setPalette(next);
+      trail?.setPalette(next);
       for (const model of models) model.setPalette(next);
-    },
-
-    installEnvironment(renderer, scene, next) {
-      if (config.glass !== "physical") return () => {};
-      const room = toColor(next.bg, new Color());
-      const environment = createStripEnvironment(renderer, { room, strips: environmentStrips(next) });
-      // The plain page colour: the helper compensates for three's output-space conversion itself.
-      const undo = installTransmissionClear(renderer, scene, room, environment.texture);
-      setTransmissionScale(renderer, lite ? SCENE_LITE.transmissionScale : config.transmissionScale);
-      return () => {
-        undo();
-        environment.dispose();
-      };
     },
 
     dispose() {
       core?.dispose();
       swarm?.dispose();
+      trail?.dispose();
       for (const model of models) model.dispose();
       root.clear();
     },

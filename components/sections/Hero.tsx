@@ -278,13 +278,14 @@ export function Hero({ coreArt }: HeroProps) {
         {/* The core's host, outside the parallax layer: the WebGL core follows this anchor,
             the static art sits in it. Decorative only — nothing in here is text, focusable, a
             heading or has a role.
-             · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded on
-               the light page, whole on the dark one, where the canvas it crossfades into is
-               brighter than the faded art).
+             · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded to
+               match the WebGL chip it crossfades into, per theme, fainter again at 641–860px
+               where the chip sits under the lead).
              · 861–1024px: the right-hand column is narrower than the core and the stat cards
                stack in it, so the core sits on the seam between the columns, raised to the
-               top: centred behind the cards they covered 86–88% of its sphere (861×700 to
-               1024×768); here 34–39%, and 16% at 900×800.
+               top: centred behind the cards they would cover most of it. The offset is 6vw,
+               not more: at 11.5vw the chip's left traces ran under the end of the h1 (min
+               1.22:1 at 1024×768); at 6vw the hero text is 100% ≥ 4.5:1 at 900 and 1024.
              · From 1025px: the right-hand column, centred, at full strength. */}
         <div
           data-testid="scene-hero"
@@ -292,7 +293,7 @@ export function Hero({ coreArt }: HeroProps) {
         >
           <div
             data-scene-anchor="hero"
-            className="absolute left-1/2 top-[clamp(12px,6vw,40px)] aspect-square w-[min(92vw,480px)] -translate-x-1/2 opacity-(--hero-core-phone) md:left-auto md:right-[calc(var(--gutter)+11.5vw)] md:top-[clamp(8px,1.5vw,16px)] md:w-[min(38vw,420px)] md:translate-x-0 md:opacity-100 lg:right-(--gutter) lg:top-1/2 lg:w-[min(42vw,600px)] lg:-translate-y-1/2"
+            className="absolute left-1/2 top-[clamp(12px,6vw,40px)] aspect-square w-[min(92vw,480px)] -translate-x-1/2 opacity-(--hero-core-phone) md:left-auto md:right-[calc(var(--gutter)+6vw)] md:top-[clamp(8px,1.5vw,16px)] md:w-[min(38vw,420px)] md:translate-x-0 md:opacity-100 lg:right-(--gutter) lg:top-1/2 lg:w-[min(42vw,600px)] lg:-translate-y-1/2"
           >
             {coreArt}
           </div>

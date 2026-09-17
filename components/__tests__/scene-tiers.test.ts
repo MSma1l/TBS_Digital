@@ -30,10 +30,7 @@ describe("scene tiers — budgets", () => {
     const counts: Array<[string, number, number]> = [
       ["dpr max", high.dpr[1], mid.dpr[1]],
       ["pixel budget", high.pixelBudget, mid.pixelBudget],
-      ["sphere", high.sphere[0] * high.sphere[1], mid.sphere[0] * mid.sphere[1]],
-      ["ring tubular", high.ringTubular, mid.ringTubular],
-      ["ring radial", high.ringRadial, mid.ringRadial],
-      ["cloud", high.cloud, mid.cloud],
+      ["chip traces", high.chipTraces, mid.chipTraces],
       ["swarm", high.swarm, mid.swarm],
       ["cubes", high.cubes, mid.cubes],
       ["wave", high.wave[0] * high.wave[1], mid.wave[0] * mid.wave[1]],
@@ -45,18 +42,24 @@ describe("scene tiers — budgets", () => {
       ["packages", high.packages, mid.packages],
       ["satellites", high.satellites, mid.satellites],
       ["link", high.link[0] * high.link[1], mid.link[0] * mid.link[1]],
-      ["transmission", high.transmissionScale, mid.transmissionScale],
     ];
     for (const [name, h, m] of counts) expect(h, name).toBeGreaterThanOrEqual(m);
   });
 
-  it("only high pays for transmission glass and antialiasing; mid fakes the frost", () => {
-    expect(high.glass).toBe("physical");
+  it("the hero chip: 7 traces (and pins) per side on high, 5 on mid", () => {
+    expect(high.chipTraces).toBe(7);
+    expect(mid.chipTraces).toBe(5);
+  });
+
+  it("only high antialiases; no tier configures the glass core any more", () => {
     expect(high.antialias).toBe(true);
-    expect(mid.glass).toBe("frost");
     expect(mid.antialias).toBe(false);
-    expect(mid.transmissionScale).toBe(0);
-    expect(SCENE_LITE.transmissionScale).toBeLessThan(high.transmissionScale);
+    for (const tier of [high, mid]) {
+      for (const gone of ["glass", "sphere", "ringTubular", "ringRadial", "cloud", "transmissionScale"]) {
+        expect(tier, gone).not.toHaveProperty(gone);
+      }
+    }
+    expect(SCENE_LITE).not.toHaveProperty("transmissionScale");
   });
 
   it("lite never asks for more packages than a tier has, and keeps the neural layers in shape", () => {

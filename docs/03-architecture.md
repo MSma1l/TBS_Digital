@@ -59,7 +59,8 @@ so the data source can change without touching markup.
 │  │  ├─ capability.ts     # the site's one GPU probe (no three.js), DPR clamp
 │  │  ├─ renderer.ts · hooks.ts   # create / compile / retain / release the WebGLRenderer
 │  │  ├─ governor.ts       # the FPS governor (dpr → lite, and the interior's opt-in bail)
-│  │  ├─ environment.ts    # procedural PMREM + the transmission clear (colour-space compensated)
+│  │  ├─ environment.ts    # procedural PMREM + the transmission clear (colour-space compensated);
+│  │  │                    #   the intro's glass only — the interior has no environment since the chip
 │  │  ├─ motion.ts · random.ts · palette.ts · glow.ts
 │  │  └─ RenderErrorBoundary.tsx  # catches a render error in either scene (was IntroErrorBoundary)
 │  ├─ scene/               # the interior stage (home page only)
@@ -68,11 +69,14 @@ so the data source can change without touching markup.
 │  │  ├─ SceneDirector.tsx # GSAP + ScrollTrigger (lazy): measures the scroll, desktop parallax
 │  │  ├─ scrollGuard.ts · scrollProbe.ts   # smooth-scroll guard, quiet/wake, parallax targets;
 │  │  │                    #   the writes into the scroll probe
-│  │  ├─ choreography.ts · fx.ts · tiers.ts · input.ts · pixelRatio.ts · shapes.ts
+│  │  ├─ choreography.ts · fx.ts · tiers.ts · input.ts · trail.ts · pixelRatio.ts · shapes.ts
 │  │  │                    #   pure placement/morph maths, per-frame fx, tier budgets, pointer and
-│  │  │                    #   gyroscope tilt, the DPR watcher, model geometry shared with the art
-│  │  ├─ three/            # imperative three.js: world · core · swarm · materials (six shader
-│  │  │                    #   families) · glsl · palette · samples · compile (staged build,
+│  │  │                    #   gyroscope tilt (a mouse or pen also writes the cursor trail), the
+│  │  │                    #   cursor trail's ring buffer, the DPR watcher, model geometry shared
+│  │  │                    #   with the art (the chip: CHIP, CHIP_POSE, chipTraces, chipPins)
+│  │  ├─ three/            # imperative three.js: world · core (the hero microprocessor) · swarm ·
+│  │  │                    #   trail (the cursor trail's ribbon) · materials (five programs,
+│  │  │                    #   P2–P6) · glsl · palette · samples · compile (staged build,
 │  │  │                    #   frame-counted ready) · models/{cubes,commerceLoop,integrationHub,
 │  │  │                    #   neural,meshWave}
 │  │  └─ art/              # static SVG art, CSS Modules, no "use client": HeroCoreArt (+ heroArt.ts)
@@ -227,9 +231,10 @@ target on the page by `data-intro-reveal`.
 ## The interior stage
 
 The home page's first three sections — Hero, Ticker, Directions — scroll over **one** WebGL
-canvas: the hero's Cybernetic Core, which hands over to the selected direction's model as the
-visitor reaches the services. Devices that should not draw it get static SVG art in the same
-places. What the visitor sees is in [05 — Page Sections](./05-page-sections.md#interior-stage-3d);
+canvas: the hero's neon microprocessor (the chip), which hands over to the selected direction's
+model as the visitor reaches the services, and a cursor circuit trail behind a mouse or pen.
+Devices that should not draw it get static SVG art in the same places (no trail).
+What the visitor sees is in [05 — Page Sections](./05-page-sections.md#interior-stage-3d);
 the styling rules in [04 — Design System](./04-design-system.md#the-interior-stage); the coding
 rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage).
 
@@ -331,6 +336,39 @@ steps), `data-morph` (`running|idle`), and the director's `data-scroll-fx` (`on`
   `data-boost`, which the static art's wave keys off. A module store, not a `window` event.
 - **`tbs:intro-gone`** (`lib/intro.ts`) and **`tbs:page-cover`** (`lib/scrollLock.ts`) — see
   [Data flow](#data-flow) below.
+- **The scene's fx** (`fx.ts`, one per canvas) — the tilt targets the listeners write, what the
+  world smooths every frame, and the cursor trail's ring buffer (`fx.trail`). `input.ts` pushes a
+  segment for a **mouse or pen** move only (in the fine-pointer branch): `pushTrail` snaps the
+  point to a 20px **document** grid (`clientX + scrollX`, `clientY + scrollY`, `event.timeStamp`)
+  and marks the slots it wrote; `three/trail.ts` uploads just those slots and draws.
+
+### The hero chip and the cursor trail (IT-OS Phase 1, 2026-09-17)
+
+- **The chip is built from the programs the scene already had** (`three/core.ts`,
+  `createChipCore`): instanced box edges (P3) for the substrate, heat spreader, die frame and pins;
+  the plasma die top (P2); lines (P4) for the vias, bevel, pin-1 notch and die grid; flat trace
+  ribbons carrying packets (P5); a square light wave (P4) only while a boost wave runs. The
+  interior has **no** transmission glass, frost shader, PMREM environment or transmission pass any
+  more — `components/three/environment.ts` stays for the intro. Draws per frame at the top of `/`:
+  4 (the glass core drew 10 on high, 8 on mid).
+- **Geometry lives in `shapes.ts`** (`CHIP`, `CHIP_POSE`, `chipTraces(perSide)`,
+  `chipPins(perSide)`), shared by the WebGL chip and the static art (`art/heroArt.ts`, one
+  projection matrix). `CHIP.R` is the old core's radius (2.45), so every host fit is unchanged.
+  The pin's box is `CHIP.pinSize`, never `pin`: `scene-contract.test.ts` scans
+  `components/scene/**` for GSAP pinning and would read the key as a ScrollTrigger pin.
+- **Along the hero exit** the chip shrinks, lifts apart (`coreExitPose().lift`: heat spreader and
+  die rise off the substrate) and dissolves (`coreReveal`); it no longer drifts to the services
+  host. Until the services-entry phase, swarm slot 0 holds the chip's silhouette (`chipSamples`),
+  so the hand-over still leaves from where the chip is.
+- **The cursor trail** is one more part (built after the swarm, compiled in its own slice): one P5
+  ribbon of `TRAIL.cap` (64) segments × 6 vertices in document px, drawn over the rest of the scene
+  (render order 9, no depth test), and only while a segment is still fading (`TRAIL.life` 0.9s).
+  Per frame only its uniforms and transform change; a pause over 0.35s or a jump over 12 cells
+  starts a new chain without a segment.
+- **Decision record (D-I).** The hero no longer shares geometry with the intro: the old core's
+  rings were tied to the intro's orbits (`RING_TILTS` / `RING_OMEGA` ≡ the intro's `ORBITS`, pinned
+  by a unit test). `CORE`, `RING_TILTS`, `RING_OMEGA` and that test are gone; the intro keeps its own
+  `ORBITS` in `components/intro/`.
 
 ### The art: one drawing in the HTML, the rest on demand
 

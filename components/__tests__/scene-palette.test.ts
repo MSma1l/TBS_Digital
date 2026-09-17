@@ -28,7 +28,6 @@ const DARK: SceneTokenValues = {
   redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
-  onAccent: "#ffffff",
 };
 const LIGHT: SceneTokenValues = {
   cyan: "#0e93b9",
@@ -38,7 +37,6 @@ const LIGHT: SceneTokenValues = {
   redText: "#d41026",
   txt: "#10172a",
   bg: "#f4f7ff",
-  onAccent: "#ffffff",
 };
 
 const rgb = (hex: string) => parseTokenColor(hex)!;
@@ -64,7 +62,7 @@ describe("parseTokenColor", () => {
 });
 
 describe("pickSceneRoles", () => {
-  it("dark tokens → glow: neon blue, the lifted red, a blue glass body", () => {
+  it("dark tokens → glow: neon blue, the lifted red", () => {
     const palette = pickSceneRoles(DARK);
     expect(palette.mode).toBe("glow");
     expect(palette.cyan).toEqual(rgb(DARK.cyan));
@@ -72,18 +70,19 @@ describe("pickSceneRoles", () => {
     expect(palette.red).toEqual(rgb(DARK.redLift));
     expect(palette.hot).toEqual(rgb(DARK.txt));
     expect(palette.bg).toEqual(rgb(DARK.bg));
-    expect(palette.glassTint).toEqual(rgb(DARK.onAccent));
-    expect(palette.attenuation).toEqual(rgb(DARK.blue));
+    // The glass core's roles (tint, attenuation) left with it: nothing reads --on-accent.
+    expect(Object.keys(palette).sort()).toEqual(["bg", "blue", "cyan", "hot", "mode", "red"]);
+    expect(Object.values(SCENE_TOKENS)).not.toContain("--on-accent");
   });
 
-  it("light tokens → ink: the text tones, a cyan glass body", () => {
+  it("light tokens → ink: the text tones", () => {
     const palette = pickSceneRoles(LIGHT);
     expect(palette.mode).toBe("ink");
     expect(palette.cyan).toEqual(rgb(LIGHT.cyan));
     expect(palette.blue).toEqual(rgb(LIGHT.blueText));
     expect(palette.red).toEqual(rgb(LIGHT.redText));
     expect(palette.hot).toEqual(rgb(LIGHT.txt));
-    expect(palette.attenuation).toEqual(rgb(LIGHT.cyan));
+    expect(palette.bg).toEqual(rgb(LIGHT.bg));
   });
 
   it("an unparsable token throws a descriptive error naming it", () => {

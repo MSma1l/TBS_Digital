@@ -9,9 +9,11 @@ import {
   burgerRoundTrip,
   consoleErrors,
   countAudioContexts,
+  countDrawCalls,
   createdWebGLContexts,
   cspViolations,
   directionPills,
+  drawCallsPerFrame,
   expectNoHorizontalScroll,
   expectRootUntouched,
   forceIntro3d,
@@ -24,6 +26,7 @@ import {
   modalDialog,
   probeMismatches,
   recordSceneAttributes,
+  resetDrawCalls,
   sceneProbeVsDom,
   sceneAttributeValues,
   sceneStage,
@@ -502,5 +505,77 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
     expect(errors.page).toEqual([]);
     expect(errors.console).toEqual([]);
+  });
+
+  test.describe("mouse over the hero (1280×800)", () => {
+    test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false, isMobile: false });
+
+    test("W17 60 pointer moves draw the cursor trail and leave one canvas, one context and every control clickable", async ({
+      page,
+    }) => {
+      await watchCsp(page);
+      await trackWebGLContexts(page);
+      await countDrawCalls(page);
+      const errors = consoleErrors(page);
+      await openForced(page);
+
+      // Idle baseline once the build and compile slices are done: the draws per frame settle.
+      const settled = async () => {
+        await resetDrawCalls(page);
+        await page.waitForTimeout(1_000);
+        return drawCallsPerFrame(page);
+      };
+      let idle: number[] = [];
+      await expect
+        .poll(
+          async () => {
+            idle = (await settled()).filter((n) => n > 0);
+            return idle.length >= 5 && Math.min(...idle) === Math.max(...idle);
+          },
+          { message: "the scene settles on a fixed number of draws per frame", timeout: 40_000, intervals: [0] },
+        )
+        .toBe(true);
+      const idleDraws = idle[0];
+
+      // A zig-zag across the eyebrow and headline band and over the chip, then back one band
+      // lower, clear of both CTAs (a boost would add the wave's draw). Every step is 2–3 grid
+      // cells, far under the 12-cell jump that breaks the chain.
+      await resetDrawCalls(page);
+      for (let i = 0; i < 60; i += 1) {
+        const leg = i < 30 ? i : 59 - i;
+        await page.mouse.move(60 + leg * 40, (i < 30 ? 150 : 270) + (i % 2) * 60);
+        await page.waitForTimeout(16);
+      }
+      await page.waitForTimeout(150);
+      const moving = await drawCallsPerFrame(page);
+      expect(Math.max(...moving), `idle ${idleDraws} per frame; moving ${JSON.stringify(moving)}`).toBe(idleDraws + 1);
+
+      // The segments fade (0.9s): the trail stops drawing.
+      await page.waitForTimeout(1_500);
+      const after = (await settled()).filter((n) => n > 0);
+      expect(after.length).toBeGreaterThan(0);
+      expect(Math.max(...after), `after the fade ${JSON.stringify(after)}`).toBe(idleDraws);
+
+      await expect(page.locator("canvas")).toHaveCount(1);
+      expect(await liveWebGLContexts(page)).toBe(1);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+      // What a click at each control's centre lands on: the control, never the canvas.
+      const hits = async (target: ReturnType<Page["locator"]>, selector: string) => {
+        const box = (await target.boundingBox())!;
+        return page.evaluate(
+          ({ x, y, selector }) => !!document.elementFromPoint(x, y)?.closest(selector),
+          { x: box.x + box.width / 2, y: box.y + box.height / 2, selector },
+        );
+      };
+      expect(await hits(page.locator("#top button").first(), "#top button")).toBe(true);
+      expect(await hits(page.locator('#top a[href="#servicii"]').first(), '#top a[href="#servicii"]')).toBe(true);
+      expect(await hits(themeToggle(page), "header button")).toBe(true);
+      await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
+
+      expect(await cspViolations(page)).toEqual([]);
+      expect(errors.page).toEqual([]);
+      expect(errors.console).toEqual([]);
+    });
   });
 });

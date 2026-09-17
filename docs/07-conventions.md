@@ -170,8 +170,9 @@ real failure, a CSP violation or a weight regression waiting to happen.
 
 **No network, no loaders, no drei.** Both scenes are built procedurally from three core: geometry
 from math (`components/intro/three/geometry.ts`, `components/scene/shapes.ts` and
-`components/scene/three/*`), a PMREM environment rendered from emissive strips
-(`components/three/environment.ts`), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
+`components/scene/three/*`), for the intro's glass a PMREM environment rendered from emissive strips
+(`components/three/environment.ts`; the interior has used no environment since the hero became a
+chip, 2026-09-17), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
 fetched — no HDRs, fonts, GLTF, Draco/KTX2/Basis decoders, no wasm, no workers — because the
 nonce-based CSP in `proxy.ts` would block them, and they would pass every local check and fail
 only in the browser. ESLint (`eslint.config.mjs`) therefore **bans**, both as `import` and as
@@ -186,14 +187,15 @@ config replaces the whole option.
 (`react-hooks/immutability`) flags assignments to objects a hook returned; plain TypeScript
 helpers called from `useFrame` keep the components to "create once, call per frame, dispose":
 `components/intro/three/{rig,core,particles}.ts` for the intro; `components/scene/three/world.ts`
-(which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners) and
-`scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
+(which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners, which also
+lay the cursor trail), `trail.ts` (the trail's ring buffer; `three/trail.ts` uploads what it
+wrote) and `scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
 never re-renders React per frame either: it writes `textContent`, attributes and `quickSetter` values straight to the DOM,
 and tweens a plain `fx` object the scene reads.
 
 **Dispose everything you create.** Geometries and materials are disposed by the modules that
-build them (`core.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the PMREM
-generator and its render target in `environment.ts`. R3F 9.7 calls `forceContextLoss()` 500ms
+build them (`core.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the intro's
+PMREM generator and its render target in `environment.ts`. R3F 9.7 calls `forceContextLoss()` 500ms
 after unmount but never `renderer.dispose()`; `components/three/renderer.ts` (`retainRenderer`)
 adds it (deferred one tick so StrictMode's remount doesn't dispose a live renderer) and guards
 against losing an already-lost context. The renderer is created up front by that module
@@ -203,8 +205,8 @@ inside R3F becomes an unhandled rejection that never reaches an error boundary.
 **Colour tokens read at runtime must stay hex or `rgb()`.** The intro reads `--red`,
 `--red-lift`, `--blue`, `--dark-cyan`, `--dark-txt` and `--void` (`components/intro/three/materials.ts`,
 `PALETTE_TOKENS`); the interior reads `--cyan`, `--blue`, `--blue-text`, `--red-lift`,
-`--red-text`, `--txt`, `--bg` and `--on-accent` (`components/scene/three/palette.ts`,
-`SCENE_TOKENS`), and re-reads them when `data-theme` or `prefers-color-scheme` changes.
+`--red-text`, `--txt` and `--bg` (`components/scene/three/palette.ts`, `SCENE_TOKENS`; `--on-accent`
+left with the glass core), and re-reads them when `data-theme` or `prefers-color-scheme` changes.
 `THREE.Color` cannot parse `color-mix()` or `oklch()`. Changing one of these tokens to another
 format throws a descriptive error: the intro falls back to the SVG, the interior's error boundary
 keeps the static art (a later theme change that cannot be read keeps the previous palette).
@@ -337,11 +339,17 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   (`components/scene/three/compile.ts`); it is **ready** only once R3F has drawn two frames of the
   compiled scene, counted from `useFrame` — never from a timer, which also ticks while the canvas
   is paused.
-- **The transmission clear is compensated in one place.** `installTransmissionClear`
+- **The transmission clear is compensated in one place** — the intro's glass only: since the hero
+  became a chip (2026-09-17) the interior has no transmission pass. `installTransmissionClear`
   (`components/three/environment.ts`) pre-compensates three's output-space conversion of the clear
   colour while the canvas is bound (`linearTargetClearColor`), so the linear transmission target
-  really gets the page colour. Scenes pass the **plain** page colour; converting it themselves
+  really gets the page colour. A scene passes the **plain** page colour; converting it itself
   applies the compensation twice.
+- **The interior draws with five programs (P2–P6), and new parts reuse them** (`three/materials.ts`).
+  The hero chip and the cursor trail added none: they are box edges, a plasma surface, lines and
+  flat ribbons like the service models. A mode is a `uMode` branch, and a retired mode keeps the
+  others' numbers (`TUBE_MODE` has had no 0 since the core's rings left, `POINTS_MODE` none since
+  its cloud did).
 - **The static art** (`components/scene/art/`): no `"use client"`, tokens only, no infinite
   animation, nothing animated on `stroke-dashoffset` or `filter`, no `circle` under r=12, no round
   line caps, `aria-hidden` with no text; hidden under `[data-renderer="webgl"]`. Only the first

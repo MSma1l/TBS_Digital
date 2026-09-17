@@ -140,17 +140,21 @@
      lines); the eyebrow ≥4.68 on 95% at 390. Dark keeps the full glows (lead ≥7.2:1). */
   --hero-glow-red: rgba(239, 38, 61, 0.08);
   --hero-glow-blue: rgba(47, 107, 239, 0.06);
-  /* The hero core illustration behind the copy on phones (Hero.tsx, below 861px). Measured as
-     the mean luminance change over the core's box with the text hidden (×1000, 320–390px):
-     light, at .4 the art already matches the WebGL core it crossfades into (art 2.6–3.2,
-     canvas 2.5–2.9 under the scrim below), so the dark ink under dark text stays faded; dark,
-     at .4 the art measured 0.3 against the canvas's 1.03 and the hero visibly brightened when
-     WebGL took over — see --dark-hero-core-phone. */
-  --hero-core-phone: 0.4;
+  /* The hero chip illustration behind the copy on phones (Hero.tsx, below 861px; 641–860px has
+     its own value below). Set so the art matches the WebGL chip it crossfades into — measured as
+     the mean luminance change the chip makes where it sits behind the copy (anchor ∩ copy
+     column, text hidden, ×1000; canvas averaged over 12 frames at CORE_BEHIND_COPY_DIM):
+     light, the chip's art is brighter than the old core's, and at .4 it measured 1.90 against
+     the canvas's 1.50 at 390px (4.19 against 2.68 at 320). At .3, art ÷ canvas is 0.92–1.01 at
+     375/390/412 (1.26 at 320, where the art's fixed-width strokes weigh more on a 294px chip),
+     and the copy over it keeps ≥4.78:1 (headline ≥3.74). The dark twin: --dark-hero-core-phone. */
+  --hero-core-phone: 0.3;
   /* The phone scrim's strength (Hero.tsx [data-scene-scrim], below 861px): the pool of page
-     colour between the core and the copy. The light lead (--mut) needs more of it: at .8, over
-     the forced WebGL core, 5.7% of its pixels measured under 4.5:1 at 390px (min 4.17) and the
-     static art took it to 4.38; at .92 the lead clears 4.5 again. Dark keeps .8 (lead ≥5.6:1). */
+     colour between the chip and the copy. The light lead (--mut, 4.87:1 on the bare page) needs
+     this much over the WebGL chip, whose centre sits under it: at .92 its lowest pixel is 4.50
+     at 390px over 12 frames. More scrim did not buy a brighter chip — at .95 the dim could not
+     rise past what .92 allows (ink .6: 4.45) — and at .98 the chip is gone. Dark keeps .8 (lead
+     ≥5.49:1, headline ≥3.59 at 320–412px). */
   --hero-scrim: 0.92;
   --neon-red:
     0 0 0 1px rgba(255, 83, 98, 0.5), 0 0 18px rgba(239, 38, 61, 0.45),
@@ -374,9 +378,11 @@
   /* the full key lights: over the near-black page the lead keeps 7:1 and more under them */
   --dark-hero-glow-red: var(--glow-red);
   --dark-hero-glow-blue: var(--glow);
-  /* Light strokes on the near-black page: whole, the art (0.95–1.01) is about as present as
-     the canvas that replaces it (1.02–1.04), and the copy over it keeps ≥5.6:1. */
-  --dark-hero-core-phone: 1;
+  /* Light strokes on the near-black page. Whole, the chip's art measured 1.6–2.1× the canvas
+     it crossfades into (0.95 against 0.58 at 390px, 1.49 against 0.69 at 320) and the hero
+     dimmed when WebGL took over; at .65, art ÷ canvas is 0.91–1.12 at 375/390/412 (1.17 at 320),
+     and the copy over it keeps ≥7.58:1 (headline ≥3.84). */
+  --dark-hero-core-phone: 0.65;
   --dark-hero-scrim: 0.8;
   /* Neon Cyan on the dark scale: one bright tone serves graphics and text alike. --bg 12.53,
      --bg2 12.83, --panel 10.56, --panel2 9.60; over the worst (white) pixel under
@@ -392,6 +398,22 @@
 @media (max-width: 640px) {
   :root {
     --glass-blur: 8px;
+  }
+}
+
+/* 641–860px (tablets, landscape phones): the chip is centred under the lead, below the scrim's
+   full pool, so a fifth of it shows through whatever --hero-scrim is — the art needs the fainter
+   strength the canvas has there (CORE_BEHIND_COPY_DIM.wide, 0.25 glow / 0.15 ink). At the phone
+   values the lead failed at 768×1024: light art 99.13% of its pixels ≥4.5:1 (lowest 4.17), dark
+   art 99.92% (4.28); light .25 still left 99.98% (4.49). Here every hero text is 100% (light lead
+   ≥4.69, dark ≥8.19), and art ÷ canvas is 0.97 (dark) / 0.92 (light) at 768×1024, 1.10 / 1.37 at
+   844×390 — where the light chip changes no pixel by 3% either way. The dark page reads the
+   -dark- twin through its remap. From 861px the art is whole (Hero.tsx md:opacity-100) and this
+   token is unused. */
+@media (min-width: 641px) {
+  :root {
+    --hero-core-phone: 0.11;
+    --dark-hero-core-phone: 0.27;
   }
 }
 

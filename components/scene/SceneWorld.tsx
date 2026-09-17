@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * The R3F side of the interior scene: creates the world once, installs the high tier's glass
- * environment, builds and then compiles it in idle slices, reports ready once the compiled
- * scene has drawn two frames, and drives the world every frame. Everything imperative lives in
- * `./three/*` and `./fx.ts`; this component only wires it to R3F and to the canvas's callbacks.
+ * The R3F side of the interior scene: creates the world once, builds and then compiles it in
+ * idle slices, reports ready once the compiled scene has drawn two frames, and drives the world
+ * every frame. Everything imperative lives in `./three/*` and `./fx.ts`; this component only
+ * wires it to R3F and to the canvas's callbacks.
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
@@ -63,10 +63,8 @@ export function SceneWorld({
   }, [onReady, onStep, onMorph]);
 
   useEffect(() => () => world.dispose(), [world]);
-  // Before the compile below: the environment changes the physical glass's shader defines.
-  useEffect(() => world.installEnvironment(gl, scene, palette), [world, gl, scene, palette]);
   useEffect(() => world.setPalette(palette), [world, palette]);
-  useEffect(() => world.setLite(lite, gl), [world, gl, lite]);
+  useEffect(() => world.setLite(lite), [world, lite]);
   useRetainedRenderer(gl);
 
   // Build, then compile, one piece per idle slice; then count drawn frames (below).

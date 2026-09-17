@@ -187,14 +187,31 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
 
 **What it draws**
 
-- **The Cybernetic Core**, behind the hero: a glass sphere (real transmission glass on the high
-  tier, a frosted shader on mid), a wireframe nucleus, three tilted rings (the intro's orbit
-  tilts) and a cloud of particles. It leans towards the mouse on a desktop, and follows the
-  device's tilt on touch screens **where the gyroscope works without asking** — the site never
-  calls iOS's `requestPermission()`, so iOS shows no prompt and keeps a slow idle sway.
-  Hovering the hero's CTAs with a mouse, or focusing them from the keyboard, brightens it. No
-  sound.
-- **The selected direction's model.** As the services come into view the core shrinks away and
+- **The microprocessor**, behind the hero (IT-OS Phase 1, 2026-09-17; it replaced the glass
+  "Cybernetic Core"): a neon chip lying back as a diamond — a substrate, a heat spreader and a
+  glowing plasma die stacked on it, pins on all four sides fanning out into board traces that end
+  in square vias (7 traces per side on the high tier, 5 on mid). Red packets run the traces out to
+  the board and back in, and a pin flares as one leaves or lands. It leans towards the mouse on a
+  desktop, and follows the device's tilt on touch screens **where the gyroscope works without
+  asking** — the site never calls iOS's `requestPermission()`, so iOS shows no prompt and keeps a
+  slow idle sway. Hovering the hero's CTAs with a mouse, or focusing them from the keyboard, speeds
+  the packets up and sends one square light wave out across the board. As the hero scrolls away the
+  chip shrinks, its heat spreader and die lift off the substrate (an exploded view), and it
+  dissolves. Nothing is glass: no transmission, no environment map. No sound.
+- **The cursor circuit trail.** A mouse or pen moving over the stage lays short neon circuit
+  segments behind the pointer — snapped to a 20px grid of the page and joined at right angles, a
+  code pulse running along them — that fade out over 0.9s. They are laid on the page, so they
+  scroll with it. Its limits, all by design:
+  - **fine pointer only** — never a finger (touch and coarse pointers attach nothing), and never
+    under reduced motion;
+  - **the WebGL path only** — the static art has no trail;
+  - **over the stage only**: it is drawn on the stage's canvas, under the page, so it shows over
+    Hero, Ticker and Directions only where the page lets the canvas through — **never over an
+    opaque card** (the Directions case card, the header), faint at most under glass — and nowhere
+    outside the stage;
+  - a pause over 0.35s, or a jump of more than 12 grid cells (240px), starts a new line instead of
+    drawing a wire across the page. At most 64 segments live at once.
+- **The selected direction's model.** As the services come into view the chip dissolves and
   the scene hands over to the model of the pill that is selected, drawn behind the Directions
   HUD screen:
 
@@ -211,10 +228,12 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
   gently rather than spin (a full turn shows a loop or a mesh edge-on).
 - Each model follows its place on the page at a parallax factor below 1, so the canvas's
   one-frame lag behind a scrolling page reads as depth.
-- **Below 861px the core sits behind the headline**, dimmed so the copy keeps its contrast (0.55
-  dark / 0.4 light under 641px; 0.35 / 0.3 from 641 to 860px), with a scrim of the page colour
-  between them. In the light theme everything is drawn as ink over the page rather than as added
-  light.
+- **Below 861px the chip sits behind the headline**, dimmed so the copy keeps its contrast (0.55
+  dark / 0.4 light under 641px; 0.25 / 0.15 from 641 to 860px, where its centre is under the
+  lead), with a scrim of the page colour between them; the static art is faded to match
+  (`--hero-core-phone`, [04](./04-design-system.md#hero-core-tokens-phones)). In the light theme
+  everything is drawn as ink over the page rather than as added light, and the chip stays faint
+  behind the copy on phones: the lead's own contrast leaves no room for more.
 
 **Who gets it** (`data-renderer` on `[data-testid="scene-stage"]`)
 
@@ -248,10 +267,11 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
 - The project screenshots' parallax in [Work](#work) is CSS only.
 
 **Static art.** Where the scene does not draw, SVG illustrations in the same places and
-proportions stand in: the core in the hero, the selected direction's model on the services
-screen. They never loop. A new direction's drawing plays a one-shot entrance; hovering or
-keyboard-focusing a hero CTA sends one light wave through the core. Both are gone under reduced
-motion.
+proportions stand in: the microprocessor in the hero (the same silhouette as the WebGL chip,
+drawn through its pose), the selected direction's model on the services screen. They never loop.
+A new direction's drawing plays a one-shot entrance; hovering or keyboard-focusing a hero CTA
+sends one square light wave out across the chip while its packets flicker. Both are gone under
+reduced motion.
 
 ## /01 — Hero
 
@@ -267,12 +287,15 @@ motion.
   resumes where it stopped. The lit layers sit in `[data-parallax="hero-backdrop"]` (the desktop
   parallax), never the marker itself.
 - **The core's host** (`data-testid="scene-hero"` › `data-scene-anchor="hero"`), inside the
-  backdrop: the static core art, and the box the WebGL core is fitted to.
-  - Phones (below 861px): centred behind the headline, at `--hero-core-phone` (faded in the
-    light theme, whole in the dark one).
-  - 861–1024px: on the seam between the two columns, raised to the top — the stat cards stack in
-    the narrow right column there, and centred behind them they hid 86–88% of the sphere (now
-    34–39%).
+  backdrop: the static chip art, and the box the WebGL chip is fitted to (`CHIP.R` equals the old
+  core's radius, so the boxes below did not change with the chip).
+  - Phones (below 861px): centred behind the headline, at `--hero-core-phone` (below 641px .3
+    light / .65 dark; 641–860px, where the chip sits under the lead, .11 / .27), matched to the
+    WebGL chip's behind-the-copy dim so the crossfade does not flash.
+  - 861–1024px: on the seam between the two columns (`right: gutter + 6vw`), raised to the top —
+    the stat cards stack in the narrow right column there and would hide most of the chip. The
+    offset is no larger because at 11.5vw the chip's left traces ran under the end of the h1
+    (min 1.22:1 at 1024×768); at 6vw the hero text is 100% ≥ 4.5:1 at 900 and 1024.
   - From 1025px: the right-hand column, centred, at full strength.
 - **Phone scrim** (`data-scene-scrim`, below 861px): a radial pool of the page colour over the
   core and under the eyebrow, headline and lead, at `--hero-scrim`.
@@ -282,7 +305,7 @@ motion.
   red glyph; the lead. Trilingual literals (`L()` in the component), not catalog keys.
 - **CTAs:** the primary `cta-neon` button **"Începe proiectul"** with an `aria-hidden` ↗ SVG opens
   the request dialog (`source: "hero"`); the secondary ghost link **"Explorăm serviciile ↓"** goes
-  to `#servicii`. Both **boost the 3D core** while hovered by a mouse or pen (never a finger — a tap
+  to `#servicii`. Both **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
   has no hover to end it) or focused **visibly** from the keyboard. Hover and focus are separate
   reasons, so moving the mouse off a keyboard-focused CTA keeps the boost, and the focus the dialog
   hands back after a mouse close (not `:focus-visible`) does not start one.

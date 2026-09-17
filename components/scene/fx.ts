@@ -1,12 +1,14 @@
 /**
- * The interior scene's per-frame state: what the input listeners wrote (pointer / gyro tilt)
- * and what the world smooths every frame (scroll progress, tilt, the CTA boost and its light
- * wave). One plain mutable object — no React state per frame, no three.js, no DOM — created
- * once per canvas (`useState(createSceneFx)`) and only ever written by the `.ts` helpers.
+ * The interior scene's per-frame state: what the input listeners wrote (pointer / gyro tilt,
+ * the cursor trail's segments) and what the world smooths every frame (scroll progress, tilt,
+ * the CTA boost and its light wave). One plain mutable object — no React state per frame, no
+ * three.js, no DOM — created once per canvas (`useState(createSceneFx)`) and only ever written
+ * by the `.ts` helpers.
  */
 
 import { MAX_FRAME_STEP, damp } from "@/components/three/motion";
 import type { SceneInput } from "@/lib/scene";
+import { TRAIL, createTrailBuffer, type TrailBuffer } from "./trail";
 
 export type SceneFx = {
   /** Scene seconds, accumulated from clamped steps (a paused frameloop never jumps). */
@@ -18,6 +20,8 @@ export type SceneFx = {
   tiltX: number;
   tiltY: number;
   tiltLive: boolean;
+  /** Written by input.ts (fine pointer), drawn by three/trail.ts: the cursor circuit trail. */
+  trail: TrailBuffer;
 
   /* Smoothed every frame by `stepSceneFx`. */
   tx: number;
@@ -43,6 +47,8 @@ export function createSceneFx(): SceneFx {
     tiltX: 0,
     tiltY: 0,
     tiltLive: false,
+    // The trail's clock: event timestamps and `performance.now()` share the page's time origin.
+    trail: createTrailBuffer(TRAIL.cap, typeof performance !== "undefined" ? performance.now() / 1000 : 0),
     tx: 0,
     ty: 0,
     heroExit: 0,

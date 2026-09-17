@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ORBITS } from "@/components/intro/three/random";
 import {
+  CHIP,
+  CHIP_POSE,
   COMMERCE_GATES,
-  CORE,
   CUBE_LAYOUTS,
   MODEL_RADIUS,
-  RING_OMEGA,
-  RING_TILTS,
   buildNeuralGraph,
+  chipPins,
+  chipTraces,
   commerceTrackPoint,
   hubLayout,
   projectOrtho,
@@ -23,22 +23,114 @@ import {
 const EPS = 1e-9;
 const length = ([x, y, z]: Vec3) => Math.hypot(x, y, z);
 
-describe("the core", () => {
-  it("nests sphere, nucleus and rings inside its outer radius", () => {
-    expect(CORE.nucleus).toBeLessThan(CORE.sphere);
-    expect(CORE.sphere).toBeLessThan(CORE.rings[0]);
-    for (let i = 1; i < CORE.rings.length; i += 1) {
-      expect(CORE.rings[i]).toBeGreaterThan(CORE.rings[i - 1]);
-    }
-    expect(CORE.rings[CORE.rings.length - 1] + CORE.tube[CORE.tube.length - 1]).toBeLessThanOrEqual(
-      CORE.R + EPS,
-    );
-    expect(CORE.tube).toHaveLength(CORE.rings.length);
+describe("the chip", () => {
+  /** Trace counts per side worth checking: both tiers, the art's, and the degenerate ends. */
+  const PER_SIDE = [1, 2, 3, 4, 5, 6, 7, 9];
+  /** (x, y) turned by `s` quarter turns counter-clockwise. */
+  const turn = ([x, y]: readonly [number, number], s: number): [number, number] => {
+    let p: [number, number] = [x, y];
+    for (let k = 0; k < s; k += 1) p = [-p[1], p[0]];
+    return p;
+  };
+
+  it("nests die < heat spreader < substrate < board ≤ R, the R of the old core (host fits unchanged)", () => {
+    expect(CHIP.die).toBeLessThan(CHIP.ihs);
+    expect(CHIP.ihs).toBeLessThan(CHIP.pkg);
+    expect(CHIP.pkg).toBeLessThan(CHIP.board);
+    expect(CHIP.board).toBeLessThanOrEqual(CHIP.R);
+    expect(CHIP.R).toBe(2.45);
+    // A via pad on the board's edge still fits inside R.
+    expect(CHIP.board + CHIP.via * Math.SQRT2).toBeLessThanOrEqual(CHIP.R);
+    for (const t of Object.values(CHIP.thick)) expect(t).toBeGreaterThan(0);
   });
 
-  it("tilts and turns its rings like the intro's three orbits", () => {
-    expect(RING_TILTS).toEqual(ORBITS.map((orbit) => orbit.tilt));
-    expect(RING_OMEGA).toEqual(ORBITS.map((orbit) => orbit.omega));
+  it("lies back and turns to a diamond", () => {
+    expect(CHIP_POSE).toEqual([-0.78, 0, 0.62]);
+  });
+
+  for (const n of PER_SIDE) {
+    it(`${n} per side: 4·n traces of axis-aligned or 45° runs, inside the board`, () => {
+      const traces = chipTraces(n);
+      expect(traces).toHaveLength(4 * n);
+      for (const trace of traces) {
+        expect(trace).toHaveLength(4);
+        for (const [x, y] of trace) expect(Math.hypot(x, y)).toBeLessThanOrEqual(CHIP.board + EPS);
+        for (let j = 1; j < trace.length; j += 1) {
+          const dx = Math.abs(trace[j][0] - trace[j - 1][0]);
+          const dy = Math.abs(trace[j][1] - trace[j - 1][1]);
+          const axis = dx < EPS || dy < EPS;
+          const diagonal = Math.abs(dx - dy) < 1e-9;
+          expect(axis || diagonal, `run ${j} of ${JSON.stringify(trace)}`).toBe(true);
+        }
+      }
+    });
+
+    it(`${n} per side: side 0 stays in |x| < y and keeps its x order at every y (no crossings)`, () => {
+      const side0 = chipTraces(n).slice(0, n);
+      for (const trace of side0) {
+        for (const [x, y] of trace) expect(Math.abs(x)).toBeLessThan(y);
+        // y never falls along a trace, so x is a function of y on it.
+        for (let j = 1; j < trace.length; j += 1) expect(trace[j][1]).toBeGreaterThanOrEqual(trace[j - 1][1]);
+      }
+      const xAt = (trace: Array<[number, number]>, y: number): number | null => {
+        for (let j = 1; j < trace.length; j += 1) {
+          const [ax, ay] = trace[j - 1];
+          const [bx, by] = trace[j];
+          if (y >= ay - EPS && y <= by + EPS) return by - ay < EPS ? bx : ax + ((bx - ax) * (y - ay)) / (by - ay);
+        }
+        return null;
+      };
+      for (let i = 0; i + 1 < side0.length; i += 1) {
+        const [a, b] = [side0[i], side0[i + 1]];
+        const from = Math.max(a[0][1], b[0][1]);
+        const to = Math.min(a[3][1], b[3][1]);
+        for (let k = 0; k <= 200; k += 1) {
+          const y = from + ((to - from) * k) / 200;
+          const xa = xAt(a, y);
+          const xb = xAt(b, y);
+          expect(xa).not.toBeNull();
+          expect(xb).not.toBeNull();
+          expect(xa!, `traces ${i} and ${i + 1} at y ${y}`).toBeLessThan(xb!);
+        }
+      }
+    });
+
+    it(`${n} per side: four-fold symmetric, pins in trace order at each trace's start`, () => {
+      const traces = chipTraces(n);
+      const pins = chipPins(n);
+      expect(pins).toHaveLength(4 * n);
+      for (let s = 0; s < 4; s += 1) {
+        for (let i = 0; i < n; i += 1) {
+          const k = s * n + i;
+          traces[k].forEach((p, j) => {
+            const expected = turn(traces[i][j], s);
+            expect(p[0]).toBeCloseTo(expected[0], 12);
+            expect(p[1]).toBeCloseTo(expected[1], 12);
+          });
+          const pin = pins[k];
+          expect(pin.side).toBe(s);
+          expect(pin.size).toEqual(s % 2 === 0 ? [CHIP.pinSize.w, CHIP.pinSize.l] : [CHIP.pinSize.l, CHIP.pinSize.w]);
+          // The pin stands out of the substrate's edge, and its outer end is where the trace starts.
+          const out = turn([0, 1], s);
+          const end = [pin.center[0] + (out[0] * CHIP.pinSize.l) / 2, pin.center[1] + (out[1] * CHIP.pinSize.l) / 2];
+          expect(end[0]).toBeCloseTo(traces[k][0][0], 12);
+          expect(end[1]).toBeCloseTo(traces[k][0][1], 12);
+          const inner = turn([pin.center[0], pin.center[1]], (4 - s) % 4);
+          expect(inner[1] - CHIP.pinSize.l / 2).toBeCloseTo(CHIP.pkg, 12);
+        }
+      }
+    });
+  }
+
+  it("is deterministic, never -0 (the art prints these numbers), and at least one trace per side", () => {
+    expect(chipTraces(7)).toEqual(chipTraces(7));
+    expect(chipPins(5)).toEqual(chipPins(5));
+    for (const n of PER_SIDE) {
+      const numbers = [...chipTraces(n).flat(2), ...chipPins(n).flatMap((pin) => [...pin.center, ...pin.size])];
+      expect(numbers.filter((v) => Object.is(v, -0)), `${n} per side`).toEqual([]);
+    }
+    expect(chipTraces(0)).toHaveLength(4);
+    expect(chipPins(2.7)).toHaveLength(8);
   });
 });
 
@@ -210,7 +302,7 @@ function cssMatrix(transform: string): Mat3 {
 
 describe("toCssRotation", () => {
   it("is the three.js Euler XYZ rotation seen through CSS's downward y axis (S·R·S)", () => {
-    for (const tilt of [...RING_TILTS, [0.3, -1.1, 2.2] as const]) {
+    for (const tilt of [CHIP_POSE, [0.3, -1.1, 2.2] as const]) {
       const three = multiply(multiply(rx(tilt[0]), ry(tilt[1])), rz(tilt[2]));
       const expected = multiply(multiply(FLIP_Y, three), FLIP_Y);
       const actual = cssMatrix(toCssRotation(tilt));

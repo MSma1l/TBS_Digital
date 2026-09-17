@@ -1066,6 +1066,57 @@ export const createdWebGLContexts = (page: Page): Promise<number> =>
     () => (window as unknown as { __webglRefs?: { created: number } }).__webglRefs?.created ?? 0,
   );
 
+type DrawTally = { calls: number; frames: number[]; frameTs: number; frameStart: number };
+
+/**
+ * Count WebGL draw calls per animation frame, from the outside: the draw methods of both
+ * context prototypes are wrapped, and a frame closes when the first `requestAnimationFrame`
+ * callback of the next one runs. The page's code is untouched — a mesh that is not visible
+ * issues no draw, so "one more draw per frame" is "one more mesh drew". Read with
+ * `drawCallsPerFrame` (the last 600 frames), reset with `resetDrawCalls`.
+ */
+export async function countDrawCalls(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const tally: DrawTally = { calls: 0, frames: [], frameTs: -1, frameStart: 0 };
+    (window as unknown as { __draws?: DrawTally }).__draws = tally;
+    for (const ctor of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+      if (!ctor) continue;
+      const proto = ctor.prototype as unknown as Record<string, unknown>;
+      for (const name of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
+        const real = proto[name];
+        if (typeof real !== "function") continue;
+        proto[name] = function (this: unknown, ...args: unknown[]) {
+          tally.calls += 1;
+          return (real as (...a: unknown[]) => unknown).apply(this, args);
+        };
+      }
+    }
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback: FrameRequestCallback) =>
+      raf((ts) => {
+        if (ts !== tally.frameTs) {
+          if (tally.frameTs >= 0) {
+            tally.frames.push(tally.calls - tally.frameStart);
+            if (tally.frames.length > 600) tally.frames.shift();
+          }
+          tally.frameTs = ts;
+          tally.frameStart = tally.calls;
+        }
+        callback(ts);
+      });
+  });
+}
+
+/** Draw calls in each frame since the last reset (frames that drew nothing included). */
+export const drawCallsPerFrame = (page: Page): Promise<number[]> =>
+  page.evaluate(() => (window as unknown as { __draws?: DrawTally }).__draws?.frames.slice() ?? []);
+
+export const resetDrawCalls = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    const tally = (window as unknown as { __draws?: DrawTally }).__draws;
+    if (tally) tally.frames.length = 0;
+  });
+
 export type SceneRecord = { renderer: string; introPresent: boolean };
 
 /**
@@ -1273,15 +1324,25 @@ export async function expectRootUntouched(page: Page, when: string): Promise<voi
 
 /** Jump to `y` without the page's smooth scrolling, and wait until the page is there. */
 export async function scrollToY(page: Page, y: number): Promise<number> {
-  const target = await page.evaluate((top) => {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    const clamped = Math.max(0, Math.min(Math.round(top), Math.floor(max)));
-    window.scrollTo({ top: clamped, behavior: "instant" });
-    return clamped;
-  }, y);
+  let target = 0;
+  // The clamp is re-read on every poll: a page that is still growing (late layout right after
+  // hydration) moves the bottom after the first scroll, so a "scroll to the end" follows it
+  // instead of waiting for a position that no longer exists.
   await expect
-    .poll(() => page.evaluate(() => Math.round(window.scrollY)), { timeout: 5_000 })
-    .toBe(target);
+    .poll(
+      async () => {
+        const reading = await page.evaluate((top) => {
+          const max = document.documentElement.scrollHeight - window.innerHeight;
+          const clamped = Math.max(0, Math.min(Math.round(top), Math.floor(max)));
+          if (Math.round(window.scrollY) !== clamped) window.scrollTo({ top: clamped, behavior: "instant" });
+          return { clamped, at: Math.round(window.scrollY) };
+        }, y);
+        target = reading.clamped;
+        return reading.at === reading.clamped;
+      },
+      { timeout: 5_000 },
+    )
+    .toBe(true);
   return target;
 }
 

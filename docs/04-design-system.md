@@ -305,27 +305,53 @@ has none. Nothing on the stage or an ancestor of its layer may carry `transform`
 
 ```css
 /* light                       dark twin (remapped)         */
---hero-core-phone: 0.4;     /* --dark-hero-core-phone: 1    */
+--hero-core-phone: 0.3;     /* --dark-hero-core-phone: 0.65 */   /* below 641px */
+--hero-core-phone: 0.11;    /* --dark-hero-core-phone: 0.27 */   /* 641–860px   */
 --hero-scrim:      0.92;    /* --dark-hero-scrim:      0.8  */
 ```
 
-- **`--hero-core-phone`** is the strength of the core illustration behind the headline below
-  861px. Light keeps the dark ink faded (at .4 the art already matches the WebGL core it
-  crossfades into); dark shows it whole — at .4 the art measured 0.3 against the canvas's 1.03
-  (mean luminance change over the core's box, ×1000) and the hero visibly brightened when WebGL
-  took over; at 1 it is 0.95–1.01 against 1.02–1.04.
-- **`--hero-scrim`** is the opacity of the phone scrim, a radial pool of `--bg` between the core
-  and the copy. The light lead (`--mut`) needs more: at .8 over the forced WebGL core, 5.7% of its
-  pixels measured under 4.5:1 at 390px (lowest 4.17); at .92, 100% (lowest 4.63).
-- The WebGL core has its own resting dim while it sits behind the copy
+Re-measured for the microprocessor (IT-OS Phase 1, 2026-09-17) with the text hidden, over the
+forced WebGL chip (**12 frames** per case — its moving packets and pin flares are the worst pixels,
+and four frames missed some) and over the static art, at 320, 375, 390, 412, 768 and 844×390 in
+both themes. The gate is **every** pixel under a text line box: ≥4.5:1, or ≥3:1 for the headline.
+
+- **`--hero-core-phone`** is the strength of the chip illustration behind the copy below 861px,
+  set so the art matches the canvas it crossfades into. Brightness is measured as the mean
+  luminance change the chip makes where it sits behind the copy (anchor ∩ copy column, ×1000).
+  The chip's art is brighter than the old core's: at the old values the dark art was 1.6–2.1× the
+  canvas (0.95 against 0.58 at 390px) and 3.7–4× it at 641–860px, the light art 1.2–1.6× (2.4× at 844×390). Now,
+  art ÷ canvas:
+
+  | | 320 | 375 | 390 | 412 | 768×1024 | 844×390 |
+  |---|---|---|---|---|---|---|
+  | dark | 1.17 | 0.91 | 0.91 | 1.12 | 0.97 | 1.10 |
+  | light | 1.26 | 0.94 | 0.92 | 1.01 | 0.92 | 1.37 |
+
+  320px is the outlier in both themes (the art's fixed-width strokes weigh more on a 294px chip);
+  at 844×390 the light chip changes no pixel by 3% either way. **641–860px has its own, fainter
+  value** (`@media (min-width: 641px)` in `globals.css`): there the chip is centred under the lead,
+  below the scrim's full pool, and at the phone values the lead failed (light art 99.13% of its
+  pixels, lowest 4.17; dark 99.92%, 4.28).
+- **`--hero-scrim`** is the opacity of the phone scrim, a radial pool of `--bg` between the chip
+  and the copy. Unchanged: the light lead (`--mut`, 4.87:1 on the bare page) sits on the chip's
+  centre and measures exactly 4.50 at its lowest at 390px over 12 frames. More scrim does not buy a
+  brighter chip — at .95 the dim still could not rise (ink 0.6: 99.98%, lowest 4.45; 0.7 / 0.8:
+  4.41 / 4.40) — and at .98 the chip disappears. A more visible light chip needs another scrim
+  shape, not a token.
+- The WebGL chip has its own resting dim while it sits behind the copy
   (`CORE_BEHIND_COPY_DIM`, `components/scene/choreography.ts`): below 641px 0.55 dark / 0.4
-  light, 641–860px 0.35 dark / 0.3 light. With those, every hero text measured 100% ≥4.5:1 over
-  the forced canvas at 375, 390, 412 and 768px in both themes (four frames each). Retune the dim
-  and the tokens together — the art-to-canvas crossfade should not change the brightness. The
-  token values above were calibrated against the canvas **before** these dims (light phones were
-  at 0.55, 641–860px at 0.8), and have not been re-measured since; the static art at 768px in the
-  light theme also leaves 0.3–0.4% of the lead's pixels under 4.5:1 (lowest 4.18). Both are open
-  in `CHANGELOG.md` (2026-09-17).
+  light (unchanged), 641–860px **0.25 dark / 0.15 light** (was 0.35 / 0.3, which failed at
+  768×1024 over 12 frames: dark lead 99.94%, lowest 3.78, headline 2.74; light lead 99.84%, 4.06).
+- **Result, every hero text 100% below 861px in both themes and both paths.** Lowest: dark canvas
+  lead 5.05, headline 3.59; dark art lead 7.58, headline 3.84; light canvas lead 4.50, headline
+  3.58; light art lead 4.69, headline 3.74; the light eyebrow 4.55–4.68 is its own colour's limit
+  on the page. Retune the dim and the tokens together.
+- **Still open from 861px** (none of these tokens applies there): at 1024×768 the chip's left
+  traces pass under the end of the headline — dark canvas 99.99% ≥3:1 (lowest 1.22), dark art
+  99.92% (1.92), light canvas lowest 2.38; moving the 861–1024px anchor right by about 5.5vw
+  (`right: calc(var(--gutter) + 6vw)`) measured 100% at 900 and 1024 in both themes and paths. At
+  861px the light eyebrow (99.69%, 4.09) and lead (99.97%, 4.50) sit on the 1px HUD grid line,
+  identical with the chip hidden. See `CHANGELOG.md` (2026-09-17, Faza 1).
 
 ### Static art (`components/scene/art/`)
 
@@ -336,12 +362,23 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
 - **Tokens only**, in a CSS Module per component (the art is not in Tailwind's `@source`):
   `--cyan`, `--blue`, `--blue-text`, `--red`, … Strokes are `vector-effect: non-scaling-stroke`,
   so a line keeps its CSS width at any size; heavier strokes on the hero core at ≤860px.
-- **Never a dot.** Butt caps and mitred joins, no `circle` under r=12, particles drawn as short
-  streaks and crosses, packets as bars at least 9 units long.
+- **The hero's microprocessor** (`HeroCoreArt` + `heroArt.ts`, IT-OS Phase 1): one `<svg
+  data-core-art>` of 23 elements, no `<circle>`. Every path is written in the chip's own plane
+  (`CHIP.R` → 95 art units, `h`/`v`/`l` relative commands) inside one `<g>` whose
+  `CHIP_ART_MATRIX` is the WebGL chip's `CHIP_POSE` projected, so the crossfade lands on the same
+  silhouette; the stacked substrate, heat spreader and die are offset by `chipLift`. Back to front:
+  a square glow (`#tbs-core-glow`), the traces (`chipTraces(5)`, the mid tier's) with a wide faint
+  `<use>` halo and square vias, rectangular pins, the slabs, the die (`#tbs-core-die`) and its
+  grid, **8 packets as red streaks at least `PARTICLE_MIN_LENGTH` = 6 art units long on screen**
+  (measured after the projection, which shortens a run), and the square boost wave.
+- **Never a dot.** Butt caps and mitred joins, no `circle` under r=12; the services' particles
+  drawn as short streaks and crosses, packets as bars at least 9 units long; the chip's pins, vias
+  and wave are squares and rectangles, its packets streaks (above).
 - **Static by decision.** No infinite animation, nothing on `stroke-dashoffset` or `filter`.
   Two one-shot motions, transform and opacity only, both gone under reduced motion:
   `materialize` (0.45s) when another direction's drawing mounts, and the hero's light wave
-  (`core-wave` / `core-push`, 1.1s) on `[data-scene-stage]:not([data-renderer="webgl"])[data-boost]`.
+  (`core-wave`, the square scaling out ×2.3, plus `core-packets`, the packets flickering twice —
+  opacity only; 1.1s) on `[data-scene-stage]:not([data-renderer="webgl"])[data-boost]`.
 - **Hidden under WebGL**: `:global([data-scene-stage][data-renderer="webgl"]) .art { opacity: 0 }`
   with a 500ms transition — the same length as the canvas's fade-in. `fallback`, `pending` and
   `off` keep the art.
@@ -724,8 +761,9 @@ rule in [07 — Conventions](./07-conventions.md).
 - **Marquee / hazard stripes** — the diagonal `--blue` striped bars (`.hz`) and the trust
   ticker under the hero (five identical groups, each ending in a slanted red neon hairline, so
   the loop has no seam).
-- **The interior 3D stage** — the Cybernetic Core and the five service models behind Hero →
-  Ticker → Directions, static SVG art where WebGL is not used, holographic stat cards, pointer
+- **The interior 3D stage** — the neon microprocessor (2026-09-17, replacing the glass Cybernetic
+  Core) and the five service models behind Hero → Ticker → Directions, the cursor circuit trail
+  behind a mouse or pen, static SVG art where WebGL is not used, holographic stat cards, pointer
   tilt, the project cards' CSS parallax ([The interior stage](#the-interior-stage)).
 - **No decorative dots** (2026-09-17). The clock pip, the eyebrow's blinking dot, the stat-note
   pips, the ticker's round separators, the logo's halo and the estimator chat's status dot are
@@ -744,7 +782,7 @@ Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fade
 stat holograms; `hud-swap-in` (0.32s) brings a direction's copy in. `hud-parallax-media` is a
 **top-level** keyframe, not in the animations `@theme` block: keyframes there are emitted only
 when an `--animate-*` token naming them is used, and this one is referenced from the
-`parallax-media` utility instead. The art's keyframes (`materialize`, `core-wave`, `core-push`)
+`parallax-media` utility instead. The art's keyframes (`materialize`, `core-wave`, `core-packets`)
 live in their own CSS Modules (see the gotcha below). All of them move `transform` or `opacity`
 only, and the global reduced-motion switch stops them.
 

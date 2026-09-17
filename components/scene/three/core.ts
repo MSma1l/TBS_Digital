@@ -1,55 +1,53 @@
 /**
- * The hero's "Cybernetic Core": a frosted glass sphere around a plasma nucleus and its
- * counter-rotating wire, three tilted torus rings precessing at their own varying speeds,
- * and a cloud of light particles. Pointer / gyro tilt turns it, a hero CTA boost speeds the
- * rings up, and each boost start sends a light wave out through the cloud.
+ * The hero's neon microprocessor: a substrate with a heat spreader and a plasma die stacked on
+ * it, pins on all four sides, and board traces fanning out from the pins to square vias.
+ * Packets run the traces out to the board and back in to the pins; a pin flares as a packet
+ * leaves or lands. Pointer / gyro tilt turns it, a hero CTA boost speeds the packets up and
+ * each boost start sends a square light wave out across the board. Along the hero exit the
+ * spreader and the die lift off the substrate (the exploded view) and the chip dissolves.
  *
- * Draw order (renderOrder inside three's opaque → transmissive → transparent lists):
- * nucleus and wire 1 (opaque pass, so the transmission glass refracts them) → glass 2 →
- * rim and rings 3 → cloud 4 → wave shell 5. Nothing is frustum-culled: shaders displace
- * vertices, and there are only a handful of objects.
+ * Draws (one idle compile slice each), all on the existing programs:
+ *   · boxes (P3 edges, instanced): substrate, heat spreader, die frame, then the pins in
+ *     `chipPins` order — `instanceColor` carries each box's hue and a pin's flare;
+ *   · the die top (P2 plasma);
+ *   · lines (P4 wire): the vias, the spreader's bevel and pin-1 notch, the die grid;
+ *   · traces (P5 links): flat ribbons, two triangles per run with 45° mitres, `uv.x` the share
+ *     of the trace's length from its pin, `aTag` = trace + .5 on the odd (incoming) ones;
+ *   · the light wave (P4 wire), a square drawn only while it runs.
+ * Chip plane: x right, y up, z out of the board (samples.ts `CHIP_STACK`). Nothing is
+ * frustum-culled: the dissolve discards fragments and there are only five objects.
  */
 
 import {
-  BufferAttribute,
+  BoxGeometry,
   BufferGeometry,
-  EdgesGeometry,
-  Euler,
+  Color,
+  Float32BufferAttribute,
   Group,
-  IcosahedronGeometry,
+  InstancedMesh,
   LineSegments,
+  Matrix4,
   Mesh,
-  Points,
   Quaternion,
-  SphereGeometry,
-  TorusGeometry,
   Vector3,
-  type MeshPhysicalMaterial,
   type Object3D,
 } from "three";
-import { CORE, RING_OMEGA, RING_TILTS } from "../shapes";
-import { pointsDrawn, type SceneTierConfig } from "../tiers";
-import { easeOutCubic } from "../choreography";
+import { CHIP, CHIP_POSE, chipPins, chipTraces } from "../shapes";
+import type { SceneTierConfig } from "../tiers";
+import { clamp01, easeOutCubic } from "../choreography";
 import {
-  INK_SPRITES,
   LINE_MODE,
-  POINTS_MODE,
   SURFACE_MODE,
   TUBE_MODE,
-  createFrostGlass,
   createLineMaterial,
-  createPhysicalGlass,
-  createPointsMaterial,
   createSurfaceMaterial,
   createTubeMaterial,
   paint,
-  paintPoints,
-  setFrostPalette,
-  setPhysicalGlassPalette,
-  type FrostUniforms,
+  toColor,
 } from "./materials";
 import type { ScenePalette } from "./palette";
-import { SCENE_SEEDS, cloudPositions, seedAttributes } from "./samples";
+import { CHIP_LIFT, CHIP_STACK } from "./samples";
+import { place } from "./models/types";
 
 export type CoreFrame = {
   /** Scene time and this frame's clamped step, seconds. */
@@ -62,247 +60,364 @@ export type CoreFrame = {
   boost: number;
   /** Light wave progress, 1 when idle. */
   wave: number;
-  /** 1 formed → 0 collapsed into the handoff. */
+  /** 1 formed → 0 dissolved. */
   reveal: number;
-  /** Draw this frame even when collapsed (buffers upload; it is scaled to nothing). */
+  /** Draw this frame even when dissolved (buffers upload; every fragment discards). */
   prewarm: boolean;
-  /** Ring radius factor along the hero exit. */
-  rings: number;
-  /** Brightness (a phone's core sits dimmed behind the copy). */
+  /** The exploded view along the hero exit, 0 stacked → 1 lifted apart. */
+  lift: number;
+  /** Brightness (a phone's chip sits dimmed behind the copy). */
   dim: number;
-  /** Half the drawing buffer's height and the canvas's pixel ratio, for sprite sizes. */
-  halfHeightPx: number;
-  dpr: number;
 };
 
-export type CyberneticCore = {
+export type ChipCore = {
   /** Placed by the world (position and scale); everything else turns inside it. */
   group: Group;
-  /** Every mesh, line set and point set under `group` (compiled one at a time). */
+  /** Every draw object under `group` (compiled one at a time). */
   objects: Object3D[];
-  glassKind: "physical" | "frost";
   update(frame: CoreFrame): void;
   setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
   dispose(): void;
 };
 
-/** The precession axis of each ring: x, y and z. */
-const RING_AXES = [new Vector3(1, 0, 0), new Vector3(0, 1, 0), new Vector3(0, 0, 1)] as const;
+/** Trips per second of a packet along a trace (the links shader's `uTime * 0.5`). */
+export const CHIP_PACKET_SPEED = 0.5;
+/** Full width of a trace ribbon, scene units. */
+export const CHIP_TRACE_WIDTH = 0.034;
+/** A trace's resting strength (the packets add to it). */
+const TRACE_ALPHA = { glow: 0.45, ink: 0.55 } as const;
+/** Boxes before the pins in the instanced draw: substrate, heat spreader, die frame. */
+const BODY_BOXES = 3;
 
-/** Largest cloud sprite, CSS pixels. */
-export const CLOUD_MAX_CSS_PX = 9;
-const CLOUD_SIZE = 0.038;
-const CLOUD_ALPHA = 0.75;
-
-function place<T extends Object3D>(object: T, renderOrder: number): T {
-  object.renderOrder = renderOrder;
-  object.frustumCulled = false;
-  return object;
+/** Pure. Trace `index` carries packets in to its pin (odd) or out to the board (even). */
+export function chipTraceIncoming(index: number): boolean {
+  return index % 2 === 1;
 }
 
-export function createCyberneticCore(config: SceneTierConfig, palette: ScenePalette): CyberneticCore {
+/** Pure. Pin `index`'s flare at packet time `time`: 1 as its packet leaves or lands, 0 between. */
+export function chipPinFlare(time: number, index: number): number {
+  const phase = (((index * 0.37) % 1) + 1) % 1;
+  const head = (((time * CHIP_PACKET_SPEED + phase) % 1) + 1) % 1;
+  const d = Math.min(head, 1 - head);
+  return Math.exp(-((d * 20) ** 2));
+}
+
+/** Pure. The die's arrival pulse over `traces` traces (the hub's formula: incoming packets). */
+export function chipArrivalPulse(time: number, traces: number): number {
+  let pulse = 0;
+  for (let i = 0; i < traces; i += 1) {
+    if (chipTraceIncoming(i)) pulse += chipPinFlare(time, i);
+  }
+  return Math.min(1.5, pulse);
+}
+
+type Point = readonly [number, number];
+
+/** The polyline without zero-length runs (a centre trace has no chamfer). */
+function distinct(run: readonly Point[]): Point[] {
+  const out: Point[] = [];
+  for (const p of run) {
+    const last = out[out.length - 1];
+    if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-9) out.push(p);
+  }
+  return out;
+}
+
+/**
+ * Flat ribbons along `traces` at height `z`, `width` wide: two counter-clockwise triangles per
+ * run (seen from +z), mitred at every bend, normal +z.
+ */
+export function traceRibbons(traces: ReadonlyArray<readonly Point[]>, width: number, z: number): BufferGeometry {
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const tags: number[] = [];
+  const half = width / 2;
+
+  traces.forEach((trace, index) => {
+    const run = distinct(trace);
+    if (run.length < 2) return;
+    const lengths = [0];
+    for (let i = 1; i < run.length; i += 1) {
+      lengths.push(lengths[i - 1] + Math.hypot(run[i][0] - run[i - 1][0], run[i][1] - run[i - 1][1]));
+    }
+    const total = lengths[lengths.length - 1];
+    // The left normal of run i (p_i → p_i+1).
+    const normal = (i: number): Point => {
+      const dx = run[i + 1][0] - run[i][0];
+      const dy = run[i + 1][1] - run[i][1];
+      const l = Math.hypot(dx, dy);
+      return [-dy / l, dx / l];
+    };
+    // Offset at vertex j: the mitre of its two runs' normals, half a width off the centre line.
+    const offsets = run.map((_, j): Point => {
+      if (j === 0) return [normal(0)[0] * half, normal(0)[1] * half];
+      if (j === run.length - 1) return [normal(j - 1)[0] * half, normal(j - 1)[1] * half];
+      const a = normal(j - 1);
+      const b = normal(j);
+      // Along a + b, scaled so its component along either normal is half a width.
+      const mx = a[0] + b[0];
+      const my = a[1] + b[1];
+      const k = half / Math.max(1e-6, mx * a[0] + my * a[1]);
+      return [mx * k, my * k];
+    });
+    const tag = index + (chipTraceIncoming(index) ? 0.5 : 0);
+    const vertex = (j: number, side: 1 | -1) => {
+      positions.push(run[j][0] + offsets[j][0] * side, run[j][1] + offsets[j][1] * side, z);
+      normals.push(0, 0, 1);
+      uvs.push(lengths[j] / total, side > 0 ? 1 : 0);
+      tags.push(tag);
+    };
+    for (let i = 0; i + 1 < run.length; i += 1) {
+      // right(i), right(i+1), left(i+1) · right(i), left(i+1), left(i)
+      vertex(i, -1);
+      vertex(i + 1, -1);
+      vertex(i + 1, 1);
+      vertex(i, -1);
+      vertex(i + 1, 1);
+      vertex(i, 1);
+    }
+  });
+
+  const geometry = new BufferGeometry();
+  geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new Float32BufferAttribute(normals, 3));
+  geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+  geometry.setAttribute("aTag", new Float32BufferAttribute(tags, 1));
+  return geometry;
+}
+
+/** The outline of a square of half-size `half` centred on (cx, cy) at height `z`, as segment pairs. */
+function squareSegments(cx: number, cy: number, half: number, z: number, out: number[]): void {
+  const corners: Point[] = [
+    [cx - half, cy - half],
+    [cx + half, cy - half],
+    [cx + half, cy + half],
+    [cx - half, cy + half],
+  ];
+  for (let i = 0; i < 4; i += 1) {
+    const a = corners[i];
+    const b = corners[(i + 1) % 4];
+    out.push(a[0], a[1], z, b[0], b[1], z);
+  }
+}
+
+export function createChipCore(config: SceneTierConfig, palette: ScenePalette): ChipCore {
   const group = new Group();
   group.name = "scene-core";
-  const tilt = new Group();
-  group.add(tilt);
-  const disposables: Array<{ dispose(): void }> = [];
+  const pose = new Group();
+  pose.rotation.set(CHIP_POSE[0], CHIP_POSE[1], CHIP_POSE[2]);
+  group.add(pose);
 
-  /* nucleus + wire */
-  const nucleusGeometry = new IcosahedronGeometry(CORE.nucleus, 3);
-  const nucleus = createSurfaceMaterial({
-    mode: SURFACE_MODE.plasma,
-    roles: { a: "cyan", b: "red", hot: "hot" },
-    opaque: true,
-    intensity: 1,
+  const traces = chipTraces(config.chipTraces);
+  const pins = chipPins(config.chipTraces);
+
+  /* boxes: substrate, heat spreader, die frame, pins */
+  const boxGeometry = new BoxGeometry(1, 1, 1);
+  const boxes = createSurfaceMaterial({
+    mode: SURFACE_MODE.edges,
+    roles: { a: "cyan", b: "blue", hot: "hot" },
+    instanced: true,
   });
-  const nucleusMesh = place(new Mesh(nucleusGeometry, nucleus.material), 1);
-  tilt.add(nucleusMesh);
+  const boxMesh = place(new InstancedMesh(boxGeometry, boxes.material, BODY_BOXES + pins.length), 2);
+  pose.add(boxMesh);
+  const matrix = new Matrix4();
+  const position = new Vector3();
+  const scale = new Vector3();
+  const identity = new Quaternion();
+  const setBox = (index: number, x: number, y: number, z: number, sx: number, sy: number, sz: number) => {
+    boxMesh.setMatrixAt(index, matrix.compose(position.set(x, y, z), identity, scale.set(sx, sy, sz)));
+  };
+  setBox(0, 0, 0, CHIP_STACK.pkg, 2 * CHIP.pkg, 2 * CHIP.pkg, CHIP.thick.pkg);
+  pins.forEach((pin, i) => {
+    const z = CHIP_STACK.board + CHIP.pinSize.t / 2;
+    setBox(BODY_BOXES + i, pin.center[0], pin.center[1], z, pin.size[0], pin.size[1], CHIP.pinSize.t);
+  });
 
-  const wireSource = new IcosahedronGeometry(0.55, 1);
-  const wireGeometry = new EdgesGeometry(wireSource);
-  wireSource.dispose();
-  const wire = createLineMaterial({ mode: LINE_MODE.wire, roles: { a: "cyan", b: "blue", hot: "hot" }, alpha: 0.75, opaque: true });
-  const wireMesh = place(new LineSegments(wireGeometry, wire.material), 1);
-  tilt.add(wireMesh);
-  disposables.push(nucleusGeometry, nucleus.material, wireGeometry, wire.material);
+  /* the die top */
+  const dieGeometry = new BoxGeometry(2 * CHIP.die * 0.88, 2 * CHIP.die * 0.88, CHIP.thick.die);
+  const die = createSurfaceMaterial({ mode: SURFACE_MODE.plasma, roles: { a: "cyan", b: "red", hot: "hot" } });
+  const dieMesh = place(new Mesh(dieGeometry, die.material), 1);
+  pose.add(dieMesh);
 
-  /* glass + rim */
-  const sphereGeometry = new SphereGeometry(CORE.sphere, config.sphere[0], config.sphere[1]);
-  let physical: MeshPhysicalMaterial | null = null;
-  let frost: FrostUniforms | null = null;
-  let glassMesh: Mesh;
-  if (config.glass === "physical") {
-    physical = createPhysicalGlass(palette);
-    glassMesh = place(new Mesh(sphereGeometry, physical), 2);
-    disposables.push(physical);
-  } else {
-    const glass = createFrostGlass(palette);
-    frost = glass.uniforms;
-    glassMesh = place(new Mesh(sphereGeometry, glass.material), 2);
-    disposables.push(glass.material);
+  /* lines: vias (fixed), then the spreader's bevel and pin-1 notch, then the die grid (lifted) */
+  const segments: number[] = [];
+  for (const trace of traces) {
+    const [x, y] = trace[trace.length - 1];
+    squareSegments(x, y, CHIP.via, CHIP_STACK.board, segments);
   }
-  tilt.add(glassMesh);
+  const fixedVertices = segments.length / 3;
+  const ihsTop = CHIP_STACK.ihs + CHIP.thick.ihs / 2;
+  // As the static art draws them: the bevel 0.1 inside the spreader's edge, pin 1 a 45° cut
+  // across its top-left corner.
+  squareSegments(0, 0, CHIP.ihs - 0.1, ihsTop, segments);
+  const notch = 0.18;
+  segments.push(-CHIP.ihs, CHIP.ihs - notch, ihsTop, -CHIP.ihs + notch, CHIP.ihs, ihsTop);
+  const dieVertices = segments.length / 3;
+  const dieTop = CHIP_STACK.die + CHIP.thick.die / 2 + 0.002;
+  for (const k of [-1, 1]) {
+    const g = (k * CHIP.die) / 3;
+    segments.push(g, -CHIP.die, dieTop, g, CHIP.die, dieTop);
+    segments.push(-CHIP.die, g, dieTop, CHIP.die, g, dieTop);
+  }
+  const baseZ = new Float32Array(segments.length / 3);
+  for (let v = 0; v < baseZ.length; v += 1) baseZ[v] = segments[v * 3 + 2];
+  const lineGeometry = new BufferGeometry();
+  const linePositions = new Float32BufferAttribute(segments, 3);
+  lineGeometry.setAttribute("position", linePositions);
+  const lines = createLineMaterial({ mode: LINE_MODE.wire, roles: { a: "cyan", b: "blue", hot: "hot" }, alpha: 0.7 });
+  const lineMesh = place(new LineSegments(lineGeometry, lines.material), 3);
+  pose.add(lineMesh);
 
-  const rim = createSurfaceMaterial({
-    mode: SURFACE_MODE.fresnel,
-    roles: { a: "cyan", b: "red", hot: "hot" },
-    extrude: 0.012,
-    intensity: 0.9,
-  });
-  const rimMesh = place(new Mesh(sphereGeometry, rim.material), 3);
-  tilt.add(rimMesh);
-  disposables.push(sphereGeometry, rim.material);
+  /* traces */
+  const traceGeometry = traceRibbons(traces, CHIP_TRACE_WIDTH, CHIP_STACK.board);
+  const links = createTubeMaterial({ mode: TUBE_MODE.links, roles: { a: "blue", b: "cyan", hot: "red" }, alpha: TRACE_ALPHA.glow });
+  const traceMesh = place(new Mesh(traceGeometry, links.material), 2);
+  pose.add(traceMesh);
 
-  /* rings */
-  const ringTilts = RING_TILTS.map((t) => new Quaternion().setFromEuler(new Euler(t[0], t[1], t[2], "XYZ")));
-  const rings = CORE.rings.map((radius, i) => {
-    const geometry = new TorusGeometry(radius, CORE.tube[i], config.ringRadial, config.ringTubular);
-    const material = createTubeMaterial({
-      mode: TUBE_MODE.ring,
-      roles: { a: "cyan", b: "blue", hot: "hot" },
-      alpha: 0.32,
-    });
-    material.uniforms.uTicks.value = i === 0 ? 1 : 0;
-    material.uniforms.uHead.value = i * 0.31;
-    const pivot = new Group();
-    const mesh = place(new Mesh(geometry, material.material), 3);
-    pivot.add(mesh);
-    tilt.add(pivot);
-    disposables.push(geometry, material.material);
-    return { pivot, mesh, material, angle: 0 };
-  });
+  /* the light wave: a square leaving the substrate's edge */
+  const waveSegments: number[] = [];
+  squareSegments(0, 0, CHIP.pkg * 1.05, CHIP_STACK.board, waveSegments);
+  const waveGeometry = new BufferGeometry();
+  waveGeometry.setAttribute("position", new Float32BufferAttribute(waveSegments, 3));
+  const wave = createLineMaterial({ mode: LINE_MODE.wire, roles: { a: "cyan", b: "blue", hot: "hot" }, alpha: 0.9 });
+  const waveMesh = place(new LineSegments(waveGeometry, wave.material), 4);
+  waveMesh.visible = false;
+  pose.add(waveMesh);
 
-  /* cloud */
-  const cloudCount = config.cloud;
-  const cloudGeometry = new BufferGeometry();
-  cloudGeometry.setAttribute("position", new BufferAttribute(new Float32Array(cloudCount * 3), 3));
-  cloudGeometry.setAttribute("aS0", new BufferAttribute(cloudPositions(cloudCount), 3));
-  cloudGeometry.setAttribute("aSeed", new BufferAttribute(seedAttributes(cloudCount, SCENE_SEEDS.cloud + 7), 4));
-  const cloud = createPointsMaterial({
-    mode: POINTS_MODE.cloud,
-    roles: { a: "cyan", b: "blue", c: "red", hot: "hot" },
-    alpha: CLOUD_ALPHA,
-    size: CLOUD_SIZE,
-  });
-  const cloudPoints = place(new Points(cloudGeometry, cloud.material), 4);
-  tilt.add(cloudPoints);
-  disposables.push(cloudGeometry, cloud.material);
-
-  /* light wave shell */
-  const shellGeometry = new SphereGeometry(1, 48, 24);
-  const shell = createSurfaceMaterial({ mode: SURFACE_MODE.shell, roles: { a: "cyan", b: "blue", hot: "hot" } });
-  const shellMesh = place(new Mesh(shellGeometry, shell.material), 5);
-  shellMesh.visible = false;
-  tilt.add(shellMesh);
-  disposables.push(shellGeometry, shell.material);
-
-  const paintables = [nucleus, wire, rim, shell, ...rings.map((r) => r.material)];
-  const scratch = new Quaternion();
-  let head = 0;
+  /* colours: each box carries its own hue (the material's A is white) */
+  const substrateColor = new Color();
+  const spreaderColor = new Color();
+  const dieFrameColor = new Color();
+  const pinColor = new Color();
+  const scratch = new Color();
   let ink = palette.mode === "ink";
+  let lite = false;
+  let clock = 0;
+  let lastLift = 0;
+
+  const writePins = (time: number, flare: boolean) => {
+    for (let i = 0; i < pins.length; i += 1) {
+      const gain = flare ? (chipTraceIncoming(i) ? 1.6 : 0.7) * chipPinFlare(time, i) : 0;
+      boxMesh.setColorAt(BODY_BOXES + i, scratch.copy(pinColor).multiplyScalar(1 + gain));
+    }
+    if (boxMesh.instanceColor) boxMesh.instanceColor.needsUpdate = true;
+  };
 
   const applyPalette = (next: ScenePalette) => {
     ink = next.mode === "ink";
-    for (const item of paintables) paint(item, next);
-    paintPoints(cloud, next);
-    cloud.uniforms.uAlpha.value = CLOUD_ALPHA * (ink ? INK_SPRITES.alpha : 1);
-    cloud.uniforms.uSize.value = CLOUD_SIZE * (ink ? INK_SPRITES.size : 1);
-    if (physical) setPhysicalGlassPalette(physical, next);
-    if (frost) setFrostPalette(frost, next);
+    paint(boxes, next);
+    paint(die, next);
+    paint(lines, next);
+    paint(links, next);
+    paint(wave, next);
+    boxes.uniforms.uColorA.value.setRGB(1, 1, 1);
+    toColor(next.blue, substrateColor).multiplyScalar(1.1);
+    toColor(next.cyan, spreaderColor);
+    toColor(next.cyan, dieFrameColor).multiplyScalar(1.5);
+    toColor(next.cyan, pinColor);
+    boxMesh.setColorAt(0, substrateColor);
+    boxMesh.setColorAt(1, spreaderColor);
+    boxMesh.setColorAt(2, dieFrameColor);
+    writePins(clock, !lite);
+    links.uniforms.uAlpha.value = ink ? TRACE_ALPHA.ink : TRACE_ALPHA.glow;
+    lines.uniforms.uAlpha.value = ink ? 0.8 : 0.7;
   };
+
+  /** The exploded view: the spreader and the die (with their lines) rise along local z. */
+  const writeLift = (lift: number) => {
+    const ihsZ = CHIP_STACK.ihs + CHIP_LIFT.ihs * lift;
+    const dieZ = CHIP_STACK.die + CHIP_LIFT.die * lift;
+    setBox(1, 0, 0, ihsZ, 2 * CHIP.ihs, 2 * CHIP.ihs, CHIP.thick.ihs);
+    setBox(2, 0, 0, dieZ, 2 * CHIP.die, 2 * CHIP.die, CHIP.thick.die);
+    boxMesh.instanceMatrix.needsUpdate = true;
+    dieMesh.position.z = dieZ;
+    const z = linePositions.array as Float32Array;
+    for (let v = fixedVertices; v < baseZ.length; v += 1) {
+      z[v * 3 + 2] = baseZ[v] + (v < dieVertices ? CHIP_LIFT.ihs : CHIP_LIFT.die) * lift;
+    }
+    linePositions.needsUpdate = true;
+  };
+
   applyPalette(palette);
+  writeLift(0);
 
   return {
     group,
     // One draw object each: the scene compiles them one idle slice apart (world.ts).
-    objects: [nucleusMesh, wireMesh, glassMesh, rimMesh, ...rings.map((ring) => ring.mesh), cloudPoints, shellMesh],
-    glassKind: config.glass,
+    objects: [boxMesh, dieMesh, lineMesh, traceMesh, waveMesh],
 
     update(frame) {
-      const { time: t, step, boost, wave } = frame;
       const reveal = frame.reveal;
       group.visible = reveal > 0 || frame.prewarm;
       if (!group.visible) return;
+      const { time: t, step, boost } = frame;
 
-      // Tilt follows the pointer / gyro; the whole core breathes.
-      tilt.rotation.set(-frame.ty * 0.22, frame.tx * 0.32, 0);
-      tilt.scale.setScalar(Math.pow(reveal, 0.8));
+      pose.rotation.set(CHIP_POSE[0] - frame.ty * 0.22, CHIP_POSE[1] + frame.tx * 0.32, CHIP_POSE[2]);
+      const lift = clamp01(frame.lift);
+      if (lift !== lastLift) {
+        lastLift = lift;
+        writeLift(lift);
+      }
 
-      const waving = wave < 1;
-      const w = easeOutCubic(wave);
-      const fade = (1 - wave) * (1 - wave);
-      const flash = waving ? 0.6 * fade * (1 - wave) : 0;
+      const waving = frame.wave < 1;
+      const w = easeOutCubic(frame.wave);
+      const fade = (1 - frame.wave) * (1 - frame.wave);
+      const flash = waving ? 0.6 * fade * (1 - frame.wave) : 0;
       const dissolve = Math.min(1, reveal * 1.25);
       const light = frame.dim;
 
-      glassMesh.scale.setScalar(1 + 0.012 * Math.sin(1.4 * t) + 0.03 * flash);
-      rimMesh.scale.copy(glassMesh.scale);
+      clock += step * (1 + 1.5 * boost);
+      if (!lite) writePins(clock, true);
+      const arrival = chipArrivalPulse(clock, traces.length);
 
-      nucleus.uniforms.uTime.value = t;
-      nucleus.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(2.2 * t) + flash * 2 + boost * 0.35;
-      // Behind transmission glass the nucleus is also blurred across the whole sphere: keep it lower.
-      nucleus.uniforms.uIntensity.value = light * (ink ? 0.9 : 1.1) * (physical ? 0.4 : 1);
-      nucleus.uniforms.uReveal.value = dissolve;
-      nucleusMesh.rotation.set(t * 0.21, t * 0.34, 0);
+      boxes.uniforms.uTime.value = t;
+      boxes.uniforms.uReveal.value = dissolve;
+      boxes.uniforms.uIntensity.value = light * (1 + boost * 0.3 + flash);
 
-      wire.uniforms.uTime.value = t;
-      wire.uniforms.uIntensity.value = light * (1 + boost * 0.4) * (physical ? 0.6 : 1);
-      wire.uniforms.uReveal.value = dissolve;
-      wireMesh.rotation.set(-t * 0.17, -t * 0.26, t * 0.05);
+      die.uniforms.uTime.value = t;
+      die.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(2.2 * t) + 0.3 * arrival + boost * 0.35 + flash * 2;
+      die.uniforms.uIntensity.value = light * (ink ? 0.9 : 1.05);
+      die.uniforms.uReveal.value = dissolve;
 
-      // Ink rims are coverage, not light: at full strength they read as a hard outline.
-      rim.uniforms.uIntensity.value = light * (0.9 + boost * 0.5 + flash) * (ink ? 0.55 : 1);
-      rim.uniforms.uReveal.value = dissolve;
-      if (frost) {
-        frost.uTime.value = t;
-        frost.uGlow.value = boost * 0.6 + flash;
-        frost.uDim.value = light * Math.min(1, reveal * 1.5);
-      }
+      lines.uniforms.uTime.value = t;
+      lines.uniforms.uIntensity.value = light * (1 + boost * 0.4);
+      lines.uniforms.uReveal.value = dissolve;
 
-      head = (head + step * 0.22 * (1 + 1.5 * boost)) % 1;
-      const ringScale = frame.rings * (0.6 + 0.4 * reveal);
-      rings.forEach((ring, i) => {
-        const k = 0.85 + 0.3 * Math.sin(0.21 * t + 2.1 * i);
-        ring.angle += step * RING_OMEGA[i] * k * (1 + 2.2 * boost);
-        scratch.setFromAxisAngle(RING_AXES[i], ring.angle).multiply(ringTilts[i]);
-        ring.pivot.quaternion.copy(scratch);
-        ring.pivot.scale.setScalar(ringScale);
-        const u = ring.material.uniforms;
-        u.uHead.value = (head + i * 0.31) % 1;
-        u.uCometGain.value = boost * 0.6 + (waving ? 1.5 * fade : 0);
-        u.uIntensity.value = light * (1 + boost * 0.35);
-        u.uReveal.value = dissolve;
-        u.uTime.value = t;
-      });
+      links.uniforms.uTime.value = clock;
+      links.uniforms.uIntensity.value = light * (1 + boost * 0.35 + flash);
+      links.uniforms.uReveal.value = dissolve;
 
-      const cu = cloud.uniforms;
-      cu.uTime.value = t;
-      cu.uReveal.value = reveal;
-      cu.uIntensity.value = light;
-      cu.uWaveR.value = waving ? 1 + 2.3 * w : 0;
-      cu.uWaveAmp.value = waving ? 1 - wave : 0;
-      cu.uHalfHeight.value = frame.halfHeightPx;
-      cu.uMaxSize.value = CLOUD_MAX_CSS_PX * frame.dpr;
-
-      shellMesh.visible = waving;
+      waveMesh.visible = waving;
       if (waving) {
-        shellMesh.scale.setScalar(1 + 2.3 * w);
-        shell.uniforms.uFade.value = fade;
-        shell.uniforms.uIntensity.value = light;
-        shell.uniforms.uReveal.value = dissolve;
+        waveMesh.scale.set(1 + 2.3 * w, 1 + 2.3 * w, 1);
+        wave.uniforms.uTime.value = t;
+        wave.uniforms.uIntensity.value = fade * light;
+        wave.uniforms.uReveal.value = dissolve;
       }
     },
 
-    setLite(lite) {
-      cloudGeometry.setDrawRange(0, pointsDrawn(cloudCount, lite));
-      for (const ring of rings) ring.material.uniforms.uHead2.value = lite ? 0 : 1;
+    setLite(next) {
+      // Lite: the pins stop flaring (no per-frame colour upload); the packets keep running.
+      lite = next;
+      writePins(clock, !lite);
     },
 
     setPalette: applyPalette,
 
     dispose() {
-      for (const item of disposables) item.dispose();
+      boxGeometry.dispose();
+      dieGeometry.dispose();
+      lineGeometry.dispose();
+      traceGeometry.dispose();
+      waveGeometry.dispose();
+      boxes.material.dispose();
+      die.material.dispose();
+      lines.material.dispose();
+      links.material.dispose();
+      wave.material.dispose();
+      boxMesh.dispose();
     },
   };
 }

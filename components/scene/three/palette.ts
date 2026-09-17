@@ -24,10 +24,8 @@ export type ScenePalette = {
   red: Rgb;
   /** The white-hot core of a highlight (glow), the text colour (ink). */
   hot: Rgb;
-  /** The page behind the canvas: the environment's room and the transmission clear. */
+  /** The page behind the canvas (its luminance picks the mode). */
   bg: Rgb;
-  glassTint: Rgb;
-  attenuation: Rgb;
 };
 
 /** Every CSS custom property the scene reads (they must stay hex or rgb()). */
@@ -39,7 +37,6 @@ export const SCENE_TOKENS = {
   redText: "--red-text",
   txt: "--txt",
   bg: "--bg",
-  onAccent: "--on-accent",
 } as const;
 
 export type SceneTokenRole = keyof typeof SCENE_TOKENS;
@@ -100,8 +97,6 @@ export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
     red: ink ? parsed.redText : parsed.redLift,
     hot: parsed.txt,
     bg: parsed.bg,
-    glassTint: parsed.onAccent,
-    attenuation: ink ? parsed.cyan : parsed.blue,
   };
 }
 
@@ -133,9 +128,7 @@ export function samePalette(a: ScenePalette, b: ScenePalette): boolean {
     sameRgb(a.blue, b.blue) &&
     sameRgb(a.red, b.red) &&
     sameRgb(a.hot, b.hot) &&
-    sameRgb(a.bg, b.bg) &&
-    sameRgb(a.glassTint, b.glassTint) &&
-    sameRgb(a.attenuation, b.attenuation)
+    sameRgb(a.bg, b.bg)
   );
 }
 

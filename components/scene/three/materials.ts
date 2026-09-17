@@ -1,19 +1,18 @@
 /**
- * The interior scene's six shader families. Every mesh, line and point set in the scene is
- * drawn by one of these, so the whole scene compiles to about six programs:
+ * The interior scene's shader families. Every mesh, line and point set in the scene is drawn
+ * by one of these, so the whole scene compiles to five programs (the numbering is historical:
+ * P1, the hero's transmission / frost glass, is gone with the glass core):
  *
- *   P1  glass    — `MeshPhysicalMaterial` transmission (high) or the frost shader (mid)
- *   P2  surface  — fresnel / plasma / box edges / wave shell (non-instanced)
+ *   P2  surface  — plasma / fresnel / box edges (non-instanced)
  *   P3  surface  — the same source on an `InstancedMesh` (three adds the instancing defines)
  *   P4  line     — wireframes, the mesh wave, synapses, UI card outlines
- *   P5  tube     — rings, the commerce track and gates, hub links with packets
- *   P6  points   — the core's cloud, the morph swarm, synapse pulses, wave nodes
+ *   P5  tube     — flat or round ribbons: the chip's traces, the commerce track and gates, hub
+ *                  links with packets, the cursor trail
+ *   P6  points   — the morph swarm, synapse pulses, wave nodes
  *
  * A theme switch never recompiles. In three r186 a material's program cache key includes
  * `opaque = !transparent && blending === NormalBlending`, so every material here uses
- * `CustomBlending`; `applyMode` only swaps blend factors and the `uInk` uniform. A material
- * that must land in the opaque pass (the nucleus, so the transmission pass refracts it) sets
- * `transparent: false` and still blends as light.
+ * `CustomBlending`; `applyMode` only swaps blend factors and the `uInk` uniform.
  */
 
 import {
@@ -23,7 +22,6 @@ import {
   DoubleSide,
   FrontSide,
   Matrix4,
-  MeshPhysicalMaterial,
   OneFactor,
   OneMinusSrcAlphaFactor,
   ShaderMaterial,
@@ -31,7 +29,6 @@ import {
   Vector2,
   Vector3,
 } from "three";
-import { GLOW_ALPHA_GLSL } from "@/components/three/glow";
 import {
   DISSOLVE_GLSL,
   EASE_GLSL,
@@ -69,143 +66,6 @@ export function applyMode(material: ShaderMaterial, mode: SceneMode): void {
   material.blendDstAlpha = dst;
   const ink = material.uniforms.uInk as U<number> | undefined;
   if (ink) ink.value = mode === "ink" ? 1 : 0;
-}
-
-/* ---- P1: glass ---------------------------------------------------------------------------- */
-
-export const GLASS_IRIDESCENCE = 0.2;
-
-/** High tier: frosted transmission glass, lit by the procedural strip environment. */
-export function createPhysicalGlass(palette: ScenePalette): MeshPhysicalMaterial {
-  return new MeshPhysicalMaterial({
-    color: toColor(palette.glassTint),
-    metalness: 0,
-    // Frost from blurring what is behind, not from thickness: a thick ball is a lens that
-    // magnifies the nucleus across the whole sphere, and more roughness smears it out to the rim.
-    roughness: 0.3,
-    transmission: 1,
-    thickness: 0.05,
-    ior: 1.45,
-    attenuationColor: toColor(palette.attenuation),
-    attenuationDistance: 4,
-    clearcoat: 1,
-    clearcoatRoughness: 0.06,
-    iridescence: GLASS_IRIDESCENCE,
-    iridescenceIOR: 1.3,
-    envMapIntensity: 0.6,
-    side: FrontSide,
-  });
-}
-
-export function setPhysicalGlassPalette(material: MeshPhysicalMaterial, palette: ScenePalette): void {
-  toColor(palette.glassTint, material.color);
-  toColor(palette.attenuation, material.attenuationColor);
-}
-
-export type FrostUniforms = {
-  uInk: U<number>;
-  uCyan: U<Color>;
-  uRed: U<Color>;
-  uBg: U<Color>;
-  uTint: U<Color>;
-  uTime: U<number>;
-  uGlow: U<number>;
-  uDim: U<number>;
-};
-
-const FRESNEL_VERTEX = /* glsl */ `
-varying vec3 vNormalV;
-varying vec3 vViewV;
-varying vec3 vLocal;
-
-void main() {
-  vLocal = position;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  vNormalV = normalize(normalMatrix * normal);
-  vViewV = -mv.xyz;
-  gl_Position = projectionMatrix * mv;
-}
-`;
-
-/** Mid tier: a frosted shell that fakes the body, neon lobes and a fresnel band — no transmission pass. */
-export function createFrostGlass(palette: ScenePalette): { material: ShaderMaterial; uniforms: FrostUniforms } {
-  const uniforms: FrostUniforms = {
-    uInk: { value: palette.mode === "ink" ? 1 : 0 },
-    uCyan: { value: toColor(palette.cyan) },
-    uRed: { value: toColor(palette.red) },
-    uBg: { value: toColor(palette.bg) },
-    uTint: { value: toColor(palette.glassTint) },
-    uTime: { value: 0 },
-    uGlow: { value: 0 },
-    uDim: { value: 1 },
-  };
-  const material = new ShaderMaterial({
-    uniforms,
-    vertexShader: FRESNEL_VERTEX,
-    fragmentShader: /* glsl */ `
-      uniform float uInk;
-      uniform vec3 uCyan;
-      uniform vec3 uRed;
-      uniform vec3 uBg;
-      uniform vec3 uTint;
-      uniform float uTime;
-      uniform float uGlow;
-      uniform float uDim;
-      varying vec3 vNormalV;
-      varying vec3 vViewV;
-      varying vec3 vLocal;
-      ${GLOW_ALPHA_GLSL}
-
-      void main() {
-        vec3 n = normalize(vNormalV);
-        vec3 v = normalize(vViewV);
-        float facing = clamp(dot(n, v), 0.0, 1.0);
-        float edge = 1.0 - facing;
-        float fres = pow(edge, 2.6);
-        float rim = pow(edge, 5.0);
-        float up = n.y * 0.5 + 0.5;
-        // A two-tone neon rim: cyan on the upper left, red on the lower right.
-        vec2 around = normalize(n.xy + vec2(1e-4));
-        float cyanSide = smoothstep(-0.35, 0.9, dot(around, vec2(-0.7, 0.714)));
-        float redSide = smoothstep(-0.35, 0.9, dot(around, vec2(0.75, -0.661)));
-        // A softbox reflection: a short, soft streak up and to the left.
-        vec3 m = normalize(vec3(n.x * 0.5, n.y, n.z));
-        float glint = pow(max(dot(m, normalize(vec3(-0.3, 0.62, 0.72))), 0.0), 60.0);
-        float band = 0.5 + 0.5 * sin(vLocal.y * 4.0 - uTime * 0.6);
-        // Light scattered from the nucleus, strongest through the middle of the frost.
-        float scatter = pow(facing, 3.0);
-        vec3 light = uCyan * (rim * 1.7 * cyanSide + fres * 0.08 * band + scatter * 0.08)
-          + uRed * (rim * 1.4 * redSide + fres * 0.06 * (1.0 - band) + scatter * 0.04)
-          + uTint * glint * (uInk < 0.5 ? 0.5 : 0.35);
-        light *= 1.0 + uGlow;
-        float bodyA = (0.28 + fres * 0.42) * uDim;
-        // Dark: smoke a little deeper than the page. Light: milky glass a little under it.
-        vec3 body = uInk < 0.5
-          ? mix(uBg, uTint, 0.05) * (0.55 + 0.3 * up)
-          : mix(uBg * 0.92, uTint, 0.35 + 0.2 * up);
-        vec3 e = linearToOutputTexel(vec4(body, 1.0)).rgb * bodyA
-          + linearToOutputTexel(vec4(light, 1.0)).rgb * (uInk < 0.5 ? 1.0 : 0.8) * uDim;
-        e = min(e, vec3(1.0));
-        float a = max(bodyA, uInk < 0.5 ? glowAlpha(light) * uDim : bodyA);
-        gl_FragColor = vec4(e, clamp(max(a, max(max(e.r, e.g), e.b)), 0.0, 1.0));
-      }
-    `,
-    transparent: true,
-    depthWrite: true,
-    side: FrontSide,
-    ...BLEND,
-    blendDst: OneMinusSrcAlphaFactor,
-    blendDstAlpha: OneMinusSrcAlphaFactor,
-  });
-  return { material, uniforms };
-}
-
-export function setFrostPalette(uniforms: FrostUniforms, palette: ScenePalette): void {
-  uniforms.uInk.value = palette.mode === "ink" ? 1 : 0;
-  toColor(palette.cyan, uniforms.uCyan.value);
-  toColor(palette.red, uniforms.uRed.value);
-  toColor(palette.bg, uniforms.uBg.value);
-  toColor(palette.glassTint, uniforms.uTint.value);
 }
 
 /* ---- shared uniform plumbing -------------------------------------------------------------- */
@@ -254,11 +114,10 @@ export function paint(item: Paintable, palette: ScenePalette): void {
 
 /* ---- P2 / P3: surface ------------------------------------------------------------------------ */
 
-export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2, shell: 3 } as const;
+export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2 } as const;
 
 export type SurfaceUniforms = BaseUniforms & {
   uPulse: U<number>;
-  uFade: U<number>;
   uExtrude: U<number>;
 };
 
@@ -298,7 +157,6 @@ uniform vec3 uColorB;
 uniform vec3 uHot;
 uniform float uIntensity;
 uniform float uPulse;
-uniform float uFade;
 varying vec3 vNormalV;
 varying vec3 vViewV;
 varying vec3 vLocal;
@@ -333,7 +191,7 @@ void main() {
     // fresnel body: a thin bright rim, a faint face
     color = mix(uColorA, uColorB, 0.5 + 0.5 * n.y) * hue;
     strength = (0.1 + fres * 1.5) * uIntensity;
-  } else if (uMode < 2.5) {
+  } else {
     // box edges: faces faint, the second-largest |coordinate| near 1 is an edge
     vec3 a = abs(vBox) * 2.0;
     float hi = max(a.x, max(a.y, a.z));
@@ -341,10 +199,6 @@ void main() {
     float edge = smoothstep(0.84, 0.96, a.x + a.y + a.z - hi - lo);
     color = mix(uColorA * hue, uHot, edge * 0.45 * hotness * smoothstep(1.2, 2.6, lum));
     strength = (0.035 + edge * 0.9 + fres * 0.05) * uIntensity;
-  } else {
-    // wave shell: a fresnel bubble that fades as it grows
-    color = mix(uColorA, uHot, 0.25 * hotness) * hue;
-    strength = pow(1.0 - facing, 7.0) * uFade * uIntensity * 1.3;
   }
 
   strength *= gain;
@@ -359,8 +213,6 @@ export type SurfaceOptions = {
   roles: ColorRoles;
   /** P3: drawn by an InstancedMesh (both sides, so every box edge shows). */
   instanced?: boolean;
-  /** Land in the opaque pass (the transmission pass captures it). */
-  opaque?: boolean;
   extrude?: number;
   intensity?: number;
 };
@@ -369,7 +221,6 @@ export function createSurfaceMaterial(options: SurfaceOptions): Paintable & { un
   const uniforms: SurfaceUniforms = {
     ...baseUniforms(options.mode),
     uPulse: { value: 0 },
-    uFade: { value: 1 },
     uExtrude: { value: options.extrude ?? 0 },
   };
   uniforms.uIntensity.value = options.intensity ?? 1;
@@ -377,8 +228,8 @@ export function createSurfaceMaterial(options: SurfaceOptions): Paintable & { un
     uniforms,
     vertexShader: SURFACE_VERTEX,
     fragmentShader: SURFACE_FRAGMENT,
-    transparent: !options.opaque,
-    depthWrite: !!options.opaque,
+    transparent: true,
+    depthWrite: false,
     side: options.instanced ? DoubleSide : FrontSide,
     ...BLEND,
   });
@@ -477,8 +328,6 @@ export function createLineMaterial(options: {
   mode: (typeof LINE_MODE)[keyof typeof LINE_MODE];
   roles: ColorRoles;
   alpha: number;
-  /** Land in the opaque pass (inside the transmission glass). */
-  opaque?: boolean;
 }): Paintable & { uniforms: LineUniforms } {
   const uniforms: LineUniforms = {
     ...baseUniforms(options.mode),
@@ -493,7 +342,7 @@ export function createLineMaterial(options: {
     uniforms,
     vertexShader: LINE_VERTEX,
     fragmentShader: LINE_FRAGMENT,
-    transparent: !options.opaque,
+    transparent: true,
     depthWrite: false,
     ...BLEND,
   });
@@ -502,15 +351,12 @@ export function createLineMaterial(options: {
 
 /* ---- P5: tube ----------------------------------------------------------------------------------- */
 
-export const TUBE_MODE = { ring: 0, track: 1, gates: 2, links: 3 } as const;
+/** 0 was the glass core's orbit rings; the other modes keep their numbers. */
+export const TUBE_MODE = { track: 1, gates: 2, links: 3, trail: 4 } as const;
 
 export type TubeUniforms = BaseUniforms & {
   uAlpha: U<number>;
   uWidth: U<number>;
-  uHead: U<number>;
-  uHead2: U<number>;
-  uCometGain: U<number>;
-  uTicks: U<number>;
   uFlash: U<Vector3>;
 };
 
@@ -542,10 +388,6 @@ uniform vec3 uColorB;
 uniform vec3 uHot;
 uniform float uIntensity;
 uniform float uAlpha;
-uniform float uHead;
-uniform float uHead2;
-uniform float uCometGain;
-uniform float uTicks;
 uniform vec3 uFlash;
 varying float vU;
 varying float vTag;
@@ -564,16 +406,7 @@ void main() {
   vec3 color;
   float strength;
 
-  if (uMode < 0.5) {
-    // rings: two comets half a loop apart, HUD ticks
-    float c1 = exp(-fract(uHead - vU) * 14.0);
-    float c2 = exp(-fract(uHead + 0.5 - vU) * 14.0) * uHead2;
-    float comet = c1 + c2;
-    float ticks = uTicks * step(0.94, fract(vU * 48.0)) * 0.35;
-    vec3 tint = mix(uColorA, uColorB, 0.5 + 0.5 * sin(vU * 6.2832));
-    color = mix(tint, uHot, clamp(comet * comet, 0.0, 1.0) * 0.7 * hotness);
-    strength = (uAlpha + ticks + comet * (1.1 + uCometGain)) * body * uIntensity;
-  } else if (uMode < 1.5) {
+  if (uMode < 1.5) {
     // the commerce track: flowing dashes
     float dash = step(0.62, fract((vU - uTime * 0.12) * 36.0));
     color = mix(uColorA, uColorB, dash);
@@ -585,7 +418,7 @@ void main() {
     float flash = g < 0.5 ? uFlash.x : (g < 1.5 ? uFlash.y : uFlash.z);
     color = gate;
     strength = (0.8 + flash * 1.6) * body * uIntensity;
-  } else {
+  } else if (uMode < 3.5) {
     // hub links: packets out to the satellites (A→B) and back in (→ hot)
     float link = floor(vTag);
     float incoming = step(0.25, fract(vTag));
@@ -594,6 +427,16 @@ void main() {
     float comet = exp(-d * 16.0);
     color = mix(uColorA, incoming > 0.5 ? uHot : uColorB, clamp(comet * 1.4, 0.0, 1.0));
     strength = (uAlpha + comet * 1.7) * body * uIntensity;
+  } else {
+    // cursor trail (three/trail.ts): vTag = birth (s), vU = 0..1 along the segment. The life is
+    // trail.ts TRAIL.life (scene-trail.test.ts pins the literal); uReveal stays 1, so no heat.
+    float age = clamp((uTime - vTag) / 0.90, 0.0, 1.0);
+    if (age >= 1.0) discard;
+    float fade = (1.0 - age) * (1.0 - age);
+    float pulse = exp(-fract(uTime * 1.6 - vU) * 10.0) * fade;
+    color = mix(uColorA, uHot, clamp(fade * fade * 0.6 + pulse, 0.0, 1.0) * hotness);
+    // no body term: the ribbon faces the camera
+    strength = (uAlpha * fade + pulse * 0.8) * uIntensity;
   }
 
   color = mix(color, mix(uColorA, uHot, hotness), heat * 0.8);
@@ -612,10 +455,6 @@ export function createTubeMaterial(options: {
     ...baseUniforms(options.mode),
     uAlpha: { value: options.alpha },
     uWidth: { value: options.width ?? 0 },
-    uHead: { value: 0 },
-    uHead2: { value: 1 },
-    uCometGain: { value: 0 },
-    uTicks: { value: 0 },
     uFlash: { value: new Vector3() },
   };
   const material = new ShaderMaterial({
@@ -631,7 +470,8 @@ export function createTubeMaterial(options: {
 
 /* ---- P6: points ----------------------------------------------------------------------------------- */
 
-export const POINTS_MODE = { cloud: 0, swarm: 1, pulses: 2, waveNodes: 3 } as const;
+/** 0 was the glass core's point cloud; the other modes keep their numbers. */
+export const POINTS_MODE = { swarm: 1, pulses: 2, waveNodes: 3 } as const;
 
 export type PointsUniforms = BaseUniforms & {
   uColorC: U<Color>;
@@ -644,8 +484,6 @@ export type PointsUniforms = BaseUniforms & {
   uMaxSize: U<number>;
   /** World scale of the model the points belong to (the swarm lives in world space). */
   uScale: U<number>;
-  uWaveR: U<number>;
-  uWaveAmp: U<number>;
   uT: U<number>;
   uFromA: U<Vector3>;
   uFromB: U<Vector3>;
@@ -676,8 +514,6 @@ uniform float uSize;
 uniform float uHalfHeight;
 uniform float uMaxSize;
 uniform float uScale;
-uniform float uWaveR;
-uniform float uWaveAmp;
 uniform float uT;
 uniform vec3 uFromA;
 uniform vec3 uFromB;
@@ -707,18 +543,7 @@ void main() {
   vHot = 0.0;
   vTint = aSeed.y;
 
-  if (uMode < 0.5) {
-    // the core's cloud: slow per-particle orbits, drift, breathing, pushed by the light wave
-    float yaw = uTime * (0.05 + 0.08 * aSeed.x) + aSeed.z * 6.2832;
-    p = rotY(aS0, yaw);
-    p += 0.06 * vec3(sin(uTime * 0.7 + aSeed.z * 12.0), cos(uTime * 0.5 + aSeed.w * 9.0), sin(uTime * 0.6 + aSeed.x * 7.0));
-    p *= 1.0 + 0.025 * sin(uTime * 1.4 + aSeed.w * 6.2832);
-    float push = uWaveAmp * exp(-pow((length(p) - uWaveR) * 3.0, 2.0));
-    p += normalize(p + vec3(1e-4)) * 0.35 * push;
-    alpha = (0.3 + 0.7 * aSeed.w) * (0.55 + 0.45 * sin(uTime * 1.7 + aSeed.x * 40.0)) * uReveal;
-    size = 0.55 + 0.9 * aSeed.x * aSeed.x + push * 1.2;
-    vHot = push;
-  } else if (uMode < 1.5) {
+  if (uMode < 1.5) {
     // the morph swarm (world space): leave the old shape into a cloud, re-form as the new one
     float stagger = aSeed.w * 0.35;
     float leave = clamp((uT * 2.0 - stagger) / 0.65, 0.0, 1.0);
@@ -800,8 +625,6 @@ export function createPointsMaterial(options: {
     uHalfHeight: { value: 400 },
     uMaxSize: { value: 9 },
     uScale: { value: 1 },
-    uWaveR: { value: 0 },
-    uWaveAmp: { value: 0 },
     uT: { value: 0 },
     uFromA: { value: new Vector3() },
     uFromB: { value: new Vector3() },

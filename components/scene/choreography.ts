@@ -14,7 +14,7 @@
  */
 
 import type { DocRect, ScrollProbe } from "@/lib/scene";
-import { CORE, MODEL_RADIUS } from "./shapes";
+import { CHIP, MODEL_RADIUS } from "./shapes";
 
 export const SCENE_CAMERA = { z: 10, fov: 35, near: 0.1, far: 60 } as const;
 
@@ -109,24 +109,27 @@ export const CORE_BEHIND_COPY_BELOW = 861;
 export const CORE_BEHIND_COPY_WIDE_FROM = 641;
 
 /**
- * The core's resting brightness while it sits behind the copy, glowing on the dark page
+ * The chip's resting brightness while it sits behind the copy, glowing on the dark page
  * (`glow`) or as ink on the light one (`ink`). The hero exit still brightens it towards 0.9 as
- * the copy scrolls away. Measured over the forced WebGL core with the text hidden, four frames
- * per case (the rings and the pulse move the worst pixel from frame to frame):
- *  · narrow (< 641px): glow keeps the portrait layout's 0.55 — the dark lead stays ≥5.5:1 and
- *    the dark phone art was calibrated against it. Ink at 0.55 kept the light lead at 100%, but
- *    a ring behind the red eyebrow took single frames under 4.5:1 (93.6–97.1% of its pixels,
- *    lowest 3.78); at 0.4 — the light phone art's own strength, `--hero-core-phone` — every
- *    hero text measured 100% at 375/390/412;
- *  · wide (641–860px): the core (480px) is wider than the copy's column and its glass sits
- *    under the end of the lead. The tablet layout's 0.8 had left the light lead at 99.2–99.7%
- *    (lowest 3.85) at 768×1024; ink 0.4 still left one frame in four at 99.9% (4.33), and glow
- *    0.55 left the dark lead at 99.8–99.9% in every frame (lowest 3.82). At glow 0.35 / ink 0.3
- *    every hero text measured 100% in both themes (light lead lowest 4.51, dark 5.78).
+ * the copy scrolls away. Re-measured for the microprocessor (2026-09-17) over the forced WebGL
+ * chip with the text hidden, TWELVE frames per case: its worst pixels are the moving packets and
+ * pin flares, and four frames missed some of them. Every pixel under a text line box counts.
+ *  · narrow (< 641px): glow 0.55 keeps the dark lead ≥5.49:1 and the headline ≥3.59 (large
+ *    text, 3:1) at 320–412. Ink 0.4 is the light lead's limit, not a taste: the lead's own
+ *    colour is 4.87:1 on the bare page and the chip's centre sits under it, so at 390px it
+ *    measures exactly 4.50 at its lowest. Brighter failed even with more scrim: ink 0.6 under
+ *    `--hero-scrim` 0.95 left 99.98% of the lead's pixels ≥4.5 (lowest 4.45), 0.7 and 0.8 4.41 /
+ *    4.40. A more visible light chip needs another scrim shape (Hero.tsx), not a dim.
+ *  · wide (641–860px): the chip (480px) is centred under the lead, below the scrim's full pool,
+ *    so a fifth of it shows through whatever the scrim's strength. The old 0.35 / 0.3 failed at
+ *    768×1024: dark lead 99.94% (lowest 3.78) and headline 2.74; light lead 99.84% (4.06). Glow
+ *    0.3 still failed (99.97%, 4.24), ink 0.2 too (99.95%, 4.41). At glow 0.25 / ink 0.15 every
+ *    hero text is 100% (dark lead ≥5.05, headline ≥3.62; light lead ≥4.53) at 768×1024 and 844×390.
+ * The static art matches these through `--hero-core-phone` (globals.css): retune both together.
  */
 export const CORE_BEHIND_COPY_DIM = {
   narrow: { glow: 0.55, ink: 0.4 },
-  wide: { glow: 0.35, ink: 0.3 },
+  wide: { glow: 0.25, ink: 0.15 },
 } as const;
 
 /**
@@ -176,7 +179,7 @@ export function fallbackHeroRect(w: number, h: number, layout: SceneLayout): Doc
   return { x: w - size - Math.min(w * 0.04, 32), y: (h - size) / 2, w: size, h: size };
 }
 
-/** The core's placement at `scrollY` (before the handoff moves it). */
+/** The hero chip's placement at `scrollY` (its own host, through the handoff too). */
 export function placeCore(
   probe: ScrollProbe,
   scrollY: number,
@@ -187,13 +190,13 @@ export function placeCore(
 ): Placement {
   if (!probe.live || !probe.hero) {
     const rect = fallbackHeroRect(w, h, layout);
-    return fitAnchor(w, h, rect.x + rect.w / 2, rect.y + rect.h / 2, Math.min(rect.w, rect.h), CORE.R, layout.core.fill, out);
+    return fitAnchor(w, h, rect.x + rect.w / 2, rect.y + rect.h / 2, Math.min(rect.w, rect.h), CHIP.R, layout.core.fill, out);
   }
   const rect = probe.hero;
   const top = canvasDocTop(scrollY, probe, h);
   const centre = rect.y + rect.h / 2;
   const cy = parallax(centre - top, centre - probe.stage.top, layout.core.parallax);
-  return fitAnchor(w, h, rect.x + rect.w / 2, cy, Math.min(rect.w, rect.h), CORE.R, layout.core.fill, out);
+  return fitAnchor(w, h, rect.x + rect.w / 2, cy, Math.min(rect.w, rect.h), CHIP.R, layout.core.fill, out);
 }
 
 /** The service models' placement at `scrollY` (null before the director has measured). */
@@ -213,28 +216,28 @@ export function placeServices(
   return fitAnchor(w, h, rect.x + rect.w / 2, cy, box, MODEL_RADIUS, layout.services.fill, out);
 }
 
-/** Along the hero exit `e`: the core shrinks, its rings open out, a dimmed phone core brightens. */
-export type CorePose = { scale: number; rings: number; dim: number };
+/**
+ * Along the hero exit `e`: the chip shrinks, lifts apart into its exploded view (`lift` 0 → 1:
+ * the heat spreader and the die rise off the substrate) and a dimmed phone chip brightens. It
+ * stays on its own host: nothing drifts towards the services.
+ */
+export type CorePose = { scale: number; lift: number; dim: number };
 
 export function coreExitPose(
   e: number,
   layout: SceneLayout,
-  out: CorePose = { scale: 1, rings: 1, dim: 1 },
+  out: CorePose = { scale: 1, lift: 0, dim: 1 },
 ): CorePose {
   const x = clamp01(e);
   out.scale = 1 - 0.35 * x;
-  out.rings = 1 + 0.25 * x;
+  out.lift = x;
   out.dim = layout.core.dim + (0.9 - layout.core.dim) * x;
   return out;
 }
 
-/** `a` → `b` by `k`, into `out`. */
-export function mixPlacement(a: Placement, b: Placement, k: number, out: Placement): Placement {
-  const t = clamp01(k);
-  out.x = a.x + (b.x - a.x) * t;
-  out.y = a.y + (b.y - a.y) * t;
-  out.scale = a.scale + (b.scale - a.scale) * t;
-  return out;
+/** The chip's voxel reveal along the hero exit: whole until 60% of it, dissolved as the hero leaves. */
+export function coreReveal(e: number): number {
+  return 1 - smoothstep(0.6, 1, e);
 }
 
 /* ---- morph between service models ---------------------------------------------------- */

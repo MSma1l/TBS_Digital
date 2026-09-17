@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Object3D } from "three";
+import { Matrix4, Object3D } from "three";
 import {
   READY_AFTER_FRAMES,
   armReady,
@@ -10,7 +10,19 @@ import {
 } from "@/components/scene/three/compile";
 import { pickSceneRoles } from "@/components/scene/three/palette";
 import { createSceneWorld } from "@/components/scene/three/world";
+import {
+  CHIP_PACKET_SPEED,
+  chipArrivalPulse,
+  chipPinFlare,
+  chipTraceIncoming,
+  createChipCore,
+  traceRibbons,
+  type CoreFrame,
+} from "@/components/scene/three/core";
+import { hubArrivalPulse } from "@/components/scene/three/models/integrationHub";
+import { CHIP_LIFT, CHIP_STACK } from "@/components/scene/three/samples";
 import { watchPixelRatio, type PixelRatioHost } from "@/components/scene/pixelRatio";
+import { CHIP, chipTraces } from "@/components/scene/shapes";
 import { SCENE_TIER_CONFIG, clampSceneDpr, pointsDrawn } from "@/components/scene/tiers";
 import { createSceneFx } from "@/components/scene/fx";
 import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "@/lib/scene";
@@ -18,8 +30,8 @@ import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "
 /*
  * How the interior scene gets on screen without one long main-thread task, and when it may
  * say it is ready:
- *   · the world is built one part per idle slice (the core first, then the swarm, then each
- *     service model) — building all seven at once was one 181–229ms task at 4× CPU;
+ *   · the world is built one part per idle slice (the chip first, then the swarm, the cursor
+ *     trail, then each service model) — building them all at once was one 181–229ms task at 4× CPU;
  *   · it is compiled one draw object per idle slice, and draws nothing until a whole part is
  *     compiled (a frame in between must never compile a shader);
  *   · "ready" is counted in frames R3F really drew (review correctness #2): a paused canvas
@@ -37,7 +49,6 @@ const PALETTE = pickSceneRoles({
   redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
-  onAccent: "#ffffff",
 });
 
 /** An idle slice the test runs by hand, recording what happened in each task. */
@@ -57,9 +68,9 @@ function manualIdle() {
 }
 
 describe("the world, built one part per idle slice", () => {
-  const PARTS = 2 + SCENE_SHAPES.length;
+  const PARTS = 3 + SCENE_SHAPES.length;
 
-  it("starts as an empty, hidden root and builds the core, the swarm, then each model in its own slice", async () => {
+  it("starts as an empty, hidden root and builds the chip, the swarm, the trail, then each model in its own slice", async () => {
     const world = createSceneWorld("mid", PALETTE);
     expect(world.root.children).toHaveLength(0);
     expect(world.root.visible).toBe(false);
@@ -84,7 +95,8 @@ describe("the world, built one part per idle slice", () => {
     expect(world.complete()).toBe(true);
     expect(names[0]).toEqual(["scene-core"]);
     expect(names[1]).toEqual(["scene-core", "scene-swarm"]);
-    expect(names.at(-1)!.slice(2)).toEqual(SCENE_SHAPES.map((shape) => `scene-model-${SERVICE_MODEL[shape]}`));
+    expect(names[2]).toEqual(["scene-core", "scene-swarm", "scene-trail"]);
+    expect(names.at(-1)!.slice(3)).toEqual(SCENE_SHAPES.map((shape) => `scene-model-${SERVICE_MODEL[shape]}`));
     // Still hidden: nothing compiled yet.
     expect(world.root.visible).toBe(false);
     world.dispose();
@@ -112,11 +124,12 @@ describe("the world, built one part per idle slice", () => {
       world.update(0.016, 0, view, true, createScrollProbe(), readSceneInput(), createSceneFx()),
     ).not.toThrow();
     world.buildNext();
-    // A theme switch and the governor's lite step while the rest is still being built.
+    // A theme switch and the governor's lite step while the rest is still being built. Lite
+    // needs no renderer: nothing in the scene has a renderer-side setting any more.
     const light = { ...PALETTE, mode: "ink" as const };
     world.setPalette(light);
-    const renderer = { transmissionResolutionScale: 1 } as unknown as Parameters<typeof world.setLite>[1];
-    world.setLite(true, renderer);
+    expect(world.setLite).toHaveLength(1);
+    world.setLite(true);
     expect(() =>
       world.update(0.016, 0, view, true, createScrollProbe(), readSceneInput(), createSceneFx()),
     ).not.toThrow();
@@ -131,14 +144,15 @@ describe("the world, built one part per idle slice", () => {
     world.dispose();
   });
 
-  it("compiles the core object by object, then the swarm, then one stage per model; draws once a part is compiled", () => {
+  it("compiles the chip object by object, then the swarm, the trail, then one stage per model; draws once a part is compiled", () => {
     const world = createSceneWorld("mid", PALETTE);
     while (!world.complete()) world.buildNext();
-    const [core, swarm, ...models] = world.root.children;
+    const [core, swarm, trail, ...models] = world.root.children;
+    expect(core.name).toBe("scene-core");
     const stages = world.compileStages();
-    expect(stages).toHaveLength(2 + models.length);
-    // Every object of the core's stage is a drawable under the core.
-    expect(stages[0].length).toBeGreaterThan(3);
+    expect(stages).toHaveLength(3 + models.length);
+    // Every object of the chip's stage is a drawable under the chip.
+    expect(stages[0].length).toBeGreaterThanOrEqual(4);
     for (const object of stages[0]) {
       let node: Object3D | null = object;
       while (node && node !== core) node = node.parent;
@@ -146,7 +160,8 @@ describe("the world, built one part per idle slice", () => {
       expect((object as unknown as { material?: unknown }).material).toBeDefined();
     }
     expect(stages[1]).toEqual([swarm]);
-    expect(stages.slice(2)).toEqual(models.map((model) => [model]));
+    expect(stages[2]).toEqual([trail]);
+    expect(stages.slice(3)).toEqual(models.map((model) => [model]));
 
     expect(world.root.visible).toBe(false);
     world.prewarm([]);
@@ -154,6 +169,124 @@ describe("the world, built one part per idle slice", () => {
     world.prewarm(stages[0]);
     expect(world.root.visible).toBe(true);
     world.dispose();
+  });
+});
+
+describe("the hero chip (three/core.ts)", () => {
+  const frame = (patch: Partial<CoreFrame> = {}): CoreFrame => ({
+    time: 1,
+    step: 1 / 60,
+    tx: 0,
+    ty: 0,
+    boost: 0,
+    wave: 1,
+    reveal: 1,
+    prewarm: false,
+    lift: 0,
+    dim: 1,
+    ...patch,
+  });
+
+  it("draws with five objects on four programs: boxes (instanced), the die, lines, traces, the wave", () => {
+    for (const tier of ["high", "mid"] as const) {
+      const chip = createChipCore(SCENE_TIER_CONFIG[tier], PALETTE);
+      const [boxes, die, lines, traces, wave] = chip.objects as unknown as Array<Object3D & { count?: number; type: string }>;
+      expect(chip.objects.map((o) => o.type)).toEqual(["Mesh", "Mesh", "LineSegments", "Mesh", "LineSegments"]);
+      expect((boxes as unknown as { isInstancedMesh?: boolean }).isInstancedMesh).toBe(true);
+      // Substrate, heat spreader, die frame and 4 pins per trace side: 31 on high, 23 on mid.
+      expect(boxes.count).toBe(3 + 4 * SCENE_TIER_CONFIG[tier].chipTraces);
+      expect(boxes.count).toBe(tier === "high" ? 31 : 23);
+      expect(die).toBeDefined();
+      expect(lines).toBeDefined();
+      expect(traces).toBeDefined();
+      // The light wave is drawn only while one runs.
+      expect(wave.visible).toBe(false);
+      chip.update(frame({ wave: 0.3 }));
+      expect(wave.visible).toBe(true);
+      chip.update(frame({ wave: 1 }));
+      expect(wave.visible).toBe(false);
+      chip.dispose();
+    }
+  });
+
+  it("the exploded view lifts the heat spreader 0.22 and the die 0.4 along local z; the pins stay on the board", () => {
+    const chip = createChipCore(SCENE_TIER_CONFIG.mid, PALETTE);
+    const boxes = chip.objects[0] as unknown as { getMatrixAt(i: number, m: Matrix4): void };
+    const z = (index: number) => {
+      const m = new Matrix4();
+      boxes.getMatrixAt(index, m);
+      return m.elements[14];
+    };
+    const pinZ = z(3);
+    chip.update(frame({ lift: 0 }));
+    expect(z(0)).toBeCloseTo(CHIP_STACK.pkg, 6);
+    expect(z(1)).toBeCloseTo(CHIP_STACK.ihs, 6);
+    expect(z(2)).toBeCloseTo(CHIP_STACK.die, 6);
+    chip.update(frame({ lift: 1 }));
+    expect(z(1) - CHIP_STACK.ihs).toBeCloseTo(CHIP_LIFT.ihs, 6);
+    expect(z(2) - CHIP_STACK.die).toBeCloseTo(CHIP_LIFT.die, 6);
+    expect(CHIP_LIFT).toEqual({ ihs: 0.22, die: 0.4 });
+    expect(z(0)).toBeCloseTo(CHIP_STACK.pkg, 6);
+    expect(z(3)).toBe(pinZ);
+    // The pose follows the tilt around CHIP_POSE; a dissolved chip hides, a pre-warm still draws.
+    chip.update(frame({ tx: 1, ty: -1 }));
+    const pose = chip.group.children[0];
+    expect(pose.rotation.x).toBeCloseTo(-0.78 + 0.22, 9);
+    expect(pose.rotation.y).toBeCloseTo(0.32, 9);
+    expect(pose.rotation.z).toBeCloseTo(0.62, 9);
+    chip.update(frame({ reveal: 0 }));
+    expect(chip.group.visible).toBe(false);
+    chip.update(frame({ reveal: 0, prewarm: true }));
+    expect(chip.group.visible).toBe(true);
+    chip.setLite(true);
+    chip.setPalette({ ...PALETTE, mode: "ink" });
+    chip.dispose();
+  });
+
+  it("trace ribbons: two triangles per run facing +z, uv.x from the pin (0) to the board (1), odd traces incoming", () => {
+    const traces = chipTraces(5);
+    const geometry = traceRibbons(traces, 0.034, CHIP_STACK.board);
+    const position = geometry.getAttribute("position");
+    const uv = geometry.getAttribute("uv");
+    const tag = geometry.getAttribute("aTag");
+    // A centre trace (odd count per side) has no chamfer: one run fewer.
+    const runs = traces.reduce(
+      (sum, t) => sum + t.slice(1).filter((p, j) => Math.hypot(p[0] - t[j][0], p[1] - t[j][1]) > 1e-9).length,
+      0,
+    );
+    expect(position.count).toBe(runs * 6);
+    for (let v = 0; v < position.count; v += 3) {
+      const ax = position.getX(v);
+      const ay = position.getY(v);
+      const cross =
+        (position.getX(v + 1) - ax) * (position.getY(v + 2) - ay) - (position.getY(v + 1) - ay) * (position.getX(v + 2) - ax);
+      expect(cross, `triangle ${v / 3}`).toBeGreaterThan(0);
+      expect(position.getZ(v)).toBeCloseTo(CHIP_STACK.board, 6);
+      expect(Math.hypot(ax, ay)).toBeLessThanOrEqual(CHIP.R);
+    }
+    let seenStart = false;
+    let seenEnd = false;
+    for (let v = 0; v < uv.count; v += 1) {
+      expect(uv.getX(v)).toBeGreaterThanOrEqual(0);
+      expect(uv.getX(v)).toBeLessThanOrEqual(1 + 1e-6);
+      seenStart ||= uv.getX(v) === 0;
+      seenEnd ||= Math.abs(uv.getX(v) - 1) < 1e-6;
+      const t = tag.getX(v);
+      expect(t - Math.floor(t)).toBe(chipTraceIncoming(Math.floor(t)) ? 0.5 : 0);
+    }
+    expect(seenStart && seenEnd).toBe(true);
+    geometry.dispose();
+  });
+
+  it("packets: a pin flares as its packet leaves or lands, and the die pulses on the hub's formula", () => {
+    // Trace 0's head is at 0 at time 0 (phase 0): its pin is at full flare, half a trip later dark.
+    expect(chipPinFlare(0, 0)).toBe(1);
+    expect(chipPinFlare(0.5 / CHIP_PACKET_SPEED, 0)).toBeLessThan(1e-6);
+    for (const t of [0, 0.37, 1.2, 4.9, 13.3]) {
+      for (const traces of [20, 28]) expect(chipArrivalPulse(t, traces)).toBeCloseTo(hubArrivalPulse(t, traces), 12);
+    }
+    expect(chipTraceIncoming(0)).toBe(false);
+    expect(chipTraceIncoming(1)).toBe(true);
   });
 });
 

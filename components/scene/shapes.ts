@@ -14,30 +14,113 @@ export type Vec3 = [number, number, number];
 /** Every service model fits inside this radius (scene units) at scale 1. */
 export const MODEL_RADIUS = 2;
 
-/** The hero "Cybernetic Core": frosted sphere, plasma nucleus, three rings, a point cloud. */
-export const CORE = {
-  /** Outer radius of the whole core, rings included. */
-  R: 2.45,
-  sphere: 1,
-  nucleus: 0.38,
-  rings: [1.45, 1.9, 2.41],
-  tube: [0.016, 0.013, 0.011],
-  /** Inner and outer radius of the point cloud's shell. */
-  cloud: [1.35, 3.1],
-} as const;
+/* ---- hero microprocessor ------------------------------------------------------------- */
 
 /**
- * Euler XYZ tilt of each ring (radians) — the intro's three orbits (`ORBITS` in
- * components/intro/three/random.ts), so the core's rings echo the ∞'s particle shells.
+ * The hero microprocessor, in its own plane (x right, y up, z out of the board). Half-sizes
+ * for the three stacked squares; `R` equals the old core's, so every host fit is unchanged.
  */
-export const RING_TILTS: readonly (readonly [number, number, number])[] = [
-  [1.2, 0, 0.18],
-  [0.35, 0.55, -0.4],
-  [-0.9, -0.35, 0.6],
-];
+export const CHIP = {
+  /** Outer radius of the whole chip, traces included. */
+  R: 2.45,
+  /** Radius the traces stay inside. */
+  board: 2.3,
+  /** Half-sizes: substrate (package), integrated heat spreader, die. */
+  pkg: 1.0,
+  ihs: 0.68,
+  die: 0.34,
+  thick: { pkg: 0.08, ihs: 0.07, die: 0.05 },
+  /** One pin: width across the side, length out of it, thickness. (Not `pin:` — the stage's
+   *  ScrollTrigger scan, scene-contract.test.ts, reads that as GSAP pinning.) */
+  pinSize: { w: 0.07, l: 0.18, t: 0.025 },
+  /** Share of a side the pins cover. */
+  pinSpan: 0.8,
+  /** Half-size of a via pad: a square outline, never round. */
+  via: 0.07,
+} as const;
 
-/** Angular speed of each ring (rad/s at rest); the sign sets the direction. */
-export const RING_OMEGA: readonly number[] = [0.32, -0.24, 0.52];
+/** Euler XYZ pose of the chip: lying back, turned to a diamond. */
+export const CHIP_POSE: readonly [number, number, number] = [-0.78, 0, 0.62];
+
+/** Turns a chip-plane point by `s` quarter turns, counter-clockwise. */
+function rot90([x, y]: readonly [number, number], s: number): [number, number] {
+  switch (((s % 4) + 4) % 4) {
+    case 1:
+      return [-y + 0, x + 0];
+    case 2:
+      return [-x + 0, -y + 0];
+    case 3:
+      return [y + 0, -x + 0];
+    default:
+      return [x + 0, y + 0];
+  }
+}
+
+/** Distance between neighbouring pins on one side. */
+function pinPitch(perSide: number): number {
+  return (2 * CHIP.pkg * CHIP.pinSpan) / perSide;
+}
+
+/** x of pin `i` on side 0 (pins on y = +pkg), centred on the side. */
+function pinX(i: number, perSide: number): number {
+  return (i - (perSide - 1) / 2) * pinPitch(perSide);
+}
+
+/**
+ * The board traces as polylines, `perSide` per side, side 0 first then turned by quarter turns.
+ * Each leaves its pin straight out, takes a 45° chamfer away from the side's centre, and runs
+ * out to the board's edge. Every run is axis-aligned or at 45°, and side-0 points keep |x| < y,
+ * so no two traces cross. Deterministic, no RNG.
+ */
+export function chipTraces(perSide: number): Array<Array<[number, number]>> {
+  const n = Math.max(1, Math.floor(perSide));
+  const out: Array<Array<[number, number]>> = [];
+  for (let s = 0; s < 4; s += 1) {
+    for (let i = 0; i < n; i += 1) {
+      const u = pinX(i, n);
+      const y0 = CHIP.pkg + CHIP.pinSize.l;
+      const y1 = y0 + 0.3 + 0.06 * (Math.abs(i - (n - 1) / 2) % 2);
+      const dx = Math.sign(u) * 0.55 * (Math.abs(u) / CHIP.pkg);
+      const x2 = u + dx;
+      const y2 = y1 + Math.abs(dx);
+      const yEnd = Math.min(CHIP.board, Math.sqrt(CHIP.board ** 2 - x2 * x2)) - 0.08 * (i % 3);
+      const run: Array<[number, number]> = [
+        [u, y0],
+        [u, y1],
+        [x2, y2],
+        [x2, Math.max(y2 + 0.12, yEnd)],
+      ];
+      out.push(run.map((p) => rot90(p, s)));
+    }
+  }
+  return out;
+}
+
+export type ChipPin = {
+  /** Centre in the chip plane. */
+  center: [number, number];
+  /** Full width (x) and height (y) in the chip plane, after the side's turn. */
+  size: [number, number];
+  /** 0 = top (+y), then counter-clockwise. */
+  side: number;
+};
+
+/**
+ * The pins, `perSide` per side in the same order as `chipTraces`: each a
+ * `pinSize.w × pinSize.l` rectangle standing out of the substrate's edge, where its trace starts.
+ */
+export function chipPins(perSide: number): ChipPin[] {
+  const n = Math.max(1, Math.floor(perSide));
+  const out: ChipPin[] = [];
+  for (let s = 0; s < 4; s += 1) {
+    for (let i = 0; i < n; i += 1) {
+      const center = rot90([pinX(i, n), CHIP.pkg + CHIP.pinSize.l / 2], s);
+      const size: [number, number] = s % 2 === 0 ? [CHIP.pinSize.w, CHIP.pinSize.l] : [CHIP.pinSize.l, CHIP.pinSize.w];
+      out.push({ center, size, side: s });
+    }
+  }
+  return out;
+}
 
 /* ---- neural network (asistenti-ia) ------------------------------------------------------ */
 

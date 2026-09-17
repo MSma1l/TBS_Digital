@@ -79,11 +79,6 @@ export function setRendererLite(renderer: WebGLRenderer, lite: boolean): void {
   renderer.transmissionResolutionScale = lite ? 0.5 : 1;
 }
 
-/** The transmission pass at `scale` of the drawing buffer (a frosted surface needs no full resolution). */
-export function setTransmissionScale(renderer: WebGLRenderer, scale: number): void {
-  renderer.transmissionResolutionScale = scale;
-}
-
 /**
  * `compileAsync` needs `KHR_parallel_shader_compile` to actually run in parallel — and merely
  * asking three for a missing extension logs a console warning (Safari, software rasterisers).

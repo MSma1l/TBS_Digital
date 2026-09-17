@@ -5,7 +5,7 @@
  *
  * Only "high" and "mid" ever get a canvas: the stage keeps the low tier on the static art.
  * Counts are sized for a phone GPU at mid (JS update ≤ 2 ms, GPU ≤ 8 ms, overdraw ≈ 2) and a
- * laptop iGPU at high; the governor's "lite" step halves the points on top of either.
+ * laptop iGPU at high; the governor's "lite" step halves the swarm on top of either.
  */
 
 import { clampDprRange } from "@/components/three/capability";
@@ -19,14 +19,8 @@ export type SceneTierConfig = {
   /** Device pixels the canvas may fill; big screens drop towards 1×. */
   pixelBudget: number;
   antialias: boolean;
-  /** Transmission glass with a procedural environment, or the frost shader. */
-  glass: "physical" | "frost";
-  /** Glass sphere segments (width, height). */
-  sphere: readonly [number, number];
-  ringTubular: number;
-  ringRadial: number;
-  /** Particles in the core's cloud. */
-  cloud: number;
+  /** The hero chip's board traces per side (one pin each). */
+  chipTraces: number;
   /** Particles that carry a morph. */
   swarm: number;
   cubes: number;
@@ -44,8 +38,6 @@ export type SceneTierConfig = {
   satellites: number;
   /** Hub link tube segments (along, around). */
   link: readonly [number, number];
-  /** Transmission pass resolution (0 = the tier has no transmission). */
-  transmissionScale: number;
 };
 
 export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig>> = {
@@ -53,11 +45,7 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     dpr: [1, 1.75],
     pixelBudget: 2.6e6,
     antialias: true,
-    glass: "physical",
-    sphere: [64, 40],
-    ringTubular: 180,
-    ringRadial: 8,
-    cloud: 1400,
+    chipTraces: 7,
     swarm: 720,
     cubes: 27,
     wave: [44, 28],
@@ -69,17 +57,12 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     packages: 18,
     satellites: 6,
     link: [56, 5],
-    transmissionScale: 0.5,
   },
   mid: {
     dpr: [1, 1.5],
     pixelBudget: 1.25e6,
     antialias: false,
-    glass: "frost",
-    sphere: [40, 24],
-    ringTubular: 120,
-    ringRadial: 6,
-    cloud: 700,
+    chipTraces: 5,
     swarm: 420,
     cubes: 27,
     wave: [30, 18],
@@ -91,15 +74,13 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     packages: 12,
     satellites: 5,
     link: [36, 4],
-    transmissionScale: 0,
   },
 };
 
 /** The governor's terminal "lite" step: what it drops (materials are never swapped). */
 export const SCENE_LITE = {
-  /** Share of the cloud and swarm buffers still drawn. */
+  /** Share of the swarm's buffer still drawn. */
   pointsShare: 0.5,
-  transmissionScale: 0.35,
   packages: 10,
 } as const;
 
