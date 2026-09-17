@@ -16,6 +16,34 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed: trei teste care cădeau doar când mașina e încărcată
+
+Trei teste măsurau, fără să vrea, viteza mașinii, nu comportamentul aplicației. Cădeau la rulările
+în paralel cu alte containere și treceau singure — genul de eșec care ne-ar fi învățat să ignorăm
+suita. Fiecare a fost reprodus sub CPU limitat (`--cpus=0.2`), i s-a găsit cauza și a fost rescris
+să verifice același lucru, dar determinist.
+
+- **`direction-page.test.tsx` — „opens the real request flow in place”.** Prima apăsare pe CTA
+  plătea încărcarea întregului flux de cerere (`next/dynamic`) în fereastra de 1s a lui `findBy*`.
+  Acum modulul e importat o dată în `beforeAll`, prin același specificator; așteptarea acoperă doar
+  randarea.
+- **`intro-preloader.test.tsx` — „Tab skips too”.** Testul citea `document.activeElement` *după*
+  Tab; dar Tab-ul pornește chiar secvența care, la final, ia focusul de pe overlay — corect, însă pe
+  o mașină încărcată secvența apucă să se termine înainte de citire. Acum focusul e înregistrat în
+  clipa în care se mută (`focusin`), deci se verifică exact „Tab a mutat focusul pe butonul de
+  sărire, o singură dată”.
+- **`e2e/preloader.spec.ts` — stingerea intro-ului.** Cauza reală: `gsap.ticker.lagSmoothing(0)`
+  (`IntroDirector.tsx`) comprimă, sub încărcare, estomparea de 550ms într-un singur cadru, pe care
+  eșantionarea la 15ms îl rata. Specul folosește acum `MutationObserver` + `requestAnimationFrame` +
+  evenimentele de tranziție și verifică structural `pointer-events`.
+
+Verificare: cele două fișiere unit, 11 rulări consecutive la `--cpus=0.2`, 53/53 de fiecare dată
+(înainte: 9 din 10 rulări cădeau). Suita unit completă 1.523/1.523. `preloader.spec` 72/72 fără
+limitare și 10/10 cu CPU încetinit de 4×.
+
+Fișiere: `components/__tests__/direction-page.test.tsx`,
+`components/__tests__/intro-preloader.test.tsx`, `e2e/preloader.spec.ts`.
+
 ## 2026-09-18 — Faza 5: șina de fibră optică (bara de derulare care devine navigație)
 
 A șasea fază a experienței IT aprobate. Pe **desktop (≥861px)**, pe marginea din dreapta, sub

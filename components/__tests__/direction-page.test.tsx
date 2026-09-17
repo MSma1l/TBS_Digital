@@ -6,7 +6,7 @@
  * keep: no action that leads nowhere, and no project claimed for a direction it wasn't
  * built for — the membership table in `lib/solutions.ts` is the only source.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -33,6 +33,20 @@ import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
 import { isGuideTopic } from "@/lib/hud/topics";
+
+/*
+ * Chunk-load latency is NOT what these tests measure. `RequestFlowProvider` pulls the whole
+ * request flow in through `next/dynamic`, so the first CTA press in this file used to pay for
+ * transforming `RequestSection` and everything under it (the estimator, its catalog, the
+ * validation, the contact form) inside a `findBy*`'s 1000ms window — under 1s on a quiet
+ * machine, over 2s when other containers compete for the CPU, which is exactly when this file
+ * failed. `beforeAll` pays it up front, through the same module specifier the provider's
+ * `dynamic()` imports, so by press time the module is already in the registry and the wait
+ * only covers React resolving the lazy component.
+ */
+beforeAll(async () => {
+  await import("@/components/sections/RequestSection");
+}, 60_000);
 
 beforeEach(() => {
   window.localStorage.clear();

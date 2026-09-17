@@ -583,13 +583,33 @@ describe("IntroPreloader — in the browser", () => {
     const onDocument = (event: KeyboardEvent) => heard.push(event.key);
     document.addEventListener("keydown", onDocument);
 
+    /*
+     * Where the Tab took focus is recorded as it happens, not read back afterwards.
+     * `document.activeElement` is a snapshot of a moving target: the skip this very Tab
+     * requested ends with `reveal()`, which blurs whatever still has focus inside the
+     * overlay before the overlay goes (IntroDirector.tsx) — correct behaviour, and it
+     * lands back on <body>. On a quiet machine `await user.tab()` returns long before the
+     * ~0.95s burst gets there; on a loaded one the whole burst can run inside that await,
+     * and the assertion then read <body> instead of the button. `focusin` fires
+     * synchronously inside `user.tab()`'s own focus() call, so this pins the same thing —
+     * Tab moved focus, to the skip button, exactly once — whatever the machine is doing.
+     */
+    const focused: Element[] = [];
+    const onFocusIn = (event: Event) => focused.push(event.target as Element);
+    document.addEventListener("focusin", onFocusIn);
+
+    // Grabbed before the Tab: the same DOM node throughout, and still nameable after the
+    // skip has taken the overlay off the page.
+    const skip = skipButton();
+
     try {
       await user.tab();
-      expect(document.activeElement).toBe(skipButton());
+      expect(focused).toEqual([skip]);
       expect(heard).toEqual([]);
       await waitFor(() => expect(overlay()).toBeNull(), SLOW);
     } finally {
       document.removeEventListener("keydown", onDocument);
+      document.removeEventListener("focusin", onFocusIn);
     }
   });
 

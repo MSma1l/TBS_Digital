@@ -549,49 +549,116 @@ test.describe("intro — phones", () => {
  * by 80% of the progress, the burst plays on the SVG instead; that is the product working,
  * and the assertions below allow it while still requiring the scene to have been tried.
  */
-type RevealHit = { inHeader: boolean; inOverlay: boolean; target: string };
+type RevealSample = {
+  /** The overlay is still on screen: the fade has not reached `visibility: hidden` yet. */
+  visible: boolean;
+  /** The header CTA's centre is inside the viewport — the header has slid far enough in. */
+  onScreen: boolean;
+  /** Where a click at that centre lands. Only sampled when `onScreen`. */
+  inHeader: boolean;
+  inOverlay: boolean;
+  target: string;
+  /** `element=computed pointer-events`, from the canvas up to the overlay root. */
+  pointerEvents: string[];
+};
 
 /**
- * While the overlay fades out (`data-phase="revealed"`, not yet `visibility: hidden`), sample
- * what a click at the header CTA's centre would land on. The header slides in during the
- * same fade, so only samples with that centre on screen count. A 15ms timer, not rAF: under
- * software WebGL frames are far apart and the fade lasts ~0.55s. Read with `revealHits`.
+ * While the overlay is `data-phase="revealed"` — the page is uncovered, the overlay fades out
+ * and the header slides in — record what a click at the header CTA's centre would land on, and
+ * whether anything in the overlay could catch it at all (`pointer-events` from the canvas up
+ * to the root). Read with `revealSamples` once the overlay is gone.
+ *
+ * Sampling cannot hang off one clock. The fade is a wall-clock tween with GSAP's lag smoothing
+ * off (components/intro/IntroDirector.tsx), so a busy main thread renders the whole 0.55s in a
+ * couple of frames: measured under a 4x CPU throttle the overlay was on screen for 31-100ms in
+ * all, the 15ms timer was starved for up to 686ms inside that window, and the header's CTA
+ * sometimes arrived on screen only in the frame that ended the fade. So everything samples —
+ * the 15ms timer, a rAF loop, transitionrun/transitionend/animationend, and a MutationObserver
+ * on the overlay root (`data-phase`, `style`, `class`) and on the header's `style`. The
+ * observer is what makes it reliable: its callback is a microtask, so every frame that moves
+ * the fade or the header — the only frames that can change the answer — is sampled right after
+ * it, however starved the timers are. What no frame can show, the `pointerEvents` chain proves
+ * structurally.
  */
 async function recordRevealHits(page: Page): Promise<void> {
   await page.addInitScript((cta) => {
-    const w = window as unknown as { __revealHits?: RevealHit[] };
-    const hits: RevealHit[] = [];
-    w.__revealHits = hits;
+    const w = window as unknown as { __revealSamples?: RevealSample[] };
+    const samples: RevealSample[] = [];
+    w.__revealSamples = samples;
+    let timer = 0;
+    let attrs: MutationObserver | null = null;
     let seen = false;
-    const timer = window.setInterval(() => {
+    let running = true;
+    const watched = new WeakSet<Element>();
+
+    const name = (el: Element): string => {
+      const part = el.getAttribute("data-part");
+      return el.id ? `#${el.id}` : `${el.tagName.toLowerCase()}${part ? `[${part}]` : ""}`;
+    };
+
+    const sample = (): void => {
+      if (!running) return;
       const root = document.querySelector('[data-testid="intro"]');
       if (!root) {
-        if (seen) window.clearInterval(timer);
+        if (seen) {
+          running = false;
+          window.clearInterval(timer);
+          attrs?.disconnect();
+        }
         return;
       }
       seen = true;
+      // Watch what moves: the overlay's own phase/fade, and the header sliding in.
+      for (const el of [root, document.querySelector("header")]) {
+        if (!el || watched.has(el)) continue;
+        watched.add(el);
+        attrs?.observe(el, { attributes: true, attributeFilter: ["data-phase", "style", "class"] });
+      }
       if (root.getAttribute("data-phase") !== "revealed") return;
-      if (getComputedStyle(root).visibility === "hidden") return;
+
+      // Every layer a click has to pass through: the canvas (R3F's wrapper carries an inline
+      // pointer-events), its ancestors, and the overlay root itself.
+      const pointerEvents: string[] = [];
+      const inner = root.querySelector("canvas") ?? root.querySelector('[data-part="scene"]');
+      for (let el: Element | null = inner ?? root; el; el = el.parentElement) {
+        pointerEvents.push(`${name(el)}=${getComputedStyle(el).pointerEvents}`);
+        if (el === root) break;
+      }
+
       const button = Array.from(document.querySelectorAll("header button")).find(
         (el) => el.textContent === cta,
       );
-      if (!button) return;
-      const rect = button.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      if (rect.width === 0 || y < 0 || y >= window.innerHeight) return;
-      const hit = document.elementFromPoint(x, y);
-      hits.push({
+      const rect = button?.getBoundingClientRect();
+      const x = rect ? rect.left + rect.width / 2 : 0;
+      const y = rect ? rect.top + rect.height / 2 : -1;
+      const onScreen = !!rect && rect.width > 0 && y >= 0 && y < window.innerHeight;
+      const hit = onScreen ? document.elementFromPoint(x, y) : null;
+      samples.push({
+        visible: getComputedStyle(root).visibility !== "hidden",
+        onScreen,
         inHeader: !!hit?.closest("header"),
         inOverlay: !!hit && root.contains(hit),
         target: hit ? `${hit.tagName.toLowerCase()}${hit.id ? `#${hit.id}` : ""}` : "null",
+        pointerEvents,
       });
-    }, 15);
+    };
+
+    attrs = new MutationObserver(sample);
+    timer = window.setInterval(sample, 15);
+    const frame = (): void => {
+      if (!running) return;
+      sample();
+      if (running) window.requestAnimationFrame(frame);
+    };
+    window.requestAnimationFrame(frame);
+    for (const type of ["transitionrun", "transitionend", "animationend"]) {
+      document.addEventListener(type, sample, true);
+    }
   }, messages.ro["nav.cta"]);
 }
 
-const revealHits = (page: Page): Promise<RevealHit[]> =>
-  page.evaluate(() => (window as unknown as { __revealHits?: RevealHit[] }).__revealHits ?? []);
+const revealSamples = (page: Page): Promise<RevealSample[]> =>
+  page.evaluate(() => (window as unknown as { __revealSamples?: RevealSample[] }).__revealSamples ?? []);
 
 test.describe("intro — WebGL scene (forced on software rendering)", () => {
   test.describe.configure({ timeout: 120_000 });
@@ -626,21 +693,38 @@ test.describe("intro — WebGL scene (forced on software rendering)", () => {
       expect(size.width).toBeLessThanOrEqual(Math.ceil(size.cssWidth * 2));
     }
 
-    // During the fade the page is already live: a click at the header CTA reaches the header,
-    // not the full-screen canvas (whose wrapper has an inline pointer-events: auto).
-    await expect
-      .poll(async () => (await revealHits(page)).some((hit) => hit.inHeader), {
-        message: "a click at the header CTA should reach the header while the overlay fades",
-        timeout: 60_000,
-      })
-      .toBe(true);
-
     await introGone(page, 60_000);
     // Only the intro was forced: the interior stage still refuses a software renderer.
     await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", { timeout: 15_000 });
     await expect(sceneStage(page)).toHaveAttribute("data-reason", "software");
-    const caught = (await revealHits(page)).filter((hit) => hit.inOverlay);
-    expect(caught, "nothing inside the fading overlay catches the click").toEqual([]);
+
+    /*
+     * During the fade the page is already live: a click at the header CTA reaches the header,
+     * not the full-screen canvas (whose wrapper has an inline pointer-events: auto). The
+     * overlay has left, so the recorder holds everything it will ever hold — no polling.
+     */
+    const samples = await revealSamples(page);
+    const onScreen = samples.filter((sample) => sample.onScreen);
+    expect(samples.length, "the recorder sampled the overlay while it was revealed").toBeGreaterThan(0);
+    expect(
+      samples.filter((sample) => sample.visible).length,
+      "the recorder caught the overlay while it was still on screen",
+    ).toBeGreaterThan(0);
+    expect(onScreen.length, "the header CTA was on screen before the overlay left").toBeGreaterThan(0);
+    expect(
+      onScreen.filter((sample) => !sample.inHeader),
+      "a click at the header CTA should reach the header while the overlay fades",
+    ).toEqual([]);
+    expect(
+      samples.filter((sample) => sample.inOverlay),
+      "nothing inside the fading overlay catches the click",
+    ).toEqual([]);
+    // Structural, for the frames no click could be sampled in: nothing in the overlay — the
+    // root, the canvas or anything between them — is clickable while it fades.
+    expect(
+      samples.flatMap((sample) => sample.pointerEvents.filter((value) => !value.endsWith("=none"))),
+      "the fading overlay, canvas included, stays click-through",
+    ).toEqual([]);
     expect(await threeLoaded(page)).toBe(true);
     expect((await introProgressValues(page)).at(-1)).toBe(100);
     expect(errors.page).toEqual([]);
