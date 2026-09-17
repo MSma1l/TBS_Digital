@@ -191,7 +191,8 @@ the CSP** in `proxy.ts`. It still holds because:
 | `gsap/dist/*` | everywhere, as `import` and `import()` | a second (UMD) copy of the core with its own ticker — two tickers, two ScrollTrigger registries |
 | `gsap/ScrollSmoother`, `gsap/ScrollSmoother.js` | everywhere, as `import` and `import()` | rewrites `<html>` / `<body>` styles and takes over scrolling |
 | `gsap-trial`, `gsap-trial/*` | everywhere, as `import` and `import()` | the trial package, never shipped |
-| a **static** value import of `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`, any subpath of them, or the site's modules that carry them (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector`, any spelling) | the files the page bundle reaches up front (`app/**`, the sections, layout, `ui`, `fx`, `SceneStage`, the art, `lib/**`, the intro's shell and both probe chunks) | ~290 KB gzip to every visitor; they load through `import()` behind the capability probe. `import type` stays allowed |
+| a **static** value import of `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`, any subpath of them, or the site's modules that carry them (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector`, any spelling) | the files the page bundle reaches up front (`app/**`, the sections, layout, `ui`, `fx`, `SceneStage`, the art, `lib/**`, the intro's shell and both probe chunks) and, since 2026-09-17, the HUD chrome (`components/hud/**`) | ~290 KB gzip to every visitor; they load through `import()` behind the capability probe. `import type` stays allowed |
+| `lucide-react/dynamic` (`.js`, `.mjs`), `lucide-react/dynamicIconImports` (`.mjs`), `lucide-react/dist/*`; `import * as` / `export *` from `lucide-react` and `import("lucide-react")` (2026-09-17) | everywhere, as `import` and `import()` | each keeps every one of ~4,200 icons; `dist/*` is not a public API. Icons are named imports from the package root ([02](./02-tech-stack.md#the-hud-chrome-2026-09-17--lucide-react)) |
 
 That second block is not a security boundary, but it matters for one: flat config **replaces** a
 rule's options per matching block, so the file-scoped block **repeats** the CSP bans above —
@@ -211,6 +212,7 @@ several up-front files were outside the list. Fixed before release (review findi
 |-----|---------|-------|------------|----------|
 | `tbs_gpu_probe` | `sessionStorage` | `{"v":1,"strict":{…},"forced":{…}}`, each entry `context`, `software` and optionally `lost` / `slow` — **booleans only** | the GPU probe (`components/three/capability.ts`, called by the intro shell or the stage) and `markGpu` after a lost context or a governor bail | the tab |
 | `tbs_scene_3d` | `localStorage` | `"force"` or `"off"` | **never by the site** — QA and the E2E helpers set it; the site only reads it | until removed |
+| `tbs_hud` | `localStorage` | `"off"` | **never by the site** — QA and E2E only (`playwright.config.ts` seeds it for every context unless `E2E_HUD=on`); `lib/hud/gate.ts` only reads it | until removed |
 
 - **Never the renderer string.** The probe reads `RENDERER` (and `UNMASKED_RENDERER_WEBGL` only
   when the plain one is masked), tests it against the software-rasteriser pattern in memory, and
@@ -223,6 +225,12 @@ several up-front files were outside the list. Fixed before release (review findi
 - `tbs_gpu_probe` is listed as an **essential** entry in the cookie policy
   (`app/(site)/cookies/content.ts`, RO/RU/EN): session storage, yes/no values, identifies nobody,
   gone when the tab closes.
+- **`tbs_hud` (2026-09-17)** switches the HUD chrome (guide, rail, OS windows) off in that
+  browser: only the literal `"off"` counts; any other value, or storage that throws, is ignored.
+  A tampered value can only keep the HUD from loading there; the page itself does not change. Like
+  `tbs_scene_3d` it is not a cookie-policy entry, because the site never writes it. The chrome's
+  mount (`components/hud/HudChrome.tsx`) arms only after the cookie banner is answered, a first
+  interaction, the intro gone and an idle slot, and writes no storage itself.
 
 ### Nothing asked of the visitor, nothing new exposed
 

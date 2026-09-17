@@ -62,6 +62,25 @@ const GSAP_BANNED = [
   "gsap-trial/*",
 ];
 
+// lucide-react is imported by name from the package root only, so each chunk carries the icons
+// it names and nothing else (`sideEffects: false`).
+//  · dynamic(.js/.mjs) — `DynamicIcon` looks icons up by string, through…
+//  · dynamicIconImports(.mjs) — a map of an `import()` for every one of ~4,200 icons;
+//  · dist/* — deep paths into the build; the package has no `exports` map, so they are not a
+//    public API and move on any upgrade.
+// `import * as` / `export *` / `import("lucide-react")` are refused in `no-restricted-syntax`:
+// a namespace object keeps every icon.
+const LUCIDE_MESSAGE =
+  "Import lucide icons by name from \"lucide-react\" (docs/02-tech-stack.md): the dynamic entry points pull in every icon, and dist/* is not a public API.";
+const LUCIDE_BANNED = [
+  "lucide-react/dynamic",
+  "lucide-react/dynamic.js",
+  "lucide-react/dynamic.mjs",
+  "lucide-react/dynamicIconImports",
+  "lucide-react/dynamicIconImports.mjs",
+  "lucide-react/dist/*",
+];
+
 // three.js + R3F and GSAP load lazily (next/dynamic / import()) behind the capability probe.
 // A static import in a module the page bundle reaches ships ~290 KB to every visitor.
 // Type-only imports are erased at build time, so they stay allowed everywhere.
@@ -91,6 +110,7 @@ const restrictedImports = ({ heavy }) => [
     patterns: [
       { group: CSP_3D_BANNED, message: CSP_3D_MESSAGE },
       { group: GSAP_BANNED, message: GSAP_MESSAGE },
+      { group: LUCIDE_BANNED, message: LUCIDE_MESSAGE },
       ...(heavy
         ? [
             { group: HEAVY_SUBPATHS, message: HEAVY_MESSAGE, allowTypeImports: true },
@@ -122,13 +142,24 @@ const eslintConfig = defineConfig([
             "ImportExpression[source.value=/^gsap\\u002F(all(\\.js)?$|dist\\u002F|ScrollSmoother)|^gsap-trial/]",
           message: GSAP_MESSAGE,
         },
+        {
+          selector:
+            "ImportExpression[source.value=/^lucide-react(\\u002F(dynamic(\\.m?js)?|dynamicIconImports(\\.mjs)?)$|\\u002Fdist\\u002F|$)/]",
+          message: LUCIDE_MESSAGE,
+        },
+        {
+          selector:
+            "ImportDeclaration[source.value='lucide-react'] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value='lucide-react']",
+          message: LUCIDE_MESSAGE,
+        },
       ],
     },
   },
   // Modules the page bundle reaches (and the interior stage's own shell, art and math, the
-  // intro's up-front shell and both probe chunks): no STATIC three / R3F / GSAP, nor a static
-  // import of a module that carries them. `import()` stays allowed — that is how they load.
-  // The CSP and GSAP bans are repeated inside (see `restrictedImports`).
+  // intro's up-front shell and both probe chunks, the HUD chrome's mount and its lazy parts):
+  // no STATIC three / R3F / GSAP, nor a static import of a module that carries them.
+  // `import()` stays allowed — that is how they load. The CSP, GSAP and lucide bans are
+  // repeated inside (see `restrictedImports`).
   {
     files: [
       "app/**",
@@ -136,6 +167,7 @@ const eslintConfig = defineConfig([
       "components/layout/**",
       "components/ui/**",
       "components/fx/**",
+      "components/hud/**",
       "components/scene/SceneStage.tsx",
       "components/scene/art/**",
       "components/scene/shapes.ts",

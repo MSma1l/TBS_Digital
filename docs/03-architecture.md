@@ -78,6 +78,10 @@ so the data source can change without touching markup.
 │  │  └─ art/              # static SVG art, CSS Modules, no "use client": HeroCoreArt (+ heroArt.ts)
 │  │                       #   and ServiceArt (+ serviceArtPaths.ts)
 │  ├─ fx/                  # DOM hooks: useOffscreenAttribute (data-offscreen) · usePointerTilt
+│  ├─ hud/                 # the IT-OS HUD chrome (2026-09-17 foundation): HudChrome.tsx, its one
+│  │                       #   mount, NOT mounted yet — gate (tbs_hud ≠ off → consent → first
+│  │                       #   interaction → intro gone → idle), then its lazy parts in one commit;
+│  │                       #   the parts list is empty. lucide-react may be imported only here
 │  ├─ layout/              # Navbar (Tailwind) · HeaderClock (Tailwind) · Footer
 │  ├─ sections/
 │  │  ├─ Hero.tsx          # hero (Tailwind) — HUD backdrop, the core's anchor, h1, neon CTA,
@@ -116,6 +120,15 @@ so the data source can change without touching markup.
 │  ├─ tapIntent.ts         # first tap opens, second navigates (header dropdowns, direction pills)
 │  ├─ tilt.ts · hologram.ts  # pure tilt maths; the stat holograms' edges and rings
 │  ├─ visibleTimeout.ts    # setTimeout that only counts visible-tab time, fires once
+│  ├─ hud/                 # the HUD chrome's pure logic, no DOM at import (2026-09-17):
+│  │                       #   gate.ts (tbs_hud QA key, arming events, desktop media; import-free,
+│  │                       #   playwright.config.ts imports it) · busy.ts (the "busy with the HUD"
+│  │                       #   store) · obscure.ts (covers / overlaps, focus-not-obscured guards) ·
+│  │                       #   topics.ts (the guide's topic ids)
+│  ├─ request/             # RequestFlowProvider.tsx (the one request dialog; RequestContext,
+│  │                       #   RequestSource, RequestAttachment) · catalog.ts (the estimator's
+│  │                       #   project types and options with stable ids, SERVICE_FOR_TYPE) ·
+│  │                       #   attachment.ts (a HUD tool's block, cleaned and capped at 1,200)
 │  ├─ theme/               # theme.ts (DEFAULT_THEME = "dark", cookie, inline init script) ·
 │  │                       #   ThemeProvider
 │  └─ i18n/                # locales.ts · messages/{ro,ru,en}.ts · LanguageProvider ·

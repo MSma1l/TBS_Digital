@@ -122,13 +122,40 @@ pins its path:
   back to 0); `recordSceneAttributes` + `sceneAttributeValues` (every `data-renderer` the stage had,
   and whether the intro was on screen then); `settledRenderer`; `gpuProbeCache`;
   `decorativeDots` (every painted box of at most 8×8px rounded to half its short side, in the
-  header, main and footer, the dictation slot excepted); `computedTransform`; `scrollToY` (an
-  instant scroll that waits for the position); `burgerRoundTrip` (moved here from
-  `hud-shell.spec.ts`, shared with W3).
+  header, main, footer and the HUD chrome's parts `[data-hud]`, the dictation slot excepted);
+  `computedTransform`; `scrollToY` (an instant scroll that waits for the position);
+  `burgerRoundTrip` (moved here from `hud-shell.spec.ts`, shared with W3); `expectRootUntouched`
+  (no inline style on `<html>` / `<body>` and no scroll-measure hold, polled; moved here from
+  `interior-webgl.spec.ts`).
 - **The scroll probe is read through React, not a global:** `sceneProbeVsDom` walks the fiber props
   of the canvas's ancestors to the stage's `probe` and lays each span and anchor next to what the
   DOM measures now; `probeMismatches` lists the ones off by more than 2px. Production exposes
   nothing for it.
+
+### The HUD chrome and the other specs
+
+The IT-OS HUD (the Ghid TBS guide, the fibre rail, the OS dock and windows) mounts once through
+`components/hud/HudChrome.tsx` and arms only after the cookie banner is answered, the visitor's
+first interaction (`pointermove`, `pointerdown`, `wheel`, `scroll`, `keydown`, `touchstart` or
+`focusin`), the intro gone and an idle slot. To Playwright, every mouse move, tap, scroll or key
+press is such an interaction, and many specs seed consent — so a dock or a guide prompt could
+appear in the middle of a spec, over the very control it is about to press. The harness pins it:
+
+- **Every context starts with the HUD off.** `playwright.config.ts` sets `use.storageState` to
+  `localStorage.tbs_hud = "off"` for the `BASE_URL` origin (the key comes from `lib/hud/gate.ts`).
+  Nothing else about the page changes.
+- **A HUD spec opts in** with `test.use({ storageState: HUD_ON })` (empty storage, from
+  `helpers.ts`), seeds consent, and calls `armHud(page)`: one mouse move, then it waits up to 5s
+  for a `[data-hud]` part. It fails at once, with the fix in the message, if the context still
+  has the HUD off.
+- **A spec that builds its own context** (`browser.newContext`) does not inherit `use`, so it
+  passes its `storageState` fixture on, like its `baseURL` — the classic-scrollbar test in
+  `hud-shell.spec.ts` does.
+- **Survey run:** `E2E_HUD=on npx playwright test` leaves the storage state out, so the whole
+  suite runs with the HUD able to arm. It is not a gate; every failure it shows is triaged.
+- **`consoleErrors(page, { allowMissing })`** drops console errors from resources whose path ends
+  in one of `allowMissing` — by default `["/api/content"]`, the 404 the Next-only server gives.
+  A spec that also reaches another endpoint passes the whole list, the default included.
 
 ### `request-flow.spec.ts` — the stepped flow
 

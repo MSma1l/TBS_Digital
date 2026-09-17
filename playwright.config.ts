@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+// Relative on purpose: lib/hud/gate.ts is import-free, so the config never depends on the `@/`
+// alias resolving here.
+import { HUD_FLAG_KEY } from "./lib/hud/gate";
 
 /*
  * End-to-end tests (Playwright) for the public site.
@@ -22,6 +25,20 @@ const PORT = Number(process.env.E2E_PORT ?? 3210);
  * `localhost` is a "potentially trustworthy" origin that browsers never upgrade.
  */
 const BASE_URL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`;
+
+/**
+ * Every context starts with `localStorage.tbs_hud = "off"` for the site's origin, so the HUD
+ * chrome (guide, rail, OS windows) never arms in the middle of a spec: any mouse move, tap,
+ * scroll or key press is an interaction, and a dock or a prompt appearing mid-test would cover
+ * the very controls it presses. A spec about the HUD opts back in with
+ * `test.use({ storageState: HUD_ON })` (e2e/helpers.ts); a spec that builds its own context
+ * passes its `storageState` fixture on. `E2E_HUD=on` leaves it out, so the whole suite runs with
+ * the HUD able to arm — a survey run, not a gate (see e2e/README.md).
+ */
+const HUD_OFF_STATE = {
+  cookies: [],
+  origins: [{ origin: new URL(BASE_URL).origin, localStorage: [{ name: HUD_FLAG_KEY, value: "off" }] }],
+};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -52,6 +69,7 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "off",
+    ...(process.env.E2E_HUD === "on" ? {} : { storageState: HUD_OFF_STATE }),
   },
 
   /* Chromium only. The suite tests layout and behaviour, not engine quirks, and a single

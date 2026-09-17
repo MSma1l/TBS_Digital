@@ -108,6 +108,36 @@ lockfile are unchanged. What it uses differently:
   targets had shipped two byte-identical copies of three + R3F; one target means one download,
   served from cache to the other scene.
 
+## The HUD chrome (2026-09-17) — `lucide-react`
+
+The IT-OS HUD (the Ghid TBS guide, the fibre rail, the OS dock and windows) draws its interface
+icons with **one new runtime package**. The foundation phase installs it; no module imports it
+yet, so no chunk carries it until the first HUD part lands.
+
+| Package | Version | Licence | Used by |
+|---------|---------|---------|---------|
+| `lucide-react` | **1.46.0** (exact) | ISC | `components/hud/**` only — nothing else may import it at runtime (`scene-contract.test.ts`) |
+
+- **Facts, checked in the npm registry and the installed package:** peer
+  `react ^16.5.1 || ^17 || ^18 || ^19` (the site runs 19.2.4), `sideEffects: false`, **no
+  dependencies**, no install script, one lockfile entry. The package has **no `exports` map**, so
+  paths under `dist/` are build internals, not an API — one more reason for the exact pin.
+- **What an icon is:** an inline `<svg>` built by React from path data in the bundle. Nothing is
+  fetched (no icon font, no sprite, no CDN), so the CSP does not change. With no accessible prop
+  (`aria-label`, `title`, children…) the icon renders `aria-hidden="true"` by itself.
+- **How it is used:** named imports from the package root only
+  (`import { Activity } from "lucide-react"`), `strokeWidth={1.75}`, `aria-hidden`, coloured
+  through `currentColor`. With `sideEffects: false` each chunk carries the icons it names and
+  nothing else.
+- **Refused by ESLint and `components/__tests__/scene-contract.test.ts`**, as `import` and as
+  `import()`: `lucide-react/dynamic` (`.js`, `.mjs`) and `lucide-react/dynamicIconImports`
+  (`.mjs`) — `DynamicIcon` looks icons up by name through a map with an `import()` for every one
+  of ~4,200 icons; `lucide-react/dist/*` — deep build paths; and `import * as` / `export *` /
+  `import("lucide-react")` — a namespace object keeps every icon.
+- **Icons that draw round dots are out** (D1, no decorative dots): `Calculator` (its keypad is
+  `h.01` round-cap dots), `GripVertical`, `GripHorizontal`, `Ellipsis*` and `MoreHorizontal`
+  (`r="1"` circles). The OS windows' source contract test refuses them when those files land.
+
 ## Explicitly not used
 
 - No data-fetching library (React Query, SWR) — a small typed client (`lib/api.ts`) over

@@ -11,7 +11,9 @@ import {
   type ReactNode,
 } from "react";
 import { Modal } from "@/components/ui/Modal";
+import type { GuideTopic } from "@/lib/hud/topics";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import type { EstimatorOptionId, EstimatorTypeId } from "@/lib/request/catalog";
 import { useSound } from "@/lib/sound";
 
 /**
@@ -62,7 +64,34 @@ export type RequestSource =
   | "bottom-cta"
   | "service-page"
   | "service-page-bottom"
-  | "project-card";
+  | "project-card"
+  /** The Ghid TBS avatar itself. */
+  | "guide"
+  /** The tip the guide shows next to a section. */
+  | "guide-prompt"
+  /** "Send the selection" in the HUD cost calculator. */
+  | "os-calculator"
+  /** "Send the package" in the HUD architecture builder. */
+  | "os-builder";
+
+/**
+ * Something a HUD tool hands over with the request: the calculator's selection or the
+ * builder's package.
+ *
+ * The tool's own chunk builds it at handoff time, so the dialog never has to load that code
+ * (or fail on a chunk that didn't arrive) to send. `text` is the block written into the
+ * message, after `lib/request/attachment.ts` strips control characters and caps it at
+ * `ATTACHMENT_MAX`; `count` and `summary` only feed the visible note under the proposal.
+ */
+export type RequestAttachment = {
+  kind: "calculator" | "builder";
+  /** How many services (calculator) or modules (builder) it carries. */
+  count: number;
+  /** An already-localized total for the note ("de la 600€"). Omitted when there is none. */
+  summary?: string;
+  /** The block itself, header line included ("CALCULATOR DE COST:\n- …"). */
+  text: string;
+};
 
 /**
  * What the visitor was looking at when they pressed the CTA.
@@ -70,6 +99,9 @@ export type RequestSource =
  * `serviceSlug` preselects the estimator's project type (`SERVICE_TO_ESTIMATOR_TYPE`);
  * the project fields and `source` are carried into the sent message, so the team can see
  * where a lead came from instead of guessing.
+ *
+ * Every field is optional and the estimator validates what it reads: an id the catalog does
+ * not know is ignored rather than trusted.
  */
 export type RequestContext = {
   /** A direction slug (`produs-digital`, `e-commerce`, …). Preselects the project type. */
@@ -80,6 +112,16 @@ export type RequestContext = {
   projectName?: string;
   /** Short id of the CTA itself. */
   source?: RequestSource;
+  /** Preselects this project type; wins over `serviceSlug`'s mapping. An unknown id is ignored. */
+  projectType?: EstimatorTypeId;
+  /** Preselects exactly these options, replacing the default ones: `[]` ticks none, unknown ids are dropped. */
+  optionIds?: readonly EstimatorOptionId[];
+  /** Dialog only: start with the assistant open, focus in it. The section ignores it. */
+  openAssistant?: boolean;
+  /** The page area the guide was about; written into the origin block as `- Secțiune: <topic>`. */
+  guideTopic?: GuideTopic;
+  /** What a HUD tool hands over; written into the message between the summary and the origin. */
+  attachment?: RequestAttachment;
 };
 
 export type RequestOptions = RequestContext & {

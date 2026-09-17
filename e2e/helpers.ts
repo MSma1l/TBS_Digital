@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type BrowserContext,
+  type BrowserContextOptions,
   type Cookie,
   type Locator,
   type Page,
@@ -19,6 +20,7 @@ import { solUI } from "@/lib/solutions";
 import { CONSENT_KEY } from "@/lib/consent";
 import { SOUND_COOKIE } from "@/lib/sound/sound";
 import { INTRO_COOKIE, INTRO_FORCE_3D_KEY, INTRO_SEEN } from "@/lib/intro";
+import { HUD_FLAG_KEY } from "@/lib/hud/gate";
 import {
   GPU_PROBE_CACHE_KEY,
   SCENE_3D_KEY,
@@ -111,6 +113,36 @@ export const seedConsent = (
  */
 export const seedIntroSeen = (context: BrowserContext, baseURL: string) =>
   seedCookie(context, INTRO_COOKIE, INTRO_SEEN, new URL("/", baseURL).href);
+
+// --- HUD chrome ------------------------------------------------------------------------
+
+/** A context's storage in the object form `use.storageState` / `browser.newContext` take. */
+export type StorageState = Exclude<BrowserContextOptions["storageState"], string | undefined>;
+
+/**
+ * Every context starts with the HUD switched off (`localStorage.tbs_hud = "off"`, seeded by
+ * playwright.config.ts), so no guide, rail or dock can appear in the middle of a spec. A spec
+ * about the HUD starts from empty storage instead: `test.use({ storageState: HUD_ON })`.
+ */
+export const HUD_ON: StorageState = { cookies: [], origins: [] };
+
+/**
+ * Arm the HUD chrome the way a visitor does — one pointer move — and wait until one of its
+ * parts (`[data-hud]`) is in the DOM. The HUD also needs an answered cookie banner
+ * (`seedConsent`) and no intro on screen (`gotoHydrated` seeds the intro as seen).
+ */
+export async function armHud(page: Page): Promise<void> {
+  const flag = await page.evaluate((key) => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }, HUD_FLAG_KEY);
+  expect(flag, "the HUD is switched off in this context: test.use({ storageState: HUD_ON })").not.toBe("off");
+  await page.mouse.move(8, 8);
+  await expect(page.locator("[data-hud]").first()).toBeAttached({ timeout: 5_000 });
+}
 
 /** Read one cookie's value out of the browser context (`undefined` when unset). */
 export async function cookieValue(
@@ -1162,8 +1194,9 @@ export type DotHit = { element: string; pseudo: "" | "::before" | "::after"; wid
 
 /**
  * Decorative dots on screen (D1: they are gone for good): every rendered box in the header,
- * main and footer — and their ::before / ::after — that is at most 8×8px, rounded to at least
- * half its short side, and paints something (a background colour, an image or a shadow).
+ * main and footer and inside the HUD chrome's parts (`[data-hud]`) — and their ::before /
+ * ::after — that is at most 8×8px, rounded to at least half its short side, and paints
+ * something (a background colour, an image or a shadow).
  * Skips `[data-dictation-slot]`: the recording light there is a privacy indicator, not
  * decoration. Text glyphs (the "✓" markers, "·" in copy) are not boxes and never match.
  */
@@ -1191,7 +1224,7 @@ export const decorativeDots = (page: Page): Promise<DotHit[]> =>
       `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}${
         typeof el.className === "string" && el.className ? `.${el.className.trim().split(/\s+/).slice(0, 4).join(".")}` : ""
       }`;
-    for (const el of Array.from(document.querySelectorAll("header *, main *, footer *"))) {
+    for (const el of Array.from(document.querySelectorAll("header *, main *, footer *, [data-hud] *"))) {
       if (el.closest("[data-dictation-slot]")) continue;
       const style = getComputedStyle(el);
       if (!shown(style)) continue;
@@ -1217,6 +1250,26 @@ export const decorativeDots = (page: Page): Promise<DotHit[]> =>
 /** The element's computed `transform` ("none" at rest). */
 export const computedTransform = (locator: Locator): Promise<string> =>
   locator.evaluate((el) => getComputedStyle(el).transform);
+
+/**
+ * `<html>` and `<body>` carry no inline style and the instant-scroll hold is released: nothing
+ * (ScrollTrigger's refreshes, a scroll lock, the HUD) left a write on the root. Polls for up to
+ * 5s; `when` names the moment in the failure message. Moved here from interior-webgl.spec.ts
+ * so the HUD specs can assert the same.
+ */
+export async function expectRootUntouched(page: Page, when: string): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => ({
+          html: document.documentElement.getAttribute("style"),
+          body: document.body.getAttribute("style"),
+          measuring: document.documentElement.hasAttribute("data-scroll-measure"),
+        })),
+      { message: when, timeout: 5_000 },
+    )
+    .toEqual({ html: null, body: null, measuring: false });
+}
 
 /** Jump to `y` without the page's smooth scrolling, and wait until the page is there. */
 export async function scrollToY(page: Page, y: number): Promise<number> {
@@ -1278,11 +1331,16 @@ export type PageErrors = {
 /*
  * With `NEXT_PUBLIC_API_URL=""` (playwright.config.ts) the site asks the same origin for
  * `/api/content`, which the Next-only E2E server answers with a 404 — and the site then
- * renders its bundled defaults. That 404 is expected; it is the only console error dropped.
+ * renders its bundled defaults. That 404 is expected, and by default it is the only console
+ * error dropped.
  */
-function isApiContentNoise(url: string): boolean {
+const EXPECTED_MISSING = ["/api/content"] as const;
+
+/** Is `url` a resource whose path ends in one of `allowMissing`? */
+function isExpectedMissing(url: string, allowMissing: readonly string[]): boolean {
   try {
-    return new URL(url).pathname.endsWith("/api/content");
+    const { pathname } = new URL(url);
+    return allowMissing.some((path) => pathname.endsWith(path));
   } catch {
     return false;
   }
@@ -1291,11 +1349,18 @@ function isApiContentNoise(url: string): boolean {
 /**
  * Start collecting console errors and page errors. Call BEFORE navigating; the returned
  * object fills up as the page runs.
+ *
+ * `allowMissing` lists the path endings whose failed load is expected on the Next-only E2E
+ * server (default: `/api/content` alone). A spec that also reaches another backend endpoint
+ * passes the whole list, the default included, e.g. `["/api/content", "/api/status"]`.
  */
-export function consoleErrors(page: Page): PageErrors {
+export function consoleErrors(
+  page: Page,
+  { allowMissing = EXPECTED_MISSING }: { allowMissing?: readonly string[] } = {},
+): PageErrors {
   const errors: PageErrors = { console: [], page: [] };
   page.on("console", (message) => {
-    if (message.type() !== "error" || isApiContentNoise(message.location().url)) return;
+    if (message.type() !== "error" || isExpectedMissing(message.location().url, allowMissing)) return;
     errors.console.push(message.text());
   });
   page.on("pageerror", (error) => errors.page.push(error.message));

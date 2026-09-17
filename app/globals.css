@@ -162,10 +162,48 @@
   --hud-grid-line: rgba(57, 112, 255, 0.1);
   --grid-cell: 64px;
 
+  /* ---- Cyber Dark / Neon Cyan / Obsidian Black: the HUD chrome palette ---------------
+     For the fibre rail, the Ghid TBS avatar, the OS dock and windows and the Command Center
+     (docs/04-design-system.md). Cyber Dark adds no token: it is the --dark-* surface scale
+     below, reached through the remapped --panel / --glass-* like every other component.
+     Red stays the only call-to-action fill; cyan is information (rings, threads, ticks, status).
+
+     Neon Cyan splits like red, blue and green do: a GRAPHIC tone and a TEXT tone. Computed
+     with the WCAG formula:
+       --neon-cyan  strokes, rings, threads, ticks, scrollbar thumbs; ≥3:1, never small text.
+                    --panel 3.68, --bg 3.44, --panel2 3.41, --bg2 3.17.
+       --cyan-text  cyan small text. --panel 5.36, --bg 5.00, --panel2 4.96, --bg2 4.62. On
+                    glass, only over --glass-bg-solid (4.69 on its worst, black, pixel), never
+                    over --glass-bg-text (4.28).
+     The older --cyan (3.33 on --bg) keeps the places that use it; new code takes these two. */
+  --neon-cyan: #0891b2;
+  --cyan-text: #0b7490;
+  --glow-cyan: rgba(8, 145, 178, 0.28);
+  /* Hairline ring + near glow, the cyan twin of --neon-blue. Decoration: the light hairline is
+     only 1.8:1 against its surface, so an edge that carries meaning (a control's boundary, the
+     selected state) is a 1px --neon-cyan border, with the ring on top. */
+  --neon-cyan-ring: 0 0 0 1px rgba(8, 145, 178, 0.5), 0 0 16px rgba(8, 145, 178, 0.3);
+  /* Obsidian Black is --void: the always-dark console islands, the same in BOTH themes, and
+     never remapped (like --void). On it: --on-obsidian 17.55, --on-obsidian-mut 9.13,
+     --obsidian-neon 12.53. An island is 1.00:1 against the dark page, so it always draws its
+     --obsidian-line edge, and that edge is decoration (1.61:1): a field inside still needs its
+     own boundary. The light --txt is 1.10:1 on it, which is why an island re-scopes --txt. */
+  --obsidian: var(--void);
+  --on-obsidian: #e6f4ff;
+  --on-obsidian-mut: #9fb3c8;
+  --obsidian-neon: #38e1ff;
+  --obsidian-line: rgba(56, 225, 255, 0.22);
+
   /* ---- stacking order -------------------------------------------------------
      One ladder for every fixed/sticky layer, low → high. The header sits ABOVE the burger
      overlay on purpose: the overlay slides in under it, so the burger stays usable. The
-     request dialog outranks everything interactive; only the first-visit intro is above it. */
+     request dialog outranks everything interactive; only the first-visit intro is above it.
+     The HUD chrome sits under the whole ladder, burger overlay included, so the overlay, the
+     dialog and the intro cover it with no hide logic: the fibre rail, then the OS layer (the
+     dock and the windows order themselves inside it), then the Ghid TBS avatar and its tip. */
+  --z-rail: 104;
+  --z-os: 108;
+  --z-guide: 112;
   --z-nav-overlay: 115;
   --z-header: 120;
   --z-dropdown: 130;
@@ -174,6 +212,15 @@
   --z-progress: 300;
   --z-modal: 320;
   --z-intro: 400;
+
+  /* ---- HUD placement ----------------------------------------------------------
+     Static insets shared by the rail, the dock, the guide and the OS windows. Stylesheets read
+     them; nothing ever writes a custom property onto <html> or <body>. --hud-bottom is where the
+     rail and a window frame end: 4px above the guide's 88px avatar box, which sits 20px up. */
+  --hud-edge: 12px;
+  --hud-rail-w: 44px;
+  --hud-dock-h: 56px;
+  --hud-bottom: 112px;
 
   /* ---- motion -------------------------------------------------------------- */
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -331,6 +378,14 @@
      the canvas that replaces it (1.02–1.04), and the copy over it keeps ≥5.6:1. */
   --dark-hero-core-phone: 1;
   --dark-hero-scrim: 0.8;
+  /* Neon Cyan on the dark scale: one bright tone serves graphics and text alike. --bg 12.53,
+     --bg2 12.83, --panel 10.56, --panel2 9.60; over the worst (white) pixel under
+     --dark-glass-bg-solid 8.92 and under --dark-glass-bg-text 6.38. The hairline of the ring
+     holds 4.11–4.33 against the surfaces. Same hex as --obsidian-neon. */
+  --dark-neon-cyan: #38e1ff;
+  --dark-cyan-text: #38e1ff;
+  --dark-glow-cyan: rgba(56, 225, 255, 0.38);
+  --dark-neon-cyan-ring: 0 0 0 1px rgba(56, 225, 255, 0.55), 0 0 18px rgba(56, 225, 255, 0.4);
 }
 
 /* Phones: a lighter blur (the GPU cost of backdrop-filter scales with its radius). */
@@ -363,6 +418,10 @@
     --green-text: var(--dark-green-text);
     --ice: var(--dark-ice);
     --cyan: var(--dark-cyan);
+    --neon-cyan: var(--dark-neon-cyan);
+    --cyan-text: var(--dark-cyan-text);
+    --glow-cyan: var(--dark-glow-cyan);
+    --neon-cyan-ring: var(--dark-neon-cyan-ring);
     --sh-sm: var(--dark-sh-sm);
     --sh-md: var(--dark-sh-md);
     --sh-lg: var(--dark-sh-lg);
@@ -400,6 +459,10 @@
   --green-text: var(--dark-green-text);
   --ice: var(--dark-ice);
   --cyan: var(--dark-cyan);
+  --neon-cyan: var(--dark-neon-cyan);
+  --cyan-text: var(--dark-cyan-text);
+  --glow-cyan: var(--dark-glow-cyan);
+  --neon-cyan-ring: var(--dark-neon-cyan-ring);
   --sh-sm: var(--dark-sh-sm);
   --sh-md: var(--dark-sh-md);
   --sh-lg: var(--dark-sh-lg);

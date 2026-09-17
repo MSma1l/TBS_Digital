@@ -301,14 +301,18 @@ test.describe("burger menu after scrolling", () => {
   test("with classic scrollbars (320x720) the gutter is reserved, so nothing shifts", async ({
     playwright,
     baseURL,
+    storageState,
   }) => {
     // Playwright hides scrollbars in headless Chromium by default; this browser puts the
     // 15px desktop scrollbar back — the case the reserved gutter exists for. Launch options
     // are worker-scoped, so it is a browser of its own rather than a `test.use`.
     const browser = await playwright.chromium.launch({ ignoreDefaultArgs: ["--hide-scrollbars"] });
     try {
+      // A context of its own does not inherit `use`: the storage (the HUD switched off, see
+      // playwright.config.ts) is handed on explicitly, like the base URL.
       const context = await browser.newContext({
         baseURL,
+        storageState,
         viewport: { width: 320, height: 720 },
         locale: "ro-RO",
         timezoneId: "Europe/Chisinau",

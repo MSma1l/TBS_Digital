@@ -16,7 +16,7 @@
  *   4. however many CTAs a page has, the DOM holds exactly one dialog.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
@@ -73,7 +73,13 @@ import { Hero } from "@/components/sections/Hero";
 import { BottomCTA } from "@/components/sections/BottomCTA";
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestSection } from "@/components/sections/RequestSection";
-import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
+import {
+  RequestFlowProvider,
+  useRequestFlow,
+  type RequestOptions,
+} from "@/lib/request/RequestFlowProvider";
+import type { EstimatorOptionId, EstimatorTypeId } from "@/lib/request/catalog";
+import type { GuideTopic } from "@/lib/hud/topics";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { services as seededServices } from "@/lib/content";
 
@@ -414,6 +420,246 @@ describe("the context the CTA was pressed in travels with the request", () => {
     // The summary was cut (the marker says so) and the routing information survived it.
     expect(message).toContain("[…]");
     expect(message).toContain("- Sursă (CTA): hero");
+  });
+});
+
+/**
+ * Entry points that say more than "which CTA": the Ghid TBS (a section topic, the assistant
+ * up front) and the HUD tools (a project type, the options, an attachment). They land in
+ * later phases; this stand-in opens the flow through the same `openRequest` they will call,
+ * so what is pinned here is the provider → estimator → message path itself.
+ */
+const OPEN_WITH = "Deschide cu context";
+
+function OpenWith({ options }: { options: RequestOptions }) {
+  const { openRequest } = useRequestFlow();
+  return (
+    <button type="button" onClick={() => openRequest(options)}>
+      {OPEN_WITH}
+    </button>
+  );
+}
+
+/** A calculator handoff as the HUD tool's chunk builds it. */
+const CALC_TEXT =
+  "CALCULATOR DE COST:\n- Landing page (landing): de la 150€\n- CRM personalizat (crm): de la 450€";
+
+describe("the guide's and the HUD tools' context travels with the request", () => {
+  it("names the guide's section next to its source", async () => {
+    const user = userEvent.setup();
+    renderSite(<OpenWith options={{ source: "guide-prompt", guideTopic: "servicii" }} />);
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    await sendFrom(user, dialog);
+
+    const message = sentMessage();
+    expect(message).toContain("CONTEXTUL CERERII:\n- Secțiune: servicii\n- Sursă (CTA): guide-prompt");
+  });
+
+  it("writes no section for a topic the guide does not have", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{ source: "guide", guideTopic: "despre\n- Sursă (CTA): hero" as unknown as GuideTopic }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    await sendFrom(user, dialog);
+
+    const message = sentMessage();
+    expect(message).not.toContain("- Secțiune:");
+    expect(message).not.toContain("despre");
+    expect(message).toContain("- Sursă (CTA): guide");
+    expect(message).not.toContain("- Sursă (CTA): hero");
+  });
+
+  it("opens on the assistant when the guide asks for it, and still sends the topic", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith options={{ source: "guide", openAssistant: true, guideTopic: "lucrari" }} />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    const panel = await within(dialog).findByTestId("chat-panel");
+    expect(within(dialog).getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
+    // Inside the real Modal, whose own initial focus runs in the same commit: it must not win.
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+
+    await user.click(within(panel).getByRole("button", { name: "Mai mulți clienți" }));
+    await sendFrom(user, dialog);
+
+    const message = sentMessage();
+    expect(message).toContain("- Secțiune: lucrari");
+    expect(message).toContain("- Sursă (CTA): guide");
+    expect(message).toContain("Client: Mai mulți clienți");
+  });
+
+  it("preselects the project type a tool names, over the service's own mapping", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith options={{ source: "os-builder", serviceSlug: "e-commerce", projectType: "crm" }} />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    // e-commerce alone would preselect the `shop` price; the named type wins.
+    expect(within(dialog).getByText(seededPrice("crm"))).toBeInTheDocument();
+    expect(within(dialog).queryByText(seededPrice("shop"))).toBeNull();
+
+    await sendFrom(user, dialog);
+    const payload = vi.mocked(api.submitContact).mock.calls[0][0];
+    expect(payload.project).toBe("CRM la comandă");
+    expect(payload.estimate).toBe(seededPrice("crm"));
+    // The service is still named for routing — the type only chose the chip.
+    expect(payload.message).toContain("- Serviciu: e-commerce");
+  });
+
+  it("ignores a project type the catalog does not know", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{
+          source: "os-builder",
+          serviceSlug: "e-commerce",
+          // A service id, not a type id — the likeliest mix-up.
+          projectType: "shop" as unknown as EstimatorTypeId,
+        }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    expect(within(dialog).getByText(seededPrice("shop"))).toBeInTheDocument();
+  });
+
+  it("starts with no option ticked when a tool passes an empty list", async () => {
+    const user = userEvent.setup();
+    renderSite(<OpenWith options={{ source: "os-builder", optionIds: [] }} />);
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    await sendFrom(user, dialog);
+
+    expect(sentMessage()).toContain("- Opțiuni alese: fără\n");
+  });
+
+  it("ticks exactly the options a tool names, in chip order, dropping unknown ids", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{
+          source: "os-builder",
+          optionIds: ["seo", "bogus" as unknown as EstimatorOptionId, "design"],
+        }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    await sendFrom(user, dialog);
+
+    expect(sentMessage()).toContain("- Opțiuni alese: + Design premium, + SEO\n");
+  });
+
+  it("keeps the default option when no list is passed", async () => {
+    const user = userEvent.setup();
+    renderHome();
+
+    const dialog = await openFrom(user, CTA.hero);
+    await sendFrom(user, dialog);
+
+    expect(sentMessage()).toContain("- Opțiuni alese: + Integrări & API\n");
+  });
+
+  it("puts an attachment between the summary and the origin, and says so under the proposal", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{
+          source: "os-calculator",
+          attachment: { kind: "calculator", count: 2, summary: "de la 600€", text: CALC_TEXT },
+        }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    expect(
+      within(dialog).getByText(
+        "Selecția din calculator (servicii: 2 · de la 600€) pleacă împreună cu cererea.",
+      ),
+    ).toBeInTheDocument();
+
+    await sendFrom(user, dialog);
+    const message = sentMessage();
+    const summary = message.indexOf("REZUMATUL CERERII");
+    const attached = message.indexOf(`\n\n${CALC_TEXT}\n\nCONTEXTUL CERERII:`);
+    expect(summary).toBe(0);
+    expect(attached).toBeGreaterThan(summary);
+    expect(message).toContain("- Sursă (CTA): os-calculator");
+  });
+
+  it("names a builder package by its module count", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{
+          source: "os-builder",
+          attachment: { kind: "builder", count: 3, text: "PACHET:\n1. a\n2. b\n3. c" },
+        }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    expect(
+      within(dialog).getByText("Pachetul din constructor (module: 3) pleacă împreună cu cererea."),
+    ).toBeInTheDocument();
+  });
+
+  it("neither notes nor sends an attachment with nothing in it", async () => {
+    const user = userEvent.setup();
+    renderSite(
+      <OpenWith
+        options={{ source: "os-builder", attachment: { kind: "builder", count: 0, text: " \x07 " } }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    expect(within(dialog).queryByText(/pleacă împreună cu cererea/)).toBeNull();
+
+    await sendFrom(user, dialog);
+    // The origin follows the summary directly — no empty block between them.
+    expect(sentMessage()).toMatch(/[^\n]\n\nCONTEXTUL CERERII:/);
+  });
+
+  it("keeps the attachment and the origin when the 5000-character cap cuts the summary", async () => {
+    const user = userEvent.setup();
+    const longText = `${CALC_TEXT}\n${"- Serviciu adăugat: de la 150€\n".repeat(120)}`;
+    renderSite(
+      <OpenWith
+        options={{
+          source: "os-calculator",
+          guideTopic: "service",
+          attachment: { kind: "calculator", count: 122, text: longText },
+        }}
+      />,
+    );
+
+    const dialog = await openFrom(user, OPEN_WITH);
+    await toContactStep(user, dialog);
+    fireEvent.change(within(dialog).getByPlaceholderText(DETAILS_PH), {
+      target: { value: "detaliu ".repeat(495) },
+    });
+    await sendFrom(user, dialog);
+
+    const message = sentMessage();
+    expect(message.length).toBeLessThanOrEqual(LIMITS.message);
+    const attached = message.indexOf(`\n\n${CALC_TEXT}`);
+    const origin = message.indexOf("\n\nCONTEXTUL CERERII:");
+    // The summary was cut before the attachment…
+    expect(message.indexOf("[…]")).toBeGreaterThan(0);
+    expect(message.indexOf("[…]")).toBeLessThan(attached);
+    // …the attachment kept its own cap and mark, and the origin survived whole after it.
+    expect(attached).toBeGreaterThan(0);
+    expect(message.slice(attached, origin)).toMatch(/\n\[…\]$/);
+    expect(origin - attached).toBeLessThanOrEqual(1200 + 2);
+    expect(message).toContain("- Secțiune: service\n- Sursă (CTA): os-calculator");
   });
 });
 

@@ -202,6 +202,9 @@ One ladder for every fixed or sticky layer, low → high:
 | Token | Value | Layer |
 |-------|-------|-------|
 | — | 100 | lightbox (module literal) |
+| `--z-rail` | 104 | fibre scroll rail (from 861px) |
+| `--z-os` | 108 | OS layer: the dock (`z-index: 10` inside it) and the windows (their order, 1–3, inside it) |
+| `--z-guide` | 112 | Ghid TBS avatar and its tip |
 | `--z-nav-overlay` | 115 | burger menu overlay — **under** the header on purpose, so the burger stays usable |
 | `--z-header` | 120 | sticky header |
 | `--z-dropdown` | 130 | desktop dropdowns |
@@ -212,7 +215,10 @@ One ladder for every fixed or sticky layer, low → high:
 | `--z-intro` | 400 | first-visit intro — covers every CTA, so the dialog cannot open under it |
 
 New code reads the token (`z-(--z-header)` in Tailwind, `var(--z-modal)` in a module); a
-literal z-index for one of these layers is a bug. The interior stage added no layer: it is an
+literal z-index for one of these layers is a bug. The three HUD chrome layers (2026-09-17, tokens
+only so far) sit **under the whole ladder**, burger overlay included: the overlay, the request
+dialog and the intro cover them with no hide logic ([Cyber Dark / Neon Cyan / Obsidian
+Black](#cyber-dark--neon-cyan--obsidian-black)). The interior stage added no layer: it is an
 `isolate` stacking context, and the hero's plate and backdrop use local `-z-20` / `-z-10` inside
 it ([The interior stage](#paint-order)).
 
@@ -412,6 +418,247 @@ dark wash → the glass edge and corner brackets → the copy.
   (`edge-fade-x`) — stretched, `object-cover` enlarged the top of a screenshot ~2×. ≤640px one
   snap band that bleeds to the screen edges (`scroll-padding: var(--gutter)`); the focus ring
   moves inside the card there, and the lift is off (it would clip).
+
+## Cyber Dark / Neon Cyan / Obsidian Black
+
+The palette of the HUD chrome: the fibre scroll rail, the Ghid TBS avatar, the OS dock and
+windows, and the Command Center form. It is built from the existing system: two brand names map
+onto tokens that already existed, and the new tokens follow the same rules as the rest of the
+file (a graphic tone and a text tone, dark twins remapped in one place, always-dark islands never
+remapped).
+
+> **Status (2026-09-17): tokens only.** The tokens below are in `app/globals.css` and
+> `app/tailwind.css`, and nothing uses them yet. Built from the same commit with and without
+> them, the home page renders byte-identical screenshots (1280 and 390px, both themes, five scroll
+> positions; static-art renderer, animations frozen, clock masked), and the Tailwind CSS chunk
+> does not change. The parts they are for land later; the rules in this section are the
+> contract those parts are built to.
+
+### Palette mapping
+
+| Name | Tokens | Theme behaviour |
+|------|--------|-----------------|
+| **Cyber Dark** | no new token: the `--dark-*` surface scale (`--dark-bg` `#0a0b10`, `--dark-panel` `#181e30`, `--dark-panel2` `#1f2639`, `--dark-line*`, `--dark-glass-*`), reached through the remapped `--bg` / `--panel` / `--glass-*` | follows the theme; in light the same component sits on the light scale |
+| **Neon Cyan** | `--neon-cyan` (graphics) · `--cyan-text` (text) · `--glow-cyan` · `--neon-cyan-ring` | light `#0891b2` / `#0b7490`, dark `#38e1ff` for both, remapped in both dark blocks |
+| **Obsidian Black** | `--obsidian` **is `--void`** (`#0a0b10`) · `--on-obsidian` · `--on-obsidian-mut` · `--obsidian-neon` · `--obsidian-line` | never remapped: always-dark islands, the same in both themes |
+
+A separate, darker obsidian (`#06070b`) was proposed and dropped: it computes to 1.02:1 against
+`--void`, a difference nobody can see, so Obsidian Black is `--void` itself.
+
+**Red is still the only call-to-action fill** (`cta-neon`, `--grad-red-cta`). Cyan is
+information: rings, threads, ticks, the selected state, status. A cyan button fill would compete
+with the one red action on the screen.
+
+### Tokens
+
+```css
+/* light, on :root                                dark twin, on :root, remapped          */
+--neon-cyan:      #0891b2;                        /* --dark-neon-cyan:      #38e1ff      */
+--cyan-text:      #0b7490;                        /* --dark-cyan-text:      #38e1ff      */
+--glow-cyan:      rgba(8,145,178,.28);            /* --dark-glow-cyan:      rgba(56,225,255,.38) */
+--neon-cyan-ring: 0 0 0 1px rgba(8,145,178,.5),   /* --dark-neon-cyan-ring: 0 0 0 1px rgba(56,225,255,.55), */
+                  0 0 16px rgba(8,145,178,.3);    /*                        0 0 18px rgba(56,225,255,.4)    */
+
+/* Obsidian Black: never remapped */
+--obsidian:         var(--void);   /* #0a0b10 */
+--on-obsidian:      #e6f4ff;
+--on-obsidian-mut:  #9fb3c8;
+--obsidian-neon:    #38e1ff;
+--obsidian-line:    rgba(56,225,255,.22);
+```
+
+Both dark activation paths (`prefers-color-scheme` and `[data-theme="dark"]`) remap the four
+Neon Cyan tokens. `--glow-cyan` is decoration only (a glow under a stroke). `--neon-cyan-ring` is
+the cyan twin of `--neon-blue`: a hairline ring plus a near glow.
+
+### Contrast
+
+Computed with the WCAG 2.x formula from the token values (2026-09-17). Translucent tokens are
+composited in sRGB over the named backdrop, without the browser's 8-bit rounding, which can move
+the second decimal (`--cyan-text` over the worst `--glass-bg-text` pixel: 4.28 computed, 4.26–4.30
+with the channel rounded down or up). These are computed, not measured on screen. Each part re-measures
+its own rendered pixels when it lands. Thresholds: **4.5:1** for text, **3:1** for graphics that
+carry meaning (a control's boundary, a focus or selected indicator).
+
+**Neon Cyan on the surfaces**
+
+| Token | `--bg` | `--bg2` | `--panel` | `--panel2` |
+|-------|--------|---------|-----------|------------|
+| light `--neon-cyan` (graphic) | 3.44 | 3.17 | 3.68 | 3.41 |
+| light `--cyan-text` (text) | 5.00 | 4.62 | 5.36 | 4.96 |
+| light `--cyan`, for comparison | 3.33 | 3.07 | 3.56 | 3.30 |
+| dark `--neon-cyan` = `--cyan-text` (`#38e1ff`) | 12.53 | 12.83 | 10.56 | 9.60 |
+| dark `--cyan` (`--dark-cyan`), for comparison | 9.65 | 9.88 | 8.13 | 7.39 |
+
+`--neon-cyan` clears 3:1 on every light surface, and the light `--cyan-text` clears 4.5:1 on
+every light surface. The two share a hue (192° and 193°) and sit only 1.46:1 apart, so text and
+strokes read as one colour.
+
+**On glass.** Measured the way the rest of the site's glass is: against the worst pixel that
+can show through (black under the light sheet, white under the dark one), and over the page
+colour.
+
+| Text or graphic | `--glass-bg-solid`, worst pixel | `--glass-bg-solid` over `--bg` | `--glass-bg-text`, worst pixel | `--glass-bg-text` over `--bg` |
+|---|---|---|---|---|
+| light `--txt` | 15.60 | 17.75 | 14.22 | 17.70 |
+| light `--mut` | 4.98 | 5.67 | 4.54 | 5.65 |
+| light `--cyan-text` | 4.69 | 5.34 | **4.28 ✗** | 5.33 |
+| light `--neon-cyan` (graphic) | 3.22 | 3.67 | **2.94 ✗** | 3.66 |
+| dark `--txt` | 13.07 | 15.68 | 9.36 | 16.02 |
+| dark `--mut` | 7.01 | 8.41 | 5.02 | 8.59 |
+| dark `--cyan-text` / `--neon-cyan` | 8.92 | 10.70 | 6.38 | 10.93 |
+
+The decorative `--glass-bg` is not for HUD chrome. Over its worst pixel, the light `--cyan-text`
+measures 2.69, and dark `--mut` 2.36.
+
+**Rings, glows and dark blocks**
+
+| Pair | Light | Dark |
+|------|-------|------|
+| `--neon-cyan-ring` hairline against `--bg` / `--panel` / the worst `--glass-bg-solid` pixel | 1.82 / 1.87 / 1.78 | 4.33 / 4.11 / 3.75 |
+| `--glow-cyan` at full strength against `--bg` | 1.39 | 2.62 |
+| `--cyan-text` on `--ink` | **3.22 ✗** | 9.62 |
+| `--neon-cyan` on `--ink` | 4.69 | 9.62 |
+| `--obsidian-neon` on `--ink` / `--ink2` | 11.01 / 10.11 | 9.62 / 8.17 |
+| scrollbar thumb or fibre in `--neon-cyan`, against `--bg` | 3.44 | 12.53 |
+
+**Obsidian islands.** These values hold in both themes, because nothing in them is remapped. The
+field fill is `color-mix(in srgb, var(--on-obsidian) 4%, var(--obsidian))`, which is
+`rgb(19,20,26)`.
+
+| On | `--obsidian` | field fill |
+|----|--------------|------------|
+| `--on-obsidian` | 17.55 | 16.39 |
+| `--on-obsidian-mut` | 9.13 | 8.53 |
+| `--obsidian-neon` | 12.53 | 11.70 |
+| `--dark-red-text` (error state) | 7.15 | 6.68 |
+| `--dark-green` (sent state) | 10.58 | 9.88 |
+| `--dark-blue-text` | 9.19 | — |
+
+| Pair | Value |
+|------|-------|
+| the island against the light `--bg` / `--panel` | 18.34 / 19.66 |
+| the island against the dark `--bg` / `--panel` | **1.00** / 1.19 |
+| `--obsidian-line` (composited) against `--obsidian` | 1.61, decoration only |
+| the field fill against `--obsidian` | 1.07, so the fill alone does not mark a field |
+| theme-following tones on the island, light theme: `--txt` / `--cyan-text` / `--neon-cyan` | **1.10 ✗** / **3.66 ✗** / 5.34 |
+| white on `--grad-red-cta` (`#e0213a` / `#b50e22`) | 4.72 / 6.88 |
+| the CTA's light stop `#e0213a` against `--obsidian` | 4.16 |
+
+### Usage rules
+
+1. **Graphic tone vs text tone.** `--neon-cyan` is for strokes, rings, threads, ticks and
+   thumbs, and never for small text. Cyan text is `--cyan-text`.
+2. **Cyan text goes only on opaque surfaces or `--glass-bg-solid`**, never on `--glass-bg-text`
+   (4.28 in light). On `--glass-bg-text`, a light cyan graphic that carries meaning is also too
+   faint (2.94): draw it in `--cyan-text` (4.28 ≥ 3) or keep it off that glass.
+3. **The ring is decoration.** The light hairline of `--neon-cyan-ring` is 1.8:1. An edge that
+   carries meaning (a control's only boundary, the selected state) is a 1px `--neon-cyan` border,
+   and the ring goes on top of it (`border: 1px solid var(--neon-cyan); box-shadow: var(--neon-cyan-ring)`).
+4. **On an always-dark block, cyan is `--obsidian-neon`.** That covers obsidian islands and
+   `--ink` blocks. The theme-following tones fail there in the light theme (`--cyan-text` 3.22 on
+   `--ink`, 3.66 on obsidian).
+5. **An obsidian island re-scopes the theme tokens on its root:** `--txt`, `--mut`, `--dim`,
+   `--line`, `--line2`, `--panel`, `--panel2`, `--red-text`, `--blue-text`, `--green-text`, and
+   `color-scheme: dark`. The components nested inside (a focus ring in `--txt`, the dictation
+   button) then follow without changes; without this, a light-theme `--txt` ring is 1.10:1 on
+   the island. The island also:
+   - always draws its `--obsidian-line` edge and a faint glow, because it is 1.00:1 against the
+     dark page;
+   - gives a field its own boundary (`--on-obsidian-mut` measures 8.53 against the fill), and
+     `--obsidian-neon` on focus (11.70);
+   - keeps the submit button on `--grad-red-cta`.
+6. **Glass, and blur:**
+   - The dock, the avatar, the tip and the rail never use `backdrop-filter`. They use
+     `--glass-bg-solid` plus `--neon-cyan-ring`.
+   - No `backdrop-filter` on any ancestor of a CSS `preserve-3d` element: it flattens the 3D.
+   - From 861px, OS windows may blur (`backdrop-filter: blur(var(--glass-blur))` over
+     `--glass-bg-text`) if one window open over the running hero holds ≥45 fps (forced mid tier,
+     4× CPU). Otherwise they use `--glass-bg-solid`. Below 861px a window is the request Modal's
+     sheet.
+7. **No dots.** Use streaks, bars, squares and diamonds, with `border-radius: 0` at 8px or
+   smaller. A ring is at least 38px. As each HUD part lands, its component and module CSS join
+   `decorative-dots.test.tsx`, which then flags `border-radius: 50%` or `var(--r-pill)` on
+   anything 8px or smaller.
+8. **Motion** animates transform and opacity only, in keyframes that live in the module that
+   uses them:
+   - autonomous motion comes in bursts of 5 s or less;
+   - continuous motion runs only while the visitor hovers or scrolls;
+   - reduced motion is static.
+9. **Nothing writes a custom property onto `<html>` or `<body>`.** The placement tokens below are
+   static and read from stylesheets only (the E2E `expectRootUntouched` check).
+10. **The thin cyan scrollbar, when it is switched on,** is `scrollbar-color: var(--neon-cyan)
+    transparent` on `html`. That property is inherited, so the request Modal's own scrollbar turns
+    cyan too. This is accepted. The estimator chat log keeps the colour it sets itself.
+
+### Stacking and placement
+
+The three layers sit in the [stacking ladder](#stacking-order) under the burger overlay: rail 104,
+then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
+
+```css
+--z-rail: 104;   --z-os: 108;   --z-guide: 112;
+--hud-edge: 12px;  --hud-rail-w: 44px;  --hud-dock-h: 56px;  --hud-bottom: 112px;
+```
+
+**From 861px**
+
+| Part | Box |
+|------|-----|
+| Rail | `fixed; right: 0; width: var(--hud-rail-w); top: calc(var(--header-h) + 16px); bottom: var(--hud-bottom)` |
+| Dock | bottom-centre at `bottom: var(--hud-edge)`, `--hud-dock-h` tall; 72×52 buttons with visible labels (about 240px wide) |
+| Guide avatar | `right: 20px; bottom: 20px`; an 88×88 box (it covers 20–108px from the bottom, under where the rail ends at 112) |
+| Guide tip | `right: calc(var(--hud-rail-w) + 8px); bottom: 116px; width: min(320px, 100vw - 24px)` |
+| Window frame | top `--header-h` + `--hud-edge`; bottom `--hud-bottom`; right `--hud-rail-w` + `--hud-edge`; left `--hud-edge`. A maximized window uses the same insets |
+
+**Below 861px**
+
+| Part | Box |
+|------|-----|
+| Rail | none; the 2px top progress bar stays, restyled as a fibre |
+| Dock | bottom-centre, `bottom: max(12px, env(safe-area-inset-bottom))`; three 44×44 buttons, about 156px wide (x 82–238 at 320px) |
+| Guide avatar | `right: 12px; bottom: 12px`; 52×52 up to 640px, 64×72 from 641 to 860px (x 256–308 at 320px, clear of the dock) |
+| Guide tip | `bottom: 72px` (the dock's top edge is at 68px) |
+| Windows | the request Modal's `sheet` size |
+
+**When the chrome shows:**
+
+- **Not armed:** nothing renders while the intro is on screen, while the cookie question is
+  unanswered, or when QA sets the `tbs_hud=off` flag. So nothing ever collides with the cookie
+  banner (z 280) or the intro.
+- **Page covered** (the request dialog or the burger menu): nothing is hidden or made `inert`.
+  The z-order covers the chrome and the dialog traps Tab. Guide prompts are held back, and live
+  polling and rail writes pause.
+- **Away:** while the home page's own request form (`#estimare`) is in view, the dock and the
+  guide go together to opacity 0 with `pointer-events: none`, and their buttons get
+  `tabIndex=-1`. They are never set to `display: none`, `visibility: hidden` or `inert`, so focus
+  can come back to them.
+- **Typing** (below 861px): the dock steps away while a text field has focus.
+- **Obscuring:**
+  - the guide yields when the focused element overlaps it;
+  - a window fades to `.12` when it fully covers the focused element;
+  - a focused element hidden under the dock is scrolled clear of it.
+- **Footer on phones:** the footer gains `--hud-dock-h` + 2 × `--hud-edge` of bottom padding
+  while the dock exists, so its last link stays tappable.
+
+### Tailwind names
+
+| Utility name | Token |
+|--------------|-------|
+| `bg-` / `text-` / `border-` … `neon-cyan` · `cyan-text` · `obsidian` · `on-obsidian` · `on-obsidian-mut` · `obsidian-neon` · `obsidian-line` | `--<same name>` |
+| `shadow-neon-cyan` | `--neon-cyan-ring` |
+| `z-(--z-rail)` · `z-(--z-os)` · `z-(--z-guide)` · `w-(--hud-rail-w)` · `bottom-(--hud-bottom)` … | arbitrary values, no theme key |
+
+- **`shadow-neon-cyan` is the ring, not a shadow colour.** When a `--shadow-*` key and a
+  `--color-*` key share a name, the shadow key wins (checked by compiling `app/tailwind.css`
+  with Tailwind 4.3.3).
+- A cyan shadow colour is written `shadow-(color:--neon-cyan)`.
+- A theme key that no class uses emits no CSS: the built Tailwind chunk is byte-identical with
+  and without these keys.
+- `--glow-cyan` has no Tailwind name. Use it in an arbitrary value:
+  `shadow-[0_0_8px_var(--glow-cyan)]`.
+- The HUD parts themselves are planned as CSS Modules, in lazy chunks and outside `@source`, so
+  these names serve the Tailwind files (the first screen and the interior stage).
 
 ## Typography
 
@@ -667,11 +914,12 @@ scale.
 |----------------|-------|-------|
 | Colours (`bg-*`, `text-*`, `border-*`, …) | `bg` `bg2` `panel` `panel2` `line` `line2` `txt` `mut` `dim` `red` `red-text` `red-lift` `blue` `blue2` `blue-text` `cyan` `ice` `green-text` `on-accent` `ink` `on-ink` `void` | `--<same name>` |
 | | `glass` · `glass-solid` · `glass-line` | `--glass-bg` · `--glass-bg-solid` · `--glass-line` |
+| | `neon-cyan` `cyan-text` `obsidian` `on-obsidian` `on-obsidian-mut` `obsidian-neon` `obsidian-line` (2026-09-17, [Cyber Dark / Neon Cyan / Obsidian Black](#cyber-dark--neon-cyan--obsidian-black)) | `--<same name>` |
 | Font family | `font-disp` · `font-hud` · `font-copy` | `--font-display-stack` · `--font-mono-stack` · `--font-body-stack` |
 | Font size | `text-2xs` … `text-2xl` (`2xs xs sm md base lg xl 2xl`) | `--fs-*` (no line-height: add `leading-*`) |
 | Font weight | `font-normal` `font-medium` `font-semibold` `font-bold` `font-extrabold` `font-black` | `--fw-normal` `--fw-med` `--fw-semi` `--fw-bold` `--fw-extra` `--fw-black` |
 | Radius | `rounded-sm` … `rounded-2xl`, `rounded-pill` | `--r-*` |
-| Shadow | `shadow-sm/md/lg` · `shadow-neon-red` · `shadow-neon-red-strong` · `shadow-neon-blue` | `--sh-*` · `--neon-*` |
+| Shadow | `shadow-sm/md/lg` · `shadow-neon-red` · `shadow-neon-red-strong` · `shadow-neon-blue` · `shadow-neon-cyan` | `--sh-*` · `--neon-*` · `--neon-cyan-ring` (the ring, not a shadow colour: the `--shadow-*` key wins over `--color-neon-cyan`) |
 | Spacing | `p-4`, `gap-3`, `min-h-11`, … | `calc(var(--sp-1) * n)` |
 | Custom utilities | `glass` · `glass-text` · `cta-neon` · `cyber-grid` · `cyber-floor` · `edge-fade-x` · `fade-b` | see [HUD layer](#hud-layer--the-first-screen) |
 | | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed) | see [The interior stage](#the-interior-stage) |

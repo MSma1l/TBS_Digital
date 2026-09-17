@@ -15,7 +15,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // The estimator reads `?serviciu=` so a visitor arriving from a service page lands on the
@@ -756,6 +756,31 @@ describe("stepped layout — the flow inside the dialog", () => {
     renderForm({ layout: "dialog", context: { serviceSlug: "e-commerce" } });
 
     expect(screen.getByText(seededPrice("shop"))).toBeInTheDocument();
+  });
+
+  /* The guide opens the flow to talk, so it asks for the assistant up front
+     (`context.openAssistant`) — the same panel the toggle opens, focus already inside. */
+  it("opens on the assistant, focused, when the context asks for it", async () => {
+    renderForm({ layout: "dialog", context: { openAssistant: true } });
+
+    const panel = screen.getByTestId("chat-panel");
+    expect(screen.getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("chat-toggle")).toHaveAttribute("aria-controls", panel.id);
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
+    expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
+    // Nothing else moved: the steps still start at the first one.
+    expect(screen.getByText("Pasul 1 din 3 · au mai rămas 2 pași")).toBeInTheDocument();
+  });
+
+  it("ignores openAssistant in the section, whose assistant is always on screen", async () => {
+    renderForm({ context: { openAssistant: true } });
+
+    expect(screen.getByTestId("request-flow")).toHaveAttribute("data-layout", "section");
+    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(screen.queryByTestId("chat-toggle")).toBeNull();
+    // No focus is taken on a page section — not even a tick later.
+    await Promise.resolve();
+    expect(document.activeElement).toBe(document.body);
   });
 
   it("keeps the submit button's accessible name", async () => {

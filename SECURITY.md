@@ -126,6 +126,26 @@ Verified, no change needed:
 - **Admin data into the DOM**: the Work and Directions tag chips split the admin's text on "·" and
   render it through React, as before; no `innerHTML`.
 
+## HUD foundation (2026-09-17) — one dependency, one QA key
+
+The foundation of the IT-OS HUD (guide, fibre rail, OS windows) adds no visible feature yet. Not a
+review round; recorded so the next audit starts from the facts.
+
+- **Dependency**: `lucide-react` **1.46.0**, pinned exactly, ISC licence. No dependencies of its
+  own, no install script, one new lockfile entry (every other entry unchanged). Icons are inline
+  SVG built from path data in the bundle — no fetch, icon font or CDN — so the **CSP is
+  unchanged**. The dynamic entry points (`lucide-react/dynamic`, `dynamicIconImports`), deep
+  `dist/*` paths and namespace imports are refused by ESLint and
+  `components/__tests__/scene-contract.test.ts`, and only `components/hud/**` may import it.
+  Nothing imports it yet. Details: [docs/02](docs/02-tech-stack.md#the-hud-chrome-2026-09-17--lucide-react).
+- **`tbs_hud`** (`localStorage`): a QA/E2E key the site only reads; only `"off"` counts, and it
+  can only keep the HUD from loading in that browser. The E2E config seeds it for every context.
+  Listed in [docs/11](docs/11-security.md#browser-storage-the-stage-uses).
+- **Nothing loads early**: the HUD's single mount (`components/hud/HudChrome.tsx`, not mounted
+  yet) renders nothing on the server and waits for an answered cookie banner, a first
+  interaction, the intro gone and an idle slot before any part loads. It adds no `window` event
+  and writes no storage.
+
 ## Verified secure (no change needed)
 
 - **SQL injection:** 100% ORM/parameterized; zero raw SQL / `text()` / f-string queries.

@@ -97,6 +97,15 @@
   --color-glass: var(--glass-bg);
   --color-glass-solid: var(--glass-bg-solid);
   --color-glass-line: var(--glass-line);
+  /* Cyber Dark / Neon Cyan / Obsidian Black, for the HUD chrome (docs/04). A theme colour no
+     class uses emits no CSS. */
+  --color-neon-cyan: var(--neon-cyan);
+  --color-cyan-text: var(--cyan-text);
+  --color-obsidian: var(--obsidian);
+  --color-on-obsidian: var(--on-obsidian);
+  --color-on-obsidian-mut: var(--on-obsidian-mut);
+  --color-obsidian-neon: var(--obsidian-neon);
+  --color-obsidian-line: var(--obsidian-line);
 
   --font-disp: var(--font-display-stack);
   --font-hud: var(--font-mono-stack);
@@ -132,6 +141,9 @@
   --shadow-neon-red: var(--neon-red);
   --shadow-neon-red-strong: var(--neon-red-strong);
   --shadow-neon-blue: var(--neon-blue);
+  /* `shadow-neon-cyan` is this ring, never the colour: a --shadow-* key wins over the
+     --color-* key of the same name. A cyan shadow colour is `shadow-(color:--neon-cyan)`. */
+  --shadow-neon-cyan: var(--neon-cyan-ring);
 
   /* min-width steps that are the exact complement of the max-width queries the CSS
      Modules use (400 / 640 / 860 / 1024): `max-md:` is `width < 861px`, i.e. the burger

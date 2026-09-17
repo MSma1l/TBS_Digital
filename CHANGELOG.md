@@ -16,6 +16,173 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Fundație pentru experiența IT: paletă, plumbing cerere, infrastructură HUD
+
+Clientul a aprobat planul „experiență IT imersivă”: microprocesor neon în hero, intrare 3D la
+Servicii, elicoid ADN pentru proiecte, asistentul „Ghid TBS”, o șină de fibră optică în loc de bara
+de progres, ferestre glass tip OS (calculator, metrici live, builder) și un formular „Command
+Center”, pe paleta Cyber Dark / Neon Cyan / Obsidian Black, cu iconițe Lucide. Se livrează **pe
+faze, fiecare verificată**. Aceasta e **Faza 0: fundația comună** pe care o folosesc fazele 1–7 —
+**nimic vizibil nu se schimbă**: tokenurile noi nu sunt folosite de nicio clasă, niciun CTA nu
+trimite încă câmpurile noi ale cererii, `HudChrome` nu e montat și nimic nu importă `lucide-react`.
+Trei owneri pe fișiere disjuncte (tokenuri · cerere · infrastructură HUD), apoi un gate comun.
+
+**Added** — paleta Cyber Dark / Neon Cyan / Obsidian Black (`app/globals.css`, `app/tailwind.css`) —
+vezi [04](./docs/04-design-system.md#cyber-dark--neon-cyan--obsidian-black)
+
+- **Neon Cyan în două tonuri**: `--neon-cyan` pentru grafică (≥3:1) și `--cyan-text` pentru text
+  (≥4.5:1) — light `#0891b2` / `#0b7490`, dark `#38e1ff` pentru ambele — plus `--glow-cyan` și
+  `--neon-cyan-ring`. Twin-urile `--dark-*` sunt remapate în **ambele** blocuri dark.
+- **Obsidian Black = `--void`** (`--obsidian`), cu `--on-obsidian` `#e6f4ff`, `--on-obsidian-mut`
+  `#9fb3c8`, `--obsidian-neon` `#38e1ff` și `--obsidian-line`; nu se remapează niciodată (insulele
+  rămân întunecate în ambele teme). Roșul rămâne singurul fill de CTA.
+- **Straturi și plasare** (statice, nimic nu scrie variabile pe `<html>` / `<body>`): `--z-rail` 104,
+  `--z-os` 108, `--z-guide` 112, toate sub meniul burger (115); `--hud-edge` 12px, `--hud-rail-w`
+  44px, `--hud-dock-h` 56px, `--hud-bottom` 112px.
+- **Tailwind** (`@theme inline`): `neon-cyan`, `cyan-text`, `obsidian`, `on-obsidian`,
+  `on-obsidian-mut`, `obsidian-neon`, `obsidian-line` și `shadow-neon-cyan` (inelul). Cheia
+  `--shadow-*` câștigă peste `--color-*` cu același nume (verificat compilând cu Tailwind 4.3.3),
+  deci o umbră de culoare cyan se scrie `shadow-(color:--neon-cyan)`. Un nume de temă nefolosit nu
+  emite CSS: chunk-ul Tailwind a rămas identic byte cu byte.
+- **docs/04**: tabele de contrast pentru ambele teme și zece reguli de folosire. Trei eșecuri găsite
+  la calcul au devenit reguli: `--neon-cyan` light peste `--glass-bg-text` **2.94:1** (grafica cu
+  sens folosește acolo `--cyan-text`, 4.28); `--cyan-text` light pe `--ink` **3.22** (pe un bloc
+  mereu întunecat cyan-ul e `--obsidian-neon`, 11.01); inelul light are **1.78–1.87** față de
+  suprafață (o margine cu sens e un border de 1px `--neon-cyan`, cu inelul peste).
+- **Nimic nu se vede**: 20 din 20 de capturi ale homepage-ului (1280 și 390px, dark și light, cinci
+  poziții de scroll) identice byte cu byte înainte și după.
+
+**Added** — plumbing pentru cererea care vine din HUD (`lib/request/`, `lib/hud/topics.ts`,
+`components/sections/Estimator.tsx`) — vezi [05](./docs/05-page-sections.md#07--estimator--contact-estimează-prețul)
+
+- **`lib/request/catalog.ts`**: tipurile de proiect și opțiunile estimatorului, mutate din
+  `Estimator.tsx` cu **id-uri stabile** (`site`, `crm`, `automation`, `ecommerce`, `mobile`;
+  `design`, `integrations`, `multilingual`, `seo`), plus `SERVICE_FOR_TYPE`, `DEFAULT_OPTION_IDS`
+  și gărzile de id. Etichetele și prețurile de rezervă sunt **byte-identice** (9 din 9 apeluri
+  `L()`, fixate de test): chip-urile se găsesc după ele, iar eticheta ajunge la API ca `project`.
+- **`RequestContext`** primește:
+  - `projectType` — câștigă peste maparea slug-ului; un id necunoscut e ignorat;
+  - `optionIds` — înlocuiește opțiunea implicită; `[]` nu bifează nimic, id-urile necunoscute cad;
+  - `openAssistant` — doar în dialog: pornește pe asistent, cu focusul în chat;
+  - `guideTopic` — `servicii` / `lucrari` / `service`, scris în blocul de origine ca
+    `- Secțiune: <topic>`, doar pentru un topic cunoscut;
+  - `attachment` — `{ kind: "calculator" | "builder", count, summary?, text }`, construit de
+    chunk-ul unealtei HUD la predare.
+
+  Surse noi: `guide`, `guide-prompt`, `os-calculator`, `os-builder`. Importurile noi din provider
+  sunt toate `import type`.
+- **`lib/request/attachment.ts`** (`attachmentBlock`): taie spațiile de la capete, scoate
+  caracterele de control pe care API-ul le refuză (aceeași clasă ca `_CONTROL_RE` din backend) și
+  limitează blocul la **1.200** de caractere cu `\n[…]`, fără să rupă o pereche surrogate (un emoji
+  pe jumătate n-ar mai putea fi trimis la Telegram).
+- **Mesajul trimis**: sumar → atașament → origine → transcript. Locul atașamentului și al originii e
+  rezervat înainte ca sumarul să fie tăiat, deci totul rămâne ≤ 5.000 de caractere. În dialog, sub
+  propunere, o linie spune ce pleacă („Selecția din calculator (servicii: 3 · de la 600€) pleacă
+  împreună cu cererea.”), RO/RU/EN prin `L()` local — nicio cheie nouă de catalog. `payload.project`
+  și `payload.estimate` își păstrează sensul.
+- **Focusul la `openAssistant`**: efectul care mută focusul în panoul de chat rulează acum într-un
+  microtask (anulat la cleanup). Cu chunk-ul fluxului deja încărcat, estimatorul se montează în
+  același commit cu `Modal`, al cărui focus inițial rulează după și muta focusul pe primul control.
+  Prins de testul nou; `Modal.tsx` e neschimbat.
+
+**Added** — infrastructura HUD (`lib/hud/`, `components/hud/HudChrome.tsx`, **nemontat**) — vezi
+[03](./docs/03-architecture.md#folder-structure)
+
+- **`lib/hud/gate.ts`**, fără niciun import (îl încarcă și `playwright.config.ts`): cheia QA
+  `tbs_hud` (`localStorage`; contează doar `"off"`; site-ul n-o scrie niciodată), evenimentele de
+  armare (`pointermove`, `pointerdown`, `wheel`, `scroll`, `keydown`, `touchstart`, `focusin`) și
+  `HUD_DESKTOP_MEDIA` `(min-width: 861px)`.
+- **`HudChrome`**, singurul mount al HUD-ului (în Faza 4 intră în `app/(site)/layout.tsx`, între
+  `<Footer />` și `<CookieConsent />`). Armează doar în ordinea: flag ≠ `off` → bannerul de cookie
+  răspuns (răspunsul **este** interacțiunea) → prima interacțiune (listeneri pe `window`, pasivi,
+  capture, scoși toți la primul) → intro-ul plecat → un slot idle. Abia apoi randează părțile leneșe,
+  într-un singur commit. Lista de părți e goală; pe server nu randează nimic; demontarea anulează
+  orice pas.
+- **`lib/hud/busy.ts`** — store-ul „vizitatorul lucrează în HUD” (pe surse: `os-window`, `os-drag`;
+  ascultătorii aud doar trecerea liber ↔ ocupat; scrierile de pe server sunt ignorate).
+  **`lib/hud/obscure.ts`** — `covers` / `overlaps` pentru gărzile „focus neacoperit” (WCAG 2.4.11).
+
+**Security** — o dependență nouă, o cheie QA — vezi [11](./docs/11-security.md) și
+[`SECURITY.md`](./SECURITY.md)
+
+- **`lucide-react` 1.46.0**, fixat exact: ISC, fără dependențe, fără script de instalare; o singură
+  intrare nouă în lockfile (663 → 664), restul neschimbat. Iconițele sunt SVG inline din bundle —
+  niciun fetch, font sau CDN — deci **CSP-ul e neschimbat**. Nimic nu îl importă încă, deci niciun
+  chunk nu îl conține (verificat în `.next/static`).
+- **ESLint + `scene-contract.test.ts`** refuză `lucide-react/dynamic` (`.js`, `.mjs`),
+  `lucide-react/dynamicIconImports` (`.mjs`), `lucide-react/dist/*`, `import * as` / `export *` și
+  `import("lucide-react")`: intrările dinamice și namespace-ul ar aduce toate cele ~4.200 de
+  iconițe, iar `dist/*` nu e API public (pachetul n-are hartă `exports`). Doar
+  `components/hud/**` îl poate importa la runtime, iar versiunea fixă e testată.
+  `components/hud/**` intră și în lista fișierelor fără three / R3F / GSAP static, iar scanarea
+  funcțiilor ScrollTrigger interzise (pin, snap, ScrollSmoother…) acoperă acum și `components/hud`
+  și `lib/hud`.
+- **`tbs_hud`** e în tabelul de storage din docs/11: citită doar, poate doar opri HUD-ul în acel
+  browser; nu e o intrare în politica de cookie, pentru că site-ul n-o scrie.
+
+**Changed** — E2E determinist când va exista HUD-ul (`playwright.config.ts`, `e2e/helpers.ts`)
+
+- Fiecare context pornește cu `localStorage.tbs_hud = "off"`, ca un dock sau un prompt să nu apară
+  în mijlocul unui spec peste controlul apăsat. `E2E_HUD=on` omite starea: rulare de sondaj, nu
+  gate.
+- Helperi: `HUD_ON` (un spec despre HUD: `test.use({ storageState: HUD_ON })`), `armHud(page)`,
+  `consoleErrors(page, { allowMissing })` (implicit `["/api/content"]`), `decorativeDots` scanează
+  și `[data-hud] *`, `expectRootUntouched` mutat din `interior-webgl.spec.ts`. Testul cu scrollbar
+  clasic din `hud-shell.spec.ts` (context propriu) primește fixture-ul `storageState`.
+- **Nicio aserțiune slăbită.** Detalii în [`e2e/README.md`](./e2e/README.md).
+
+**Deploy**
+
+- `package.json` + `package-lock.json`: `lucide-react` 1.46.0. Instalat în Docker (`tbs_nm_alpine`;
+  `npm ci` în `tbs_nm_noble`), nimic pe host. Nicio variabilă de mediu nouă, nicio schimbare în
+  compose sau nginx.
+
+**Docs**
+
+[02](./docs/02-tech-stack.md#the-hud-chrome-2026-09-17--lucide-react) `lucide-react` și regulile lui ·
+[03](./docs/03-architecture.md) arborele (`components/hud/`, `lib/hud/`, `lib/request/`) ·
+[04](./docs/04-design-system.md#cyber-dark--neon-cyan--obsidian-black) paleta, straturile 104/108/112,
+plasarea, contrastul, regulile · [05](./docs/05-page-sections.md) contextul cererii ·
+[11](./docs/11-security.md) + [`SECURITY.md`](./SECURITY.md) · [14](./docs/14-testing.md) ·
+[`e2e/README.md`](./e2e/README.md).
+
+**Verificare**
+
+| Check | Rezultat |
+|-------|----------|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, arborele final) | curate: exit 0 · 0 · 0 |
+| `npm test` (node:22-alpine) | **1.116 passed / 0 failed** în 63 de fișiere, rulat de 2 ori (înainte: 1.031 în 57) |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă, cu `tbs_hud=off` seedat) | **256 passed / 0 failed / 0 skipped** |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl`, `--repeat-each=3` | **267 passed** (89 × 3), 0 failed, 0 flaky |
+| `E2E_HUD=on` (sondaj, fără flag): `hud-shell` + `keyboard` + `responsive` | **97 passed** — nimic nu se armează încă, deci identic cu gate-ul |
+| Capturi înainte / după tokenuri (1280 și 390px, dark și light, 5 poziții de scroll) | **20 / 20 identice** byte cu byte |
+| Mutații pe `HudChrome` (6 copii stricate: fără passive, fără pasul intro, listeneri nescoși, fără flag, listeneri înainte de consimțământ, consimțământ care cere încă o interacțiune) | toate 6 prinse de `hud-chrome.test.tsx` |
+| Chunk-uri | nici `lucide` nici `tbs_hud` în `.next/static`; chunk-ul Tailwind identic byte cu byte |
+
+Greutate (gzip, bytes; același script și aceleași cazuri ca în intrarea interiorului 3D; baza e coloana
+*Final* de acolo):
+
+| Buget | Caz | Bază | Faza 0 | Diferență |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine | total 261.169 · referit din HTML 256.279 · JS târziu 3.936 | total **262.164** · referit din HTML **257.274** · JS târziu 3.936 | +995: JS +796 (chunk-ul paginii cu estimatorul: catalogul cu id-uri, blocul de atașament și nota lui în trei limbi), CSS +199 (tokenurile); fără three / gsap — **noua bază** |
+| B1s / B7 | B1 + scroll · pe mobil | JS târziu 3.936 | 3.936 | 0 |
+| B2 | scenă forțată + scroll (desktop și mobil) | JS târziu 314.114 | 314.114 | 0 |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 322.881 | 322.881 | 0 |
+| B3i | prima vizită, intro forțat | 303.826 | 303.826 | 0 |
+| B4 | prima vizită | JS târziu 35.774 | 35.774 | 0 |
+| B5 | `/servicii/e-commerce` | total 222.472 (limită 224.000) | **222.671** ✓ | +199 (CSS-ul tokenurilor) |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte | 3.219; 0 contexte | 0 |
+| H | documentul HTML `/`, care revine | 22.087 (limită 22.230) | 22.085 ✓ | −2 (zgomot) |
+| — | chunk-ul comun three + R3F + scene | 261.252 | neschimbat | 0 |
+
+> **Rămâne deschis:** poarta de armare a HUD-ului e testată doar în jsdom; cursa consimțământ ↔
+> prima interacțiune și armarea într-un browser real intră în `hud-integration.spec.ts` (Faza 4).
+> Un `scroll` automat (un link `#hash`) sau un `focusin` din script contează ca primă interacțiune.
+> Cifrele de contrast din docs/04 sunt calculate, nu măsurate pe pixeli: fiecare parte le remăsoară
+> când apare. `e2e/request-flow.spec.ts` are încă propria copie a `SERVICE_FOR_TYPE`.
+
+---
+
 ## 2026-09-17 — Interiorul devine o scenă 3D: Cybernetic Core, cinci modele de servicii, carduri holografice
 
 Clientul a cerut ca interiorul site-ului să fie dinamic, cu modele 3D desenate procedural pe tema

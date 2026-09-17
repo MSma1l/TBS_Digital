@@ -11,11 +11,24 @@ import {
 import { useSearchParams } from "next/navigation";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { format } from "@/lib/i18n/format";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { submitContact, isNetworkError, ApiError } from "@/lib/api";
 import { validateText, LIMITS } from "@/lib/validation";
 import { useSiteContent } from "@/lib/siteContent";
 import { SERVICE_QUERY_KEY, SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
+import { isGuideTopic } from "@/lib/hud/topics";
+import { attachmentBlock } from "@/lib/request/attachment";
+import {
+  DEFAULT_OPTION_IDS,
+  OPTIONS,
+  PROJECT_TYPES,
+  SERVICE_FOR_TYPE,
+  isEstimatorOptionId,
+  isEstimatorTypeId,
+  type EstimatorOptionId,
+  type EstimatorTypeId,
+} from "@/lib/request/catalog";
 import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 import styles from "./Estimator.module.css";
 
@@ -106,7 +119,25 @@ const ORIGIN = {
   title: L("Contextul cererii", "Контекст заявки", "Request context"),
   service: L("Serviciu", "Услуга", "Service"),
   project: L("Proiect", "Проект", "Project"),
+  /* The page area the guide was about (`context.guideTopic`). */
+  section: L("Secțiune", "Раздел", "Section"),
   source: L("Sursă (CTA)", "Источник (CTA)", "Source (CTA)"),
+};
+
+/* The note under the proposal when a HUD tool handed something over with the request
+   (`context.attachment`): what travels, and how much of it, so the visitor knows what the
+   team will read. `{total}` is " · de la 600€", or nothing when the tool had no total. */
+const ATTACHED = {
+  calculator: L(
+    "Selecția din calculator (servicii: {n}{total}) pleacă împreună cu cererea.",
+    "Выбор из калькулятора (услуг: {n}{total}) уйдёт вместе с заявкой.",
+    "The calculator selection (services: {n}{total}) travels with the request.",
+  ),
+  builder: L(
+    "Pachetul din constructor (module: {n}) pleacă împreună cu cererea.",
+    "Пакет из конструктора (модулей: {n}) уйдёт вместе с заявкой.",
+    "The builder package (modules: {n}) travels with the request.",
+  ),
 };
 
 /* Copy for the free-text composer in the chat — the visitor can always answer in their
@@ -132,41 +163,8 @@ const CHAT = {
 /** Longest free-text turn accepted in the chat (the whole message is capped at 5000). */
 const CHAT_MAX = 1000;
 
-type PType = { id: string; label: LocalizedText; price: string };
-const PROJECT_TYPES: PType[] = [
-  { id: "site", label: L("Site / prezentare", "Сайт / презентация", "Website / landing"), price: "€3.000" },
-  { id: "crm", label: L("CRM la comandă", "CRM под заказ", "Custom CRM"), price: "€8.000" },
-  { id: "automation", label: L("Automatizare cu AI", "Автоматизация с ИИ", "AI automation"), price: "€5.000" },
-  { id: "ecommerce", label: L("E-commerce", "E-commerce", "E-commerce"), price: "€6.000" },
-  { id: "mobile", label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), price: "€12.000" },
-];
-
-/**
- * Estimator type -> the service whose price the admin edits.
- *
- * The prices below are a FALLBACK only. What the visitor sees comes from the admin
- * (`useSiteContent().services`), because the two were drifting badly: the estimator showed
- * "€3.000" for a site while the owner had it priced at 150€ in the panel, and the panel's
- * numbers were rendered nowhere at all — `Services` is not on any page. A price the owner
- * cannot change is a price that goes stale.
- *
- * The estimator has five types and the catalogue has eleven services, so the pairing is
- * written out rather than guessed: `ecommerce` is the `shop` service, the rest share a name.
- */
-const SERVICE_FOR_TYPE: Record<string, string> = {
-  site: "site",
-  crm: "crm",
-  automation: "automation",
-  ecommerce: "shop",
-  mobile: "mobile",
-};
-
-const OPTIONS: LocalizedText[] = [
-  L("+ Design premium", "+ Премиум-дизайн", "+ Premium design"),
-  L("+ Integrări & API", "+ Интеграции и API", "+ Integrations & API"),
-  L("+ Multilingv", "+ Мультиязычность", "+ Multilingual"),
-  L("+ SEO", "+ SEO", "+ SEO"),
-];
+/* The project types, the options and the type -> admin service pairing live in
+   `lib/request/catalog.ts`, with the ids other entry points preselect them by. */
 
 const RESULT_COPY = L(
   "Include direcție UX, design și o discuție tehnică despre integrări.",
@@ -606,14 +604,32 @@ function clamp(text: string, max: number): string {
  * navigation, a refresh and a shared link — a CustomEvent would not. Read through
  * `useSearchParams` rather than `window.location` so the server and the first client
  * render agree and hydration stays quiet.
+ *
+ * `projectType` is a type named outright by whoever opened the dialog (a HUD tool), and it
+ * wins over any slug: nothing states the intent more precisely. An id the catalog does not
+ * know is ignored, so the slug decides as if it had never been passed.
  */
-function useServiceTypeIndex(override?: string): number {
+function useServiceTypeIndex(override?: string, projectType?: EstimatorTypeId): number {
   const params = useSearchParams();
+  if (isEstimatorTypeId(projectType)) {
+    return PROJECT_TYPES.findIndex((t) => t.id === projectType);
+  }
   const slug = override ?? params.get(SERVICE_QUERY_KEY);
   if (!slug) return 0;
   const wanted = SERVICE_TO_ESTIMATOR_TYPE[slug];
   const found = PROJECT_TYPES.findIndex((t) => t.id === wanted);
   return found >= 0 ? found : 0;
+}
+
+/**
+ * The option chips a fresh estimator starts with, as indexes into `OPTIONS`.
+ *
+ * `ids` (`context.optionIds`) replaces the default outright — `[]` ticks nothing — and an id
+ * the catalog does not know is dropped rather than guessed at.
+ */
+function initialOptions(ids: readonly EstimatorOptionId[] | undefined): Set<number> {
+  const wanted = (ids ?? DEFAULT_OPTION_IDS).filter(isEstimatorOptionId);
+  return new Set(OPTIONS.flatMap((o, i) => (wanted.includes(o.id) ? [i] : [])));
 }
 
 export function Estimator({
@@ -622,17 +638,27 @@ export function Estimator({
   renderChatDictation,
   renderDetailsDictation,
 }: EstimatorProps = {}) {
-  const { serviceSlug, projectId, projectName, source } = context ?? {};
+  const {
+    serviceSlug,
+    projectId,
+    projectName,
+    source,
+    projectType,
+    optionIds,
+    openAssistant,
+    guideTopic,
+    attachment,
+  } = context ?? {};
   const isDialog = layout === "dialog";
   const l = useLoc();
   const t = useT();
-  /* Prices are the owner's, edited in the admin — see SERVICE_FOR_TYPE. */
+  /* Prices are the owner's, edited in the admin — see SERVICE_FOR_TYPE (lib/request/catalog). */
   const { services } = useSiteContent();
   /* `useT` is keyed by MessageKey; validateText takes a looser (key: string) => string.
      Wrapping keeps the catalog's typed keys everywhere except this one boundary. */
   const tr = (key: string) => t(key as Parameters<typeof t>[0]);
-  const [typeIndex, setTypeIndex] = useState(useServiceTypeIndex(serviceSlug));
-  const [opts, setOpts] = useState<Set<number>>(new Set([1]));
+  const [typeIndex, setTypeIndex] = useState(useServiceTypeIndex(serviceSlug, projectType));
+  const [opts, setOpts] = useState<Set<number>>(() => initialOptions(optionIds));
   const [node, setNode] = useState("start");
   const [log, setLog] = useState<Bubble[]>([]);
   const [uid, setUid] = useState(1);
@@ -663,7 +689,9 @@ export function Estimator({
      Both live here, above the step panels, so going back never loses a chip, a typed
      field or a line of the dialog: the panels are views over this state, not owners of it. */
   const [stepIndex, setStepIndex] = useState(0);
-  const [chatOpen, setChatOpen] = useState(false);
+  /* `context.openAssistant` (the guide) opens the dialog on the assistant; the effect below
+     then moves focus into it. The section ignores it: its assistant is always on screen. */
+  const [chatOpen, setChatOpen] = useState(isDialog && openAssistant === true);
 
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
@@ -689,8 +717,18 @@ export function Estimator({
   useEffect(() => {
     if (!isDialog) return;
     if (chatOpen) {
-      chatPanelRef.current?.focus();
       chatWasOpen.current = true;
+      /* A microtask, not now: a dialog opened on the assistant (`context.openAssistant`) whose
+         chunk is already loaded mounts this estimator in the same commit as the Modal, and the
+         Modal's initial-focus effect runs after this one (a parent's effects follow its
+         children's) — it would move focus straight back to its first control. */
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) chatPanelRef.current?.focus();
+      });
+      return () => {
+        cancelled = true;
+      };
     } else if (chatWasOpen.current) {
       chatToggleRef.current?.focus();
       chatWasOpen.current = false;
@@ -805,7 +843,7 @@ export function Estimator({
    * the dialog and serialized into the message — one source, so they cannot disagree.
    */
   const summaryRows = (): Row[] => {
-    const chosen = [...opts].sort((a, b) => a - b).map((i) => l(OPTIONS[i]));
+    const chosen = [...opts].sort((a, b) => a - b).map((i) => l(OPTIONS[i].label));
     const described = turns.filter((t) => t.free).map((t) => t.answer);
     const rows: Row[] = [
       { label: l(SUMMARY.type), value: l(PROJECT_TYPES[typeIndex].label) },
@@ -845,30 +883,46 @@ export function Estimator({
         projectName && projectId ? `${projectName} (${projectId})` : projectName || projectId;
       rows.push(`- ${l(ORIGIN.project)}: ${named}`);
     }
+    // Only a topic the guide really has: the id is written into the lead verbatim.
+    if (isGuideTopic(guideTopic)) rows.push(`- ${l(ORIGIN.section)}: ${guideTopic}`);
     if (source) rows.push(`- ${l(ORIGIN.source)}: ${source}`);
     if (rows.length === 0) return "";
     return [`${l(ORIGIN.title).toUpperCase()}:`, ...rows].join("\n");
   };
 
+  /* The visible half of `context.attachment`: one line under the proposal. Shown only when a
+     block will really be sent (`attachmentBlock` is not empty), so it never promises
+     something the message does not carry. */
+  const attachmentNote = (): string | null => {
+    if (!attachment || !attachmentBlock(attachment)) return null;
+    const copy = ATTACHED[attachment.kind];
+    const { count } = attachment;
+    if (!copy || !Number.isSafeInteger(count) || count < 0) return null;
+    const summary = attachment.summary?.trim();
+    return format(l(copy), { n: count, total: summary ? ` · ${summary}` : "" });
+  };
+
   /**
    * Everything the visitor chose, folded into the one free-text field the API takes:
-   * the structured summary first, then where the request came from, then the raw transcript.
+   * the structured summary first, then what a HUD tool attached, then where the request came
+   * from, then the raw transcript.
    *
    * The API caps `message` at 5000 characters, so the budget is spent in that order —
    * the summary is what a human reads first, and only the leftover room goes to the
-   * transcript. Both are cut with a visible marker rather than left to 422. The origin
-   * block's room is *reserved* before the summary is clamped: it is a couple of lines, and
-   * it is the part that routes the lead, so it must never be the thing the cap eats.
+   * transcript. Both are cut with a visible marker rather than left to 422. The attachment's
+   * and the origin block's room is *reserved* before the summary is clamped: the attachment is
+   * capped at ATTACHMENT_MAX on its own, the origin is a couple of lines and is the part that
+   * routes the lead, so neither may be the thing the cap eats.
    */
   const buildMessage = (): string => {
     const summary = [
       l(SUMMARY.title).toUpperCase(),
       ...summaryRows().map((r) => `- ${r.label}: ${r.value.replace(/\n/g, "\n  ")}`),
     ].join("\n");
-    const origin = originBlock();
-    const reserved = origin ? origin.length + 2 : 0; // the "\n\n" separator
+    const blocks = [attachmentBlock(attachment), originBlock()].filter(Boolean);
+    const reserved = blocks.reduce((n, block) => n + block.length + 2, 0); // each "\n\n" separator
     let message = clamp(summary, LIMITS.message - reserved);
-    if (origin) message += `\n\n${origin}`;
+    for (const block of blocks) message += `\n\n${block}`;
 
     const transcript = log.length
       ? `${l(TRANSCRIPT.dialog)}:\n${log
@@ -981,7 +1035,7 @@ export function Estimator({
           className={`${styles.choice} ${opts.has(i) ? styles.selected : ""}`}
           onClick={() => toggleOpt(i)}
         >
-          {l(o)}
+          {l(o.label)}
         </button>
       ))}
     </div>
@@ -1181,6 +1235,7 @@ export function Estimator({
      --------------------------------------------------------------------------------- */
   if (isDialog) {
     const last = STEPS.length - 1;
+    const attached = attachmentNote();
     return (
       <div className={styles.flow} data-testid="request-flow" data-layout="dialog">
         <div className={styles.progressBlock}>
@@ -1220,6 +1275,7 @@ export function Estimator({
           <span className={styles.proposalType}>{l(PROJECT_TYPES[typeIndex].label)}</span>
           <b className={`disp ${styles.proposalPrice}`}>{price}</b>
         </div>
+        {attached && <p className={styles.stepNote}>{attached}</p>}
 
         {STEPS.map((s, i) => (
           <section

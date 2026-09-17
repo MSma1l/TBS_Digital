@@ -446,6 +446,26 @@ see [09 — Admin](./09-admin.md).
   `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total. Prices come from the admin;
   an unset price renders `...` (see rules doc). Arriving from a service card pre-selects
   that project type.
+- **Request context (2026-09-17, plumbing for the IT-OS HUD; no caller passes the new fields
+  yet, so nothing visible changed).** Every CTA opens the one request dialog
+  (`lib/request/RequestFlowProvider.tsx`) with a `RequestContext`. Besides `serviceSlug`,
+  `projectId` / `projectName` and `source`, it now takes:
+  - `projectType` — a catalog id (`site`, `crm`, `automation`, `ecommerce`, `mobile`) that wins
+    over the slug's mapping; an unknown id is ignored;
+  - `optionIds` — exactly these option chips (`design`, `integrations`, `multilingual`, `seo`)
+    instead of the default "+ Integrări & API"; `[]` ticks none, unknown ids are dropped;
+  - `openAssistant` — dialog only: it opens on the assistant, with focus in the chat panel;
+  - `guideTopic` — `servicii`, `lucrari` or `service`, written into the origin block as
+    `- Secțiune: <topic>` (any other value is left out);
+  - `attachment` — a HUD tool's block (`kind` calculator / builder, `count`, optional `summary`,
+    `text`): control characters stripped, capped at 1,200 characters with `[…]`
+    (`lib/request/attachment.ts`), and a one-line note under the proposal says what travels.
+
+  New `source` ids: `guide`, `guide-prompt`, `os-calculator`, `os-builder`. The sent message is
+  the summary, then the attachment, then the origin block, then the transcript; the attachment's
+  and the origin's room is reserved before the summary is clamped, so the whole stays ≤ 5,000
+  characters. The project types and options, with their ids, live in `lib/request/catalog.ts`
+  (labels unchanged); `payload.project` and `payload.estimate` mean what they did.
 - **Contact form:** name, email, phone, message + submit. It **does** submit —
   `POST /api/contact`, validated client-side by `lib/validation.ts` and authoritatively by
   the backend, then pushed to the Telegram lead bot

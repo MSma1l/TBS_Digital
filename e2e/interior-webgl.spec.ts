@@ -13,6 +13,7 @@ import {
   cspViolations,
   directionPills,
   expectNoHorizontalScroll,
+  expectRootUntouched,
   forceIntro3d,
   forceNoWebGL,
   forceScene3d,
@@ -65,21 +66,6 @@ async function openForced(page: Page, url = "/"): Promise<void> {
   if (new URL(page.url()).pathname === "/") {
     await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl", WEBGL);
   }
-}
-
-/** <html>/<body> carry no inline style and the instant-scroll hold is released. */
-async function expectRootUntouched(page: Page, when: string): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => ({
-          html: document.documentElement.getAttribute("style"),
-          body: document.body.getAttribute("style"),
-          measuring: document.documentElement.hasAttribute("data-scroll-measure"),
-        })),
-      { message: when, timeout: 5_000 },
-    )
-    .toEqual({ html: null, body: null, measuring: false });
 }
 
 const styledMarkers = (page: Page) =>
