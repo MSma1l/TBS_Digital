@@ -94,6 +94,33 @@ No catalog key was added or removed, and no visitor copy was written into a comp
   split for display and kept visible, so a card still reads — and is announced — as
   "CRM PRIVAT · FĂRĂ LINK".
 
+### The HUD chrome adds no keys
+
+The Ghid TBS guide (IT-OS Phase 4, 2026-09-17) adds **no catalog key**. Its copy is the narrower
+form above: `GUIDE_COPY` in `components/hud/guide/copy.ts`, every string an `L(ro, ru, en)` object
+rendered through `useLoc()`. The file has no directive and only type imports, so the E2E specs
+import it and find the controls by exactly these strings (the lazy chunk ships the copy; nothing
+reaches the page bundle).
+
+| `GUIDE_COPY` field | RO | RU | EN | Where |
+|--------------------|----|----|----|-------|
+| `label` | Ghid TBS | Гид TBS | TBS Guide | the caption under the droid and the tip's kicker (both `aria-hidden`, upper-cased in CSS) |
+| `aria` | Ghid TBS: deschide asistentul ghidat pentru cerere | Гид TBS: открыть пошагового ассистента заявки | TBS Guide: open the guided request assistant | the avatar button's accessible name — it starts with the visible caption (WCAG 2.5.3) |
+| `open` | Deschide ghidul | Открыть гид | Open the guide | the tip's red action |
+| `never` | Nu mai arăta în această vizită | Не показывать до конца визита | Don't show again this visit | the tip's opt-out (until reload) |
+| `dismiss` | Închide sugestia | Закрыть подсказку | Close the tip | the ✕ button's accessible name |
+| `prompts.servicii` | Nu ești sigur ce direcție ți se potrivește? Ghidul pune câteva întrebări scurte și trimite echipei rezumatul. | Не уверены, какое направление подходит? Гид задаст несколько коротких вопросов и отправит команде итог. | Not sure which direction fits you? The guide asks a few short questions and sends the team a summary. | the tip on `#servicii` |
+| `prompts.lucrari` | Ai în minte un proiect asemănător? Descrie-l pas cu pas — îți răspundem în cel mult o zi lucrătoare. | Задумали похожий проект? Опишите его по шагам — ответим в течение одного рабочего дня. | Have a similar project in mind? Describe it step by step — we reply within one business day. | the tip on `#lucrari` |
+| `prompts.service` | Vrei să vezi dacă direcția asta se potrivește proiectului tău? Ghidul te ajută să formulezi cererea. | Хотите понять, подходит ли это направление вашему проекту? Гид поможет сформулировать заявку. | Want to check whether this direction fits your project? The guide helps you put the request into words. | the tip on a service page's steps |
+
+**Honest by construction.** It is a guide that asks a few questions — never "AI", never "online"
+or a promised response time beyond the one business day the estimator's `SENT_COPY` already
+promises. The ids it writes into a lead (`guide`, `guide-prompt`, `servicii` / `lucrari` /
+`service`) are raw ids, not translated, like every origin row. The service page's topic is an
+attribute (`data-guide-topic="service"` on the steps section), not text, so it changes nothing a
+crawler or a screen reader sees; the guide itself is client-only, rendered after an interaction,
+and never in the server HTML.
+
 ---
 
 ## 2. Crawlable per-language URLs

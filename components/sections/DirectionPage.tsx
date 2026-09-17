@@ -263,7 +263,9 @@ export function DirectionPage({ slug }: { slug: string }) {
           </section>
         )}
 
-        <section className={styles.steps}>
+        {/* The Ghid TBS topic of a service page (components/hud/guide): lingering here offers the
+            guide, which opens the request flow with this service. */}
+        <section className={styles.steps} data-guide-topic="service">
           <h2 className="disp">{l(solUI.stepsTitle)}</h2>
           {sol.steps.map((st, i) => (
             <div key={i} className={styles.stepRow}>

@@ -127,8 +127,8 @@ export type StorageState = Exclude<BrowserContextOptions["storageState"], string
 export const HUD_ON: StorageState = { cookies: [], origins: [] };
 
 /**
- * Arm the HUD chrome the way a visitor does — one pointer move — and wait until one of its
- * parts (`[data-hud]`) is in the DOM. The HUD also needs an answered cookie banner
+ * Arm the HUD chrome the way a visitor does — pointer moves — and wait until one of its parts
+ * (`[data-hud]`) is in the DOM. The HUD also needs an answered cookie banner
  * (`seedConsent`) and no intro on screen (`gotoHydrated` seeds the intro as seen).
  */
 export async function armHud(page: Page): Promise<void> {
@@ -140,9 +140,33 @@ export async function armHud(page: Page): Promise<void> {
     }
   }, HUD_FLAG_KEY);
   expect(flag, "the HUD is switched off in this context: test.use({ storageState: HUD_ON })").not.toBe("off");
-  await page.mouse.move(8, 8);
-  await expect(page.locator("[data-hud]").first()).toBeAttached({ timeout: 5_000 });
+  // `gotoHydrated` waits for the HEADER's hydration; HudChrome sits after the footer and attaches
+  // its listeners in an effect, which can run a moment later. A single move made in that gap is
+  // never heard (1 in ~60 lab arms, P4-C), so the pointer moves again every 250ms — a visitor's
+  // pointer does the same — until a part is attached or 5s have passed.
+  const hud = page.locator("[data-hud]").first();
+  const deadline = Date.now() + 5_000;
+  for (let step = 0; ; step += 1) {
+    await page.mouse.move(8 + (step % 2) * 4, 8);
+    if ((await hud.count()) > 0 || Date.now() >= deadline) break;
+    await page.waitForTimeout(250);
+  }
+  await expect(hud).toBeAttached({ timeout: 1_000 });
 }
+
+/**
+ * The Ghid TBS guide (components/hud/guide/GuideAssistant.tsx): its root box in the
+ * bottom-right corner (`[data-hud][data-guide]`, carrying `data-state`, `data-away` and
+ * `data-yield`), the avatar button that opens the request flow on the guided chat, and the tip
+ * a linger on a topic shows. Addressed by the hooks the component declares, never by copy or
+ * CSS-module class names; its copy is `GUIDE_COPY` (components/hud/guide/copy.ts), which a spec
+ * imports.
+ */
+export const guideRoot = (page: Page): Locator => page.locator("[data-hud][data-guide]");
+
+export const guideAvatar = (page: Page): Locator => guideRoot(page).locator('[data-testid="guide-avatar"]');
+
+export const guideTip = (page: Page): Locator => guideRoot(page).locator('[data-testid="guide-tip"]');
 
 /** Read one cookie's value out of the browser context (`undefined` when unset). */
 export async function cookieValue(

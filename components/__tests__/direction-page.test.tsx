@@ -32,6 +32,7 @@ const seededPrice = (serviceId: string) =>
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
+import { isGuideTopic } from "@/lib/hud/topics";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -296,6 +297,27 @@ describe("disproved claims stay off both directions", () => {
     expect(hrefs.some((h) => h.includes("t.me/"))).toBe(false);
     expect(hrefs.some((h) => h.includes("CROWE_BIZCHECK_bot"))).toBe(false);
   });
+});
+
+/* The Ghid TBS (components/hud/guide) looks for `[data-guide-topic]` on the page: on a service
+   page it is the "how we work" steps, one per page, carrying a topic lib/hud/topics.ts knows. */
+describe("guide topic", () => {
+  it.each(["produs-digital", "e-commerce", "automatizare-api"])(
+    "%s marks exactly its steps section as the guide's service topic",
+    (slug) => {
+      const container = renderPage(slug);
+
+      const topics = container.querySelectorAll("[data-guide-topic]");
+      expect(topics).toHaveLength(1);
+      const section = topics[0] as HTMLElement;
+      expect(section.tagName).toBe("SECTION");
+      expect(section.getAttribute("data-guide-topic")).toBe("service");
+      expect(isGuideTopic(section.dataset.guideTopic)).toBe(true);
+      expect(within(section).getByRole("heading", { level: 2, name: "Cum lucrăm" })).toBeInTheDocument();
+      // The whole steps list is inside the topic, so lingering anywhere on it counts.
+      expect(section.querySelectorAll("b.mono").length).toBeGreaterThan(0);
+    },
+  );
 });
 
 describe("project membership table", () => {

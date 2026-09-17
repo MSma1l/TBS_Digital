@@ -16,6 +16,260 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-17 — Faza 4: Ghid TBS (asistentul holografic care deschide cererea ghidată)
+
+A cincea fază a experienței IT aprobate. În colțul din dreapta-jos al **fiecărei pagini a site-ului**
+apare, după ce vizitatorul face ceva, **Ghid TBS**: un mic droid holografic, un cub CSS-3D într-un
+fascicul de lumină, cu două orbite și o vizieră. E un `<button aria-haspopup="dialog">` real. Apăsat,
+deschide **fluxul de cerere existent** (dialogul Modal) direct pe chat-ul ghidat.
+
+Când vizitatorul **zăbovește 5 secunde de timp vizibil** cu aceeași secțiune pe linia de mijloc a
+ecranului (`#servicii`, `#lucrari` sau pașii „Cum lucrăm” de pe o pagină de serviciu), droidul
+pulsează și arată un **sfat scurt**, cu „Deschide ghidul” și „Nu mai arăta în această vizită”.
+Limite: cel mult **2 sfaturi pe durata paginii**, **60s** între ele, fiecare secțiune o singură dată.
+Memoria e o variabilă de modul: supraviețuiește navigării în site, dispare la reload, **nimic nu se
+scrie în storage sau în cookie-uri**.
+
+Ghidul **nu se prezintă niciodată drept „AI”**: e „Ghid TBS” / „Гид TBS” / „TBS Guide”, iar singura
+promisiune de timp e cea pe care o face deja `SENT_COPY` (o zi lucrătoare).
+
+Trei owneri, pe fișiere disjuncte:
+- motorul de zăbovire, pur (P4-A);
+- interfața ghidului (P4-B);
+- montarea, integrarea, E2E, greutatea, documentația (P4-C).
+
+**HUD-ul se încarcă abia după prima interacțiune.** Pagina primește doar montura `HudChrome`
+(+473 B gzip pe `/`, +675 B pe o pagină de serviciu); componenta ghidului, CSS-ul ei și iconița ✕ vin ca chunk-uri târzii după ce
+bannerul de cookie-uri are un răspuns, vizitatorul a mișcat mouse-ul / a atins / a derulat / a apăsat
+o tastă, intro-ul a plecat și browserul are un slot liber. De aceea rândurile fără interacțiune
+(B1, B4, B5, B6) aproape nu se mișcă, iar costul real se vede în rândurile noi **B1h / B5h / B6h** și
+în cele cu scroll (B1s, B2, B3), unde scroll-ul e interacțiunea. CSP-ul e neschimbat, nicio dependență
+nouă (lucide-react 1.46.0 exista din Faza 0).
+
+**Added** — motorul de zăbovire (`lib/hud/linger.ts`, `lib/__tests__/guide-linger.test.ts`) — vezi
+[03](./docs/03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17) și
+[05](./docs/05-page-sections.md#ghid-tbs-the-guide)
+
+- **`GUIDE_LIMITS = { lingerMs: 5000, cooldownMs: 60_000, maxPerSession: 2 }`.**
+- **`canPrompt(memory, topic, now, blockers)`**: nu dacă vizitatorul a renunțat, dacă s-au arătat
+  deja 2 sfaturi sau dacă secțiunea a avut deja unul (`isFinal`); nu în cooldown
+  (59.999ms blochează, 60.000ms permite); nu cu un `now` care nu e număr finit; nu cât timp e activ
+  vreunul din cele **șapte blocaje** `GuideBlockers`: `covered`, `intro`, `banner`, `typing`,
+  `requestOpen`, `away`, `busy` (`isHudBusy()`, R5).
+- **Memorii înghețate**: `recordPrompt` și `optOut` întorc una nouă și nu-și schimbă intrarea (nici
+  setul `shown`); `createGuideMemoryStore()` e celula unică pe care o ține componenta.
+- **`pickTopic`**: elementul cel mai adânc dintre cele de pe linia de mijloc; la egalitate, primul în
+  ordinea țintelor.
+- **`isTypingTarget`**: `textarea`, `select`, un `input` de tip text (orice tip în afară de
+  button / submit / reset / checkbox / radio / range / color / file / image; un tip lipsă sau
+  necunoscut e text), conținut editabil (cel mai apropiat `[contenteditable]` decide, doar `"false"`
+  îl oprește); doar în namespace-ul HTML, un SVG nu aruncă.
+- Fără importuri, fără DOM la import, fără directivă. **75 de teste**; 10 mutanți prinși (P4-A).
+
+**Added** — Ghid TBS (`components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`,
+`copy.ts`, `components/__tests__/guide-assistant.test.tsx`) — vezi
+[04](./docs/04-design-system.md#ghid-tbs--the-guide), [05](./docs/05-page-sections.md#ghid-tbs-the-guide)
+și [16](./docs/16-i18n-seo.md#the-hud-chrome-adds-no-keys)
+
+- **Droidul**, desenat doar din CSS: șase fețe translucide cu scanlines, `preserve-3d`, în poză de
+  trei sferturi; o vizieră (o bară, nu un ochi); un fascicul; două orbite (38/46px, 46/56px de la
+  861px) cu câte un pachet-dâră; un val pătrat de semnal; colțuri-paranteză. Legenda „GHID TBS” în
+  mono (ascunsă până la 640px, 9px la 641–860px, 11px de la 861px).
+- **Plasament** (R2): 52×52 la 12px de colț până la 640px, 64×72 la 641–860px, 88×88 la 20px de la
+  861px, pe `--z-guide` (112), sub meniul burger, dialog și intro. Sfatul: `min(320px, 100vw − 24px)`,
+  la 72px de jos pe telefoane, 92px la 641–860px (8px deasupra avatarului de 72px), `right: rail + 8px`
+  și 116px de jos pe desktop; derulează în el însuși în loc să treacă sub header.
+- **Starea** e pe rădăcina `[data-hud][data-guide]`: `data-state="enter|idle|prompt"`, `data-away`,
+  `data-yield`.
+- **Linia de mijloc**: un `IntersectionObserver` cu `rootMargin: "-50% 0px -50% 0px"` peste
+  `#servicii`, `#lucrari` și fiecare `[data-guide-topic]` valid; un `visibleTimeout` de 5s rearmat la
+  fiecare schimbare de secțiune. Când un blocaj ține sfatul pe loc, așteptarea reîncepe până când
+  secțiunea nu mai poate avea sfat.
+- **Sfatul**: fără rol și fără live region; descrie butonul prin `aria-describedby` (doar propoziția).
+  Pleacă atunci când secțiunea iese de pe linie, se deschide fluxul, pagina e acoperită sau focusul
+  aterizează sub el. Escape în ghid îl închide; focusul care era în el trece pe avatar.
+- **Away**: cât formularul de cerere al paginii (`#estimare`, `data-layout="section"`) e în ecran,
+  avatarul și sfatul trec la opacitate 0, fără pointer, cu butoanele la `tabIndex -1`. Niciodată
+  `display: none`, `visibility: hidden` sau `inert`, ca dialogul să poată întoarce focusul.
+- **Yield** (WCAG 2.4.11): focusul pe ceva acoperit de ghid îl estompează (`lib/hud/obscure.ts`).
+- **Deschiderea**: `openRequest({ source: "guide" | "guide-prompt", openAssistant: true, guideTopic,
+  serviceSlug, projectId, projectName, returnFocusTo })`. Serviciul vine din cale (cu sau fără
+  `/ru` · `/en`), doar dacă `lib/directions.ts` îl știe; proiectul doar pe `lucrari`, din cardul
+  `[data-helix-front]` al spiralei (R9.5).
+- **Mișcare** (WCAG 2.2.2): intrare 0.7s, puls 3 × 1.4s cât e sfatul, rotire doar sub pointer
+  (`hover: hover`). Tot e în `prefers-reduced-motion: no-preference`; sub reduce totul stă, sfatul
+  apare. Fără `backdrop-filter` și fără `filter`.
+- **Copie**: `GUIDE_COPY`, obiecte `L(ro, ru, en)` locale, nicio cheie nouă în catalog.
+- **41 de teste**; 12 mutanți prinși (P4-B).
+
+**Added** — montarea (`components/hud/HudChrome.tsx`, `app/(site)/layout.tsx`,
+`components/sections/DirectionPage.tsx`) — vezi [03](./docs/03-architecture.md#arming-order)
+
+- `PARTS` = `[GuideAssistant]`, prin `next/dynamic(() => import("./guide/GuideAssistant")…, { ssr:
+  false })`. Poarta a rămas exact ca în Faza 0: `tbs_hud` ≠ off → consimțământ (răspunsul e
+  interacțiunea) → primul eveniment de interacțiune → intro-ul plecat → slot liber.
+- `<HudChrome />` stă în layout-ul `(site)` **între `<Footer />` și `<CookieConsent />`**: după
+  subsol în DOM, deci buget-ul de 40 de Tab-uri al header-ului și „skip-ul intro-ului e primul Tab”
+  rămân valabile.
+- Pașii „Cum lucrăm” de pe paginile de serviciu au `data-guide-topic="service"`.
+
+**Added** — E2E (`e2e/guide.spec.ts`, `e2e/hud-integration.spec.ts`, `e2e/helpers.ts`) — vezi
+[`e2e/README.md`](./e2e/README.md) și [14](./docs/14-testing.md#end-to-end--playwright)
+
+- **`guide.spec.ts` (12)**, cu HUD-ul pornit (`HUD_ON`, consimțământ, `armHud`):
+  - 1280: nimic din HUD înainte de interacțiune; apoi un buton real (`aria-haspopup`, numele
+    `GUIDE_COPY.aria`, 44px, cutia 88×88 la 20px, z 112);
+  - `#servicii` pe linia de mijloc: niciun sfat la 3.5s, sfatul până la 12s, focus rămas pe `BODY`,
+    fără scroll lateral, fără puncte, cele trei butoane de 44px;
+  - un sfat închis nu revine (plecat, întors, încă 6s);
+  - avatarul deschide dialogul pe chat (`aria-expanded="true"`, focus înăuntru), iar blocul de
+    origine al cererii trimise (stub) e exact `- Sursă (CTA): guide`; butonul sfatului trimite
+    `- Secțiune: servicii` / `guide-prompt`;
+  - Tab ajunge la RO în ≤ 40; peste `#estimare` e `data-away`, opacitate 0, `tabindex=-1`;
+  - fără consimțământ nu apare nimic, iar „Accept” îl aduce fără altă mișcare; la prima vizită ghidul
+    și intro-ul nu stau niciodată împreună în DOM;
+  - reduced motion: sfatul apare, nicio animație în `[data-guide]`;
+  - `/servicii/e-commerce`: sfatul `service`, prețul magazinului, originea `- Serviciu: e-commerce` /
+    `- Secțiune: service` / `- Sursă (CTA): guide`, 0 canvas, fără three.js și GSAP, 0 încălcări CSP,
+    0 erori în consolă;
+  - 375×812: avatarul 52×52 la 12px, în viewport; cu dialogul deschis, un click în centrul lui nu
+    atinge ghidul.
+- **`hud-integration.spec.ts` (17)**, HI1–HI8 din critica §4, cu HUD-ul armat: click-urile pe telefon
+  (390×844 touch) ajung la controale; Tab la RO în ≤ 40; un singur dialog după un CTA și un singur
+  banner de cookie-uri la prima vizită; fără scroll lateral la 320 / 390 / 768 / 1280 în ambele teme;
+  fără puncte după un scroll complet și `<html>` / `<body>` neatinse; 0 CSP, 0 erori, fără three.js /
+  GSAP; `/servicii/e-commerce` fără canvas, scenă sau context viu, cu HUD-ul prezent; ghidul away
+  peste `#estimare` și ultimul link din subsolul de pe telefon atins, nu ghidul.
+- **Helpers**: `guideRoot`, `guideAvatar`, `guideTip`. `armHud` mișcă acum pointerul din nou la
+  fiecare 250ms până apare o parte `[data-hud]` (maxim 5s): `gotoHydrated` așteaptă hidratarea
+  header-ului, iar ascultătorii `HudChrome` se atașează într-un efect care poate veni puțin mai târziu,
+  deci o singură mișcare se putea pierde (1 din ~60 de armări în laborator).
+
+**Fixed** — sfatul și avatarul lăsau textul paginii să se vadă prin ele
+(`components/hud/guide/GuideAssistant.module.css`) — vezi [04](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+- `--glass-bg-solid` e opac doar 94%. În capturile din aplicație, textul unui card Directions sau al
+  unui proiect de sub sfat („BIZCHECK”, descrierea, „PLATFORMĂ WEB”) se citea prin propoziția
+  sfatului, mai ales în tema light, unde cardul e un bloc ink.
+- Acum `background-color: var(--bg)` sub un gradient de o culoare din `--glass-bg-solid`: pe pagina
+  simplă arată la fel, peste text nu se mai vede nimic. Contrastul devine cel „peste `--bg`” din tabelul
+  de sticlă (`--txt` 17,75 / 15,68, `--mut` 5,67 / 8,41, `--cyan-text` 5,34 / 10,70).
+- Un test nou în `guide-assistant.test.tsx` fixează regula (40 → 41).
+
+**Changed** — aserțiuni de test schimbate deliberat (niciuna slăbită)
+
+- `hud-chrome.test.tsx`: „nothing renders … and no part yet after it” devine „… then the guide part”:
+  înainte de armare tot nimic, iar după slotul liber partea ghidului (un stub pentru `next/dynamic`)
+  **trebuie** să apară, o singură dată. Două teste noi: partea nu apare cât consimțământul lipsește și
+  nici cu `tbs_hud=off` (21 → 23).
+- `decorative-dots.test.tsx`: scanează și `GuideAssistant.tsx` și modulul lui CSS. Regula CSS nouă
+  (`border-radius: 50%` sau `var(--r-pill)` la ≤ 8px) rezolvă și mărimile `var(--token)` din același
+  fișier, e fixată pe fixture-uri și interzice blur/filter; ✕-ul are capete pătrate (12 → 15).
+- `direction-page.test.tsx`: pașii fiecărei pagini de serviciu sunt singurul `[data-guide-topic]`,
+  cu valoarea `service` (23 → 26).
+
+**Changed** — unealta de greutate (în afara repo-ului, `scratchpad/tools`)
+
+- `measure-home-weight.mjs`: comutatorul `ARM_HUD=1` (R12). După încărcare mișcă mouse-ul la (10, 10),
+  repetat la 500ms, și așteaptă `[data-hud]` până la 5s. Fișierele sosite de atunci au faza `hud`;
+  rezultatul are `hud = { armed, waitMs, moves, lateJsGzip, lateCssGzip, files }` și `hudParts`.
+- `weight-cases.sh`: cazurile `home-introseen-armhud` (B1h), `ecommerce-armhud` (B5h) și
+  `home-introseen-reduced-armhud` (B6h). Cazurile nu mai moștenesc `BUILD=1` (fiecare reconstruia și
+  scria log-ul build-ului în JSON).
+
+**Docs**
+
+- [03](./docs/03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17): arborele
+  (`components/hud/guide/*`, `lib/hud/linger.ts`), montura `HudChrome` în layout, ordinea armării,
+  cablajul ghidului.
+- [04](./docs/04-design-system.md#ghid-tbs--the-guide): droidul, sfatul, tokenii de plasament, stările,
+  regulile de mișcare, contrastul; statusul paletei Cyber Dark.
+- [05](./docs/05-page-sections.md#ghid-tbs-the-guide): comportamentul, secțiunile, limitele, memoria pe
+  durata paginii (supraviețuiește navigării în site), niciodată „AI”, ce trimite (sursă, secțiune,
+  serviciu, proiect); contextul cererii.
+- [07](./docs/07-conventions.md#the-hud-chrome-componentshud-libhud): CSS Modules pentru părțile HUD,
+  regulile away / yield / covered, fără blur, fără puncte, mișcare, importuri, copie.
+- [11](./docs/11-security.md#the-ghid-tbs-guide-it-os-phase-4-2026-09-17): fără storage nou (cheia QA
+  `tbs_hud` era deja listată), ghidul trimite doar ce trimite vizitatorul, id-uri validate, CSP
+  neschimbat.
+- [14](./docs/14-testing.md): noile fișiere de test și numărătorile, `guide.spec`, `hud-integration.spec`,
+  nota despre survey-ul `E2E_HUD=on`.
+- [16](./docs/16-i18n-seo.md#the-hud-chrome-adds-no-keys): obiectele `L()` din `GUIDE_COPY`.
+- [`e2e/README.md`](./e2e/README.md): cele două spec-uri, locatorii, așteptările reale, `armHud`.
+
+**Verificare**
+
+| Check | Rezultat |
+|---|---|
+| `npm run build` · `npx tsc --noEmit` · `npm run lint` (node:22-alpine, arborele montat, cu reparația opacității) | exit 0 · 0 · 0 |
+| `npm test` (node:22-alpine) | **1.433 passed / 0 failed** în 70 de fișiere (Faza 3: 1.309 în 68; +75 `guide-linger`, +41 `guide-assistant`, +2 `hud-chrome`, +3 `decorative-dots`, +3 `direction-page`) |
+| E2E noble, P4-C: `guide` + `hud-integration` + `interior` + `hud-shell` + `keyboard` + `responsive` + `preloader` + `contact-form` + `request-flow` + `chat` | **194 passed / 0 failed** (guide 12, hud-integration 17, interior 22, hud-shell 25, keyboard 6, responsive 66, preloader 24, contact-form 6, request-flow 12, chat 4) |
+| `guide` + `hud-integration`, prima rulare (înainte de gate) | 27 passed / 2 failed: două greșeli ale spec-ului, reparate — `test.use({ reducedMotion })` e ignorat aici (trebuie `contextOptions`), iar avatarul era măsurat în timpul intrării de 0.7s; apoi `guide` 12 / 12 |
+| După ultimele editări (limita de 12s, comentarii): `tsc` · `lint` · `guide-assistant` + `hud-chrome` + `decorative-dots`; `guide.spec` | 0 · 0 · 79 / 79; **12 / 12** |
+| Survey `E2E_HUD=on` (suita completă fără `tbs_hud=off` seed-uit, deci HUD-ul poate arma în orice spec care seed-uiește consimțământul și mișcă mouse-ul, derulează sau apasă o tastă) | **291 passed / 0 failed / 0 flaky** (toate cele 17 spec-uri, inclusiv `interior-webgl` 24 / 24). Nimic de triat: niciun spec existent nu a fost deranjat de ghid (colțul din dreapta-jos, sfatul doar după 5s pe linia de mijloc, away peste `#estimare`) |
+| Laborator în aplicație (noble, fonturi reale) | capturi idle, colț și sfat la 1280 / 768 / 390 / 320, dark și light, pe `/` și `/servicii/e-commerce` (16 cazuri, după reparația opacității; cele dinainte păstrate pentru comparație); sfatul, citit din Node, apare la 5,30s de la scroll (de patru ori ~8,02s, toate pe pagina de serviciu); măsurat **în pagină**, 35 de repetări pe `/servicii/e-commerce` la 320 / 390 / 768 / 1280 și pe `/` la 1280, cu și fără capturi înainte: **5,02–5,04s** de fiecare dată, secțiunea pe linie tot timpul, deci întârzierea nu se reproduce în pagină și pare a harness-ului (limita de sus din `guide.spec` a crescut totuși de la 9 la 12s); lățimea legendei cu JetBrains Mono încape peste tot (cel mai strâns: „TBS GUIDE” 48,25 px în 62 px la 641–860px, 70,92 în 86 la ≥ 861px); rădăcina IntersectionObserver de înălțime 0 raportează `isIntersecting` corect în Chromium (vezi mai jos) |
+| `npm test` rulat de 2 ori pe snapshot-ul exportat din index (node:22-alpine) | 1.433 / 1.433 de ambele dăți; build · tsc · lint exit 0 |
+| `npx playwright test --workers=1 --retries=0` (noble, suita completă) | **291 passed / 0 failed / 0 skipped** (Faza 3: 262; + `guide` 12, `hud-integration` 17) |
+| `preloader` + `hud-shell` + `interior` + `interior-webgl` + `guide` + `hud-integration`, `--repeat-each=3` | 371 passed, **1 failed**: `preloader` „forced WebGL renders the canvas and completes at 100” (a doua repetare), rulat în paralel cu agenții Fazei 5. Același test a picat o dată și în gate-ul Fazei 3 sub încărcare; eșantionarea click-ului la 15ms poate rata tot fade-ul de ~0.55s când firul principal e ocupat. Faza 4 nu atinge intro-ul; testul e trecut la *Rămâne deschis* |
+
+**Rădăcina de înălțime 0 (riscul P4-B, verificat).** Un `IntersectionObserver` cu `rootMargin: "-50% 0px
+-50% 0px"`, în Chromium, la 1280×800, 1280×801, 390×844, 390×845, 375×812, 320×720 și 768×1024:
+- un element care traversează mijlocul (600px, 2px, mai înalt decât viewport-ul) → `isIntersecting: true`;
+- un element deasupra sau dedesubt (la 10px distanță) → `false`;
+- un element a cărui margine e **exact** pe linie → `true` (intersecție inclusivă pe margine);
+- `#servicii` și `#lucrari` centrate → `true`;
+- la o înălțime impară rădăcina devine 1px (`rootBounds.height` 1), cu aceleași răspunsuri.
+Nu trebuie reparat nimic. WebKit și Firefox nu au fost verificate.
+
+Greutate (gzip, bytes; același script, aceleași cazuri plus trei noi; baza e **arborele Fazei 3
+nemontat**, măsurat din nou de P4-C înainte de montare, `p4base`):
+
+| Buget | Caz | Bază (Faza 3, nemontat) | Faza 4 | Diferență |
+|---|---|---|---|---|
+| B1 | `/`, vizitator care revine, fără interacțiune | total 262.699 · referit din HTML 257.809 · JS târziu 3.936 | total **263.172** · referit 258.282 · JS târziu 3.936 | +473 (JS-ul paginii: `HudChrome` și referința lui `next/dynamic`); CSS 0 |
+| **B1h** (nou) | B1 + o mișcare de mouse (`ARM_HUD=1`) | — | total **271.419** · JS târziu **9.834** · CSS târziu 3.303 | ghidul: **JS 5.898** + **CSS 2.349** (un chunk JS, un chunk CSS), sosite doar după armare |
+| B1s / B7 | B1 + scroll · pe mobil | JS târziu 3.936 · CSS târziu 954 | JS târziu **9.834** · CSS târziu 3.303 | +5.898 JS / +2.349 CSS: **scroll-ul e interacțiunea**, deci ghidul se încarcă; e costul HUD-ului, nu o regresie a paginii |
+| B2 | scenă forțată + scroll (desktop și mobil) | JS târziu 324.687 | **330.585** | +5.898 (ghidul, prin scroll). Față de B1s: B1s + 320.751 — sub limita propusă în Faza 3 (B1s + 321.000), peste cea a planului (B1s + 316.000) cu 4.751, exact ca înainte |
+| B3 | prima vizită, intro + scenă forțate + scroll | JS târziu 333.894 (total 592.657) | **339.792** ✗ (total 601.377) | +5.898 (ghidul, prin scroll). **Peste** limita planului (330.000) cu 9.792 și peste cea propusă în Faza 3 (335.000) cu 4.792 → re-baseline cerut, motivul: HUD-ul inclus prin `SCROLL=1` |
+| B3i | prima vizită, intro forțat, fără scroll | 314.400 | **314.400** | 0 |
+| B4 | prima vizită, fără interacțiune | JS târziu 35.777 | **35.777** ✓ (≤ 36.500) | 0 (banner-ul fără răspuns nu armează nimic) |
+| B5 | `/servicii/e-commerce`, fără interacțiune | total 223.013 (limită 224.000) | **223.688** ✓ | +675 (`HudChrome` plus `lib/idle`, `lib/intro`, `lib/hud/gate`, pe care pagina de serviciu nu le avea; **312 B rezervă**) |
+| **B5h** (nou) | B5 + o mișcare de mouse | — | total **231.935** · JS târziu 5.898 · CSS târziu 2.349 | ghidul; fără three.js, GSAP, probă sau stage (0 contexte) |
+| B6 | `/` care revine, reduced motion | JS târziu 3.219; 0 contexte | **3.219**; 0 contexte ✓ | 0 (total +473, ca B1) |
+| **B6h** (nou) | B6 + o mișcare de mouse | — | JS târziu **9.117**; 0 contexte ✓ | ghidul, +5.898 |
+| H | documentul HTML `/`, care revine | 21.653 | **21.672** ✓ (≤ 22.230) | +19 (referința clientului `HudChrome` în RSC; zgomotul nonce-ului e ±10) |
+| — | chunk-ul comun three + R3F + scene | 271.060 | neschimbat | 0 (B3i identic) |
+
+Chunk-ul ghidului are 14.619 B raw / 5.851–5.898 B gzip: componenta, `copy.ts` în trei limbi, `linger`,
+`obscure`, `topics`, `busy`, iconița `X` cu baza lucide și **o copie a `lib/directions.ts`** (Turbopack
+nu o împarte cu bundle-ul paginii). Planul estima ≈ 3,5 KB JS și 1,2 KB CSS; măsurat e 5,9 KB și
+2,3 KB. Toate cazurile: exit 0, 0 erori de pagină, `hudParts` 0 în fiecare caz fără interacțiune și
+1 după armare sau scroll (`armed` la prima mișcare, `moves` 1).
+
+> **Rămâne deschis:**
+> - **Testul de intro WebGL forțat e fragil sub încărcare** (`preloader.spec.ts` „forced WebGL renders the canvas and completes at 100”): eșantionarea click-ului pe CTA-ul din header la 15ms poate rata tot fade-ul când CPU-ul e ocupat de alte containere. A picat o dată în gate-ul Fazei 3 și o dată aici, mereu cu agenți în paralel; de stabilizat.
+> - **B3 peste limită** (339.792 față de 330.000, și față de 335.000 propus în Faza 3): ghidul intră
+>   prin `SCROLL=1`. **B2** e B1s + 320.751. Re-baseline explicit, cu motivul: HUD-ul inclus prin scroll.
+> - **B5 are 312 B rezervă.** Planul mai pune pe B5 ≈ +150 (Faza 5, CSS) și ≈ +50 (Faza 6): încape la
+>   limită; orice altceva în bundle-ul paginilor de serviciu cere re-baseline.
+> - **Chunk-ul ghidului e mai mare decât estimarea** (JS 5,9 KB față de ≈ 3,5; CSS 2,3 față de ≈ 1,2),
+>   între altele cu o copie a `lib/directions.ts`. Nu costă nimic până la interacțiune.
+> - **Sfatul poate acoperi conținut.** La 1280 stă peste colțul cardului Directions, la 320–390 peste
+>   jumătate din pașii „Cum lucrăm”, până e închis sau secțiunea iese de pe linie. Acum e opac, deci
+>   lizibil; rămâne o decizie de design dacă poziția e bună.
+> - **O margine exact pe linia de mijloc** face ambele secțiuni vecine „pe linie” pentru acea poziție
+>   de scroll (intersecție inclusivă); `pickTopic` alege prima în ordinea țintelor. Inofensiv.
+> - **WebKit și Firefox**: rădăcina IntersectionObserver de înălțime 0 e verificată doar în Chromium.
+> - **Primul eveniment înainte de hidratarea `HudChrome`** nu e auzit (header-ul se hidratează primul):
+>   un vizitator care face o singură mișcare exact atunci primește ghidul la următoarea interacțiune.
+>   `armHud` și unealta de greutate repetă mișcarea.
+> - **Proiectul din sfatul `lucrari`** vine doar din spirala WebGL (`data-helix-front`); pe calea
+>   implicită (art static, telefoane cu bandă) nu se trimite niciun proiect.
+> - **Linkurile din subsolul de pe telefon** au 12px text, sub 44px (dinainte de HUD); HI8 verifică doar
+>   că ghidul nu stă peste ultimul.
+
+---
+
 ## 2026-09-17 — Faza 3: ADN-ul proiectelor (elicoid 3D, carduri în spirală, hologramă)
 
 A patra fază a experienței IT aprobate. Clientul a cerut ca **cardurile existente ale proiectelor**

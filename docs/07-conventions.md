@@ -253,7 +253,8 @@ three.js + R3F (~240 KB gzip) and GSAP load only behind the capability probe, th
 `next/dynamic` or `import()`. A static import in a module the page bundle reaches would ship them
 to every visitor, and nothing but a weight measurement would notice — so it fails lint.
 `eslint.config.mjs` has a file-scoped block over `app/**`, `components/sections/**`,
-`components/layout/**`, `components/ui/**`, `components/fx/**`, `components/scene/SceneStage.tsx`,
+`components/layout/**`, `components/ui/**`, `components/fx/**`, `components/hud/**` (the HUD
+chrome's mount and its lazy parts), `components/scene/SceneStage.tsx`,
 `components/scene/art/**`, `components/scene/shapes.ts`, `components/three/RenderErrorBoundary.tsx`,
 `components/three/capability.ts`, the intro's up-front files (`IntroPreloader.tsx`,
 `IntroFallback.tsx`, `lemniscate.ts`, `capability.ts`, `tiers.ts`) and `lib/**` (tests excluded).
@@ -458,6 +459,55 @@ lead|cta|stats|ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`).
 `components/__tests__/intro-reveal-contract.test.tsx` renders Navbar, Hero and Ticker in all
 three languages and checks one marker per target with no style attribute, and scans
 `globals.css`, `tailwind.css` and every `*.module.css` for a selector on the attribute.
+
+## The HUD chrome (`components/hud/**`, `lib/hud/**`)
+
+The IT-OS HUD (the Ghid TBS guide since Phase 4; the rail and the OS layer later) is built to
+these rules. Wiring in [03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17), the
+visual contract in [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-black).
+
+- **One mount.** Every part is a `next/dynamic(…, { ssr: false })` entry in `PARTS` in
+  `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />` and
+  `<CookieConsent />`. A part is never imported anywhere else, so nothing of it reaches the page
+  bundle or the HTML, and nothing loads before the gate opens (flag → consent → interaction →
+  intro gone → idle). A part also renders nothing on its own while the banner is unanswered or
+  the intro is on screen.
+- **CSS Modules, not Tailwind.** One `*.module.css` per part, next to it; keyframes in the same
+  file; not in `@source` (so the global Tailwind chunk and the HTML do not grow — the module
+  becomes a lazy CSS chunk with the part). Tokens only, as everywhere (`--neon-cyan`,
+  `--glass-bg-solid`, `--z-guide`, `--hud-*`); the placement boxes in docs/04 are the contract
+  and may be literals.
+- **Root attributes.** Every part's root carries `data-hud=""` plus its own name (`data-guide`,
+  later `data-rail`, `data-os-layer`, `data-hud-dock`). E2E finds the HUD by `[data-hud]`, and
+  `decorativeDots` scans inside it.
+- **Away and yield hide by opacity only.** `opacity: 0`, `pointer-events: none` and the part's own
+  buttons at `tabIndex -1` — **never** `display: none`, `visibility: hidden` or `inert`, so the
+  request dialog can still hand focus back to a HUD button. Away is "the section-layout request
+  form (`[data-testid="request-flow"][data-layout="section"]`) intersects the viewport"; yield is
+  "the focused element overlaps the part" (`lib/hud/obscure.ts`). No `animation-fill-mode` that
+  would outrank the faded opacity.
+- **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger, the
+  intro's lock) a part shows no new prompt and clears a shown one; the z-order (`--z-guide` 112 <
+  `--z-nav-overlay` 115) does the covering.
+- **No blur, no filter.** No `backdrop-filter` or `filter` on a part or any ancestor of a CSS
+  `preserve-3d` element: it sits over the live WebGL canvas, and a blur flattens the 3D.
+  Solid glass (`--glass-bg-solid`, composited over `--bg` when page text can sit under it) plus the
+  Neon Cyan ring instead.
+- **No dots.** Bars, streaks, squares; a ring is ≥38px. `decorative-dots.test.tsx` scans each
+  part's TSX and CSS Module (`border-radius: 50%` or `var(--r-pill)` at ≤8px fails, a
+  `var(--token)` size resolved against the file).
+- **Motion** (WCAG 2.2.2): short bursts only (an entrance, a pulse of ≤5s), continuous motion only
+  while hovered (`(hover: hover)`) or scrolled; every animation and transition inside
+  `@media (prefers-reduced-motion: no-preference)`.
+- **No writes to `<html>` / `<body>`**, no new storage keys and no cookies (memory is a module
+  variable); `tbs_hud` is read, never written.
+- **Imports.** No three, R3F or GSAP (the heavy-import ban above covers `components/hud/**`);
+  `lucide-react` only here, by name from the package root, `aria-hidden`, `strokeWidth={1.75}`,
+  square caps. Pure decisions live in `lib/hud/*.ts` (no DOM at import, no directive) and are
+  unit-tested there.
+- **Copy** is `{ ro, ru, en }` objects in the part's own `copy.ts` (no directive, type-only imports,
+  so the E2E specs import it), never catalog keys and never "AI" (see
+  [16](./16-i18n-seo.md#the-hud-chrome-adds-no-keys)).
 
 ## Components
 

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState, type ComponentType } from "react";
 import { CONSENT_EVENT, getConsent } from "@/lib/consent";
 import { HUD_ARM_EVENTS, readHudFlag } from "@/lib/hud/gate";
@@ -7,12 +8,19 @@ import { afterIdle } from "@/lib/idle";
 import { onIntroGone } from "@/lib/intro";
 
 /**
- * The HUD chrome's parts (the Ghid TBS guide, the fibre rail, the OS layer), each a
- * `next/dynamic({ ssr: false })` chunk, rendered together in ONE commit once the gate opens.
- * Empty until the phases that build them land; the server never renders any of them, so the
- * HTML does not grow.
+ * Ghid TBS (components/hud/guide): the avatar in the bottom-right corner and its linger tip.
+ * Its chunk (component, copy, CSS module, lucide's X) is fetched only once the gate opens.
  */
-const PARTS: readonly ComponentType[] = [];
+const GuideAssistant = dynamic(() => import("./guide/GuideAssistant").then((m) => m.GuideAssistant), {
+  ssr: false,
+});
+
+/**
+ * The HUD chrome's parts (the Ghid TBS guide now; the fibre rail and the OS layer in later
+ * phases), each a `next/dynamic({ ssr: false })` chunk, rendered together in ONE commit once
+ * the gate opens. The server never renders any of them, so the HTML does not grow.
+ */
+const PARTS: readonly ComponentType[] = [GuideAssistant];
 
 /** The arming events never block scrolling, and are heard before anything can stop them. */
 const ARM_LISTENER = { capture: true, passive: true } as const;

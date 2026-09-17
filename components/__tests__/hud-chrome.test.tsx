@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 
 import { HudChrome, useHudArmed } from "@/components/hud/HudChrome";
@@ -11,15 +11,25 @@ import { INTRO_OVERLAY_ID, markIntroGone, resetIntroForTests } from "@/lib/intro
  * The HUD chrome's single mount (components/hud/HudChrome.tsx) and its arming gate, in order:
  * the tbs_hud QA switch → an answered cookie banner (its answer counts as the interaction) →
  * the first interaction on window → the intro overlay gone → an idle slot. Nothing renders
- * before that, and nothing yet after it (the parts land in later phases).
+ * before that; after it, the parts do (Phase 4: the Ghid TBS guide).
  *
  * `afterIdle` is mocked to a manual queue, so a test sees exactly when the gate asked for the
  * idle slot and opens it by hand. The intro is the real lib/intro.ts: "on screen" is the
- * overlay root in the document until `markIntroGone`.
+ * overlay root in the document until `markIntroGone`. The guide itself is a stub part (its own
+ * behaviour is guide-assistant.test.tsx): what is pinned here is that HudChrome mounts it through
+ * `next/dynamic` once the gate is open, and never before.
  */
 
 const h = vi.hoisted(() => ({
   idle: [] as Array<{ ms: number; run: () => void; cancelled: boolean }>,
+  guideRenders: 0,
+}));
+
+vi.mock("@/components/hud/guide/GuideAssistant", () => ({
+  GuideAssistant: function GuideAssistantStub() {
+    h.guideRenders += 1;
+    return <div data-hud="" data-guide="" data-testid="guide-part" />;
+  },
 }));
 
 vi.mock("@/lib/idle", () => ({
@@ -56,6 +66,7 @@ function fire(type: string, target: EventTarget = window) {
 
 beforeEach(() => {
   h.idle.length = 0;
+  h.guideRenders = 0;
   localStorage.clear();
   document.cookie = `${CONSENT_KEY}=;path=/;max-age=0`;
   document.getElementById(INTRO_OVERLAY_ID)?.remove();
@@ -73,16 +84,49 @@ describe("nothing renders before arming", () => {
     expect(renderToString(<HudChrome />)).toBe("");
   });
 
-  it("renders nothing on the client until the gate opens, and no part yet after it", () => {
+  it("renders nothing on the client until the gate opens, then the guide part", async () => {
     answerConsent();
     const { container } = render(<HudChrome />);
     expect(container.innerHTML).toBe("");
     fire("pointermove");
     expect(container.innerHTML).toBe("");
+    expect(document.querySelector("[data-hud]")).toBeNull();
+    expect(h.guideRenders, "no part before the idle slot").toBe(0);
     expect(h.idle).toHaveLength(1);
     runIdle();
+
+    // The part is a lazy chunk: it arrives a tick after the commit that opened the gate.
+    const guide = await screen.findByTestId("guide-part");
+    expect(container.contains(guide)).toBe(true);
+    expect(container.querySelectorAll("[data-hud]")).toHaveLength(1);
+    expect(container.querySelectorAll("[data-guide]")).toHaveLength(1);
+  });
+
+  it("never renders the guide part while the gate stays shut", async () => {
+    // Consent unanswered: interactions alone never open the gate.
+    const { container } = render(<HudChrome />);
+    for (const type of HUD_ARM_EVENTS) fire(type);
+    runIdle();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
     expect(container.innerHTML).toBe("");
+    expect(h.guideRenders).toBe(0);
     expect(document.querySelector("[data-hud]")).toBeNull();
+  });
+
+  it("the flag off keeps the guide part away even after consent and interaction", async () => {
+    localStorage.setItem(HUD_FLAG_KEY, "off");
+    answerConsent();
+    const { container } = render(<HudChrome />);
+    for (const type of HUD_ARM_EVENTS) fire(type);
+    act(() => setConsent("accepted"));
+    runIdle();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(container.innerHTML).toBe("");
+    expect(h.guideRenders).toBe(0);
   });
 });
 

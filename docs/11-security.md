@@ -284,6 +284,37 @@ several up-front files were outside the list. Fixed before release (review findi
 - **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
   through React (escaped), exactly as the whole tag was rendered before.
 
+### The Ghid TBS guide (IT-OS Phase 4, 2026-09-17)
+
+The guide (`components/hud/guide/*`, `lib/hud/linger.ts`; behaviour in
+[05](./05-page-sections.md#ghid-tbs-the-guide)) added **no dependency, no storage and no CSP
+change**:
+
+- **No new storage and no cookie.** Its memory (tips shown, the cooldown, "Nu mai arăta") is one
+  module variable: it lasts the page lifetime, survives client navigation and is gone on reload.
+  The only key the HUD reads is `tbs_hud` (listed above: QA and E2E, never written by the site).
+  The cookie policy does not change.
+- **It sends only what the visitor submits.** Showing, pulsing, dismissing or opting out sends
+  nothing — no request, no analytics event. Pressing the avatar or "Deschide ghidul" only opens
+  the existing request dialog; a lead leaves only through the existing `POST /api/contact`
+  submit, with the same validation and escaping as every other request. The guide
+  adds to that message nothing but ids from fixed lists, each validated before it is written:
+  `- Serviciu: <slug>` (a slug `lib/directions.ts` knows), `- Proiect: <name> (<id>)` (the project
+  at that index in the site's own content, `lucrari` topic only), `- Secțiune: <topic>`
+  (`isGuideTopic`: `servicii`, `lucrari` or `service` — whatever a `data-guide-topic` attribute
+  carries) and `- Sursă (CTA): guide | guide-prompt`.
+- **Nothing fetched, nothing parsed.** Its chunk arrives through `next/dynamic` from the site's
+  own origin after arming; the ✕ is a lucide-react component rendered by React (inline SVG, no
+  sprite, no icon font); the copy is static `{ ro, ru, en }` text; no `dangerouslySetInnerHTML`,
+  no `eval`, no `Worker`, no `blob:`.
+- **It reads only geometry and attributes**: IntersectionObserver entries, `getBoundingClientRect`
+  for the focus-overlap guard, `data-guide-topic`, `data-helix-front`, `document.activeElement`
+  (to know whether the visitor is typing — never the field's value). No new `window` global and no
+  new event.
+- **Measured on every run:** `e2e/guide.spec.ts` (a service page with the guide armed, lingered on
+  and opened) and `e2e/hud-integration.spec.ts` (HI6, the home page armed and scrolled through)
+  assert 0 `securitypolicyviolation` events and no console error.
+
 ## Authentication
 - Admin users live in the DB `users` table with **bcrypt-hashed** passwords
   (`backend/app/security.py`). Login (`POST /api/auth/login`) verifies the hash in constant

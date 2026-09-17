@@ -1,0 +1,617 @@
+/* Ghid TBS — the holographic cube droid and its tip (GuideAssistant.tsx).
+
+   Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
+   owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
+   overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
+   below (52 / 64×72 / 88, 20px from the corner on desktop) ARE that contract, not a local
+   choice.
+
+   Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
+   filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
+   CSS preserve-3d cube.
+
+   Shapes: bars, streaks, squares and rings of 38px and more — no dots (decorative-dots rule).
+   The droid's own geometry (--cube, --orbit-*) is illustration, sized per breakpoint.
+
+   Motion (WCAG 2.2.2): a 0.7s entrance, a 3 × 1.4s pulse while a tip shows, a spin while the
+   pointer hovers. Keyframes animate transform and opacity only, and every animation and
+   transition lives inside `prefers-reduced-motion: no-preference` — under reduce everything is
+   static and the tip still appears. */
+
+/* ---- the corner box ------------------------------------------------------------------------ */
+
+/* The root IS the avatar's box, so `[data-guide]` measures what a visitor sees. It takes no
+   pointer events itself; its children opt back in. No transform, filter or opacity on it: the
+   tip is `position: fixed` against the viewport, not against this box. */
+.root {
+  position: fixed;
+  right: max(var(--hud-edge), env(safe-area-inset-right));
+  bottom: max(var(--hud-edge), env(safe-area-inset-bottom));
+  z-index: var(--z-guide);
+  width: 52px;
+  height: 52px;
+  pointer-events: none;
+}
+
+@media (min-width: 641px) {
+  .root {
+    width: 64px;
+    height: 72px;
+  }
+}
+
+@media (min-width: 861px) {
+  .root {
+    right: 20px;
+    bottom: 20px;
+    width: 88px;
+    height: 88px;
+  }
+}
+
+/* Away (the home page's request form is in view) and yield (the focused element is under the
+   guide): gone from sight and from the pointer, never from the DOM or the accessibility tree —
+   focus can still come back to the avatar. The buttons' tabIndex is -1 while away (TSX). */
+.root[data-away] > *,
+.root[data-yield] > * {
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 8px;
+}
+
+/* ---- the avatar button ----------------------------------------------------------------------- */
+
+.avatar {
+  position: relative;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  pointer-events: auto;
+  cursor: pointer;
+  color: var(--txt);
+  /* --glass-bg-solid is 94% opaque: over the page's own text (a Directions case card, a project
+     card) that text ghosted through the caption and the tip's sentence. Composited over --bg it
+     reads the same over the plain page and shows nothing through (P4-C, measured in the app). */
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--glass-bg-solid), var(--glass-bg-solid));
+  /* The droid (≥3:1 in both themes) identifies the control; this edge is its frame. */
+  border: 1px solid color-mix(in srgb, var(--neon-cyan) 45%, transparent);
+  border-radius: var(--r-sm);
+  box-shadow: var(--sh-md);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* HUD corner brackets: two 10px L-shapes, square ends. */
+.avatar::before,
+.avatar::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 0 solid var(--neon-cyan);
+  pointer-events: none;
+}
+
+.avatar::before {
+  top: 4px;
+  left: 4px;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+
+.avatar::after {
+  right: 4px;
+  bottom: 4px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+/* The 64×72 and 52px boxes: smaller brackets, tucked into the corners, clear of the caption. */
+@media (max-width: 860px) {
+  .avatar::before,
+  .avatar::after {
+    width: 8px;
+    height: 8px;
+  }
+
+  .avatar::before {
+    top: 3px;
+    left: 3px;
+  }
+
+  .avatar::after {
+    right: 3px;
+    bottom: 3px;
+  }
+}
+
+.avatar:focus-visible,
+.root[data-state="prompt"] .avatar {
+  border-color: var(--neon-cyan);
+  box-shadow: var(--sh-md), var(--neon-cyan-ring);
+}
+
+/* Hover only where hovering exists, so a tap does not leave the ring stuck on. */
+@media (hover: hover) {
+  .avatar:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: var(--sh-md), var(--neon-cyan-ring);
+  }
+}
+
+.avatar:focus-visible {
+  outline: 2px solid var(--txt);
+  outline-offset: 2px;
+}
+
+/* The visible name under the droid; the button's accessible name starts with the same words. */
+.caption {
+  display: none;
+  font: var(--fw-bold) var(--fs-2xs) / 1.2 var(--font-mono-stack);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cyan-text);
+}
+
+/* 641–860px: 9px, tighter tracking, so the eight letters fit the 64px box. */
+@media (min-width: 641px) {
+  .caption {
+    display: block;
+    letter-spacing: 0.04em;
+  }
+}
+
+@media (min-width: 861px) {
+  .caption {
+    font-size: var(--fs-xs);
+    letter-spacing: 0.08em;
+  }
+}
+
+/* ---- the droid: a CSS 3D cube in a hologram beam, two orbits, a square signal wave ------------ */
+
+.scene {
+  --cube: 18px;
+  --orbit-a: 38px;
+  --orbit-b: 46px;
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 44px;
+  perspective: 320px;
+  transform-style: preserve-3d;
+}
+
+@media (min-width: 641px) {
+  .scene {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+@media (min-width: 861px) {
+  .scene {
+    --cube: 24px;
+    --orbit-a: 46px;
+    --orbit-b: 56px;
+    width: 58px;
+    height: 58px;
+  }
+}
+
+/* The projector: a cone of light widening up from a short emitter bar. */
+.beam {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: calc(var(--cube) + 16px);
+  height: 34%;
+  translate: -50% 0;
+  background: linear-gradient(to top, color-mix(in srgb, var(--neon-cyan) 34%, transparent), transparent);
+  clip-path: polygon(38% 100%, 62% 100%, 100% 0, 0 0);
+}
+
+.beam::after {
+  content: "";
+  position: absolute;
+  left: 38%;
+  right: 38%;
+  bottom: 0;
+  height: 2px;
+  background: var(--neon-cyan);
+}
+
+/* The head, in a static three-quarter pose from slightly above: the visor face toward the
+   visitor, turned a little toward the page. */
+.body {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: var(--cube);
+  height: var(--cube);
+  margin: calc(var(--cube) / -2) 0 0 calc(var(--cube) / -2);
+  transform-style: preserve-3d;
+  transform: rotateX(-22deg) rotateY(-24deg);
+}
+
+/* Translucent faces with scanlines; the back faces show through, as a hologram's would. */
+.face {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--neon-cyan);
+  background-color: color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--neon-cyan) 20%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  box-shadow: inset 0 0 6px var(--glow-cyan);
+}
+
+.face[data-face="front"] {
+  background-color: color-mix(in srgb, var(--neon-cyan) 22%, transparent);
+  transform: translateZ(calc(var(--cube) / 2));
+}
+
+.face[data-face="back"] {
+  transform: rotateY(180deg) translateZ(calc(var(--cube) / 2));
+}
+
+.face[data-face="right"] {
+  transform: rotateY(90deg) translateZ(calc(var(--cube) / 2));
+}
+
+.face[data-face="left"] {
+  transform: rotateY(-90deg) translateZ(calc(var(--cube) / 2));
+}
+
+.face[data-face="top"] {
+  transform: rotateX(90deg) translateZ(calc(var(--cube) / 2));
+}
+
+.face[data-face="bottom"] {
+  transform: rotateX(-90deg) translateZ(calc(var(--cube) / 2));
+}
+
+/* The visor: a lit bar across the front face, not an eye. */
+.visor {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 36%;
+  height: 3px;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 6px var(--glow-cyan);
+}
+
+/* Orbit rings (38px and up) with a packet streak riding each. The trailing rotateZ is where the
+   packet rests; the orbit keyframes turn it from there. */
+.orbit {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: var(--orbit-a);
+  height: var(--orbit-a);
+  margin: calc(var(--orbit-a) / -2) 0 0 calc(var(--orbit-a) / -2);
+  border: 1px solid color-mix(in srgb, var(--neon-cyan) 55%, transparent);
+  border-radius: 50%;
+  transform-style: preserve-3d;
+  transform: rotateX(72deg) rotateZ(40deg);
+}
+
+.orbit[data-orbit="b"] {
+  width: var(--orbit-b);
+  height: var(--orbit-b);
+  margin: calc(var(--orbit-b) / -2) 0 0 calc(var(--orbit-b) / -2);
+  border-color: color-mix(in srgb, var(--neon-cyan) 35%, transparent);
+  transform: rotateZ(-30deg) rotateX(66deg) rotateZ(220deg);
+}
+
+.packet {
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  width: 10px;
+  height: 2px;
+  translate: -50% 0;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 6px var(--glow-cyan);
+}
+
+/* The square wave the prompt pulse sends out. At rest it is not drawn. */
+.signal {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: calc(var(--cube) + 12px);
+  height: calc(var(--cube) + 12px);
+  translate: -50% -50%;
+  border: 1px solid var(--neon-cyan);
+  opacity: 0;
+}
+
+/* ---- the tip ----------------------------------------------------------------------------------- */
+
+/* Phones: right above the 52px avatar (72px up), clear of the OS dock's 68px top edge. */
+.tip {
+  position: fixed;
+  right: max(var(--hud-edge), env(safe-area-inset-right));
+  bottom: calc(max(var(--hud-edge), env(safe-area-inset-bottom)) + 60px);
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - var(--header-h) - 88px);
+  max-height: calc(100dvh - var(--header-h) - 88px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-3) var(--sp-4) var(--sp-4);
+  pointer-events: auto;
+  color: var(--txt);
+  /* Opaque, like the avatar: --glass-bg-solid over --bg, so no page text shows through. */
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--glass-bg-solid), var(--glass-bg-solid));
+  border: 1px solid var(--neon-cyan);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-lg), var(--neon-cyan-ring);
+}
+
+/* 641–860px: the avatar is 72px tall, so the tip starts 8px above it (92px up). */
+@media (min-width: 641px) {
+  .tip {
+    bottom: calc(max(var(--hud-edge), env(safe-area-inset-bottom)) + 80px);
+    max-height: calc(100vh - var(--header-h) - 108px);
+    max-height: calc(100dvh - var(--header-h) - 108px);
+  }
+}
+
+/* Desktop: left of the fibre rail, above the 88px avatar box (which ends 108px up). */
+@media (min-width: 861px) {
+  .tip {
+    right: calc(var(--hud-rail-w) + 8px);
+    bottom: 116px;
+    max-height: calc(100vh - var(--header-h) - 132px);
+    max-height: calc(100dvh - var(--header-h) - 132px);
+  }
+}
+
+/* Cyan small text only on --glass-bg-solid: 4.69:1 light (worst pixel), 8.92 dark. */
+.tipKicker {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 28px;
+  margin: 0;
+  padding-right: 40px;
+  font: var(--fw-bold) var(--fs-xs) / 1.3 var(--font-mono-stack);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan-text);
+}
+
+.tipKicker::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 2px;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 6px var(--glow-cyan);
+}
+
+.tipText {
+  margin: var(--sp-1) 0 0;
+  font-family: var(--font-body-stack);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  color: var(--txt);
+  overflow-wrap: anywhere;
+}
+
+.tipActions {
+  display: grid;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.tipOpen,
+.tipNever {
+  min-height: 44px;
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-sm);
+  font-family: var(--font-body-stack);
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* Red is action: the one CTA fill, the label on its deeper twin (white ≥4.72:1). */
+.tipOpen {
+  border: 0;
+  background-image: var(--grad-red-cta);
+  color: var(--on-accent);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-extra);
+  box-shadow: var(--neon-red);
+}
+
+.tipOpen:hover {
+  box-shadow: var(--neon-red-strong);
+}
+
+/* --mut on --glass-bg-solid: 4.98:1 light (worst pixel), 7.01 dark. */
+.tipNever {
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--mut);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+}
+
+.tipNever:hover {
+  color: var(--txt);
+  border-color: var(--neon-cyan);
+}
+
+.tipClose {
+  position: absolute;
+  top: var(--sp-1);
+  right: var(--sp-1);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--mut);
+  cursor: pointer;
+}
+
+.tipClose:hover {
+  color: var(--txt);
+  border-color: var(--neon-cyan);
+}
+
+.tipClose svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.tipOpen:focus-visible,
+.tipNever:focus-visible,
+.tipClose:focus-visible {
+  outline: 2px solid var(--txt);
+  outline-offset: 2px;
+}
+
+/* ---- motion: only when the visitor allows it --------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  .avatar {
+    transition:
+      opacity 0.2s,
+      translate 0.2s,
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  /* No fill mode on either: a filled end value would outrank the away/yield opacity. */
+  .tip {
+    transition:
+      opacity 0.2s,
+      translate 0.2s;
+    animation: guide-tip-in 0.25s var(--motion-ease-out);
+  }
+
+  .root[data-state="enter"] .avatar {
+    animation: guide-rise 0.7s var(--motion-ease-out);
+  }
+
+  .root[data-state="enter"] .body {
+    animation: guide-enter 0.7s var(--motion-ease-out);
+  }
+
+  /* The prompt pulse: three turns of the orbits and three square waves, then rest. */
+  .root[data-state="prompt"] .orbit[data-orbit="a"] {
+    animation: guide-orbit-a 1.4s linear 3;
+  }
+
+  .root[data-state="prompt"] .orbit[data-orbit="b"] {
+    animation: guide-orbit-b 1.4s linear 3;
+  }
+
+  .root[data-state="prompt"] .signal {
+    animation: guide-signal 1.4s var(--motion-ease-out) 3;
+  }
+}
+
+/* Continuous only while the pointer is on it. */
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .avatar:hover .body {
+    animation: guide-spin 2.4s linear infinite;
+  }
+
+  .avatar:hover .orbit[data-orbit="a"] {
+    animation: guide-orbit-a 1.4s linear infinite;
+  }
+
+  .avatar:hover .orbit[data-orbit="b"] {
+    animation: guide-orbit-b 2.1s linear infinite;
+  }
+}
+
+@keyframes guide-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes guide-enter {
+  from {
+    transform: rotateX(-22deg) rotateY(-204deg) scale(0.4);
+  }
+  to {
+    transform: rotateX(-22deg) rotateY(-24deg) scale(1);
+  }
+}
+
+@keyframes guide-spin {
+  from {
+    transform: rotateX(-22deg) rotateY(-24deg);
+  }
+  to {
+    transform: rotateX(-22deg) rotateY(336deg);
+  }
+}
+
+@keyframes guide-orbit-a {
+  from {
+    transform: rotateX(72deg) rotateZ(40deg);
+  }
+  to {
+    transform: rotateX(72deg) rotateZ(400deg);
+  }
+}
+
+@keyframes guide-orbit-b {
+  from {
+    transform: rotateZ(-30deg) rotateX(66deg) rotateZ(220deg);
+  }
+  to {
+    transform: rotateZ(-30deg) rotateX(66deg) rotateZ(-140deg);
+  }
+}
+
+@keyframes guide-signal {
+  from {
+    opacity: 0.9;
+    transform: scale(0.7);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes guide-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -45,7 +45,46 @@ const SCANNED_SOURCES = [
   "components/scene/SceneStage.tsx",
   "components/scene/art/HeroCoreArt.tsx",
   "components/scene/art/ServiceArt.tsx",
+  "components/hud/guide/GuideAssistant.tsx",
 ];
+
+/**
+ * The HUD chrome's CSS Modules (critique R13/§4: the guide now, the rail and the OS layer
+ * later). The guide's is named so a rename cannot silently drop it from the scan.
+ */
+const HUD_STYLES = ["components/hud/guide/GuideAssistant.module.css"];
+
+/**
+ * Round boxes of dot size in a CSS Module: a rule whose `border-radius` is `50%` or
+ * `var(--r-pill)` (999px) and whose width or height is ≤ 8px. A size given as `var(--x)` is
+ * resolved against the `--x: Npx` declarations in the same file (its smallest value), so a
+ * token-sized ring cannot dodge the rule. Comments are stripped first.
+ */
+function cssDots(css: string): string[] {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const tokens = new Map<string, number>();
+  for (const m of clean.matchAll(/(--[\w-]+)\s*:\s*([\d.]+)px\s*[;}]/g)) {
+    const value = Number(m[2]);
+    tokens.set(m[1], Math.min(tokens.get(m[1]) ?? Infinity, value));
+  }
+  const sizeOf = (raw: string): number | null => {
+    const value = raw.trim();
+    const px = value.match(/^([\d.]+)px$/);
+    if (px) return Number(px[1]);
+    const token = value.match(/^var\((--[\w-]+)\)$/);
+    return token && tokens.has(token[1]) ? tokens.get(token[1])! : null;
+  };
+  const hits: string[] = [];
+  for (const rule of clean.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const body = rule[2];
+    if (!/border-radius\s*:\s*(?:50%|var\(--r-pill\))\s*(?:;|$)/m.test(body)) continue;
+    for (const size of body.matchAll(/(?:^|[;\s])(width|height|inline-size|block-size)\s*:\s*([^;]+)/g)) {
+      const px = sizeOf(size[2]);
+      if (px !== null && px <= 8) hits.push(`${rule[1].trim()} { ${size[1]}: ${size[2].trim()} }`);
+    }
+  }
+  return hits;
+}
 
 /** The art's CSS Modules, whichever exist yet. */
 const ART_STYLES = existsSync(resolve(ROOT, "components/scene/art"))
@@ -105,9 +144,41 @@ describe("decorative dots — source", () => {
   });
 
   it("finds the files it scans", () => {
-    for (const file of SCANNED_SOURCES) {
+    for (const file of [...SCANNED_SOURCES, ...HUD_STYLES]) {
       expect(existsSync(resolve(ROOT, file)), file).toBe(true);
     }
+  });
+
+  it("pins the CSS Module dot detector on fixtures", () => {
+    expect(cssDots(".a { width: 6px; height: 6px; border-radius: 50%; }")).toEqual([
+      ".a { width: 6px }",
+      ".a { height: 6px }",
+    ]);
+    expect(cssDots(".a { border-radius: var(--r-pill); height: 8px; width: 40px }")).toEqual([".a { height: 8px }"]);
+    expect(cssDots(".s { --dot: 4px; } .a { width: var(--dot); border-radius: 50% }")).toEqual([
+      ".a { width: var(--dot) }",
+    ]);
+    // A token-sized ring above 8px, a square, a pill-shaped bar wider AND taller than 8px, a
+    // commented-out dot: not dots.
+    expect(cssDots(".s { --orbit: 38px; } .a { width: var(--orbit); height: var(--orbit); border-radius: 50% }")).toEqual([]);
+    expect(cssDots(".a { width: 6px; height: 6px; border-radius: 2px }")).toEqual([]);
+    expect(cssDots(".a { width: 40px; height: 12px; border-radius: var(--r-pill) }")).toEqual([]);
+    expect(cssDots("/* .a { width: 6px; border-radius: 50% } */")).toEqual([]);
+  });
+
+  it("no HUD CSS Module draws a round dot, and none uses a blur", () => {
+    for (const file of HUD_STYLES) {
+      expect(cssDots(read(file)), file).toEqual([]);
+      const css = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+      // The guide sits over the live WebGL canvas: a filter would flatten its preserve-3d cube.
+      expect(css, file).not.toMatch(/backdrop-filter|(?:^|[;\s{])filter\s*:/);
+    }
+  });
+
+  it("the guide's close icon has square caps, not lucide's round default", () => {
+    const src = read("components/hud/guide/GuideAssistant.tsx");
+    expect(src).not.toMatch(/strokeLinecap=["']round["']|stroke-linecap=["']round["']/);
+    expect(src).toMatch(/strokeLinecap="square"/);
   });
 
   it("no scanned file uses the blink animation, and the keyframe is gone", () => {

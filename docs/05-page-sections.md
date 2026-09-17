@@ -537,8 +537,9 @@ see [09 — Admin](./09-admin.md).
   `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total. Prices come from the admin;
   an unset price renders `...` (see rules doc). Arriving from a service card pre-selects
   that project type.
-- **Request context (2026-09-17, plumbing for the IT-OS HUD; no caller passes the new fields
-  yet, so nothing visible changed).** Every CTA opens the one request dialog
+- **Request context (2026-09-17, plumbing for the IT-OS HUD; since Phase 4 the Ghid TBS passes
+  `openAssistant`, `guideTopic` and the `guide` / `guide-prompt` sources — see
+  [Ghid TBS](#ghid-tbs-the-guide); the other new fields still have no caller).** Every CTA opens the one request dialog
   (`lib/request/RequestFlowProvider.tsx`) with a `RequestContext`. Besides `serviceSlug`,
   `projectId` / `projectName` and `source`, it now takes:
   - `projectType` — a catalog id (`site`, `crm`, `automation`, `ecommerce`, `mobile`) that wins
@@ -593,6 +594,72 @@ Links to `/cookies`. Nothing tracking loads before a choice — see
   actually **played**, Escape is ignored for 700ms once the banner shows — the visitor was
   pressing Escape to skip the intro, and a quick second press must not store "rejected" for six
   months on a banner they have not seen. The buttons work at once.
+
+## Ghid TBS (the guide)
+
+IT-OS Phase 4 (2026-09-17). A small holographic cube droid, **"Ghid TBS" / "Гид TBS" / "TBS
+Guide"**, in the bottom-right corner of **every site page** (home, the service pages, the legal
+pages) once the visitor has done something. It is a guide to the existing request flow, not a
+new chat: it never calls itself "AI", never answers questions itself, and promises nothing the
+estimator does not already promise. Code: `components/hud/guide/*`, `lib/hud/linger.ts`, mounted
+by `components/hud/HudChrome.tsx` ([03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17));
+look: [04](./04-design-system.md#ghid-tbs--the-guide).
+
+**When it is there.** Nothing renders — and nothing of it is downloaded — until the cookie
+question is answered, the visitor has interacted (a pointer move, tap, wheel, scroll, key or focus
+change; answering the banner counts), the intro overlay is gone and the browser has an idle slot.
+QA and the E2E suite can switch it off with `localStorage.tbs_hud = "off"`.
+
+**The avatar** is a real `<button aria-haspopup="dialog">` named "Ghid TBS: deschide asistentul
+ghidat pentru cerere". Pressing it opens the **request dialog straight on the guided chat**
+(`openAssistant`), focus inside the chat. Closing the dialog hands focus back to the avatar.
+
+**The tip.** When one topic holds the viewport's **centre line for 5s of visible time** (a hidden
+tab does not count), the droid pulses and a short tip appears above it. It takes no focus, has no
+role and no live region (an unrequested tip must not interrupt a screen reader); it describes the
+avatar (`aria-describedby`), so it is heard on the button. Buttons: **"Deschide ghidul"** (opens
+the flow, like the avatar), **"Nu mai arăta în această vizită"** (no more tips until reload) and
+**✕ "Închide sugestia"**. Escape inside the guide closes the tip; focus that was in it goes to the
+avatar.
+
+| Topic | Where | Tip (RO) |
+|-------|-------|----------|
+| `servicii` | the home page's `#servicii` | "Nu ești sigur ce direcție ți se potrivește? Ghidul pune câteva întrebări scurte și trimite echipei rezumatul." |
+| `lucrari` | the home page's `#lucrari` | "Ai în minte un proiect asemănător? Descrie-l pas cu pas — îți răspundem în cel mult o zi lucrătoare." (the same reply time `SENT_COPY` promises) |
+| `service` | a service page's "Cum lucrăm" steps (`DirectionPage`, `data-guide-topic="service"`) | "Vrei să vezi dacă direcția asta se potrivește proiectului tău? Ghidul te ajută să formulezi cererea." |
+
+**Limits** (`GUIDE_LIMITS`):
+
+- at most **2 tips per page lifetime**, each topic at most **once**, **60s** between two tips;
+  a tip closed with ✕ still counts;
+- no tip while the page is covered (the request dialog, the burger menu), the intro is on screen,
+  the banner is waiting, the visitor is typing in a field, the request flow is open, the guide is
+  away, or (from the OS phase on) the visitor is busy with a HUD window; the 5s wait simply starts over;
+- a shown tip goes when its section leaves the centre line, the flow opens, the page is covered,
+  or focus lands on something under the tip.
+
+**Memory lasts the page lifetime.** It is one module variable: it **survives client navigation**
+(home → a service page → back keeps the count and the opt-out) and resets on a reload. Nothing is
+stored — no localStorage, no sessionStorage, no cookie.
+
+**It steps aside.**
+
+- **Away:** while the home page's own request form (`#estimare`) is in view, the avatar and tip
+  fade to opacity 0, take no pointer and leave the tab order (that section *is* the guided flow).
+- **Yield:** when keyboard focus lands on something the guide overlaps, it fades until focus moves
+  on (WCAG 2.4.11).
+- The dialog, the burger menu and the intro sit above it (z 112 < 115); nothing is hidden.
+
+**What it sends.** Only what the visitor then submits in the request form, with the origin block
+the estimator already writes:
+
+- `- Serviciu: <slug>` — on a service page (a slug `lib/directions.ts` knows);
+- `- Proiect: <name> (<id>)` — only when the tip or the centre line is on `#lucrari` and the
+  project spiral has a front card (`data-helix-front`); otherwise no project;
+- `- Secțiune: servicii | lucrari | service` — the topic on the centre line when it was opened;
+- `- Sursă (CTA): guide` (the avatar) or `guide-prompt` (the tip's button).
+
+Nothing is sent when the guide merely shows or a tip is dismissed: no analytics event, no request.
 
 ## Legal pages
 

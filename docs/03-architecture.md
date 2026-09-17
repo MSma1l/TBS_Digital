@@ -28,7 +28,8 @@ so the data source can change without touching markup.
 │  ├─ twitter-image.tsx    # Generated Twitter card image
 │  ├─ (site)/              # Route group for the public site (no URL segment)
 │  │  ├─ layout.tsx        # Chrome: the intro gate (IntroPreloader, first child), ScrollProgress,
-│  │  │                    #   Navbar, Footer, CookieConsent, AnalyticsPixel (consent-gated);
+│  │  │                    #   Navbar, Footer, HudChrome (the HUD's one mount, renders nothing
+│  │  │                    #   until armed), CookieConsent, AnalyticsPixel (consent-gated);
 │  │  │                    #   imports ../tailwind.css
 │  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
 │  │  │                    #   (with the server-rendered art slots), then Principles, Team,
@@ -90,10 +91,13 @@ so the data source can change without touching markup.
 │  │  └─ art/              # static SVG art, CSS Modules, no "use client": HeroCoreArt (+ heroArt.ts)
 │  │                       #   and ServiceArt (+ serviceArtPaths.ts)
 │  ├─ fx/                  # DOM hooks: useOffscreenAttribute (data-offscreen) · usePointerTilt
-│  ├─ hud/                 # the IT-OS HUD chrome (2026-09-17 foundation): HudChrome.tsx, its one
-│  │                       #   mount, NOT mounted yet — gate (tbs_hud ≠ off → consent → first
-│  │                       #   interaction → intro gone → idle), then its lazy parts in one commit;
-│  │                       #   the parts list is empty. lucide-react may be imported only here
+│  ├─ hud/                 # the IT-OS HUD chrome: HudChrome.tsx, its one mount (in the (site)
+│  │  │                    #   layout since Phase 4) — gate (tbs_hud ≠ off → consent → first
+│  │  │                    #   interaction → intro gone → idle), then its lazy parts in one commit.
+│  │  │                    #   CSS Modules only; lucide-react may be imported only here
+│  │  └─ guide/            # Ghid TBS (Phase 4, a next/dynamic part): GuideAssistant.tsx (avatar,
+│  │                       #   tip, centre-line observer, away/yield) + .module.css, copy.ts
+│  │                       #   (GUIDE_COPY as { ro, ru, en } objects; no directive, e2e imports it)
 │  ├─ layout/              # Navbar (Tailwind) · HeaderClock (Tailwind) · Footer
 │  ├─ sections/
 │  │  ├─ Hero.tsx          # hero (Tailwind) — HUD backdrop, the core's anchor, h1, neon CTA,
@@ -138,7 +142,8 @@ so the data source can change without touching markup.
 │  │                       #   gate.ts (tbs_hud QA key, arming events, desktop media; import-free,
 │  │                       #   playwright.config.ts imports it) · busy.ts (the "busy with the HUD"
 │  │                       #   store) · obscure.ts (covers / overlaps, focus-not-obscured guards) ·
-│  │                       #   topics.ts (the guide's topic ids)
+│  │                       #   topics.ts (the guide's topic ids) · linger.ts (Phase 4: the guide's
+│  │                       #   limits, memory store, canPrompt / pickTopic / isTypingTarget; pure)
 │  ├─ request/             # RequestFlowProvider.tsx (the one request dialog; RequestContext,
 │  │                       #   RequestSource, RequestAttachment) · catalog.ts (the estimator's
 │  │                       #   project types and options with stable ids, SERVICE_FOR_TYPE) ·
@@ -587,6 +592,58 @@ them in every HTML response; now only the drawing of the direction the section o
 there. `Directions` loads `ServiceArt` with `next/dynamic` (`ssr: false`) the first time another
 direction is selected, and `serviceArtPaths.ts` builds that direction's path table on first use.
 A bare render without the slot (unit tests) draws no illustration at all.
+
+## The HUD chrome (IT-OS Phase 4, 2026-09-17)
+
+The IT-OS HUD — the Ghid TBS guide now; the fibre rail and the OS layer in later phases — has
+**one mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between
+`<Footer />` and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget and
+"the intro's skip is the first Tab stop" both hold. Behaviour and limits are in
+[05 — Page Sections](./05-page-sections.md#ghid-tbs-the-guide); the visual contract in
+[04](./04-design-system.md#ghid-tbs--the-guide).
+
+### Arming order
+
+`HudChrome` renders nothing on the server and nothing on the client until every step has held,
+**in this order** (`whenHudArmed`):
+
+1. `readHudFlag() !== "off"` (`lib/hud/gate.ts`; `localStorage.tbs_hud`, QA and E2E only) —
+   otherwise it never listens to anything;
+2. the cookie banner is answered (`getConsent()`); an unanswered banner waits for
+   `CONSENT_EVENT`, and that answer **is** the interaction, so step 3 is skipped;
+3. the visitor's first `HUD_ARM_EVENTS` event on `window` (`pointermove`, `pointerdown`, `wheel`,
+   `scroll`, `keydown`, `touchstart`, `focusin`; passive, capture; removed the moment one fires);
+4. the intro overlay is gone (`onIntroGone`);
+5. an idle slot (`afterIdle(0)`).
+
+Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk.
+Phase 4's only part is `GuideAssistant` (`components/hud/guide/GuideAssistant.tsx`). A visitor who
+never interacts, never answers the banner, or carries `tbs_hud=off` downloads no part: the page
+bundle carries only `HudChrome` itself (+473 B gzip on `/`; +675 B on a service page, which did not
+already load `lib/idle` and `lib/intro`), and the guide's JS (5.9 KB gzip, with its copy, the linger
+engine, lucide's `X` and a copy of `lib/directions.ts`) and CSS Module (2.3 KB) arrive as late chunks
+after arming (the B1h / B5h / B6h rows in `CHANGELOG.md`).
+
+### The guide's wiring
+
+`GuideAssistant` renders nothing while the banner is unanswered or `isIntroOnScreen()`
+(`useSyncExternalStore` over `CONSENT_EVENT` and `INTRO_GONE_EVENT`), so it is correct on its own
+too. Inside it:
+
+| Piece | What it does |
+|-------|--------------|
+| Centre-line observer | One `IntersectionObserver` with `rootMargin: "-50% 0px -50% 0px"` (a zero-height root on the viewport's middle) over `#servicii`, `#lucrari` and every `[data-guide-topic]` whose value `isGuideTopic` accepts. `pickTopic` (`lib/hud/linger.ts`) resolves nested hits to the deepest element, ties to the first in collection order. Re-created on every pathname. |
+| Linger timer | `visibleTimeout(GUIDE_LIMITS.lingerMs)` re-armed whenever the centre topic changes. When it fires, `canPrompt(memory, topic, performance.now(), blockers)` decides; blocked for now → it waits again, until `isFinal`. |
+| Blockers | `covered` (`isPageCovered()`), `intro` (`isIntroOnScreen()`), `banner` (`getConsent() === null`), `typing` (`isTypingTarget(document.activeElement)`), `requestOpen` (`useRequestFlow().isOpen`), `away`, `busy` (`isHudBusy()`). |
+| Memory | ONE module-level `createGuideMemoryStore()`: survives client navigation (the chunk stays loaded, the layout is not re-rendered), resets on reload. No storage, no cookie. |
+| Away observer | A second observer (threshold 0) on `[data-testid="request-flow"][data-layout="section"]` (the home page's `#estimare`): while it intersects, `data-away` on the root and `tabIndex -1` on the guide's buttons. |
+| Cover | `subscribePageCover`: the dialog or the burger covering the page clears a shown tip; nothing is hidden (the z-order covers the guide). |
+| Yield | A document `focusin` listener: focus on an element the avatar or tip overlaps (`overlaps`, `lib/hud/obscure.ts`) and not inside the guide sets `data-yield`; focus under the tip also clears the tip. |
+| Opening | `openRequest({ source: "guide" \| "guide-prompt", openAssistant: true, guideTopic?, serviceSlug?, projectId?, projectName?, returnFocusTo: avatar })`. `serviceSlug` from `usePathname()` (`/servicii/<slug>`, with or without `/ru` · `/en`) only when `lib/directions.ts` knows it; the project only for the `lucrari` topic, from `#lucrari [data-helix-front]`'s index among `#lucrari a, #lucrari article` into `useSiteContent().projects`. |
+
+The tip and the away state are tied to the pathname they were set on, so a client navigation
+clears them without an effect. The estimator (`Estimator.tsx`) honours `openAssistant` (the
+dialog opens on the chat, focus inside it) and writes the origin block the lead carries.
 
 ## Styling layers
 

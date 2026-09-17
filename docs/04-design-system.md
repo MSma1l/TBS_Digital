@@ -514,11 +514,11 @@ onto tokens that already existed, and the new tokens follow the same rules as th
 file (a graphic tone and a text tone, dark twins remapped in one place, always-dark islands never
 remapped).
 
-> **Status (2026-09-17): tokens only.** The tokens below are in `app/globals.css` and
-> `app/tailwind.css`, and nothing uses them yet. Built from the same commit with and without
-> them, the home page renders byte-identical screenshots (1280 and 390px, both themes, five scroll
-> positions; static-art renderer, animations frozen, clock masked), and the Tailwind CSS chunk
-> does not change. The parts they are for land later; the rules in this section are the
+> **Status (2026-09-17): the Ghid TBS guide is the first part built on them (IT-OS Phase 4,
+> [below](#ghid-tbs--the-guide)).** The tokens are in `app/globals.css` and `app/tailwind.css`;
+> when they landed alone, the home page rendered byte-identical screenshots with and without them
+> (1280 and 390px, both themes, five scroll positions) and the Tailwind CSS chunk did not change.
+> The rail, the OS layer and the Command Center land later; the rules in this section are the
 > contract those parts are built to.
 
 ### Palette mapping
@@ -728,6 +728,89 @@ then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
 - **Footer on phones:** the footer gains `--hud-dock-h` + 2 × `--hud-edge` of bottom padding
   while the dock exists, so its last link stays tappable.
 
+### Ghid TBS — the guide
+
+The first HUD part (IT-OS Phase 4, 2026-09-17): `components/hud/guide/GuideAssistant.tsx` and its
+CSS Module, loaded by `HudChrome` after arming. Behaviour is in
+[05](./05-page-sections.md#ghid-tbs-the-guide).
+
+**The droid.** A small CSS-3D holographic cube in a light beam, drawn entirely with CSS (no image,
+no canvas, no icon font), inside the avatar button:
+
+- **Frame:** the button is `--glass-bg-solid` composited over `--bg` (opaque, see the tip) with a
+  1px `--neon-cyan` edge at 45% (full
+  `--neon-cyan` plus `--neon-cyan-ring` on hover, focus and while a tip shows), `--r-sm`, `--sh-md`,
+  and two 10px L-shaped corner brackets (8px below 861px), square ends.
+- **Cube:** six translucent faces (`--neon-cyan` 12%, the front 22%; 1px scanlines every 3px;
+  an inset `--glow-cyan`), `preserve-3d` under `perspective: 320px`, resting in a three-quarter
+  pose from slightly above (`rotateX(-22deg) rotateY(-24deg)`). 18px, 24px from 861px.
+- **Visor:** a 3px lit bar across the front face — a bar, not an eye.
+- **Beam:** a cone of `--neon-cyan` 34% widening up from a 2px emitter bar.
+- **Orbits:** two rings (`border-radius: 50%`, 38 / 46px, 46 / 56px from 861px — never under 38px)
+  in `--neon-cyan` at 55% and 35%, each carrying a 10×2px packet streak.
+- **Signal:** a square outline that is only drawn during the prompt pulse.
+- **Caption:** "GHID TBS" / "ГИД TBS" / "TBS GUIDE" in the mono stack, bold, uppercase,
+  `--cyan-text` on solid glass: hidden up to 640px, 9px (`--fs-2xs`, tracking .04em) from 641 to
+  860px, 11px (`--fs-xs`, .08em) from 861px. The button's accessible name starts with the same words.
+
+**The tip.** `--glass-bg-solid` **composited over `--bg`** (`background-color: var(--bg)` under a
+one-colour gradient of the glass), a 1px `--neon-cyan` border, `--r-md`, `--sh-lg` +
+`--neon-cyan-ring`. The glass alone is 94% opaque, and in the app the text of a Directions case
+card or a project card under the tip ghosted through its sentence (clearly readable in the light
+theme, where that card is an ink block); over `--bg` it looks the same on the plain page and shows
+nothing through. Its contents:
+
+- a kicker (the caption's words, `--cyan-text`, 11px mono, a 16×2px cyan streak before it);
+- the sentence (`--fs-md`, body font, `--txt`);
+- "Deschide ghidul" — the one red action (`--grad-red-cta`, `--on-accent`, `--neon-red`), ≥44px;
+- "Nu mai arăta în această vizită" — outlined `--line2`, `--mut` text, ≥44px;
+- a 44×44 ✕ (lucide `X`, `strokeWidth 1.75`, square caps and miter joins) in the top-right corner.
+- Scrolls inside itself (`max-height` = the viewport under the header, minus its offset) rather
+  than growing past the header.
+
+**Placement** (critique R2; the root box IS the avatar box, so `[data-guide]` measures what a
+visitor sees):
+
+| Width | Avatar box | Tip |
+|-------|-----------|-----|
+| ≤640px | 52×52 at `right/bottom: max(var(--hud-edge), env(safe-area-inset-*))` | `bottom: 72px` (12 + 60), `width: min(320px, 100vw - 24px)`, right edge as the avatar's |
+| 641–860px | 64×72, same corner | `bottom: 92px` — 8px above the taller 72px avatar (R2 says 72, which would overlap it) |
+| ≥861px | 88×88 at `right: 20px; bottom: 20px` | `right: calc(var(--hud-rail-w) + 8px); bottom: 116px` |
+
+Both sit at `--z-guide` (112), under the burger overlay, the request dialog and the intro, which
+cover them with no hide logic.
+
+**States** (attributes on the `[data-hud][data-guide]` root):
+
+| Attribute | Look |
+|-----------|------|
+| `data-state="enter"` (0.7s after mount) | the entrance |
+| `data-state="idle"` | at rest, static |
+| `data-state="prompt"` | a tip is shown: the frame lit, the pulse |
+| `data-away` | avatar and tip at opacity 0, `pointer-events: none`, `translate: 0 8px`; buttons `tabIndex -1` |
+| `data-yield` | the same fade, while focus sits under the guide |
+
+**Motion rules** (WCAG 2.2.2; transform and opacity only; keyframes in the module):
+
+- Every animation and transition is declared inside `@media (prefers-reduced-motion:
+  no-preference)`. Under reduce the droid is still, and the tip still appears.
+- **Entrance:** 0.7s — the button rises and fades in (`translateY(12px) scale(.92)` → rest) while the
+  cube turns 180° into its pose.
+- **Prompt pulse:** 3 × 1.4s — both orbits turn once per beat and the square signal wave expands
+  and fades; then rest. The tip itself fades up in 0.25s.
+- **Hover:** the cube spins (2.4s a turn) and the orbits turn only while a pointer is on it, and
+  only under `(hover: hover)`, so a tap never leaves it spinning.
+- No `animation-fill-mode` on the tip or avatar: a filled end value would outrank the away/yield
+  opacity.
+- Never `backdrop-filter` or `filter` anywhere in the guide: it sits over the live WebGL canvas,
+  and a blurred ancestor flattens `preserve-3d`.
+
+**Contrast.** P4-B measured the tip on the worst glass pixel: the kicker `--cyan-text` 4.69 light /
+8.92 dark; the tip text 15.60 / 13.07; "Nu mai arăta" `--mut` 4.98 / 7.01; white on the red CTA
+4.72 / 6.88. Composited over `--bg` the backdrop is fixed, so the values are the "over `--bg`"
+column of the glass table above (`--txt` 17.75 / 15.68, `--mut` 5.67 / 8.41, `--cyan-text` 5.34 /
+10.70). The droid's cyan strokes clear 3:1 in both themes.
+
 ### Tailwind names
 
 | Utility name | Token |
@@ -744,8 +827,8 @@ then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
   and without these keys.
 - `--glow-cyan` has no Tailwind name. Use it in an arbitrary value:
   `shadow-[0_0_8px_var(--glow-cyan)]`.
-- The HUD parts themselves are planned as CSS Modules, in lazy chunks and outside `@source`, so
-  these names serve the Tailwind files (the first screen and the interior stage).
+- The HUD parts themselves are CSS Modules (the guide's is), in lazy chunks and outside
+  `@source`, so these names serve the Tailwind files (the first screen and the interior stage).
 
 ## Typography
 

@@ -6,6 +6,7 @@ import { INTRO_COOKIE, INTRO_OVERLAY_ID, shouldPlayIntro } from "@/lib/intro";
 import { IntroPreloader } from "@/components/intro/IntroPreloader";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { HudChrome } from "@/components/hud/HudChrome";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import { AnalyticsPixel } from "@/components/ui/AnalyticsPixel";
@@ -47,6 +48,11 @@ export default async function SiteLayout({
       <Navbar />
       {children}
       <Footer />
+      {/* The HUD chrome (components/hud/HudChrome.tsx): the Ghid TBS guide, and later the rail
+          and the OS layer. Nothing is server-rendered; its parts load only after an answered
+          cookie banner, the visitor's first interaction, the intro gone and an idle slot. After
+          the footer in the DOM, so its tab stops come after the page's own. */}
+      <HudChrome />
       {/* GDPR / Legea 133 consent bar — shown until the visitor chooses. It records the
           choice (localStorage + cookie) and broadcasts it to the pixel below. */}
       <CookieConsent />
