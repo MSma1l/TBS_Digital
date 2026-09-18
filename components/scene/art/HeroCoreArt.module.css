@@ -1,7 +1,7 @@
 /* HeroCoreArt — the hero's static microprocessor (components/scene/art/HeroCoreArt.tsx).
 
    A CSS Module, not utilities: the art is a server component outside Tailwind's @source.
-   Colours are tokens only, so both themes follow data-theme; strokes keep their CSS width at
+   Colours are tokens only; strokes keep their CSS width at
    any size and through the chip's projection matrix (non-scaling-stroke). Static by rule (D4):
    no infinite animation, nothing on stroke-dashoffset or filter. The only motion is one-shot,
    transform and opacity, while the stage carries data-boost (a hero CTA hovered or focused). */
@@ -125,24 +125,6 @@
   stroke: var(--cyan);
   stroke-width: 2px;
   opacity: 0;
-}
-
-/* ---- light theme: ink on paper, so every tint is fainter ------------------------------------- */
-
-:global(:root[data-theme="light"]) .glowCore {
-  stop-opacity: 0.18;
-}
-:global(:root[data-theme="light"]) .glowBody {
-  stop-opacity: 0.06;
-}
-:global(:root[data-theme="light"]) .dieDeep {
-  stop-opacity: 0.35;
-}
-:global(:root[data-theme="light"]) .dieLit {
-  stop-opacity: 0.6;
-}
-:global(:root[data-theme="light"]) .halo {
-  stroke-opacity: 0.16;
 }
 
 /* ---- the boost (one shot per hover or focus) ---------------------------------------------------

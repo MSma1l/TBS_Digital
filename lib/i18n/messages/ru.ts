@@ -207,11 +207,6 @@ export const ru: Record<MessageKey, string> = {
   "nav.primaryAria": "Основная",
   "header.sysTime": "SYS_TIME",
 
-  // --- Theme toggle ---
-  "theme.toggleAria": "Тёмная тема",
-  "theme.switchToDark": "Переключить на тёмную тему",
-  "theme.switchToLight": "Переключить на светлую тему",
-
   // --- Footer ---
   "footer.partnersLabel": "НАШИ БИЗНЕС-ПАРТНЁРЫ",
   "footer.brandText":

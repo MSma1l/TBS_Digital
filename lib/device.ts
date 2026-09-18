@@ -23,6 +23,9 @@ export type DeviceProfile = {
 
 type NavigatorExtras = Navigator & { deviceMemory?: number };
 
+/** The media query that says the visitor asked for less movement — and less feedback. */
+export const PREFERS_REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
 /** `matchMedia(query).matches`, and `false` wherever there is no `matchMedia` (the server, old engines). */
 export function mediaMatches(query: string): boolean {
   return (

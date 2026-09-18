@@ -71,11 +71,12 @@
    32.5px wide, so RO/RU/EN were 32.5 x 44 — still under target on the axis a thumb is
    least precise about.
 
-   400px is not a taste breakpoint, it is the measured floor. The bar carries the wordmark,
-   three language buttons, the theme toggle, the sound toggle and the burger; with 44px
-   options the row needs 397px, so it first fits at 398. Below that the row overflows and
-   the whole page scrolls sideways — measured 397 wide on a 390px viewport, 362 on a 361px
-   one. This is why the ≤360px compact control exists at all.
+   400px is not a taste breakpoint, it is the measured floor. It was measured when the bar
+   still carried a theme and a sound toggle beside the wordmark, the three language buttons
+   and the burger: with 44px options the row needed 397px, so it first fit at 398, and below
+   that the whole page scrolled sideways. This is why the ≤360px compact control exists at
+   all. The two toggles are gone and the row has slack again, but the breakpoints are left
+   where they were signed off — changing one changes a layout someone approved.
 
    361–399px is therefore still 32.5px wide, and CSS cannot fix it: the segmented control
    simply does not fit there. The fix is to raise COMPACT_MAX_WIDTH in LanguageSwitcher.tsx
@@ -92,8 +93,8 @@
    The compact control (≤360px)
 
    One 44×44 button carrying the active language, opening a popup with the three choices.
-   Below 360px the header cannot hold three separate 44px language buttons *and* the theme
-   toggle, the sound toggle and the burger — see the component's header comment.
+   Below 360px the header could not hold three separate 44px language buttons alongside the
+   rest of the bar — see the component's header comment.
    ========================================================================== */
 
 .compact {
@@ -104,8 +105,8 @@
   align-items: stretch;
 }
 
-/* The trigger is the theme/sound toggles' twin: same border, same --panel2 track, same
-   square corners, so the three read as one strip in the header. */
+/* The trigger keeps the header's control language: same border, same --panel2 track, same
+   square corners, so the bar reads as one strip. */
 .trigger {
   display: inline-flex;
   align-items: center;

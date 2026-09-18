@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LOCALE_LABELS } from "@/lib/i18n/locales";
-import type { Theme } from "@/lib/theme/theme";
 import {
   HUD_ON,
   armHud,
@@ -22,8 +21,6 @@ import {
   railRoot,
   scrollToY,
   seedConsent,
-  seedTheme,
-  themeToggle,
   threeLoaded,
   trackWebGLContexts,
   watchCsp,
@@ -91,7 +88,7 @@ test.describe("HUD integration", () => {
   test.describe("on a 390×844 touch phone", () => {
     test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-    test("HI1 taps still land on the hero CTAs, the theme toggle and the services nav @smoke", async ({ page }) => {
+    test("HI1 taps still land on the hero CTAs and the services nav @smoke", async ({ page }) => {
       await gotoHydrated(page, "/");
       await armHud(page);
       await expect(guideAvatar(page)).toBeVisible();
@@ -99,14 +96,6 @@ test.describe("HUD integration", () => {
       expect(await hits(page, "#top button")).toEqual({ lands: true, guide: false });
       expect(await hits(page, '#top a[href="#servicii"]')).toEqual({ lands: true, guide: false });
       await scrollToY(page, 0);
-      const toggle = themeToggle(page);
-      const tbox = (await toggle.boundingBox())!;
-      expect(
-        await page.evaluate(
-          ({ x, y }) => !!document.elementFromPoint(x, y)?.closest("header button"),
-          { x: tbox.x + tbox.width / 2, y: tbox.y + tbox.height / 2 },
-        ),
-      ).toBe(true);
       expect(await hits(page, "#servicii nav a:nth-child(3)")).toEqual({ lands: true, guide: false });
     });
 
@@ -234,25 +223,22 @@ test.describe("HUD integration — the cookie banner", () => {
   });
 });
 
-for (const theme of ["light", "dark"] as const satisfies readonly Theme[]) {
-  for (const width of [320, 390, 768, 1280]) {
-    test.describe(`HUD integration — ${width}px, ${theme}`, () => {
-      test.use({ viewport: { width, height: width >= 1280 ? 800 : width >= 768 ? 1024 : 844 } });
+for (const width of [320, 390, 768, 1280]) {
+  test.describe(`HUD integration — ${width}px`, () => {
+    test.use({ viewport: { width, height: width >= 1280 ? 800 : width >= 768 ? 1024 : 844 } });
 
-      test(`HI4 no sideways scroll with the HUD armed (${width}, ${theme})`, async ({ page, context, baseURL }) => {
-        await seedConsent(context, baseURL!);
-        await seedTheme(context, theme, baseURL!);
-        await gotoHydrated(page, "/");
-        await armHud(page);
-        await expect(guideAvatar(page)).toBeVisible();
-        await expectNoHorizontalScroll(page);
-        const box = (await guideRoot(page).boundingBox())!;
-        expect(box.x + box.width).toBeLessThanOrEqual(width);
-        await scrollToY(page, 1e6);
-        await expectNoHorizontalScroll(page);
-      });
+    test(`HI4 no sideways scroll with the HUD armed (${width})`, async ({ page, context, baseURL }) => {
+      await seedConsent(context, baseURL!);
+      await gotoHydrated(page, "/");
+      await armHud(page);
+      await expect(guideAvatar(page)).toBeVisible();
+      await expectNoHorizontalScroll(page);
+      const box = (await guideRoot(page).boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      await scrollToY(page, 1e6);
+      await expectNoHorizontalScroll(page);
     });
-  }
+  });
 }
 
 /** Two boxes overlap when they share any area (touching edges do not count). */

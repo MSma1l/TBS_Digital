@@ -13,7 +13,6 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { INTRO_REVEAL_ATTR, INTRO_TIMING, type IntroRevealTarget } from "@/lib/intro";
-import { useSound } from "@/lib/sound";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import type { IntroCapability } from "./capability";
 import { createIntroFx } from "./fx";
@@ -155,18 +154,17 @@ export function IntroDirector({
   onDone,
 }: IntroDirectorProps) {
   const t = useT();
-  const { play } = useSound();
 
   const [fx] = useState(createIntroFx);
   const [scene, setScene] = useState<SceneState>(() => (capability.webgl ? "loading" : "off"));
   const hidden = useSyncExternalStore(subscribeVisibility, isTabHidden, isTabHiddenOnServer);
 
   const sceneHooks = useRef<SceneHooks | null>(null);
-  // The timeline outlives the render that created it; read the latest t/play when it fires.
-  const latest = useRef({ t, play });
+  // The timeline outlives the render that created it; read the latest `t` when it fires.
+  const latest = useRef({ t });
   useEffect(() => {
-    latest.current = { t, play };
-  }, [t, play]);
+    latest.current = { t };
+  }, [t]);
 
   const onSceneReady = useCallback(() => sceneHooks.current?.ready(), []);
   const onSceneFailed = useCallback(() => sceneHooks.current?.failed(), []);
@@ -342,8 +340,6 @@ export function IntroDirector({
         label.textContent = latest.current.t("intro.complete");
         label.setAttribute("data-complete", "");
         for (const tick of ticks) tick.setAttribute("data-lit", "");
-        // Silent unless sound is on AND the visitor already interacted (a skip counts).
-        latest.current.play("confirm");
       };
 
       const reveal = () => {

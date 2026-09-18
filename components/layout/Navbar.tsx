@@ -346,10 +346,10 @@ export function Navbar() {
           </nav>
 
           {/* The right-hand end of the bar, on EVERY screen size: global preferences
-              (language, theme, sound), then the red CTA, then the burger. Only the CTA and
+              (the language switcher), then the red CTA, then the burger. Only the CTA and
               the burger swap in and out at 860px — the preferences group never does, which
-              is what keeps the theme toggle visible on a phone instead of buried in the
-              hamburger menu. Keeping the CTA as the group's next sibling also preserves
+              is what keeps the language switcher visible on a phone instead of buried in
+              the hamburger menu. Keeping the CTA as the group's next sibling also preserves
               the "preferences, then call to action" reading order everywhere. */}
           <div className="flex items-center gap-5 max-md:gap-3 max-[381px]:gap-2">
             <PreferencesGroup />
@@ -367,8 +367,7 @@ export function Navbar() {
 
             {/* The label stays `nav.burgerAria` while open (tests find the burger by it, and
                 the overlay's own "×" is the one named `nav.closeAria`). Open, it wears the red
-                neon, and a cyan ring on a red glow is under 3:1 in the light theme — so its
-                ring turns --txt then, exactly like `cta-neon`'s. */}
+                neon, and its focus ring turns --txt, exactly like `cta-neon`'s. */}
             <button
               type="button"
               ref={burgerRef}
@@ -449,9 +448,9 @@ export function Navbar() {
               </div>
             ))}
 
-            {/* No preferences group here on purpose: language, theme and sound live in the bar
-                above, which stays visible over the menu — repeating them would put the same
-                controls on screen twice. The menu is navigation only. */}
+            {/* No preferences group here on purpose: the language switcher lives in the bar
+                above, which stays visible over the menu — repeating it would put the same
+                control on screen twice. The menu is navigation only. */}
             <button
               type="button"
               onClick={openFromMenu}

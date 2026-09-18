@@ -17,8 +17,6 @@ import { Work } from "@/components/sections/Work";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { SiteContentProvider } from "@/lib/siteContent";
-import { SoundProvider } from "@/lib/sound";
-import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 
 /*
  * No decorative dots (the interior redesign's first decision): the SYS_TIME pip, the eyebrow
@@ -257,25 +255,21 @@ beforeEach(() => {
 
 function renderHome(locale: "ro" | "ru" | "en") {
   return render(
-    <ThemeProvider>
-      <SoundProvider>
-        <LanguageProvider initialLocale={locale}>
-          <SiteContentProvider>
-            <RequestFlowProvider>
-              <Navbar />
-              <main>
-                <SceneStage>
-                  <Hero />
-                  <Ticker />
-                  <Directions />
-                </SceneStage>
-                <Work />
-              </main>
-            </RequestFlowProvider>
-          </SiteContentProvider>
-        </LanguageProvider>
-      </SoundProvider>
-    </ThemeProvider>,
+    <LanguageProvider initialLocale={locale}>
+      <SiteContentProvider>
+        <RequestFlowProvider>
+          <Navbar />
+          <main>
+            <SceneStage>
+              <Hero />
+              <Ticker />
+              <Directions />
+            </SceneStage>
+            <Work />
+          </main>
+        </RequestFlowProvider>
+      </SiteContentProvider>
+    </LanguageProvider>,
   );
 }
 

@@ -220,9 +220,9 @@
    The resting outline is transparent, so nothing shows — except in forced colours (Windows
    High Contrast), which drop the gradient and the glow and paint the outline instead: the
    button keeps a visible boundary. The focus ring is --txt, not the site's usual cyan: the
-   ring lands on the red glow on both sides, and cyan there measured 1.2–2.5:1 in the light
-   theme. --txt, rendered on the hero, header, cookie and open-burger neon: ≥6.4:1 against
-   the gap and the glow around it in the light theme, ≥6.7:1 in the dark one. */
+   ring lands on the red glow on both sides, where cyan measured too low to carry meaning.
+   --txt, rendered on the hero, header, cookie and open-burger neon: ≥6.7:1 against the gap
+   and the glow around it. */
 @utility cta-neon {
   border: 0;
   outline: 1px solid transparent;
@@ -363,9 +363,9 @@
    the copy but never catching the pointer. The column clips it only while it plays (`clip`
    makes no scroll container, so the layout never moves). The band's strength is the
    keyframes' opacity, not a colour mix, so no engine ever gets an opaque band over the text:
-   .12 at most, which keeps every line of the copy at 4.5:1 or more under the band's centre in
-   both themes, for all five accents (the light theme's red tag is the tightest, 4.61; .16 would
-   take it to 4.38). Transform and opacity only. */
+   .12 at most, which keeps every line of the copy at 4.5:1 or more under the band's centre,
+   for all five accents (.16 would take the tightest of them to 4.38). Transform and opacity
+   only. */
 @utility entry-sweep {
   &::after {
     content: "";

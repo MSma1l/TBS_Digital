@@ -26,25 +26,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
-/* Interface sound is stubbed so the "click feedback" the CTAs now ask for is observable:
-   jsdom has no Web Audio, so the real `play()` would correctly return false and prove
-   nothing. Everything else in `@/lib/sound` stays real. */
-const { play } = vi.hoisted(() => ({ play: vi.fn(() => true) }));
-vi.mock("@/lib/sound", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/sound")>();
-  return {
-    ...actual,
-    useSound: () => ({
-      enabled: false,
-      reducedMotion: false,
-      play,
-      setEnabled: () => {},
-      toggle: () => false,
-      isSupported: () => false,
-    }),
-  };
-});
-
 vi.mock("@/lib/api", () => ({
   submitContact: vi.fn(),
   isNetworkError: vi.fn(() => false),
@@ -178,7 +159,6 @@ function sentMessage(): string {
 }
 
 beforeEach(() => {
-  play.mockClear();
   vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
   vi.mocked(api.submitContact).mockResolvedValue(undefined);
 });
@@ -246,16 +226,6 @@ describe("every commercial CTA opens the one request flow", () => {
     expect(bottom).toHaveAttribute("aria-modal", "true");
   });
 
-  it("gives the press a click sound — from the one shared handler, not per button", async () => {
-    const user = userEvent.setup();
-    renderHome();
-
-    await openFrom(user, CTA.hero);
-    // `play()` is a no-op while sound is off (the default) and before a gesture — the
-    // provider calls it unconditionally and lets `lib/sound` keep those promises.
-    expect(play).toHaveBeenCalledWith("tap");
-    expect(play).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("a CTA that opens a dialog is a button, and keeps no anchor", () => {
@@ -674,7 +644,6 @@ describe("the estimator's own buttons never open a dialog", () => {
     await user.click(screen.getByRole("button", { name: /Trimite cererea/ })); // submit
 
     expect(dialogs()).toHaveLength(0);
-    expect(play).not.toHaveBeenCalled();
     // The chip really did what it has always done — the estimate followed the CRM type.
     expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
     // An invalid form still doesn't reach the network; the submit button is unchanged.

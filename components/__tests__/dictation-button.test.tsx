@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { DictationButton } from "@/components/ui/DictationButton";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import type { Locale } from "@/lib/i18n/locales";
-import { resetAudioForTests, resetSoundStateForTests } from "@/lib/sound";
 
 /**
  * Dictation is the one control on the site that can open a microphone, so its tests are
@@ -126,8 +125,6 @@ const startButton = () => screen.getByRole("button", { name: RO_START });
 
 beforeEach(() => {
   FakeRecognition.instances = [];
-  resetSoundStateForTests();
-  resetAudioForTests();
   installSpeechRecognition();
   removeMicrophone();
 });

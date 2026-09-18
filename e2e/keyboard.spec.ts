@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LOCALE_LABELS } from "@/lib/i18n/locales";
-import { messages } from "@/lib/i18n/messages";
-import { gotoHydrated, languageGroup, languageOption, themeToggle } from "./helpers";
+import { gotoHydrated, languageGroup, languageOption } from "./helpers";
 
 /*
  * Keyboard access to the header preferences.
@@ -40,7 +39,7 @@ async function hasVisibleFocusRing(page: Page): Promise<boolean> {
 }
 
 test.describe("keyboard", () => {
-  test("Tab reaches the language options and the theme toggle @smoke", async ({ page }) => {
+  test("Tab reaches the language options @smoke", async ({ page }) => {
     await gotoHydrated(page, "/");
 
     const toRo = await tabTo(page, LOCALE_LABELS.ro);
@@ -49,9 +48,6 @@ test.describe("keyboard", () => {
 
     await tabTo(page, LOCALE_LABELS.ru);
     await expect(languageOption(page, "ru")).toBeFocused();
-
-    await tabTo(page, messages.ro["theme.toggleAria"]);
-    await expect(themeToggle(page)).toBeFocused();
   });
 
   test("the focus ring is visible on every header control", async ({ page }) => {
@@ -59,31 +55,6 @@ test.describe("keyboard", () => {
 
     await tabTo(page, LOCALE_LABELS.ro);
     expect(await hasVisibleFocusRing(page), "language option focus ring").toBe(true);
-
-    await tabTo(page, messages.ro["theme.toggleAria"]);
-    expect(await hasVisibleFocusRing(page), "theme toggle focus ring").toBe(true);
-  });
-
-  test("Enter activates the theme toggle", async ({ page }) => {
-    await gotoHydrated(page, "/");
-    const html = page.locator("html");
-    const before = await html.getAttribute("data-theme");
-
-    await tabTo(page, messages.ro["theme.toggleAria"]);
-    await page.keyboard.press("Enter");
-
-    await expect(html).toHaveAttribute("data-theme", before === "dark" ? "light" : "dark");
-  });
-
-  test("Space activates the theme toggle too", async ({ page }) => {
-    await gotoHydrated(page, "/");
-    const html = page.locator("html");
-    const before = await html.getAttribute("data-theme");
-
-    await tabTo(page, messages.ro["theme.toggleAria"]);
-    await page.keyboard.press("Space");
-
-    await expect(html).toHaveAttribute("data-theme", before === "dark" ? "light" : "dark");
   });
 
   test("Enter picks a language", async ({ page }) => {

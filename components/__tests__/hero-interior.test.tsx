@@ -14,23 +14,6 @@ import { act, createEvent, fireEvent, render, screen } from "@testing-library/re
  * `pointerout`. requestAnimationFrame is a manual queue.
  */
 
-/* Interface sound is stubbed so "the boost never plays a sound" is observable. */
-const { play } = vi.hoisted(() => ({ play: vi.fn(() => true) }));
-vi.mock("@/lib/sound", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/sound")>();
-  return {
-    ...actual,
-    useSound: () => ({
-      enabled: false,
-      reducedMotion: false,
-      play,
-      setEnabled: () => {},
-      toggle: () => false,
-      isSupported: () => false,
-    }),
-  };
-});
-
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
@@ -78,7 +61,6 @@ function flushFrames() {
 
 beforeEach(() => {
   resetSceneForTests();
-  play.mockClear();
   media.fine = false;
   media.reduced = false;
   installMatchMedia();
@@ -140,7 +122,7 @@ const statsMarker = () =>
 const card = (id: string) => document.querySelector<HTMLElement>(`[data-metric="${id}"]`)!;
 
 describe("hero CTAs boost the scene", () => {
-  it("a mouse over the primary CTA boosts once, leaving ends it, and nothing plays a sound", () => {
+  it("a mouse over the primary CTA boosts once and leaving ends it", () => {
     renderHero();
     const cta = screen.getByRole("button", { name: PRIMARY });
 
@@ -149,7 +131,6 @@ describe("hero CTAs boost the scene", () => {
 
     pointer("pointerOut", cta, "mouse");
     expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-    expect(play).not.toHaveBeenCalled();
     // A hover opens nothing.
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
   });
@@ -175,7 +156,6 @@ describe("hero CTAs boost the scene", () => {
     expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
     act(() => link.blur());
     expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-    expect(play).not.toHaveBeenCalled();
   });
 
   it("moving from one CTA to the other keeps one boost and one light wave", () => {

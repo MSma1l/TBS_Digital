@@ -17,13 +17,6 @@ import {
   type Locale,
 } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
-import { ThemeProvider } from "@/lib/theme/ThemeProvider";
-import { SoundProvider, SOUND_COOKIE, toSoundChoice } from "@/lib/sound";
-import {
-  THEME_COOKIE,
-  THEME_INIT_SCRIPT,
-  toThemeChoice,
-} from "@/lib/theme/theme";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
 // brand fonts. Latin-ext covers Romanian diacritics (ă, î, ș, ț).
@@ -156,17 +149,6 @@ export default async function RootLayout({
   // provider keeps SSR and hydration in lockstep.
   const locale = await resolveContentLocale();
 
-  // Same idea for the theme: the visitor's explicit choice lives in a cookie, so the server
-  // can stamp `data-theme` into the HTML it sends. A visitor who has chosen therefore gets
-  // the right palette in the very first byte — no script needed, and it works with
-  // JavaScript off. "No choice yet" is stamped too: it is the dark default, not the OS setting
-  // (lib/theme/theme.ts DEFAULT_THEME), so only an explicit light choice paints light.
-  const themeChoice = toThemeChoice((await cookies()).get(THEME_COOKIE)?.value);
-
-  // Interface sound, read the same way. Nothing plays until the visitor touches the page —
-  // seeding the choice here only saves the client a tick, it never arms audio.
-  const soundChoice = toSoundChoice((await cookies()).get(SOUND_COOKIE)?.value);
-
   // Per-request CSP nonce (proxy.ts). Reused so the JSON-LD data block below satisfies the
   // strict, nonce-based script-src — see proxy.ts and app/(site)/layout.tsx.
   const nonce = headerList.get("x-nonce") ?? undefined;
@@ -210,28 +192,8 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      data-theme={themeChoice === "light" ? "light" : "dark"}
       className={`${archivo.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
-      // The inline script below rewrites `data-theme` before React hydrates (that is the
-      // whole point of it), so React must accept the DOM's value instead of treating the
-      // difference as a hydration error and re-rendering the tree.
-      // Ref: node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md
-      suppressHydrationWarning
     >
-      <head>
-        {/*
-          Anti-FOUC: runs synchronously while the browser parses <head>, i.e. BEFORE the
-          first paint and long before hydration, so a dark-mode visitor never sees a white
-          flash. It reads the saved choice (cookie), falls back to the dark default, and
-          stamps `data-theme` on <html>. See lib/theme/theme.ts for the script itself.
-
-          The nonce is not optional decoration: proxy.ts serves a strict `script-src` with
-          no 'unsafe-inline', so without it the browser refuses to execute this tag and the
-          flash is back. Same per-request nonce Next stamps on its own bundles and the
-          JSON-LD block below.
-        */}
-        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body>
         <script
           type="application/ld+json"
@@ -240,21 +202,17 @@ export default async function RootLayout({
           // HTML-significant sequences that could break out of the script element.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <ThemeProvider initialChoice={themeChoice}>
-          <SoundProvider initialChoice={soundChoice}>
-            <LanguageProvider initialLocale={locale}>
-              <SiteContentProvider>
-                {/* The site's ONE request dialog. Mounted here, above every page, so each
-                    commercial CTA can call `openRequest()` instead of rendering a dialog of
-                    its own — a page with four CTAs would otherwise ship four dialogs, four
-                    focus traps and four scroll locks. Inside the language provider because
-                    the dialog's own copy is localized; the flow itself is code-split and
-                    nothing of it loads until a CTA is pressed. */}
-                <RequestFlowProvider>{children}</RequestFlowProvider>
-              </SiteContentProvider>
-            </LanguageProvider>
-          </SoundProvider>
-        </ThemeProvider>
+        <LanguageProvider initialLocale={locale}>
+          <SiteContentProvider>
+            {/* The site's ONE request dialog. Mounted here, above every page, so each
+                commercial CTA can call `openRequest()` instead of rendering a dialog of
+                its own — a page with four CTAs would otherwise ship four dialogs, four
+                focus traps and four scroll locks. Inside the language provider because
+                the dialog's own copy is localized; the flow itself is code-split and
+                nothing of it loads until a CTA is pressed. */}
+            <RequestFlowProvider>{children}</RequestFlowProvider>
+          </SiteContentProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

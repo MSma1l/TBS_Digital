@@ -2,12 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import { messages } from "@/lib/i18n/messages";
 import { INTRO_COOKIE, INTRO_REVEAL_ATTR } from "@/lib/intro";
 import {
-  audioContextCount,
   breakRendererWebGL,
   consoleErrors,
   cookieBanner,
   cookieValue,
-  countAudioContexts,
   countWebGLContexts,
   cspViolations,
   expectNoHorizontalScroll,
@@ -31,8 +29,6 @@ import {
   sampleIntroVisibility,
   seedConsent,
   sceneStage,
-  seedSoundOn,
-  themeToggle,
   threeLoaded,
   watchCsp,
   webglContextCount,
@@ -152,23 +148,19 @@ test.describe("intro — first visit", () => {
     }
   });
 
-  test("leaves a usable page: header on top, theme toggle works, nothing locked or styled", async ({
+  test("leaves a usable page: header on top, nothing locked or styled", async ({
     page,
   }) => {
     await firstVisit(page);
     await introGone(page);
 
-    const toggle = themeToggle(page);
-    const box = (await toggle.boundingBox())!;
+    const cta = header(page).getByRole("button").first();
+    const box = (await cta.boundingBox())!;
     const onTop = await page.evaluate(
       ({ x, y }) => !!document.elementFromPoint(x, y)?.closest("header"),
       { x: box.x + box.width / 2, y: box.y + box.height / 2 },
     );
-    expect(onTop, "the theme toggle is the topmost thing at its own centre").toBe(true);
-
-    const before = await page.locator("html").getAttribute("data-theme");
-    await toggle.click();
-    await expect(page.locator("html")).not.toHaveAttribute("data-theme", before!);
+    expect(onTop, "the header control is the topmost thing at its own centre").toBe(true);
 
     await expectPageRestored(page);
     await page.evaluate(() => window.scrollTo(0, 800));
@@ -272,20 +264,6 @@ test.describe("intro — first visit", () => {
     expect(focused[0], `focus went to ${JSON.stringify(focused)}`).toBe("skip");
     expect(await page.evaluate(() => document.activeElement?.isConnected ?? false)).toBe(true);
     await expectPageRestored(page);
-  });
-
-  test("sound seeded on stays silent: the intro builds no AudioContext without a gesture", async ({
-    page,
-    context,
-    baseURL,
-  }) => {
-    await seedSoundOn(context, baseURL!);
-    await countAudioContexts(page);
-    await firstVisit(page);
-    await introGone(page);
-    await page.waitForLoadState("networkidle");
-
-    expect(await audioContextCount(page)).toBe(0);
   });
 
   test("needs no CSP change and logs no errors", async ({ page }) => {

@@ -269,7 +269,7 @@ a.colLink:hover {
    instead of 31px.
 
    860px, not 640px, because that is the threshold the rest of the project uses for "this
-   is a finger" (Navbar, PreferencesGroup, ThemeToggle, SoundToggle, DictationButton) — a
+   is a finger" (Navbar, PreferencesGroup, LanguageSwitcher, DictationButton) — a
    768px tablet is touch too, and the 640px version of this rule left it on 21.7px links.
    Above 860px the footer keeps its signed-off desktop rhythm. */
 @media (max-width: 860px) {

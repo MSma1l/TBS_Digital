@@ -1,7 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { services as seededServices } from "@/lib/content";
 import { SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
-import type { Theme } from "@/lib/theme/theme";
 import {
   PRIVATE_COPY,
   REQUEST_STEPS,
@@ -26,7 +25,6 @@ import {
   requestFlow,
   requestSteps,
   seedConsent,
-  seedTheme,
   stepPanel,
   stepPanels,
   stubContactApi,
@@ -384,28 +382,17 @@ test.describe("request flow — on a 375px phone", () => {
   });
 });
 
-/*
- * At least one COMPLETE journey per theme.
- *
- * The palette is server-rendered from the `tbs_theme` cookie, so a dark-theme run is a
- * different first byte, not a class toggled afterwards — worth walking end to end rather than
- * screenshotting one panel.
- */
-for (const theme of ["light", "dark"] as Theme[]) {
-  test.describe(`request flow — a full journey in the ${theme} theme`, () => {
+/* One COMPLETE journey, walked end to end rather than screenshotting one panel. */
+test.describe("request flow — a full journey", () => {
     let calls: StubbedCall[];
 
     test.beforeEach(async ({ page, context, baseURL }) => {
       await seedConsent(context, baseURL!);
-      await seedTheme(context, theme, baseURL!);
       calls = await stubContactApi(page);
     });
 
-    test(`project → options → contact → sent (${theme})`, async ({ page }) => {
+    test("project → options → contact → sent", async ({ page }) => {
         const flow = await openFlowDialog(page);
-
-      // The journey really is running in the theme this test claims.
-      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
       await expectActiveStep(flow, "project");
       await goToStep(flow, "options");
@@ -418,5 +405,4 @@ for (const theme of ["light", "dark"] as Theme[]) {
       expect(body.email).toBe(LEAD.email);
       expect(String(body.estimate)).toBe(priceForSlug("e-commerce"));
     });
-  });
-}
+});

@@ -16,6 +16,52 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Removed: sunetul și tema deschisă
+
+Clientul a arătat cele două butoane din antet și a cerut ca ambele funcții să dispară din proiect.
+
+**Sunetul, în întregime.** `lib/sound/*`, `SoundToggle`, providerul și **toate locurile de unde era
+chemat**. Nu exista niciun fișier audio de șters: tonurile erau sintetizate cu oscilatoare Web Audio.
+Unde un apel de sunet stătea într-o ramură care făcea și altceva — tonul de confirmare al intro-ului,
+apăsările din butonul de dictare, deschiderea fluxului de cerere — s-a scos **doar sunetul**, restul
+a rămas neatins.
+
+O descoperire pe drum: `PREFERS_REDUCED_MOTION` locuia în `lib/sound/sound.ts`, deși n-are nicio
+legătură cu sunetul. A fost mutat în `lib/device.ts` în loc să dispară odată cu modulul — altfel
+poarta de „mișcare redusă" a intro-ului s-ar fi pierdut tăcut.
+
+**Tema deschisă.** `ThemeToggle`, `lib/theme/*`, cookie-ul `tbs_theme`, atributul `data-theme` și
+scriptul din `<head>` care preveni pâlpâirea la încărcare. În `app/globals.css` cele două căi de
+activare (`prefers-color-scheme: dark` și `[data-theme="dark"]`) s-au strâns într-o singură hartă
+necondiționată, iar **cele 37 de perechi deschise** ale tokenurilor au fost șterse; `color-scheme:
+dark` stă acum pe rădăcină, ca browserul să deseneze controalele și scrollerele interioare închise.
+Al doilea fișier cu reguli pentru tema deschisă, `HeroCoreArt.module.css`, a fost curățat la fel.
+Din catalogul de mesaje au dispărut, **din toate trei limbile odată**, cheile butonului de temă.
+
+Două lucruri rămân intenționat:
+- **scara `--dark-*`** — preloaderul intro citește opt dintre aceste tokenuri **pe nume**, pentru că
+  se desenează pe fundalul lui propriu; forma documentată a fișierului rămâne, doar că acum harta e
+  una singură;
+- **`uInk` în shadere**, acum permanent 0. Apare în ~10 locuri în `materials.ts` plus în fiecare
+  model; scoaterea lui ar fi însemnat să umblăm în toate modelele pentru zero câștig vizibil.
+
+Politica de cookie-uri **nu a trebuit atinsă**: nu enumera nici `tbs_theme`, nici vreun cookie de
+sunet — o scăpare mai veche, semnalată chiar în `docs/16`, care acum a devenit corectă de la sine.
+
+Verificat pe containerul care rulează: HTTP 200 pe toate paginile (inclusiv cele cinci de servicii,
+cele legale și adminul), fundal închis peste tot, `data-theme` absent din HTML-ul servit — deci nu
+există de unde să pâlpâie — și **zero erori de consolă** la 1280 și 390. Antetul rămâne aliniat, fără
+gol acolo unde erau butoanele, iar ordinea la tastatură e neîntreruptă.
+
+**Datorie asumată, de curățat într-o singură trecere la final:** `docs/03`, `04`, `07`, `09`, `11`,
+`16` și `e2e/README.md` descriu încă tema și sunetul; `components/__tests__/scene-palette.test.ts` și
+câteva teste ale scenei verifică ramura „ink" pe care nimic n-o mai poate produce.
+
+Fișiere: șterse `lib/sound/*`, `lib/theme/*`, `components/ui/{SoundToggle,ThemeToggle}.*`;
+modificate `app/{globals.css,layout.tsx,tailwind.css}`, `components/intro/*`,
+`components/layout/Navbar.tsx`, `components/scene/{SceneCanvas.tsx,three/palette.ts}`,
+`components/ui/*`, `lib/{device.ts,solutions.ts,i18n/messages/*}`, `e2e/*`.
+
 ## 2026-09-18 — Changed: o singură bară de derulare — fibra, împinsă la marginea ferestrei
 
 Clientul a arătat cele două bare una lângă alta și a cerut ca **bara nativă a browserului să dispară,

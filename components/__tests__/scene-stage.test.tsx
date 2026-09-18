@@ -36,8 +36,6 @@ import {
 } from "@/lib/scene";
 import { coverPage } from "@/lib/scrollLock";
 import { SiteContentProvider } from "@/lib/siteContent";
-import { SoundProvider } from "@/lib/sound";
-import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 
 /*
  * The interior stage's loading pipeline (components/scene/SceneStage.tsx) in jsdom.
@@ -446,24 +444,20 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     it(`[${locale}] around Navbar + Hero + Ticker + Directions: 8 unstyled markers, one h1, an inert text-free layer`, () => {
       vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
       render(
-        <ThemeProvider>
-          <SoundProvider>
-            <LanguageProvider initialLocale={locale}>
-              <SiteContentProvider>
-                <RequestFlowProvider>
-                  <Navbar />
-                  <main>
-                    <SceneStage>
-                      <Hero />
-                      <Ticker />
-                      <Directions />
-                    </SceneStage>
-                  </main>
-                </RequestFlowProvider>
-              </SiteContentProvider>
-            </LanguageProvider>
-          </SoundProvider>
-        </ThemeProvider>,
+        <LanguageProvider initialLocale={locale}>
+          <SiteContentProvider>
+            <RequestFlowProvider>
+              <Navbar />
+              <main>
+                <SceneStage>
+                  <Hero />
+                  <Ticker />
+                  <Directions />
+                </SceneStage>
+              </main>
+            </RequestFlowProvider>
+          </SiteContentProvider>
+        </LanguageProvider>,
       );
 
       for (const target of INTRO_REVEAL_ORDER) {

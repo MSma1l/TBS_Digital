@@ -16,7 +16,6 @@ import {
   modalDialog,
   seedConsent,
   seedLocale,
-  seedTheme,
 } from "./helpers";
 
 /*
@@ -165,16 +164,13 @@ test.describe("cookie banner on a phone", () => {
 });
 
 test.describe("neon CTA focus ring", () => {
-  for (const theme of ["light", "dark"] as const) {
-    test(`is drawn in --txt, 2px outside the button (${theme})`, async ({
+  test("is drawn in --txt, 2px outside the button", async ({
       page,
       context,
       baseURL,
     }) => {
       await seedConsent(context, baseURL!);
-      await seedTheme(context, theme, baseURL!);
       await gotoHydrated(page, "/");
-      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
 
       const cta = header(page).getByRole("button", { name: ro["nav.cta"], exact: true });
       // Resting: a transparent 1px outline, which forced-colours mode paints as a border.
@@ -199,7 +195,6 @@ test.describe("neon CTA focus ring", () => {
       expect(ring.width).toBe("2px");
       expect(ring.offset).toBe("2px");
     });
-  }
 });
 
 test.describe("ticker", () => {

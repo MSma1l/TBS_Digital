@@ -141,14 +141,14 @@ function focusVisible(element: Element): boolean {
 
 /*
  * The CTAs brighten the 3D core while hovered by a real pointer (never a finger: a tap has
- * no hover to end it) or while keyboard-focused. Only a signal to the scene (lib/scene.ts): no
- * sound and no `play()` here — the click keeps its own feedback in the request flow.
+ * no hover to end it) or while keyboard-focused. Only a signal to the scene (lib/scene.ts) —
+ * the click itself keeps its own feedback in the request flow.
  *
  * Hover and focus are two separate reasons per CTA, and the scene hears their OR: moving the
  * mouse off a keyboard-focused CTA keeps its boost, and a blur while still hovered keeps it too.
  * A focus that is not `:focus-visible` never boosts — the request dialog hands focus back to the
  * CTA with `focus()` when it closes, and after a mouse close that is not a keyboard focus (the
- * boost used to stay on, and play a light wave, until something else took focus).
+ * boost used to stay on until something else took focus).
  */
 function boostHandlers(source: SceneBoostSource) {
   const reasons = { hover: false, focus: false };

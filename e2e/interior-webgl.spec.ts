@@ -3,12 +3,10 @@ import { messages } from "@/lib/i18n/messages";
 import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { SCENE_SHAPES, type GpuProbeCache } from "@/lib/scene";
 import {
-  audioContextCount,
   breakRendererWebGL,
   burger,
   burgerRoundTrip,
   consoleErrors,
-  countAudioContexts,
   countDrawCalls,
   createdWebGLContexts,
   cspViolations,
@@ -34,7 +32,6 @@ import {
   scrollToY,
   seedConsent,
   seedGpuProbe,
-  themeToggle,
   threeLoaded,
   trackWebGLContexts,
   watchCsp,
@@ -193,14 +190,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       expect(await hits("#top button")).toBe(true);
       expect(await hits('#top a[href="#servicii"]')).toBe(true);
       await scrollToY(page, 0);
-      const toggle = themeToggle(page);
-      const tbox = (await toggle.boundingBox())!;
-      expect(
-        await page.evaluate(
-          ({ x, y }) => !!document.elementFromPoint(x, y)?.closest("header button"),
-          { x: tbox.x + tbox.width / 2, y: tbox.y + tbox.height / 2 },
-        ),
-      ).toBe(true);
       expect(await hits("#servicii nav a:nth-child(3)")).toBe(true);
 
       // ScrollTrigger refreshes (a resize, a long scroll) leave <html> and <body> alone.
@@ -382,10 +371,9 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     expect(await createdWebGLContexts(page)).toBe(1);
   });
 
-  test("W10 hovering the hero CTA boosts the scene without sound, and scrolling never hides the headline", async ({
+  test("W10 hovering the hero CTA boosts the scene, and scrolling never hides the headline", async ({
     page,
   }) => {
-    await countAudioContexts(page);
     await openForced(page);
     const stage = sceneStage(page);
     const cta = page.locator("#top").getByRole("button").first();
@@ -409,7 +397,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       expect(await opaque(), `at scrollY ${Math.round(y)}`).toEqual([]);
       expect(await styledMarkers(page)).toBe(0);
     }
-    expect(await audioContextCount(page)).toBe(0);
   });
 
   test.describe("services in view (1280×1000)", () => {
@@ -965,22 +952,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     });
   });
 
-  test("W12 switching the theme while the scene draws logs no error", async ({ page }) => {
-    const errors = consoleErrors(page);
-    await openForced(page);
-    const html = page.locator("html");
-    const before = await html.getAttribute("data-theme");
-    await themeToggle(page).click();
-    await expect(html).not.toHaveAttribute("data-theme", before!);
-    await page.waitForTimeout(1_000);
-    await themeToggle(page).click();
-    await expect(html).toHaveAttribute("data-theme", before!);
-    await page.waitForTimeout(1_000);
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
-    expect(errors.page).toEqual([]);
-    expect(errors.console).toEqual([]);
-  });
-
   test.describe("mouse over the hero (1280×800)", () => {
     test.use({ viewport: { width: 1280, height: 800 }, hasTouch: false, isMobile: false });
 
@@ -1044,7 +1015,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       };
       expect(await hits(page.locator("#top button").first(), "#top button")).toBe(true);
       expect(await hits(page.locator('#top a[href="#servicii"]').first(), '#top a[href="#servicii"]')).toBe(true);
-      expect(await hits(themeToggle(page), "header button")).toBe(true);
       await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl");
 
       expect(await cspViolations(page)).toEqual([]);

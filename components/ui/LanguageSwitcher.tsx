@@ -20,10 +20,11 @@ import styles from "./LanguageSwitcher.module.css";
  *
  * ## Why there are two
  *
- * The header row is logo + language + theme + sound + burger, and WCAG 2.5.5 makes every one
- * of those a 44×44 target. At 320px the sum did not fit: the document measured 361px in a
- * 320px viewport and every page scrolled sideways. Shrinking the RO/RU/EN buttons fixes the
- * scroll by breaking the touch target that caused it, so the control itself changes instead:
+ * The header row is logo + language + burger, and WCAG 2.5.5 makes every one of those a
+ * 44×44 target. Back when the row also carried a theme and a sound toggle the sum did not
+ * fit at 320px: the document measured 361px in a 320px viewport and every page scrolled
+ * sideways. Shrinking the RO/RU/EN buttons fixes the scroll by breaking the touch target
+ * that caused it, so the control itself changes instead:
  *
  *  - **above the compact breakpoint** — the segmented RO / RU / EN control, unchanged;
  *  - **at or below it** — a single 44×44 button showing the active language, which opens the
@@ -38,8 +39,7 @@ import styles from "./LanguageSwitcher.module.css";
  * ## Hydration
  *
  * The server cannot know the viewport width, so the width lives in a `useSyncExternalStore`
- * triple over `matchMedia` — the same shape `lib/sound/SoundProvider.tsx` uses for
- * `prefers-reduced-motion` and `lib/sound/store.ts` uses for the sound cookie. The **server
+ * triple over `matchMedia`. The **server
  * snapshot is `false` (segmented)**: it is what every viewport from 375px up gets, i.e. every
  * desktop, every tablet and the overwhelming majority of phones, so those render once and
  * never swap.
@@ -80,7 +80,7 @@ const GROUP_LABEL = "Limbă / Язык / Language";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 /* Local `{ro,ru,en}` copy resolved through `useLoc()` — the project rule for component-owned
-   strings (same as `SoundToggle`/`Modal`); the message catalog is not touched. */
+   strings (same as `Modal`); the message catalog is not touched. */
 const COPY = {
   change: L("Schimbă limba", "Сменить язык", "Change language"),
 };
@@ -352,8 +352,8 @@ function CompactSwitcher() {
   );
 }
 
-/* Drawn in `currentColor`, like the theme and sound icons, so it inherits the button's token
-   colour and stays correct in both palettes without a second definition. */
+/* Drawn in `currentColor`, so it inherits the button's token colour without a second
+   definition. */
 function ChevronIcon() {
   return (
     <svg

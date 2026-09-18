@@ -333,9 +333,8 @@ export const solutions: Record<string, Solution> = {
    (`--sol-p1` / `--sol-p2`) on the element that owns the pastel surface, so the modules
    only ever reference the tokens; the hex values exist in this file and nowhere else.
 
-   Dark theme: the modules do not paint these raw. Each mixes them into `--panel` through
-   `--sol-mix`, which drops from 100% to ~26% under `[data-theme="dark"]` — the hue stays
-   recognisable per service, the surface stops glowing white on a dark page. */
+   The modules do not paint these raw: each mixes them into `--panel` so the hue stays
+   recognisable per service while the surface stops glowing white on the dark page. */
 export type SolutionPalette = { p1: string; p2: string };
 
 export const solutionPalette: Record<string, SolutionPalette> = {

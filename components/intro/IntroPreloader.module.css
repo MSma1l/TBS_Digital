@@ -6,8 +6,8 @@
  * hydration — the failsafe, reduced motion, `:target`, print — and unlayered module CSS
  * beats Tailwind's utilities layer anyway.
  *
- * Always dark, whatever the theme: only the fixed `--void` / `--dark-*` / brand tokens are
- * used, never the remapped `--bg` / `--txt` pair.
+ * Drawn on its own backdrop: only the fixed `--void` / `--dark-*` / brand tokens are used,
+ * never the mapped `--bg` / `--txt` pair the page's surfaces go through.
  *
  * Motion budget: every infinite animation below moves `transform`/`opacity` of its own
  * layer (compositor only) — except the SVG dash animations, which repaint one small,

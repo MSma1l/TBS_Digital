@@ -15,8 +15,6 @@ import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { SiteContentProvider } from "@/lib/siteContent";
-import { SoundProvider } from "@/lib/sound";
-import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 
 /*
  * The intro's page entrance (components/intro/IntroDirector.tsx) looks its targets up in the
@@ -43,21 +41,17 @@ beforeEach(() => {
 /** The first screen as `app/layout.tsx` + `app/(site)/layout.tsx` + the home page mount it. */
 function renderFirstScreen(locale: "ro" | "ru" | "en" = "ro") {
   return render(
-    <ThemeProvider>
-      <SoundProvider>
-        <LanguageProvider initialLocale={locale}>
-          <SiteContentProvider>
-            <RequestFlowProvider>
-              <Navbar />
-              <main>
-                <Hero />
-                <Ticker />
-              </main>
-            </RequestFlowProvider>
-          </SiteContentProvider>
-        </LanguageProvider>
-      </SoundProvider>
-    </ThemeProvider>,
+    <LanguageProvider initialLocale={locale}>
+      <SiteContentProvider>
+        <RequestFlowProvider>
+          <Navbar />
+          <main>
+            <Hero />
+            <Ticker />
+          </main>
+        </RequestFlowProvider>
+      </SiteContentProvider>
+    </LanguageProvider>,
   );
 }
 

@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
-import { useSound } from "@/lib/sound";
 import type { Locale } from "@/lib/i18n/locales";
 import styles from "./DictationButton.module.css";
 
@@ -73,7 +72,7 @@ export function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
 /* Whether the browser can listen is a value the server cannot know and that never changes
    afterwards, so it is read as an external store: `getServerSnapshot` returns `false`, the
    hydration render matches the server's markup exactly, and React swaps in the real answer
-   immediately after. (The same primitive the sound provider uses for reduced motion.) */
+   immediately after. */
 const subscribeSupport = () => () => {};
 const getSupportSnapshot = () => getSpeechRecognitionCtor() !== null;
 const getServerSupportSnapshot = () => false;
@@ -158,7 +157,6 @@ export function DictationButton({
 }) {
   const l = useLoc();
   const { locale } = useLanguage();
-  const { play } = useSound();
   // Unique per instance: the draft box is a labelled field, and two dictation buttons on
   // one page must not share an id.
   const draftId = useId();
@@ -228,7 +226,6 @@ export function DictationButton({
     setDraft("");
     finalTextRef.current = "";
     setStatus("requesting");
-    play("tap");
 
     if (!(await requestPermission())) return;
 
@@ -281,7 +278,7 @@ export function DictationButton({
 
     recognitionRef.current = recognition;
     setStatus("listening");
-  }, [disabled, locale, play, requestPermission, teardown]);
+  }, [disabled, locale, requestPermission, teardown]);
 
   /** The visitor's way out of "listening", always one click away. */
   const stop = useCallback(() => {
@@ -300,9 +297,8 @@ export function DictationButton({
     setDraft("");
     finalTextRef.current = "";
     if (!text) return;
-    play("confirm");
     onResult(text);
-  }, [draft, onResult, play]);
+  }, [draft, onResult]);
 
   const discard = useCallback(() => {
     setStatus("idle");

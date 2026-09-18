@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { INTRO_OVERLAY_ID, INTRO_TIMING, finishIntro, markIntroGone } from "@/lib/intro";
 import { lockRootScroll } from "@/lib/scrollLock";
-import { PREFERS_REDUCED_MOTION } from "@/lib/sound/sound";
+import { PREFERS_REDUCED_MOTION } from "@/lib/device";
 import { visibleTimeout } from "@/lib/visibleTimeout";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import type { IntroCapability } from "./capability";

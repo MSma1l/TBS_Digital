@@ -26,7 +26,7 @@ import { createSceneFx } from "./fx";
 import { attachTiltInput } from "./input";
 import { watchPixelRatio } from "./pixelRatio";
 import { SceneWorld } from "./SceneWorld";
-import { observeThemeChange, readScenePalette, samePalette, tryReadScenePalette } from "./three/palette";
+import { readScenePalette } from "./three/palette";
 import { SCENE_TIER_CONFIG, clampSceneDpr, dprForStep } from "./tiers";
 
 const CAMERA = {
@@ -59,8 +59,9 @@ export function SceneCanvas({
   onEntry,
   onHelix,
 }: SceneCanvasProps) {
-  // Read before any context exists: an unparsable token throws straight to the stage's boundary.
-  const [palette, setPalette] = useState(readScenePalette);
+  // Read before any context exists: an unparsable token throws straight to the stage's
+  // boundary. Read once: the site has one palette and nothing can change it at runtime.
+  const [palette] = useState(readScenePalette);
   const [baseDpr, setBaseDpr] = useState(() => readBaseDpr(tier));
   // The pixel budget follows the window and the screen (./pixelRatio.ts); R3F applies a new `dpr`.
   useEffect(
@@ -101,16 +102,6 @@ export function SceneCanvas({
   });
 
   useEffect(() => attachTiltInput(fx), [fx]);
-
-  // A theme change re-reads the tokens; one that can't be read keeps the palette we have.
-  useEffect(
-    () =>
-      observeThemeChange(() => {
-        const next = tryReadScenePalette();
-        if (next) setPalette((current) => (samePalette(current, next) ? current : next));
-      }),
-    [],
-  );
 
   return (
     <Canvas

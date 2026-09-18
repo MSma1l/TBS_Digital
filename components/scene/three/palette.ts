@@ -2,14 +2,13 @@
  * The interior scene's colours, read from the site's CSS tokens at runtime.
  *
  * Pure on purpose — no three.js: colours stay plain sRGB triples here and become
- * `THREE.Color`s in materials.ts, so the role table and the theme switch are unit-tested
- * without loading three. A token in a format this cannot parse throws a descriptive error:
- * on mount that reaches the stage's error boundary (the static art stays); on a later theme
- * change the caller keeps the previous palette.
+ * `THREE.Color`s in materials.ts, so the role table is unit-tested without loading three. A
+ * token in a format this cannot parse throws a descriptive error: on mount that reaches the
+ * stage's error boundary and the static art stays.
  *
- * Two modes. Dark ("glow"): light is ADDED to the page, neon on near-black. Light ("ink"): an
- * additive glow vanishes on a pale page, so every material switches its blend factors to
- * premultiplied "over" and draws with the darker text tones — never a shader recompile.
+ * One mode. The page is always near-black, so the scene always draws in "glow": light is
+ * ADDED to it, neon on dark. The `SceneMode` union and the shaders' `uInk` uniform survive
+ * this — `uInk` is simply always 0 — rather than being cut out of every model file.
  */
 
 /** sRGB, each channel 0..1. */
@@ -22,9 +21,9 @@ export type ScenePalette = {
   cyan: Rgb;
   blue: Rgb;
   red: Rgb;
-  /** The white-hot core of a highlight (glow), the text colour (ink). */
+  /** The white-hot core of a highlight. */
   hot: Rgb;
-  /** The page behind the canvas (its luminance picks the mode). */
+  /** The page behind the canvas. */
   bg: Rgb;
 };
 
@@ -32,9 +31,7 @@ export type ScenePalette = {
 export const SCENE_TOKENS = {
   cyan: "--cyan",
   blue: "--blue",
-  blueText: "--blue-text",
   redLift: "--red-lift",
-  redText: "--red-text",
   txt: "--txt",
   bg: "--bg",
 } as const;
@@ -63,20 +60,9 @@ export function parseTokenColor(value: string): Rgb | null {
   return null;
 }
 
-const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-
-/** WCAG relative luminance of an sRGB colour. */
-export function relativeLuminance([r, g, b]: Rgb): number {
-  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-}
-
-/** A page lighter than this is the light theme: the scene draws in ink. */
-export const INK_LUMINANCE = 0.4;
-
 /**
- * Pure. The scene's roles from raw token values. The page colour decides the mode (so a
- * document with no `data-theme`, themed by the OS media query, is covered too). Throws when
- * a token is missing or unparsable.
+ * Pure. The scene's roles from raw token values. Throws when a token is missing or
+ * unparsable.
  */
 export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
   const parsed = {} as Record<SceneTokenRole, Rgb>;
@@ -89,12 +75,11 @@ export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
     }
     parsed[role] = color;
   }
-  const ink = relativeLuminance(parsed.bg) > INK_LUMINANCE;
   return {
-    mode: ink ? "ink" : "glow",
+    mode: "glow",
     cyan: parsed.cyan,
-    blue: ink ? parsed.blueText : parsed.blue,
-    red: ink ? parsed.redText : parsed.redLift,
+    blue: parsed.blue,
+    red: parsed.redLift,
     hot: parsed.txt,
     bg: parsed.bg,
   };
@@ -108,54 +93,4 @@ export function readScenePalette(root: Element = document.documentElement): Scen
     values[role] = style.getPropertyValue(SCENE_TOKENS[role]).trim();
   }
   return pickSceneRoles(values);
-}
-
-/** The palette now, or null when a token can't be read (the caller keeps what it has). */
-export function tryReadScenePalette(root?: Element): ScenePalette | null {
-  try {
-    return readScenePalette(root);
-  } catch {
-    return null;
-  }
-}
-
-const sameRgb = (a: Rgb, b: Rgb) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-
-export function samePalette(a: ScenePalette, b: ScenePalette): boolean {
-  return (
-    a.mode === b.mode &&
-    sameRgb(a.cyan, b.cyan) &&
-    sameRgb(a.blue, b.blue) &&
-    sameRgb(a.red, b.red) &&
-    sameRgb(a.hot, b.hot) &&
-    sameRgb(a.bg, b.bg)
-  );
-}
-
-export const THEME_ATTRIBUTE = "data-theme";
-export const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)";
-
-/**
- * Call `onChange` whenever the theme may have changed: `data-theme` on `<html>` flips (the
- * theme toggle) or the OS colour scheme does (the fallback for a document without
- * `data-theme`). Returns the cleanup. The caller re-reads the palette and compares.
- */
-export function observeThemeChange(onChange: () => void, root: Element = document.documentElement): () => void {
-  const cleanups: Array<() => void> = [];
-  if (typeof MutationObserver !== "undefined") {
-    const observer = new MutationObserver(() => onChange());
-    observer.observe(root, { attributes: true, attributeFilter: [THEME_ATTRIBUTE] });
-    cleanups.push(() => observer.disconnect());
-  }
-  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-    const media = window.matchMedia(COLOR_SCHEME_QUERY);
-    const listener = () => onChange();
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", listener);
-      cleanups.push(() => media.removeEventListener("change", listener));
-    }
-  }
-  return () => {
-    for (const cleanup of cleanups) cleanup();
-  };
 }

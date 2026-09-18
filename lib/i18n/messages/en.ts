@@ -210,11 +210,6 @@ export const en: Record<MessageKey, string> = {
   "nav.primaryAria": "Main",
   "header.sysTime": "SYS_TIME",
 
-  // --- Theme toggle ---
-  "theme.toggleAria": "Dark mode",
-  "theme.switchToDark": "Switch to the dark theme",
-  "theme.switchToLight": "Switch to the light theme",
-
   // --- Footer ---
   "footer.partnersLabel": "OUR BUSINESS PARTNERS",
   "footer.brandText":

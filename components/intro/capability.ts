@@ -11,10 +11,15 @@
  * remembers the answer for the tab: a reload, and the interior stage, never probe again.
  */
 
-import { detectTier, mediaMatches, readDeviceProfile, type DeviceTier } from "@/lib/device";
+import {
+  PREFERS_REDUCED_MOTION,
+  detectTier,
+  mediaMatches,
+  readDeviceProfile,
+  type DeviceTier,
+} from "@/lib/device";
 import { INTRO_FORCE_3D_KEY } from "@/lib/intro";
 import { decideWebGL } from "@/lib/gpuProbe";
-import { PREFERS_REDUCED_MOTION } from "@/lib/sound/sound";
 import { clampDprRange, probeGpu } from "@/components/three/capability";
 import { HIGH_TIER_PIXEL_BUDGET, TIER_CONFIG } from "./tiers";
 

@@ -14,7 +14,6 @@ import { Modal } from "@/components/ui/Modal";
 import type { GuideTopic } from "@/lib/hud/topics";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import type { EstimatorOptionId, EstimatorTypeId } from "@/lib/request/catalog";
-import { useSound } from "@/lib/sound";
 
 /**
  * The request flow is loaded on demand, not with the page.
@@ -161,7 +160,6 @@ const RequestFlowContext = createContext<RequestFlowApi | null>(null);
  */
 export function RequestFlowProvider({ children }: { children: ReactNode }) {
   const l = useLoc();
-  const { play } = useSound();
 
   /* `null` is closed; an object (possibly empty) is open. One state, so "is it open" and
      "what was it opened with" can never disagree. */
@@ -182,15 +180,9 @@ export function RequestFlowProvider({ children }: { children: ReactNode }) {
           ? (document.activeElement as HTMLElement | null)
           : null);
 
-      /* Click feedback for every CTA, in one place instead of copied into each button.
-         `play()` is a no-op while sound is off (the default) and before the visitor's
-         first gesture, so this can never become autoplay — and a CTA press *is* a
-         gesture, which is what makes this the legitimate case. */
-      play("tap");
-
       setContext(requestContext);
     },
-    [play],
+    [],
   );
 
   const closeRequest = useCallback(() => setContext(null), []);

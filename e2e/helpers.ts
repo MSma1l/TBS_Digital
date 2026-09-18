@@ -14,11 +14,9 @@ import {
   type Locale,
 } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
-import { THEME_COOKIE, type Theme } from "@/lib/theme/theme";
 import { DIRECTIONS_BASE, directions } from "@/lib/directions";
 import { solUI } from "@/lib/solutions";
 import { CONSENT_KEY } from "@/lib/consent";
-import { SOUND_COOKIE } from "@/lib/sound/sound";
 import { INTRO_COOKIE, INTRO_FORCE_3D_KEY, INTRO_SEEN } from "@/lib/intro";
 import { HUD_FLAG_KEY } from "@/lib/hud/gate";
 import {
@@ -70,8 +68,8 @@ export function localePath(locale: Locale, path: string): string {
 
 /**
  * Seed a site cookie BEFORE the first navigation, which is the only way to exercise the
- * server-rendered half of the theme/language model: the root layout reads these cookies and
- * stamps `<html lang>` / `<html data-theme>` into the very first byte it sends.
+ * server-rendered half of the language model: the root layout reads these cookies and
+ * stamps `<html lang>` into the very first byte it sends.
  */
 export async function seedCookie(
   context: BrowserContext,
@@ -82,9 +80,6 @@ export async function seedCookie(
   await context.addCookies([{ name, value, url: baseURL }]);
 }
 
-export const seedTheme = (context: BrowserContext, theme: Theme, baseURL: string) =>
-  seedCookie(context, THEME_COOKIE, theme, baseURL);
-
 export const seedLocale = (context: BrowserContext, locale: Locale, baseURL: string) =>
   seedCookie(context, LOCALE_COOKIE, locale, baseURL);
 
@@ -93,7 +88,7 @@ export const seedLocale = (context: BrowserContext, locale: Locale, baseURL: str
  *
  * `components/ui/CookieConsent.tsx` is a fixed, bottom-anchored `role="dialog"`. It is a
  * legitimate part of a first visit, but it sits on top of the page's own controls — a test
- * about the request dialog or the sound toggle would otherwise be measuring the banner's
+ * about the request dialog would otherwise be measuring the banner's
  * z-index. `"rejected"` is the choice that changes nothing else on the site (no analytics
  * pixel), which is exactly what a test wants.
  */
@@ -272,16 +267,6 @@ export const languageGroup = (page: Page): Locator =>
 export const languageOption = (page: Page, locale: Locale): Locator =>
   languageGroup(page).getByRole("button", { name: LOCALE_LABELS[locale], exact: true });
 
-/**
- * The light/dark switch. Its accessible name comes from the message catalog and therefore
- * changes with the language, so the current locale has to be passed in.
- */
-export const themeToggle = (page: Page, locale: Locale = "ro"): Locator =>
-  header(page).getByRole("button", {
-    name: messages[locale]["theme.toggleAria"],
-    exact: true,
-  });
-
 /** The hamburger. Only rendered/visible below the 860px breakpoint. */
 export const burger = (page: Page, locale: Locale = "ro"): Locator =>
   header(page).getByRole("button", { name: messages[locale]["nav.burgerAria"], exact: true });
@@ -293,8 +278,8 @@ export const estimatorSection = (page: Page): Locator => page.locator("#estimare
  * Copy that lives in a component's private `COPY` object.
  *
  * Everything the app *exports* is imported at the top of this file, so a rename breaks the
- * suite at compile time. These four components keep their `{ro,ru,en}` strings module-local
- * (`Modal.tsx`, `Estimator.tsx`, `DictationButton.tsx`, `SoundToggle.tsx`), so there is
+ * suite at compile time. These three components keep their `{ro,ru,en}` strings module-local
+ * (`Modal.tsx`, `Estimator.tsx`, `DictationButton.tsx`), so there is
  * nothing to import — the Romanian variants are repeated here, in ONE place, rather than
  * scattered across the specs. The suite pins `locale: "ro-RO"` and seeds no `tbs_locale`
  * cookie, so Romanian is what renders.
@@ -328,8 +313,6 @@ export const PRIVATE_COPY = {
   dictateAdd: "Adaugă în câmp",
   dictateDiscard: "Renunță",
   dictateDenied: "Accesul la microfon a fost refuzat.",
-  /** `components/ui/SoundToggle.tsx` → `COPY.aria`. */
-  soundAria: "Sunet interfață",
 } as const;
 
 // --- the request modal -------------------------------------------------------------------
@@ -626,57 +609,6 @@ export const dictationSlot = (page: Page, name: "estimator-chat" | "estimator-de
 /** The dictation button itself, when the browser has an API for it to drive. */
 export const dictationButton = (root: Locator | Page): Locator =>
   root.getByRole("button", { name: PRIVATE_COPY.dictateStartAria, exact: true });
-
-// --- sound -------------------------------------------------------------------------------
-
-/** The interface-sound switch, in the header's preferences group. */
-export const soundToggle = (page: Page): Locator =>
-  header(page).getByRole("button", { name: PRIVATE_COPY.soundAria, exact: true });
-
-/**
- * Arrive with sound already turned on, the way a returning visitor does. Only the literal
- * `on` counts (`lib/sound/sound.ts` → `readSoundChoice`), and "off" is stored as *no*
- * cookie, so this is the only value worth seeding.
- */
-export const seedSoundOn = (context: BrowserContext, baseURL: string) =>
-  seedCookie(context, SOUND_COOKIE, "on", baseURL);
-
-/** The `tbs_sound` cookie's current value — `undefined` once the choice is "off". */
-export const soundCookie = (context: BrowserContext) => cookieValue(context, SOUND_COOKIE);
-
-/**
- * Count every `AudioContext` the page constructs, from before the first byte of app code
- * runs. `lib/sound/player.ts` promises the context is built lazily, at the first tone that
- * is really going to play — the only way to prove that from outside is to watch the
- * constructor itself. Read the tally with `audioContextCount(page)`.
- */
-export async function countAudioContexts(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const w = window as unknown as {
-      __tbsAudio?: { count: number };
-      AudioContext?: unknown;
-      webkitAudioContext?: unknown;
-    };
-    w.__tbsAudio = { count: 0 };
-    const Real = w.AudioContext as (new (...args: unknown[]) => unknown) | undefined;
-    if (!Real) return;
-    // A function, not a class: it has to be `new`-able and still return a REAL context, so
-    // the app under test keeps working exactly as it would without the probe.
-    function Counting(this: unknown, ...args: unknown[]) {
-      w.__tbsAudio!.count += 1;
-      return new Real!(...args);
-    }
-    Counting.prototype = Real.prototype;
-    w.AudioContext = Counting;
-    w.webkitAudioContext = Counting;
-  });
-}
-
-/** How many `AudioContext`s have been constructed since the page loaded. */
-export const audioContextCount = (page: Page): Promise<number> =>
-  page.evaluate(
-    () => (window as unknown as { __tbsAudio?: { count: number } }).__tbsAudio?.count ?? 0,
-  );
 
 /**
  * The contact form inside that section. The section contains more than one `<form>` (the
