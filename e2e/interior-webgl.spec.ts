@@ -771,10 +771,13 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     });
 
     /*
-     * W19 · a reload (or deep link) inside Work keeps the grid: the spiral would grow the track by
-     * thousands of px under the visitor. It is applied once they are back above Work.
+     * W19 · a reload (or deep link) inside Work still gets the spiral. Laying it out grows the
+     * track by thousands of px under the visitor, so the driver notes the project across the
+     * middle of the window and lands them back on it once it has measured: they keep their place,
+     * only the form around it changes. (Refusing instead, as this once did, left anyone who
+     * reloaded mid-section on the grid until they happened to be above Work again.)
      */
-    test("W19 a reload scrolled into #lucrari keeps the grid (height unchanged); back at the top the spiral applies", async ({
+    test("W19 a reload scrolled into #lucrari still gets the spiral, landing on the project in view", async ({
       page,
     }) => {
       const errors = consoleErrors(page);
@@ -788,26 +791,43 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       await into();
       await page.reload();
       await expect(page.locator("[data-work-track]")).toHaveCount(1);
-      const y = await into();
+      await into();
       const before = await workGeometry(page);
-      const rendered = await cardStyles(page);
       const stage = sceneStage(page);
+      // The project across the middle of the window while it is still a grid.
+      const looking = await page.evaluate(() => {
+        const cards = Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *"));
+        const mid = window.innerHeight / 2;
+        let best = 0;
+        let bestD = Infinity;
+        cards.forEach((el, i) => {
+          const box = el.getBoundingClientRect();
+          const d = Math.abs(box.top + box.height / 2 - mid);
+          if (d < bestD) {
+            bestD = d;
+            best = i;
+          }
+        });
+        return { index: best, name: cards[best].textContent?.trim().slice(0, 40) ?? "" };
+      });
       await expect(stage).toHaveAttribute("data-renderer", "webgl", WEBGL);
-      // Long past the helix's build (it is ready to spiral): still the grid, not a pixel taller.
-      const heights: number[] = [];
-      for (let i = 0; i < 8; i += 1) {
-        await page.waitForTimeout(1_000);
-        heights.push((await workGeometry(page)).section.height);
-        expect(await stage.getAttribute("data-helix")).not.toBe("spiral");
-      }
-      expect(heights.every((height) => Math.abs(height - before.section.height) < 1), JSON.stringify(heights)).toBe(true);
-      expect(await page.evaluate(() => Math.round(window.scrollY))).toBe(y);
-      expect(await cardStyles(page)).toEqual(rendered);
-
-      await scrollToY(page, 0);
+      // No scrolling away: the spiral is laid out where the visitor already is.
       await expect(stage).toHaveAttribute("data-helix", "spiral", HELIX);
       const after = await workGeometry(page);
       expect(after.section.height).toBeGreaterThan(before.section.height);
+      // …and they are left looking at the same project, now at the front of the spiral.
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() =>
+              Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).findIndex((el) =>
+                el.hasAttribute("data-helix-front"),
+              ),
+            ),
+          { message: `the project in view (${looking.name}) comes to the front`, timeout: 20_000 },
+        )
+        .toBe(looking.index);
+      // (The cards' own inline colours, and their byte-exact restore, are W15's.)
       await expect.poll(async () => probeMismatches(await sceneProbeVsDom(page)), { timeout: 10_000 }).toEqual([]);
       expect(errors.page).toEqual([]);
     });

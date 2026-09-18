@@ -622,8 +622,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       /* the cards, laid out for the focus the helix just turned to (nothing before it is built) */
       if (driver) {
         try {
-          // `fx.work` is the timed Work gate: the cards assemble onto the helix as it forms.
-          driver.write({ focus: helixFrame.focus, built: helixDone && !helixFailed, enter: fx.work.value });
+          driver.write({ focus: helixFrame.focus, built: helixDone && !helixFailed });
         } catch (error) {
           failHelix(error);
         }

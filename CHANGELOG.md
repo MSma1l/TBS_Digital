@@ -16,6 +16,45 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed: spirala Lucrări nu mai stă pe loc la intrare
+
+Focusul era fixat la 0 pe toată distanța dintre apariția primului card la marginea de jos a
+ferestrei și momentul în care pista se lipește sub header (~730px de scroll, din care **176px cu
+teancul complet nemișcat** la 1280×800 și 264px la 768×1024). Cum rotația, deplasarea pe fir și
+dezvăluirea imaginii depind toate de focus, spirala apărea, stătea, și abia apoi începea să se
+rotească. Măsurat înainte de orice modificare: șase poziții de scroll consecutive cu `rotateY`
+exact 0,0°, marginea de sus fixă și `--helix-wipe` neschimbat.
+
+Acum focusul curge **înapoi** peste un lead-in lung exact cât zona vizibilă, în același ritm ca
+între carduri: cardul 0 urcă de jos și se întoarce spre vizitator ca oricare altul. Nu mai există
+nicio porțiune în care teancul ține o poziție.
+
+**Intrarea cronometrată a fost eliminată cu totul.** Era armată când Lucrări trecea de 55% din
+fereastră — adică exact în intervalul mort, deci pe o derulare normală se consuma înainte ca teancul
+să fie pe ecran. Lead-in-ul condus de scroll o înlocuiește și nu poate fi ratat. Au dispărut
+`helixForm`, `CardPhase`, `HELIX_SETTLED`, `HELIX_ENTER`, parametrul `phase` din `helixLayout` și
+`enter` din `driver.write`.
+
+Un proiect nu mai e marcat „în față" în timpul lead-in-ului, ca să nu-și consume sosirea (accentul,
+pulsul firelor, tipărirea imaginii) în afara ecranului.
+
+Cardurile nu pot ajunge peste titlul secțiunii: cât timp focusul e negativ toate au `d ≥ 0`, deci
+stau la sau sub poziția lor de aranjare, care înainte de lipire e marginea de sus a rândului — sub
+blocul de titlu. Focusul devine pozitiv abia după ce pista a trecut de header.
+
+| Măsurat pe pagina reală | Înainte | După |
+| --- | --- | --- |
+| Cel mai lung teanc înghețat, 1280×800 | 176px | **44px** (o poziție de eșantionare) |
+| Idem, 768×1024 | 264px | **44px** |
+| Carduri desenate peste titlu | — | **0** |
+
+Verificare: 1.535 teste unit / 72 fișiere, `interior` + `interior-webgl` 46. Patru teste unitare și
+W19, roșii de la schimbarea de mai devreme (spirala se aplică și când Lucrări e pe ecran), au fost
+re-ancorate pe contractul nou.
+
+Fișiere: `components/scene/helix.ts`, `components/scene/workHelix.ts`,
+`components/scene/three/world.ts`, `e2e/interior-webgl.spec.ts` și testele scenei.
+
 ## 2026-09-18 — Changed: spirala Lucrări — pozele se tipăresc ca o hologramă când proiectul ajunge în față
 
 Clientul a spus, uitându-se la site: apariția pozelor nu e „wow". Avea dreptate, și motivul era

@@ -459,8 +459,7 @@ describe("the world — the Work handoff (services model → helix) with the spi
     const fxOff = createSceneFx();
     for (let i = 0; i < 5; i += 1) world.update(1 / 20, 3000, view, false, probe, readSceneInput(), fxOff);
     expect(fxOff.work).toEqual({ value: 0, armed: false });
-    // `enter` is the Work gate: the cards assemble onto the helix as it forms, so shut is 0.
-    expect(off.state.writes.at(-1)).toEqual({ focus: 0, built: true, enter: 0 });
+    expect(off.state.writes.at(-1)).toEqual({ focus: 0, built: true });
     expect(off.state.focusAsked).toEqual([]);
     // Without a driver at all: shut.
     world.attachWork(null);
@@ -492,7 +491,7 @@ describe("the world — the Work handoff (services model → helix) with the spi
     expect(models[0].visible).toBe(true);
     expect(helix.visible).toBe(false);
     expect(world.helixMode()).toBe("spiral");
-    expect(state.writes.at(-1)).toEqual({ focus: 2.5, built: true, enter: 0 });
+    expect(state.writes.at(-1)).toEqual({ focus: 2.5, built: true });
     expect(state.focusAsked.at(-1)).toBe(1000);
 
     // Past the band: the first frame of the handoff, from the selected model's slot to the helix's.
@@ -524,8 +523,7 @@ describe("the world — the Work handoff (services model → helix) with the spi
     expect(helix.position.x).toBeCloseTo(place.x, 9);
     state.focus = 4.25;
     frame(3400);
-    // The gate is closed by now: the cards are fully formed on the helix.
-    expect(state.writes.at(-1)).toEqual({ focus: 4.25, built: true, enter: 1 });
+    expect(state.writes.at(-1)).toEqual({ focus: 4.25, built: true });
     const stuck = placeHelixSpiral(probe, 3400, 1280, 729, HELIX_LAYOUT.cx)!;
     expect(helix.position.y).toBeCloseTo(stuck.y, 9);
     expect(helix.scale.x).toBeCloseTo(stuck.scale, 9);

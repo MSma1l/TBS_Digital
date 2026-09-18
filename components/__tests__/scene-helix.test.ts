@@ -9,7 +9,6 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Work } from "@/components/sections/Work";
 import {
-  HELIX_ENTER,
   HELIX_FRONT_ATTR,
   HELIX_LAYOUT,
   HELIX_OUTRO,
@@ -23,7 +22,7 @@ import {
   helixExitAt,
   helixExitLength,
   helixFocusAt,
-  helixForm,
+  helixLead,
   helixWipe,
   helixLayout,
   helixOutro,
@@ -32,7 +31,6 @@ import {
   nearestCard,
   scrollForCard,
   wantedHelixMode,
-  type CardPhase,
   type CardPose,
 } from "@/components/scene/helix";
 import { HELIX_ANGLE } from "@/components/scene/shapes";
@@ -53,8 +51,8 @@ const SCENE_HEIGHTS = [529, 697, 729, 953] as const;
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const r4 = (v: number) => Math.round(v * 10000) / 10000;
 
-function poses(n: number, focus: number, w: number, sceneH: number, phase?: CardPhase): CardPose[] {
-  return Array.from({ length: n }, (_, i) => helixLayout(i, focus, w, sceneH, createCardPose(), phase));
+function poses(n: number, focus: number, w: number, sceneH: number): CardPose[] {
+  return Array.from({ length: n }, (_, i) => helixLayout(i, focus, w, sceneH, createCardPose()));
 }
 
 /** The transform the driver writes for a pose (workHelix.ts). */
@@ -236,31 +234,6 @@ describe("helixLayout — the 3D pose", () => {
 });
 
 describe("the entrance and the finish", () => {
-  it("helixForm: timed, staggered along the strand, and always reaching 1", () => {
-    // A shut gate has nothing formed; a closed one has everything, whatever the stagger.
-    for (let i = 0; i < 9; i += 1) {
-      expect(helixForm(0, i, 0)).toBe(0);
-      expect(helixForm(1, i, 0)).toBe(1);
-    }
-    // The card at the focus leads; each one further along the strand lands later, up to `span`.
-    const at = (gate: number) => Array.from({ length: 5 }, (_, i) => helixForm(gate, i, 0));
-    const mid = at(0.75);
-    for (let i = 1; i < mid.length; i += 1) expect(mid[i]).toBeLessThanOrEqual(mid[i - 1]);
-    expect(mid[0]).toBeGreaterThan(0);
-    expect(helixForm(HELIX_ENTER.from, 0, 0)).toBe(0);
-    // Beyond `span` steps away they share the last slot: a long list still finishes with the gate.
-    expect(helixForm(0.8, 8, 0)).toBe(helixForm(0.8, HELIX_ENTER.span, 0));
-    // Monotone in the gate, for every card.
-    for (let i = 0; i < 9; i += 1) {
-      let last = -1;
-      for (let g = 0; g <= 1; g += 0.02) {
-        const now = helixForm(g, i, 0);
-        expect(now, `card ${i} gate ${g}`).toBeGreaterThanOrEqual(last);
-        last = now;
-      }
-    }
-  });
-
   it("helixExitAt: 0 up to the last card's focus, 1 by the end of the finish", () => {
     const span = { start: 1000, end: 3432 };
     const len = helixExitLength(VH, LAYER);
@@ -306,8 +279,9 @@ describe("the entrance and the finish", () => {
     expect(helixWipe(0, 0)).toBe(1);
     expect(helixWipe(0, 4)).toBe(1);
     expect(helixWipe(0, -Number.NaN)).toBe(1);
-    // It is whole while the card is still climbing — never while it is the one being read.
-    expect(full).toBeGreaterThan(0.5);
+    // It is whole before the card is the one being read, and starts as the card appears.
+    expect(full).toBeGreaterThan(0);
+    expect(none).toBeGreaterThanOrEqual(HELIX_LAYOUT.fade[1] - 0.1);
     let last = 0;
     for (let d = none; d >= full; d -= 0.01) {
       const now = helixWipe(0, -d);
@@ -338,45 +312,25 @@ describe("the entrance and the finish", () => {
     );
   });
 
-  it("the entrance is travel from below the zone, not a collapse onto the axis", () => {
-    const axis = (HELIX_LAYOUT.cx - 0.5) * 1280;
-    const settled = poses(9, 4, 1280, 729);
-    for (const t of [0.15, 0.5, 0.85]) {
-      const arriving = poses(9, 4, 1280, 729, { form: 1 - t });
-      for (let i = 0; i < 9; i += 1) {
-        const where = `t ${t} card ${i}`;
-        // Lower than its place, by the same amount for every card, and nothing else moves.
-        expect(arriving[i].y - settled[i].y, where).toBeCloseTo(t * HELIX_ENTER.rise * 729, 9);
-        expect(arriving[i].x, where).toBeCloseTo(settled[i].x, 9);
-        expect(arriving[i].scale, where).toBeCloseTo(settled[i].scale, 9);
-        expect(arriving[i].rotY, where).toBeCloseTo(settled[i].rotY, 9);
-        expect(arriving[i].tz, where).toBeCloseTo(settled[i].tz, 9);
-        // …and it is on its way in, never further from the axis than where it is heading.
-        expect(Math.abs(arriving[i].x - axis)).toBeCloseTo(Math.abs(settled[i].x - axis), 9);
-        expect(arriving[i].opacity, where).toBeLessThanOrEqual(settled[i].opacity + 1e-12);
-      }
-    }
-    // Nothing at all at a shut gate, and the zone's edges hold all the way through.
-    for (const p of poses(9, 4, 1280, 729, { form: 0 })) expect(p.opacity).toBe(0);
-    for (const w of WIDTHS) {
-      const edge = helixEdge(w);
-      const cardW = helixCardWidth(w);
-      for (const t of [0.15, 0.4, 0.7, 0.95]) {
-        for (let focus = 0; focus <= 8; focus += 0.5) {
-          for (const p of poses(9, focus, w, 729, { form: 1 - t })) {
-            expect(w / 2 + p.x - (cardW * p.scale) / 2).toBeGreaterThanOrEqual(edge - 1e-9);
-            expect(w / 2 + p.x + (cardW * p.scale) / 2).toBeLessThanOrEqual(w - edge + 1e-9);
-            expect(p.tz).toBeLessThanOrEqual(0);
-          }
+  it("the lead-in keeps every card at or below the row's top, so the heading is never touched", () => {
+    // Before the track sticks a card's layout box is the top of the tall row, not the middle of
+    // the sticky zone — so a card lifted above it would be drawn over Work's heading. While the
+    // focus is in the lead-in (never above 0) no card can be: they are all at d >= 0.
+    for (const sceneH of SCENE_HEIGHTS) {
+      const lead = helixLead(sceneH, STEP);
+      expect(lead).toBeGreaterThan(1);
+      for (let focus = -lead; focus <= 0; focus += 0.02) {
+        for (const [i, p] of poses(9, focus, 1280, sceneH).entries()) {
+          expect(p.y, `h ${sceneH} focus ${focus} card ${i}`).toBeGreaterThanOrEqual(0);
         }
       }
     }
+    // The lead-in is the zone's own height of scroll, so the focus runs at the cards' own rate.
+    expect(helixLead(729, 304) * 304).toBeCloseTo(729, 9);
+    expect(helixLead(0, 304)).toBe(0);
+    expect(helixLead(729, 0)).toBe(0);
   });
 
-  it("a settled phase is the pose the spiral has all the way through", () => {
-    const row = (p: CardPose) => [r2(p.x), r2(p.y), r4(p.scale), r2(p.opacity), p.zIndex];
-    expect(poses(9, 3.4, 1280, 729, { form: 1 }).map(row)).toEqual(poses(9, 3.4, 1280, 729).map(row));
-  });
 });
 
 describe("scroll ↔ focus", () => {
@@ -611,17 +565,14 @@ afterEach(() => {
 });
 
 describe("workHelix — when the spiral applies", () => {
-  it("only once the helix is built, three cards are there, the screen is wide and Work is below", () => {
+  it("only once the helix is built, three cards are there and the screen is wide", () => {
     const { section, track, cards, driver, modes } = setup(9);
     const before = styleOf(cards);
 
-    setScroll(SECTION_TOP - 300); // a deep link into Work, before the observer has reported
-    driver.write({ focus: 0, built: true });
+    // Not built yet: the grid stays, wherever the visitor is.
+    setScroll(SECTION_TOP - 300);
     report(section, "on");
-    driver.write({ focus: 0, built: true }); // inside Work: a deep link keeps the grid
-    setScroll(SECTION_TOP + 6000);
-    report(section, "above");
-    driver.write({ focus: 0, built: true });
+    driver.write({ focus: 0, built: false });
     expect(driver.mode()).toBe("off");
     expect(styleOf(cards)).toEqual(before);
     expect(track.hasAttribute("style")).toBe(false);
@@ -655,10 +606,11 @@ describe("workHelix — when the spiral applies", () => {
 
   it("a deep link below Work, then one instant jump to the top: applies with no observer callback in between", () => {
     const { section, driver, modes } = setup(9);
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     setScroll(SECTION_TOP + 6000); // e.g. #estimare, past Work
     report(section, "above"); // the observer's first and only report
     driver.write({ focus: 0, built: true });
-    expect(driver.mode()).toBe("off");
+    expect(driver.mode()).toBe("spiral");
     setScroll(0); // the logo: straight across Work, so the observer never fires
     driver.write({ focus: 0, built: true });
     expect(driver.mode()).toBe("spiral");
@@ -666,32 +618,24 @@ describe("workHelix — when the spiral applies", () => {
     driver.dispose();
   });
 
-  it("jumps across Work and back, with no observer callback, never lay it out while Work is on screen", () => {
+  it("Work already on screen: it lays the spiral out anyway and lands on the project in view", () => {
+    // Laying the spiral out grows the track by thousands of px. Refusing while Work is on screen
+    // used to leave a reload or a `#lucrari` link on the grid for good; instead the driver notes
+    // the card in the middle of the window and puts the visitor back on it once it has measured.
     const { section, track, cards, driver, modes } = setup(9);
-    const before = styleOf(cards);
-    const untouched = () => {
-      expect(driver.mode()).toBe("off");
-      expect(modes).toEqual([]);
-      expect(styleOf(cards)).toEqual(before);
-      expect(track.hasAttribute("style")).toBe(false);
-    };
-    setScroll(0);
-    report(section, "below");
-    driver.write({ focus: 0, built: false }); // not built yet: nothing to apply
-    for (const y of [SECTION_TOP - 300, SECTION_TOP + 6000, SECTION_TOP + 100, SECTION_TOP - VH + 1]) {
-      setScroll(y); // on screen, past it, on screen, its top one px into the viewport — no callback
-      driver.write({ focus: 0, built: true });
-      untouched();
-    }
-    // The observer saw Work on screen; an instant jump to the top before its next report: vetoed…
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    // The grid's second row across the middle of the window: its first card (3) is the nearest.
+    setScroll(TRACK_TOP + (GRID.cardH + GRID.gap) + GRID.cardH / 2 - VH / 2);
     report(section, "on");
-    setScroll(0);
-    driver.write({ focus: 0, built: true });
-    untouched();
-    // …until it reports Work gone.
-    report(section, "below");
     driver.write({ focus: 0, built: true });
     expect(driver.mode()).toBe("spiral");
+    expect(modes).toEqual(["spiral"]);
+    expect(track.style.getPropertyValue("grid-template-rows")).toBe(`${TRACK_H}px`);
+    expect(scrollTo).toHaveBeenLastCalledWith({
+      top: scrollForCard(3, 9, { start: TRACK_TOP - HEADER, end: TRACK_TOP - HEADER + 8 * STEP }),
+      behavior: "instant",
+    });
+    expect(cards.every((el) => el.style.position === "sticky")).toBe(true);
     driver.dispose();
   });
 
@@ -730,7 +674,11 @@ describe("workHelix — when the spiral applies", () => {
   it("measures its own span: track top under the header → track bottom at the viewport's, less the finish", () => {
     const { driver } = spiral(9);
     const span = { start: TRACK_TOP - HEADER, end: TRACK_TOP - HEADER + 8 * STEP };
-    expect(driver.focus(span.start - 500)).toBe(0);
+    // Below the span the focus runs backwards over the lead-in, at the cards' own rate, and stops.
+    expect(driver.focus(span.start - STEP)).toBeCloseTo(-1, 9);
+    const lead = helixLead(LAYER, STEP);
+    expect(driver.focus(span.start - lead * STEP)).toBeCloseTo(-lead, 9);
+    expect(driver.focus(span.start - lead * STEP - 5000)).toBeCloseTo(-lead, 9);
     expect(driver.focus(span.start)).toBe(0);
     expect(driver.focus(scrollForCard(4, 9, span))).toBeCloseTo(4, 9);
     // Past the last card the focus runs on over the finish, easing up, then stops.
@@ -996,7 +944,7 @@ describe("workHelix — restore", () => {
     expect(styleOf(cards)).toEqual(STYLES.concat(STYLES).slice(0, 9));
   });
 
-  it("the media turning off is immediate and compensated, then ambient; back on waits for Work below", () => {
+  it("the media turning off is immediate and compensated, then ambient; back on returns the spiral", () => {
     const { driver, section, cards, media, modes } = spiral(9);
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     setScroll(TRACK_TOP - HEADER + 2 * STEP);
@@ -1007,11 +955,8 @@ describe("workHelix — restore", () => {
     expect(styleOf(cards)).toEqual(STYLES.concat(STYLES).slice(0, 9));
     expect(scrollTo).toHaveBeenCalledWith({ top: TRACK_TOP - HEADER - 24, behavior: "instant" });
 
+    // Back to a wide window: the spiral returns at once, wherever the visitor is standing.
     media.set(true);
-    driver.write({ focus: 0, built: true });
-    expect(driver.mode()).toBe("ambient");
-    setScroll(0);
-    report(section, "below");
     driver.write({ focus: 0, built: true });
     expect(driver.mode()).toBe("spiral");
     driver.dispose();

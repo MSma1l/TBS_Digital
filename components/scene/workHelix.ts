@@ -47,15 +47,14 @@ import {
   helixExitAt,
   helixExitLength,
   helixFocusAt,
-  helixForm,
   helixLayout,
+  helixLead,
   helixOutro,
   helixStep,
   helixWipe,
   nearestCard,
   scrollForCard,
   wantedHelixMode,
-  type CardPhase,
   type CardRect,
 } from "./helix";
 
@@ -72,10 +71,9 @@ export type WorkHelixDriver = {
   exit(scrollY: number): number;
   /**
    * Once per frame after world.update: applies the wanted mode when safe, writes poses (spiral) or
-   * the nearest card (ambient). `enter` is the Work gate's timed 0 → 1 (fx.ts); left out it is 1,
-   * fully formed.
+   * the nearest card (ambient).
    */
-  write(s: { focus: number; built: boolean; enter?: number }): void;
+  write(s: { focus: number; built: boolean }): void;
   /** Index of the front card (data-helix-front), −1 if none. */
   front(): number;
   cards(): readonly HTMLElement[];
@@ -247,11 +245,11 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   let exitLength = 0;
   /** The scroll a card of focus costs (`helixStep`), as the current layout measured it. */
   let stepPx = 0;
+  /** How far below the front card 0 starts, in cards: the lead-in (helix.ts `helixLead`). */
+  let lead = 0;
   /** The probe version the layout (spiral) or the index (ambient) was made for. */
   let version = -1;
   let lastFocus = Number.NaN;
-  let lastEnter = Number.NaN;
-  const phase: CardPhase = { form: 1 };
   let zIndexes: number[] = [];
   let opacities: number[] = [];
   let clickable: boolean[] = [];
@@ -320,7 +318,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     clickable = cards.map(() => false);
     wipes = cards.map(() => Number.NaN);
     lastFocus = Number.NaN;
-    lastEnter = Number.NaN;
     focusDirty = true;
     layout();
     if (typeof window.ResizeObserver === "function") {
@@ -344,6 +341,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     outro = helixOutro(window.innerHeight, sceneH);
     stepPx = helixStep(window.innerHeight);
     exitLength = helixExitLength(window.innerHeight, sceneH);
+    lead = helixLead(sceneH, stepPx);
     const cardW = `${round2(helixCardWidth(zoneW))}px`;
     const cardH = `${round2(helixCardHeight(sceneH))}px`;
     // The finish's scroll is part of the track; `measure` keeps it out of the focus span, so the
@@ -357,7 +355,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     measure();
     version = probe.version;
     lastFocus = Number.NaN;
-    lastEnter = Number.NaN;
   }
 
   /**
@@ -391,7 +388,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     return -1;
   }
 
-  function frameSpiral(focus: number, enter: number): void {
+  function frameSpiral(focus: number): void {
     if (probe.version !== version) layout();
     else if (topsDirty) placeTops();
     if (focusDirty) {
@@ -403,16 +400,12 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
       }
     }
     const f = Number.isFinite(focus) ? focus : 0;
-    const e = Number.isFinite(enter) ? Math.min(1, Math.max(0, enter)) : 1;
-    // The entrance runs on its own clock, so a still page is repainted while it plays.
-    if (Math.abs(f - lastFocus) < FOCUS_EPSILON && e === lastEnter) return;
+    if (Math.abs(f - lastFocus) < FOCUS_EPSILON) return;
     lastFocus = f;
-    lastEnter = e;
     const n = cards.length;
     for (let i = 0; i < n; i += 1) {
       const style = cards[i].style;
-      phase.form = helixForm(e, i, f);
-      helixLayout(i, f, zoneW, sceneH, pose, phase);
+      helixLayout(i, f, zoneW, sceneH, pose);
       style.transform =
         `perspective(${HELIX_LAYOUT.camera.depth}px) ` +
         `translate3d(${round2(pose.x)}px, ${round2(pose.y)}px, ${round2(pose.tz)}px) ` +
@@ -440,7 +433,9 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
         style.pointerEvents = click ? "auto" : "none";
       }
     }
-    setFront(Math.round(Math.min(n - 1, Math.max(0, f))));
+    // Through the lead-in there is no front card yet: card 0 is still climbing, and marking it
+    // would spend its arrival (the accent, the strand's flare, the picture's print) off screen.
+    setFront(f > -0.5 ? Math.round(Math.min(n - 1, Math.max(0, f))) : -1);
   }
 
   function anchorBefore(): ScrollAnchor {
@@ -657,7 +652,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
 
   return {
     focus(scrollY) {
-      return mode === "spiral" ? helixFocusAt(scrollY, span, cards.length, stepPx, exitLength) : 0;
+      return mode === "spiral" ? helixFocusAt(scrollY, span, cards.length, stepPx, exitLength, lead) : 0;
     },
     exit(scrollY) {
       return mode === "spiral" ? helixExitAt(scrollY, span, exitLength) : 0;
@@ -667,7 +662,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
         if (!track.isConnected) return;
         built = s.built;
         apply(wantedHelixMode(built, cards.length, media!.matches));
-        if (mode === "spiral") frameSpiral(s.focus, s.enter ?? 1);
+        if (mode === "spiral") frameSpiral(s.focus);
         else if (mode === "ambient") frameAmbient();
       });
     },
