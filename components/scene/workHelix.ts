@@ -37,13 +37,13 @@ import { scrollProgress, type ScrollProbe, type ScrollSpan } from "@/lib/scene";
 import {
   HELIX_FRONT_ATTR,
   HELIX_LAYOUT,
-  HELIX_LIT_ATTR,
   HELIX_MIN_CARDS,
   WORK_HELIX_MEDIA,
   createCardPose,
   focusFromProgress,
   helixCardHeight,
   helixCardWidth,
+  HELIX_WIPE_PROP,
   helixExitAt,
   helixExitLength,
   helixFocusAt,
@@ -51,6 +51,7 @@ import {
   helixLayout,
   helixOutro,
   helixStep,
+  helixWipe,
   nearestCard,
   scrollForCard,
   wantedHelixMode,
@@ -122,6 +123,8 @@ const CARD_PROPS = [
   "transform",
   "z-index",
   "opacity",
+  // Work's CSS reads it for the screenshot's reveal; the restore must take it off again.
+  HELIX_WIPE_PROP,
 ] as const;
 
 /** Everything the spiral writes on the track. */
@@ -248,12 +251,12 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   let version = -1;
   let lastFocus = Number.NaN;
   let lastEnter = Number.NaN;
-  const phase: CardPhase = { form: 1, exit: 0 };
+  const phase: CardPhase = { form: 1 };
   let zIndexes: number[] = [];
   let opacities: number[] = [];
   let clickable: boolean[] = [];
-  /** Which cards carry `HELIX_LIT_ATTR`: their arrival has begun (Work's CSS runs it). */
-  let lit: boolean[] = [];
+  /** The `--helix-wipe` last written per card: a card whose picture is whole rewrites nothing. */
+  let wipes: number[] = [];
   let focused = -1;
   let focusDirty = true;
   /** A card's content box changed (a locale switch, a hover revealing its description): centre them again. */
@@ -285,22 +288,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     cards[i]?.setAttribute(HELIX_FRONT_ATTR, "");
   }
 
-  /**
-   * `HELIX_LIT_ATTR` on card `i`, once. Work's CSS hangs the screenshot's reveal off it, so the
-   * driver never writes a frame of that animation — only the moment it starts, which is the
-   * moment the card's own arrival starts (`helixForm`), staggered card by card along the strand.
-   */
-  function setLit(i: number, on: boolean): void {
-    if (lit[i] === on) return;
-    lit[i] = on;
-    if (on) cards[i]?.setAttribute(HELIX_LIT_ATTR, "");
-    else cards[i]?.removeAttribute(HELIX_LIT_ATTR);
-  }
-
-  function clearLit(): void {
-    for (let i = 0; i < lit.length; i += 1) if (lit[i]) cards[i]?.removeAttribute(HELIX_LIT_ATTR);
-    lit = [];
-  }
 
   function layerHeight(): number {
     return probe.layerH > 0 ? probe.layerH : Math.max(0, window.innerHeight - probe.headerH);
@@ -331,7 +318,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     zIndexes = cards.map(() => Number.NaN);
     opacities = cards.map(() => Number.NaN);
     clickable = cards.map(() => false);
-    lit = cards.map(() => false);
+    wipes = cards.map(() => Number.NaN);
     lastFocus = Number.NaN;
     lastEnter = Number.NaN;
     focusDirty = true;
@@ -354,7 +341,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     const n = cards.length;
     sceneH = layerHeight();
     zoneW = track.getBoundingClientRect().width;
-    outro = helixOutro(window.innerHeight);
+    outro = helixOutro(window.innerHeight, sceneH);
     stepPx = helixStep(window.innerHeight);
     exitLength = helixExitLength(window.innerHeight, sceneH);
     const cardW = `${round2(helixCardWidth(zoneW))}px`;
@@ -422,8 +409,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     lastFocus = f;
     lastEnter = e;
     const n = cards.length;
-    // `focus` past the last card is the finish, at `stepPx` of scroll a card: back to 0..1.
-    phase.exit = exitLength > 0 ? Math.min(1, Math.max(0, ((f - (n - 1)) * stepPx) / exitLength)) : 0;
     for (let i = 0; i < n; i += 1) {
       const style = cards[i].style;
       phase.form = helixForm(e, i, f);
@@ -442,7 +427,13 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
         style.opacity = String(opacity);
       }
       // Faded out is not there: a card folding into the helix must not take the click either.
-      setLit(i, phase.form > 0);
+      // The screenshot is drawn on by the card's own climb into the zone, not by a timer: two
+      // decimals, and only while it is changing, so a settled deck writes nothing at all.
+      const wipe = round2(helixWipe(i, f));
+      if (wipe !== wipes[i]) {
+        wipes[i] = wipe;
+        style.setProperty(HELIX_WIPE_PROP, String(wipe));
+      }
       const click = pose.face === "front" && opacity >= CLICK_MIN_OPACITY;
       if (click !== clickable[i]) {
         clickable[i] = click;
@@ -476,7 +467,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   }
 
   function restoreAll(): void {
-    clearLit();
     resizing?.disconnect();
     resizing = null;
     topsDirty = false;
@@ -529,7 +519,6 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   /** Tear the current mode down; `next` replaces the card list between the restore and the scroll fix. */
   function leave(compensate: boolean, next?: HTMLElement[]): void {
     setFront(-1);
-    clearLit();
     if (mode === "ambient") detachAmbient();
     const anchor = trackSaved && compensate ? anchorBefore() : null;
     if (trackSaved) restoreAll();

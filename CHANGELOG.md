@@ -16,6 +16,46 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed & Changed: spirala Lucrări — apariția imaginilor se vede, cardurile intră de jos și ies pe sus
+
+### Fixed
+- **Apariția imaginii se vede acum, pentru fiecare card, de fiecare dată.** Dezvăluirea pornea de
+  la poarta secțiunii — o animație de 420ms armată **o singură dată**, la `scrollY` 1602, când
+  vârful pistei era încă la 1961, adică toate cardurile sub marginea de jos a ecranului. Se
+  termina înainte ca vizitatorul să vadă vreun card: pe o parcurgere completă a secțiunii,
+  **niciun cadru din 91** nu prindea vreo imagine în curs de apariție. Mecanismul exista, dar
+  nimeni nu avea cum să-l vadă. Acum imaginea e desenată progresiv după poziția cardului pe fir
+  (`--helix-wipe`), deci se întâmplă acolo unde se uită vizitatorul, la fiecare trecere, și merge
+  înapoi la derulare inversă. Măsurat pe aceeași parcurgere: **704 din 1.179 de cadre** au un card
+  solid, pe ecran, în plină apariție.
+
+### Changed
+- **Imaginea se asamblează, nu doar se dezvăluie.** Partea deja apărută e tăiată în coloane de
+  16px care se umplu pe măsură ce cardul urcă, iar coloanele care încă n-au ajuns se văd ca dungi
+  în culoarea proiectului, nu ca goluri; poza se așază în același timp dintr-o ușoară mărire (6%).
+  Totul din aceeași valoare scrisă deja de driver, deci fără cost nou pe cadru.
+- **Cardurile intră de sub zonă și ies pe deasupra ei**, în loc să se strângă pe axa elicei.
+  Intrarea secțiunii e acum doar deplasare verticală, iar finalul nu mai are caz special: focusul
+  curge mai departe și ultimele carduri ies pe sus ca toate celelalte, în timp ce elicea se
+  răsucește și se dizolvă.
+- **Carduri puțin mai mici, cu drum vizibil mai lung.** La 1280×800 un card are 258px în loc de
+  288, iar centrul lui traversează ecranul de la y 904 până la y −33 (înainte 826 → 45): 78px mai
+  jos la intrare, 78px mai sus la ieșire. Și e solid tot drumul — intră la opacitate 0,62, nu 0,01
+  ca înainte, când practic era invizibil până sus. Pragul de 240px al lățimii **nu** s-a mișcat,
+  fiind cel măsurat pentru contrastul textului peste captură.
+- Reparat pe parcurs: pe un ecran scund finalul se putea încheia cu un card încă slab vizibil;
+  lungimea finalului are acum un prag care garantează că tot teancul a ieșit din zonă. Înălțimea
+  paginii rămâne neschimbată.
+
+**Verificare** (mod de lucru rapid, cerut de client — suita completă se rulează o singură dată, la
+final): 1.537 teste unit / 72 fișiere, build + `tsc` + lint curate; `interior-webgl` 24 +
+`interior` 22. Verificarea vizuală s-a făcut pe pagina reală, derulată automat la viteză de om, nu
+în laborator — exact pasul care lipsise și care costase o rundă întreagă.
+
+Fișiere: `components/scene/helix.ts`, `components/scene/workHelix.ts`,
+`components/sections/Work.tsx`, `app/tailwind.css`, testul `scene-helix`.
+Documentație: [docs/05](./docs/05-page-sections.md) · [docs/04](./docs/04-design-system.md).
+
 ## 2026-09-18 — Changed: spirala ADN — imaginile apar odată cu ADN-ul, cardurile nu mai stau una peste alta
 
 Clientul s-a uitat la runda 1 și a spus: ADN-ul arată bine, dar „imaginile pur și simplu stau", iar

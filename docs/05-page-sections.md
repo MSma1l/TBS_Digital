@@ -459,10 +459,12 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   helix are smaller, fainter and pass **under** it — real depth, not a fade. Only a card facing
   the visitor takes a click or a tap; one behind the helix never does, and neither does a card
   faded under 8% opacity. **The cards are spaced far enough apart not to pile up:** neighbours
-  are 147px apart across and 211px down at 1280×800 (was 131/131), the card at the front is
-  288px wide (was 324), and a card fades out at 2.25 steps from the front — just before its own
-  turn would take it behind the helix, so the strands show **between** the cards rather than
-  behind them and five cards, not seven, are visible at once. The section grows by that
+  are spaced a third of the zone apart at 1280×800 and the card at the front is 258px wide, and a
+  card fades out at 2.6 steps from the front — just before its own turn would take it behind the
+  helix, so the strands show **between** the cards rather than behind them. A card's centre
+  crosses the window from y 904 to y −33, entering at 0.62 opacity rather than creeping in
+  invisible, and its opacity only reaches 0 once its box has left the layer, so nothing winks out
+  in front of the visitor. The section grows by that
   scroll (one sticky screen plus one step per card, plus the finish below); nothing sideways, and
   no card slips under the Phase 5 rail's lane (44px from 861px). A card in the spiral is **as tall as its content**
   (at least the spiral's even height): a long description — always shown on a touch tablet,
@@ -474,17 +476,24 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   clock, so it always finishes and can never rest half-formed, however the visitor scrolls.
   Without the scene (reduced motion, fallback) there is no entrance: the cards are simply in the
   grid.
-- **The screenshot arrives with its card.** The project picture is not simply present: it is
-  built up from its bottom edge with a `clip-path` wipe (420ms — the same beat as its card
-  landing on the helix), behind a sheet of scan lines in the card's own accent whose bright
-  leading edge rides the wipe. When a project reaches the front, one bar crosses it in the same
-  accent (520ms), covering both the strand flare and the hologram's glitch on that same swap, so
-  the three read as one event. All of it is CSS keyframes armed by two attributes the driver
-  writes **once** per card (`data-helix-lit`, `data-helix-front`) — the same pattern as the
-  services' `data-entry`, so it costs no per-frame work and no extra WebGL draw. The scan sheet
-  is painted on the screenshot and **under** the card's washes, so it is attenuated exactly as
-  the picture is wherever copy sits over it. Under reduced motion, on the phone band and on the
-  static art the picture is simply there, as before.
+- **The screenshot is drawn on by the scroll.** The project picture is not simply present: it is
+  built up from its bottom edge as its card climbs the zone, behind a sheet of scan lines in the
+  card's own accent whose bright leading edge rides the reveal. It **assembles** rather than
+  simply appearing: the part already drawn on is masked into 16px columns that fill as the card
+  rises — a column that has not arrived yet shows as a stripe in the project's accent, not as a
+  hole — and the picture settles out of a 6% lift at the same time. It is driven by `--helix-wipe`,
+  written per card from that card's own place on the strand — so it happens where the visitor is
+  looking, on every pass, and runs backwards if they scroll back. A card is whole well before it
+  reaches the front, so the project being read, and every card above it, always show their
+  picture complete; the card one step below the front sitting part-drawn is the effect, not a
+  defect. **This replaced a timed animation that nobody could see:** armed off the section's
+  one-shot gate, the 420ms wipe fired at scrollY 1602 while the track still began at 1961, so on
+  a full pass through the section not one sampled frame out of 91 caught a picture mid-reveal.
+  When a project reaches the front, one bar crosses it in the same accent (520ms), covering both
+  the strand flare and the hologram's glitch on that same swap, so the three read as one event.
+  The scan sheet is painted on the screenshot and **under** the card's washes, so it is
+  attenuated exactly as the picture is wherever copy sits over it. Under reduced motion, on the
+  phone band and on the static art the picture is simply there, as before.
 - **The finish.** The run used to end on a freeze: the front card reached the last project about
   234px (346px on a tablet) before its sticky slot released it, so every card held one identical
   pose while the helix — clamped differently — slid out of the top of the screen without them.

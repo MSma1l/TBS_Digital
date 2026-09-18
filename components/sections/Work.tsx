@@ -95,16 +95,17 @@ const CARD_CLASSES =
    wrapper's empty backdrop instead of the card gradient. */
 const MEDIA_CLASSES = "parallax-media pointer-events-none absolute inset-0 mix-blend-luminosity";
 /* `work-media-reveal` (app/tailwind.css) is inert everywhere but inside the scene's spiral: there
-   the screenshot is wiped in from the bottom edge as its card lands on the helix, instead of
-   simply being there at full strength from the first frame. */
+   the screenshot is clipped by `--helix-wipe`, which the scene writes from the card's own place on
+   the strand — so the picture is drawn on, from its bottom edge up, while the card climbs into the
+   zone under the visitor's eye, and is whole well before the card reaches the front. */
 const IMAGE_CLASSES =
   "work-media-reveal block size-full object-cover object-top opacity-56 transition-[scale,opacity] duration-400 ease-(--motion-ease-out) group-hover/card:scale-108 group-hover/card:opacity-78 motion-reduce:transition-none";
 
-/* The scan layer: a sheet of hairlines with a bright leading edge that rides the screenshot's
-   wipe as the card arrives (`::before`), and a single bar that crosses the card when it reaches
-   the front of the spiral — the same moment the helix flares and the hologram swaps to it
-   (`::after`). Both are in the card's own accent, both are transform + opacity, both are only
-   ever armed by the driver's attributes inside the spiral.
+/* The scan layer: a sheet of hairlines with a bright leading edge that sits on the screenshot's
+   wipe edge as the card climbs (`::before`, moved by the same `--helix-wipe`), and a single bar
+   that crosses the card when it reaches the front of the spiral — the same moment the helix
+   flares and the hologram swaps to it (`::after`, the one timed animation). Both are in the
+   card's own accent, both are transform + opacity, both are only ever live inside the spiral.
    It sits directly on the screenshot, UNDER both washes: over the picture it reads at full
    strength, and under the copy the same 82–94% ink that gives the text its contrast floor
    attenuates it exactly as it attenuates the screenshot. So no pass can ever take a line of

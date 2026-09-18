@@ -42,13 +42,12 @@ export const WORK_HELIX_MEDIA = "(min-width: 768px) and (min-height: 600px)";
 export const HELIX_FRONT_ATTR = "data-helix-front";
 
 /**
- * On a card from the moment its own arrival starts (`helixForm` above 0) until it is unformed
- * again — the spiral only. Work's CSS hangs the card's screenshot reveal off it (app/tailwind.css
- * `work-media-reveal` / `work-scan`), so the image materialises with the card instead of simply
- * being there; `HELIX_FRONT_ATTR` drives the pass it makes when the card reaches the front. Both
- * are CSS animations on their own clock: the driver writes an attribute once, never a frame.
+ * The custom property the driver writes on each card for its screenshot's reveal, 0 → 1
+ * (`helixWipe`). Work's CSS clips the picture and rides a scan sheet on it (app/tailwind.css
+ * `work-media-reveal` / `work-scan`); absent — no scene, reduced motion, the phone's band — it
+ * defaults to 1 and the screenshot is simply there, as it always was.
  */
-export const HELIX_LIT_ATTR = "data-helix-lit";
+export const HELIX_WIPE_PROP = "--helix-wipe";
 
 /** Below this many cards there is nothing to turn: the grid (or band) stays, the helix is ambient. */
 export const HELIX_MIN_CARDS = 3;
@@ -58,8 +57,13 @@ export const HELIX_LAYOUT = {
   cx: 0.34,
   /** Orbit radius: min(fraction · w, px). */
   orbit: [0.19, 240],
-  /** Card width: clamp(px, fraction · w, px). */
-  cardW: [240, 0.24, 320],
+  /**
+   * Card width: clamp(px, fraction · w, px). The fraction is what shrank this round, so a wide
+   * window gets the smaller card the longer travel needed; the 240px floor is the one measured
+   * for the copy's contrast over a screenshot (Work.tsx) and does not move — below it the chips'
+   * own ink plate starts to lose its margin on the brightest screenshots.
+   */
+  cardW: [240, 0.215, 300],
   /** Card height: min(fraction · sceneH, px) — Work's own `min-h-61` may still make it taller. */
   cardH: [0.36, 260],
   /**
@@ -68,13 +72,28 @@ export const HELIX_LAYOUT = {
    * beside each other on the strand instead of stacking. As high as `fade` below allows: a
    * visible card must stay inside ±(sceneH + cardH)/2 of the zone's centre.
    */
-  pitch: 0.29,
+  pitch: 0.34,
   /**
-   * Where a card fades out, in steps from the focus. Tighter than the orbit is long on purpose:
-   * five cards on the strand at a time, not seven, so each one is its own object and the helix
-   * shows between them.
+   * Where a card fades out, in steps from the focus. Wide enough that a card is still solid as
+   * it slides in at the bottom of the zone and as it leaves at the top — it reaches opacity 0
+   * only once its box is clear of the layer, so nothing ever winks out in front of the visitor
+   * (scene-helix.test.ts pins exactly that).
    */
-  fade: [1.35, 2.25],
+  fade: [1.55, 2.6],
+  /**
+   * Where the card's screenshot builds up, in steps from the focus — signed, and only on the way
+   * in: 0 at `wipe[1]` to 1 at `wipe[0]`, after which it stays 1 for the whole of the card's way
+   * out over the top. Work's CSS reads it as `--helix-wipe` (app/tailwind.css
+   * `work-media-reveal`), so the picture is drawn on by the scroll the visitor is making, not by
+   * a one-shot timer they will have missed.
+   *
+   * The band is chosen so the wipe's own edge is **on screen** while it travels, which is the
+   * whole point: over these 0.85 steps (≈258px of scroll at 1280×800) the edge climbs from the
+   * bottom of the viewport to about two thirds up it — 70% of the wipe happens in plain sight,
+   * on a card that is 60–100% opaque. It is done well before the card is the one at the front,
+   * so the card being read, and every card above it, always shows its picture whole.
+   */
+  wipe: [0.65, 1.5],
   /** Scroll per card: clamp(px, fraction · innerHeight, px). */
   step: [240, 0.38, 380],
   /** Around the strand per card (shapes.ts, shared with the helix model). */
@@ -103,19 +122,13 @@ export const HELIX_LAYOUT = {
 
 /**
  * The finish. `steps` cards' worth of scroll is added to the track after the last card reaches
- * the focus and the focus keeps running through it at the same rate — so the hand-over is
- * seamless — while the deck folds into the axis: `x` pulled this share of the way onto the
- * strand, the scale and opacity taken down, the turn wound up. `from` is where the fold starts
- * inside the outro (its speed at 0 is 0, so nothing kicks).
+ * the focus, and the focus keeps running through it — so the last card leaves over the top of the
+ * zone exactly as every card before it did, and nothing is folded onto the axis. `lift` is how
+ * much faster the focus is running by the end of it (a rate of 1 + `lift`, reached smoothly from
+ * exactly 1 at the hand-over, so there is no kick): the deck is drawn up and out as the helix
+ * winds up, and the whole run of cards has cleared the fade window by the time the finish ends.
  */
-export const HELIX_OUTRO = {
-  steps: 1.35,
-  from: 0.1,
-  x: 0.86,
-  scale: 0.5,
-  turn: 0.55,
-  back: 420,
-} as const;
+export const HELIX_OUTRO = { steps: 1.35, lift: 0.6 } as const;
 
 /**
  * The entrance, as shares of the Work gate's 0 → 1 (fx.ts `WORK_SECONDS.form`, 1.2s): the card at
@@ -129,7 +142,7 @@ export const HELIX_OUTRO = {
  * (`smoothstep(0.7, 1)` of the same gate, choreography.ts `composeScene`): strands first, then the
  * deck onto them.
  */
-export const HELIX_ENTER = { from: 0.28, lag: 0.44, ramp: 0.28, span: 5 } as const;
+export const HELIX_ENTER = { from: 0.28, lag: 0.44, ramp: 0.28, span: 5, rise: 0.55 } as const;
 
 /** Where the card's box may not go, px from either side of the zone. */
 export function helixEdge(w: number): number {
@@ -152,23 +165,37 @@ export function helixStep(innerHeight: number): number {
 }
 
 /**
- * The finish's own scroll, px: track added past the last card's focus. The track grows by exactly
- * this and the focus span shrinks by it, so the cards' cadence (`helixStep` each) never changes.
+ * The slack a sticky card still has under the layer once the track's own scroll is spent:
+ * `(sceneH − card) / 2` for a card at the floor height. It is the stretch the very first spiral
+ * froze in, and the finish spends it rather than leaving it dead.
  */
-export function helixOutro(innerHeight: number): number {
-  return HELIX_OUTRO.steps * helixStep(innerHeight);
+export function helixSlack(sceneH: number): number {
+  return Math.max(0, (sceneH - helixCardHeight(sceneH)) / 2);
 }
 
 /**
- * How long the finish runs, px — longer than the track it added, by the slack a sticky card still
- * has under the layer once the outro's own scroll is spent (`(sceneH − card) / 2`, for a card at
- * the floor height). That slack is the stretch the old spiral froze in: running the finish over it
- * too means the helix has just dissolved as the cards come unstuck and the next section arrives —
- * no dead screen between the two. A taller card comes unstuck a little earlier, by which time it
- * has long been at opacity 0.
+ * The finish's own scroll, px: track added past the last card's focus. The track grows by exactly
+ * this and the focus span shrinks by it, so the cards' cadence (`helixStep` each) never changes.
+ *
+ * Normally that is `HELIX_OUTRO.steps` cards' worth. The floor underneath it is what the deck
+ * needs to be *gone*: together with the slack below and the `lift` the focus eases up to, the
+ * finish must carry the last card the whole `fade` window out over the top of the zone, or the
+ * helix would dissolve with a card still faintly on screen. On a normal window the floor is well
+ * under `steps` and nothing is added; a very short layer (little slack to spend) buys the rest.
+ */
+export function helixOutro(innerHeight: number, sceneH: number): number {
+  const step = helixStep(innerHeight);
+  const needed = (HELIX_LAYOUT.fade[1] * step) / (1 + HELIX_OUTRO.lift / 2) - helixSlack(sceneH);
+  return Math.max(HELIX_OUTRO.steps * step, needed);
+}
+
+/**
+ * How long the finish runs, px — the track it added plus the slack below it. So the helix has
+ * just dissolved as the cards come unstuck and the next section arrives: no dead screen between
+ * the two. A taller card comes unstuck a little earlier, by which time it is long gone.
  */
 export function helixExitLength(innerHeight: number, sceneH: number): number {
-  return helixOutro(innerHeight) + Math.max(0, (sceneH - helixCardHeight(sceneH)) / 2);
+  return helixOutro(innerHeight, sceneH) + helixSlack(sceneH);
 }
 
 /** Pure. How far into the finish `scrollY` is: 0 up to the last card's focus, 1 at its end. */
@@ -190,7 +217,21 @@ export function helixFocusAt(
 ): number {
   const base = focusFromProgress(scrollProgress(scrollY, span), n);
   if (!(stepPx > 0) || !(exitLength > 0) || !Number.isFinite(scrollY)) return base;
-  return base + Math.min(exitLength, Math.max(0, scrollY - span.end)) / stepPx;
+  const t = clamp01((scrollY - span.end) / exitLength);
+  // t at rate 1 (the cards' own cadence, so the hand-over has no kick) easing up to 1 + `lift`.
+  return base + (exitLength / stepPx) * (t + (HELIX_OUTRO.lift * t * t) / 2);
+}
+
+/**
+ * Pure. How much of card `i`'s screenshot is drawn in at `focus`: 0 while it is still climbing
+ * into the bottom of the zone, 1 from `HELIX_LAYOUT.wipe[0]` steps below the front onwards —
+ * and 1 for the whole of its way out over the top, so a picture is never taken apart again once
+ * the visitor has seen it whole.
+ */
+export function helixWipe(i: number, focus: number): number {
+  const d = i - (Number.isFinite(focus) ? focus : 0);
+  const [full, none] = HELIX_LAYOUT.wipe;
+  return 1 - smoothstep(full, none, d);
 }
 
 /**
@@ -235,11 +276,12 @@ export type CardPose = {
   face: "front" | "back";
 };
 
-/** A card's place in the entrance (`form` 0 → 1, `helixForm`) and in the finish (`exit`, `helixExitAt`). */
-export type CardPhase = { form: number; exit: number };
+/** A card's place in the section's entrance: 0 → 1, `helixForm`. The finish needs nothing — the
+ *  focus simply runs on and the cards leave over the top, like every card before them. */
+export type CardPhase = { form: number };
 
-/** Formed and not leaving: the pose a card holds through the run of the spiral. */
-export const HELIX_SETTLED: CardPhase = { form: 1, exit: 0 };
+/** Formed: the pose a card holds through the whole run of the spiral. */
+export const HELIX_SETTLED: CardPhase = { form: 1 };
 
 export function createCardPose(): CardPose {
   return { x: 0, y: 0, tz: 0, scale: 1, rotY: 0, rotX: 0, opacity: 1, z: 1, zIndex: 1, face: "front" };
@@ -272,18 +314,16 @@ export function helixLayout(
   out.face = out.z >= 0 ? "front" : "back";
   out.zIndex = out.z >= 0 ? 1 + Math.round(out.z * 10) : -1 - Math.round(-out.z * 8);
 
-  const axis = (HELIX_LAYOUT.cx - 0.5) * w;
-  // Both ends of the run fold the card onto the axis the same way — the entrance backwards.
-  const fold = clamp01(1 - clamp01(phase.form) + smoothstep(HELIX_OUTRO.from, 1, clamp01(phase.exit)));
-  if (fold > 0) {
-    out.scale *= 1 - HELIX_OUTRO.scale * fold;
-    out.rotY *= 1 + HELIX_OUTRO.turn * fold;
-    out.tz -= HELIX_OUTRO.back * fold;
-    out.opacity *= (1 - fold) ** 1.6;
+  // The section's entrance: the deck climbs into the zone from below it, never out of the axis.
+  // Nothing horizontal moves, so a card arrives on the very path it will keep travelling.
+  const form = clamp01(phase.form);
+  if (form < 1) {
+    out.y += (1 - form) * HELIX_ENTER.rise * sceneH;
+    out.opacity *= form;
   }
   const half = (helixCardWidth(w) * out.scale) / 2;
   const edge = helixEdge(w);
-  const x = axis + Math.sin(theta) * orbit * (1 - HELIX_OUTRO.x * fold);
+  const x = (HELIX_LAYOUT.cx - 0.5) * w + Math.sin(theta) * orbit;
   out.x = Math.min(w / 2 - half - edge, Math.max(-w / 2 + half + edge, x));
   return out;
 }

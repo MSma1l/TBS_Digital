@@ -395,50 +395,61 @@
   }
 }
 
-/* ---- Work's spiral: the screenshots arrive with the helix --------------------------------
-   Inside the scene's spiral (components/scene/workHelix.ts) the driver marks a card
-   `data-helix-lit` the moment its own arrival starts — staggered card by card along the strand
-   by `helixForm` — and `data-helix-front` when it reaches the front of the spiral. Everything
-   below hangs off those two attributes, so the driver writes an attribute once and never a
-   frame of animation: the browser runs both on its own clock.
+/* ---- Work's spiral: the screenshots are drawn on as their card climbs -------------------
+   Inside the scene's spiral (components/scene/workHelix.ts) the driver writes `--helix-wipe`
+   on each card, 0 → 1, from the card's own place on the strand: 0 while it is still climbing
+   into the bottom of the zone, 1 a card's width of travel below the front, and 1 for the whole
+   of its way out over the top. So the picture is drawn on by the scroll the visitor is making,
+   at the moment they are looking at that card — and again, in reverse, if they scroll back.
+   (Round 2 hung this off a 420ms animation armed once at the section's gate, which had always
+   finished long before any card was under the eye. Nobody ever saw it.)
 
-   Nowhere else does any of it apply. Without the scene (the fallback, `data-helix` absent, a
-   phone's band) the screenshot is simply there, as it has always been, and reduced motion drops
-   every animation twice over — the media query here and globals.css's blanket
-   `* { animation: none !important }`.
+   Nowhere else does any of it apply: with no scene — the fallback, a phone's band, reduced
+   motion — the property is simply absent, `var(--helix-wipe, 1)` is 1, and the screenshot is
+   there at full strength exactly as it has always been. Nothing here transitions or animates on
+   its own, so there is nothing for reduced motion to stop.
 
-   `work-media-reveal` is the wipe itself, on the <img>: `clip-path` rather than opacity, so the
-   picture is built up edge by edge instead of ghosting in. It is the one rule in this file that
-   is not transform/opacity — it repaints one composited image for 420ms, once per card per
-   entrance, and nothing else on the page is animating clip-path.
-   Its 420ms is `HELIX_ENTER.ramp` (0.35) of the Work gate's 1.2s (fx.ts WORK_SECONDS.form): the
-   card's box and its picture land together. */
+   `clip-path` rather than opacity: the picture is built up edge by edge instead of ghosting in.
+   It repaints one composited image per frame per card that is mid-reveal, which is one card at a
+   time — the band is narrower than the gap between two cards. */
 @utility work-media-reveal {
-  @media (prefers-reduced-motion: no-preference) {
-    [data-scene-stage][data-helix="spiral"] [data-helix-lit] & {
-      animation: hud-work-media-in 420ms var(--motion-ease-out) both;
-    }
-  }
-}
-@keyframes hud-work-media-in {
-  from {
-    clip-path: inset(100% 0 0 0);
-  }
-  to {
-    clip-path: inset(0 0 0 0);
+  [data-scene-stage][data-helix="spiral"] [data-work-track] & {
+    clip-path: inset(calc((1 - var(--helix-wipe, 1)) * 100%) 0 0 0);
+    /* The picture does not just slide up behind the clip edge — it assembles. The part that has
+       already been drawn on is masked into 16px columns that fill as the card climbs, so the
+       screenshot builds itself out of data columns and locks solid at the end, and it settles
+       out of a slight lift at the same time. `transform` is free here: the card's hover uses the
+       `scale` property, which composes rather than collides. Both are driven by the same
+       `--helix-wipe`, so they cost the one custom-property write the driver already makes and
+       they run backwards when the visitor scrolls back. */
+    -webkit-mask-image: repeating-linear-gradient(
+      to right,
+      #000 0 calc(var(--helix-wipe, 1) * 16px),
+      transparent calc(var(--helix-wipe, 1) * 16px) 16px
+    );
+    mask-image: repeating-linear-gradient(
+      to right,
+      #000 0 calc(var(--helix-wipe, 1) * 16px),
+      transparent calc(var(--helix-wipe, 1) * 16px) 16px
+    );
+    transform: scale(calc(1 + (1 - var(--helix-wipe, 1)) * 0.06))
+      translateY(calc((1 - var(--helix-wipe, 1)) * 2%));
+    transform-origin: 50% 100%;
   }
 }
 
-/* The scan layer, one span per card, above the washes and the glass and below the copy.
-   ::before is the arriving sheet — hairlines in the card's accent behind a bright leading edge —
-   which rises exactly as the wipe above does and then fades off the top.
-   ::after is the pass a card makes when it comes to the front: one bar, 520ms, so it is still
-   running while the helix flares (HELIX_PULSE_SECONDS 0.55) and the hologram glitches over to
-   this card (HELIX_GLITCH_SECONDS 0.35) — one event, three places.
-   Strength is the keyframes' opacity, never a colour mix, so no engine can put an opaque band
-   anywhere: the sheet peaks at .55 and the bar at .7. Both sit on the screenshot, under the
-   card's two washes, so the 82–94% ink that carries the copy's contrast floor dims them under
-   the text exactly as it dims the picture — the floor is the wash's, as it has always been. */
+/* The scan layer, one span per card, on the screenshot and under both washes.
+   ::before is the sheet the picture is drawn on behind — hairlines in the card's own accent with
+   a bright 2px leading edge that sits exactly on the clip edge (the same `--helix-wipe` moves
+   both), fading out as the last of the picture arrives.
+   ::after is the pass a card makes when it comes to the front: one bar, 520ms, still running
+   while the helix flares (HELIX_PULSE_SECONDS 0.55) and the hologram glitches over to this card
+   (HELIX_GLITCH_SECONDS 0.35) — one event, three places. It is the one timed animation here, and
+   it is an event, not a journey.
+   Strength is opacity, never a colour mix, so no engine can put an opaque band anywhere: the
+   sheet peaks at .55 and the bar at .7. Both sit on the screenshot, under the card's two washes,
+   so the 82–94% ink that carries the copy's contrast floor dims them under the text exactly as it
+   dims the picture — the floor is the wash's, as it has always been. */
 @utility work-scan {
   position: absolute;
   inset: 0;
@@ -461,6 +472,14 @@
     height: 100%;
     background-image:
       linear-gradient(to bottom, color-mix(in srgb, var(--p2) 85%, var(--on-accent)) 0 2px, transparent 2px),
+      /* the columns the picture has not assembled yet, in the card's accent and in step with the
+         mask on `work-media-reveal`, so a gap reads as a data column rather than a hole; at
+         `--helix-wipe` 1 the band is zero-width and this gradient is not there at all */
+      repeating-linear-gradient(
+        to right,
+        transparent 0 calc(var(--helix-wipe, 1) * 16px),
+        color-mix(in srgb, var(--p2) 60%, transparent) calc(var(--helix-wipe, 1) * 16px) 16px
+      ),
       repeating-linear-gradient(to bottom, color-mix(in srgb, var(--p2) 45%, transparent) 0 1px, transparent 1px 4px);
   }
   /* The bar: a soft head with a hard bright edge, a seventh of the card tall. */
@@ -475,26 +494,14 @@
     );
   }
 
+  [data-scene-stage][data-helix="spiral"] [data-work-track] &::before {
+    opacity: calc((1 - var(--helix-wipe, 1)) * 0.55);
+    transform: translateY(calc((1 - var(--helix-wipe, 1)) * 100%));
+  }
   @media (prefers-reduced-motion: no-preference) {
-    [data-scene-stage][data-helix="spiral"] [data-helix-lit] &::before {
-      animation: hud-work-scan-in 420ms var(--motion-ease-out) both;
-    }
     [data-scene-stage][data-helix="spiral"] [data-helix-front] &::after {
       animation: hud-work-scan-pass 520ms var(--motion-ease-out) both;
     }
-  }
-}
-@keyframes hud-work-scan-in {
-  from {
-    opacity: 0.55;
-    transform: translateY(100%);
-  }
-  62% {
-    opacity: 0.55;
-  }
-  to {
-    opacity: 0;
-    transform: translateY(0);
   }
 }
 @keyframes hud-work-scan-pass {
