@@ -240,6 +240,86 @@ export function coreReveal(e: number): number {
   return 1 - smoothstep(0.6, 1, e);
 }
 
+/* ---- the steps corner (a service page's "Cum lucrăm") ----------------------------------- */
+
+/**
+ * The model fills this much of the steps host's box. `MODEL_RADIUS` is the model's whole bound —
+ * the world only ever turns it about its centre — so at 0.9 of the host's short side nothing it
+ * draws can reach the copy beside it, at any sway or tilt.
+ */
+export const STEPS_BOX_FILL = 0.9;
+
+/**
+ * Seconds for the model to travel from the hero host into the steps corner and back. A travel in
+ * TIME, like the entry and Work gates: a flick that crosses the whole section never teleports the
+ * model, it only gets as far as the flick lasted and turns round from there.
+ */
+export const STEPS_TRAVEL = { form: 0.65, unform: 0.5 } as const;
+
+/**
+ * The share of the host that has to be inside the canvas for the travel to start, and the share it
+ * falls to before the model goes home. Armed early on purpose: the travel is then spent while the
+ * section is still coming up, so the model is parked by the time the copy is being read.
+ */
+export const STEPS_GATE = { on: 0.5, off: 0.05 } as const;
+
+/**
+ * The steps host's document top at `scrollY`: where it rests until the scroll reaches its sticky
+ * offset, then the sticky line, then the bottom of the band it is sticky in — the whole of a
+ * `position: sticky` box, out of two numbers the director measured. Null with no host.
+ */
+export function stepsHostTop(probe: ScrollProbe, scrollY: number): number | null {
+  const rect = probe.steps;
+  // A host with no box is no host: the steps column collapses to 0×0 wherever the scene will never
+  // draw (renderer `fallback` / `off`), and fitting a model into nothing would scale it away.
+  if (!probe.live || !rect || rect.w <= 0 || rect.h <= 0) return null;
+  const y = Number.isFinite(scrollY) ? scrollY : 0;
+  const run = Math.max(0, probe.stepsPin.end - probe.stepsPin.start);
+  return rect.y + Math.min(run, Math.max(0, y - probe.stepsPin.start));
+}
+
+/** How much of the steps host is inside the canvas at `scrollY`, 0 → 1 (0 with no host). */
+export function stepsShare(probe: ScrollProbe, scrollY: number, h: number): number {
+  const rect = probe.steps;
+  const hostTop = stepsHostTop(probe, scrollY);
+  if (!rect || hostTop === null) return 0;
+  const y0 = hostTop - canvasDocTop(scrollY, probe, h);
+  return clamp01((Math.min(h, y0 + rect.h) - Math.max(0, y0)) / rect.h);
+}
+
+/**
+ * The service model's placement in the steps corner at `scrollY`: fitted into the host's box and
+ * following it rigidly. No parallax here — the host is pinned under the header while the section
+ * is read, and a model that drifted against it would leave a box it has to stay inside. Null
+ * before the director has measured a host (every page but a service page's desktop layout).
+ */
+export function placeSteps(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  out?: Placement,
+): Placement | null {
+  const rect = probe.steps;
+  const hostTop = stepsHostTop(probe, scrollY);
+  if (!rect || hostTop === null) return null;
+  const top = canvasDocTop(scrollY, probe, h);
+  const box = Math.min(rect.w, rect.h);
+  return fitAnchor(w, h, rect.x + rect.w / 2, hostTop + rect.h / 2 - top, box, MODEL_RADIUS, STEPS_BOX_FILL, out);
+}
+
+/**
+ * `a` → `b` at `t` (0 → 1). The position is lerped; the scale geometrically, because the corner is
+ * a third of the hero's box and a linear scale would spend most of the travel already small.
+ */
+export function blendPlacement(a: Placement, b: Placement, t: number, out: Placement): Placement {
+  const k = clamp01(t);
+  out.x = a.x + (b.x - a.x) * k;
+  out.y = a.y + (b.y - a.y) * k;
+  out.scale = a.scale > 0 && b.scale > 0 ? a.scale * (b.scale / a.scale) ** k : a.scale + (b.scale - a.scale) * k;
+  return out;
+}
+
 /* ---- the Work helix -------------------------------------------------------------------- */
 
 /** The spiral's helix is this share of its sticky zone's height tall (the zone: one layer). */

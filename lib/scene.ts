@@ -182,9 +182,19 @@ export function shapeIndex(slugOrLegacy: string): number {
 export type SceneBoostSource = "hero-primary" | "hero-secondary";
 
 /** Read by the scene every frame (no allocation) and by the stage through a subscription. */
-export type SceneInput = { boost: 0 | 1; waveSeq: number; shape: number };
+/**
+ * `stage` is which step of "Cum lucrăm" the visitor is reading on a service page, or −1 for none.
+ * The world turns it into a place in the model's own loop and holds the model there, so the 3D
+ * object illustrates the step being read instead of running on regardless of it.
+ */
+export type SceneInput = { boost: 0 | 1; waveSeq: number; shape: number; stage: number };
 
-const INITIAL_INPUT: Readonly<SceneInput> = Object.freeze({ boost: 0, waveSeq: 0, shape: 0 });
+const INITIAL_INPUT: Readonly<SceneInput> = Object.freeze({
+  boost: 0,
+  waveSeq: 0,
+  shape: 0,
+  stage: -1,
+});
 
 const boostSources = new Set<SceneBoostSource>();
 const inputListeners = new Set<() => void>();
@@ -216,6 +226,17 @@ export function selectSceneShape(slugOrLegacy: string): void {
   const shape = shapeIndex(slugOrLegacy);
   if (shape < 0 || shape === input.shape) return;
   publish({ ...input, shape });
+}
+
+/**
+ * The step of a service page the visitor is reading (0-based), or −1 for none. The world clamps
+ * it against the model's own stage table, so a page with more steps than the model has stages
+ * simply releases the model rather than holding it somewhere meaningless.
+ */
+export function selectServiceStage(stage: number): void {
+  const next = Number.isFinite(stage) && stage >= 0 ? Math.floor(stage) : -1;
+  if (next === input.stage) return;
+  publish({ ...input, stage: next });
 }
 
 export function readSceneInput(): Readonly<SceneInput> {
@@ -265,6 +286,19 @@ export type ScrollProbe = {
    * The ambient helix lies in it, clear of any text. Null without Work.
    */
   workGap: DocRect | null;
+  /**
+   * A service page's steps host (`[data-scene-anchor="steps"]`): the empty, sticky box beside
+   * "Cum lucrăm" the model moves into while the section is read. `y` is where the host RESTS —
+   * its document top unstuck, not where it is pinned at this scroll. Null on every page without
+   * one, and below 861px, where the page does not render it at all.
+   */
+  steps: DocRect | null;
+  /**
+   * The scroll `steps` is pinned over: from the scroll at which it takes its sticky offset to the
+   * one at which the band it is sticky in runs out under it. With `steps.y` it is the whole of the
+   * host's travel, so the scene never has to touch the DOM for it (`stepsHostTop`).
+   */
+  stepsPin: ScrollSpan;
   /** `#top`, "top top" → "bottom 35%". */
   heroExit: ScrollSpan;
   /**
@@ -296,6 +330,8 @@ export function createScrollProbe(): ScrollProbe {
     work: null,
     workHead: null,
     workGap: null,
+    steps: null,
+    stepsPin: { start: 0, end: 0 },
     heroExit: { start: 0, end: 0 },
     entry: { start: 0, end: 0 },
     workSpan: { start: 0, end: 0 },

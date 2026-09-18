@@ -16,6 +16,69 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Added: paginile de servicii capătă viață sub hero; modelul 3D însoțește pașii
+
+Clientul a cerut trei lucruri, după ce a văzut modelele noi: caseta de sub model să dispară, iar mai
+jos pe pagină „să adaugi ceva frumos animat, interactiv". A ales, dintr-o listă de șase propuneri,
+pașii vii legați de model, beneficiile ca panouri și cazurile care se deschid pe loc.
+
+**Caseta „Proiect de referință" a ieșit din hero.** Coloana din dreapta rămâne doar cu modelul 3D.
+Nu s-a pierdut conținut: pe fiecare pagină, proiectul din casetă e oricum primul card din „Proiecte
+relevante". La E-commerce, singura direcție fără proiect public, caseta desena **schema fluxului** —
+aceasta s-a mutat lângă pașii „Cum lucrăm", unde se citește ca un întreg cu ei.
+
+**Cele trei beneficii sunt acum panouri HUD**, în vocabularul care exista deja la „Direcții": marginea
+se aprinde la intrarea în ecran, o dâră de lumină trece o dată peste panou, iar pe pointer fin panoul
+se înclină după cursor (doar transformare, fără blur). Contrastul cel mai slab măsurat sub bandă:
+**4,63** pe eticheta roșie în temă deschisă, restul 4,90–7,27. Sub „mișcare redusă" panourile sunt
+aprinse static, fără dâră.
+
+**Cazurile se deschid pe loc**, cu `aria-expanded` pe un buton real, panoul `inert` cât e închis (ca
+linkul dinăuntru să nu fie o oprire invizibilă la Tab) și animație pe `grid-template-rows`. Măsurat:
+Enter deschide, **derularea rămâne neschimbată** (824 → 824), focusul rămâne pe buton, Space închide.
+
+**Pașii „Cum lucrăm" sunt vii și conduc modelul 3D.** O linie se umple pe parcursul secțiunii, iar
+numărul pasului citit se aprinde. Pagina raportează scenei ce pas se citește
+(`selectServiceStage`), iar scena **ține modelul pe momentul potrivit din bucla lui**.
+
+- **Defect prins la timp:** la 1280px toți cei trei pași încăpeau simultan în banda de detecție, deci
+  pagina raporta mereu „pasul 1". Detecția e acum o linie unică la 45% din ecran, iar rândurile s-au
+  distanțat de la 65px la 95–116px. Parcurgere completă, toate cele cinci pagini: secvența e exact
+  `-1 0 1 2 -1`, cu zero eșantioane cu doi pași activi.
+- **Al doilea defect, mai grav:** secțiunea pașilor stă la ~1000px sub hero, deci modelul era în afara
+  ecranului tocmai când reacționa — mecanismul funcționa perfect și nu-l vedea nimeni. Clientul a ales
+  compromisul: **modelul se mută într-un colț doar cât citești „Cum lucrăm"**, și se întoarce după.
+  Călătoria durează 0,65s dus și 0,5s întors, pornește devreme (cât caseta urcă spre ecran), rezistă
+  la o derulare bruscă peste toată secțiunea și la răzgândire la jumătatea drumului.
+- **Al treilea:** modelul ajungea corect în colț, dar cardul secțiunii îl acoperea cu fundalul lui
+  opac — pânza desenează în spatele paginii. Cardul a fost mutat pe un înveliș interior care se
+  termină înaintea coloanei modelului, deci coloana aceea nu mai are niciun strat pictat deasupra.
+  Fără mască, fără clip, fără schimbare de stivuire (care ar fi pus elicoidul din „Lucrări" peste
+  propriile carduri, pe pagina principală).
+
+**Tabelele etapă → moment din buclă** (3 pe serviciu, verificate față de textul pașilor): la
+Automatizare, pasul 3 ține modelul pe **înregistrarea roșie oprită la poarta închisă**; la
+E-commerce, pasul 3 pe momentul autorizării cardului; la Brand & UI, pasul 2 pe rearanjarea în
+telefon. Modelul **nu îngheață** cât e ținut: banda, pachetele și strălucirea merg mai departe — doar
+ceasul poveștii stă.
+
+**Decizii luate prin măsurare, nu prin presupunere:**
+- coloana modelului e rezervată și pe `pending`, nu doar pe `webgl`: varianta evidentă făcea pașii să
+  sară **282px** în clipa în care scena se decidea;
+- o casetă `sticky` măsurată cât e lipită minte despre poziția ei (verificat în Chromium, atât
+  `getBoundingClientRect` cât și `offsetTop`), deci scena reține ultima măsurătoare de dinainte de
+  lipire;
+- pe dispozitivele fără 3D coloana se retrage, ca pașii să-și recupereze lățimea.
+
+**Rămâne de decis:** pe desktop cu 3D, cardul pașilor e acum cu ~280px mai îngust decât grila de
+proiecte de deasupra, pentru că modelul stă lângă el, nu peste el. Alternativa (cardul pe toată
+lățimea, cu modelul deasupra) ar cere ridicarea pânzei peste pagină, ceea ce strică „Lucrări".
+
+**Rămâne de reparat:** două teste din `direction-page.test.tsx` verifică prezența casetei scoase.
+
+Fișiere: `components/sections/DirectionPage.tsx` + modulul CSS, `components/scene/three/world.ts`,
+`components/scene/choreography.ts`, `components/scene/scrollProbe.ts`, `lib/scene.ts`.
+
 ## 2026-09-18 — Fixed: cookie-ul vechi al intro-ului bloca intro-ul pentru toți vizitatorii de dinainte
 
 Prima încercare — „site-ul nu mai scrie `tbs_intro`" — era corectă, dar insuficientă, și clientul a

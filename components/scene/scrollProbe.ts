@@ -89,6 +89,51 @@ function gapAbove(section: Element | null, headTop: number | null, into: DocRect
   return rect;
 }
 
+/** The offset a sticky box pins at (its computed `top`), 0 when that is not a pixel length. */
+function stickyTop(el: Element): number {
+  const top = Number.parseFloat(window.getComputedStyle(el).top);
+  return Number.isFinite(top) ? top : 0;
+}
+
+/**
+ * The steps host (`probe.steps`) and the scroll it is pinned over (`probe.stepsPin`).
+ *
+ * A sticky box measured while it is pinned says nothing about where it lies unstuck — its
+ * `getBoundingClientRect` and its `offsetTop` both carry the sticky shift — so the last reading
+ * taken while it was still free is kept, and the first refresh happens at the top of the page,
+ * where it always is. With none ever taken, the top of the band it is sticky in stands in: its
+ * parent, which is its containing block and is never sticky itself.
+ */
+export function writeStepsHost(probe: ScrollProbe, el: HTMLElement | null): void {
+  const rested = probe.steps ? probe.steps.y : Number.NaN;
+  probe.steps = docRect(el, probe.steps);
+  // No host, or one with no box at all: the same thing, and the same answer — the model stays on
+  // the hero host. The steps column collapses to 0×0 on a page that will never draw a model
+  // (`fallback` / `off`), and a zero-wide host would scale one to nothing.
+  if (!el || !probe.steps || probe.steps.w <= 0 || probe.steps.h <= 0) {
+    probe.steps = null;
+    probe.stepsPin.start = 0;
+    probe.stepsPin.end = 0;
+    return;
+  }
+  const stick = stickyTop(el);
+  // Its band is its containing block: the parent's CONTENT box — the padding is outside it, and a
+  // grid item spanning every row (which is what a corner beside a two-row section is) fills it.
+  const parent = el.parentElement;
+  const band = parent ? parent.getBoundingClientRect() : null;
+  const pad = parent ? window.getComputedStyle(parent) : null;
+  const padTop = pad ? Number.parseFloat(pad.paddingTop) : 0;
+  const padBottom = pad ? Number.parseFloat(pad.paddingBottom) : 0;
+  const bandTop = band ? band.top + window.scrollY + (Number.isFinite(padTop) ? padTop : 0) : probe.steps.y;
+  const bandBottom = band
+    ? band.bottom + window.scrollY - (Number.isFinite(padBottom) ? padBottom : 0)
+    : probe.steps.y + probe.steps.h;
+  const free = probe.steps.y > window.scrollY + stick + 1;
+  if (!free) probe.steps.y = Number.isFinite(rested) ? rested : bandTop;
+  probe.stepsPin.start = probe.steps.y - stick;
+  probe.stepsPin.end = Math.max(probe.steps.y, bandBottom - probe.steps.h) - stick;
+}
+
 /**
  * The y translation of a computed `transform` (`matrix(…)` / `matrix3d(…)`), 0 for `none` or
  * anything else — a scroll reveal (`[data-reveal]`: `translateY(28px)` until it is in view)
@@ -129,6 +174,7 @@ export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   probe.layerH = layer ? layer.getBoundingClientRect().height : 0;
   probe.hero = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="hero"]`), probe.hero);
   probe.services = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="services"]`), probe.services);
+  writeStepsHost(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="steps"]`));
   const track = stage.querySelector(`[${WORK_TRACK_ATTR}]`);
   probe.work = docRect(track, probe.work);
   const head = track?.previousElementSibling ?? null;

@@ -42,6 +42,9 @@ import {
 import {
   BURST,
   HELIX_SLOT,
+  STEPS_GATE,
+  STEPS_TRAVEL,
+  blendPlacement,
   composeScene,
   coreExitPose,
   coreReveal,
@@ -54,8 +57,11 @@ import {
   placeHelixAmbient,
   placeHelixSpiral,
   placeServices,
+  placeSteps,
   revealOf,
+  smoothstep,
   stepMorph,
+  stepsShare,
   worldPerPx,
   type Placement,
   type SceneLayout,
@@ -79,9 +85,9 @@ import {
   type HelixFrame,
   type HelixModel,
 } from "./models/helix";
-import { createPipelineBenchModel } from "./models/pipelineBench";
+import { BENCH_RUN, createPipelineBenchModel } from "./models/pipelineBench";
 import { createBrandBoardModel } from "./models/brandBoard";
-import { createAssistantLoopModel } from "./models/assistantLoop";
+import { ASSIST_CYCLE, ASSIST_START, createAssistantLoopModel } from "./models/assistantLoop";
 import { MODEL_SWAY, type ModelFrame, type SceneModel } from "./models/types";
 import { parseTokenColor, type ScenePalette } from "./palette";
 import { createSwarm, type Swarm, type SwarmFrame } from "./swarm";
@@ -167,6 +173,109 @@ export const SCROLL_SPEED_FULL = 1.6;
 /** …and it falls back to a still page at this rate (about a third of a second), never up. */
 export const SCROLL_SPEED_LAMBDA = 4.5;
 
+/* ---- the step of "Cum lucrăm" a model illustrates ------------------------------------- */
+
+/**
+ * A model's own loop, and the moment in it that tells each step of a service page's
+ * "Cum lucrăm" (`SceneInput.stage`, 0-based).
+ *
+ * `at` is seconds into the model's loop, one per step and strictly increasing. A step index past
+ * its end holds nothing — the world lets the model run rather than parking it on a beat that says
+ * nothing about what is being read. `start` is where the model's own `resetCycle` puts its clock:
+ * a model never tells anyone where it is, so the world keeps its own copy of that clock and steers
+ * it through the only handle it has, the `step` it feeds the model every frame.
+ *
+ * What each table maps to, in words:
+ *
+ * · cubes — produs-digital (6.8 s loop)
+ *     1.55  the walkthrough: the six screens printing back to front, a packet between each
+ *     3.10  the collapse and the ignition: the six are docked into one device, the glass scans
+ *     4.70  the turn and the architecture: the device is round, its three layer slabs docked
+ *           and lit, the chips on, data running along the buses
+ *     5.95  the open: it has turned back and the stack fans out to its stations
+ *
+ * · commerce-loop — e-commerce (6.8 s loop; the phases below are the front lane's, the second
+ *   lane runs half a loop behind it)
+ *     0.30  the pick: the item comes off the shelf column the pointer is over
+ *     1.65  the packing bench: the parcel is boxed and taped
+ *     3.42  the terminal: the card is authorised and the tick strikes
+ *     5.85  the vault and the orders board: the order is banked and counted on the board
+ *
+ * · integration-hub — automatizare-api (6.4 s loop)
+ *     1.05  the five stations: records walking the spine, station after station
+ *     2.46  the composed bench: four records on it, a write going through the delivery gate
+ *     3.70  the fault: the last record has reddened at the closed gate and is waiting there
+ *     5.30  the recovered write: back in through the gate after the retry arc, and logged
+ *
+ * · neural — asistenti-ia (7.2 s loop)
+ *     1.55  the slab: the request is in and the form's ticks are filling, layer by layer
+ *     2.70  the wave crossing the network's layers
+ *     4.22  the gate and the key press: the answer is checked and released
+ *     5.20  the answer flying home along the return loop to the port
+ *
+ * · mesh-wave — brand-ui (6.6 s loop)
+ *     1.30  the palette repaint: the five tokens re-ink and the whole board takes the colour
+ *     3.55  the re-flow: the breakpoint rule is in and the six components stand in the phone
+ *     6.10  the mark: `TBS.` re-printed stroke by stroke with its tie lines
+ */
+type StageTable = {
+  /** The model's loop, seconds — the world's copy of its clock wraps where the model's does. */
+  loop: number;
+  /** Where `resetCycle` parks that clock. */
+  start: number;
+  /** Seconds into the loop, one per step of the page. */
+  at: readonly number[];
+};
+
+export const SERVICE_STAGES: Readonly<Record<ServiceModel, StageTable>> = {
+  // models/productStack.ts: LOOP 6.8, LOOP_START 1.95 (neither is exported).
+  cubes: { loop: 6.8, start: 1.95, at: [1.55, 3.1, 4.7, 5.95] },
+  // models/shopFloor.ts: LOOP 6.8, START_AT 2.35 (neither is exported); its HISTORY is a whole
+  // number of loops, so the front lane's phase is the clock's.
+  "commerce-loop": { loop: 6.8, start: 2.35, at: [0.3, 1.65, 3.42, 5.85] },
+  "integration-hub": { loop: BENCH_RUN.loop, start: BENCH_RUN.composed, at: [1.05, 2.46, 3.7, 5.3] },
+  neural: { loop: ASSIST_CYCLE, start: ASSIST_START, at: [1.55, 2.7, 4.22, 5.2] },
+  // models/brandBoard.ts: LOOP 6.6, and its `resetCycle` goes back to 0 (the composed pose).
+  "mesh-wave": { loop: 6.6, start: 0, at: [1.3, 3.55, 6.1] },
+};
+
+/** A held story clock never runs at more than this many times the model's own pace. */
+export const STAGE_RATE_MAX = 3;
+/**
+ * …and brakes onto the held moment at this, in loop-seconds per second squared: the rate it aims
+ * for is `sqrt(2·a·d)` of what is left, so it comes to rest ON the moment in finite time. An
+ * exponential approach never arrives, and its last tenth of a second of creep is exactly what
+ * would read as a stutter.
+ */
+export const STAGE_BRAKE = 4.5;
+/** How fast that rate itself may change: a step in speed reads as a jump. ~0.35 s to settle. */
+export const STAGE_RATE_LAMBDA = 6;
+/** Closer than this to the model's own pace, a released clock is simply back on it. */
+const STAGE_RATE_SNAP = 0.004;
+
+/**
+ * pipelineBench is the one model that does not take the step it is handed as given: it multiplies
+ * it by its own pointer throttle (`sweep`, models/pipelineBench.ts), up to `max`. The world mirrors
+ * that throttle — with the very step and tilt the bench is about to be handed — because otherwise
+ * its copy of the bench's clock would drift out of the model over a page's life and hold the wrong
+ * beat. A mirror only: it drives nothing, and every other model advances by the step as given.
+ */
+const BENCH_PACE = { max: 2.6, gain: 1.8, lambda: 4.5 } as const;
+
+/**
+ * Pure. The rate the story clock should be heading for with `ahead` seconds of the loop still to
+ * run to the held moment: flat out to `STAGE_RATE_MAX`, then a constant brake onto it.
+ *
+ * Forward only. Several models clamp a negative step to zero or diverge on one (their pointer
+ * easings run on the same step), so a model is never handed one: the way back to an earlier beat
+ * is round the rest of the loop, not a rewind.
+ */
+export function stageRate(ahead: number): number {
+  if (!(ahead > 0)) return 0;
+  const brake = Math.sqrt(2 * STAGE_BRAKE * ahead);
+  return brake < STAGE_RATE_MAX ? brake : STAGE_RATE_MAX;
+}
+
 /** What `stageHelix` needs of the world. */
 export type HelixStaging = Pick<SceneWorld, "buildHelix" | "helixObjects" | "prewarm" | "markHelixBuilt">;
 
@@ -236,6 +345,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   const helixMatrix = new Matrix4();
   const corePlace: Placement = { x: 0, y: 0, scale: 1 };
   const servicesSpot: Placement = { x: 0, y: 0, scale: 1 };
+  const stepsSpot: Placement = { x: 0, y: 0, scale: 1 };
+  /** Where the model is drawn this frame: the hero host, the steps corner, or between the two. */
+  const modelSpot: Placement = { x: 0, y: 0, scale: 1 };
   const helixSpot: Placement = { x: 0, y: 0, scale: 1 };
   const pose: CorePose = { scale: 1, lift: 0, dim: 1 };
   const coreFrame: CoreFrame = {
@@ -267,6 +379,22 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   /** The scroll's own speed, smoothed: 0 still → 1 at `SCROLL_SPEED_FULL` viewports a second. */
   let scrollSpeed = 0;
   let lastScrollY = Number.NaN;
+  /** The world's copy of each model's own loop clock, and the rate it is being played at. */
+  const storyClock = kinds.map((kind) => SERVICE_STAGES[kind].start);
+  const storyRate = kinds.map(() => 1);
+  /** pipelineBench's pointer throttle, mirrored (see `BENCH_PACE`). */
+  let benchSweep = 0;
+  let benchTx = 0;
+  /**
+   * The steps corner: 0 the model on the hero host, 1 in the sticky host beside "Cum lucrăm".
+   * `armed` is where the scroll says it belongs (with hysteresis), `corner` how far it has
+   * travelled — in time, so a flick across the whole section never teleports it and a reversal
+   * simply turns it round from where it stands. Snapped on the first frame, like the other gates:
+   * a deep link into the steps finds the model already in the corner.
+   */
+  let cornerArmed = false;
+  let corner = 0;
+  let cornerPrimed = false;
   const swarmFrame: SwarmFrame = {
     plan: plan.swarm,
     fromMatrix: burstMatrix,
@@ -299,6 +427,57 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     let node = object;
     while (node.parent && node.parent !== root) node = node.parent;
     return node;
+  };
+
+  /** The multiplier the bench will apply to `step` this frame, mirroring its own throttle. */
+  const benchPace = (step: number, tx: number): number => {
+    if (step > 0) {
+      const rate = Math.abs(tx - benchTx) / step;
+      const target = rate > 1 ? 1 : rate;
+      benchSweep =
+        target > benchSweep
+          ? target
+          : benchSweep + (target - benchSweep) * (1 - Math.exp(-BENCH_PACE.lambda * step));
+    }
+    benchTx = tx;
+    return Math.min(BENCH_PACE.max, 1 + BENCH_PACE.gain * benchSweep);
+  };
+
+  /**
+   * The step to hand model `index` this frame, and the world's copy of its clock kept in step with
+   * it. With no stage held it is the frame's own step, eased back onto it from whatever rate the
+   * model was last played at — released, a model runs on from where it stands, it never jumps. With
+   * one held it is the step that walks the model's own loop round to that moment and stops it
+   * there: forward only, and never more of the loop than is left to the moment, so the clock lands
+   * on the beat instead of overshooting into the next one.
+   *
+   * Only the story holds. Everything a model runs on scene time — the belt's teeth, the digits, a
+   * conduit's light, a board's breath, the sway and the tilt the world itself applies — goes on
+   * running at a held step, because none of it reads this clock.
+   */
+  const storyStep = (index: number, step: number, stage: number, tx: number): number => {
+    const kind = kinds[index];
+    const table = SERVICE_STAGES[kind];
+    const held = stage >= 0 && stage < table.at.length ? table.at[stage] : -1;
+    const paceMax = kind === "integration-hub" ? BENCH_PACE.max : 1;
+    let rate = storyRate[index];
+    if (held < 0) {
+      rate = damp(rate, 1, STAGE_RATE_LAMBDA, step);
+      if (Math.abs(rate - 1) < STAGE_RATE_SNAP) rate = 1;
+    } else {
+      let ahead = held - storyClock[index];
+      if (ahead < 0) ahead += table.loop;
+      rate = damp(rate, stageRate(ahead), STAGE_RATE_LAMBDA, step);
+      // Whatever the brake says, never more of the loop than is left to the held moment.
+      const room = step > 0 ? ahead / (step * paceMax) : 0;
+      if (rate > room) rate = room;
+    }
+    storyRate[index] = rate;
+    const fed = rate === 1 ? step : step * rate;
+    // Advanced by exactly what the model is about to advance by — the bench's throttle included.
+    const clock = storyClock[index] + fed * (kind === "integration-hub" ? benchPace(fed, tx) : 1);
+    storyClock[index] = clock >= table.loop ? clock - table.loop * Math.floor(clock / table.loop) : clock;
+    return fed;
   };
 
   /** Let the driver go: it puts every card back as React rendered it; `onRelease` hears of it. */
@@ -522,6 +701,23 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const services = placeServices(probe, scrollY, w, h, layout, servicesSpot) ?? corePlace;
       coreExitPose(fx.heroExit, layout, pose);
 
+      /* the steps corner: on a service page the model moves beside "Cum lucrăm" while it is read
+         and goes home when the section is left. No host (any other page, or below 861px, where
+         the page does not render one) and it never leaves the hero. */
+      const stepsPlace = placeSteps(probe, scrollY, w, h, stepsSpot);
+      const share = stepsPlace ? stepsShare(probe, scrollY, h) : 0;
+      cornerArmed = stepsPlace !== null && (cornerArmed ? share > STEPS_GATE.off : share > STEPS_GATE.on);
+      if (!cornerPrimed) {
+        cornerPrimed = true;
+        corner = cornerArmed ? 1 : 0;
+      } else {
+        const next = corner + (cornerArmed ? step / STEPS_TRAVEL.form : -step / STEPS_TRAVEL.unform);
+        corner = next <= 0 ? 0 : next >= 1 ? 1 : next;
+      }
+      // Mid-travel with the host gone (a resize under 861px) there is nothing to travel to: home.
+      const place =
+        corner > 0 && stepsPlace ? blendPlacement(services, stepsPlace, smoothstep(0, 1, corner), modelSpot) : services;
+
       /* the chip: on its own host, dissolving as the hero leaves */
       const coreScale = corePlace.scale * pose.scale;
       core.group.position.set(corePlace.x, corePlace.y, 0);
@@ -549,14 +745,19 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         const model = models[index];
         const reveal = revealOf(plan, index);
         const group = model.group;
-        group.position.set(services.x, services.y, 0);
-        group.scale.setScalar(services.scale);
+        group.position.set(place.x, place.y, 0);
+        group.scale.setScalar(place.scale);
         group.rotation.set(-fx.ty * 0.13, sway + fx.tx * 0.2, 0);
         // Only this group's own matrix is needed now (the swarm reads it); render updates the rest.
         group.updateMatrix();
         group.matrixWorld.multiplyMatrices(root.matrixWorld, group.matrix);
         const prewarm = prewarmQueue.has(group);
-        if (reveal > 0 && !shown[index]) model.resetCycle();
+        if (reveal > 0 && !shown[index]) {
+          model.resetCycle();
+          // …and the world's copy of that clock goes back to the same place, at its own pace.
+          storyClock[index] = SERVICE_STAGES[kinds[index]].start;
+          storyRate[index] = 1;
+        }
         shown[index] = reveal > 0;
         if (reveal > 0 || prewarm) {
           modelFrame.reveal = reveal;
@@ -564,7 +765,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
           // A model's own cycle (the cubes' hold → explode → float → assemble, a hub's packets)
           // waits at its start until the model is fully revealed: the swarm lands on that pose,
           // and a formed entrance begins with the whole first phase (the cubes' block held 1.4s).
-          modelFrame.step = reveal < 1 ? 0 : step;
+          // Past that the step is the story clock's, not the frame's: while a service page holds a
+          // step of "Cum lucrăm" the model's loop walks onto the moment that tells it and waits.
+          modelFrame.step = storyStep(index, reveal < 1 ? 0 : step, input.stage, fx.tx);
           model.update(modelFrame);
         } else {
           group.visible = false;
@@ -585,19 +788,19 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const burst = plan.swarm.from === BURST;
       if (burst) {
         burstMatrix.compose(
-          scratchPosition.set(services.x, services.y, 0),
+          scratchPosition.set(place.x, place.y, 0),
           identity,
-          scratchScale.setScalar(services.scale * BURST_SPECK.scale),
+          scratchScale.setScalar(place.scale * BURST_SPECK.scale),
         );
       }
       const toHelix = plan.swarm.to === HELIX_SLOT ? helixPlace : null;
       swarmFrame.plan = plan.swarm;
       swarmFrame.fromMatrix = matrixFor(plan.swarm.from);
       swarmFrame.toMatrix = matrixFor(plan.swarm.to);
-      swarmFrame.fromRadius = MODEL_RADIUS * services.scale * (burst ? BURST_SPECK.radius : 1);
-      swarmFrame.toRadius = toHelix ? HELIX_BOUND * toHelix.scale : MODEL_RADIUS * services.scale;
-      swarmFrame.fromScale = services.scale * (burst ? BURST_SPECK.sprite : 1);
-      swarmFrame.toScale = toHelix ? toHelix.scale : services.scale;
+      swarmFrame.fromRadius = MODEL_RADIUS * place.scale * (burst ? BURST_SPECK.radius : 1);
+      swarmFrame.toRadius = toHelix ? HELIX_BOUND * toHelix.scale : MODEL_RADIUS * place.scale;
+      swarmFrame.fromScale = place.scale * (burst ? BURST_SPECK.sprite : 1);
+      swarmFrame.toScale = toHelix ? toHelix.scale : place.scale;
       swarmFrame.time = fx.time;
       swarmFrame.halfHeightPx = halfHeightPx;
       swarmFrame.dpr = dpr;
