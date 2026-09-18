@@ -16,6 +16,41 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed: obiectele din panouri ieșeau din conturul ferestrei
+
+Clientul a văzut, într-o captură mărită, obiectul 3D depășind conturul ferestrei — sub talpă și în
+lateral. Verificarea anterioară a încadrării fusese făcută pe **geometria** pieselor, dar obiectele se
+desenează aditiv, iar **aureola lor se întinde cu ~50% dincolo de muchii**: cutia luminată ajunge la
+±0,65 unități față de ±0,42 cât declară geometria. Fereastra nu are niciun strat care să taie ce iese
+(și nici nu poate avea: ar cere `overflow`/`contain` pe un strămoș al scenei, interzis).
+
+**Măsurat, nu presupus.** Banda a fost fotografiată cu pânza 3D **ascunsă**, ca referință, apoi
+fiecare cadru a fost comparat cu ea: grila, marginile, colțurile și numerele paginii se anulează
+exact, iar ce rămâne e **numai ce luminează scena**, aureola inclusă. Măturare de 60 de cadre per
+obiect (buclele sunt de 3,6 / 4,2 / 4,8s, deci fiecare e prins de mai multe ori), la trei praguri de
+luminozitate — răspunsurile nu se schimbă între ele, deci nu e un artefact de prag.
+
+- Potrivirea se face acum pe **cutia luminată** (`PANEL_LIT`), cu o distanță explicită de **6px de
+  aer** de fiecare parte (`PANEL_AIR`), nu pe o fracțiune din fereastră — o distanță în pixeli nu se
+  micșorează odată cu fereastra.
+- O singură cutie luminată pentru toate trei, intenționat: trei limite separate ar însemna trei scări
+  și trei grosimi de linie în trei panouri vecine, adică exact defectul pe care rândul a fost desenat
+  să-l evite.
+
+**Costul, numit în loc de ascuns:** pe fereastra de 62px, obiectele încăpeau doar la **59% din
+mărimea aprobată de client**. Așa că **fereastra a crescut la 96px** — singura pârghie rămasă — iar
+cadrul ei (bara de sus, ghidajele, colțurile) a fost re-proporționat ca să rămână o nișă de
+instrument, nu o tavă goală. Panoul e cu 34px mai înalt; cutia textului e neschimbată la octet, iar
+contrastul rămâne la 4,63 / 4,50.
+
+Rezultat, măsurat pe containerul reconstruit: **64,6 px/unitate la 1280** — exact mărimea aprobată —
+și niciun pixel nu trece de marginea ferestrei, la nicio lățime, în nicio temă. Cea mai strânsă marjă
+din toată matricea e **7px**. Sub 900px axa care limitează se schimbă din înălțime în lățime, iar la
+861px obiectele stau la 61,7 px/unitate (−4,5%); nicăieri nu cresc peste mărimea aprobată, deci rândul
+nu se umflă acolo unde are loc.
+
+Fișiere: `components/scene/choreography.ts`, `components/sections/DirectionPage.module.css`.
+
 ## 2026-09-18 — Fixed: cele trei obiecte din panouri — încadrare, coloană și echilibru
 
 Trei reparații pe rândul de obiecte publicat mai devreme, toate găsite uitându-ne la el, nu în cod.

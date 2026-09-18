@@ -399,9 +399,9 @@
    bottom edge; that strip is the instrument window now, and a numeral cannot share a window
    with a model — so the index moved to the panel's own top-right corner, on the label's line
    and opposite it: "BENEFICIU" left, the number right, the title starting under both.
-   It is smaller for it, which is the trade — a 82px numeral does not fit a 62px-tall corner
-   without touching the title's first line at 861px, and the one thing it must never do is
-   get behind a word. Still decoration with no contrast duty of its own: `aria-hidden`,
+   It is smaller for it, which is the trade — there are only ~50px between the panel's top
+   edge and the title's first line box, an 82px numeral does not fit that corner without
+   reaching into it, and the one thing it must never do is get behind a word. Still decoration with no contrast duty of its own: `aria-hidden`,
    unselectable, over the panel's own background, with no text laid over it — so the copy's
    measured contrast is exactly what it was.
    The box ends at 52px from the panel's top at its very largest; the title's first line box
@@ -427,8 +427,8 @@
    BEHIND the page, so a window here is simply a box that paints no fill: `.hlBody` keeps
    `--panel` above it, the article's border frames it, and between this box and the canvas
    there is nothing at all.
-   It is flush to the panel's inner edges — left, right and foot — and exactly 62px tall, so
-   the three windows are the bottom 62px of the row's rect (inside its 1px border) and the
+   It is flush to the panel's inner edges — left, right and foot — and exactly 96px tall, so
+   the three windows are the bottom 96px of the row's rect (inside its 1px border) and the
    scene can find them from the row's one anchor.
    It is its own box with its own chrome, so it reads as an instrument window and not as a
    hole the background leaks through — the same treatment as the home page's HUD screen
@@ -442,13 +442,24 @@
      with the rest of the responsive rules. */
   display: none;
   position: relative;
-  flex: 0 0 62px;
-  height: 62px;
+  /* 96px, not the 62px this bay opened at. These objects are drawn ADDITIVELY and their glow
+     carries about half as far again as their geometry — the lit box is ±0.65 model units
+     against the ±0.42 they are authored to — so the fit has to be made against the lit
+     pixels, not the bounds, or the light spills past the bay's outline. Fitted that way a
+     62px bay only buys 38.5px per model unit; 96px buys 65px/unit, which is the size the
+     objects were approved at, and still leaves ~6px of air for the glow at the top and foot.
+     It costs the panel 34px of height and nothing else: the copy's own box is untouched, and
+     the row's spacing comes from the action bar above and `.cases` below, neither of which
+     is keyed to the panel's height. */
+  flex: 0 0 96px;
+  height: 96px;
   /* the panel's inner radius, so the bay's foot follows the card's corners */
   border-radius: 0 0 18px 18px;
   /* Three 1px lines as background LAYERS rather than elements: the head rule at full width,
      and a guide rail under each of its ends. Every layer is `no-repeat` with an explicit 1px
-     side, so no layer is ever a fill. */
+     side, so no layer is ever a fill. The rails are 20px in a 96px bay (they were 14px in a
+     62px one): the same fifth of its height, so the bay still reads as an instrument frame
+     rather than an empty tray. */
   background:
     linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
       top center / 100% 1px,
@@ -456,26 +467,28 @@
         color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
         transparent
       )
-      no-repeat top left 11px / 1px 14px,
+      no-repeat top left 11px / 1px 20px,
     linear-gradient(
         color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
         transparent
       )
-      no-repeat top right 11px / 1px 14px;
+      no-repeat top right 11px / 1px 20px;
   opacity: 0;
   transition: opacity 0.5s var(--motion-ease-out);
   /* on the beat: the bay opens with this panel's pulse, not with the row */
   transition-delay: calc(var(--step) * 620ms + 120ms);
 }
-/* The brackets at the window's foot. 13px arms, nowhere near the 8px the dot rule is about,
-   and no radius on either of them. */
+/* The brackets at the window's foot, on the same 11px gutter as the guide rails above them,
+   so the two read as one frame the eye completes down the bay's sides. 16px arms in a 96px
+   bay (13px in the 62px one), nowhere near the 8px the dot rule is about, and no radius on
+   either of them. */
 .hlWindow::before,
 .hlWindow::after {
   content: "";
   position: absolute;
-  bottom: 9px;
-  width: 13px;
-  height: 14px;
+  bottom: 11px;
+  width: 16px;
+  height: 18px;
   border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
   border-bottom-width: 1px;
 }
@@ -617,7 +630,7 @@
    the same call on `pending`: reserving the bay while WebGL is still being decided costs
    nothing on the path that ends up using it (`pending` → `webgl` is byte-identical), while
    `fallback` and `off` — no usable WebGL, the QA flag off, reduced motion — never get an
-   empty frame with nothing behind it. Closed up the panel is 62px shorter and is exactly the
+   empty frame with nothing behind it. Closed up the panel is 96px shorter and is exactly the
    card it has always been: the circuit, the node, both brackets and the ghost index are all
    still there, so nothing reads as a picture that failed to load. */
 @media (min-width: 861px) {

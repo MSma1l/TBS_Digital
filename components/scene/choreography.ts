@@ -251,19 +251,34 @@ export const PANEL_COLUMNS = 3;
  * three.js-free and that one builds geometry at import). All three share it on purpose, so one
  * stroke width is one stroke width across three adjacent panels.
  *
- * The fit is against `halfHeight` and the window's SHORT side. `MODEL_RADIUS` is the wrong number
- * here by construction: these are 4.5 : 1 letterbox objects and fitting their diagonal into a
- * 4.2 : 1 window would draw them at about half size, with the row's air in the wrong place.
+ * Kept for what it says about the objects, but the FIT is against `PANEL_LIT` below: what they
+ * light reaches past what they are built from. `MODEL_RADIUS` is wrong here either way — these are
+ * 4.5 : 1 letterbox objects, and fitting their diagonal into a 4.2 : 1 window would draw them at
+ * about half size with the row's air in the wrong place.
  */
 export const PANEL_BOUND = { halfWidth: 1.9, halfHeight: 0.42 } as const;
 
 /**
- * An object fills this much of its window, on whichever side runs out first. Not 0.9: these objects
- * are pitched in their own pose (`POSE.x`, models/panel/*), so a box of real depth projects a little
- * taller than the half-height it declares — measured at 1280 the fit's own plinth sat half a pixel
- * off the window's foot at 0.9, and this is the air that keeps every one of them off the chrome.
+ * What the row actually LIGHTS, in model units — not what it is authored to.
+ *
+ * These objects are drawn additively and their edges glow, and the window has no clipping
+ * ancestor (it must not have one: `overflow` or `contain` anywhere above the stage would break
+ * the sticky canvas). So the lit pixels reach past the boxes, and fitting `PANEL_BOUND` put a
+ * visible spill under the panel foot and off its sides. Measured on the real page instead: every
+ * pixel each object lights above a threshold, swept across a full loop, at 861 and 1280, both
+ * themes, sweeping 70 frames so no flare is missed. The worst is the fit as its press bottoms out:
+ * 0.645 units of light BELOW its own origin, against the 0.42 it is authored to.
+ *
+ * One box for all three on purpose. Three bounds would be three unit scales, and three different
+ * hairline weights in three adjacent panels is the defect the row was drawn to avoid.
  */
-export const PANEL_WINDOW_FILL = 0.88;
+export const PANEL_LIT = { halfWidth: 1.95, halfHeight: 0.65 } as const;
+
+/**
+ * Clear air between that lit box and the window's own chrome, css px per side. A pixel or two is
+ * nothing against a glow; this is meant to be visible at 2x.
+ */
+export const PANEL_AIR = 6;
 
 /** Seconds the row dissolves in over as the scroll brings it in, and out again. */
 export const PANEL_FADE_SECONDS = 0.35;
@@ -306,8 +321,8 @@ export function placePanels(
   const k = worldPerPx(h);
   const cx = win.x + win.w / 2 + index * probe.panelsPitch;
   const cy = win.y + win.h / 2 - canvasDocTop(scrollY, probe, h);
-  const byHeight = (win.h * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfHeight);
-  const byWidth = (win.w * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfWidth);
+  const byHeight = Math.max(0, win.h - 2 * PANEL_AIR) / (2 * PANEL_LIT.halfHeight);
+  const byWidth = Math.max(0, win.w - 2 * PANEL_AIR) / (2 * PANEL_LIT.halfWidth);
   out.x = (cx - w / 2) * k;
   out.y = -(cy - h / 2) * k;
   out.scale = Math.min(byHeight, byWidth) * k;
