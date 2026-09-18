@@ -526,14 +526,44 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     anchorAfter(anchor);
   }
 
+  /** The card nearest the middle of the window right now, by its box; −1 with no cards. */
+  function cardOnScreen(): number {
+    if (!cards.length) return -1;
+    const mid = window.innerHeight / 2;
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < cards.length; i += 1) {
+      const box = cards[i].getBoundingClientRect();
+      const d = Math.abs(box.top + box.height / 2 - mid);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
+  }
+
   function apply(want: WorkHelixMode): void {
     if (want === mode) return;
-    if (want === "spiral" && !isSafe()) return;
+    if (want === "spiral" && !probe.live) return;
+    /*
+     * Work on screen used to refuse the spiral outright, because laying it out grows the track by
+     * thousands of pixels under the visitor. But "not safe" is not a moment, it is a state the
+     * page can be stuck in: a browser restores the scroll on reload, and a `#lucrari` link lands
+     * inside the section — in both the visitor got the grid and kept it until they happened to be
+     * above Work again, which many never are. So instead of refusing, note the project they are
+     * looking at and land them back on it once the spiral has been laid out and measured. They
+     * keep their place; only the form around it changes.
+     */
+    const keep = want === "spiral" && !isSafe() ? cardOnScreen() : -1;
     leave(true);
     if (want === "spiral") enterSpiral();
     else if (want === "ambient") attachAmbient();
     version = probe.version;
     setMode(want);
+    if (keep >= 0 && mode === "spiral") {
+      window.scrollTo({ top: scrollForCard(keep, cards.length, span), behavior: "instant" });
+    }
   }
 
   function fail(): void {

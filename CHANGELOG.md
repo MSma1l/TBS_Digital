@@ -16,6 +16,29 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: spirala Lucrări — pozele se tipăresc ca o hologramă când proiectul ajunge în față
+
+Clientul a spus, uitându-se la site: apariția pozelor nu e „wow". Avea dreptate, și motivul era
+structural: tot ce făcusem era **legat de scroll**. Un lucru care se schimbă proporțional cu cât
+derulezi nu se citește niciodată ca animație — e o stare, nu un eveniment. În plus, tăiam
+fotografia în coloane, iar oprită sau derulată înapoi arăta ca o imagine stricată, nu ca un efect.
+
+- **Poza nu mai e tăiată niciodată.** Masca pe coloane a fost scoasă. Materializarea o fac
+  celulele de deasupra: două rețele de pătrate de mărimi diferite (11px și 27px), decalate ca să
+  nu se vadă ca o grilă, dese chiar pe muchia unde poza sosește și stinse la o treime sub ea —
+  ideea dizolvării în voxeli a elicei, în CSS. Oprit, rămâne o fotografie curată.
+- **Momentul: tipărirea.** Când un proiect ajunge în față, poza lui se tipărește ca o hologramă —
+  apare în benzi orizontale de 5px care se lățesc și se contopesc până devine imagine plină, prin
+  două căderi de semnal și o smucitură laterală, 860ms. Se animează doar `mask-size` pe o mască
+  declarată pe element (la repaus o perioadă acoperă toată poza, deci în afara animației nu e
+  mascat nimic), fără `fill-mode`, ca poza să revină exact la regulile cardului.
+- Se întâmplă în timp ce firele elicei pulsează și holograma comută pe același proiect: un
+  eveniment, trei locuri.
+
+Verificat pe pagina reală, nu în laborator: oprind pagina exact la schimbarea de proiect, browserul
+raportează animația `hud-work-media-print` la 33ms din 860, iar cadrul prins atunci arată cardul
+din față cu poza în benzi. Fișier: `app/tailwind.css`.
+
 ## 2026-09-18 — Fixed & Changed: spirala Lucrări — apariția imaginilor se vede, cardurile intră de jos și ies pe sus
 
 ### Fixed

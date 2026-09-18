@@ -415,23 +415,13 @@
 @utility work-media-reveal {
   [data-scene-stage][data-helix="spiral"] [data-work-track] & {
     clip-path: inset(calc((1 - var(--helix-wipe, 1)) * 100%) 0 0 0);
-    /* The picture does not just slide up behind the clip edge — it assembles. The part that has
-       already been drawn on is masked into 16px columns that fill as the card climbs, so the
-       screenshot builds itself out of data columns and locks solid at the end, and it settles
-       out of a slight lift at the same time. `transform` is free here: the card's hover uses the
-       `scale` property, which composes rather than collides. Both are driven by the same
-       `--helix-wipe`, so they cost the one custom-property write the driver already makes and
-       they run backwards when the visitor scrolls back. */
-    -webkit-mask-image: repeating-linear-gradient(
-      to right,
-      #000 0 calc(var(--helix-wipe, 1) * 16px),
-      transparent calc(var(--helix-wipe, 1) * 16px) 16px
-    );
-    mask-image: repeating-linear-gradient(
-      to right,
-      #000 0 calc(var(--helix-wipe, 1) * 16px),
-      transparent calc(var(--helix-wipe, 1) * 16px) 16px
-    );
+    /* The picture settles out of a slight lift as it is drawn on. `transform` is free here: the
+       card's hover uses the `scale` property, which composes rather than collides. It is driven
+       by the same `--helix-wipe`, so it costs the one custom-property write the driver already
+       makes and it runs backwards when the visitor scrolls back.
+       The picture itself is never cut into a pattern: a column mask was tried and, paused or
+       scrolled back, a striped photograph reads as a broken image rather than an effect. The
+       materialising is done by the cells above it instead, which burn off and leave nothing. */
     transform: scale(calc(1 + (1 - var(--helix-wipe, 1)) * 0.06))
       translateY(calc((1 - var(--helix-wipe, 1)) * 2%));
     transform-origin: 50% 100%;
@@ -470,17 +460,37 @@
   &::before {
     top: 0;
     height: 100%;
+    /* The leading edge, then the cells the picture is still coming together out of — the same
+       idea as the helix's own voxel dissolve, in CSS: two checkerboards at different sizes and
+       offsets, so the pattern never reads as a regular grid, over the scan hairlines. They are
+       painted on the picture and burn off with `--helix-wipe`, so nothing is ever cut out of the
+       photograph itself and a paused card is a clean picture, not a striped one. */
     background-image:
       linear-gradient(to bottom, color-mix(in srgb, var(--p2) 85%, var(--on-accent)) 0 2px, transparent 2px),
-      /* the columns the picture has not assembled yet, in the card's accent and in step with the
-         mask on `work-media-reveal`, so a gap reads as a data column rather than a hole; at
-         `--helix-wipe` 1 the band is zero-width and this gradient is not there at all */
-      repeating-linear-gradient(
-        to right,
-        transparent 0 calc(var(--helix-wipe, 1) * 16px),
-        color-mix(in srgb, var(--p2) 60%, transparent) calc(var(--helix-wipe, 1) * 16px) 16px
+      repeating-conic-gradient(
+        color-mix(in srgb, var(--p2) 70%, transparent) 0% 25%,
+        transparent 0% 50%
+      ),
+      repeating-conic-gradient(
+        color-mix(in srgb, var(--p2) 45%, transparent) 0% 25%,
+        transparent 0% 50%
       ),
       repeating-linear-gradient(to bottom, color-mix(in srgb, var(--p2) 45%, transparent) 0 1px, transparent 1px 4px);
+    background-size:
+      100% 100%,
+      11px 11px,
+      27px 27px,
+      100% 100%;
+    background-position:
+      0 0,
+      0 0,
+      6px 13px,
+      0 0;
+    /* Densest at the edge the picture is arriving on, gone a third of the way down it: the part
+       already drawn on has settled, so the cells only ever sit where the picture is still coming
+       together, and they travel down the card with the edge. */
+    -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 4%, transparent 34%);
+    mask-image: linear-gradient(to bottom, #000 0, #000 4%, transparent 34%);
   }
   /* The bar: a soft head with a hard bright edge, a seventh of the card tall. */
   &::after {
@@ -502,6 +512,71 @@
     [data-scene-stage][data-helix="spiral"] [data-helix-front] &::after {
       animation: hud-work-scan-pass 520ms var(--motion-ease-out) both;
     }
+  }
+}
+/* The print. Everything above is drawn by the scroll: true to the mechanism, but a thing that
+   changes in proportion to how far you have scrolled never reads as an animation — it is a state,
+   not an event. This is the event. The moment a project arrives at the front, its screenshot is
+   printed like a hologram finding its signal: it comes in as hairline horizontal bands that widen
+   and fuse into a whole picture, through two drop-outs and one sideways slip before it settles.
+
+   The mask is declared on the element, not in the keyframes, and at rest its band is twice the
+   card: one solid black period covers the whole picture, so outside the animation nothing is
+   masked at all. Only `mask-size` is animated, which is what makes the bands widen.
+
+   No fill mode on purpose: the moment it is over, the picture is back on the opacity, transform
+   and mask the card's own rules give it, so the hover treatment and the scroll-drawn wipe keep
+   working and nothing is left stuck. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-scene-stage][data-helix="spiral"] [data-helix-front] .work-media-reveal {
+    -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 50%, transparent 50% 100%);
+    mask-image: repeating-linear-gradient(to bottom, #000 0 50%, transparent 50% 100%);
+    -webkit-mask-size: 100% 200%;
+    mask-size: 100% 200%;
+    animation: hud-work-media-print 860ms var(--motion-ease-out);
+  }
+}
+@keyframes hud-work-media-print {
+  0% {
+    opacity: 0;
+    transform: scale(1.05) translateY(2%);
+    -webkit-mask-size: 100% 5px;
+    mask-size: 100% 5px;
+  }
+  10% {
+    opacity: 0.92;
+  }
+  26% {
+    opacity: 0.3;
+    -webkit-mask-size: 100% 13px;
+    mask-size: 100% 13px;
+  }
+  44% {
+    opacity: 0.88;
+    -webkit-mask-size: 100% 34px;
+    mask-size: 100% 34px;
+  }
+  56% {
+    opacity: 0.42;
+    transform: translateX(-5px);
+  }
+  64% {
+    transform: translateX(4px);
+  }
+  76% {
+    opacity: 0.9;
+    transform: none;
+    -webkit-mask-size: 100% 120%;
+    mask-size: 100% 120%;
+  }
+  88% {
+    opacity: 0.48;
+  }
+  100% {
+    opacity: 0.56;
+    transform: none;
+    -webkit-mask-size: 100% 200%;
+    mask-size: 100% 200%;
   }
 }
 @keyframes hud-work-scan-pass {
