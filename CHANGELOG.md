@@ -16,6 +16,35 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: o singură bară de derulare — fibra, împinsă la marginea ferestrei
+
+Clientul a arătat cele două bare una lângă alta și a cerut ca **bara nativă a browserului să dispară,
+iar fibra să rămână singură, cât mai la dreapta**.
+
+- De la **861px în sus** — exact lățimea la care există fibra — bara nativă nu se mai desenează.
+  Ascunderea e **necondiționată** la lățimea asta, nu legată de prezența fibrei
+  (`html:has([data-rail])`), și asta e decizia care contează: fibra se montează abia după
+  consimțământ și prima interacțiune, deci o bară care ar dispărea odată cu ea ar fi recuperat
+  jgheabul **în mijlocul cititului** și ar fi deplasat toată pagina lateral cu ~15px sub ochii
+  vizitatorului.
+- **Derularea în sine e neatinsă:** rotița, trackpad-ul, tastele, Home/End și butoanele fibrei
+  funcționează la fel. Dispare doar bara desenată. Decizia 5 a planului — „scroll nativ păstrat" —
+  rămâne respectată: fibra tot nu derulează pagina, doar o măsoară.
+- `scrollbar-width` nu se moștenește, iar pseudo-elementul WebKit e legat strict de rădăcină, deci
+  **fiecare scroller interior își păstrează bara**: corpul dialogului de cerere, meniul burger,
+  jurnalul de chat și banda de proiecte de pe telefon.
+- Sub 861px, unde nu există fibră, bara nativă rămâne exact cum era (subțire, cyan).
+- **Fibra s-a mutat pe margine:** linia ei stă acum la **10px** de marginea ferestrei, față de 22px,
+  spațiul fiind eliberat chiar de bara ascunsă. Butoanele de navigare rămân 44×44 — WCAG 2.5.5 cere
+  o zonă de atingere de 44px, nu ca linia să fie desenată în centrul ei.
+
+Verificat pe containerul care rulează: la 1280px bara nativă măsoară 0px și `scrollbar-width` e
+`none`, centrul fibrei e la 10px de margine; la 390px `scrollbar-width` rămâne `thin` și nu există
+fibră.
+
+Fișiere: `app/globals.css`, `components/hud/rail/ScrollRail.module.css`.
+Documentație: [docs/04](./docs/04-design-system.md) · [docs/05](./docs/05-page-sections.md).
+
 ## 2026-09-18 — Fixed: obiectele din panouri ieșeau din conturul ferestrei
 
 Clientul a văzut, într-o captură mărită, obiectul 3D depășind conturul ferestrei — sub talpă și în

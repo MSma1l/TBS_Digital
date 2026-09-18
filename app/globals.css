@@ -539,6 +539,27 @@ html {
   scrollbar-color: var(--neon-cyan) transparent;
 }
 
+/* From 861px up — the width the fibre rail exists at — the page's own scrollbar is not drawn at
+   all: the client asked for one scroll indicator, the fibre, not two side by side.
+   Unconditional at this width rather than `html:has([data-rail])`, on purpose: the rail mounts
+   only after consent and the first interaction, so hiding the bar with it would reclaim the
+   gutter mid-session and shift the whole page sideways under the reader.
+   Scrolling itself is untouched — wheel, trackpad, keys, Home/End and the rail's own buttons all
+   work; only the painted bar goes. `scrollbar-width` does not inherit and the `::-webkit-`
+   pseudo-element is scoped to the root, so every inner scroller (the request dialog's body, the
+   burger menu, the chat log, Work's phone band) keeps its own. Below 861px, where there is no
+   rail, the native bar stays exactly as it was. */
+@media (min-width: 861px) {
+  html {
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
 /* While the interior stage's ScrollTrigger measures (it jumps the page to 0 and back), the
    jump must be instant: a smooth one would leave its inline `scroll-behavior` on <html> and
    measure mid-animation. `data-scroll-measure` is set only around a refresh

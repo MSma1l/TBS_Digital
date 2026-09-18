@@ -44,15 +44,19 @@
 
 /* ---- the fibre ------------------------------------------------------------------------------- */
 
-/* A 12px column centred on the rail (its centre line is the buttons' centre), inset half a marker
-   at both ends. Its height is the length the markers are laid out over (railLayout's railPx). */
+/* A 12px column pushed to the rail's outer edge, inset half a marker at both ends. Its height is
+   the length the markers are laid out over (railLayout's railPx).
+   It used to sit on the 44px lane's centre line, 22px in from the window's edge, because the
+   native scrollbar was painted outside it. That bar is not drawn from 861px up any more
+   (globals.css), so the fibre takes the edge the client asked for: its centre line is 10px from
+   the window, and the 44×44 buttons keep their full hit area over it — the lane's width is what
+   WCAG 2.5.5 needs, not where the line is drawn. */
 .fibre {
   position: absolute;
   top: calc(var(--hud-rail-w) / 2);
+  right: 4px;
   bottom: calc(var(--hud-rail-w) / 2);
-  left: 50%;
   width: 12px;
-  margin-left: -6px;
 }
 
 /* The unlit core runs the whole rail, fading out at both ends. */
