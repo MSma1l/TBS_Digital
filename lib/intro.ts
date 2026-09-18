@@ -108,17 +108,18 @@ export function shouldPlayIntro(
 let done = false;
 
 /**
- * The intro is over: remember it for the session and tell every listener, once.
+ * The intro is over: tell every listener, once.
  * Idempotent — skip and the end of the timeline can both call it in the same frame.
+ *
+ * **It no longer writes `INTRO_COOKIE`.** The intro used to play once per browser session, so a
+ * reload never replayed it; the client reads that as the intro being broken ("la refresh nu
+ * lucrează"). It now plays on every hard load of the home page. The cookie is still *honoured*
+ * (`shouldPlayIntro` → `isIntroSeen`) so that anything which sets it — the e2e suite seeds it by
+ * default — still skips the intro; the site itself just never sets it any more.
  */
 export function finishIntro(detail: IntroDoneDetail): void {
   if (done || typeof window === "undefined") return;
   done = true;
-  try {
-    document.cookie = INTRO_COOKIE_STRING;
-  } catch {
-    /* cookies blocked — the intro plays again next load, which is the harmless direction */
-  }
   try {
     window.dispatchEvent(new CustomEvent<IntroDoneDetail>(INTRO_EVENT, { detail }));
   } catch {

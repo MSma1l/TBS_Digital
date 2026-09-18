@@ -5,11 +5,15 @@ import type { LegalContent } from "../confidentialitate/LegalDoc";
  * Cookie Policy — full text in RO / RU / EN.
  *
  * Describes exactly what this site stores: the essential language cookie (tbs_locale), the
- * consent-record cookie (tbs_cookie_consent), the session cookie that stops the home-page
- * intro from replaying (tbs_intro), the session-storage record of whether the device can draw
- * the 3D animations (tbs_gpu_probe, yes/no values only), the admin localStorage token, and
- * the consent-gated first-party analytics pixel (statistica.tbs.md). No third-party
+ * consent-record cookie (tbs_cookie_consent), the session-storage record of whether the device
+ * can draw the 3D animations (tbs_gpu_probe, yes/no values only), the admin localStorage token,
+ * and the consent-gated first-party analytics pixel (statistica.tbs.md). No third-party
  * marketing cookies.
+ *
+ * `tbs_intro` was listed here while the intro played once per browser session. The intro now
+ * plays on every hard load of the home page and the site never writes that cookie, so it is no
+ * longer a cookie this site stores; it is only still *read*, so that a test run which seeds it
+ * can skip the intro.
  * Controller: TBS Digital · office@crowe-tm.md.
  */
 export const cookieContent: Record<Locale, LegalContent> = {
@@ -53,7 +57,6 @@ export const cookieContent: Record<Locale, LegalContent> = {
             items: [
               "tbs_locale (esențial) — reține limba aleasă (RO / RU / EN) ca să regăsești site-ul în limba ta. Durată: până la 1 an.",
               "tbs_cookie_consent (esențial) — reține alegerea ta privind cookie-urile, ca să nu te întrebăm la fiecare vizită. Durată: 6 luni.",
-              "tbs_intro (esențial) — reține că animația de introducere a rulat deja în această sesiune, ca să nu se repete la fiecare revenire pe pagina principală. Nu te identifică. Durată: până închizi browserul.",
               "tbs_gpu_probe (esențial, stocare de sesiune) — reține dacă dispozitivul tău poate afișa animațiile 3D, ca verificarea să nu se repete la fiecare pagină. Conține doar valori da/nu și nu te identifică. Durată: până închizi fila.",
               "Token de administrare (esențial, stocare locală) — folosit doar în panoul intern de administrare, păstrat în localStorage-ul browserului; nu urmărește vizitatorii site-ului.",
               "Pixel de analiză statistica.tbs.md (opțional, de analiză) — soluție de analiză proprie (first-party) care se încarcă doar cu acordul tău și colectează date agregate despre vizită. Fără acord, nu se încarcă și nu trimite nicio cerere.",
@@ -144,7 +147,6 @@ export const cookieContent: Record<Locale, LegalContent> = {
             items: [
               "tbs_locale (необходимый) — запоминает выбранный язык (RO / RU / EN), чтобы вы видели сайт на своём языке. Срок: до 1 года.",
               "tbs_cookie_consent (необходимый) — запоминает ваш выбор относительно cookie, чтобы не спрашивать при каждом визите. Срок: 6 месяцев.",
-              "tbs_intro (необходимый) — запоминает, что вступительная анимация уже была показана в этом сеансе, чтобы она не повторялась при возврате на главную. Не идентифицирует вас. Срок: до закрытия браузера.",
               "tbs_gpu_probe (необходимый, хранилище сеанса) — запоминает, может ли ваше устройство показывать 3D-анимации, чтобы проверка не повторялась на каждой странице. Содержит только значения да/нет и не идентифицирует вас. Срок: до закрытия вкладки.",
               "Токен администратора (необходимый, локальное хранилище) — используется только во внутренней панели администрирования, хранится в localStorage браузера; не отслеживает посетителей сайта.",
               "Аналитический пиксель statistica.tbs.md (необязательный, аналитический) — собственное (first-party) аналитическое решение, которое загружается только с вашего согласия и собирает обобщённые данные о визите. Без согласия он не загружается и не отправляет ни одного запроса.",
@@ -235,7 +237,6 @@ export const cookieContent: Record<Locale, LegalContent> = {
             items: [
               "tbs_locale (essential) — remembers your chosen language (RO / RU / EN) so you see the site in your language. Duration: up to 1 year.",
               "tbs_cookie_consent (essential) — remembers your cookie choice so we don't ask on every visit. Duration: 6 months.",
-              "tbs_intro (essential) — remembers that the intro animation has already played in this session, so it does not replay when you return to the home page. It does not identify you. Duration: until you close the browser.",
               "tbs_gpu_probe (essential, session storage) — remembers whether your device can show the 3D animations, so the check does not repeat on every page. It holds only yes/no values and does not identify you. Duration: until you close the tab.",
               "Admin token (essential, local storage) — used only in the internal admin panel, kept in the browser's localStorage; it does not track site visitors.",
               "statistica.tbs.md analytics pixel (optional, analytics) — a first-party analytics solution that loads only with your consent and collects aggregated data about your visit. Without consent it does not load and sends no request.",

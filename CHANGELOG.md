@@ -16,6 +16,32 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: intro-ul se joacă la fiecare încărcare a paginii principale
+
+Clientul a raportat că „la refresh nu lucrează mereu". Nu era un defect, era proiectarea: intro-ul
+se juca **o dată pe sesiune de browser**. La prima încărcare se scria cookie-ul `tbs_intro`, iar
+orice reîncărcare ulterioară îl sărea — deci exact o dată, apoi niciodată până la închiderea
+browserului.
+
+Site-ul **nu mai scrie** `tbs_intro`. Cookie-ul rămâne citit (`shouldPlayIntro` → `isIntroSeen`), ca
+orice îl setează — suita e2e îl seedează implicit — să poată în continuare sări intro-ul. Vizitatorul
+nu-l mai primește niciodată, deci intro-ul rulează la fiecare încărcare propriu-zisă a paginii
+principale.
+
+Politica de cookie-uri a fost actualizată în toate trei limbile: nu mai putem enumera un cookie pe
+care nu-l mai punem.
+
+Neschimbate, pentru că nu sunt defecte: intro-ul nu rulează pe alte pagini decât cea principală, e
+sărit la un link cu ancoră (vizitatorul a cerut un loc în pagină, nu o animație), e sărit la
+„mișcare redusă", și nu repornește la navigarea în interiorul site-ului.
+
+Verificat pe site-ul care rulează: la reîncărcări succesive overlay-ul e prezent de fiecare dată, iar
+`tbs_intro` nu mai apare între cookie-urile browserului.
+
+**Compromis de știut:** fiecare reîncărcare costă acum ~2,4s până se vede pagina.
+
+Fișiere: `lib/intro.ts`, `app/(site)/cookies/content.ts`.
+
 ## 2026-09-18 — Changed: cinci modele 3D noi, unul pentru fiecare serviciu
 
 Clientul s-a uitat la cele cinci modele existente și a spus că nu-i plac: prea abstracte, prea
