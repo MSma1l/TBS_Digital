@@ -16,6 +16,55 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Added: ADN-ul se replică la apariție
+
+Clientul a cerut „o animație 3D frumoasă și wow cum apare ADN". Până acum elicea apărea prin roiul
+modelului de servicii care ateriza pe ea — corect, dar fără moment propriu.
+
+Acum sosirea are cinci mișcări, într-o singură bandă de scroll: firele apar **strânse într-o
+împletitură îngustă**, se desfășoară în elice cu o rotație proprie, roiul aterizează pe forma
+formată, apoi treptele și cipurile **se scriu dinspre mijloc spre exterior**, ca o bulă de replicare
+care se deschide în ambele direcții, iar holograma se deschide la final dintr-o linie orizontală.
+
+**Armarea, care e partea grea.** Acest proiect a pierdut deja trei runde pe animații care se
+consumau în afara ecranului. Linia de armare e acum derivată din pista secțiunii, cu 0,30 dintr-un
+ecran înainte, și a fost verificată pe **cele trei căi prin care poți ajunge acolo**:
+
+| Cum ajungi | Sosirea începe | Elicea pe ecran |
+| --- | --- | --- |
+| Derulare 700 px/s | scrollY 1672 | 72% la start, 100% după 0,31s din 1,2s |
+| Link direct `#lucrari` | 1891 | **100% tot timpul** |
+| Reîncărcare în secțiune | 2803 | **100% tot timpul** |
+
+Cel mai prost cadru posibil e primul; după linia lipirii, centrul elicei e fix în mijlocul stratului.
+Verificat și la 861×700. La o aruncătură de 2500 px/s molecula e desenată **completă și mare** înainte
+ca finișul s-o tragă înapoi în fascicul — gaura pe care o închide clampul `exit > 0` era reală.
+
+**Corecții găsite prin măsurare, nu din citit:**
+- filamentul propus la 0,06 ar fi avut **0,18 px** pe ecran — o linie punctată care se târăște, nu o
+  strălucire. Podeaua e 0,42, valoare deja dovedită pe finiș;
+- `helixArrive` trebuia scris în **toate cele trei ramuri** ale compoziției și în starea inițială,
+  altfel cadrul de pre-warm ascundea trei desene, care s-ar fi compilat în plin scroll;
+- aceeași problemă exista și la intervalul de desenare al bulei, pe care critica n-o văzuse: la
+  fork 0 nu se desena nimic, deci bufferul treptelor nu se încărca **exact** pe cadrul care trebuia
+  să-l încarce;
+- zăvorul care împiedică un puls gratuit trebuie să pornească „cheltuit", altfel orice elice deja
+  formată la primul cadru trage un flash nemeritat;
+- linia de armare nu poate fi folosită pentru banda ambientală de pe telefon: e cu un ecran mai sus
+  decât pista, deci s-ar arma când banda e deja sub header. Telefonul păstrează vechea bandă.
+
+**Măsurat:** contrastul copiei cardului din față peste filament e **11,05** la cel mai strâns moment —
+mai bun decât peste elicea formată (9,34), pentru că filamentul adaugă mai puțină lumină lângă card.
+Riscul semnalat la proiectare nu se materializează. Titlul secțiunii rămâne la ~133 px de muchia
+elicei, neatins.
+
+**Acceptat conștient pentru trecerea asta:** cometa care călărește bula luminează doar furca de sus —
+shaderul are un singur ceas și indicele treptei ca fază, iar simetrizarea ar schimba și măturarea de
+repaus, documentată. Notat, nu ascuns.
+
+Fișiere: `components/scene/three/models/helix.ts`, `components/scene/choreography.ts`,
+`components/scene/three/world.ts`, plus testele scenei.
+
 ## 2026-09-19 — Removed: sunetul și tema deschisă
 
 Clientul a arătat cele două butoane din antet și a cerut ca ambele funcții să dispară din proiect.

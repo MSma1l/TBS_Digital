@@ -34,11 +34,13 @@ import {
   HELIX_ACCENT_SECONDS,
   HELIX_AMBIENT_ROLL,
   HELIX_ANGLE as MODEL_HELIX_ANGLE,
+  HELIX_ARRIVE,
   HELIX_BIT,
   HELIX_EXIT,
   HELIX_GLITCH_SECONDS,
   HELIX_HOLOGRAM,
   createHelixModel,
+  helixArrivePose,
   helixBitStrokes,
   helixDim,
   helixExitPose,
@@ -596,6 +598,210 @@ describe("helix model — behaviour", () => {
       expect(now.tall).toBeGreaterThanOrEqual(last.tall);
       last = now;
     }
+  });
+
+  it("helixArrivePose: nothing at 0, the formed helix at 1 — and absent is 1, so a frame that knows nothing of it draws the molecule", () => {
+    // The filament's floor is the finish's own narrow: at 0.012 units of tube and 121.5px per
+    // unit, anything under it is a sub-pixel line that crawls instead of burning.
+    expect(HELIX_ARRIVE.narrow).toBe(HELIX_EXIT.narrow);
+    expect(HELIX_ARRIVE.narrow).toBe(0.42);
+    const start = helixArrivePose(0);
+    expect(start.strands).toBe(0);
+    expect(start.narrow).toBeCloseTo(HELIX_ARRIVE.narrow, 12);
+    expect(start.spin).toBeCloseTo(HELIX_ARRIVE.spin, 12);
+    expect([start.fork, start.bits, start.holo]).toEqual([0, 0, 0]);
+    const done = { strands: 1, narrow: 1, spin: 0, fork: 1, bits: 1, holo: 1 };
+    expect(helixArrivePose(1)).toEqual(done);
+    // Absent, not finite, or out of range: the arrived pose (and the identity at the other end).
+    expect(helixArrivePose(undefined)).toEqual(done);
+    expect(helixArrivePose(Number.NaN)).toEqual(done);
+    expect(helixArrivePose(5)).toEqual(done);
+    expect(helixArrivePose(-1)).toEqual(helixArrivePose(0));
+
+    // The five movements, in order and overlapping: each band is spent before the next is over.
+    const table: Array<[number, "strands" | "narrow" | "fork" | "bits" | "holo"]> = [
+      [HELIX_ARRIVE.strands[1], "strands"],
+      [HELIX_ARRIVE.open[1], "narrow"],
+      [HELIX_ARRIVE.fork[1], "fork"],
+      [HELIX_ARRIVE.bits[1], "bits"],
+      [HELIX_ARRIVE.holo[1], "holo"],
+    ];
+    for (const [at, key] of table) expect(helixArrivePose(at)[key], key).toBeCloseTo(1, 12);
+    expect(helixArrivePose(HELIX_ARRIVE.strands[1]).fork).toBe(0);
+    expect(helixArrivePose(HELIX_ARRIVE.fork[0]).narrow).toBeGreaterThan(HELIX_ARRIVE.narrow);
+    expect(helixArrivePose(HELIX_ARRIVE.bits[0]).fork).toBeGreaterThan(0.5);
+    // The wind-up unwinds exactly as the radius opens: one gesture, not two.
+    expect(helixArrivePose(HELIX_ARRIVE.open[0]).spin).toBeCloseTo(HELIX_ARRIVE.spin, 12);
+    expect(helixArrivePose(HELIX_ARRIVE.open[1]).spin).toBeCloseTo(0, 12);
+
+    // Every step goes one way, and nothing rests half-way outside 0..1.
+    let last = helixArrivePose(0);
+    for (let a = 0.01; a <= 1; a += 0.01) {
+      const now = helixArrivePose(a);
+      for (const key of ["strands", "narrow", "fork", "bits", "holo"] as const) {
+        expect(now[key], `${key} at ${a}`).toBeGreaterThanOrEqual(last[key]);
+        expect(now[key]).toBeLessThanOrEqual(1);
+        expect(now[key]).toBeGreaterThanOrEqual(0);
+      }
+      expect(now.spin, `spin at ${a}`).toBeLessThanOrEqual(last.spin);
+      expect(now.narrow).toBeGreaterThanOrEqual(HELIX_ARRIVE.narrow);
+      last = now;
+    }
+  });
+
+  it("the replication bubble: a contiguous window of rungs widening from the middle one outward, both ways at once", () => {
+    for (const tier of TIERS) {
+      const config = SCENE_TIER_CONFIG[tier];
+      const model = createHelixModel(config, PALETTE);
+      const { rungs } = parts(model);
+      const n = config.helixRungs;
+      const mid = Math.floor(n / 2);
+      let t = 0;
+      /** The window as [first rung drawn, rungs drawn] — 20 vertices per rung (2 halves × 10). */
+      const window = (arrive: number): [number, number] => {
+        model.update(frame({ time: (t += 0.05), reveal: 1, arrive }));
+        const { start, count } = rungs.geometry.drawRange;
+        // LineSegments needs an even offset and an even count; every multiple of 20 is both.
+        expect(start % 2, `offset at ${arrive}`).toBe(0);
+        expect(count % 2, `count at ${arrive}`).toBe(0);
+        expect(start % 20).toBe(0);
+        expect(count % 20).toBe(0);
+        return [start / 20, count / 20];
+      };
+
+      // Before the bubble opens nothing of it is drawn at all; at the end, every rung is.
+      expect(window(0)).toEqual([mid, 0]);
+      expect(window(HELIX_ARRIVE.fork[0])).toEqual([mid, 0]);
+      expect(window(HELIX_ARRIVE.fork[1])).toEqual([0, n]);
+      expect(window(1)).toEqual([0, n]);
+      expect(window(HELIX_ARRIVE.fork[1] + 0.05)).toEqual([0, n]);
+
+      // In between: centred on the middle rung, inside the buffer, and only ever growing.
+      let last = 0;
+      for (let a = HELIX_ARRIVE.fork[0]; a <= HELIX_ARRIVE.fork[1]; a += 0.02) {
+        const [from, drawn] = window(a);
+        expect(drawn, `drawn at ${a}`).toBeGreaterThanOrEqual(last);
+        expect(from + drawn).toBeLessThanOrEqual(n);
+        // Symmetric about the middle: as many rungs below it as above (± the odd one).
+        expect(Math.abs(mid - from - (from + drawn - mid))).toBeLessThanOrEqual(1);
+        last = drawn;
+      }
+      // Half way through the bubble roughly half the base pairs are written in.
+      const [, halfWay] = window((HELIX_ARRIVE.fork[0] + HELIX_ARRIVE.fork[1]) / 2);
+      expect(halfWay).toBeGreaterThan(0.35 * n);
+      expect(halfWay).toBeLessThan(0.65 * n);
+      model.dispose();
+    }
+  });
+
+  it("the arrival: the filament writes itself in, unwinds, opens the bubble, then the bits and the hologram — and a pre-warm frame still draws all five", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.high, PALETTE);
+    const { strands, chips, rungs, bits, hologram } = parts(model);
+    model.setHologram(new CanvasTexture(document.createElement("canvas")));
+    const orient = () => (strands.parent as { parent: { scale: { x: number; y: number } } }).parent;
+    const spin = () => (strands.parent as { rotation: { y: number } }).rotation.y;
+    let t = 0;
+    const at = (arrive: number, over: Partial<HelixFrame> = {}) =>
+      model.update(frame({ time: (t += 0.05), reveal: 1, arrive, ...over }));
+
+    // Movement 1: the strands alone, on the axis — one draw, a beam, no chirality yet.
+    at(0.1);
+    expect(orient().scale.x).toBeCloseTo(helixArrivePose(0.1).narrow, 12);
+    // Never taller: a stretch would put the filament over Work's heading at the arming line.
+    expect(orient().scale.y).toBe(1);
+    expect(uniforms(strands).uReveal.value).toBeGreaterThan(0);
+    expect(uniforms(strands).uReveal.value).toBeLessThan(1);
+    expect([chips.visible, rungs.visible, bits.visible]).toEqual([false, false, false]);
+    expect(hologram.visible).toBe(false);
+    // Held back while the two tubes lie on one line: additive blending would otherwise clip white.
+    expect(uniforms(strands).uIntensity.value).toBeLessThan(1);
+
+    // Movement 2: the wind-up unwinds into the focus's own turn as the radius opens.
+    at(HELIX_ARRIVE.open[0], { focus: 1 });
+    expect(spin()).toBeCloseTo(-MODEL_HELIX_ANGLE + HELIX_ARRIVE.spin, 12);
+    at(HELIX_ARRIVE.open[1], { focus: 1 });
+    expect(spin()).toBeCloseTo(-MODEL_HELIX_ANGLE, 12);
+    expect(orient().scale.x).toBeCloseTo(1, 12);
+
+    // Movement 3: the bubble brings the rungs and the chips; the comet rides a fork, not its sweep.
+    at(0.7);
+    expect([chips.visible, rungs.visible]).toEqual([true, true]);
+    expect(bits.visible).toBe(false);
+    const mid = Math.floor(SCENE_TIER_CONFIG.high.helixRungs / 2);
+    expect(uniforms(rungs).uProg.value).toBeGreaterThan(mid);
+    expect(uniforms(rungs).uProg.value).toBeLessThan(SCENE_TIER_CONFIG.high.helixRungs);
+    // The chips behind the forks are lit; the ones the bubble has not reached are black, and a
+    // black instance adds nothing (lum 0 → alpha 0), so no dissolve heat leaks onto them.
+    const colours = chips.instanceColor!.array as Float32Array;
+    let dark = 0;
+    for (let i = 0; i < chips.count; i += 1) if (colours[i * 3] === 0) dark += 1;
+    expect(dark).toBeGreaterThan(0);
+
+    // Movements 4 and 5: the bits flicker on, then the hologram opens vertically from a hairline.
+    at(0.8);
+    expect(bits.visible).toBe(true);
+    expect(uniforms(bits).uReveal.value).toBeLessThan(1);
+    expect(hologram.visible).toBe(false);
+    at(0.93);
+    expect(hologram.visible).toBe(true);
+    expect(hologram.scale.y).toBeLessThan(hologram.scale.x);
+    at(1);
+    expect(hologram.scale.y).toBeCloseTo(hologram.scale.x, 12);
+    expect(hologram.visible).toBe(true);
+    for (const object of model.objects) expect(uniforms(object).uReveal.value).toBe(1);
+    for (let i = 0; i < chips.count; i += 1) expect(colours[i * 3]).toBeGreaterThan(0);
+    // No longer held back (the arrival's own flare may still be lifting it on top of that).
+    expect(uniforms(strands).uIntensity.value).toBeGreaterThanOrEqual(1);
+
+    /* The pre-warm frame. `stageHelix` queues exactly one, and it happens at the top of the page
+       where the arrival has not started: if a band hid a draw there its buffers would never
+       upload and the first frame that showed it would compile a shader mid-scroll. */
+    model.update(frame({ time: (t += 0.05), reveal: 0, arrive: 0, prewarm: true }));
+    expect(model.group.visible).toBe(true);
+    for (const object of model.objects) expect(object.visible, object.name).toBe(true);
+    for (const object of model.objects) expect(uniforms(object).uReveal.value).toBe(0);
+    // …and the whole rung buffer with them: a draw range of zero vertices uploads nothing.
+    expect(rungs.geometry.drawRange).toEqual({ start: 0, count: 20 * SCENE_TIER_CONFIG.high.helixRungs });
+    model.dispose();
+  });
+
+  it("the arrival flares once as the forks reach the ends, and the chips answer a still page (the gate runs in wall clock, the turn does not)", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.high, PALETTE);
+    const { chips, strands } = parts(model);
+    const lifted = () => (uniforms(strands).uIntensity.value as number) > 1;
+    let t = 0;
+    const at = (arrive: number) => model.update(frame({ time: (t += 1 / 60), reveal: 1, arrive }));
+
+    const colours = chips.instanceColor!.array as Float32Array;
+    const dark = () => {
+      let n = 0;
+      for (let i = 0; i < chips.count; i += 1) if (colours[i * 3] === 0) n += 1;
+      return n;
+    };
+
+    // An already-arrived helix has nothing to announce: no flare on its first frame.
+    at(1);
+    expect(lifted()).toBe(false);
+    expect(dark()).toBe(0);
+
+    /* Every frame from here on is a STILL page: `focus` never moves, so `turn` never moves, and
+       the guard `writeFlares` has always had would freeze the chips' colours where they were.
+       The bubble runs in wall clock, not in scroll, so it must ask for them again anyway — this
+       is the frozen-gate bug the project has paid for once already (CHANGELOG, the spiral). */
+    at(0.2);
+    expect(dark()).toBe(chips.count);
+    for (let a = 0.2; a <= 0.7; a += 0.02) at(a);
+    expect(dark()).toBeGreaterThan(0);
+    expect(dark()).toBeLessThan(chips.count);
+    expect(lifted()).toBe(false);
+
+    // The forks reach the ends: one flare, which then decays away as any other does.
+    at(HELIX_ARRIVE.flare);
+    expect(lifted()).toBe(true);
+    for (let i = 0; i < 40; i += 1) at(1);
+    expect(lifted()).toBe(false);
+    expect(dark()).toBe(0);
+    model.dispose();
   });
 
   it("the finish winds the helix up, draws it into a beam and dissolves it away", () => {

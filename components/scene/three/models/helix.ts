@@ -12,6 +12,10 @@
  *     the page races the strand and a still page settles back;
  *   · `pulse()` — a project arriving at the front, or the hologram swapping to it, flares the
  *     strands, the chips and the rungs over `HELIX_PULSE_SECONDS` (uniforms only, no new draw);
+ *   · `arrive` — the Work gate's own 1.2s (`helixArrivePose`): the molecule is synthesised in
+ *     front of the visitor — a filament on the axis unwinds into the double helix, a replication
+ *     bubble opens from the middle rung outward writing the base pairs and the chips in behind it,
+ *     the bits flicker on and the hologram opens from a hairline. Absent counts as arrived;
  *   · `exit` — the spiral's finish (helix.ts `helixExitAt`): the pivot winds up, the strands are
  *     drawn into a beam and the whole model dissolves away, so Work ends instead of stopping.
  *
@@ -99,6 +103,12 @@ export type HelixFrame = {
    */
   exit?: number;
   /**
+   * The Work gate's arrival, 0..1 (fx.ts `WORK_SECONDS.form`, run in wall clock): the helix is
+   * synthesised — filament, unwind, replication bubble, bits, hologram (`helixArrivePose`).
+   * Absent or not finite counts as **1**: already arrived, which is exactly today's picture.
+   */
+  arrive?: number;
+  /**
    * How fast the page is being scrolled, 0 (still) .. 1 (a viewport and more per second): the
    * packets, the bits and the rung comet run with it, so the strand answers the visitor's hand.
    * Absent or not finite counts as 0.
@@ -146,6 +156,37 @@ export const HELIX_PULSE_SECONDS = 0.55;
  */
 export const HELIX_EXIT = { spin: 2.2, narrow: 0.42, tall: 1.5, fade: [0.55, 1], holo: 0.55 } as const;
 /**
+ * The arrival, as the model draws it (`helixArrivePose`) — the Work gate's 1.2s, five overlapping
+ * movements on one axis, in one direction, in the front card's own colour:
+ *  · `strands` — the band the strands write themselves in over: a single incandescent filament on
+ *    the axis the cards orbit, the finish's beam pose run forwards instead of backwards;
+ *  · `open` — the filament unwinds into the double helix: `narrow` eases from its floor to 1 while
+ *    `spin` radians of wind-up decay into the focus's own turn (ease-out cubic, one gesture);
+ *  · `fork` — the replication bubble: a contiguous window of rungs widening from the middle rung
+ *    outward, both ways at once, the chips lighting behind the forks and the comet riding one;
+ *  · `bits` — the 0/1 payload flickers into being (the voxel dissolve is right for them);
+ *  · `holo` — the hologram opens vertically from a hairline, a CRT switching on;
+ *  · `flare` — the fork progress at which `pulse()` fires once, as the forks reach the ends.
+ *
+ * `narrow`'s floor is **not** a free number. The strands are `HELIX_PARTS.tube` = 0.012 units
+ * across, 2.9px at the spiral's 121.5 px per unit: at the 0.06 the design first asked for, the
+ * filament is 0.18 CSS px — under a device pixel even at dpr 2, so the rasteriser catches it
+ * intermittently and it reads as a crawling dotted line, not a beam. The floor is the finish's own
+ * `HELIX_EXIT.narrow`, already proven on screen at the other end of the section.
+ */
+export const HELIX_ARRIVE = {
+  narrow: 0.42,
+  spin: 2.4,
+  strands: [0, 0.3],
+  open: [0.34, 0.68],
+  fork: [0.46, 0.9],
+  bits: [0.72, 1],
+  holo: [0.86, 1],
+  flare: 0.9,
+} as const;
+/** How far the strands' intensity is pulled down while the filament is at its tightest (mix to 1 as it opens). */
+const BEAM_DIM = 0.45;
+/**
  * How much a flare (`pulse`) and the scroll's own speed add: a multiplier on each draw's
  * `uIntensity`, and — for the speed — on the packet clock, so a fast scroll races the strand.
  * Both are 0 on a still page with no arrival, which is exactly `dim` on every draw.
@@ -192,6 +233,38 @@ export function helixExitPose(exit: number): { reveal: number; spin: number; nar
     spin: HELIX_EXIT.spin * e * e,
     narrow: 1 - (1 - HELIX_EXIT.narrow) * e,
     tall: 1 + (HELIX_EXIT.tall - 1) * e,
+  };
+}
+
+/**
+ * Pure. What the arrival does to the model at `arrive` (0..1): how much of each part's reveal has
+ * been written in (`strands`, `bits`, `holo` — the rest ride the frame's own), the strand's radius
+ * as a share of nominal, the wind-up left to unwind in radians, and how far the replication bubble
+ * has opened from the middle rung outward.
+ *
+ * **Absent or not finite is 1** — the arrived helix, exactly today's picture — so a frame that
+ * knows nothing of the arrival draws the formed molecule.
+ */
+export function helixArrivePose(arrive: number | undefined): {
+  strands: number;
+  narrow: number;
+  spin: number;
+  fork: number;
+  bits: number;
+  holo: number;
+} {
+  const a = arrive === undefined || !Number.isFinite(arrive) ? 1 : Math.min(1, Math.max(0, arrive));
+  const [openFrom, openTo] = HELIX_ARRIVE.open;
+  // The unwind eases out: the radius opens fastest as the filament lets go, then settles.
+  const o = clamp01((a - openFrom) / (openTo - openFrom));
+  const open = 1 - (1 - o) ** 3;
+  return {
+    strands: smoothstep(HELIX_ARRIVE.strands[0], HELIX_ARRIVE.strands[1], a),
+    narrow: HELIX_ARRIVE.narrow + (1 - HELIX_ARRIVE.narrow) * open,
+    spin: HELIX_ARRIVE.spin * (1 - open),
+    fork: smoothstep(HELIX_ARRIVE.fork[0], HELIX_ARRIVE.fork[1], a),
+    bits: smoothstep(HELIX_ARRIVE.bits[0], HELIX_ARRIVE.bits[1], a),
+    holo: smoothstep(HELIX_ARRIVE.holo[0], HELIX_ARRIVE.holo[1], a),
   };
 }
 
@@ -418,7 +491,21 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
   let dim = 1;
   /** The last intensities written, so a still frame rewrites nothing. */
   let drive = Number.NaN;
+  /** The strands' own dimming while the arrival's filament is tight (1 once it has opened). */
+  let beam = 1;
   let holoBase = 1;
+  /**
+   * The arrival's replication bubble, 0..1, and the value the chips were last coloured for. The
+   * bubble gates which chips are lit, and it runs in wall clock — so it moves on a still page,
+   * where `turn` alone would never ask for the colours again.
+   */
+  let arriveFork = 1;
+  let flaredFork = Number.NaN;
+  /**
+   * The arrival's one flare has been spent, re-armed when the bubble falls back below `flare`.
+   * It starts spent: a helix whose first frame is already arrived has nothing to announce.
+   */
+  let flared = true;
   /** Where the accent is heading (the card's colour, or the palette's cyan) and where it is. */
   let accentSet = false;
   const accentTarget = new Color();
@@ -432,9 +519,13 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
 
   const writeFlares = () => {
     flaredTurn = turn;
+    flaredFork = arriveFork;
     chipList.forEach((chip, i) => {
+      // Behind the replication forks only: a chip the bubble has not reached yet is written
+      // black, and a black instance adds nothing at all (lum 0 → strength 0 → alpha 0).
+      const lit = Math.abs(chip.t - 0.5) <= 0.5 * arriveFork ? 1 : 0;
       const flare = helixFrontFlare(chip.centre[0], chip.centre[2], turn);
-      chipMesh.setColorAt(i, tint.setScalar(1 + FRONT.gain * flare));
+      chipMesh.setColorAt(i, tint.setScalar(lit * (1 + FRONT.gain * flare)));
     });
     if (chipMesh.instanceColor) chipMesh.instanceColor.needsUpdate = true;
   };
@@ -446,7 +537,7 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
    */
   const writeIntensity = (lift = 0) => {
     drive = lift;
-    strands.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.strands);
+    strands.uniforms.uIntensity.value = beam * dim * (1 + lift * HELIX_DRIVE.pulse.strands);
     chips.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.chips);
     rungs.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.rungs);
     bits.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.bits);
@@ -483,6 +574,7 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
 
     update(frame) {
       const exit = helixExitPose(frame.exit ?? 0);
+      const arrive = helixArrivePose(frame.arrive);
       // The finish takes the reveal down itself: what is left of the frame's is what is drawn.
       const reveal = frame.reveal * exit.reveal;
       group.visible = reveal > 0 || frame.prewarm;
@@ -491,12 +583,19 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       if (!group.visible) return;
 
       turn = -frame.focus * HELIX_ANGLE;
-      pivot.rotation.y = turn - exit.spin;
-      // Spiral only: the finish draws the strands into a beam. Ambient never has an exit.
-      orient.scale.set(exit.narrow, exit.tall, exit.narrow);
+      // The arrival's wind-up unwinds into the focus's own turn; the finish winds up again.
+      pivot.rotation.y = turn - exit.spin + arrive.spin;
+      // The filament opens into the helix (arrival) and is drawn back into a beam (the finish).
+      // The arrival contributes no `tall`: a stretch would put it over Work's heading at the
+      // moment it arms (36px of margin there — docs/05 records the same hazard for the ambient
+      // helix over the headline). Ambient never has an exit.
+      const radius = arrive.narrow * exit.narrow;
+      orient.scale.set(radius, exit.tall, radius);
       tilt.rotation.set(-frame.ty * TILT.x, frame.tx * TILT.y, 0);
       holoMesh.rotation.set(-frame.ty * TILT.x * TILT.holo, frame.tx * TILT.y * TILT.holo, 0);
       showHologram(frame.prewarm);
+      // A hairline plane is still a draw: the hologram only exists once it opens.
+      if (holoMesh.visible && !frame.prewarm && !(arrive.holo > 0)) holoMesh.visible = false;
       const nextDim = helixDim(frame.dim);
 
       const speed = clamp01(frame.speed ?? 0);
@@ -504,7 +603,13 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       // The packets, the bits and the rung comet run on this clock: the faster the page moves, the
       // faster the strand carries. A still page still has them — the clock keeps its own step.
       clock += step * (1 + HELIX_DRIVE.speed.clock * speed);
-      if (Math.abs(turn - flaredTurn) > 1e-4 || !Number.isFinite(flaredTurn)) writeFlares();
+      arriveFork = arrive.fork;
+      // The bubble moves in wall clock, so the chips must be re-coloured on a still page too —
+      // a visitor who stops exactly on the arming line would otherwise keep half of them dark
+      // for good (the frozen-gate bug this project has already paid for once).
+      if (Math.abs(turn - flaredTurn) > 1e-4 || !Number.isFinite(flaredTurn) || arriveFork !== flaredFork) {
+        writeFlares();
+      }
 
       if (dt > 0) {
         accentNow.lerp(accentTarget, 1 - Math.exp(-dt / (HELIX_ACCENT_SECONDS / 3)));
@@ -513,31 +618,70 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       }
       writeAccent();
 
-      // Nothing driving it is exactly `dim`: a still page rewrites no uniform.
+      // The forks have reached the ends: the molecule is whole, and says so. Once per arrival.
+      if (arrive.fork >= HELIX_ARRIVE.flare) {
+        if (!flared) {
+          flared = true;
+          pulseLeft = 1;
+        }
+      } else {
+        flared = false;
+      }
+
+      // Nothing driving it is exactly `dim`: a still page rewrites no uniform. The tight filament
+      // is two additive tubes on one line, so it is held back until the radius opens.
       const lift = pulseLeft * pulseLeft + HELIX_DRIVE.speed.glow * speed;
-      if (nextDim !== dim || lift !== drive) {
+      const nextBeam = BEAM_DIM + (1 - BEAM_DIM) * arrive.narrow;
+      if (nextDim !== dim || lift !== drive || nextBeam !== beam) {
         dim = nextDim;
+        beam = nextBeam;
         writeIntensity(lift);
       }
 
+      /* The replication bubble. `rungGeometry` writes rung `r` as 2 halves × (1 line + 4 node
+         sides) × 2 vertices = 20 vertices, the bottom rung first — so one contiguous vertex
+         window IS a simultaneous up-and-down wipe from the middle. `LineSegments` needs an even
+         offset and an even count, which every multiple of 20 is. */
+      const mid = Math.floor(rungCount / 2);
+      if (rungCount > 0) {
+        // A pre-warm frame draws the whole buffer: a range of zero vertices uploads nothing.
+        if (frame.prewarm || arrive.fork >= 1) {
+          rungGeometryBuffer.setDrawRange(0, 20 * rungCount);
+        } else {
+          const half = Math.min(rungCount, Math.round((rungCount / 2) * arrive.fork));
+          const from = Math.max(0, mid - half);
+          const to = Math.min(rungCount, from + 2 * half);
+          rungGeometryBuffer.setDrawRange(20 * from, 20 * (to - from));
+        }
+      }
+      // Visible only where there is something to see: the arrival's own bands, and always on a
+      // pre-warm frame — that is the one frame `stageHelix` has to upload every draw's buffers in.
+      chipMesh.visible = arrive.fork > 0 || frame.prewarm;
+      rungLines.visible = arrive.fork > 0 || frame.prewarm;
+      bitLines.visible = (arrive.bits > 0 || frame.prewarm) && !lite;
+
       strands.uniforms.uTime.value = clock;
-      strands.uniforms.uReveal.value = reveal;
+      strands.uniforms.uReveal.value = reveal * arrive.strands;
       chips.uniforms.uTime.value = frame.time;
       chips.uniforms.uReveal.value = reveal;
-      rungs.uniforms.uProg.value = helixRungSweep(clock, rungCount);
+      // The comet rides the upper fork while the bubble opens, then hands back to its idle sweep.
+      rungs.uniforms.uProg.value =
+        arrive.fork < 1 ? mid + (rungCount - mid) * arrive.fork : helixRungSweep(clock, rungCount);
       rungs.uniforms.uTime.value = frame.time;
       rungs.uniforms.uReveal.value = reveal;
       bits.uniforms.uTime.value = clock;
-      bits.uniforms.uReveal.value = reveal;
+      bits.uniforms.uReveal.value = reveal * arrive.bits;
       holo.uniforms.uTime.value = frame.time;
       holo.uniforms.uReveal.value = reveal;
       holo.uniforms.uGlitch.value = glitchLeft;
       // The hologram flinches on a swap and shrinks away with the finish.
       const base = holoMesh.userData[HOLOGRAM_BASE];
       holoBase = typeof base === "number" && base > 0 ? base : holoBase;
-      holoMesh.scale.setScalar(
-        holoBase * (1 + 0.07 * glitchLeft) * (1 - (1 - HELIX_EXIT.holo) * clamp01(frame.exit ?? 0)),
-      );
+      const holoScale =
+        holoBase * (1 + 0.07 * glitchLeft) * (1 - (1 - HELIX_EXIT.holo) * clamp01(frame.exit ?? 0));
+      // It comes online by opening vertically out of a hairline: the holo branch draws the plane's
+      // frame, so a squashed plane is a bright horizontal line — a CRT switching on.
+      holoMesh.scale.set(holoScale, holoScale * arrive.holo, 1);
     },
 
     setMode(next) {

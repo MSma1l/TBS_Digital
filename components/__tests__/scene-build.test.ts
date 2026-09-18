@@ -494,8 +494,16 @@ describe("the world — the Work handoff (services model → helix) with the spi
     expect(state.writes.at(-1)).toEqual({ focus: 2.5, built: true });
     expect(state.focusAsked.at(-1)).toBe(1000);
 
-    // Past the band: the first frame of the handoff, from the selected model's slot to the helix's.
-    const scrollY = 2200;
+    /* Past Work's own band but not yet at the arming line: the arrival is armed on the spiral's
+       sticky line less 0.30 of a layer (choreography.ts `helixArriveSpan`), 2310 here, not on
+       `probe.workSpan.end` (2160) — a whole screen higher up, where the helix's centre is still
+       below the fold. */
+    frame(2200);
+    expect(fx.work).toEqual({ value: 0, armed: false });
+    expect(helix.visible).toBe(false);
+
+    // Past the arming line: the first frame of the handoff, from the model's slot to the helix's.
+    const scrollY = 2400;
     frame(scrollY);
     expect(fx.work.armed).toBe(true);
     expect(fx.work.value).toBeCloseTo(1 / 20 / WORK_SECONDS.form, 12);
@@ -552,10 +560,10 @@ describe("the world — the Work handoff (services model → helix) with the spi
     const fx = createSceneFx();
     const frame = (scrollY: number) => world.update(1 / 20, scrollY, view, false, probe, readSceneInput(), fx);
     frame(1000);
-    for (let i = 0; i < 12; i += 1) frame(2200);
+    for (let i = 0; i < 12; i += 1) frame(2400);
     expect(swarm.visible).toBe(true);
     state.mode = "off";
-    frame(2200);
+    frame(2400);
     expect(world.helixMode()).toBe("off");
     expect(fx.work.armed).toBe(false);
     expect(swarm.visible).toBe(false);

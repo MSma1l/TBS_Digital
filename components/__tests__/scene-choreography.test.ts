@@ -6,6 +6,7 @@ import {
   CORE_BEHIND_COPY_DIM,
   CORE_BEHIND_COPY_WIDE_FROM,
   HELIX_AMBIENT,
+  HELIX_ARRIVE_LEAD,
   HELIX_REACH,
   HELIX_SLOT,
   HELIX_ZONE_FILL,
@@ -19,6 +20,7 @@ import {
   createComposition,
   createMorph,
   fitAnchor,
+  helixArriveSpan,
   helixZoneTop,
   layoutFor,
   morphRunning,
@@ -320,6 +322,38 @@ describe("scene space — the Work helix", () => {
     expect(placeHelixSpiral(unmeasured, 3400, 1280, h, 0.34)).toEqual(placeHelixSpiral(probe, 3400, 1280, h, 0.34));
   });
 
+  it("the arrival arms 0.30 of a layer above the sticky line, so the helix is never off screen while it plays", () => {
+    expect(HELIX_ARRIVE_LEAD).toBe(0.3);
+    const probe = workProbe();
+    // Work's own band, "top 70%" → "top 55%" of the 800px viewport, from the track's top.
+    probe.workSpan = { start: 2600 - 560, end: 2600 - 440 };
+    const span = helixArriveSpan(probe)!;
+    // Armed 0.3 × 729 above the scroll at which the zone sticks under the header (2600 − 71).
+    expect(span.end).toBeCloseTo(2600 - 71 - 0.3 * 729, 9);
+    expect(span.end).toBeCloseTo(2310.3, 9);
+    // …and only disarmed a whole screen higher, where the gate used to arm.
+    expect(span.start).toBe(2040);
+    expect(span.start).toBeLessThan(span.end);
+
+    /* The picture this buys, from `placeHelixSpiral` itself: at the arming line the helix's
+       centre is 583px down a 729px layer — 72% of its 656px drawn height on screen, its middle
+       (where the replication bubble opens) well inside it — and it is dead centre for every
+       scroll after the zone sticks, i.e. for the whole rest of the section. */
+    const centre = (scrollY: number) => 729 / 2 - placeHelixSpiral(probe, scrollY, 1280, h, 0.34)!.y / k;
+    expect(centre(span.end)).toBeCloseTo(583.2, 6);
+    expect(centre(span.end) - (HELIX_ZONE_FILL * 729) / 2).toBeGreaterThan(0);
+    for (const scrollY of [2529, 2600, 3400, 4600]) expect(centre(scrollY)).toBeCloseTo(364.5, 6);
+
+    // Written into `out`; nothing measured, or no track: null (the gate then never opens).
+    const out = { start: -1, end: -1 };
+    expect(helixArriveSpan(probe, out)).toBe(out);
+    expect(helixArriveSpan(createScrollProbe())).toBeNull();
+    expect(helixArriveSpan(desktopProbe())).toBeNull();
+    // An unmeasured layer falls back to the sticky line itself, never below the disarm line.
+    const unmeasured = { ...workProbe(), layerH: 0, workSpan: { start: 9999, end: 9999 } };
+    expect(helixArriveSpan(unmeasured)).toEqual({ start: 2529, end: 2529 });
+  });
+
   it("ambient: lying in the band above Work's heading, centred on it, 0.6 of the width long, clear of the band's edges and never over 120px tall", () => {
     expect(HELIX_AMBIENT).toEqual({ length: 0.6, maxPx: 120, clear: 10 });
     // The strands and chips (radius + 0.1) and the 0/1 bits (1.2 plus half a glyph) all fit in the reach.
@@ -566,18 +600,20 @@ describe("morph — who draws what (composeScene)", () => {
     expect(composeScene(1, 0.4, createMorph(3), out)).toBe(out);
   });
 
-  it("past Work's band (work > 0) the selected model's swarm flies to the helix: the model dissolves first, the helix forms last", () => {
+  it("past Work's band (work > 0) the selected model's swarm flies to the helix: the model dissolves and the helix is drawn in over the same stretch", () => {
     expect(HELIX_SLOT).toBe(0);
     expect(createComposition().helix).toBe(0);
     const plan = composeScene(1, 0.4, createMorph(2), createComposition());
     expect(plan.swarm).toEqual({ active: true, from: 3, to: HELIX_SLOT, t: 0.4 });
-    expect(plan.helix).toBe(0);
+    expect(plan.helix).toBe(1);
     for (let index = 0; index < SCENE_SHAPES.length; index += 1) expect(revealOf(plan, index)).toBe(0);
     const early = composeScene(1, 0.1, createMorph(2), createComposition());
     expect(revealOf(early, 2)).toBeCloseTo(1 - smoothstep(0, 0.3, 0.1), 12);
-    expect(early.helix).toBe(0);
+    // The helix is drawn from the first frame of the gate — as the filament the swarm lands on.
+    expect(early.helix).toBeCloseTo(smoothstep(0, 0.3, 0.1), 12);
+    expect(early.helix).toBeGreaterThan(0);
     const late = composeScene(1, 0.85, createMorph(2), createComposition());
-    expect(late.helix).toBeCloseTo(smoothstep(0.7, 1, 0.85), 12);
+    expect(late.helix).toBe(1);
     expect(revealOf(late, 2)).toBe(0);
 
     // Formed: the helix alone, no swarm, no service model (whatever pill is selected).
@@ -599,6 +635,25 @@ describe("morph — who draws what (composeScene)", () => {
     ] as const) {
       expect(composeScene(entry, 0, m, out).helix).toBe(0);
     }
+  });
+
+  it("helixArrive is the gate's own value inside the handoff and 1 in every other branch (a frame that never entered it draws the formed helix)", () => {
+    // The pre-warm frame happens at the top of the page, in the `else` branch: a composition that
+    // left `helixArrive` unwritten there would hide the chips, the rungs and the bits on the one
+    // frame `stageHelix` has to upload their buffers in, and they would compile mid-scroll.
+    expect(createComposition().helixArrive).toBe(1);
+    expect(composeScene(1, 0, createMorph(2), createComposition()).helixArrive).toBe(1);
+    expect(composeScene(0.4, 0, createMorph(2), createComposition()).helixArrive).toBe(1);
+    expect(composeScene(1, 0, { from: 0, to: 2, t: 0.4 }, createComposition()).helixArrive).toBe(1);
+    for (const k of [1e-6, 0.1, 0.42, 0.9, 1]) {
+      expect(composeScene(1, k, createMorph(2), createComposition()).helixArrive).toBeCloseTo(k, 12);
+    }
+    // Out of range is clamped like the gate's own value, and a reused composition forgets it.
+    expect(composeScene(1, 5, createMorph(2), createComposition()).helixArrive).toBe(1);
+    expect(composeScene(1, -1, createMorph(2), createComposition()).helixArrive).toBe(1);
+    const out = composeScene(1, 0.3, createMorph(2), createComposition());
+    expect(out.helixArrive).toBeCloseTo(0.3, 12);
+    expect(composeScene(1, 0, createMorph(2), out).helixArrive).toBe(1);
   });
 
   it("property: continuous where the model hands over to the helix (work = ε) and where the helix has formed (work → 1)", () => {

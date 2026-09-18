@@ -13,7 +13,7 @@
  * parallax factor below 1 instead — the offset is larger than the lag, so it reads as depth.
  */
 
-import type { DocRect, ScrollProbe } from "@/lib/scene";
+import type { DocRect, ScrollProbe, ScrollSpan } from "@/lib/scene";
 import { CHIP, HELIX, MODEL_RADIUS } from "./shapes";
 
 export const SCENE_CAMERA = { z: 10, fov: 35, near: 0.1, far: 60 } as const;
@@ -440,6 +440,39 @@ export function helixZoneTop(track: DocRect, scrollY: number, headerH: number, z
 }
 
 /**
+ * How far above the sticky line the helix's arrival arms, as a share of the layer's height.
+ */
+export const HELIX_ARRIVE_LEAD = 0.3;
+
+/**
+ * The band the helix's arrival is armed over (fx.ts `stepGate`: armed at `end`, disarmed under
+ * `start`), written into `out`. Null before the director has measured the track.
+ *
+ * `end` is `HELIX_ARRIVE_LEAD` of a layer above the scroll at which the sticky zone reaches the
+ * header — the whole point of the number. From `placeHelixSpiral` + `helixZoneTop`, with
+ * `u = scrollY − (track.y − headerH)`, the helix's centre sits at canvas y `sceneH/2 − u` while
+ * `u ≤ 0` and at exactly `sceneH/2` for every scroll after it. So the worst placement the arrival
+ * can ever have is its first frame — 72% of the helix on screen at 1280×800, its middle (where
+ * the replication bubble opens) 80% down the layer — and from there it can only improve. Work's
+ * band (`probe.workSpan`, "top 70%") is a screen further up and would spend the first half of it
+ * below the fold; it stays as the disarm line, so nothing is spent walking down the page.
+ *
+ * Derived from `probe.work` rather than `probe.helix` because the boxes are re-read at every
+ * `SCENE_LAYOUT_EVENT` while the spans wait for a ScrollTrigger refresh — so this is never stale
+ * after the spiral has grown the track under the visitor. No fifth ScrollTrigger: both ends come
+ * out of boxes the existing four already measure.
+ */
+export function helixArriveSpan(probe: ScrollProbe, out: ScrollSpan = { start: 0, end: 0 }): ScrollSpan | null {
+  const track = probe.work;
+  if (!probe.live || !track) return null;
+  const layerH = probe.layerH > 0 ? probe.layerH : 0;
+  out.end = track.y - probe.headerH - HELIX_ARRIVE_LEAD * layerH;
+  // Never above its own arming line, whatever a refresh left in the band.
+  out.start = Math.min(probe.workSpan.start, out.end);
+  return out;
+}
+
+/**
  * The spiral's helix at `scrollY`: its axis at `cx` of the track's width (helix.ts
  * `HELIX_LAYOUT.cx`, the same axis the cards orbit), centred on the sticky zone, as tall as
  * `HELIX_ZONE_FILL` of it. A rigid follow — the zone is stuck under the header while the cards
@@ -585,6 +618,13 @@ export type SceneComposition = {
   models: [ModelReveal, ModelReveal];
   /** The Work helix's reveal: 0 not drawn → 1 formed. */
   helix: number;
+  /**
+   * How far through its arrival the helix is, 0..1 (three/models/helix.ts `helixArrivePose`): the
+   * molecule is synthesised over the Work gate's own 1.2s — filament, unwind, replication bubble,
+   * bits, hologram. 1 everywhere else, which is the formed helix: a composition that never went
+   * through the handoff has nothing left to arrive.
+   */
+  helixArrive: number;
 };
 
 export function createComposition(): SceneComposition {
@@ -595,6 +635,7 @@ export function createComposition(): SceneComposition {
       { index: 0, reveal: 0 },
     ],
     helix: 0,
+    helixArrive: 1,
   };
 }
 
@@ -617,8 +658,10 @@ function setModels(out: SceneComposition, a: number, revealA: number, b: number,
  * (fx.ts, both run in time) and the morph. Written into `out` (no allocation per frame). One
  * branch owns the swarm at a time:
  *  · work > 0 — the Work handoff: the selected model's swarm flies to the helix
- *    (1 + m.to → `HELIX_SLOT`) while the model dissolves over the first stretch and the helix
- *    forms over the last; at 1 the helix alone. The morph is instant meanwhile;
+ *    (1 + m.to → `HELIX_SLOT`) while the model dissolves over the first stretch and the helix is
+ *    drawn in over the same one — a filament on the axis the swarm lands on, which then unwinds
+ *    into the molecule over the rest (`helixArrive`); at 1 the helix alone, formed. The morph is
+ *    instant meanwhile;
  *  · entry < 1 — the entrance: the selected model bursts out of a speck at its host's centre
  *    (`BURST` → 1 + m.to) and is revealed over the last stretch, or implodes back the same way;
  *    at 0 nothing is drawn. The morph is instant meanwhile (see `stepMorph`);
@@ -633,15 +676,20 @@ export function composeScene(entry: number, work: number, m: MorphState, out: Sc
   if (k > 0) {
     setSwarm(out.swarm, k < 1, 1 + m.to, HELIX_SLOT, k);
     setModels(out, m.to, 1 - smoothstep(0, 0.3, k), m.to, 0);
-    out.helix = smoothstep(0.7, 1, k);
+    // The helix is drawn from the first frame of the gate — as a filament, then unwinding. What
+    // it looks like on the way is `helixArrive`'s business; `helix` only says it is drawn at all.
+    out.helix = smoothstep(0, 0.3, k);
+    out.helixArrive = k;
   } else if (e < 1) {
     setSwarm(out.swarm, e > 0, BURST, 1 + m.to, e);
     setModels(out, m.to, smoothstep(0.72, 1, e), m.to, 0);
     out.helix = 0;
+    out.helixArrive = 1;
   } else {
     setSwarm(out.swarm, m.t > 0, 1 + m.from, 1 + m.to, m.t);
     setModels(out, m.from, 1 - smoothstep(0, 0.3, m.t), m.to, smoothstep(0.7, 1, m.t));
     out.helix = 0;
+    out.helixArrive = 1;
   }
   return out;
 }

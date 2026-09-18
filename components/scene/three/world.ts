@@ -59,6 +59,7 @@ import {
   type CorePose,
   createComposition,
   createMorph,
+  helixArriveSpan,
   layoutFor,
   morphRunning,
   placeCore,
@@ -391,6 +392,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   /** Where the model is drawn this frame: the hero host, the steps corner, or between the two. */
   const modelSpot: Placement = { x: 0, y: 0, scale: 1 };
   const helixSpot: Placement = { x: 0, y: 0, scale: 1 };
+  /** The band the helix's arrival is armed over, re-derived from the probe's boxes every frame. */
+  const arriveSpan = { start: 0, end: 0 };
   const pose: CorePose = { scale: 1, lift: 0, dim: 1 };
   const coreFrame: CoreFrame = {
     time: 0,
@@ -416,6 +419,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     halfHeightPx: 1,
     dpr: 1,
     exit: 0,
+    arrive: 1,
     speed: 0,
   };
   /** The scroll's own speed, smoothed: 0 still → 1 at `SCROLL_SPEED_FULL` viewports a second. */
@@ -580,6 +584,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     const focus = mode === "spiral" && driver ? driver.focus(scrollY) : 0;
     helixFrame.focus = focus;
     helixFrame.exit = mode === "spiral" && driver ? driver.exit(scrollY) : 0;
+    // A fling that leaves the whole track inside the gate's 1.2s must not play an arrival under a
+    // finish that is already winding up: past the last card the helix is simply there, then gone.
+    helixFrame.arrive = helixFrame.exit > 0 ? 1 : plan.helixArrive;
     helixFrame.speed = scrollSpeed;
     const place =
       mode === "spiral"
@@ -619,12 +626,14 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const cards = driver.cards();
       const card = cards[driver.front()] ?? null;
       if (card !== accentCard) {
-        const first = accentCard === null;
         accentCard = card;
         const rgb = card ? parseTokenColor(card.style.getPropertyValue("--p2")) : null;
         helix.setAccent(rgb ? toColor(rgb) : null);
-        // A new project has arrived at the front: the strands answer it.
-        if (!first && card) helix.pulse();
+        // A project has arrived at the front: the strands answer it — the first one included.
+        // It cannot be spent off screen: the driver marks no card at all while the focus is under
+        // −0.5 (workHelix.ts `frameSpiral`), so card 0 takes the front half a step below it, well
+        // inside the layer, and its flare lands with the arrival's own.
+        if (card) helix.pulse();
       }
       // The hologram shows the focused card, redrawn once the focus is well past half-way.
       if (mode === "spiral" && reveal > 0 && cards.length > 0) {
@@ -731,8 +740,16 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       const heroExit = probe.live ? scrollProgress(scrollY, probe.heroExit) : 0;
       const entrySpan = probe.live && probe.services ? probe.entry : null;
       // The work gate only ever opens onto a helix that can be drawn: built, and a mode applied.
-      const helixLive = helixDone && !helixFailed && driver !== null && driver.mode() !== "off";
-      const workSpan = helixLive && probe.live && probe.work ? probe.workSpan : null;
+      const helixMode = helixDone && !helixFailed && driver ? driver.mode() : "off";
+      // The arrival arms on the spiral's own sticky line, where the helix is all but centred in
+      // the layer (`helixArriveSpan`). The ambient helix has no sticky zone — it lies in the band
+      // above Work's heading, a screen higher up the page — so there it keeps Work's own band.
+      const workSpan =
+        helixMode === "spiral"
+          ? helixArriveSpan(probe, arriveSpan)
+          : helixMode === "ambient" && probe.live && probe.work
+            ? probe.workSpan
+            : null;
       const step = stepSceneFx(fx, dt, input, heroExit, scrollY, entrySpan, workSpan);
       // Until the model has assembled, and while it hands over to the helix, a pill switch is instant.
       stepMorph(morph, input.shape, step, fx.entry.value < 1 || fx.work.value > 0);
