@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { selectSceneShape } from "@/lib/scene";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc } from "@/lib/i18n/content";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
@@ -26,13 +27,24 @@ function tagChips(tag: string): string[] {
  * This page — not the home-page selector — owns the commercial actions: an action bar
  * directly under the hero with the request flow (carrying this service), the direction's
  * real projects, and the reference project's link when there is one to give.
+ *
+ * The 3D model: the route wraps this section in the interior stage and hands down `modelArt`,
+ * the static drawing of this direction (`app/(site)/servicii/[slug]/page.tsx`). Everything the
+ * scene needs from here is the slug — written once into the scene's input store below, where
+ * the world reads it every frame and morphs to that direction's model. There is no per-slug
+ * branch anywhere in this file: the mapping lives in `lib/scene.ts`. `modelArt` is optional,
+ * so the section still renders on its own, with the drawing simply absent.
  */
-export function DirectionPage({ slug }: { slug: string }) {
+export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: ReactNode }) {
   const t = useT();
   const l = useLoc();
   const { openRequest } = useRequestFlow();
   const { projects } = useSiteContent();
   const sol = solutions[slug];
+
+  /* Which of the five models the scene draws. An unknown slug changes nothing, and the store
+     is module-level, so this survives a client navigation between two service pages. */
+  useEffect(() => selectSceneShape(slug), [slug]);
 
   /* Real portfolio entries for this direction, in the curated order from lib/solutions.ts.
      Empty for a direction we have not shipped work on yet — the projects section and the
@@ -84,56 +96,67 @@ export function DirectionPage({ slug }: { slug: string }) {
             <p className={styles.intro}>{l(sol.intro)}</p>
           </div>
 
-          <div className={styles.visual}>
-            {reference ? (
-              /* The hero card is a REAL project: the direction's reference entry, with its
-                 own screenshot, category chips and portfolio number. */
-              <article className={styles.refCard}>
-                <div className={`mono ${styles.refTop}`}>
-                  <span>{l(solUI.refLabel)}</span>
-                  <b>{refNumber}</b>
-                </div>
-                {reference.images?.[0] ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={reference.images[0]}
-                    alt={reference.name}
-                    loading="lazy"
-                    decoding="async"
-                    className={styles.refImage}
-                  />
-                ) : null}
-                <strong className={`disp ${styles.refName}`}>{reference.name}</strong>
-                <span className={styles.refText}>{l(reference.desc)}</span>
-                <div className={`mono ${styles.refTags}`}>
-                  {tagChips(l(reference.tag)).map((chip) => (
-                    <span key={chip}>{chip}</span>
-                  ))}
-                </div>
-              </article>
-            ) : (
-              /* No shipped project on this direction — the card describes the OFFER instead
-                 of borrowing a project that belongs somewhere else. When the direction
-                 carries a flow (e-commerce: offer → payment → access), the card draws that
-                 flow as a scheme: no project name, no external link, nothing implied. */
-              <article className={styles.refCard}>
-                <div className={`mono ${styles.refTop}`}>
-                  <span>{l(sol.cardLabel)}</span>
-                </div>
-                <strong className={`disp ${styles.refName}`}>{l(sol.cardTitle)}</strong>
-                <span className={styles.refText}>{l(sol.cardText)}</span>
-                {sol.flow?.length ? (
-                  <ol className={styles.flow}>
-                    {sol.flow.map((step, i) => (
-                      <li key={i}>
-                        <b className="mono">{String(i + 1).padStart(2, "0")}</b>
-                        <span>{l(step)}</span>
-                      </li>
+          <div className={styles.heroSide}>
+            {/* The model's host: a transparent slot ABOVE the pastel card, never inside it
+                (`.visual` clips and paints an opaque gradient). The canvas is not in here —
+                it draws on the stage's sticky layer and is aimed at this box, which the
+                director measures by its `data-scene-anchor`. Decorative and heading-less:
+                nothing focusable, and no section marker for the HUD rail. */}
+            <div className={styles.modelHost} data-scene-anchor="services" aria-hidden="true">
+              {modelArt}
+            </div>
+
+            <div className={styles.visual}>
+              {reference ? (
+                /* The hero card is a REAL project: the direction's reference entry, with its
+                   own screenshot, category chips and portfolio number. */
+                <article className={styles.refCard}>
+                  <div className={`mono ${styles.refTop}`}>
+                    <span>{l(solUI.refLabel)}</span>
+                    <b>{refNumber}</b>
+                  </div>
+                  {reference.images?.[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={reference.images[0]}
+                      alt={reference.name}
+                      loading="lazy"
+                      decoding="async"
+                      className={styles.refImage}
+                    />
+                  ) : null}
+                  <strong className={`disp ${styles.refName}`}>{reference.name}</strong>
+                  <span className={styles.refText}>{l(reference.desc)}</span>
+                  <div className={`mono ${styles.refTags}`}>
+                    {tagChips(l(reference.tag)).map((chip) => (
+                      <span key={chip}>{chip}</span>
                     ))}
-                  </ol>
-                ) : null}
-              </article>
-            )}
+                  </div>
+                </article>
+              ) : (
+                /* No shipped project on this direction — the card describes the OFFER instead
+                   of borrowing a project that belongs somewhere else. When the direction
+                   carries a flow (e-commerce: offer → payment → access), the card draws that
+                   flow as a scheme: no project name, no external link, nothing implied. */
+                <article className={styles.refCard}>
+                  <div className={`mono ${styles.refTop}`}>
+                    <span>{l(sol.cardLabel)}</span>
+                  </div>
+                  <strong className={`disp ${styles.refName}`}>{l(sol.cardTitle)}</strong>
+                  <span className={styles.refText}>{l(sol.cardText)}</span>
+                  {sol.flow?.length ? (
+                    <ol className={styles.flow}>
+                      {sol.flow.map((step, i) => (
+                        <li key={i}>
+                          <b className="mono">{String(i + 1).padStart(2, "0")}</b>
+                          <span>{l(step)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                </article>
+              )}
+            </div>
           </div>
         </section>
 

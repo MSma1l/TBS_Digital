@@ -16,6 +16,44 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Added: fiecare pagină de serviciu are modelul ei 3D în capul paginii
+
+Clientul a cerut ca fiecare serviciu să aibă un model 3D animat, potrivit serviciului, sus pe pagina
+lui. Scena WebGL exista deja, dar trăia numai pe pagina principală.
+
+- Ruta `/servicii/[slug]` își învelește acum conținutul în `<main>` → `<SceneStage>`, exact ca
+  pagina principală, iar `DirectionPage` primește `modelArt` (opțional) și cheamă
+  `selectSceneShape(slug)`. **Nicio ramificație pe serviciu**: maparea slug → model exista deja
+  (`SCENE_SHAPES` → `SERVICE_MODEL` → `MODEL_FACTORIES`), la fel și desenul static per serviciu
+  (`ServiceArt`), cu trecerea lui de 500ms către versiunea WebGL.
+- Modelul stă în capul paginii, în coloana din dreapta a hero-ului, **deasupra** cardului colorat
+  existent, într-un `div` fără titlu (ca să nu adauge un marcaj în șina de fibră) și cu
+  `data-scene-anchor="services"`, care e ce transformă plasarea scenei din „nimic" în una reală.
+
+Trei lucruri găsite lovindu-ne de ele, nu presupuse:
+- `.page { position: relative }` **nu** e de ajuns: scena desenează modelul mai mare decât gazda lui
+  și îl ridică spre centrul pânzei, așa că pe ecran îngust ieșea 67px peste paragraf — 17 rânduri de
+  pixeli măsurate în interiorul textului. Rezolvat prin spațiul din hero și un plafon de 320×260 pe
+  gazdă.
+- Cu modelul în dreapta, `align-items: center` împingea titlul la mijlocul paginii, cu colțul
+  stânga-sus gol. Acum e `start`: titlu sus-stânga, model sus-dreapta.
+- Centrarea gazdei cu `margin-inline: auto` o face să se strângă la conținut; singurul ei copil e
+  poziționat absolut, deci gazda măsura **0 lățime** și scena scala modelul la nimic. Se centrează
+  cu `justify-self`.
+
+Verificat prin măsurare, fără suite de teste (mod de lucru cerut de client): zece pagini (cinci
+slug-uri × 1280×800 și 390×844), toate ajung la `data-renderer="webgl"`, cu cinci modele distincte;
+coloana de text comparată pixel cu pixel între 3D pornit și 3D oprit este **identică**, deci niciun
+rând de text nu e atins; cu 3D oprit apare desenul static în același loc.
+
+Notă: pe o pagină de serviciu ancora e deja depășită la scroll 0, deci poarta de intrare sare direct
+pe „format" și explozia de asamblare nu se joacă. Acceptat: modelul își rulează bucla proprie și
+răspunde la mouse. Modelele detaliate, unul pe serviciu, se construiesc separat și intră în același
+loc fără altă modificare.
+
+Fișiere: `app/(site)/servicii/[slug]/page.tsx`, `components/sections/DirectionPage.tsx`,
+`components/sections/DirectionPage.module.css`.
+
 ## 2026-09-18 — Fixed: spirala Lucrări nu mai stă pe loc la intrare
 
 Focusul era fixat la 0 pe toată distanța dintre apariția primului card la marginea de jos a

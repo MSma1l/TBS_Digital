@@ -2,6 +2,13 @@
   /* Side padding matches the site-wide `.section` rule. Without it the hero copy, the
      action bar and the project cards touched the viewport edge on phones. */
   padding: clamp(28px, 4vw, 52px) clamp(16px, 4vw, 40px) clamp(60px, 8vw, 100px);
+  /* The interior stage (components/scene/SceneStage.tsx) wraps this page, and its canvas
+     track is an absolutely positioned first child. A positioned `z-index: auto` element
+     paints above the in-flow content of NON-positioned siblings, so without this the model
+     would be drawn over the h1 and the copy. Positioned, the page paints above the track.
+     Position only — a transform, filter, contain or overflow here would break the stage's
+     sticky layer and flatten its depth (docs/07-conventions.md). */
+  position: relative;
 }
 
 .back {
@@ -27,7 +34,11 @@
   display: grid;
   grid-template-columns: 1fr 0.82fr;
   gap: 50px;
-  align-items: center;
+  /* `start`, not `center`: the right column is now the model's host stacked on the reference
+     card, so it is roughly twice as tall as the copy. Centred against it, the h1 was pushed to
+     the bottom of the first screen with an empty quarter above it — top-aligned, the title sits
+     beside the model, which is where the page is meant to open. */
+  align-items: start;
   padding: clamp(36px, 6vw, 72px) 0 clamp(28px, 4vw, 56px);
 }
 
@@ -146,6 +157,26 @@
   min-height: 44px;
   color: var(--mut);
   font-size: var(--fs-md);
+}
+
+/* ---------- hero right column: the 3D model over the pastel card ----------
+   The column is a stack, not a card: the model's host sits ABOVE `.visual`, outside it —
+   `.visual` clips (`overflow: hidden`) and paints an opaque gradient, so a model inside it
+   would be cut off and washed out. */
+.heroSide {
+  display: grid;
+  gap: clamp(16px, 2vw, 28px);
+  align-content: center;
+}
+
+/* The slot the WebGL canvas is aimed at (`data-scene-anchor="services"`), and the box the
+   static drawing fills (ServiceArt's svg is `position: absolute; inset: 0`). Transparent by
+   design: the canvas draws on the stage's sticky layer BEHIND the page, so any background
+   here would hide the model. No overflow — the model may spill past this box. */
+.modelHost {
+  position: relative;
+  min-height: clamp(240px, 26vw, 320px);
+  pointer-events: none;
 }
 
 /* ---------- hero visual: the per-service pastel ----------
@@ -545,6 +576,14 @@ a.project:hover {
   .hero {
     grid-template-columns: 1fr;
     padding: 40px 0;
+    /* Stacked, the model's host sits directly under the intro — and the scene draws the model
+       BIGGER than its host and lifted towards the canvas centre (components/scene/choreography.ts:
+       the box is the host's short side against `SERVICES_BOX_ASPECT`, then the services parallax
+       moves it), so it overhangs the host's top edge by ~60px on a phone. Measured at 390px on
+       the tallest of the five intros: at the 50px desktop gap the model painted over the last
+       lines of the copy. This gap is the room that overhang needs — it is not empty space, it
+       is where the top of the model floats. */
+    gap: clamp(104px, 30vw, 136px);
   }
   .highlights,
   .projectGrid,
@@ -554,6 +593,17 @@ a.project:hover {
   .visual {
     min-height: 240px;
     padding: 20px;
+  }
+  .modelHost {
+    /* The host's width is what sizes the model, its height how much of the overhang it absorbs.
+       Capped and centred so a phone-wide column does not blow the model up into the copy.
+       `justify-self`, not `margin-inline: auto` — an auto inline margin makes a grid item
+       shrink-to-fit, and the host's only child is absolutely positioned, so it would measure
+       zero wide and the scene would scale the model to nothing. */
+    width: 100%;
+    max-width: 320px;
+    min-height: 260px;
+    justify-self: center;
   }
 }
 
