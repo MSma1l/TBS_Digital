@@ -38,7 +38,7 @@ export const MESH_WAVE = { width: 3.3, height: 2.2, amp: 0.8, pulsePeriod: 3.2, 
  */
 export const MODEL_POSES = {
   cubes: [0.45, 0.35, 0],
-  "mesh-wave": [-1.05, 0, 0],
+  "mesh-wave": [-0.2, 0.4, 0],
   neural: [0.2, -0.85, 0],
   "commerce-loop": [-0.62, 0, 0.08],
   "integration-hub": [0.42, 0, 0],

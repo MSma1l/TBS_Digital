@@ -70,8 +70,8 @@ import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
 import { createHologramSource, type HologramSource } from "./hologram";
 import { toColor } from "./materials";
-import { createCommerceLoopModel } from "./models/commerceLoop";
-import { createCubesModel } from "./models/cubes";
+import { createCommerceLoopModel } from "./models/shopFloor";
+import { createProductStackModel } from "./models/productStack";
 import {
   createHelixModel,
   helixLandingMatrix,
@@ -79,9 +79,9 @@ import {
   type HelixFrame,
   type HelixModel,
 } from "./models/helix";
-import { createIntegrationHubModel } from "./models/integrationHub";
-import { createMeshWaveModel } from "./models/meshWave";
-import { createNeuralModel } from "./models/neural";
+import { createPipelineBenchModel } from "./models/pipelineBench";
+import { createBrandBoardModel } from "./models/brandBoard";
+import { createAssistantLoopModel } from "./models/assistantLoop";
 import { MODEL_SWAY, type ModelFrame, type SceneModel } from "./models/types";
 import { parseTokenColor, type ScenePalette } from "./palette";
 import { createSwarm, type Swarm, type SwarmFrame } from "./swarm";
@@ -138,12 +138,12 @@ export type SceneWorld = {
   dispose(): void;
 };
 
-const MODEL_FACTORIES: Readonly<Record<ServiceModel, typeof createCubesModel>> = {
-  cubes: createCubesModel,
-  "mesh-wave": createMeshWaveModel,
-  neural: createNeuralModel,
+const MODEL_FACTORIES: Readonly<Record<ServiceModel, typeof createProductStackModel>> = {
+  cubes: createProductStackModel,
+  "mesh-wave": createBrandBoardModel,
+  neural: createAssistantLoopModel,
   "commerce-loop": createCommerceLoopModel,
-  "integration-hub": createIntegrationHubModel,
+  "integration-hub": createPipelineBenchModel,
 };
 
 /**

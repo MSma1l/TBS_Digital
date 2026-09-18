@@ -16,6 +16,54 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: cinci modele 3D noi, unul pentru fiecare serviciu
+
+Clientul s-a uitat la cele cinci modele existente și a spus că nu-i plac: prea abstracte, prea
+puțin detaliate. Fiecare a fost rescris ca un obiect pe care îl poți numi, cu o buclă care spune ce
+face serviciul.
+
+| Serviciu | Înainte | Acum |
+| --- | --- | --- |
+| Produs digital | 27 de cuburi | **Stiva de produs**: șase ecrane wireframe cu rol (brief, shell, catalog, date, flux, formular) care se strâng într-un dispozitiv, se aprinde, se întoarce și își arată straturile |
+| E-commerce | un inel cu cutii | **Tejgheaua**: raft, coș, terminal de plată, seif, tablou de comenzi, legate de o bandă în circuit închis |
+| Automatizare & API | o sferă cu spițe | **Banda de integrare**: cinci stații pe un soclu, cu o înregistrare care lovește o poartă închisă la 3,4s, urcă pe arcul de reîncercare și trece |
+| Asistenți IA | o rețea de noduri | **Bucla cererii**: o cerere care traversează cinci straturi, așteaptă la poartă, iar un om apasă tasta — răspunsul se întoarce pe canalul de dedesubt |
+| Brand & UI | un val de particule | **Placa de identitate**: grilă de 12 coloane, „TBS." desenat cu trasee, paletă care se reînnoiește, componente care se reașază din layout lat în telefon |
+
+**Regulile care se aplică tuturor cinci**, stabilite de critica de design:
+- **fără animație de intrare.** Pe o pagină de serviciu poarta sare pe „format" din primul cadru, deci
+  orice intrare s-ar juca în spatele desenului static și n-ar vedea-o nimeni. Bucla e spectacolul, iar
+  ceasul ei pornește pe un cadru compus, nu pe zero;
+- **buclă de 6–8 secunde**, cu momentul cel mai puternic între 3 și 5 secunde;
+- **fără sprite-uri** — un pachet e un cap de cometă în shader sau o cutie instanțiată; sprite-urile
+  desenează discuri rotunde, interzise în proiect;
+- reacție la mouse prin datele pe care modelul le primește deja pe cadru, fără să atingă DOM-ul;
+- **niciun shader nou, niciun uniform nou, nicio textură** — fiecare model folosește ramurile de
+  material care existau deja.
+
+**Costul a scăzut, nu a crescut:**
+
+| Model | Desene/cadru | Vârfuri/cadru |
+| --- | --- | --- |
+| Stiva de produs | 3 | 1.206 |
+| Tejgheaua | 4 | 8.430 |
+| Banda de integrare | 3 | 5.942 |
+| Bucla cererii | 3 | 2.678 (înainte: 8.181, din care 87 sprite-uri) |
+| Placa de identitate | 4 (3 pe dispozitive slabe) | 692 |
+
+Verificat prin măsurare, fără suite de teste: toate cele cinci pagini ajung la `renderer=webgl`, zero
+erori; coloana de text comparată cu 3D pornit și oprit rămâne neatinsă.
+
+**Rămâne de făcut**, semnalat de agenți și asumat aici: siluetele pe care aterizează roiul de
+particule pe pagina principală (`samples.ts`) și desenele statice per serviciu
+(`art/serviceArtPaths.ts`) descriu încă modelele vechi, deci pe „Direcții" roiul se strânge într-o
+formă care nu mai corespunde; iar `scene-build.test.ts` verifică un comportament al cuburilor care
+nu mai există.
+
+Fișiere noi: `components/scene/three/models/{productStack,shopFloor,pipelineBench,assistantLoop,brandBoard}.ts`.
+Modificate: `components/scene/three/world.ts` (harta de modele), `components/scene/three/samples.ts`
+(poziția plăcii).
+
 ## 2026-09-18 — Added: fiecare pagină de serviciu are modelul ei 3D în capul paginii
 
 Clientul a cerut ca fiecare serviciu să aibă un model 3D animat, potrivit serviciului, sus pe pagina
