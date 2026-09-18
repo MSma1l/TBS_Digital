@@ -16,6 +16,36 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed: cele trei obiecte din panouri — încadrare, coloană și echilibru
+
+Trei reparații pe rândul de obiecte publicat mai devreme, toate găsite uitându-ne la el, nu în cod.
+
+**Încadrarea la ecrane înguste.** Centrul unei treimi din rând **nu e** centrul panoului: diferența e
+spațiul dintre panouri împărțit la trei, constantă (−4,67 / 0 / +4,66 px la orice lățime). La 861px
+ferestrele au 253px, iar obiectele laterale ieșeau ~4px în afară. Sonda măsoară acum **ferestrele
+însele** — prima și ultima — și deduce pasul dintre ele, iar potrivirea se face pe lățimea ferestrei,
+nu a treimii. Matematica nu mai conține nimic despre spații, margini sau praguri, deci rezistă dacă
+rândul se schimbă. La 861px obiectele au ~15px liberi de fiecare parte.
+
+**Primul obiect rămânea fără identitate ~15% din buclă.** Rigla era o singură cutie a cărei lungime
+*era* lungimea desenată, deci la resetare dispărea și rămâneau șase cuburi plutind — arăta a
+defecțiune, nu a respirație. Acum rigla e **o coloană permanentă** pe toată lățimea, ștearsă, scutită
+de estomparea de resetare, plus o lungime desenată deasupra ei care urcă odată cu bara și e singura
+care se retrage. Nu mai există niciun cadru fără riglă.
+
+**Al treilea obiect era prea slab** față de vecinul din mijloc: structura lui ocupa stânga, iar
+dreapta era ținută de o piesă mică ce zbura în colț. A primit un **stâlp** în dreapta și un **braț**
+scurt îndreptat spre zbor; piesa traversează acum tot mijlocul pe diagonală și **se așază pe braț**,
+care se aprinde la sosire. Stâlpul e vertical (nu o a doua linie de bază) și e un colț deschis (nu al
+doilea dreptunghi închis). Prima variantă, cu trei piese în colț, a fost aruncată după ce a fost
+privită: trei margini într-un pătrat de 40×20px erau exact „supa de lumină" de care avertizase
+critica.
+
+Buget final al rândului: 27 de piese instanțiate, **3 desene, niciun program nou**.
+
+Fișiere: `components/scene/three/models/panel/{surveyField,launchRamp}.ts`,
+`components/scene/scrollProbe.ts`, `components/scene/choreography.ts`, `lib/scene.ts`.
+
 ## 2026-09-18 — Added: trei obiecte 3D mici în rândul de beneficii
 
 Clientul, după secvența de lumini: „adauga ceva 3d modele animate acolo ca totdeauna arata prea

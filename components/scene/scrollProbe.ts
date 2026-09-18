@@ -10,6 +10,7 @@
  */
 
 import type { ScrollTrigger } from "gsap/ScrollTrigger";
+import { PANEL_COLUMNS } from "./choreography";
 import {
   SCENE_ANCHOR_ATTR,
   SCENE_LAYER_ATTR,
@@ -118,24 +119,34 @@ function panelWindow(panel: Element | null): DOMRect | null {
 }
 
 /**
- * The band the benefits row's three windows lie in (`probe.panels`): the row's width, and the first
- * panel's window for the top and the height — the three are one row of equal columns, so one
- * window's box is all of them. Null with no row, no box, or no window laid out; the scene then
+ * The benefits row's windows: the first one's box (`probe.panels`) and the step from one to the
+ * next (`probe.panelsPitch`), both measured off the real windows rather than cut out of the row.
+ *
+ * Splitting the row into equal thirds is NOT the same as finding the panels: a third's centre and a
+ * panel's centre differ by a third of the row's gap — a constant ~4.7px either side, which does not
+ * shrink with the viewport, so at the narrow end it walks the outer two objects over the edge of a
+ * 253px window. Measuring the first and last window answers the place, the size and the step at
+ * once, and says nothing about gaps, borders or breakpoints.
+ *
+ * Null with no row, fewer panels than there are objects, or no window laid out; the scene then
  * builds nothing and places nothing.
  */
 export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): void {
-  probe.panels = docRect(row, probe.panels);
-  if (!row || !probe.panels || probe.panels.w <= 0 || probe.panels.h <= 0) {
+  probe.panelsPitch = 0;
+  const panels = row?.children;
+  const first = panels && panels.length >= PANEL_COLUMNS ? panelWindow(panels[0]) : null;
+  const last = first ? panelWindow(panels![PANEL_COLUMNS - 1]) : null;
+  if (!first || !last) {
     probe.panels = null;
     return;
   }
-  const bay = panelWindow(row.firstElementChild);
-  if (!bay) {
-    probe.panels = null;
-    return;
-  }
-  probe.panels.y = bay.top + window.scrollY;
-  probe.panels.h = bay.height;
+  const rect = probe.panels ?? { x: 0, y: 0, w: 0, h: 0 };
+  rect.x = first.left + window.scrollX;
+  rect.y = first.top + window.scrollY;
+  rect.w = first.width;
+  rect.h = first.height;
+  probe.panels = rect;
+  probe.panelsPitch = (last.left - first.left) / (PANEL_COLUMNS - 1);
 }
 
 /** The offset a sticky box pins at (its computed `top`), 0 when that is not a pixel length. */

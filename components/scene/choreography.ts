@@ -269,7 +269,8 @@ export const PANEL_WINDOW_FILL = 0.88;
 export const PANEL_FADE_SECONDS = 0.35;
 
 /**
- * How much of the row's window band is inside the canvas at `scrollY`, 0 → 1. `margin` grows the
+ * How much of the row's windows is inside the canvas at `scrollY`, 0 → 1 (they share a top and
+ * a height, so the first one answers for all three). `margin` grows the
  * canvas by that many pixels on both sides first, which is how the world asks "is it near enough
  * to be worth building" with the same arithmetic it asks "is it worth drawing".
  */
@@ -282,12 +283,14 @@ export function panelsShare(probe: ScrollProbe, scrollY: number, h: number, marg
 }
 
 /**
- * The `index`-th object of the benefits row: centred in its third of the row's window band and
- * fitted into it — the band's height against the object's own half-height, the column's width
- * against its half-width, whichever runs out first. A rigid follow: the windows are ordinary boxes
- * in the page, and an object that drifted against one would show outside it.
+ * The `index`-th object of the benefits row: on its own window's centre — the first window's box
+ * stepped along by the measured pitch, never a third of the row, whose centre is a constant ~4.7px
+ * off a panel's — and fitted into that window: its height against the object's own half-height, its
+ * width against the object's half-width, whichever runs out first. The width matters at the narrow
+ * end, where a 253px window is what limits these 4.5 : 1 objects rather than the 62px height.
  *
- * Null with no row measured, with a row that reserves no window, or with an index off the end.
+ * A rigid follow: the windows are ordinary boxes in the page, and an object that drifted against
+ * one would show outside it. Null with no window measured, or an index off the end of the row.
  */
 export function placePanels(
   probe: ScrollProbe,
@@ -297,15 +300,14 @@ export function placePanels(
   index: number,
   out: Placement = { x: 0, y: 0, scale: 1 },
 ): Placement | null {
-  const band = probe.panels;
-  if (!probe.live || !band || band.w <= 0 || band.h <= 0) return null;
+  const win = probe.panels;
+  if (!probe.live || !win || win.w <= 0 || win.h <= 0) return null;
   if (index < 0 || index >= PANEL_COLUMNS) return null;
   const k = worldPerPx(h);
-  const column = band.w / PANEL_COLUMNS;
-  const cx = band.x + column * (index + 0.5);
-  const cy = band.y + band.h / 2 - canvasDocTop(scrollY, probe, h);
-  const byHeight = (band.h * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfHeight);
-  const byWidth = (column * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfWidth);
+  const cx = win.x + win.w / 2 + index * probe.panelsPitch;
+  const cy = win.y + win.h / 2 - canvasDocTop(scrollY, probe, h);
+  const byHeight = (win.h * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfHeight);
+  const byWidth = (win.w * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfWidth);
   out.x = (cx - w / 2) * k;
   out.y = -(cy - h / 2) * k;
   out.scale = Math.min(byHeight, byWidth) * k;

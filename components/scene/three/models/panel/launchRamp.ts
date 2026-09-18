@@ -5,8 +5,10 @@
  * a line across the panel. A MAST stands at their left end with a small square HEAD: the thing
  * that watches. One SLAB runs up the marks, noses off the end and leaves on a diagonal, turning
  * into its own travel direction so it is always a streak and never a blob, shrinking and
- * receding as it goes, with a single WAKE streak behind it. Later, from up in the corner, the
- * departed thing answers and the head takes the loop's one accent.
+ * receding as it goes, with a single WAKE streak behind it. It crosses the whole middle of the
+ * strip on a long diagonal and comes to rest on the collar of a FAR POST — which stands in
+ * the right half of every frame, flight or no flight. Then the departed thing answers and the
+ * head, back at the origin, takes the loop's one accent.
  *
  * This is the reduced object, and what was cut is the point of it. As first specified its whole
  * story lived in three 8 x 2.4 px chips riding crossing Bezier curves in the top third of a
@@ -20,9 +22,9 @@
  * departure is drawn, the answer is a beat. Nothing here is red — red is this repo's refusal
  * role, and a launch panel flashing red says "error".
  *
- * 1 draw call. 6 instances at high (stem, head, slab, lip mark, back mark, wake), 5 at mid,
- * 4 in lite — the tail is the wake and then the back rail mark, so the mast, the slab and the
- * mark it leaves from survive every tier.
+ * 1 draw call. 8 instances at high (mast stem and head, slab, lip mark, far post, collar, back
+ * mark, wake), 7 at mid, 6 in lite — the tail is the wake and the back rail mark, so the mast,
+ * the slab, the mark it leaves from and the post it arrives at survive every tier.
  */
 
 import { Color, Group, Quaternion, Vector3 } from "three";
@@ -49,8 +51,9 @@ export const RAMP_LOOP = 4.8;
 
 /**
  * The clock opens deep in the loop, never at 0 — the still pose: the slab small and high in the
- * upper right, clearly gone; the mast head already warm; the rail marks at rest. "Something
- * left, and it was received", with nothing moving.
+ * upper right, lying across the far post's collar, the collar still lit from taking it, the mast
+ * head still warm from answering, the runway at rest. "Something left, it got there, and the
+ * origin was told" — with nothing moving.
  */
 export const RAMP_START = 4.05;
 
@@ -72,32 +75,52 @@ const RETURN_AT = 4.45;
 /* ---- the ramp ------------------------------------------------------------------------------- */
 
 const RAIL_Y = -0.3;
-/** Two marks with a gap of 0.40 units (~27 px): a runway that stops, not a rule. */
-const MARKS: ReadonlyArray<number> = [-0.3, -1.1];
+/** Two marks with a gap of 0.30 units (~20 px): a runway that stops, not a rule. */
+const MARKS: ReadonlyArray<number> = [-0.4, -1.1];
 const MARK = { w: 0.4, d: 0.2 } as const;
 
-const MAST_X = -1.7;
-const STEM = { h: 0.5, y: -0.07 } as const;
+const MAST_X = -1.6;
+const STEM = { h: 0.42, y: -0.11 } as const;
 /** Square on purpose: no ring, no disc, nothing round anywhere in the row. */
-const HEAD = { side: 0.16, y: 0.26 } as const;
+const HEAD = { side: 0.16, y: 0.18 } as const;
+
+/**
+ * The far post and its collar — the thing the slab departs towards and comes to rest on,
+ * standing in the right half of every single frame.
+ *
+ * Two boxes, not three. A post, an arm and a separate berth block put three parts inside a
+ * 40 x 20 px corner and turned into exactly the bloom soup this row was warned about; a tall
+ * vertical with one short arm cantilevered back towards the flight reads at a glance, and the
+ * arriving slab lying across the arm is the berth.
+ *
+ * It cannot be mistaken for the row's other devices: its long member is VERTICAL, so it is not
+ * a second base rule, and its one horizontal is 24 px and sits high, where nothing else in the
+ * row has a horizontal. It is an open corner, three sides short of `panelFit`'s closed
+ * rectangle. And it is not the mast repeated — taller, no head, and its arm reaches back
+ * towards where the slab is coming from instead of standing on top.
+ */
+const POST = { x: 1.6, h: 0.66, y: 0.01, d: 0.1 } as const;
+const COLLAR = { x: 1.43, w: 0.36, y: 0.18, d: 0.16 } as const;
 
 const SLAB = { len: 0.3, h: 0.18, d: 0.07 } as const;
 const RIDE_Y = RAIL_Y + STROKE / 2 + SLAB.h / 2;
-const RUN = { from: -1.1, to: 0.7 } as const;
+const RUN = { from: -1.1, to: -0.15 } as const;
 /** Behind the mast, where a fresh slab appears and slides onto the marks. */
-const BEHIND = -1.6;
+const BEHIND = -1.55;
 
-/** The climb: shallow, then steep, receding in z while it shrinks, so "away" is said twice. */
+/**
+ * The climb: shallow, then steep, receding in z as it shrinks, so "away" is said twice. It
+ * crosses the whole middle of the strip — 100 px of diagonal — and flattens out at the end so
+ * the slab arrives along the collar rather than stabbing into it.
+ */
 const CURVE = [
   { x: RUN.to, y: RIDE_Y, z: 0.02 },
-  { x: 1.3, y: -0.06, z: -0.04 },
-  // It ends just inside the box rather than half across its edge: `.highlight` clips, and the
-  // still pose needs the departed slab whole and readable in the corner, not sliced.
-  { x: 1.72, y: 0.32, z: -0.14 },
+  { x: 0.7, y: 0.02, z: -0.04 },
+  { x: 1.35, y: 0.26, z: -0.1 },
 ] as const;
 
-const SLOT = { stem: 0, head: 1, slab: 2, lip: 3, back: 4, wake: 5 } as const;
-const SLOT_COUNT = 6;
+const SLOT = { stem: 0, head: 1, slab: 2, lip: 3, post: 4, collar: 5, back: 6, wake: 7 } as const;
+const SLOT_COUNT = 8;
 
 const POSE = { x: 0.12, y: 0.38, z: 0 } as const;
 const OWN_YAW_PERIOD = 7.9;
@@ -198,6 +221,15 @@ export function rampReleaseAt(t: number): number {
   return flare(t, RELEASE, 0.09);
 }
 
+/**
+ * Pure. The collar takes the slab at 2.40 and holds it warm through the still pose, letting go
+ * only as the next slab comes in behind the mast. It reaches `lit` and never past it — the head
+ * keeps the object's single hot edge.
+ */
+export function rampDockAt(t: number): number {
+  return smoothstep(CLIMB_TO - 0.12, CLIMB_TO + 0.06, t) * (1 - smoothstep(4.3, 4.75, t));
+}
+
 /* ---- the model ------------------------------------------------------------------------------ */
 
 export function createLaunchRampModel(config: SceneTierConfig, palette: ScenePalette): PanelModel {
@@ -256,6 +288,20 @@ export function createLaunchRampModel(config: SceneTierConfig, palette: ScenePal
     tint.copy(kit.cyan);
     writer.write(SLOT.slab, tint, lerp(lerp(g.body, g.rest, parked), g.lit, answer) * slab.show);
 
+    /* the far post: the thing it departs towards, standing in the right half of every frame.
+       An open corner — a post and a cantilevered arm — never a closed rectangle, and its one
+       horizontal is short and at the top, so it can never read as a second base rule. */
+    const dock = rampDockAt(t);
+    writer.position.set(POST.x, POST.y, -0.02);
+    writer.scale.set(STROKE, POST.h, POST.d);
+    writer.turn.identity();
+    writer.write(SLOT.post, kit.blue, lerp(g.rest, g.body, dock));
+
+    writer.position.set(COLLAR.x, COLLAR.y, 0.01);
+    writer.scale.set(COLLAR.w, STROKE, COLLAR.d);
+    writer.turn.identity();
+    writer.write(SLOT.collar, kit.cyan, lerp(g.rest, g.lit, dock));
+
     /* the rail marks: a runway that stops, and the lip it leaves from */
     for (let i = 0; i < MARKS.length; i += 1) {
       const slotIndex = i === 0 ? SLOT.lip : SLOT.back;
@@ -311,7 +357,7 @@ export function createLaunchRampModel(config: SceneTierConfig, palette: ScenePal
     },
 
     setLite(lite: boolean) {
-      shown = lite ? Math.min(SLOT_COUNT - 2, full) : full;
+      shown = lite ? Math.min(6, full) : full;
       writer.mesh.count = shown;
     },
 

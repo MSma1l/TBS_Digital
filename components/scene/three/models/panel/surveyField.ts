@@ -95,7 +95,13 @@ const FRONT_Z = 0.05;
 const BAR_SIZE = { w: 0.075, h: 0.64, d: 0.075 } as const;
 const BAR_Y = 0.02;
 
-const SLOT = { rail: 0, bar: 1, marks: 2 } as const;
+/**
+ * The rail is two boxes, not one. The base is the object's spine: the full span, dim, present
+ * in every single frame. Only the DRAWN length rides the bar and retracts in the reset — with
+ * one box the reset emptied the strip down to six floating cubes for ~15% of the loop, which
+ * reads as a rendering fault, not as a breath.
+ */
+const SLOT = { railBase: 0, railDrawn: 1, bar: 2, marks: 3 } as const;
 const SLOT_COUNT = SLOT.marks + MARKS_MAX;
 
 /**
@@ -192,14 +198,26 @@ export function createSurveyFieldModel(config: SceneTierConfig, palette: ScenePa
     const lift = railLift(t);
     const barX = surveyBarX(t);
 
-    /* the rail: one box, left end pinned, right end at the bar — the streak draws itself */
+    /* the rail's base: the full span, at rest, always. It is exempt from the reset dim — the
+       breath is the survey letting go, not the object leaving. */
+    writer.position.set((BAR.from + BAR.to) / 2, RAIL_Y, BACK_Z);
+    writer.scale.set(BAR.to - BAR.from, STROKE, STROKE);
+    writer.turn.identity();
+    writer.write(SLOT.railBase, kit.blue, g.rest);
+
+    /* the drawn length: left end pinned, right end at the bar — the streak draws itself over
+       the base, and un-draws in the reset without taking the base with it */
     const right = surveyRailRight(t);
     const length = right - BAR.from;
-    writer.position.set((BAR.from + right) / 2, RAIL_Y, BACK_Z);
-    writer.scale.set(length > 1e-4 ? length : 1e-4, STROKE, STROKE);
-    writer.turn.identity();
-    tint.copy(kit.blue).lerp(kit.cyan, lift);
-    writer.write(SLOT.rail, tint, lerp(g.rest, g.lit, lift) * dim);
+    if (length < 0.02) {
+      writer.hide(SLOT.railDrawn);
+    } else {
+      writer.position.set((BAR.from + right) / 2, RAIL_Y, BACK_Z + 0.02);
+      writer.scale.set(length, STROKE, STROKE);
+      writer.turn.identity();
+      tint.copy(kit.blue).lerp(kit.cyan, lift);
+      writer.write(SLOT.railDrawn, tint, lerp(g.body, g.lit, lift) * dim);
+    }
 
     /* the bar: the one element that ever reaches `accent`, and the one `hot` hue in the object
        (white-hot in glow, the page's text colour in ink — highest contrast in both themes) */
