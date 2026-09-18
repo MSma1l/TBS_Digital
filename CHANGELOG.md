@@ -16,6 +16,31 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Fixed: cookie-ul vechi al intro-ului bloca intro-ul pentru toți vizitatorii de dinainte
+
+Prima încercare — „site-ul nu mai scrie `tbs_intro`" — era corectă, dar insuficientă, și clientul a
+raportat imediat că tot nu vede intro-ul. Motivul: cookie-ul **continua să fie citit**, iar cel scris
+înainte de modificare trăiește până la închiderea browserului. Deci fiecare browser deschis peste
+schimbare — al clientului, dar și al oricărui vizitator care intrase vreodată pe site — rămânea fără
+intro, arătând exact ca defectul raportat.
+
+- Cookie-ul care sare intro-ul a fost **redenumit** în `tbs_intro_skip`. Numele vechi nu mai e citit
+  de nimeni, deci un cookie rămas din sesiunile anterioare nu mai are niciun efect.
+- `finishIntro` **șterge** cookie-ul vechi (`max-age=0`), ca să nu mai rătăcească prin browsere.
+- Numele nou nu e scris niciodată de site; e doar citit, ca suita e2e (care îl seedează prin
+  constanta `INTRO_COOKIE`) să poată sări intro-ul. Seed-ul din `e2e/helpers.ts` folosește constanta,
+  deci s-a mutat singur pe numele nou.
+
+Verificat pe site-ul care rulează, reproducând exact situația clientului — un browser care poartă
+`tbs_intro=seen` de dinainte: intro-ul apare la toate cele trei încărcări succesive. Verificare
+inversă: un browser cu `tbs_intro_skip=seen` sare intro-ul, deci mecanismul de testare rămâne intact.
+
+**Lecția, notată pentru data viitoare:** o schimbare de comportament care depinde de o stare deja
+scrisă în browserele oamenilor nu e completă până nu tratează și starea veche. „Nu mai scriem" nu
+înseamnă „nu mai există".
+
+Fișiere: `lib/intro.ts`.
+
 ## 2026-09-18 — Changed: intro-ul se joacă la fiecare încărcare a paginii principale
 
 Clientul a raportat că „la refresh nu lucrează mereu". Nu era un defect, era proiectarea: intro-ul

@@ -8,17 +8,31 @@
  * function that needs `window`/`document` checks for it first and is a no-op on the server.
  */
 
-/** The session cookie that says "this visitor has already seen the intro". */
-export const INTRO_COOKIE = "tbs_intro";
+/**
+ * The cookie that suppresses the intro. **The site never writes it** — the intro plays on every
+ * hard load of the home page. It exists so that a test run (or a QA session) can seed it and skip
+ * the intro.
+ *
+ * It was renamed away from `tbs_intro` deliberately. That name had been written into every
+ * visitor's browser while the intro played once per session, and those session cookies outlive a
+ * deploy: honouring the old name would have left every returning visitor — and the client testing
+ * the change — with no intro at all, looking exactly like the bug they reported.
+ */
+export const INTRO_COOKIE = "tbs_intro_skip";
 
 /** The only value that counts. Anything else (or no cookie) means "play it". */
 export const INTRO_SEEN = "seen";
 
 /**
- * Exactly what `finishIntro` writes. No `max-age`/`expires`, on purpose: a session cookie,
- * so the intro plays again in a new browser session but never twice in one.
+ * The cookie a visitor's browser may still be carrying from when the intro played once per
+ * session. Nothing reads it any more — `INTRO_COOKIE` is a different name now — and
+ * `finishIntro` clears it, so a browser that was open across the change stops suppressing the
+ * intro without the visitor having to clear anything.
  */
-export const INTRO_COOKIE_STRING = `${INTRO_COOKIE}=${INTRO_SEEN};path=/;samesite=lax`;
+export const INTRO_LEGACY_COOKIE = "tbs_intro";
+
+/** Clears the legacy cookie, on the same path it was written with. */
+export const INTRO_LEGACY_CLEAR_STRING = `${INTRO_LEGACY_COOKIE}=;path=/;max-age=0;samesite=lax`;
 
 /** Fired once on `window` when the intro stops covering the page (played, skipped or bypassed). */
 export const INTRO_EVENT = "tbs:intro-done";
@@ -120,6 +134,13 @@ let done = false;
 export function finishIntro(detail: IntroDoneDetail): void {
   if (done || typeof window === "undefined") return;
   done = true;
+  try {
+    // Nothing reads it any more; clearing it keeps a stale session cookie from confusing anyone
+    // looking at the browser's storage, and costs one assignment.
+    document.cookie = INTRO_LEGACY_CLEAR_STRING;
+  } catch {
+    /* cookies blocked — there is nothing to clear in that browser either */
+  }
   try {
     window.dispatchEvent(new CustomEvent<IntroDoneDetail>(INTRO_EVENT, { detail }));
   } catch {
