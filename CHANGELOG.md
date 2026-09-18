@@ -16,6 +16,38 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: rândul de beneficii se citește ca o secvență, nu ca trei cutii identice
+
+Clientul: „ii perfect dar fa aici ceva mai mult ca ii prea sarac arata". Cele trei beneficii sunt, pe
+fiecare direcție, un parcurs — clarifici, construiești, lansezi — și acum se văd așa.
+
+- **Un impuls traversează rândul o singură dată**, la intrarea în ecran: intră în primul panou, îl
+  parcurge și predă următorului (0 / 0,62 / 1,24s). Marginea, dâra, colțurile și nodul se aprind pe
+  aceeași bătaie.
+- **Colțuri de vizor** care se desenează singure, **o linie de circuit** de 1px care se termină
+  într-un **inel pătrat de 10×10** (inel, nu punct — regula casei interzice punctele decorative sub
+  8px), și **numărul panoului**, mare și șters, în colț.
+- **La hover sau focus** (doar pointer fin), impulsul se reia pe panoul atins. Cele două impulsuri
+  stau pe pseudo-elemente separate, ca o reluare să nu poată reporni secvența de intrare.
+
+**Un defect real, găsit prin măsurare:** `animation: … calc(var(--seq) + 220ms)` cu `--seq` conținând
+el însuși un `calc()` face ca întreaga prescurtare `animation` să nu se poată interpreta, iar **toate
+întârzierile cad tăcut pe 0** — adică toate trei panourile se aprindeau simultan, exact problema pe
+care o rezolvam, dar în mișcare. Rezolvat ținând `--step` un număr simplu și folosind proprietățile
+lungi, cu un singur `calc` plat.
+
+**Contrastul nu s-a înrăutățit** (minimul rămâne **4,50** strict / **4,63** prin metoda casei, în
+ambele teme). Varianta evidentă a numărului — trecând pe sub text — a fost respinsă după măsurare:
+chiar la 5% intensitate ducea eticheta la 4,10 strict în tema deschisă. Numărul stă acum într-o bandă
+de padding rezervată, unde un rând de text nu poate intra — o garanție structurală, nu o măsurătoare
+care se schimbă când se schimbă textul.
+
+Fără bare de progres, procente sau contoare: orice ar arăta ca o măsurătoare a firmei ar fi
+fabricată. Sub „mișcare redusă" totul e prezent și static. Sub 760px, unde rândul se stivuiește,
+fiecare panou își joacă propria trecere și numerele țin socoteala.
+
+Fișiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`.
+
 ## 2026-09-18 — Added: paginile de servicii capătă viață sub hero; modelul 3D însoțește pașii
 
 Clientul a cerut trei lucruri, după ce a văzut modelele noi: caseta de sub model să dispară, iar mai

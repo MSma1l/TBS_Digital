@@ -323,17 +323,36 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             ))}
         </div>
 
-        {/* The HUD panels: the edge lights and one band of light crosses each panel the first
-            time it is seen (`data-entered`, set once by an observer), and a mouse leans it. */}
+        {/* The HUD panels. The three benefits of a direction are a sequence — clarify, build,
+            launch — so the row is built to read as one: a pulse enters the first panel's
+            circuit, crosses it, and each panel in turn lights, draws its corner brackets and
+            fires its node as the pulse reaches it. `--panel-index` is the only thing the
+            markup has to say about that; every delay is derived from it in CSS, so the
+            stacked layout can flatten the whole sequence with one rule.
+            Everything added here is decoration: shapes, light and motion, no numbers about
+            the business. The four spans are `aria-hidden` and carry no copy. */}
         <section className={styles.highlights} ref={highlightsRef}>
           {sol.items.map((it, i) => (
             <article
               key={i}
               className={styles.highlight}
-              style={{ "--entry-delay": `${i * 90}ms` } as CSSProperties}
+              style={{ "--panel-index": i } as CSSProperties}
               data-tilt={tilt.enabled ? "on" : "off"}
               {...tilt.handlers}
             >
+              {/* The circuit the pulse travels, and the node it ends in. Both pulses live on
+                  this span's two pseudo-elements — the entrance on one, the hover replay on
+                  the other — so a replay can never restart the entrance. */}
+              <span aria-hidden="true" className={styles.hlCircuit} />
+              <span aria-hidden="true" className={styles.hlNode} />
+              <span aria-hidden="true" className={styles.hlCorner} data-corner="tl" />
+              <span aria-hidden="true" className={styles.hlCorner} data-corner="br" />
+              {/* The ghost index, in the panel's own reserved bottom strip: it is padding, so
+                  no line of copy can reach it and the text keeps exactly the background it
+                  was measured against. */}
+              <span aria-hidden="true" className={`mono ${styles.hlIndex}`}>
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <b className="mono">{l(solUI.benefit)}</b>
               <h2>{l(it.title)}</h2>
               <p>{l(it.desc)}</p>

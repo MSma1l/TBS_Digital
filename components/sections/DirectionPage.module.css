@@ -191,16 +191,42 @@
 }
 .highlight {
   position: relative;
-  /* clips the sweep band only; a box-shadow of its own is never clipped by its overflow */
+  /* clips the sweep band and the ghost index; a box-shadow of its own is never clipped by
+     its own overflow */
   overflow: clip;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 19px;
-  padding: 25px;
+  /* The bottom strip is the ghost index's room, reserved with padding rather than hoped for:
+     a line of copy cannot enter a padding box, so the numeral is never behind text and the
+     copy keeps exactly the background its contrast was measured against. */
+  padding: 25px 25px 62px;
+  /* The panel's place in the sequence, as a PLAIN NUMBER. Every delay below multiplies it in
+     one flat `calc()` — `--step` must never hold a calc of its own: substituting one into
+     another calc inside the `animation` shorthand made the whole shorthand unparseable and
+     every delay silently fell back to 0s, which lit all three panels at once (measured). */
+  --step: var(--panel-index, 0);
   /* `translate` carries the hover lift and `transform` the pointer lean, so the two compose
      instead of overwriting each other (same split as the Work card). */
   transition: translate 0.2s, transform 0.2s, border-color 0.5s var(--motion-ease-out),
     box-shadow 0.5s var(--motion-ease-out);
+  /* The edge lights on this panel's beat too, so the row builds along with the pulse instead
+     of all three coming up together. Only the last two properties wait; the lift and the
+     lean stay immediate. */
+  transition-delay: 0s, 0s, calc(var(--step) * 620ms), calc(var(--step) * 620ms);
+}
+/* A pointer must never wait for the entrance's clock. */
+.highlight:hover,
+.highlight:focus-within {
+  transition-delay: 0s;
+}
+/* The copy paints over the decorative layer with no z-index and no stacking context: a
+   positioned element paints above the in-flow content before it, and every decorative span
+   is earlier in the DOM. The band (`::after`) is last of all, so it still crosses the text. */
+.highlight b,
+.highlight h2,
+.highlight p {
+  position: relative;
 }
 .highlight:hover {
   translate: 0 -4px;
@@ -234,9 +260,15 @@
     transparent 65%
   );
 }
+/* Longhands, not the `animation` shorthand: a shorthand carrying both a var() easing and a
+   var() delay is re-parsed at computed-value time, and one bad token drops all of it. */
 @media (prefers-reduced-motion: no-preference) {
   .highlight[data-entered]::after {
-    animation: panel-sweep 1.1s var(--motion-ease-out) var(--entry-delay, 0ms) both;
+    animation-name: panel-sweep;
+    animation-duration: 1.1s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
+    animation-delay: calc(var(--step) * 620ms + 120ms);
   }
 }
 /* A keyframe used by a module must be declared in that module (docs/07-conventions.md). */
@@ -248,6 +280,208 @@
   to {
     opacity: 0;
     transform: translateX(100%);
+  }
+}
+
+/* ---------- the row as one sequence ----------
+   A circuit along the panel's top edge ending in a square node, a pulse that runs it, two
+   corner brackets that draw themselves, and a ghost index. The pulse enters panel 01 from
+   its leading edge, crosses, and panel 02's own pulse starts as it lands — one pass across
+   the row, then it stops. Shapes, light and motion only: nothing here counts, measures or
+   reports anything about the business (AGENTS.md).
+   Nothing is a dot: the node is a 10px square ring and every stroke is a straight 1px line
+   with no radius (components/__tests__/decorative-dots.test.tsx). No blur, no filter. */
+.hlCircuit,
+.hlNode,
+.hlCorner,
+.hlIndex {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+/* The line, from the panel's leading edge to the node. */
+.hlCircuit {
+  top: 0;
+  left: 0;
+  right: 26px;
+  height: 1px;
+  background: color-mix(in srgb, var(--sol-accent, var(--blue)) 26%, transparent);
+  opacity: 0;
+  transition: opacity 0.4s var(--motion-ease-out);
+  /* on the beat: a panel's own line arrives with the pulse, not with the row */
+  transition-delay: calc(var(--step) * 620ms);
+}
+.highlight[data-entered] .hlCircuit {
+  opacity: 1;
+}
+/* Two pulses, one per pseudo-element: the entrance on `::before`, the hover replay on
+   `::after`. Separate elements on purpose — a replay that reused the same declaration would
+   restart the entrance every time the mouse left the panel. */
+.hlCircuit::before,
+.hlCircuit::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 34%;
+  opacity: 0;
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    var(--sol-accent, var(--blue)),
+    transparent
+  );
+}
+/* The node the line ends in: a square ring, never a dot, 10px on the side. */
+.hlNode {
+  top: -5px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--sol-accent, var(--blue)) 45%, transparent);
+  opacity: 0;
+  /* Listed out, so only the appearance waits for this panel's turn: the hover brightening
+     stays instant instead of inheriting a delay of up to 1.2s. */
+  transition-property: opacity, border-color, box-shadow;
+  transition-duration: 0.4s, 0.25s, 0.25s;
+  transition-timing-function: var(--motion-ease-out);
+  transition-delay: calc(var(--step) * 620ms), 0s, 0s;
+}
+.highlight[data-entered] .hlNode {
+  opacity: 1;
+}
+/* The brackets. 16px arms, so nothing here is near the 8px the dot rule is about. */
+.hlCorner {
+  width: 16px;
+  height: 16px;
+  border: 0 solid var(--sol-accent, var(--blue));
+  opacity: 0;
+}
+.hlCorner[data-corner="tl"] {
+  top: 12px;
+  left: 12px;
+  border-top-width: 1px;
+  border-left-width: 1px;
+}
+.hlCorner[data-corner="br"] {
+  bottom: 12px;
+  right: 12px;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+/* Present and static under reduced motion — the animations below are the only thing the
+   media query takes away. */
+.highlight[data-entered] .hlCorner {
+  opacity: 1;
+}
+/* The ghost index, in the reserved strip, bleeding off the panel's bottom edge. Decoration
+   with no contrast duty of its own: it is `aria-hidden`, unselectable, and no text is ever
+   laid over it. */
+.hlIndex {
+  right: 14px;
+  bottom: -16px;
+  font-size: clamp(58px, 6vw, 82px);
+  font-weight: var(--fw-extra);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: color-mix(in srgb, var(--sol-accent, var(--blue)) 24%, transparent);
+  opacity: 0;
+  transition: opacity 0.5s var(--motion-ease-out);
+  transition-delay: calc(var(--step) * 620ms + 260ms);
+}
+.highlight[data-entered] .hlIndex {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .highlight[data-entered] .hlCircuit::before,
+  .highlight[data-entered] .hlCorner,
+  .highlight[data-entered] .hlNode {
+    animation-duration: 0.85s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
+  }
+  .highlight[data-entered] .hlCircuit::before {
+    animation-name: circuit-pulse;
+    animation-delay: calc(var(--step) * 620ms);
+  }
+  .highlight[data-entered] .hlCorner {
+    animation-duration: 0.5s;
+    animation-delay: calc(var(--step) * 620ms + 220ms);
+  }
+  .highlight[data-entered] .hlCorner[data-corner="tl"] {
+    animation-name: corner-tl;
+  }
+  .highlight[data-entered] .hlCorner[data-corner="br"] {
+    animation-name: corner-br;
+  }
+  .highlight[data-entered] .hlNode {
+    animation-name: node-fire;
+    animation-duration: 0.6s;
+    animation-delay: calc(var(--step) * 620ms + 480ms);
+  }
+}
+/* Hover and focus replay the pulse on that panel alone, and the node brightens. Fine
+   pointers only: a coarse pointer gets none of it, and nothing here carries meaning. */
+@media (hover: hover) and (pointer: fine) {
+  .highlight:hover .hlNode,
+  .highlight:focus-within .hlNode {
+    border-color: var(--sol-accent, var(--blue));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--sol-accent, var(--blue)) 50%, transparent);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .highlight:hover .hlCircuit::after,
+    .highlight:focus-within .hlCircuit::after {
+      animation: circuit-pulse 0.85s var(--motion-ease-out) both;
+    }
+  }
+}
+@keyframes circuit-pulse {
+  from {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(310%);
+  }
+}
+@keyframes corner-tl {
+  from {
+    opacity: 0;
+    clip-path: inset(0 100% 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes corner-br {
+  from {
+    opacity: 0;
+    clip-path: inset(100% 0 0 100%);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes node-fire {
+  from {
+    border-color: color-mix(in srgb, var(--sol-accent, var(--blue)) 45%, transparent);
+  }
+  30% {
+    border-color: var(--sol-accent, var(--blue));
+    box-shadow: 0 0 12px color-mix(in srgb, var(--sol-accent, var(--blue)) 60%, transparent);
+  }
+  to {
+    border-color: color-mix(in srgb, var(--sol-accent, var(--blue)) 45%, transparent);
   }
 }
 /* The lean: `usePointerTilt` writes the angles and `data-tilting` on the panel itself, for a
@@ -793,6 +1027,13 @@ a.project:hover {
   .caseGrid {
     grid-template-columns: 1fr;
   }
+  /* Stacked there is no row for the pulse to run along, and each panel comes into view on
+     its own as the visitor scrolls — so the hand-over delay goes, and every panel plays its
+     own pass when it arrives. The sequence still reads top to bottom, one panel at a time,
+     and the numerals keep it numbered. */
+  .highlight {
+    --step: 0;
+  }
   .stepsCard {
     padding: 26px 20px;
   }
@@ -850,9 +1091,20 @@ a.project:hover {
   .stepsFill {
     transition: none;
   }
-  /* The panels are simply lit: no entrance to wait for and no band crossing them. */
-  .highlight::after {
+  /* The panels are simply lit: no entrance to wait for, no band crossing them, and no pulse
+     running the row. The circuit, the node, the brackets and the ghost index are all present
+     and static from the first paint — they are shapes, not motion, so reduce keeps them. */
+  .highlight::after,
+  .hlCircuit::before,
+  .hlCircuit::after {
     display: none;
+  }
+  .hlCircuit,
+  .hlNode,
+  .hlCorner,
+  .hlIndex {
+    opacity: 1;
+    transition: none;
   }
   @supports (color: color-mix(in lab, red, red)) {
     .highlight {
