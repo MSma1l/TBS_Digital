@@ -18,6 +18,12 @@
  * one of those parts: it is built after ready (`stageHelix`: one slice, then one compile slice
  * per draw object, on the programs the scene already compiled), so it never delays the first
  * picture. Until it is built the work gate stays shut and the cards stay as the server rendered them.
+ *
+ * A service page has two more residents, and they are why this world now animates more than one
+ * thing at a time: the service model itself, which travels between the hero host and the steps
+ * corner (one instance, blended between two placements), and the three small objects of the
+ * benefits row, one per panel window. The row is built like the helix — late, one per frame, and
+ * only once the probe has measured a row to put it in — so no other page pays for it.
  */
 
 import {
@@ -42,6 +48,8 @@ import {
 import {
   BURST,
   HELIX_SLOT,
+  PANEL_COLUMNS,
+  PANEL_FADE_SECONDS,
   STEPS_GATE,
   STEPS_TRAVEL,
   blendPlacement,
@@ -56,6 +64,8 @@ import {
   placeCore,
   placeHelixAmbient,
   placeHelixSpiral,
+  panelsShare,
+  placePanels,
   placeServices,
   placeSteps,
   revealOf,
@@ -88,7 +98,10 @@ import {
 import { BENCH_RUN, createPipelineBenchModel } from "./models/pipelineBench";
 import { createBrandBoardModel } from "./models/brandBoard";
 import { ASSIST_CYCLE, ASSIST_START, createAssistantLoopModel } from "./models/assistantLoop";
-import { MODEL_SWAY, type ModelFrame, type SceneModel } from "./models/types";
+import { MODEL_SWAY, type ModelFrame, type PanelModel, type SceneModel } from "./models/types";
+import { createSurveyFieldModel } from "./models/panel/surveyField";
+import { createPanelFitModel } from "./models/panel/panelFit";
+import { createLaunchRampModel } from "./models/panel/launchRamp";
 import { parseTokenColor, type ScenePalette } from "./palette";
 import { createSwarm, type Swarm, type SwarmFrame } from "./swarm";
 import { createTrailMesh, type TrailFrame, type TrailMesh } from "./trail";
@@ -172,6 +185,30 @@ export const HOLOGRAM_HYSTERESIS = 0.3;
 export const SCROLL_SPEED_FULL = 1.6;
 /** …and it falls back to a still page at this rate (about a third of a second), never up. */
 export const SCROLL_SPEED_LAMBDA = 4.5;
+
+/* ---- the benefits row: three objects at once ------------------------------------------ */
+
+/**
+ * The three objects of a service page's benefits row, in the order the panels are laid out:
+ * clarify, build, launch. They are not service models — no `kind`, no `resetCycle`, never in
+ * `MODEL_FACTORIES`, never sampled, never a morph or burst target — and they are the first thing
+ * this world animates alongside another. Everything a service model gets from the world they get
+ * too (a placement, a frame, lite, the palette, disposal); what they do not get is the pointer.
+ *
+ * They are built late and conditionally, the way Work's helix is: never one of the parts
+ * `complete()` counts, never in `compileStages()` (they draw on P3 `edges` instanced, which the
+ * chip core compiles on every page, so there is no program to wait for), one per frame, and only
+ * once the probe has a row to put them in. A page with no row — the home page, a narrow viewport,
+ * a `fallback` or `off` renderer — never builds, draws, lites, repaints or disposes any of them.
+ */
+const PANEL_FACTORIES = [createSurveyFieldModel, createPanelFitModel, createLaunchRampModel] as const;
+
+/**
+ * How far off the canvas the row may still be when the world starts building it, in canvas
+ * heights: the three slices then land while the visitor is reading above the row, not on the frame
+ * it scrolls into view.
+ */
+export const PANEL_BUILD_LEAD = 1.5;
 
 /* ---- the step of "Cum lucrăm" a model illustrates ------------------------------------- */
 
@@ -320,6 +357,11 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let swarm: Swarm | null = null;
   let trail: TrailMesh | null = null;
   const models: SceneModel[] = [];
+  /** The benefits row, built one per frame once there is a row to build it for (`PANEL_FACTORIES`). */
+  const panels: PanelModel[] = [];
+  /** Their placements, and how far the row has dissolved in: never a pop as the scroll brings it. */
+  const panelSpots: Placement[] = PANEL_FACTORIES.map(() => ({ x: 0, y: 0, scale: 1 }));
+  let panelFade = 0;
 
   /* Work: the helix, its hologram and the spiral driver the page hands over. */
   let helix: HelixModel | null = null;
@@ -774,6 +816,52 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         }
       }
 
+      /* the benefits row: three objects in the panels' windows, a service page's row only.
+         Built one per frame as the row comes near, drawn only while it is on screen — the whole
+         block is dead arithmetic (`panelsShare` returns 0 off a measured row) on every other page. */
+      // `root.visible` is the first pre-warmed part: the scene is drawing, so the staged build and
+      // compile are past and a slice of this size no longer competes with the first picture.
+      if (panels.length < PANEL_COLUMNS && root.visible && panelsShare(probe, scrollY, h, h * PANEL_BUILD_LEAD) > 0) {
+        const panel = PANEL_FACTORIES[panels.length](config, palette);
+        panel.setLite(lite);
+        panel.group.visible = false;
+        panels.push(panel);
+        root.add(panel.group);
+        // Its own pre-warm frame, here rather than through `compileStages`: it is drawn once at
+        // reveal 0 below (every fragment discards) so the frame that first shows it uploads nothing.
+        prewarmQueue.add(panel.group);
+      }
+      if (panels.length > 0) {
+        const onScreen = panelsShare(probe, scrollY, h) > 0;
+        const faded = panelFade + (onScreen ? step : -step) / PANEL_FADE_SECONDS;
+        panelFade = faded <= 0 ? 0 : faded >= 1 ? 1 : faded;
+        for (let index = 0; index < panels.length; index += 1) {
+          const panel = panels[index];
+          const group = panel.group;
+          const prewarm = prewarmQueue.has(group);
+          // Off screen and not pre-warming: not placed, not framed, not updated. Unlike the service
+          // models, nothing else in the scene reads these matrices, so there is no reason to keep
+          // them warm — the row is the one part of the world that can go completely quiet.
+          const spot = panelFade > 0 || prewarm ? placePanels(probe, scrollY, w, h, index, panelSpots[index]) : null;
+          if (!spot) {
+            group.visible = false;
+            continue;
+          }
+          group.position.set(spot.x, spot.y, 0);
+          group.scale.setScalar(spot.scale);
+          // The row's own rule: the sway every model gets, and NOT the pointer lean the service
+          // models take — the panel answers the mouse itself, in CSS, and a second answer inside
+          // its window would read as the window wobbling. Each object damps this sway further and
+          // adds its own slow yaw (models/panel/kit.ts), the way brandBoard already does.
+          group.rotation.set(0, sway, 0);
+          modelFrame.reveal = panelFade;
+          modelFrame.prewarm = prewarm;
+          // Their loops run on the frame's own step: no page holds a benefit on a beat.
+          modelFrame.step = step;
+          panel.update(modelFrame);
+        }
+      }
+
       /* Work's helix: on its sticky zone (spiral) or in the band above the heading (ambient) */
       let helixPlace: Placement | null = null;
       try {
@@ -882,6 +970,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       core?.setLite(lite);
       swarm?.setLite(lite);
       for (const model of models) model.setLite(lite);
+      for (const panel of panels) panel.setLite(lite);
       helix?.setLite(lite);
     },
 
@@ -891,6 +980,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       swarm?.setPalette(next);
       trail?.setPalette(next);
       for (const model of models) model.setPalette(next);
+      for (const panel of panels) panel.setPalette(next);
       helix?.setPalette(next);
     },
 
@@ -900,6 +990,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       swarm?.dispose();
       trail?.dispose();
       for (const model of models) model.dispose();
+      for (const panel of panels) panel.dispose();
       helix?.dispose();
       hologram?.dispose();
       root.clear();

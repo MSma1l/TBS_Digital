@@ -89,6 +89,55 @@ function gapAbove(section: Element | null, headTop: number | null, into: DocRect
   return rect;
 }
 
+/**
+ * What a benefits panel's instrument window has to look like to count as one: the bay at the foot
+ * of the panel (`.hlWindow`, DirectionPage.module.css), so flush with the panel's bottom edge, well
+ * under half its height, and nearly its full width.
+ */
+export const PANEL_WINDOW = { foot: 3, maxShare: 0.5, minWidth: 0.6, minHeight: 24 } as const;
+
+/**
+ * A benefits panel's window, measured rather than assumed: its LAST element child, taken only if it
+ * is laid out at the panel's foot and is a bay rather than the panel's body. Null is the answer the
+ * scene needs wherever the page lays no window out — below the row's stacking width, and on a
+ * `fallback` or `off` renderer, where the bay is `display: none` and the panel closes up into the
+ * plain card it has always been. Measuring it is what tells those apart: the row's own box is the
+ * same shape either way, and carving a strip out of its foot regardless would draw three objects
+ * over a panel's own copy.
+ */
+function panelWindow(panel: Element | null): DOMRect | null {
+  const bay = panel?.lastElementChild;
+  if (!panel || !bay) return null;
+  const panelBox = panel.getBoundingClientRect();
+  const box = bay.getBoundingClientRect();
+  if (panelBox.width <= 0 || panelBox.height <= 0) return null;
+  if (box.height < PANEL_WINDOW.minHeight || box.height > panelBox.height * PANEL_WINDOW.maxShare) return null;
+  if (box.width < panelBox.width * PANEL_WINDOW.minWidth) return null;
+  if (Math.abs(box.bottom - panelBox.bottom) > PANEL_WINDOW.foot) return null;
+  return box;
+}
+
+/**
+ * The band the benefits row's three windows lie in (`probe.panels`): the row's width, and the first
+ * panel's window for the top and the height — the three are one row of equal columns, so one
+ * window's box is all of them. Null with no row, no box, or no window laid out; the scene then
+ * builds nothing and places nothing.
+ */
+export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): void {
+  probe.panels = docRect(row, probe.panels);
+  if (!row || !probe.panels || probe.panels.w <= 0 || probe.panels.h <= 0) {
+    probe.panels = null;
+    return;
+  }
+  const bay = panelWindow(row.firstElementChild);
+  if (!bay) {
+    probe.panels = null;
+    return;
+  }
+  probe.panels.y = bay.top + window.scrollY;
+  probe.panels.h = bay.height;
+}
+
 /** The offset a sticky box pins at (its computed `top`), 0 when that is not a pixel length. */
 function stickyTop(el: Element): number {
   const top = Number.parseFloat(window.getComputedStyle(el).top);
@@ -175,6 +224,7 @@ export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   probe.hero = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="hero"]`), probe.hero);
   probe.services = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="services"]`), probe.services);
   writeStepsHost(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="steps"]`));
+  writePanelsBand(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="panels"]`));
   const track = stage.querySelector(`[${WORK_TRACK_ATTR}]`);
   probe.work = docRect(track, probe.work);
   const head = track?.previousElementSibling ?? null;

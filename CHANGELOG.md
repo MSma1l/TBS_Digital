@@ -16,6 +16,51 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Added: trei obiecte 3D mici în rândul de beneficii
+
+Clientul, după secvența de lumini: „adauga ceva 3d modele animate acolo ca totdeauna arata prea
+sarac". Fiecare panou de beneficiu primește o **fereastră transparentă** jos, cu un obiect 3D animat
+în ea. Trei obiecte, **comune tuturor celor cinci servicii**, pentru că beneficiile sunt aceeași
+secvență peste tot — clarifici, construiești, lansezi — și cincisprezece modele ar fi fost aceeași
+muncă plătită de cinci ori.
+
+- **„Cadastrul"** (clarifici): o bară verticală traversează, desenând o linie în urma ei, iar
+  marcajele împrăștiate se așază pe ea la pas egal. Contrastul dezordine/ordine se citește înainte ca
+  vreo piesă să se rezolve.
+- **„Bancul de probă"** (construiești): o piesă intră pe un arc, se oprește **proeminentă**, se
+  corectează, se așază, apoi o presă coboară vertical peste ea.
+- **„Rampa"** (lansezi): ceva urcă pe două marcaje scurte și pleacă pe diagonală, iar capul
+  catargului primește semnalul.
+
+**Ce a tăiat critica de design**, după ce a măsurat caseta reală (**260×62 px**, nu 150×90 cât
+scrisesem eu în brief): toate trei obiectele aveau **o linie orizontală la bază**, toate trei bucle
+de 4,2s, iar accentele a două dintre ele cădeau la **0,14s** distanță — puse alături s-ar fi citit ca
+un singur obiect repetat, pulsând în cor. Acum: perioade 3,60 / 4,20 / 4,80s (nicio coincidență nu se
+repetă într-o vizită), o singură linie de bază, un singur dreptunghi închis, o singură baleiere
+orizontală — de aceea presa bancului coboară vertical. Al treilea obiect a fost refăcut de la zero:
+povestea lui trăia în trei dungi de 8×2,4px, invizibile la mărimea reală.
+
+**Roșul a fost interzis** în afara unei singure piese, 0,6s: în acest proiect roșul e rolul refuzului
+(scrierea eșuată de la Automatizare), iar un panou de lansare care clipește roșu spune „eroare".
+
+**Tehnic:** trei desene în plus, **niciun shader, uniform, ramură de material sau textură nouă** — toate
+trei sunt aceeași cutie instanțiată pe care o folosesc deja modelele de servicii. Se construiesc câte
+unul pe cadru, doar când rândul se apropie de ecran; se sting complet când iese; nu există deloc pe
+pagina principală. Aceeași geometrie, același material, aceeași grosime de linie pentru toate trei —
+altfel trei limite proprii ar fi dat o diferență de 65% în grosimea liniei între panouri vecine.
+
+**Două lucruri prinse prin măsurare, nu prin presupunere:**
+- contractul pe care l-am scris („împarte rândul în treimi") nu spune **unde** e fereastra: rândul e
+  înalt de 241px, fereastra e banda de 62px din josul lui, iar pe dispozitivele fără 3D fereastra nu
+  există. O tăiere oarbă ar fi desenat obiecte **peste textul panourilor** exact acolo unde nu trebuie.
+  Scena măsoară acum fereastra reală și, dacă lipsește, nu construiește nimic;
+- umplerea a coborât de la 0,9 la 0,88: obiectele fiind înclinate în poza lor, se proiectează puțin
+  mai înalte decât declară, iar soclul celui din mijloc ieșea o jumătate de pixel sub fereastră.
+
+Fișiere noi: `components/scene/three/models/panel/{kit,surveyField,panelFit,launchRamp}.ts`.
+Modificate: `components/scene/three/world.ts`, `choreography.ts`, `scrollProbe.ts`, `models/types.ts`,
+`lib/scene.ts`, `components/sections/DirectionPage.tsx` + modulul CSS.
+
 ## 2026-09-18 — Changed: rândul de beneficii se citește ca o secvență, nu ca trei cutii identice
 
 Clientul: „ii perfect dar fa aici ceva mai mult ca ii prea sarac arata". Cele trei beneficii sunt, pe

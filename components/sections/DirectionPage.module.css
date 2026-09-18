@@ -184,23 +184,29 @@
    takes away (DirectionPage.tsx) — nothing here is tied to the scene, because a service
    page's panels are read long after the model has formed.
    No `backdrop-filter`, no blur, no `filter`: the stage's canvas is under this page. */
+/* Three equal columns and one gap, at every width down to the stacking breakpoint: the row
+   carries `data-scene-anchor="panels"` and the scene fits THIRDS of this one rect, so the
+   columns must stay equal. With `gap: 14px` a third of the row is 14/3 ≈ 4.67px wider than a
+   panel, which is the only offset between a third's centre and its panel's centre. */
 .highlights {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
+/* The panel is the FRAME: the border, the radius, the entrance glow, the hover lift and the
+   pointer lean. It paints no fill of its own any more — `--panel` moved down to `.hlBody`,
+   so the instrument window at the bottom has nothing opaque between it and the scene's
+   canvas, which draws BEHIND the page (same move as `.steps` / `.stepsCard`).
+   `overflow: clip` moved down with the fill, for the same reason: it was clipping the sweep
+   band (which travels a full panel width either side) and the ghost index, and both live in
+   the body — while a clipping ancestor of the window is exactly what must not exist. */
 .highlight {
   position: relative;
-  /* clips the sweep band and the ghost index; a box-shadow of its own is never clipped by
-     its own overflow */
-  overflow: clip;
-  background: var(--panel);
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 19px;
-  /* The bottom strip is the ghost index's room, reserved with padding rather than hoped for:
-     a line of copy cannot enter a padding box, so the numeral is never behind text and the
-     copy keeps exactly the background its contrast was measured against. */
-  padding: 25px 25px 62px;
+  padding: 0;
   /* The panel's place in the sequence, as a PLAIN NUMBER. Every delay below multiplies it in
      one flat `calc()` — `--step` must never hold a calc of its own: substituting one into
      another calc inside the `animation` shorthand made the whole shorthand unparseable and
@@ -219,6 +225,21 @@
 .highlight:hover,
 .highlight:focus-within {
   transition-delay: 0s;
+}
+/* The painted part of the panel: the surface the copy is read on, and the only thing in the
+   row with a background. It takes the panel's inner radius (19px minus the 1px border) so
+   the corners still look like one card, and it stretches, so a panel with no window laid out
+   is byte-for-byte the card it always was.
+   The clip is the sweep band's and the ghost index's, nothing else's — the window is its
+   SIBLING, never a descendant, so nothing here can clip it. */
+.hlBody {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: clip;
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 25px;
 }
 /* The copy paints over the decorative layer with no z-index and no stacking context: a
    positioned element paints above the in-flow content before it, and every decorative span
@@ -247,7 +268,7 @@
 /* The band. Its strength is the keyframe's opacity, never a colour mix, so no engine ever
    paints an opaque band over the copy: at .12 the tightest line (the red BENEFICIU label)
    measures 4.63:1 light and 5.04:1 dark, for all five accents, in both themes. */
-.highlight::after {
+.hlBody::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -263,7 +284,7 @@
 /* Longhands, not the `animation` shorthand: a shorthand carrying both a var() easing and a
    var() delay is re-parsed at computed-value time, and one bad token drops all of it. */
 @media (prefers-reduced-motion: no-preference) {
-  .highlight[data-entered]::after {
+  .highlight[data-entered] .hlBody::after {
     animation-name: panel-sweep;
     animation-duration: 1.1s;
     animation-timing-function: var(--motion-ease-out);
@@ -374,22 +395,99 @@
 .highlight[data-entered] .hlCorner {
   opacity: 1;
 }
-/* The ghost index, in the reserved strip, bleeding off the panel's bottom edge. Decoration
-   with no contrast duty of its own: it is `aria-hidden`, unselectable, and no text is ever
-   laid over it. */
+/* The ghost index. It used to fill the reserved bottom strip, bleeding off the panel's
+   bottom edge; that strip is the instrument window now, and a numeral cannot share a window
+   with a model — so the index moved to the panel's own top-right corner, on the label's line
+   and opposite it: "BENEFICIU" left, the number right, the title starting under both.
+   It is smaller for it, which is the trade — a 82px numeral does not fit a 62px-tall corner
+   without touching the title's first line at 861px, and the one thing it must never do is
+   get behind a word. Still decoration with no contrast duty of its own: `aria-hidden`,
+   unselectable, over the panel's own background, with no text laid over it — so the copy's
+   measured contrast is exactly what it was.
+   The box ends at 52px from the panel's top at its very largest; the title's first line box
+   starts at 56px (25px padding + the 19px label line + the 12px `--sp-3` margin). */
 .hlIndex {
-  right: 14px;
-  bottom: -16px;
-  font-size: clamp(58px, 6vw, 82px);
+  right: 20px;
+  top: 14px;
+  font-size: clamp(30px, 2.6vw, 38px);
   font-weight: var(--fw-extra);
   line-height: 1;
   letter-spacing: -0.04em;
-  color: color-mix(in srgb, var(--sol-accent, var(--blue)) 24%, transparent);
+  color: color-mix(in srgb, var(--sol-accent, var(--blue)) 30%, transparent);
   opacity: 0;
   transition: opacity 0.5s var(--motion-ease-out);
   transition-delay: calc(var(--step) * 620ms + 260ms);
 }
 .highlight[data-entered] .hlIndex {
+  opacity: 1;
+}
+
+/* ---------- the instrument window ----------
+   The panel's bottom bay, and the row's one see-through surface. The scene's canvas draws
+   BEHIND the page, so a window here is simply a box that paints no fill: `.hlBody` keeps
+   `--panel` above it, the article's border frames it, and between this box and the canvas
+   there is nothing at all.
+   It is flush to the panel's inner edges — left, right and foot — and exactly 62px tall, so
+   the three windows are the bottom 62px of the row's rect (inside its 1px border) and the
+   scene can find them from the row's one anchor.
+   It is its own box with its own chrome, so it reads as an instrument window and not as a
+   hole the background leaks through — the same treatment as the home page's HUD screen
+   (components/sections/Directions.tsx): a rule across its head, brightest at the middle, two
+   guide rails hanging off its ends, and two corner brackets at its foot in the same language
+   as the panel's own. Every one of them is a 1px line and the interior is never painted.
+   No transform, no filter, no `contain`, no clipping overflow — here or on anything between
+   here and the stage (docs/07-conventions.md). */
+.hlWindow {
+  /* Laid out only where a model can really arrive — the gate is at the bottom of the file,
+     with the rest of the responsive rules. */
+  display: none;
+  position: relative;
+  flex: 0 0 62px;
+  height: 62px;
+  /* the panel's inner radius, so the bay's foot follows the card's corners */
+  border-radius: 0 0 18px 18px;
+  /* Three 1px lines as background LAYERS rather than elements: the head rule at full width,
+     and a guide rail under each of its ends. Every layer is `no-repeat` with an explicit 1px
+     side, so no layer is ever a fill. */
+  background:
+    linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
+      top center / 100% 1px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top left 11px / 1px 14px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top right 11px / 1px 14px;
+  opacity: 0;
+  transition: opacity 0.5s var(--motion-ease-out);
+  /* on the beat: the bay opens with this panel's pulse, not with the row */
+  transition-delay: calc(var(--step) * 620ms + 120ms);
+}
+/* The brackets at the window's foot. 13px arms, nowhere near the 8px the dot rule is about,
+   and no radius on either of them. */
+.hlWindow::before,
+.hlWindow::after {
+  content: "";
+  position: absolute;
+  bottom: 9px;
+  width: 13px;
+  height: 14px;
+  border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
+  border-bottom-width: 1px;
+}
+.hlWindow::before {
+  left: 11px;
+  border-left-width: 1px;
+}
+.hlWindow::after {
+  right: 11px;
+  border-right-width: 1px;
+}
+.highlight[data-entered] .hlWindow {
   opacity: 1;
 }
 
@@ -506,6 +604,33 @@
   color: var(--mut);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ---------- where the bay is actually opened ----------
+   Two conditions, both of them layout facts rather than cues.
+
+   861px, the site's desktop breakpoint: below it the row stacks into ONE column (the rule at
+   the bottom of this file), and a scene that fits thirds of the row's rect has nothing to
+   fit — so the anchor is not written either (DirectionPage.tsx), and the panels close up.
+
+   The renderer, gated exactly as the steps corner is, `:global()` shape included, and with
+   the same call on `pending`: reserving the bay while WebGL is still being decided costs
+   nothing on the path that ends up using it (`pending` → `webgl` is byte-identical), while
+   `fallback` and `off` — no usable WebGL, the QA flag off, reduced motion — never get an
+   empty frame with nothing behind it. Closed up the panel is 62px shorter and is exactly the
+   card it has always been: the circuit, the node, both brackets and the ghost index are all
+   still there, so nothing reads as a picture that failed to load. */
+@media (min-width: 861px) {
+  :global([data-scene-stage][data-renderer="webgl"]) .hlWindow,
+  :global([data-scene-stage][data-renderer="pending"]) .hlWindow {
+    display: block;
+  }
+  /* The body's foot goes square where the bay starts, so the two boxes meet on one line and
+     the panel still has exactly four rounded corners. */
+  :global([data-scene-stage][data-renderer="webgl"]) .hlBody,
+  :global([data-scene-stage][data-renderer="pending"]) .hlBody {
+    border-radius: 18px 18px 0 0;
+  }
 }
 
 /* ---------- labelled cases ----------
@@ -1092,9 +1217,12 @@ a.project:hover {
     transition: none;
   }
   /* The panels are simply lit: no entrance to wait for, no band crossing them, and no pulse
-     running the row. The circuit, the node, the brackets and the ghost index are all present
-     and static from the first paint — they are shapes, not motion, so reduce keeps them. */
-  .highlight::after,
+     running the row. The circuit, the node, the brackets, the ghost index and the window's
+     own chrome are all present and static from the first paint — they are shapes, not
+     motion, so reduce keeps them. (The window itself is usually not laid out under reduce at
+     all: reduced motion puts the stage on the `off` renderer. This is what it looks like if
+     a visitor turns reduce on while the scene is already running.) */
+  .hlBody::after,
   .hlCircuit::before,
   .hlCircuit::after {
     display: none;
@@ -1102,7 +1230,8 @@ a.project:hover {
   .hlCircuit,
   .hlNode,
   .hlCorner,
-  .hlIndex {
+  .hlIndex,
+  .hlWindow {
     opacity: 1;
     transition: none;
   }

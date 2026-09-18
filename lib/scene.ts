@@ -287,6 +287,14 @@ export type ScrollProbe = {
    */
   workGap: DocRect | null;
   /**
+   * A service page's benefits row (`[data-scene-anchor="panels"]`), narrowed to the band the three
+   * see-through windows lie in: the row's width, and the letterbox strip at the BOTTOM of the
+   * panels (their own bottom padding, read from the CSS rather than written here). The scene fits
+   * one object into each third of it. Null on every page without a row, and at every width and
+   * renderer where the page draws no windows.
+   */
+  panels: DocRect | null;
+  /**
    * A service page's steps host (`[data-scene-anchor="steps"]`): the empty, sticky box beside
    * "Cum lucrăm" the model moves into while the section is read. `y` is where the host RESTS —
    * its document top unstuck, not where it is pinned at this scroll. Null on every page without
@@ -330,6 +338,7 @@ export function createScrollProbe(): ScrollProbe {
     work: null,
     workHead: null,
     workGap: null,
+    panels: null,
     steps: null,
     stepsPin: { start: 0, end: 0 },
     heroExit: { start: 0, end: 0 },

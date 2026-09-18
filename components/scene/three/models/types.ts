@@ -47,6 +47,27 @@ export type SceneModel = {
   dispose(): void;
 };
 
+/**
+ * A benefit-panel object (`models/panel/*`): the same `ModelFrame` as a service model, without
+ * the two things that only a service model can honour.
+ *
+ * No `kind`: `ServiceModel` is the key for `MODEL_FACTORIES`, `SERVICE_STAGES`, `storyStep`,
+ * `matrixFor`, `revealOf` and `samples.ts`, and a panel object is never a morph target, never
+ * sampled and never in the factory table — borrowing one of the five kinds to satisfy the type
+ * would quietly put it there. No `resetCycle`: a panel's clock opens mid-story and simply runs,
+ * so there is no cycle to reset.
+ */
+export type PanelModel = {
+  /** Placed by whatever fits the panel strip; the model animates inside it. */
+  group: Group;
+  /** Compiled in one idle slice, like a service model's. */
+  objects: Object3D[];
+  update(frame: ModelFrame): void;
+  setLite(lite: boolean): void;
+  setPalette(palette: ScenePalette): void;
+  dispose(): void;
+};
+
 /** Frustum culling off (shaders displace vertices) and a draw order. */
 export function place<T extends Object3D>(object: T, renderOrder: number): T {
   object.renderOrder = renderOrder;

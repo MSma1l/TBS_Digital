@@ -240,6 +240,78 @@ export function coreReveal(e: number): number {
   return 1 - smoothstep(0.6, 1, e);
 }
 
+/* ---- the benefits row (a service page's three panels) ----------------------------------- */
+
+/** The row is this many equal columns, one object per column. */
+export const PANEL_COLUMNS = 3;
+
+/**
+ * The half-extent every object of the row is authored to, in model units — a mirror of
+ * `PANEL_BOUND` in `three/models/panel/kit.ts` (which cannot be imported here: this module is
+ * three.js-free and that one builds geometry at import). All three share it on purpose, so one
+ * stroke width is one stroke width across three adjacent panels.
+ *
+ * The fit is against `halfHeight` and the window's SHORT side. `MODEL_RADIUS` is the wrong number
+ * here by construction: these are 4.5 : 1 letterbox objects and fitting their diagonal into a
+ * 4.2 : 1 window would draw them at about half size, with the row's air in the wrong place.
+ */
+export const PANEL_BOUND = { halfWidth: 1.9, halfHeight: 0.42 } as const;
+
+/**
+ * An object fills this much of its window, on whichever side runs out first. Not 0.9: these objects
+ * are pitched in their own pose (`POSE.x`, models/panel/*), so a box of real depth projects a little
+ * taller than the half-height it declares — measured at 1280 the fit's own plinth sat half a pixel
+ * off the window's foot at 0.9, and this is the air that keeps every one of them off the chrome.
+ */
+export const PANEL_WINDOW_FILL = 0.88;
+
+/** Seconds the row dissolves in over as the scroll brings it in, and out again. */
+export const PANEL_FADE_SECONDS = 0.35;
+
+/**
+ * How much of the row's window band is inside the canvas at `scrollY`, 0 → 1. `margin` grows the
+ * canvas by that many pixels on both sides first, which is how the world asks "is it near enough
+ * to be worth building" with the same arithmetic it asks "is it worth drawing".
+ */
+export function panelsShare(probe: ScrollProbe, scrollY: number, h: number, margin = 0): number {
+  const band = probe.panels;
+  if (!probe.live || !band || band.w <= 0 || band.h <= 0) return 0;
+  const y0 = band.y - canvasDocTop(scrollY, probe, h);
+  const inside = Math.min(h + margin, y0 + band.h) - Math.max(-margin, y0);
+  return clamp01(inside / band.h);
+}
+
+/**
+ * The `index`-th object of the benefits row: centred in its third of the row's window band and
+ * fitted into it — the band's height against the object's own half-height, the column's width
+ * against its half-width, whichever runs out first. A rigid follow: the windows are ordinary boxes
+ * in the page, and an object that drifted against one would show outside it.
+ *
+ * Null with no row measured, with a row that reserves no window, or with an index off the end.
+ */
+export function placePanels(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  index: number,
+  out: Placement = { x: 0, y: 0, scale: 1 },
+): Placement | null {
+  const band = probe.panels;
+  if (!probe.live || !band || band.w <= 0 || band.h <= 0) return null;
+  if (index < 0 || index >= PANEL_COLUMNS) return null;
+  const k = worldPerPx(h);
+  const column = band.w / PANEL_COLUMNS;
+  const cx = band.x + column * (index + 0.5);
+  const cy = band.y + band.h / 2 - canvasDocTop(scrollY, probe, h);
+  const byHeight = (band.h * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfHeight);
+  const byWidth = (column * PANEL_WINDOW_FILL) / (2 * PANEL_BOUND.halfWidth);
+  out.x = (cx - w / 2) * k;
+  out.y = -(cy - h / 2) * k;
+  out.scale = Math.min(byHeight, byWidth) * k;
+  return out;
+}
+
 /* ---- the steps corner (a service page's "Cum lucrăm") ----------------------------------- */
 
 /**

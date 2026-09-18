@@ -330,8 +330,18 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             markup has to say about that; every delay is derived from it in CSS, so the
             stacked layout can flatten the whole sequence with one rule.
             Everything added here is decoration: shapes, light and motion, no numbers about
-            the business. The four spans are `aria-hidden` and carry no copy. */}
-        <section className={styles.highlights} ref={highlightsRef}>
+            the business. Every span below is `aria-hidden` and carries no copy.
+
+            ONE anchor for the whole row, not one per panel: the scene fits thirds of this
+            rect (components/scene/choreography.ts), and three equal columns with one gap
+            make those thirds predictable. It is only written from 861px up — the same gate
+            as the steps corner and as the windows below — because under it the row stacks
+            into one column and "thirds of the row" would mean nothing. */}
+        <section
+          className={styles.highlights}
+          ref={highlightsRef}
+          data-scene-anchor={desktop ? "panels" : undefined}
+        >
           {sol.items.map((it, i) => (
             <article
               key={i}
@@ -340,22 +350,36 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               data-tilt={tilt.enabled ? "on" : "off"}
               {...tilt.handlers}
             >
-              {/* The circuit the pulse travels, and the node it ends in. Both pulses live on
-                  this span's two pseudo-elements — the entrance on one, the hover replay on
-                  the other — so a replay can never restart the entrance. */}
-              <span aria-hidden="true" className={styles.hlCircuit} />
-              <span aria-hidden="true" className={styles.hlNode} />
-              <span aria-hidden="true" className={styles.hlCorner} data-corner="tl" />
-              <span aria-hidden="true" className={styles.hlCorner} data-corner="br" />
-              {/* The ghost index, in the panel's own reserved bottom strip: it is padding, so
-                  no line of copy can reach it and the text keeps exactly the background it
-                  was measured against. */}
-              <span aria-hidden="true" className={`mono ${styles.hlIndex}`}>
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <b className="mono">{l(solUI.benefit)}</b>
-              <h2>{l(it.title)}</h2>
-              <p>{l(it.desc)}</p>
+              {/* The painted part of the panel. `--panel`, the padding and the copy all live
+                  HERE rather than on the article, so the instrument window below has nothing
+                  opaque between it and the scene's canvas — the same move the steps card
+                  made for its corner host. The article keeps the border, the radius and the
+                  entrance glow, so the panel is still one framed object. */}
+              <div className={styles.hlBody}>
+                {/* The circuit the pulse travels, and the node it ends in. Both pulses live on
+                    this span's two pseudo-elements — the entrance on one, the hover replay on
+                    the other — so a replay can never restart the entrance. */}
+                <span aria-hidden="true" className={styles.hlCircuit} />
+                <span aria-hidden="true" className={styles.hlNode} />
+                <span aria-hidden="true" className={styles.hlCorner} data-corner="tl" />
+                <span aria-hidden="true" className={styles.hlCorner} data-corner="br" />
+                {/* The ghost index. It used to fill the reserved bottom strip; that strip is
+                    the window now, so it moved up to the panel's own top-right corner —
+                    opposite the label, above the first line of the title, over the panel's
+                    own background and never behind a word of copy. */}
+                <span aria-hidden="true" className={`mono ${styles.hlIndex}`}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <b className="mono">{l(solUI.benefit)}</b>
+                <h2>{l(it.title)}</h2>
+                <p>{l(it.desc)}</p>
+              </div>
+              {/* The instrument window: the panel's bottom bay, see-through down to the
+                  canvas, with its own chrome (a rule across its head, two guide rails and two
+                  corner brackets, all in the panel's accent). Its own box, so on `fallback` /
+                  `off` — and below 861px — it is simply not laid out and the panel closes up
+                  into the plain card it has always been. */}
+              <div aria-hidden="true" className={styles.hlWindow} />
             </article>
           ))}
         </section>
