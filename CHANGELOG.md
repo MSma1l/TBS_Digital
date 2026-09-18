@@ -16,6 +16,70 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-18 — Changed: spirala ADN — imaginile apar odată cu ADN-ul, cardurile nu mai stau una peste alta
+
+Clientul s-a uitat la runda 1 și a spus: ADN-ul arată bine, dar „imaginile pur și simplu stau", iar
+cardurile „parcă stau una peste alta". Amândouă erau adevărate.
+
+**Imaginile.** Cutia cardului se anima (se desfăcea pe elice, se rotea), dar screenshot-ul din
+interior era un `<img>` obișnuit, la intensitate maximă din primul cadru. Acum:
+- imaginea **se construiește de jos în sus** (`clip-path`, nu o estompare), în 420ms — exact cât îi
+  ia cutiei cardului să se așeze pe elice, deci cad pe același ritm;
+- în spatele ei urcă o folie de linii de scanare în culoarea cardului, cu o muchie luminoasă care
+  călărește linia de dezvăluire;
+- când un proiect ajunge în față, o bară îl traversează în aceeași culoare, 520ms — cât să acopere
+  și pulsul firelor, și glitch-ul hologramei pe aceeași schimbare: **un eveniment, trei locuri**.
+
+Cascada de intrare a fost lărgită de la ~300ms la **~530ms**, pentru că prima variantă era practic
+invizibilă: laboratorul prindea trecerea de la 2 la 9 carduri aprinse într-un singur eșantion de
+90ms. Acum un cadru real prinde primele cinci carduri la 99 / 75 / 52 / 24 / 0 % din propria
+dezvăluire.
+
+Sunt animații CSS pornite de **două atribute pe care driverul le scrie o singură dată**
+(`data-helix-lit`, `data-helix-front`) — același tipar ca `data-entry` de la Servicii. Alternativa,
+o proprietate scrisă per card per cadru, ar fi invalidat stilul a nouă subarbori la fiecare cadru.
+Costul pe cadru al funcției noi este **zero**, și niciun desen WebGL în plus.
+
+Stratul de scanare stă **pe imagine și sub spălăturile cardului**, deci cerneala care ține textul îl
+atenuează exact cum atenuează și poza: nicio culoare de accent nu poate scoate un rând de text sub
+pragul lui măsurat.
+
+**Spațiile.** Pasul vertical pe fir a crescut de la 0,18 la 0,29 din înălțimea zonei, orbita s-a
+lărgit, cardul s-a îngustat, iar cardurile se sting mai devreme:
+
+| | Înainte | Acum |
+| --- | --- | --- |
+| distanța între vecini (1280×800) | 131 / 131 px | **147 / 211 px** |
+| lățimea cardului din față | 324 px | 288 px |
+| carduri vizibile simultan | 7 | **5** |
+| înălțimea paginii | 3843 px | **3843 px — neschimbată** |
+
+Un efect secundar bun: un card dispare **exact înainte** să treacă în spatele elicei, așa că ADN-ul
+se vede **printre** carduri, nu în spatele lor — exact problema pe care o semnalasem la runda 1.
+
+### Verificare
+
+| Ce | Rezultat |
+| --- | --- |
+| Unit | 1.535 teste / 72 fișiere; build + `tsc` + lint curate |
+| E2E | `interior-webgl` 24 + `interior` 22 = 46 |
+| Contrast card-front | 100% din pixeli, pe 48 de combinații (nume 4,46 · etichete 6,35 · descriere 6,16) |
+| Titlul „Lucrări" | 0 pixeli schimbați de scenă |
+| Desene/cadru | 5 în spirală, 0 la final — identic cu runda 1 |
+| Greutate | CSS +291 B, chunk three +96 B, HTML +13/17 B, JS târziu 0 |
+
+Testele cu tabele de layout fixate au fost re-fixate pe distanțele noi (lățimea cardului, pozițiile
+la focus 1, pragul de stingere citit acum din constantă, nu dintr-un literal, ca să nu se mai poată
+desincroniza). Niciun test nu a fost slăbit.
+
+**Rămâne de îmbunătățit:** stratul de scanare se randează pe fiecare card și acolo unde nu se poate
+anima niciodată (banda de telefon, grila simplă) — inert, dar greutate moartă; la 1024×768 cardul
+încă se lovește 11px de banda șinei pe o parte a orbitei; WebKit rămâne neverificat.
+
+Fișiere: `app/tailwind.css`, `components/sections/Work.tsx`, `components/scene/helix.ts`,
+`components/scene/workHelix.ts` și testele `scene-helix`, `scene-helix-model`.
+Documentație: [docs/05](./docs/05-page-sections.md) · [docs/04](./docs/04-design-system.md).
+
 ## 2026-09-18 — Changed: spirala ADN — intrare animată, circulație 3D reală și un final care se încheie
 
 Clientul s-a uitat la spirala din „Proiectele care ne reprezintă” și a spus că e prea simplă, că

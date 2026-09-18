@@ -37,6 +37,7 @@ import { scrollProgress, type ScrollProbe, type ScrollSpan } from "@/lib/scene";
 import {
   HELIX_FRONT_ATTR,
   HELIX_LAYOUT,
+  HELIX_LIT_ATTR,
   HELIX_MIN_CARDS,
   WORK_HELIX_MEDIA,
   createCardPose,
@@ -251,6 +252,8 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   let zIndexes: number[] = [];
   let opacities: number[] = [];
   let clickable: boolean[] = [];
+  /** Which cards carry `HELIX_LIT_ATTR`: their arrival has begun (Work's CSS runs it). */
+  let lit: boolean[] = [];
   let focused = -1;
   let focusDirty = true;
   /** A card's content box changed (a locale switch, a hover revealing its description): centre them again. */
@@ -282,6 +285,23 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     cards[i]?.setAttribute(HELIX_FRONT_ATTR, "");
   }
 
+  /**
+   * `HELIX_LIT_ATTR` on card `i`, once. Work's CSS hangs the screenshot's reveal off it, so the
+   * driver never writes a frame of that animation — only the moment it starts, which is the
+   * moment the card's own arrival starts (`helixForm`), staggered card by card along the strand.
+   */
+  function setLit(i: number, on: boolean): void {
+    if (lit[i] === on) return;
+    lit[i] = on;
+    if (on) cards[i]?.setAttribute(HELIX_LIT_ATTR, "");
+    else cards[i]?.removeAttribute(HELIX_LIT_ATTR);
+  }
+
+  function clearLit(): void {
+    for (let i = 0; i < lit.length; i += 1) if (lit[i]) cards[i]?.removeAttribute(HELIX_LIT_ATTR);
+    lit = [];
+  }
+
   function layerHeight(): number {
     return probe.layerH > 0 ? probe.layerH : Math.max(0, window.innerHeight - probe.headerH);
   }
@@ -311,6 +331,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     zIndexes = cards.map(() => Number.NaN);
     opacities = cards.map(() => Number.NaN);
     clickable = cards.map(() => false);
+    lit = cards.map(() => false);
     lastFocus = Number.NaN;
     lastEnter = Number.NaN;
     focusDirty = true;
@@ -421,6 +442,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
         style.opacity = String(opacity);
       }
       // Faded out is not there: a card folding into the helix must not take the click either.
+      setLit(i, phase.form > 0);
       const click = pose.face === "front" && opacity >= CLICK_MIN_OPACITY;
       if (click !== clickable[i]) {
         clickable[i] = click;
@@ -454,6 +476,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   }
 
   function restoreAll(): void {
+    clearLit();
     resizing?.disconnect();
     resizing = null;
     topsDirty = false;
@@ -506,6 +529,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   /** Tear the current mode down; `next` replaces the card list between the restore and the scroll fix. */
   function leave(compensate: boolean, next?: HTMLElement[]): void {
     setFront(-1);
+    clearLit();
     if (mode === "ambient") detachAmbient();
     const anchor = trackSaved && compensate ? anchorBefore() : null;
     if (trackSaved) restoreAll();

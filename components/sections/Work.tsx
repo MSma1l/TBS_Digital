@@ -66,7 +66,7 @@ function tagChips(tag: string): string[] {
 /* ---------- The HUD card ----------
    The card root (`a` or `article`) carries the gradient (`--p1/--p2`, inline), the lift, the
    neon edge and the pointer tilt. Everything decorative is an aria-hidden layer under the
-   copy, in this paint order: screenshot → wash → glass edge and corner brackets → copy.
+   copy, in this paint order: screenshot → scan → wash → glass edge and corner brackets → copy.
 
    - Neon edge: on hover and keyboard focus the border, an inner ring and a soft glow all
      take the card's own accent (--p2).
@@ -94,8 +94,22 @@ const CARD_CLASSES =
    the wrapper a stacking context, and an <img> blending inside it would only see the
    wrapper's empty backdrop instead of the card gradient. */
 const MEDIA_CLASSES = "parallax-media pointer-events-none absolute inset-0 mix-blend-luminosity";
+/* `work-media-reveal` (app/tailwind.css) is inert everywhere but inside the scene's spiral: there
+   the screenshot is wiped in from the bottom edge as its card lands on the helix, instead of
+   simply being there at full strength from the first frame. */
 const IMAGE_CLASSES =
-  "block size-full object-cover object-top opacity-56 transition-[scale,opacity] duration-400 ease-(--motion-ease-out) group-hover/card:scale-108 group-hover/card:opacity-78 motion-reduce:transition-none";
+  "work-media-reveal block size-full object-cover object-top opacity-56 transition-[scale,opacity] duration-400 ease-(--motion-ease-out) group-hover/card:scale-108 group-hover/card:opacity-78 motion-reduce:transition-none";
+
+/* The scan layer: a sheet of hairlines with a bright leading edge that rides the screenshot's
+   wipe as the card arrives (`::before`), and a single bar that crosses the card when it reaches
+   the front of the spiral — the same moment the helix flares and the hologram swaps to it
+   (`::after`). Both are in the card's own accent, both are transform + opacity, both are only
+   ever armed by the driver's attributes inside the spiral.
+   It sits directly on the screenshot, UNDER both washes: over the picture it reads at full
+   strength, and under the copy the same 82–94% ink that gives the text its contrast floor
+   attenuates it exactly as it attenuates the screenshot. So no pass can ever take a line of
+   copy below its measured floor, whatever a card's accent is. Never in the pointer's way. */
+const SCAN_CLASSES = "work-scan";
 
 /* Dark wash under the copy, as two layers that cross-fade.
    The light one is the resting desktop wash: the screenshot shows through most of the card.
@@ -254,6 +268,7 @@ export function Work() {
                     />
                   </div>
                 ) : null}
+                <span aria-hidden="true" className={SCAN_CLASSES} />
                 <div aria-hidden="true" className={WASH_REST_CLASSES} />
                 <div aria-hidden="true" className={WASH_READ_CLASSES} />
                 <div aria-hidden="true" className={GLASS_CLASSES}>

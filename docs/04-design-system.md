@@ -373,9 +373,17 @@ hidden, forced WebGL, **12 frames**, every pixel under a text line box.
   header whenever the helix is formed.
 - **Spiral (from 768px): the canvas changes no pixel of Work's heading** at 1280×800 and 1024×768,
   and the front card's name and chips stay 100% at every focus measured at 1280, 1024 and 768 (the
-  name ≥ 4.19:1 mid-turn, large text; the chips ≥ 7.83:1; the description ≥ 6.16:1 — re-measured
-  over 48 combinations after the cards were given their 3D pose). Only a side card fading out lets
-  a little of the helix through.
+  name ≥ 4.46:1 mid-turn, large text; the chips ≥ 6.35:1; the description ≥ 6.16:1 — re-measured
+  over 48 combinations after the cards were given their 3D pose, and again after the spacing and
+  the screenshot's arrival animation). Only a side card fading out lets a little of the helix
+  through.
+- **The screenshot's arrival** (`work-media-reveal`, `work-scan` in `app/tailwind.css`) is a
+  `clip-path` wipe plus a sheet of scan lines in the card's accent, and a bar crossing the card
+  when it reaches the front. The scan layer is painted **on the screenshot and under the card's
+  washes**, so the 82–94% ink that carries the copy attenuates it exactly as it attenuates the
+  picture: no accent, not even FLIRT's `#ff2d78`, can lift a line of copy off its measured floor.
+  Both are armed only inside `[data-scene-stage][data-helix="spiral"]` and only under
+  `prefers-reduced-motion: no-preference`.
 - **The card's 3D pose** (the same measurement): a card is turned by 0.62 of its own angle round
   the strand, leans up to 0.055rad along the strand's rise and is pushed **away** from the camera
   by up to 260px — never towards it, so its projected box only ever shrinks and the layout clamp

@@ -458,17 +458,33 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   The card at the front is the largest and sits over the canvas; the cards behind the
   helix are smaller, fainter and pass **under** it — real depth, not a fade. Only a card facing
   the visitor takes a click or a tap; one behind the helix never does, and neither does a card
-  faded under 8% opacity. The section grows by that
+  faded under 8% opacity. **The cards are spaced far enough apart not to pile up:** neighbours
+  are 147px apart across and 211px down at 1280×800 (was 131/131), the card at the front is
+  288px wide (was 324), and a card fades out at 2.25 steps from the front — just before its own
+  turn would take it behind the helix, so the strands show **between** the cards rather than
+  behind them and five cards, not seven, are visible at once. The section grows by that
   scroll (one sticky screen plus one step per card, plus the finish below); nothing sideways, and
   no card slips under the Phase 5 rail's lane (44px from 861px). A card in the spiral is **as tall as its content**
   (at least the spiral's even height): a long description — always shown on a touch tablet,
   revealed on hover on a desktop — is never cut off.
 - **The entrance is timed, not scrubbed.** The cards do not simply appear on the helix. They
   arrive on the Work gate that already brings the services swarm over and forms the helix (1.2s,
-  `fx.ts`), staggered card by card along the strand — a card starts folded onto the strand's
-  axis, small and turned away, and unfolds onto its slot. The gate runs on its own clock, so it
-  always finishes and can never rest half-formed, however the visitor scrolls. Without the scene
-  (reduced motion, fallback) there is no entrance: the cards are simply in the grid.
+  `fx.ts`), staggered card by card along the strand over about 530ms — a card starts folded onto
+  the strand's axis, small and turned away, and unfolds onto its slot. The gate runs on its own
+  clock, so it always finishes and can never rest half-formed, however the visitor scrolls.
+  Without the scene (reduced motion, fallback) there is no entrance: the cards are simply in the
+  grid.
+- **The screenshot arrives with its card.** The project picture is not simply present: it is
+  built up from its bottom edge with a `clip-path` wipe (420ms — the same beat as its card
+  landing on the helix), behind a sheet of scan lines in the card's own accent whose bright
+  leading edge rides the wipe. When a project reaches the front, one bar crosses it in the same
+  accent (520ms), covering both the strand flare and the hologram's glitch on that same swap, so
+  the three read as one event. All of it is CSS keyframes armed by two attributes the driver
+  writes **once** per card (`data-helix-lit`, `data-helix-front`) — the same pattern as the
+  services' `data-entry`, so it costs no per-frame work and no extra WebGL draw. The scan sheet
+  is painted on the screenshot and **under** the card's washes, so it is attenuated exactly as
+  the picture is wherever copy sits over it. Under reduced motion, on the phone band and on the
+  static art the picture is simply there, as before.
 - **The finish.** The run used to end on a freeze: the front card reached the last project about
   234px (346px on a tablet) before its sticky slot released it, so every card held one identical
   pose while the helix — clamped differently — slid out of the top of the screen without them.

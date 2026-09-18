@@ -41,6 +41,15 @@ export const WORK_HELIX_MEDIA = "(min-width: 768px) and (min-height: 600px)";
 /** On the card the front of the spiral (or, without one, the card nearest the middle). */
 export const HELIX_FRONT_ATTR = "data-helix-front";
 
+/**
+ * On a card from the moment its own arrival starts (`helixForm` above 0) until it is unformed
+ * again — the spiral only. Work's CSS hangs the card's screenshot reveal off it (app/tailwind.css
+ * `work-media-reveal` / `work-scan`), so the image materialises with the card instead of simply
+ * being there; `HELIX_FRONT_ATTR` drives the pass it makes when the card reaches the front. Both
+ * are CSS animations on their own clock: the driver writes an attribute once, never a frame.
+ */
+export const HELIX_LIT_ATTR = "data-helix-lit";
+
 /** Below this many cards there is nothing to turn: the grid (or band) stays, the helix is ambient. */
 export const HELIX_MIN_CARDS = 3;
 
@@ -48,13 +57,24 @@ export const HELIX_LAYOUT = {
   /** The strand's axis, as a fraction of the zone's width from its left edge. */
   cx: 0.34,
   /** Orbit radius: min(fraction · w, px). */
-  orbit: [0.17, 230],
+  orbit: [0.19, 240],
   /** Card width: clamp(px, fraction · w, px). */
-  cardW: [240, 0.27, 340],
+  cardW: [240, 0.24, 320],
   /** Card height: min(fraction · sceneH, px) — Work's own `min-h-61` may still make it taller. */
   cardH: [0.36, 260],
-  /** Vertical rise per card, as a fraction of `sceneH`. */
-  pitch: 0.18,
+  /**
+   * Vertical rise per card, as a fraction of `sceneH`. With the narrower card and the wider
+   * orbit above, one step of this is about a card's own height at the focus, so neighbours sit
+   * beside each other on the strand instead of stacking. As high as `fade` below allows: a
+   * visible card must stay inside ±(sceneH + cardH)/2 of the zone's centre.
+   */
+  pitch: 0.29,
+  /**
+   * Where a card fades out, in steps from the focus. Tighter than the orbit is long on purpose:
+   * five cards on the strand at a time, not seven, so each one is its own object and the helix
+   * shows between them.
+   */
+  fade: [1.35, 2.25],
   /** Scroll per card: clamp(px, fraction · innerHeight, px). */
   step: [240, 0.38, 380],
   /** Around the strand per card (shapes.ts, shared with the helix model). */
@@ -102,11 +122,14 @@ export const HELIX_OUTRO = {
  * the focus starts forming at `from` and takes `ramp`; a card `span` steps further along the
  * strand starts `lag` later. `from + lag + ramp` is exactly 1, so every card has the same arrival
  * and the last of them lands precisely as the gate closes — no card can be left half-formed.
+ * `lag` is the larger share on purpose: it is what the eye reads as a cascade down the strand
+ * (0.44 × 1.2s ≈ 530ms between the first card and the last), and Work's CSS runs each card's
+ * screenshot on the same beat (`HELIX_LIT_ATTR`).
  * Meanwhile the swarm is flying over from the service model and the helix is dissolving in
  * (`smoothstep(0.7, 1)` of the same gate, choreography.ts `composeScene`): strands first, then the
  * deck onto them.
  */
-export const HELIX_ENTER = { from: 0.4, lag: 0.25, ramp: 0.35, span: 3 } as const;
+export const HELIX_ENTER = { from: 0.28, lag: 0.44, ramp: 0.28, span: 5 } as const;
 
 /** Where the card's box may not go, px from either side of the zone. */
 export function helixEdge(w: number): number {
@@ -237,7 +260,8 @@ export function helixLayout(
   out.z = Math.cos(theta);
   out.scale = 0.62 + 0.38 * ((out.z + 1) / 2) ** 1.5 + 0.12 * Math.exp(-(d * d) / 0.18);
   out.y = d * HELIX_LAYOUT.pitch * sceneH;
-  out.opacity = (1 - smoothstep(1.6, 2.6, Math.abs(d))) * (0.55 + (0.45 * (out.z + 1)) / 2);
+  out.opacity =
+    (1 - smoothstep(HELIX_LAYOUT.fade[0], HELIX_LAYOUT.fade[1], Math.abs(d))) * (0.55 + (0.45 * (out.z + 1)) / 2);
   // The card rides the cylinder: it faces outwards along its own angle (damped, so a card two
   // steps out is still a card and not a sliver), leans along the strand's rise, and the far half
   // of the orbit sits further from the camera.

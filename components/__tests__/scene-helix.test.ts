@@ -11,6 +11,7 @@ import { Work } from "@/components/sections/Work";
 import {
   HELIX_ENTER,
   HELIX_FRONT_ATTR,
+  HELIX_LIT_ATTR,
   HELIX_LAYOUT,
   HELIX_OUTRO,
   WORK_HELIX_MEDIA,
@@ -71,9 +72,9 @@ describe("helix layout — constants and clamps", () => {
     expect(HELIX_ANGLE).toBeCloseTo((2 * Math.PI) / 9, 12);
   });
 
-  it("card width clamp(240, .27·w, 340); height min(.36·sceneH, 260); step clamp(240, .38·vh, 380)", () => {
-    expect([700, 888, 1000, 1260, 1280, 1920].map(helixCardWidth)).toEqual([240, 240, 270, 340, 340, 340]);
-    expect(helixCardWidth(1100)).toBeCloseTo(297, 9);
+  it("card width clamp(240, .24·w, 320); height min(.36·sceneH, 260); step clamp(240, .38·vh, 380)", () => {
+    expect([700, 888, 1000, 1260, 1280, 1920].map(helixCardWidth)).toEqual([240, 240, 240, 302.4, 307.2, 320]);
+    expect(helixCardWidth(1100)).toBeCloseTo(264, 9);
     expect([529, 697, 729, 953].map((h) => r2(helixCardHeight(h)))).toEqual([190.44, 250.92, 260, 260]);
     expect([500, 631, 800, 1000, 1200].map((h) => r2(helixStep(h)))).toEqual([240, 240, 304, 380, 380]);
   });
@@ -87,18 +88,18 @@ describe("helixLayout — the spiral", () => {
   it("pins a table: w 1280 × 729 and a tablet's 706 × 953, focus 1", () => {
     const row = (p: CardPose) => [r2(p.x), r2(p.y), r2(p.scale), r2(p.opacity), r2(p.z), p.zIndex, p.face];
     expect(poses(5, 1, 1280, 729).map(row)).toEqual([
-      [-344.67, -131.22, 0.94, 0.95, 0.77, 9, "front"],
+      [-359.07, -211.41, 0.94, 0.95, 0.77, 9, "front"],
       [-204.8, 0, 1.12, 1, 1, 11, "front"],
-      [-64.93, 131.22, 0.94, 0.95, 0.77, 9, "front"],
-      [9.49, 262.44, 0.79, 0.53, 0.17, 3, "front"],
-      [-16.35, 393.66, 0.67, 0, -0.5, -5, "back"],
+      [-50.53, 211.41, 0.94, 0.95, 0.77, 9, "front"],
+      [31.55, 422.82, 0.79, 0.15, 0.17, 3, "front"],
+      [3.05, 634.23, 0.67, 0, -0.5, -5, "back"],
     ]);
     expect(poses(5, 1, 706, 953).map(row)).toEqual([
-      [-190.11, -171.54, 0.94, 0.95, 0.77, 9, "front"],
+      [-199.18, -276.37, 0.94, 0.95, 0.77, 9, "front"],
       [-112.96, 0, 1.12, 1, 1, 11, "front"],
-      [-35.81, 171.54, 0.94, 0.95, 0.77, 9, "front"],
-      [5.24, 343.08, 0.79, 0.53, 0.17, 3, "front"],
-      [-9.02, 514.62, 0.67, 0, -0.5, -5, "back"],
+      [-26.74, 276.37, 0.94, 0.95, 0.77, 9, "front"],
+      [19.14, 552.74, 0.79, 0.15, 0.17, 3, "front"],
+      [3.21, 829.11, 0.67, 0, -0.5, -5, "back"],
     ]);
   });
 
@@ -145,13 +146,13 @@ describe("helixLayout — the spiral", () => {
     }
   });
 
-  it("a visible card never leaves ±(sceneH/2 + cardH/2); a card 2.6 steps away is gone", () => {
+  it("a visible card never leaves ±(sceneH/2 + cardH/2); a card `fade` steps away is gone", () => {
     for (const sceneH of SCENE_HEIGHTS) {
       const bound = sceneH / 2 + helixCardHeight(sceneH) / 2;
       for (let focus = 0; focus <= 8; focus += 0.05) {
         for (const [i, p] of poses(9, focus, 1280, sceneH).entries()) {
           if (p.opacity > 0.05) expect(Math.abs(p.y), `h ${sceneH} focus ${focus} card ${i}`).toBeLessThanOrEqual(bound);
-          if (Math.abs(i - focus) >= 2.6) expect(p.opacity).toBe(0);
+          if (Math.abs(i - focus) >= HELIX_LAYOUT.fade[1]) expect(p.opacity).toBe(0);
         }
       }
     }
@@ -575,7 +576,7 @@ describe("workHelix — when the spiral applies", () => {
       expect(card.style.getPropertyValue("grid-column-end")).toBe("auto");
       expect(card.style.getPropertyValue("justify-self")).toBe("center");
       expect(card.style.getPropertyValue("transition-property")).toBe("translate, box-shadow, border-color");
-      expect(card.style.width).toBe("324px");
+      expect(card.style.width).toBe("288px");
       // A floor, never a height: a card grows to fit its content (see "a card is never capped below its content").
       expect(card.style.getPropertyValue("min-height")).toBe("260px");
       expect(card.style.height).toBe("");
@@ -779,6 +780,36 @@ describe("workHelix — the spiral per frame", () => {
     driver.write({ focus: 2.41, built: true });
     expect(cards[2].style.transform).toMatch(/^perspective\(1200px\) translate3d\(/);
     driver.dispose();
+  });
+
+  it("marks each card `lit` the moment its own arrival starts, staggered, and unmarks it going back", () => {
+    const { driver, cards } = spiral(9);
+    const litOnes = () => cards.map((c) => c.hasAttribute(HELIX_LIT_ATTR));
+    // The Work gate shut: nothing has begun, so no card carries the attribute.
+    driver.write({ focus: 0, built: true, enter: 0 });
+    expect(litOnes()).toEqual(cards.map(() => false));
+    // Part way through the gate: the cards nearest the focus have started, the far ones have not.
+    driver.write({ focus: 0, built: true, enter: HELIX_ENTER.from + 0.05 });
+    const part = litOnes();
+    expect(part[0]).toBe(true);
+    expect(part[8]).toBe(false);
+    expect(part.filter(Boolean).length).toBeLessThan(9);
+    // Each card's own start, in order down the strand.
+    for (let i = 1; i < 9; i += 1) {
+      const mine = cards.findIndex((_, n) => n === i && helixForm(HELIX_ENTER.from + 0.05, n, 0) > 0);
+      expect(part[i], `card ${i}`).toBe(mine === i);
+    }
+    // Gate closed: every card has arrived.
+    driver.write({ focus: 0, built: true, enter: 1 });
+    expect(litOnes()).toEqual(cards.map(() => true));
+    // And back down again — the arrival can replay.
+    driver.write({ focus: 0, built: true, enter: 0 });
+    expect(litOnes()).toEqual(cards.map(() => false));
+    // Leaving the spiral takes both markers off, whatever they were.
+    driver.write({ focus: 0, built: true, enter: 1 });
+    driver.dispose();
+    expect(cards.some((c) => c.hasAttribute(HELIX_LIT_ATTR))).toBe(false);
+    expect(cards.some((c) => c.hasAttribute(HELIX_FRONT_ATTR))).toBe(false);
   });
 
   it("a card holding focus is fully opaque", () => {

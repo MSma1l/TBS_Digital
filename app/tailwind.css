@@ -395,6 +395,125 @@
   }
 }
 
+/* ---- Work's spiral: the screenshots arrive with the helix --------------------------------
+   Inside the scene's spiral (components/scene/workHelix.ts) the driver marks a card
+   `data-helix-lit` the moment its own arrival starts — staggered card by card along the strand
+   by `helixForm` — and `data-helix-front` when it reaches the front of the spiral. Everything
+   below hangs off those two attributes, so the driver writes an attribute once and never a
+   frame of animation: the browser runs both on its own clock.
+
+   Nowhere else does any of it apply. Without the scene (the fallback, `data-helix` absent, a
+   phone's band) the screenshot is simply there, as it has always been, and reduced motion drops
+   every animation twice over — the media query here and globals.css's blanket
+   `* { animation: none !important }`.
+
+   `work-media-reveal` is the wipe itself, on the <img>: `clip-path` rather than opacity, so the
+   picture is built up edge by edge instead of ghosting in. It is the one rule in this file that
+   is not transform/opacity — it repaints one composited image for 420ms, once per card per
+   entrance, and nothing else on the page is animating clip-path.
+   Its 420ms is `HELIX_ENTER.ramp` (0.35) of the Work gate's 1.2s (fx.ts WORK_SECONDS.form): the
+   card's box and its picture land together. */
+@utility work-media-reveal {
+  @media (prefers-reduced-motion: no-preference) {
+    [data-scene-stage][data-helix="spiral"] [data-helix-lit] & {
+      animation: hud-work-media-in 420ms var(--motion-ease-out) both;
+    }
+  }
+}
+@keyframes hud-work-media-in {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The scan layer, one span per card, above the washes and the glass and below the copy.
+   ::before is the arriving sheet — hairlines in the card's accent behind a bright leading edge —
+   which rises exactly as the wipe above does and then fades off the top.
+   ::after is the pass a card makes when it comes to the front: one bar, 520ms, so it is still
+   running while the helix flares (HELIX_PULSE_SECONDS 0.55) and the hologram glitches over to
+   this card (HELIX_GLITCH_SECONDS 0.35) — one event, three places.
+   Strength is the keyframes' opacity, never a colour mix, so no engine can put an opaque band
+   anywhere: the sheet peaks at .55 and the bar at .7. Both sit on the screenshot, under the
+   card's two washes, so the 82–94% ink that carries the copy's contrast floor dims them under
+   the text exactly as it dims the picture — the floor is the wash's, as it has always been. */
+@utility work-scan {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  border-radius: inherit;
+  pointer-events: none;
+
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    opacity: 0;
+  }
+  /* The sheet: 4px hairlines, with its own 2px leading edge along the top. */
+  &::before {
+    top: 0;
+    height: 100%;
+    background-image:
+      linear-gradient(to bottom, color-mix(in srgb, var(--p2) 85%, var(--on-accent)) 0 2px, transparent 2px),
+      repeating-linear-gradient(to bottom, color-mix(in srgb, var(--p2) 45%, transparent) 0 1px, transparent 1px 4px);
+  }
+  /* The bar: a soft head with a hard bright edge, a seventh of the card tall. */
+  &::after {
+    top: 0;
+    height: 14%;
+    background-image: linear-gradient(
+      to top,
+      transparent,
+      color-mix(in srgb, var(--p2) 70%, transparent) 62%,
+      color-mix(in srgb, var(--p2) 80%, var(--on-accent)) 100%
+    );
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    [data-scene-stage][data-helix="spiral"] [data-helix-lit] &::before {
+      animation: hud-work-scan-in 420ms var(--motion-ease-out) both;
+    }
+    [data-scene-stage][data-helix="spiral"] [data-helix-front] &::after {
+      animation: hud-work-scan-pass 520ms var(--motion-ease-out) both;
+    }
+  }
+}
+@keyframes hud-work-scan-in {
+  from {
+    opacity: 0.55;
+    transform: translateY(100%);
+  }
+  62% {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+@keyframes hud-work-scan-pass {
+  from {
+    opacity: 0;
+    transform: translateY(720%);
+  }
+  14% {
+    opacity: 0.7;
+  }
+  78% {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-120%);
+  }
+}
+
 /* ---- animations -------------------------------------------------------------------------
    Every one is transform- or opacity-only, so the compositor runs it, and the reduced-motion
    switch in globals.css (`* { animation: none !important }`) stops all of them. Keyframe
