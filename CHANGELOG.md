@@ -16,6 +16,52 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Fixed & Changed: ecranul laptopului în culoare, fără conturul albastru, și zona de apăsare corectată
+
+Clientul: capturile de pe ecran să fie colorate și mai recognoscibile, și să dispară liniile
+albastre.
+
+**Conturul albastru** era linia pe care zona de apăsare o desena la hover. A fost scoasă; inelul de
+focus pentru tastatură rămâne, fiind o afordanță necesară. Semnalul pentru mouse e acum cursorul plus
+apelul pe care ecranul îl desenează el însuși („VEZI PROIECTUL ›"). O stare de hover în scenă ar fi
+cerut o uniformă nouă, interzisă de buget.
+
+**Al doilea defect, pe care clientul l-a văzut fără să-l numească.** Dreptunghiul din captura lui era
+și mai lat decât ecranul, și decalat — pentru că **zona de apăsare era calculată pentru o singură
+poziție** a displayului, iar displayul se mișcă permanent (capacul respiră, mașina se leagănă).
+Proiectând cele patru colțuri prin tot lanțul modelului pe o rotație completă, dreptunghiul real
+mătură **2,36 × 1,59 unități** în jurul unui centru deplasat. Consecința măsurată la 1280: **29px din
+marginea dreaptă și 31px din josul imaginii erau în afara țintei** — apăsai colțul de jos-dreapta al
+ecranului și nu se întâmpla nimic. Ținta acoperă acum **anvelopa** pe care ecranul o mătură, nu o
+instanță din ea (404×261 → 456×336).
+
+**Culoarea.** Banda desena captura ca luminanță — o fantomă a produsului. Acum se desenează în culoare
+**la aceeași dimensiune**, cu pieptenele de scanlines slăbit de la 0,55 la 0,24 pentru banda color,
+ca liniile să stea **peste** o imagine, nu în locul ei. Holograma din spirala ADN păstrează varianta
+monocromă: shaderul a fost scris astfel încât un pixel gri să dea exact rezultatul de dinainte —
+verificat vizual pe pagina principală, elicea e neschimbată.
+
+**Verificat că nu a devenit nimic lizibil:** adresa de e-mail din `statistic-1.png` ocupă **0,85
+celule per caracter**, adică ≈1,86 px pe ecran. Mărită de 3× și de 6×: pată, fără structură de literă.
+**Culoarea schimbă ce e într-un pixel, niciodată câți pixeli sunt.** Singurul text din captură lizibil
+oriunde în ruletă e titlul de 80px al Bizcheck — exact ca înainte.
+
+Contrast pe cadrul randat, toate cele cinci proiecte: bara de titlu **6,8–9,8:1**, apelul din subsol
+**7,2–8,6:1**. Spălătura barei a rămas la 0,72: compoziția pe luminanță nu schimba niciodată
+luminozitatea unui pixel, doar nuanța, deci banda color e la fel de luminoasă sub bară ca cea gri.
+(A fost ridicată la 0,82 pe o presupunere, măsurată, și revenită.)
+
+Neschimbate: **+2 desene**, nicio ramură de material nouă, nicio uniformă nouă, plafonul 384×240,
+`[data-scene-layer]`, secvența de boot și ruleta, și tot ce ține de sub 861px / fără 3D / mișcare
+redusă. Containment re-măsurat pe o rotație completă: înăuntru cu cel puțin 60px pe toate laturile.
+
+**De știut pentru viitor:** un accent grav într-un comentariu din shader termină șirul GLSL și strică
+build-ul cu o eroare care arată complet nelegată („Expected a semicolon"). Comentariile din shadere
+rămân fără accente grave.
+
+Fișiere: `components/scene/three/hologram.ts`, `components/scene/three/materials.ts`,
+`components/scene/choreography.ts`, `components/sections/DirectionPage.module.css`, testul scenei.
+
 ## 2026-09-19 — Fixed: intro-ul se juca înainte ca vizitatorul să ajungă la laptop
 
 Clientul: „ii prea rapid, eu până ajung, laptopul deja ii strâns". Avea dreptate, și cauza era o

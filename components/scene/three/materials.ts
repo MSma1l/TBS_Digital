@@ -211,15 +211,29 @@ void main() {
     color = mix(uColorA * hue, uHot, edge * 0.45 * hotness * smoothstep(1.2, 2.6, lum));
     strength = (0.035 + edge * 0.9 + fres * 0.05) * uIntensity;
   } else {
-    // the Work hologram (models/helix.ts): the front card as a Canvas2D texture (hologram.ts:
-    // r = luminance, a = coverage) under scanlines, in a hairline frame; a glitch shears and
-    // flickers it for a moment while the texture is swapped
+    // the Work hologram (models/helix.ts) and the laptop's display (models/laptop.ts): a Canvas2D
+    // texture (hologram.ts) under scanlines, in a hairline frame; a glitch shears and flickers it
+    // for a moment while the texture is swapped.
+    //
+    // The canvas is GREY almost everywhere — the helix's whole card, and every word, rule and tick
+    // the laptop's screen is composed from — and colour only where a laptop's band draws a real
+    // screenshot. A grey pixel has sat = 0 and peak = tex.r, so both lines below are the
+    // monochrome ones they have always been, to the byte; a coloured one keeps its own hue, which
+    // is the one place in this scene a surface is allowed a colour the palette did not give it.
     vec2 uvg = vec2(vUv.x + uGlitch * 0.02 * sin(vUv.y * 90.0 + uTime * 40.0), vUv.y);
     vec4 tex = texture2D(uMap, uvg);
+    float peak = max(tex.r, max(tex.g, tex.b));
+    // Saturation, not chroma: a dark blue is as much a colour as a bright one. The 2.1 is the gain
+    // at which a lightly tinted interface still reads as its own colour while a near-grey one —
+    // a white page, a grey chart — stays in the palette.
+    float sat = clamp(((peak - min(tex.r, min(tex.g, tex.b))) / max(peak, 1e-3)) * 2.1, 0.0, 1.0);
+    vec3 own = tex.rgb / max(peak, 1e-3);
     float scan = 0.78 + 0.22 * step(0.5, fract(vUv.y * 120.0));
     float frame = 1.0 - step(0.006, min(min(vUv.x, vUv.y), min(1.0 - vUv.x, 1.0 - vUv.y)));
-    color = mix(uColorA, uHot, tex.r * 0.35 * hotness);
-    strength = (tex.a * tex.r * 1.1 * scan + frame * 0.55) * uIntensity * (1.0 - 0.6 * uGlitch * step(0.5, fract(uTime * 30.0)));
+    // own * own: the canvas is sampled raw (NoColorSpace), so the hue is squared back towards
+    // linear before the output encodes it again — otherwise a screenshot comes back washed out.
+    color = mix(mix(uColorA, uHot, peak * 0.35 * hotness), own * own, sat);
+    strength = (tex.a * peak * 1.1 * scan + frame * 0.55) * uIntensity * (1.0 - 0.6 * uGlitch * step(0.5, fract(uTime * 30.0)));
   }
 
   strength *= gain;

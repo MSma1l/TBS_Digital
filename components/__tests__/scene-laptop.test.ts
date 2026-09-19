@@ -392,12 +392,22 @@ describe("the display inside the window", () => {
     expect(box.h).toBeGreaterThan(44);
   });
 
-  it("is generous by exactly the walk the pose gives it", () => {
+  it("covers the box the display TURNS through, not the one it stands still in", () => {
     const box = laptopScreenBox(860, 576)!;
     const scale = (860 - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfWidth);
     const tall = (576 - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfHeight);
     const fit = Math.min(scale, tall);
     expect(box.w).toBeCloseTo((LAPTOP_SCREEN.w + LAPTOP_SCREEN.slack) * fit, 6);
+    expect(box.h).toBeCloseTo((LAPTOP_SCREEN.h + LAPTOP_SCREEN.slack) * fit, 6);
+    // The display's four corners, put through the model's own chain (screen → lid → body → pose →
+    // group → camera) over a full beat of both turns, sweep 2.36 x 1.59 units around a centre
+    // 0.125 right of and 0.34 above the window's. The target has to hold that whole sweep — a box
+    // the size of the display at one instant misses its right edge and its foot at every other —
+    // and `slack` on top of it is the lean the scroll adds (±0.045 while the window is on screen).
+    expect(LAPTOP_SCREEN.w + LAPTOP_SCREEN.slack).toBeGreaterThanOrEqual(2.36);
+    expect(LAPTOP_SCREEN.h + LAPTOP_SCREEN.slack).toBeGreaterThanOrEqual(1.59 + 2 * 0.045);
+    expect(LAPTOP_SCREEN.cx).toBeCloseTo(0.125, 3);
+    expect(Math.abs(LAPTOP_SCREEN.cy - 0.34)).toBeLessThanOrEqual(0.05);
     expect(LAPTOP_SCREEN.slack).toBeGreaterThan(0);
   });
 

@@ -426,15 +426,25 @@ export function placeLaptop(
  * very fit `placeLaptop` runs, on the same window box, and these constants say where the display
  * sits in the object the fit produced.
  *
- * MEASURED off rendered frames, like everything else about this object, because a derivation gets
- * it wrong in three separate ways: the lid leans back, the pose pitches the whole machine, and the
- * display sits about two thirds of a unit BEHIND the object's centre — so a perspective camera
- * draws it about 11% smaller than its own size, and the pose's yaw walks its centre sideways as
- * the machine turns. `slack` is that walk: the display's centre wanders ~0.07 units either way
- * over a turn, and a target that is a little generous is honest, while one that is exact is wrong
- * half the time.
+ * These cannot be derived from the display's own size, because four things move it: the lid leans
+ * back, the pose pitches the whole machine, the display sits about two thirds of a unit BEHIND the
+ * object's centre (a perspective camera draws it smaller), and the machine TURNS — the shared sway
+ * it half cancels, plus its own swing once it is open.
+ *
+ * So the display's four corners are run through the model's own transform chain — screen mesh →
+ * lid → body → pose → group → camera — over a full beat of both turns, and the box is the envelope
+ * those corners sweep. That envelope is 2.36 x 1.59 units around a centre 0.125 right of and 0.34
+ * above the window's, and it barely moves with the width: 2.36 at 1280 and 1024, 2.37 at 861.
+ *
+ * The numbers before these were a THIRD too small (2.09 x 1.35): they described the display at one
+ * instant, not the box it turns inside, so up to 30px of the picture's right edge and 30px of its
+ * foot were outside the target at any moment — press the bottom corner of the screen and nothing
+ * happened. `slack` is now the SCROLL's lean rather than the turn's: the object travels the height
+ * of the canvas, and a unit-deep machine's display projects a little higher or lower against its
+ * own window at the top and the bottom of that travel (±0.045 units while the window is properly
+ * on screen, which is the only time it can be pressed).
  */
-export const LAPTOP_SCREEN = { cx: 0.11, cy: 0.39, w: 2, h: 1.26, slack: 0.09 } as const;
+export const LAPTOP_SCREEN = { cx: 0.125, cy: 0.35, w: 2.27, h: 1.65, slack: 0.09 } as const;
 
 export type ScreenBox = { x: number; y: number; w: number; h: number };
 

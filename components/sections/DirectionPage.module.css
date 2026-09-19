@@ -1171,8 +1171,9 @@ a.project:hover {
    A real element over the part of the window the screen is drawn in — the box comes from
    `laptopScreenBox`, the same fit the scene places the machine with, so it follows the display at
    every width instead of guessing at it. It paints NOTHING: the canvas is behind this box and an
-   opaque target would hide the very screen it is on. The only thing it ever draws is a focus ring
-   and, under a pointer, a hairline that says the screen can be pressed. */
+   opaque target would hide the very screen it is on. The only thing it ever draws is a FOCUS RING:
+   a hover line over the display read as a blue box floating on the picture, so the affordance is
+   the pointer and the call the screen itself draws in its footer, not a rule around the glass. */
 .projHit {
   position: absolute;
   display: block;
@@ -1190,11 +1191,6 @@ a.projHit {
 a.projHit:focus-visible,
 span.projHit:focus-visible {
   outline: 2px solid var(--cyan);
-}
-@media (hover: hover) and (pointer: fine) {
-  a.projHit:hover {
-    outline: 1px solid color-mix(in srgb, var(--sol-accent, var(--blue)) 70%, transparent);
-  }
 }
 
 /* ---------- the same projects, for everyone the picture cannot reach ----------

@@ -30,6 +30,14 @@ export const HOLOGRAM_MAX: readonly [number, number] = SCENE_TIER_CONFIG.high.ho
 export const HOLOGRAM = {
   band: 0.62,
   scanEvery: 3,
+  /**
+   * How dark the comb's line is over the band. A grey picture can take a heavy comb — there is
+   * nothing in it but lightness, so darkening a third of the rows costs nothing but contrast. A
+   * COLOUR one cannot: at 0.55 the hue only survives in two rows out of three and the band reads
+   * as a striped ghost rather than as a screen. 0.24 keeps the comb legible as a comb — the
+   * display's own scanlines are in the shader on top of it — and leaves the picture its colour.
+   */
+  comb: { mono: 0.55, colour: 0.24 },
   cell: 2,
   decodeMs: 1500,
   pad: 12,
@@ -96,8 +104,26 @@ async function usableImage(card: HTMLElement): Promise<HTMLImageElement | null> 
   return img.naturalWidth > 0 && img.naturalHeight > 0 ? img : null;
 }
 
-/** The screenshot, object-cover and top-aligned, as luminance in the band; scanlines over it. */
-function drawImageBand(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, band: number): void {
+/**
+ * The screenshot, object-cover and top-aligned, in the band, with the comb over it.
+ *
+ * `tone` says whether the picture keeps its own colour. The helix's card is `mono` — luminosity
+ * over black, the image's lightness and none of its hue, because that object is one colour and a
+ * card that broke the palette would read as a bug. The laptop's band is `colour`: it is a SCREEN,
+ * a machine drawing a real picture, and the one surface in this scene that is allowed its own hue.
+ *
+ * Neither tone draws a single pixel more than the other. The image is drawn at `HOLOGRAM.cell`
+ * scale and blown back up, so the fine print is gone before the band is ever at full size — colour
+ * changes what is in a cell, never how many there are, and the 384 x 240 cap is what keeps a
+ * screenshot's text unreadable on a display the size of a business card.
+ */
+function drawImageBand(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  w: number,
+  band: number,
+  tone: "mono" | "colour" = "mono",
+): void {
   const cell = ctx.canvas ? HOLOGRAM.cell : 1;
   const cw = Math.max(1, Math.round(w / cell));
   const ch = Math.max(1, Math.round(band / cell));
@@ -106,15 +132,14 @@ function drawImageBand(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: 
   const sh = ch / scale;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, band);
-  // Luminosity over black: the image's lightness, none of its hue.
-  ctx.globalCompositeOperation = "luminosity";
+  if (tone === "mono") ctx.globalCompositeOperation = "luminosity";
   ctx.drawImage(img, (img.naturalWidth - sw) / 2, 0, sw, sh, 0, 0, cw, ch);
   ctx.globalCompositeOperation = "source-over";
   if (cell > 1) {
     // Up from the cells: the fine print is gone before it is ever at full size.
     ctx.drawImage(ctx.canvas, 0, 0, cw, ch, 0, 0, w, band);
   }
-  ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
+  ctx.fillStyle = `rgba(0, 0, 0, ${tone === "mono" ? HOLOGRAM.comb.mono : HOLOGRAM.comb.colour})`;
   for (let y = 0; y < band; y += HOLOGRAM.scanEvery) ctx.fillRect(0, y, w, 1);
 }
 
@@ -348,7 +373,7 @@ export async function composeLaptopScreen(
 
   let result: "image" | "text" = "text";
   if (img) {
-    drawImageBand(ctx, img, w, band);
+    drawImageBand(ctx, img, w, band, "colour");
     result = "image";
     // The one readback of a compose, and only after a screenshot: a single pixel.
     try {
@@ -360,7 +385,11 @@ export async function composeLaptopScreen(
     }
   }
 
-  /* the title bar, washed over the top of the screenshot so its words read */
+  /* the title bar, washed over the top of the screenshot so its words read. The wash is the same
+     0.72 it was over a grey band: `luminosity` never changed a pixel's lightness, only its hue, so
+     a colour picture is exactly as bright under the bar as the grey one was. Measured on the
+     rendered frame at device scale 2, the bar's words sit between 6.8:1 and 9.8:1 over the five
+     screenshots in the reel, and the footer's call between 7.2:1 and 8.6:1. */
   ctx.globalCompositeOperation = "source-over";
   ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
   ctx.fillRect(0, 0, w, bar);
