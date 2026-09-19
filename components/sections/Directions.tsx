@@ -385,7 +385,16 @@ export function Directions({ initialArt }: DirectionsProps) {
                 // A press that became a swipe of the band: it will never click.
                 pointerKind.current = "";
               }}
-              onMouseEnter={() => select(i)}
+              /* `pointermove`, never `mouseenter`: a pill that scrolls under a STATIONARY cursor
+                 gets the boundary events anyway — the browser sends them to whatever arrives under
+                 the pointer — and selecting on that would switch the direction, and with it the
+                 scene's 3D model, for a visitor who pointed at nothing. The same mistake pinned the
+                 service pages' project reel (fixed 2026-09-19). One real pixel of movement over a
+                 pill selects it; arriving under a still cursor does not. The `i !== active` guard
+                 keeps the common case (moving across the pill already selected) free of renders. */
+              onPointerMove={() => {
+                if (i !== active) select(i);
+              }}
               onFocus={() => select(i)}
               onClick={(event) => onPillClick(i, event)}
               onKeyDown={(event) => onPillKeyDown(i, event)}

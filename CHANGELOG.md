@@ -16,6 +16,28 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Fixed: pastilele de servicii se puteau auto-selecta la derulare
+
+Aceeași greșeală ca la ruleta laptopului, găsită căutând toate reținerile pe „intrare" din proiect —
+dar cu o consecință mai mare: pe pagina principală, pastilele „Direcții" selectau serviciul pe
+`mouseenter`, **iar selecția conduce modelul 3D al scenei**. Rândul de pastile derulând sub un cursor
+nemișcat primește oricum evenimentele de graniță, deci se putea schimba singur serviciul — și cu el
+obiectul 3D — pentru un vizitator care nu arătase nimic.
+
+Selecția se face acum pe **mișcare reală** peste pastilă, cu o gardă care sare peste pastila deja
+activă, ca trecerea cursorului peste ea să nu coste nicio randare. Selecția la focus de tastatură
+rămâne neschimbată.
+
+**Verificat pe pagina reală:** cursorul parcat la (400,400), derulare **cu rotița** peste toată
+secțiunea, cursorul niciodată mișcat — serviciul selectat și modelul scenei sunt identice înainte și
+după.
+
+Celelalte două locuri de aceeași formă rămân neatinse, cu motiv: meniul din antet nu poate derula sub
+cursor (antetul e lipit de ecran), iar impulsul de performanță din hero se eliberează singur și nu
+schimbă nimic vizibil.
+
+Fișier: `components/sections/Directions.tsx`.
+
 ## 2026-09-19 — Fixed: ruleta rămânea pe pauză pentru cineva care nu ceruse asta
 
 Clientul: a așteptat **15 secunde** după terminarea animației până când proiectele au început să se
