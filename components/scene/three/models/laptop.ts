@@ -122,7 +122,18 @@ const REACH = {
   back: HINGE.z + LID.h * Math.cos(LID_ANGLE.open),
   front: LIP.z + LIP.d / 2,
 } as const;
-const BODY = { y: -(REACH.top + REACH.bottom) / 2, z: -(REACH.back + REACH.front) / 2 } as const;
+
+/**
+ * …and the one number in that offset that is measured rather than derived. What the window has to
+ * hold is not the BOXES, it is the light — and the pose pitches the deck towards the viewer, so
+ * the deck's glow reaches further below the object's geometric centre than the lid's does above
+ * it. Centred on its boxes, the machine sat low in its window: 69px of clear air over it and 17px
+ * under it at 1280 (diffed against the same page with the canvas hidden). This lifts it by that
+ * difference, so the LIT box is what is centred and both margins are the same — which is worth
+ * about 5% of size, because the fit then has no wasted air to reserve at the top.
+ */
+const LIFT = 0.15;
+const BODY = { y: -(REACH.top + REACH.bottom) / 2 + LIFT, z: -(REACH.back + REACH.front) / 2 } as const;
 
 /**
  * The object's own half-extents, before the pose turns them. Exported for the same reason

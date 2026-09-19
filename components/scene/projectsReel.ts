@@ -1,34 +1,39 @@
 /**
- * The projects reel: which project the 3D laptop is showing, read off the grid the page already
- * rendered.
+ * The projects reel: which project card the 3D laptop's display is composed from, read off the
+ * grid the page already rendered.
  *
  * Framework-free on purpose — no React, no three.js — like `workHelix.ts`: the scene chunk
  * (`SceneWorld`) creates it, the world asks it for a card once a frame and disposes it with the
- * scene. React never learns anything happened, and **the grid is never written to**. It is the
- * content, the accessibility and the fallback; this only reads it and listens on it.
+ * scene. React never learns anything happened, and **no card is ever laid out differently**.
  *
- * What it answers, in order of precedence:
- *  · **the pointer** — hovering a card puts that project on the display;
- *  · **the keyboard** — focusing one does the same, so a visitor who never touches a mouse gets
- *    the same answer (and the grid's own focus ring still says where they are);
- *  · **the cycle** — otherwise the projects take turns, `PROJECTS_DWELL` seconds each. Releasing a
- *    card resumes the cycle FROM it rather than from wherever it had got to, so the display never
- *    jumps back to a project the visitor has just moved away from.
+ * **The page decides, this follows.** The cycle, the prev/next buttons, the markers and the
+ * pause all live in DirectionPage.tsx as ordinary React state, because the same choice also has
+ * to render the project's name, tag and description beside the machine as real DOM text. It
+ * arrives here as one number — `PROJECTS_INDEX_ATTR` on the grid — so the display and the copy
+ * next to it cannot disagree. A MutationObserver reads it; nothing here polls and nothing here
+ * touches the DOM per frame.
  *
- * **The cards change after mount.** `useSiteContent` renders the default document on the server and
- * the first paint, then swaps in the localStorage cache and then the API document, and the language
- * can change under all of it. Two things can happen: the LIST changes (different cards, or the same
- * cards re-keyed) and an IMAGE changes on a card React kept. A MutationObserver catches both — the
- * grid's children for the first, `src` / `srcset` anywhere under it for the second — and each bumps
- * `generation`, which is the world's signal to compose the texture again even for the card it is
- * already showing. Without it the display would keep the screenshot of a project that is no longer
- * on that card.
+ * **The cards change after mount.** `useSiteContent` renders the default document on the server
+ * and the first paint, then swaps in the localStorage cache and then the API document, and the
+ * language can change under all of it. Two things can happen: the LIST changes (different cards,
+ * or the same cards re-keyed) and an IMAGE changes on a card React kept. The same observer catches
+ * both — the grid's children for the first, `src` / `srcset` anywhere under it for the second —
+ * and each bumps `generation`, which is the world's signal to compose again even for the card it
+ * is already showing. Without it the display would keep the screenshot of a project that is no
+ * longer on that card.
+ *
+ * **`warm()` is the one write this makes, and it is not to the page.** Where the laptop is live
+ * the grid is `display: none` — it is the fallback, not the picture — and a `loading="lazy"` image
+ * with no box is never near the viewport, so the browser never fetches it and `composeHologram`
+ * would find `naturalWidth === 0` and fall back to a text-only screen for every project. Flipping
+ * `loading` to `eager` starts the fetch at once. It is spent when the world decides the section is
+ * close enough to build for, never on mount: nothing is fetched for a visitor who never scrolls
+ * this far.
  */
 
-/** Seconds one project holds the display before the reel moves on. */
-export const PROJECTS_DWELL = 4.2;
+import { PROJECTS_INDEX_ATTR } from "@/lib/scene";
 
-/** The card the display should be showing, and what it was composed from. */
+/** The card the display should be composed from, and what it was composed at. */
 export type ProjectsPick = {
   card: HTMLElement;
   index: number;
@@ -37,19 +42,19 @@ export type ProjectsPick = {
 };
 
 export type ProjectsReel = {
-  /**
-   * The card to show, advancing the cycle by `step` seconds. Call it only while the laptop is on
-   * screen: a reel nobody is watching should not be spending projects. Null with no cards.
-   */
-  pick(step: number): ProjectsPick | null;
+  /** The card the page has put on the display. Null with no cards. */
+  pick(): ProjectsPick | null;
   cards(): readonly HTMLElement[];
-  /** The index the pointer or the keyboard is holding, or −1. */
-  held(): number;
+  /**
+   * Fetch every card's screenshot now. Idempotent, and re-run after a content swap brings new
+   * `src`s in. Called once, when the world decides the section is near enough to build for.
+   */
+  warm(): void;
   dispose(): void;
 };
 
 export type ProjectsReelOptions = {
-  /** `[data-projects-track]`: the grid in DirectionPage.tsx. */
+  /** `[data-projects-track]`: the grid in DirectionPage.tsx, which also carries the index. */
   grid: HTMLElement;
 };
 
@@ -62,109 +67,77 @@ export function createProjectsReel(o: ProjectsReelOptions): ProjectsReel {
   const { grid } = o;
   let cards: HTMLElement[] = [];
   let generation = 0;
-  let cursor = 0;
-  let dwell = 0;
-  let hover = -1;
-  let focus = -1;
+  let index = 0;
+  let warmed = false;
   let disposed = false;
+
+  const readIndex = () => {
+    const raw = Number.parseInt(grid.getAttribute(PROJECTS_INDEX_ATTR) ?? "", 10);
+    index = Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  };
 
   const collect = () => {
     const next = Array.from(grid.children).filter(isCard);
     const same = next.length === cards.length && next.every((card, i) => card === cards[i]);
     cards = next;
-    if (!same) {
-      generation += 1;
-      // A held card that is no longer in the grid holds nothing.
-      if (hover >= next.length) hover = -1;
-      if (focus >= next.length) focus = -1;
-      if (cursor >= next.length) cursor = 0;
+    if (!same) generation += 1;
+  };
+
+  /** Every card's screenshot, fetched now — a hidden grid never fetches a lazy one on its own. */
+  const warm = () => {
+    for (const card of cards) {
+      const img = card.querySelector("img");
+      if (img && !img.complete && img.loading === "lazy") img.loading = "eager";
     }
   };
+
   collect();
-
-  /** The index of the card `node` is inside, or −1 (the grid's own gaps, the laptop's cell). */
-  const indexOf = (node: EventTarget | null): number => {
-    if (!(node instanceof Node)) return -1;
-    let el: Node | null = node;
-    while (el && el !== grid && el.parentNode !== grid) el = el.parentNode;
-    return el && el !== grid && isCard(el) ? cards.indexOf(el) : -1;
-  };
-
-  const onOver = (event: Event) => {
-    // `pointerover` fires for every element entered, the grid itself included, so moving off a card
-    // into the row's gap answers −1 without a second listener.
-    hover = indexOf(event.target);
-  };
-  const onLeave = () => {
-    hover = -1;
-  };
-  const onFocusIn = (event: Event) => {
-    focus = indexOf(event.target);
-  };
-  const onFocusOut = () => {
-    // `focusout` runs before the matching `focusin`, so tabbing from one card to the next settles
-    // on the new one rather than on nothing.
-    focus = -1;
-  };
-
-  grid.addEventListener("pointerover", onOver);
-  grid.addEventListener("pointerleave", onLeave);
-  grid.addEventListener("focusin", onFocusIn);
-  grid.addEventListener("focusout", onFocusOut);
+  readIndex();
 
   let observer: MutationObserver | null = null;
   if (typeof MutationObserver !== "undefined") {
     observer = new MutationObserver((records) => {
       let images = false;
+      let list = false;
       for (const record of records) {
-        if (record.type === "attributes") images = true;
+        if (record.type === "childList") list = true;
+        else if (record.attributeName === PROJECTS_INDEX_ATTR) readIndex();
+        // A screenshot replaced on a card React kept: the same element, a different project.
+        else images = true;
       }
-      collect();
-      // A screenshot replaced on a card React kept: the same element, a different project.
+      if (list) collect();
       if (images) generation += 1;
+      if ((list || images) && warmed) warm();
     });
     observer.observe(grid, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["src", "srcset"],
+      attributeFilter: ["src", "srcset", PROJECTS_INDEX_ATTR],
     });
   }
 
   return {
-    pick(step) {
+    pick() {
       if (disposed || cards.length === 0) return null;
-      const hold = hover >= 0 && hover < cards.length ? hover : focus >= 0 && focus < cards.length ? focus : -1;
-      if (hold >= 0) {
-        cursor = hold;
-        dwell = 0;
-      } else {
-        dwell += Number.isFinite(step) && step > 0 ? step : 0;
-        if (dwell >= PROJECTS_DWELL) {
-          dwell = 0;
-          cursor = (cursor + 1) % cards.length;
-        }
-      }
-      if (cursor >= cards.length) cursor = 0;
-      return { card: cards[cursor], index: cursor, generation };
+      const at = index < cards.length ? index : cards.length - 1;
+      return { card: cards[at], index: at, generation };
     },
 
     cards() {
       return cards;
     },
 
-    held() {
-      return hover >= 0 ? hover : focus;
+    warm() {
+      if (disposed) return;
+      warmed = true;
+      warm();
     },
 
     dispose() {
       disposed = true;
       observer?.disconnect();
       observer = null;
-      grid.removeEventListener("pointerover", onOver);
-      grid.removeEventListener("pointerleave", onLeave);
-      grid.removeEventListener("focusin", onFocusIn);
-      grid.removeEventListener("focusout", onFocusOut);
       cards = [];
     },
   };

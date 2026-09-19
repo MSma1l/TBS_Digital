@@ -10,7 +10,7 @@ import {
   PROJECTS_WINDOW,
   writeProjectsWindow,
 } from "@/components/scene/scrollProbe";
-import { PROJECTS_DWELL, createProjectsReel } from "@/components/scene/projectsReel";
+import { createProjectsReel } from "@/components/scene/projectsReel";
 import {
   LAPTOP_ACCENT,
   LAPTOP_BOUND,
@@ -23,7 +23,7 @@ import {
   laptopLidAngle,
 } from "@/components/scene/three/models/laptop";
 import { HOLOGRAM_MAX } from "@/components/scene/three/hologram";
-import { createScrollProbe, type ScrollProbe } from "@/lib/scene";
+import { PROJECTS_INDEX_ATTR, createScrollProbe, type ScrollProbe } from "@/lib/scene";
 
 /*
  * The projects laptop: where it stands (choreography + the probe), what it is showing
@@ -167,6 +167,14 @@ describe("the machine's own arithmetic", () => {
     expect(LID_ANGLE.open - Math.PI / 2).toBeCloseTo(LAPTOP_POSE.pitch, 1);
   });
 
+  it("is centred on what it LIGHTS, not on its boxes", () => {
+    // The pose pitches the deck towards the viewer, so its glow reaches further below the
+    // geometric centre than the lid's does above it. `LIFT` is that difference, measured on the
+    // page; without it the machine sits low in its window and the fit has to reserve air it
+    // never uses. Pinned as a fact about the model, not as a number to trust.
+    expect(LAPTOP_BOUND.halfHeight).toBeGreaterThan(0.7);
+  });
+
   it("re-centres itself on its own reach", () => {
     // Half the object, not a typed-in number: the lid at its open angle is what makes it tall.
     expect(LAPTOP_BOUND.halfHeight).toBeGreaterThan(0.7);
@@ -216,20 +224,18 @@ describe("the machine's own arithmetic", () => {
 function grid(count: number, images = true): HTMLElement {
   const root = document.createElement("div");
   root.setAttribute("data-projects-track", "");
+  root.setAttribute(PROJECTS_INDEX_ATTR, "0");
   for (let i = 0; i < count; i += 1) {
     const card = document.createElement(i % 2 === 0 ? "article" : "a");
     card.innerHTML = `<h3>P${i}</h3>`;
     if (images) {
       const img = document.createElement("img");
       img.setAttribute("src", `/projects/p${i}.png`);
+      img.setAttribute("loading", "lazy");
       card.append(img);
     }
     root.append(card);
   }
-  // The laptop's own cell: a child of the grid that is not a card and must never be picked.
-  const stage = document.createElement("div");
-  stage.setAttribute("data-scene-anchor", "projects");
-  root.append(stage);
   document.body.append(root);
   return root;
 }
@@ -238,69 +244,42 @@ function grid(count: number, images = true): HTMLElement {
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe("the projects reel", () => {
-  it("picks the cards and not the laptop's own cell", () => {
-    const root = grid(3);
-    const reel = createProjectsReel({ grid: root });
-    expect(reel.cards()).toHaveLength(3);
-    expect(reel.pick(0)!.index).toBe(0);
-    reel.dispose();
-    root.remove();
-  });
-
-  it("cycles one project at a time, in order, and wraps", () => {
-    const root = grid(3);
-    const reel = createProjectsReel({ grid: root });
-    expect(reel.pick(0)!.index).toBe(0);
-    // Under the dwell nothing moves.
-    expect(reel.pick(PROJECTS_DWELL - 0.5)!.index).toBe(0);
-    expect(reel.pick(0.6)!.index).toBe(1);
-    expect(reel.pick(PROJECTS_DWELL)!.index).toBe(2);
-    expect(reel.pick(PROJECTS_DWELL)!.index).toBe(0);
-    reel.dispose();
-    root.remove();
-  });
-
-  it("puts the hovered card on the display, and resumes the cycle from it", () => {
+  it("shows the project the page asked for, and nothing else decides", async () => {
     const root = grid(4);
     const reel = createProjectsReel({ grid: root });
-    const cards = reel.cards();
-    cards[2].dispatchEvent(new Event("pointerover", { bubbles: true }));
-    expect(reel.held()).toBe(2);
-    // Held for as long as the pointer is there, however much time passes.
-    expect(reel.pick(PROJECTS_DWELL * 3)!.index).toBe(2);
-    expect(reel.pick(PROJECTS_DWELL * 3)!.index).toBe(2);
-    // Off the card into the row's gap: the grid itself answers −1.
-    root.dispatchEvent(new Event("pointerover", { bubbles: false }));
-    expect(reel.held()).toBe(-1);
-    // …and the cycle goes on from the project the visitor was just looking at.
-    expect(reel.pick(PROJECTS_DWELL)!.index).toBe(3);
+    expect(reel.cards()).toHaveLength(4);
+    expect(reel.pick()!.index).toBe(0);
+    // The page owns the number: the cycle, the prev/next and the markers are all React state.
+    root.setAttribute(PROJECTS_INDEX_ATTR, "2");
+    await settle();
+    expect(reel.pick()!.index).toBe(2);
+    expect(reel.pick()!.card).toBe(reel.cards()[2]);
     reel.dispose();
     root.remove();
   });
 
-  it("answers the keyboard the same way, and settles on the card being tabbed TO", () => {
+  it("clamps an index the list has outrun rather than showing nothing", async () => {
     const root = grid(3);
     const reel = createProjectsReel({ grid: root });
-    const cards = reel.cards();
-    cards[1].dispatchEvent(new Event("focusin", { bubbles: true }));
-    expect(reel.pick(0)!.index).toBe(1);
-    // focusout runs before the next focusin: tabbing on must not fall back to the cycle in between.
-    cards[1].dispatchEvent(new Event("focusout", { bubbles: true }));
-    cards[2].dispatchEvent(new Event("focusin", { bubbles: true }));
-    expect(reel.pick(0)!.index).toBe(2);
-    cards[2].dispatchEvent(new Event("focusout", { bubbles: true }));
-    expect(reel.held()).toBe(-1);
+    root.setAttribute(PROJECTS_INDEX_ATTR, "9");
+    await settle();
+    expect(reel.pick()!.index).toBe(2);
+    root.setAttribute(PROJECTS_INDEX_ATTR, "not a number");
+    await settle();
+    expect(reel.pick()!.index).toBe(0);
     reel.dispose();
     root.remove();
   });
 
-  it("prefers the pointer to a focus left behind by a click", () => {
+  it("fetches the screenshots itself, because a hidden grid never will", () => {
+    // Where the machine is live the grid is `display: none`, and a lazy image with no box is
+    // never near the viewport: without this every project would compose text-only.
     const root = grid(3);
     const reel = createProjectsReel({ grid: root });
-    const cards = reel.cards();
-    cards[0].dispatchEvent(new Event("focusin", { bubbles: true }));
-    cards[2].dispatchEvent(new Event("pointerover", { bubbles: true }));
-    expect(reel.pick(0)!.index).toBe(2);
+    const images = Array.from(root.querySelectorAll("img"));
+    expect(images.map((img) => img.getAttribute("loading"))).toEqual(["lazy", "lazy", "lazy"]);
+    reel.warm();
+    expect(images.map((img) => img.getAttribute("loading"))).toEqual(["eager", "eager", "eager"]);
     reel.dispose();
     root.remove();
   });
@@ -308,7 +287,7 @@ describe("the projects reel", () => {
   it("re-collects the cards when the content document swaps them in", async () => {
     const root = grid(2);
     const reel = createProjectsReel({ grid: root });
-    const before = reel.pick(0)!;
+    const before = reel.pick()!;
     expect(reel.cards()).toHaveLength(2);
     const extra = document.createElement("article");
     extra.innerHTML = "<h3>P9</h3>";
@@ -316,7 +295,7 @@ describe("the projects reel", () => {
     await settle();
     expect(reel.cards()).toHaveLength(3);
     // A different list is a different picture: the world composes again.
-    expect(reel.pick(0)!.generation).toBeGreaterThan(before.generation);
+    expect(reel.pick()!.generation).toBeGreaterThan(before.generation);
     reel.dispose();
     root.remove();
   });
@@ -324,11 +303,11 @@ describe("the projects reel", () => {
   it("bumps the generation when a screenshot is replaced on a card React kept", async () => {
     const root = grid(2);
     const reel = createProjectsReel({ grid: root });
-    const before = reel.pick(0)!;
+    const before = reel.pick()!;
     const card = reel.cards()[0];
     card.querySelector("img")!.setAttribute("src", "/projects/other.png");
     await settle();
-    const after = reel.pick(0)!;
+    const after = reel.pick()!;
     // The very same element at the very same index — and still not the same project.
     expect(after.card).toBe(before.card);
     expect(after.index).toBe(before.index);
@@ -337,18 +316,31 @@ describe("the projects reel", () => {
     root.remove();
   });
 
+  it("re-warms the new screenshots a swap brought in", async () => {
+    const root = grid(2);
+    const reel = createProjectsReel({ grid: root });
+    reel.warm();
+    const extra = document.createElement("article");
+    extra.innerHTML = '<h3>P9</h3><img src="/projects/p9.png" loading="lazy">';
+    root.append(extra);
+    await settle();
+    expect(extra.querySelector("img")!.getAttribute("loading")).toBe("eager");
+    reel.dispose();
+    root.remove();
+  });
+
   it("answers nothing at all once it is disposed, and with an empty grid", () => {
     const empty = document.createElement("div");
     document.body.append(empty);
     const bare = createProjectsReel({ grid: empty });
-    expect(bare.pick(1)).toBeNull();
+    expect(bare.pick()).toBeNull();
     bare.dispose();
 
     const root = grid(2);
     const reel = createProjectsReel({ grid: root });
-    expect(reel.pick(0)).not.toBeNull();
+    expect(reel.pick()).not.toBeNull();
     reel.dispose();
-    expect(reel.pick(0)).toBeNull();
+    expect(reel.pick()).toBeNull();
     root.remove();
     empty.remove();
   });

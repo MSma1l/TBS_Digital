@@ -16,6 +16,65 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: laptopul preia secțiunea „Proiecte relevante"
+
+Clientul, după ce a văzut laptopul în celula grilei: „șterge cardurile și mărește modelul 3D al
+laptopului și lasă cardurile pe rând să meargă pe ecran".
+
+**Ce i-am spus înainte să construiesc.** Cardurile nu sunt doar cutii: ele poartă numele și
+descrierea fiecărui proiect — textul pe care îl citesc motoarele de căutare și cititoarele de ecran,
+și singurul conținut al secțiunii pe telefon și pe dispozitivele fără 3D. Deci grila dispare **doar
+acolo unde laptopul chiar există**, iar conținutul ei se mută lângă ecran ca text adevărat.
+
+**Două forme, alese din CSS**, pe `[data-renderer="webgl"]` și de la 861px în sus — **deliberat fără
+`pending`**: spre deosebire de o nișă goală, schimbarea formei înainte ca 3D-ul să fie sigur ar lua
+cardurile și le-ar da înapoi sub ochii vizitatorului.
+
+- **≥1025px:** laptopul în stânga (fereastră 727×496), textul în dreapta.
+- **861–1024px:** stivuit și centrat (660×432) — două coloane acolo ar fi lăsat mașina cât un card.
+- **Sub 861px, fără 3D, mișcare redusă:** exact grila livrată în `efcaef7`, neatinsă.
+
+Laptopul e acum **×1,91** față de versiunea din celulă (184,6 px per unitate de model la 1280).
+Încadrarea a fost **re-derivată din cadre randate**, nu din geometrie — 26 de cadre ale unei rotații
+complete × 3 poziții de derulare × 3 pagini × 3 lățimi, cu ruleta oprită întâi, altfel textul care se
+schimbă era numărat drept lumină a obiectului. Marja cea mai strânsă: 9px. O descoperire pe drum: se
+centra **cutia geometrică**, dar obiectul e înclinat, deci lumina lui cade mai jos — centrarea pe
+cutia **luminată** a recuperat ~5% din mărime, care se pierdea ca aer nefolosit deasupra.
+
+**Pagina deține numărul, scena îl urmează.** Un singur index, deci ecranul și textul de lângă el nu
+pot ajunge în dezacord. Textul e DOM real: „PE ECRAN 01 / 05", eticheta, numele, descrierea și
+linkul — selectabil, traductibil, în toate trei limbile.
+
+**Controale reale**, pentru că nu mai sunt carduri de apăsat: pauză, anterior, un marcator per
+proiect, următor. Toate butoane, ținte de 44px, accesibile cu Tab, cu `aria-current` pe cel activ.
+Ciclul se oprește la orice atingere, sub cursor și cât timp focusul e în zonă — mecanismul cerut de
+WCAG 2.2.2. **Regiunea de anunțare e oprită cât timp ciclul merge singur** și devine politicoasă abia
+după ce vizitatorul atinge un control: una care ar vorbi din 4,2 în 4,2 secunde ar acoperi ce citește
+omul în altă parte.
+
+**Linkul public nu dispare cu cardul:** proiectul de pe ecran îl poartă cu el, iar oricare altul e la
+o apăsare distanță pe marcatorul lui. Un proiect fără URL arată „fără link public", nu un link mort.
+
+**Un defect prins prin construcție:** ambele forme stau în DOM și CSS alege — dar o imagine cu
+`loading="lazy"` într-un bloc ascuns **nu e adusă niciodată**, deci fiecare proiect ar fi ajuns pe
+ecran doar cu text. Rezolvat trecând încărcarea pe „imediat" când secțiunea se apropie.
+
+**E-mailul din `statistic-1.png`, re-măsurat la mărimea nouă:** plafonul de 384×240 e pe **pânză**, nu
+pe ecran, deci banda eșantionează sursa la 6,65 pixeli per celulă — **neschimbat de mărimea
+laptopului**. Un caracter are 1,1 celule, adică eșantioane mărite, nu detaliu nou. Mărit de 5× și 6×:
+nicio literă rezolvabilă. **Rămâne ilizibil.**
+
+Contrast măsurat peste ce e chiar în spate: etichetă 6,29 · nume 15,32 · descriere 8,45 · eyebrow
+8,47 · link 15,90. Desene: **+2** (un mesh instanțiat de 13 cutii, un plan pentru ecran), nicio ramură
+de material nouă, nicio uniformă nouă. `[data-scene-layer]` identic înainte și după.
+
+Pagina devine cu **227–367px mai scurtă** acolo unde sunt 5 proiecte, și cu ~150px mai înaltă unde
+sunt 2–3.
+
+Fișiere: `components/sections/DirectionPage.tsx` + CSS, `components/scene/projectsReel.ts`,
+`components/scene/three/models/laptop.ts`, `world.ts`, `SceneWorld.tsx`, `choreography.ts`,
+`lib/scene.ts`, testul scenei.
+
 ## 2026-09-19 — Added: un laptop 3D pe care rulează proiectele
 
 Clientul: „fa 3d modelul unui laptop și pe ecrane să meargă aceste cartele". Rundele anterioare

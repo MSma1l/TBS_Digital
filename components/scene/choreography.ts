@@ -352,15 +352,20 @@ export function placePanels(
  * on both sides either: the pose's own yaw adds to it on one and takes from it on the other.
  *
  * So these two numbers are measured on the real pages, not derived. Every frame is diffed against
- * the same page with the canvas hidden — the cards next door are bright objects too, and a bound
- * read off the raw frame would be theirs — a row or a column counts only with three lit pixels in
- * it, the sticky header's ticking clock is excluded, and the sweep runs 26 frames of a full turn at
- * three scroll positions (the cell high in the viewport, centred, low), on produs-digital,
- * automatizare-api and asistenti-ia at 1280, 1024 and 861. At the authored 1.52 x 1.17 the worst
- * frames lit 18px past a left-hand cell's left edge and 19px below a 1024 cell's foot; at
- * 1.94 x 1.37 every frame of every sweep is inside the cell on all four sides.
+ * the same page with the canvas hidden — the copy beside the machine is bright too, and a bound
+ * read off the raw frame would count the words as light — the reel is stopped first so the copy
+ * cannot change between the two frames, a row or a column counts only with three lit pixels in it,
+ * the sticky header's ticking clock is excluded, and the sweep runs 26 frames of a full turn at
+ * three scroll positions (the window high in the viewport, centred, low) on produs-digital,
+ * automatizare-api and asistenti-ia at 1280, 1024 and 861.
+ *
+ * Re-measured at the size the machine took when it was given the section (2026-09-19). Centring
+ * the model on its LIT box rather than on its boxes (`laptop.ts` `LIFT`) took the wasted air out
+ * of the top, and the window is a 1.42 : 1 box, so both constraints now bind at once instead of
+ * the height alone: 1.82 x 1.30 leaves every frame of every sweep inside the window, worst margin
+ * 19px, and draws the machine ~1.9x larger than the grid cell ever could.
  */
-export const LAPTOP_LIT = { halfWidth: 1.94, halfHeight: 1.37 } as const;
+export const LAPTOP_LIT = { halfWidth: 1.82, halfHeight: 1.3 } as const;
 
 /** Clear air between that lit box and the cell's own chrome, css px per side. */
 export const LAPTOP_AIR = 8;

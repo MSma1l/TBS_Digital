@@ -48,7 +48,27 @@ const pageUI = {
      screen reader gets after it, and the hint a sighted visitor reads under the name. */
   caseOpen: L("Vezi detaliile", "Смотреть детали", "See the details"),
   caseClose: L("Ascunde detaliile", "Скрыть детали", "Hide the details"),
+  /* ---- the projects reel: the shape "Proiecte relevante" takes where the 3D laptop is live ---- */
+  reelOnScreen: L("PE ECRAN", "НА ЭКРАНЕ", "ON SCREEN"),
+  reelNav: L("Navighează proiectele", "Навигация по проектам", "Browse the projects"),
+  reelPrev: L("Proiectul anterior", "Предыдущий проект", "Previous project"),
+  reelNext: L("Proiectul următor", "Следующий проект", "Next project"),
+  /* Prefixed to the project's own name, so each marker's accessible name says which project
+     it shows rather than "button 3 of 5". */
+  reelShow: L("Arată proiectul", "Показать проект", "Show project"),
+  reelPause: L("Oprește rularea automată", "Остановить автопрокрутку", "Stop the automatic cycle"),
+  reelPlay: L("Pornește rularea automată", "Запустить автопрокрутку", "Start the automatic cycle"),
 };
+
+/**
+ * Milliseconds one project holds the laptop's display before the reel moves on.
+ *
+ * It runs only while the stage is on screen, it stops under the pointer or a focus inside the
+ * stage, and any of the controls stops it for the rest of the visit — the pause button is the
+ * plain one WCAG 2.2.2 asks for (auto-updating information, in parallel with other content, for
+ * longer than five seconds, needs a mechanism to stop it).
+ */
+const PROJECT_DWELL_MS = 4200;
 
 /**
  * A single direction page. Filled directions render the full layout; the rest show a
@@ -90,6 +110,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
   const tilt = usePointerTilt(TILT_MAX.project);
   const highlightsRef = useRef<HTMLElement | null>(null);
   const projectsRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
 
   useEffect(() => {
@@ -257,7 +278,9 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
   useEffect(() => {
     const root = projectsRef.current;
     if (!root || typeof IntersectionObserver === "undefined") return;
-    const targets = [root, ...Array.from(root.children)].filter(
+    // The stage rides the same observer: whichever of the two shapes the page laid out is the one
+    // that ever intersects, so each gets its entrance exactly once and the other costs nothing.
+    const targets = [stageRef.current, root, ...Array.from(root.children)].filter(
       (node): node is HTMLElement =>
         node instanceof HTMLElement && !node.hasAttribute("data-entered"),
     );
@@ -278,6 +301,64 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     for (const target of targets) observer.observe(target);
     return () => observer.disconnect();
   }, [slug, relatedKey]);
+
+  /* ---- the reel: which project is on the laptop's display ----
+     The page owns this number, not the scene. It picks the card the hologram is composed from
+     (`data-project-index` on the grid, read by components/scene/projectsReel.ts) AND the name, tag
+     and description rendered beside the machine — one source, so the display and the copy next to
+     it can never disagree, and the copy is real DOM text: selectable, translatable, and read by
+     assistive technology like any other paragraph on the page.
+
+     `active` may outrun the list (a content swap can shorten it), so the index the page uses is
+     derived and clamped rather than corrected in an effect. */
+  const [active, setActive] = useState(0);
+  /* The cycle is still running. Any control stops it for the rest of the visit. */
+  const [autoReel, setAutoReel] = useState(true);
+  /* The pointer is over the stage, or the focus is inside it: paused while it is. */
+  const [reelHeld, setReelHeld] = useState(false);
+  /* The stage is on screen. It never becomes true where the stage is not laid out (below 861px,
+     `fallback`, `off`, reduced motion), so no timer runs for a visitor who is reading the grid. */
+  const [reelOnScreen, setReelOnScreen] = useState(false);
+  /* The live region is silent until the visitor takes control. An auto-cycling region that
+     announced every 4.2s would talk over whatever they were reading elsewhere on the page; from
+     the first press of a control the cycle is stopped and every change is theirs, so it speaks. */
+  const [reelAnnounce, setReelAnnounce] = useState(false);
+  const reelCount = related.length;
+  const reelIndex = reelCount > 0 ? Math.min(active, reelCount - 1) : 0;
+  const onScreenProject = related[reelIndex];
+
+  /* A different direction is a different set of projects. Guarded, so it costs no render on a
+     first mount (the same shape as the open-cases reset above). */
+  useEffect(() => {
+    setActive((current) => (current === 0 ? current : 0));
+  }, [slug]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => setReelOnScreen(entries.some((entry) => entry.isIntersecting)),
+      { threshold: 0.15 },
+    );
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [slug]);
+
+  useEffect(() => {
+    if (!autoReel || reelHeld || !reelOnScreen || reelCount < 2) return;
+    const id = window.setInterval(
+      () => setActive((current) => (current + 1) % reelCount),
+      PROJECT_DWELL_MS,
+    );
+    return () => window.clearInterval(id);
+  }, [autoReel, reelHeld, reelOnScreen, reelCount]);
+
+  /* Every control does the same three things: move, stop the cycle, and let the region speak. */
+  const showProject = useCallback((next: number) => {
+    setActive(next);
+    setAutoReel(false);
+    setReelAnnounce(true);
+  }, []);
 
   if (!sol) {
     const dir = directions.find((d) => d.slug === slug);
@@ -490,10 +571,128 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               <h2 className="disp">{l(solUI.projectsTitle)}</h2>
               <p>{l(solUI.projectsLead)}</p>
             </div>
+
+            {/* ---- the shape this section takes where the 3D laptop is live ----
+                A machine stands in the section and the projects play on its display, one after
+                another; beside it, the project that is on the screen right now — its tag, its
+                name, its description and its link — as REAL TEXT, changing in step with it.
+
+                Both shapes are always in the DOM and CSS chooses, exactly as the panels' bay and
+                the steps corner do: from 861px up, on a renderer that really draws, this stage is
+                laid out and the grid below is not; everywhere else — a phone, `fallback`, `off`,
+                reduced motion — the stage is `display: none` and the grid is the one we shipped,
+                untouched. Nothing is deleted for anyone.
+
+                `.projScreen` is the window the machine stands in: see-through, painting no fill,
+                nothing at all between it and the canvas behind the page, and no transform,
+                perspective, filter, `contain` or clipping overflow here or above it. The scene
+                MEASURES this box (components/scene/scrollProbe.ts) rather than assuming it.
+
+                The cycle pauses under the pointer and while the focus is inside the stage — the
+                text is being read then — and any control stops it for good. */}
+            <div
+              className={styles.projStage}
+              ref={stageRef}
+              onPointerEnter={() => setReelHeld(true)}
+              onPointerLeave={() => setReelHeld(false)}
+              onFocus={() => setReelHeld(true)}
+              onBlur={() => setReelHeld(false)}
+            >
+              <div
+                aria-hidden="true"
+                className={styles.projScreen}
+                data-scene-anchor={desktop ? "projects" : undefined}
+              />
+              <div className={styles.projPanel}>
+                <p className={`mono ${styles.projEyebrow}`}>
+                  {l(pageUI.reelOnScreen)}
+                  <span aria-hidden="true">
+                    {` ${String(reelIndex + 1).padStart(2, "0")} / ${String(reelCount).padStart(2, "0")}`}
+                  </span>
+                </p>
+                {/* The live region. Silent (`off`) while the cycle runs on its own; `polite` from
+                    the moment the visitor takes control, which is also the moment the cycle stops,
+                    so it only ever speaks about a change they asked for. Focus is never moved. */}
+                <div
+                  className={styles.projLive}
+                  aria-live={reelAnnounce ? "polite" : "off"}
+                  aria-atomic="true"
+                >
+                  <small className={`mono ${styles.projStageTag}`}>{l(onScreenProject.tag)}</small>
+                  <h3 className={`disp ${styles.projStageName}`}>{onScreenProject.name}</h3>
+                  <p className={styles.projStageDesc}>{l(onScreenProject.desc)}</p>
+                  {/* The link cannot disappear with the card: the project on the screen carries
+                      its own, and every project can be put on the screen from the row below. A
+                      project with no public URL says so, rather than offering a dead link. */}
+                  {onScreenProject.url ? (
+                    <a
+                      className={styles.projStageLink}
+                      href={onScreenProject.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {l(solUI.actionProject)}
+                    </a>
+                  ) : (
+                    <span className={`mono ${styles.projStageNoLink}`}>
+                      {l(solUI.actionProjectPrivate)}
+                    </span>
+                  )}
+                </div>
+                <div className={styles.projNav} role="group" aria-label={l(pageUI.reelNav)}>
+                  <button
+                    type="button"
+                    className={styles.projNavBtn}
+                    data-reel={autoReel ? "running" : "stopped"}
+                    aria-label={l(autoReel ? pageUI.reelPause : pageUI.reelPlay)}
+                    onClick={() => {
+                      setAutoReel((running) => !running);
+                      setReelAnnounce(true);
+                    }}
+                  >
+                    <span aria-hidden="true" className={styles.projNavGlyph} />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.projNavBtn}
+                    data-reel="prev"
+                    aria-label={l(pageUI.reelPrev)}
+                    onClick={() => showProject((reelIndex - 1 + reelCount) % reelCount)}
+                  >
+                    <span aria-hidden="true" className={styles.projNavGlyph} />
+                  </button>
+                  <span className={styles.projMarks}>
+                    {related.map((p, i) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={styles.projMark}
+                        aria-label={`${l(pageUI.reelShow)} ${i + 1}: ${p.name}`}
+                        aria-current={i === reelIndex ? "true" : undefined}
+                        onClick={() => showProject(i)}
+                      >
+                        <span aria-hidden="true" className={styles.projMarkBar} />
+                      </button>
+                    ))}
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.projNavBtn}
+                    data-reel="next"
+                    aria-label={l(pageUI.reelNext)}
+                    onClick={() => showProject((reelIndex + 1) % reelCount)}
+                  >
+                    <span aria-hidden="true" className={styles.projNavGlyph} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div
               className={styles.projectGrid}
               ref={projectsRef}
               data-projects-track=""
+              data-project-index={reelIndex}
               style={{ "--card-count": related.length } as CSSProperties}
             >
               {related.map((p, i) => {
@@ -567,30 +766,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                   </article>
                 );
               })}
-              {/* The laptop's cell. The shelf gets a machine standing in it and the
-                  screenshots of these very cards play on its display (the scene builds it
-                  from `data-scene-anchor="projects"` and reads the cards through
-                  `data-projects-track` above — read only: not one card is written to).
-
-                  It is the grid's NEXT CELL, which is the hole a 5-card grid leaves in three
-                  columns and a 3-card grid leaves in two, and a cell of its own at the end of
-                  the shelf when the row happens to be full. Either way it covers no card and
-                  moves no copy: a cell cannot overlap its neighbours, and no card's own box
-                  changes. Which cell it landed in is assumed nowhere — the scene MEASURES
-                  this element (components/scene/scrollProbe.ts).
-
-                  See-through, like the panels' instrument window: the canvas draws BEHIND
-                  the page, so the cell paints no fill and there is nothing at all between it
-                  and the canvas. It is laid out only where a model can really arrive — from
-                  861px up, on the `webgl` (or still `pending`) renderer — and is
-                  `display: none` otherwise, so under that the grid is exactly the one we
-                  shipped, holes and all. Decorative and heading-less: nothing focusable, no
-                  copy, no marker for the HUD rail. */}
-              <div
-                aria-hidden="true"
-                className={styles.projStage}
-                data-scene-anchor={desktop ? "projects" : undefined}
-              />
             </div>
           </section>
         )}

@@ -1126,47 +1126,37 @@ a.project:hover {
   overflow: hidden;
 }
 
-/* ---------- the laptop's cell ----------
-   The shelf's last cell is a machine, not a card: a 3D laptop stands in it and the screenshots of
-   the cards beside it play on its display (components/scene/three/models/laptop.ts). This box is
-   only the window it stands in.
+/* ---------- the machine's stage ----------
+   Where the 3D laptop can really arrive, "Proiecte relevante" stops being a grid of cards and
+   becomes ONE machine with the projects playing on its display, and the project that is on the
+   screen written out beside it. The grid below is still rendered and still the content — CSS
+   simply chooses which of the two shapes is laid out, the same way the panels' bay and the steps
+   corner are chosen (:637-648, :1203-1213). Below 861px and on `fallback` / `off` this stage is
+   `display: none` and the grid is exactly the one we shipped.
 
-   See-through, exactly like the panels' instrument window (:440-470): the scene's canvas draws
-   BEHIND the page, so the cell paints no fill and nothing sits between it and the canvas. No
-   transform, no perspective, no filter, no `contain`, no clipping overflow — here or on anything
-   above it (docs/07-conventions.md); the card windows' own `perspective` lives on the cards, which
-   are this box's siblings and never its ancestors.
+   Two columns, because the copy has to sit BESIDE the machine and change with it: the window is
+   1.62 of the row, the panel 1. The window has no fill and no chrome that paints — the canvas
+   draws behind the page, and between this box and it there is nothing.
 
-   Its chrome is the grid's own recipe, once more: 1px background LAYERS, each `no-repeat` with an
-   explicit 1px side so no layer is ever a fill — a rule across its head, a guide rail under each of
-   its ends — and two square brackets at its foot. It opens after the last window in the shelf has
-   landed (`--card-count`, the grid's own variable), so the row composes and then the machine is
-   revealed standing in it.
-
-   `min-height` is the one number here that is not taste. In the hole a 5-card grid leaves, the cell
-   stretches to the cards beside it (~333px) and the machine is fitted to the cell's WIDTH; alone in
-   a row at the end of the shelf, only this says how tall it is. 330px is where the two agree — the
-   height at which the width still runs out first for the 1.70 x 1.17 box the scene fits
-   (components/scene/choreography.ts `LAPTOP_LIT`): h >= 16 + 0.688 * (w - 16) at every cell width
-   this grid produces, the 465px of two columns at 1024 included.
-
-   It is worth 90px of page on the two layouts that open a row (a 3-card grid in three columns, a
-   2-card grid in two), and it buys the only thing that was keeping the machine from staying inside
-   its own cell. MEASURED, not reasoned: at 240px the fit was height-limited, and a height-limited
-   machine near the top of the viewport lit 49px ABOVE its cell — the scene's camera is a
-   perspective one, and the near half of a unit-deep object leans outward as its cell travels away
-   from the canvas's centre. At 330px the same sweep stays 8 to 70px INSIDE the cell on all four
-   sides, at every scroll position. It also makes the laptop one size across the three service
-   pages instead of two.
-
-   Either way the scene MEASURES this box rather than assuming it. */
+   `aspect-ratio` rather than a height: the object the scene fits is 1.94 x 1.37 in model units
+   (components/scene/choreography.ts `LAPTOP_LIT`), so a 1.42 : 1 box is the one where the width
+   and the height run out at the same moment and neither is wasted. `max-height` keeps it inside a
+   short viewport; the scene measures whatever comes out. */
 .projStage {
-  /* Laid out only where a model can really arrive — the gate is right below. */
+  /* Laid out only where the machine can really arrive — the gate is at the foot of this block. */
   display: none;
+  grid-template-columns: minmax(0, 1.62fr) minmax(300px, 1fr);
+  gap: var(--sp-5);
+  align-items: center;
+}
+.projScreen {
   position: relative;
-  min-height: 330px;
-  /* the card's own radius, so the cell belongs to the shelf it stands in */
-  border-radius: 19px;
+  width: 100%;
+  aspect-ratio: 1.42 / 1;
+  max-height: 62vh;
+  /* The window's own chrome, the module's one recipe: 1px background LAYERS, each `no-repeat`
+     with an explicit 1px side, so no layer is ever a fill — a rule across its head and a guide
+     rail under each of its ends. No fill, no border, no radius, no shadow. */
   background:
     linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
       top center / 100% 1px,
@@ -1174,49 +1164,263 @@ a.project:hover {
         color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
         transparent
       )
-      no-repeat top left 11px / 1px 22px,
+      no-repeat top left / 1px 26px,
     linear-gradient(
         color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
         transparent
       )
-      no-repeat top right 11px / 1px 22px;
+      no-repeat top right / 1px 26px;
   opacity: 0;
-  transition: opacity 0.5s var(--motion-ease-out);
-  /* after the last window of the shelf has folded open (:1037-1050, the same ladder) */
-  transition-delay: calc(var(--card-count, 3) * 90ms + 240ms);
+  transition: opacity 0.6s var(--motion-ease-out);
 }
-/* The brackets at the cell's foot, on the same 11px gutter as the guide rails above them, so the
-   two read as one frame the eye completes down its sides. 18px arms, no radius. */
-.projStage::before,
-.projStage::after {
+/* The brackets at the window's foot, completing the frame down its sides. 22px arms, no radius. */
+.projScreen::before,
+.projScreen::after {
   content: "";
   position: absolute;
-  bottom: 11px;
-  width: 18px;
-  height: 18px;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
   border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
   border-bottom-width: 1px;
 }
-.projStage::before {
-  left: 11px;
+.projScreen::before {
+  left: 0;
   border-left-width: 1px;
 }
-.projStage::after {
-  right: 11px;
+.projScreen::after {
+  right: 0;
   border-right-width: 1px;
 }
-.projStage[data-entered] {
+.projStage[data-entered] .projScreen {
   opacity: 1;
 }
-/* Where the cell is actually opened: the two conditions the panels' bay uses, unchanged — the
-   site's desktop breakpoint (the `data-scene-anchor` is not written below it either) and a
-   renderer that will really draw. `fallback` and `off` — no usable WebGL, the QA flag off, reduced
-   motion — never get an empty cell with nothing behind it: the grid is then exactly the one we
-   shipped, its holes included. */
+
+/* ---------- the project that is on the screen ----------
+   Real DOM text, never drawn into the texture: selectable, translatable, and read by assistive
+   technology like any other paragraph. It carries no surface of its own — the section has none
+   either, and the copy sits on the page exactly as the heading above it does. */
+.projPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  opacity: 0;
+  transform: none;
+  transition: opacity 0.6s var(--motion-ease-out);
+  transition-delay: 0.12s;
+}
+.projStage[data-entered] .projPanel {
+  opacity: 1;
+}
+.projEyebrow {
+  margin: 0;
+  color: var(--mut);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-extra);
+  letter-spacing: 0.14em;
+}
+/* The live region. `aria-live` is written by the component, not here. */
+.projLive {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  /* The change is a fade, not a flash: the region re-renders its text and this brings it back.
+     Under `reduce` the stage is not laid out at all (the scene is `off` there), and the rule at
+     the foot of the file covers a visitor who turns `reduce` on mid-visit. */
+  animation: proj-live 0.45s var(--motion-ease-out);
+}
+.projStageTag {
+  display: block;
+  color: var(--red-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-extra);
+  letter-spacing: 0.08em;
+}
+.projStageName {
+  margin: 0;
+  font-size: clamp(30px, 3.1vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--txt);
+}
+.projStageDesc {
+  margin: 0;
+  color: var(--mut);
+  line-height: 1.55;
+  font-size: var(--fs-md);
+  /* Four lines, the card's own clamp, so a long description cannot push the controls off the
+     machine's line. */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.projStageLink,
+.projStageNoLink {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.projStageLink {
+  color: var(--txt);
+  text-decoration: none;
+  font-weight: var(--fw-bold);
+  border-bottom: 1px solid var(--sol-accent, var(--blue));
+  padding-bottom: 2px;
+}
+.projStageLink:hover {
+  color: var(--sol-accent, var(--blue));
+}
+.projStageLink:focus-visible,
+.projMark:focus-visible,
+.projNavBtn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.projStageNoLink {
+  color: var(--mut);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- the controls ----------
+   With the cards not laid out, these ARE the way through the projects: previous, one marker per
+   project (its accessible name is the project's own name, so a screen reader hears what it will
+   show rather than "button 3 of 5"), next, and a plain stop for the cycle — which is what WCAG
+   2.2.2 asks of information that updates by itself for longer than five seconds.
+   Every target is 44px, the glyphs inside them are drawn with borders — the module draws no
+   icons and no dots — and the row wraps rather than overflowing a narrow panel. */
+.projNav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--sp-2);
+}
+.projNavBtn,
+.projMark {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+}
+.projNavGlyph {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 0 solid var(--mut);
+  transition: border-color 0.2s, background-color 0.2s;
+}
+/* Chevrons: two borders of a square, turned. */
+.projNavBtn[data-reel="prev"] .projNavGlyph {
+  border-left-width: 1.5px;
+  border-bottom-width: 1.5px;
+  transform: rotate(45deg);
+  margin-left: 3px;
+}
+.projNavBtn[data-reel="next"] .projNavGlyph {
+  border-right-width: 1.5px;
+  border-top-width: 1.5px;
+  transform: rotate(45deg);
+  margin-right: 3px;
+}
+/* Running: two bars (stop it). Stopped: a bar and an arrow head (start it). */
+.projNavBtn[data-reel="running"] .projNavGlyph {
+  width: 9px;
+  height: 11px;
+  border-left-width: 3px;
+  border-right-width: 3px;
+}
+.projNavBtn[data-reel="stopped"] .projNavGlyph {
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 10px solid var(--mut);
+  margin-left: 3px;
+}
+.projNavBtn:hover .projNavGlyph {
+  border-color: var(--txt);
+}
+.projNavBtn[data-reel="stopped"]:hover .projNavGlyph {
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+}
+/* One marker per project: a 2px bar in a 44px target, lit for the one on the screen. */
+.projMarks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.projMark {
+  min-width: 26px;
+}
+.projMarkBar {
+  display: block;
+  width: 2px;
+  height: 14px;
+  background: var(--mut);
+  opacity: 0.55;
+  transition: height 0.2s var(--motion-ease-out), background-color 0.2s, opacity 0.2s;
+}
+.projMark:hover .projMarkBar {
+  opacity: 1;
+}
+.projMark[aria-current] .projMarkBar {
+  height: 22px;
+  opacity: 1;
+  background: var(--sol-accent, var(--blue));
+}
+
+/* A keyframe used by a module must be declared in that module (docs/07-conventions.md:82-84). */
+@keyframes proj-live {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Stacked from 861 to 1024: two columns there would leave the machine about the width of a card
+   and the copy too narrow to read. The window keeps a sane width and centres, so the section
+   still reads as one object rather than a band. */
+@media (max-width: 1024px) {
+  .projStage {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--sp-4);
+    justify-items: center;
+  }
+  .projScreen {
+    max-width: 660px;
+    max-height: 54vh;
+  }
+  .projPanel {
+    max-width: 660px;
+    width: 100%;
+  }
+}
+
+/* ---------- where the stage is actually opened ----------
+   The two conditions the panels' bay uses, unchanged: the site's desktop breakpoint (the
+   `data-scene-anchor` is not written below it either) and a renderer that really draws. `pending`
+   is deliberately NOT here — unlike an empty bay, swapping the section's whole shape before WebGL
+   is certain would take the cards away and hand them back. */
 @media (min-width: 861px) {
-  :global([data-scene-stage][data-renderer="webgl"]) .projStage,
-  :global([data-scene-stage][data-renderer="pending"]) .projStage {
-    display: block;
+  :global([data-scene-stage][data-renderer="webgl"]) .projStage {
+    display: grid;
+  }
+  :global([data-scene-stage][data-renderer="webgl"]) .projectGrid {
+    display: none;
   }
 }
 
@@ -1622,9 +1826,13 @@ a.project:hover {
   .hlCorner,
   .hlIndex,
   .hlWindow,
-  .projStage {
+  .projScreen,
+  .projPanel {
     opacity: 1;
     transition: none;
+  }
+  .projLive {
+    animation: none;
   }
   /* The shelf's frame and every window are simply there: the composed state is the design and
      it carries itself with no motion at all. */

@@ -151,10 +151,18 @@ export const WORK_ID = "lucrari";
 export const WORK_TRACK_ATTR = "data-work-track";
 /**
  * On a service page's "Proiecte relevante" grid: the cards whose screenshots the 3D laptop plays
- * (`components/scene/projectsReel.ts`). The grid itself is untouched — it is the content, the
- * accessibility and the fallback; the reel only reads it and listens on it.
+ * (`components/scene/projectsReel.ts`). The grid itself is the content, the accessibility and the
+ * fallback — the reel only reads it and listens on it, and never lays a card out differently.
  */
 export const PROJECTS_TRACK_ATTR = "data-projects-track";
+/**
+ * On the same element: which project is on the laptop's display right now, 0-based. **The page
+ * owns it** — the cycle, the prev/next and the markers are all React state in DirectionPage.tsx,
+ * and the same number picks the card the hologram composes and the name, tag and description the
+ * page renders beside the machine as real text. One number, one source, so the display and the
+ * copy beside it can never disagree.
+ */
+export const PROJECTS_INDEX_ATTR = "data-project-index";
 
 /* ---- directions → models ------------------------------------------------------------- */
 

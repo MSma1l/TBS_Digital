@@ -145,10 +145,10 @@ export function SceneWorld({
     return () => world.attachWork(null);
   }, [world, probe]);
 
-  // A service page's projects reel, for the scene's whole life: it says which project the
-  // laptop's display is showing — the hovered card, the focused one, or the cycle's — and the
-  // world disposes it. It only READS the grid and listens on it; every card stays exactly as
-  // React rendered it, which is what keeps the grid the fallback when there is no laptop.
+  // A service page's projects reel, for the scene's whole life: it turns the number the page
+  // wrote on the grid into the card the display is composed from, and the world disposes it. It
+  // never lays a card out differently — the grid stays exactly what React rendered, which is what
+  // keeps it the fallback wherever the machine is not there.
   useEffect(() => {
     const grid = document.querySelector<HTMLElement>(`[${PROJECTS_TRACK_ATTR}]`);
     if (!grid) return;

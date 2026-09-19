@@ -575,20 +575,22 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   };
 
   /**
-   * The project on the laptop's display, once a frame while it is on screen. The reel answers with
-   * the hovered card, the focused one, or the cycle's (`projectsReel.ts`); `composeHologram` draws
-   * it — its screenshot as luminance under scanlines, its name, its index, bracket corners — on a
-   * canvas capped at `config.hologram` (384 x 240 at high), and the model glitches over the swap.
+   * The project on the laptop's display, once a frame while it is on screen. The page says which
+   * one — its cycle, its prev/next, its markers, one number on the grid (`projectsReel.ts`) — and
+   * `composeHologram` draws that card: its screenshot as luminance under scanlines, its name, its
+   * index, bracket corners, on a canvas capped at `config.hologram` (384 x 240 at high). The model
+   * glitches over the swap, and the page renders the same project's name, tag and description
+   * beside the machine as real text, off the same number.
    *
    * A pick is composed again when the card changes, when its place in the grid changes, and when
    * the reel's `generation` moves — which is a content swap having replaced the cards or one of
    * their images. That last case is the reason `request` takes `force`: the card element can be the
    * very one already on the texture, with a different project behind it.
    */
-  const frameScreen = (step: number) => {
+  const frameScreen = () => {
     const model = laptop;
     if (!model || !reel) return;
-    const pick = reel.pick(step);
+    const pick = reel.pick();
     if (!pick) return;
     const stale = pick.generation !== screenGeneration;
     if (!stale && pick.card === screenCard && pick.index === screenIndex) return;
@@ -962,6 +964,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         // Its own pre-warm frame, like a panel's: drawn once at reveal 0 (every fragment discards)
         // so the frame that first shows it uploads nothing.
         prewarmQueue.add(laptop.group);
+        // …and the screenshots, now: where the machine is live the grid is `display: none`, and a
+        // lazy image with no box is never fetched (`projectsReel.ts` `warm`).
+        reel.warm();
       }
       if (laptop) {
         const group = laptop.group;
@@ -982,8 +987,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
           modelFrame.prewarm = prewarm;
           modelFrame.step = step;
           laptop.update(modelFrame);
-          // Only while it is really being drawn: a reel nobody is watching does not spend projects.
-          if (laptopFade > 0) frameScreen(step);
+          // Only while it is really being drawn: nothing is composed for a section nobody reached.
+          if (laptopFade > 0) frameScreen();
         }
       }
 
