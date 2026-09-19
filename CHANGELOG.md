@@ -16,6 +16,53 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: comutatorul de limbă e rotund și schimbarea alunecă
+
+Clientul a cerut ca RO | RU | EN să fie rotunde și schimbarea să fie animată.
+
+**Forma.** `--r-pill` pentru pistă, pentru fiecare opțiune (deci și pentru inelul de focus, care
+urmează raza), pentru indicator, pentru butonul compact de 44×44 și pentru rândurile din popup. Nu o
+treaptă fixă, pentru că **pista nu are o înălțime fixă**: 30px de la 861px în sus și 50px în banda
+zonelor de atingere de dedesubt. Orice valoare literală ar fi fost pilulă la una și pătrat rotunjit
+la cealaltă. Foaia popup-ului primește 16px — o pilulă pe o cutie de 142px înălțime ar deveni
+pastilă alungită — și e exact raza insulei antetului, deci popup-ul se citește ca o bucată din el.
+
+**Indicatorul.** Umplerea albastră nu mai stă pe butonul activ: e un element propriu, în spatele
+etichetelor, care **alunecă**. Geometria e măsurată, nu presupusă — dreptunghiul opțiunii active
+raportat la prima opțiune, deci imun la tragerea pe care insula antetului o aplică întregului grup.
+Poziția e corectă **la primul paint** (până atunci e invizibil, deci nu alunecă de nicăieri), iar
+tranziția se armează un cadru mai târziu: prima așezare e salt, toate următoarele sunt alunecări. Un
+`ResizeObserver` pe fiecare opțiune prinde pragurile, rotirea ecranului, zoom-ul și cadrul în care se
+schimbă fontul.
+
+**Două decizii luate prin măsurare, nu din obișnuință:**
+- **A refuzat curba de animație standard a proiectului.** Cu ea, la 110ms din 220 indicatorul era la
+  **97%** din drum — teleportare cu așezare. Cu curba aleasă e la **83,9%**: alunecare vizibilă,
+  aterizare decisă.
+- **Eticheta părăsită rămâne albă** cât indicatorul trece peste ea (220ms cu 50ms întârziere), în loc
+  să devină gri imediat (140ms pentru cea care primește). Altfel ar fi fost gri pe albastru — **2,6:1**
+  pentru o fracțiune de secundă.
+
+**Contrast măsurat** pe pixelul cel mai defavorabil de sub fiecare etichetă: eticheta activă pe
+indicator **5,27:1** (identic la toate lățimile, ambele stări de antet, toate limbile); etichetele
+inactive **6,87:1** în cel mai rău caz compozit posibil (fundal alb forțat sub antet) și 7,37–8,40 pe
+pagina reală cu pânza 3D dedesubt; butonul compact 10,18:1.
+
+Geometrie verificată: decalaj **zero** pe toate cele 24 de combinații lățime × stare de antet ×
+limbă, plus după o navigare în site și la schimbarea mărimii fontului (11 → 16 → 22px).
+
+**Decizii documentate atinse, cu motivul scris la loc:** butonul compact avea colțuri drepte „ca bara
+să se citească dintr-o bucată" — acum e cerc, pentru ca pilula segmentată și butonul compact să fie
+același control la mărimi diferite. Perechea de culori (alb pe albastru, niciodată roșu) e păstrată
+identic.
+
+**De reparat separat:** `npm run lint` are o eroare **preexistentă**, semnalată de agent și
+neintrodusă de el — `components/sections/DirectionPage.tsx:131`, `react-hooks/set-state-in-effect`.
+Intră în trecerea de curățenie.
+
+Fișiere: `components/ui/LanguageSwitcher.tsx`, `components/ui/LanguageSwitcher.module.css`,
+`components/__tests__/language-switcher.test.tsx`.
+
 ## 2026-09-19 — Changed: insula antetului se strânge și în lățime
 
 Clientul a cerut ca starea strânsă să se îngusteze, nu doar să scadă în înălțime.

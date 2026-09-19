@@ -249,3 +249,44 @@ describe("LanguageSwitcher — the compact control (narrow phones)", () => {
     expect(button).toHaveAccessibleName("Change language: English");
   });
 });
+
+/*
+ * The sliding thumb (the blue fill behind the active language).
+ *
+ * jsdom has no layout, so the GEOMETRY of the slide cannot be asserted here — that is
+ * measured in the browser. What must hold whatever the layout engine says is the contract
+ * around it: the thumb is decoration, so it adds nothing to the accessibility tree and no
+ * fourth button for `getByRole` to find; the active option carries the `data-active` hook
+ * the measurement looks for; and with no layout to measure the component refuses to place
+ * the thumb at all rather than pinning it, at width 0, to the left edge.
+ */
+describe("LanguageSwitcher — the sliding thumb", () => {
+  beforeEach(() => stubViewport(false));
+
+  it("adds no control and no accessible node: still exactly three buttons", () => {
+    renderSwitcher();
+
+    expect(within(group()).getAllByRole("button")).toHaveLength(3);
+    const thumb = group().querySelector("span");
+    expect(thumb).not.toBeNull();
+    expect(thumb).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("marks the active option with the hook the measurement reads", () => {
+    renderSwitcher("ru");
+
+    const active = group().querySelectorAll("[data-active]");
+    expect(active).toHaveLength(1);
+    expect(active[0]).toHaveAttribute("data-locale", "ru");
+    expect(active[0]).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("stays unplaced when there is no layout to measure", () => {
+    renderSwitcher();
+
+    // No measurement => no `data-thumb` state, and no inline geometry. The stylesheet keeps
+    // the thumb transparent until the attribute appears, so nothing can flash at 0 width.
+    expect(group()).not.toHaveAttribute("data-thumb");
+    expect(group().querySelector("span")).not.toHaveAttribute("style");
+  });
+});

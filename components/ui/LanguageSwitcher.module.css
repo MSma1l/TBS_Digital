@@ -1,9 +1,26 @@
 .switcher {
+  /* The thumb copies this inset, so the two can never drift apart — see `.thumb`. */
+  --track-pad: 2px;
+  /* Tailwind's `ease-out`, which is the curve the header's island condenses with
+     (Navbar.tsx) — inherited by the thumb and the labels below so the whole control moves
+     on one ease. The literal is a fallback only: --ease-out is emitted by Tailwind's theme
+     layer, and a theme that stopped emitting it would otherwise make every `transition`
+     here invalid at computed-value time, i.e. silently unanimated. */
+  --lang-ease: var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
+  /* The thumb is positioned against this box. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 2px;
+  padding: var(--track-pad);
   border: 1px solid var(--glass-line);
+  /* Fully round, from the radius scale in app/globals.css. --r-pill rather than a fixed step
+     because the track's height is NOT fixed: measured 30px from 861px up (a 24px option in
+     2px of padding and a 1px border) and 50px in the 44px tap-target band below it. Any
+     literal step is a squircle at one of those heights and a pill at the other; --r-pill is
+     round at both, and it is the only one that keeps the thumb inside it concentric without
+     a second number per breakpoint. */
+  border-radius: var(--r-pill);
   /* HUD glass, the header's own material: a tint of the panel colour and a hairline, so the
      track reads as an inset on the frosted bar in both palettes. Colour only — the blur
      belongs to the header's ::before (a second backdrop-filter here would blur nothing new
@@ -12,32 +29,91 @@
   background: var(--glass-bg);
 }
 
+/* The fill of the active language, as ONE element behind all three labels rather than a
+   background on the active button — which is what lets it slide from the old option to the
+   new one instead of blinking across.
+
+   Placement: `top/bottom/left: var(--track-pad)` puts it exactly on the first option's box
+   (an absolutely positioned child is laid out against the track's PADDING box, so this inset
+   lands on the content box — the row of options), and `transform` + `width` are written by
+   LanguageSwitcher.tsx from the measured rect of the active button. Nothing here assumes the
+   three options are equally wide.
+
+   Transform and width, not `left`/`right`: transform is composited, so the slide does not
+   re-layout the header on any frame. */
+.thumb {
+  position: absolute;
+  top: var(--track-pad);
+  bottom: var(--track-pad);
+  left: var(--track-pad);
+  /* Until the component has measured, there is nothing to draw: the thumb must not appear
+     at width 0 on the left edge and then fly to the active option on the first paint. */
+  width: 0;
+  opacity: 0;
+  border-radius: var(--r-pill);
+  /* The pairing the active option used to carry itself: white on the blue fill, lit with
+     the blue neon. Blue, never red: white on --red is 4.19:1, under AA at this size. */
+  background: var(--blue2);
+  box-shadow: var(--neon-blue);
+  pointer-events: none;
+}
+
+/* Measured and placed — visible, but not yet allowed to move: this is the first paint and
+   the load of a client-navigated page, where a slide would be a slide from nowhere. */
+.switcher[data-thumb] .thumb {
+  opacity: 1;
+}
+
+/* Armed one commit later, so every LATER placement is a slide.
+
+   220ms on --ease-out — the SAME curve and a shorter duration than the 300ms the header's
+   condensed island moves with (Navbar.tsx), so the control settles before the bar it rides
+   in does. Measured on the real page: 84% of the travel is done at 110ms and the last 16%
+   lands in the second half, which is what reads as quick and precise rather than floaty.
+   NOT --motion-ease-out: that curve is an entrance ease built for 400ms+ and at this length
+   it collapses into a jump (measured 97% travelled at 110ms — a teleport with a settle). */
+.switcher[data-thumb="slides"] .thumb {
+  transition:
+    transform 0.22s var(--lang-ease),
+    width 0.22s var(--lang-ease);
+}
+
 .option {
+  /* Positioned with `z-index: auto`, so the labels paint AFTER the (also positioned) thumb
+     and stay legible on top of it. */
+  position: relative;
   cursor: pointer;
   border: none;
+  /* Same token as the track: the focus ring below is drawn by `outline`, which follows
+     `border-radius` — a square ring on a pill reads as a bug. */
+  border-radius: var(--r-pill);
   background: transparent;
   /* --mut, not --dim: --dim is 4.45:1 on white, under AA for 11px text. */
   color: var(--mut);
   font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   padding: 5px 9px;
-  transition:
-    color 0.15s,
-    background 0.15s,
-    box-shadow 0.15s;
+  /* The crossfade, LEAVING half: the label the thumb is sliding away from holds its white a
+     beat and then fades to --mut over the rest of the slide. The two halves are timed
+     differently on purpose, and the asymmetry falls out of the cascade for free — a label
+     transitions with whatever `transition` it ends up with, which is this one when it loses
+     `.active` and the faster one on `.active` when it gains it.
+     Why this way round: a grey label caught ON the blue fill is the one bad frame this
+     animation can produce (--mut on --blue2 is 2.6:1), and lingering white is what keeps it
+     off the screen — white reads on the fill (5.2:1) AND on the glass it is uncovering. */
+  transition: color 0.22s var(--lang-ease) 0.05s;
 }
 
 .option:hover {
   color: var(--txt);
 }
 
-/* The selected option is white on the blue fill (5.2:1), lit with the blue neon. It used to
-   be `var(--bg)` — the *page background* colour used as text, another leftover of the dark
-   theme. Blue, never red: white on --red is 4.19:1, under AA at this size. */
+/* White on the thumb's blue fill (5.2:1). The fill itself lives on `.thumb`.
+   ARRIVING half of the crossfade: 140ms against the slide's 220, so the label is white
+   before the fill has finished settling under it, never grey on blue. */
 .active {
   color: var(--on-accent);
-  background: var(--blue2);
-  box-shadow: var(--neon-blue);
+  transition: color 0.14s var(--lang-ease);
 }
 
 /* Keyboard focus must be visible on its own, not only under the pointer. */
@@ -105,8 +181,10 @@
   align-items: stretch;
 }
 
-/* The trigger keeps the header's control language: same border, same --panel2 track, same
-   square corners, so the bar reads as one strip. */
+/* The trigger keeps the header's control language: same border, same --panel2 track — and
+   now the same fully round corners as the segmented track it stands in for, so the two
+   shapes read as one control that changed size rather than two different controls. At its
+   fixed 44x44 that makes it a circle, which is what --r-pill means on a square box. */
 .trigger {
   display: inline-flex;
   align-items: center;
@@ -119,6 +197,7 @@
   padding: 0 var(--sp-1);
   cursor: pointer;
   border: 1px solid var(--glass-line);
+  border-radius: var(--r-pill);
   background: var(--glass-bg);
   color: var(--txt);
   font-size: var(--fs-xs);
@@ -176,6 +255,11 @@
   min-width: 130px;
   padding: var(--sp-1);
   border: 1px solid var(--glass-line);
+  /* --r-lg, not --r-pill: this is a 130x150 sheet, and a stadium shape on a box that tall is
+     a lozenge, not a rounded panel. 16px is the radius the header's own condensed island
+     uses (Navbar.tsx, `rounded-lg`), so the popup reads as a piece of the header — while the
+     rows inside it stay pills, like the segmented thumb. */
+  border-radius: var(--r-lg);
   /* The solid glass sheet, no blur: this popup only exists on ≤400px phones, where a
      backdrop-filter over the animated hero costs frames. */
   background: var(--glass-bg-solid);
@@ -192,6 +276,9 @@
   padding: 0 var(--sp-2);
   cursor: pointer;
   border: none;
+  /* Same pill as the segmented thumb: the active language is highlighted with the same
+     shape whichever variant of the control the visitor got. */
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--txt);
   text-align: left;
@@ -271,13 +358,22 @@
     display: none;
   }
 
+  /* The thumb belongs to the segmented shape only. In this one frame nothing has measured it
+     yet (JS has not run), so it is already invisible — this makes that explicit rather than
+     load-bearing, and the stand-in below paints its own fill instead. */
+  .thumb {
+    display: none;
+  }
+
   .active {
     justify-content: center;
     min-width: 44px;
     min-height: 44px;
     padding: 0 var(--sp-1);
-    /* the compact trigger's exact colours (see .trigger), so the swap is invisible */
+    /* the compact trigger's exact colours AND corners (see .trigger), so the swap is
+       invisible */
     border: 1px solid var(--glass-line);
+    border-radius: var(--r-pill);
     background: var(--glass-bg);
     box-shadow: none;
     color: var(--txt);
@@ -285,8 +381,13 @@
   }
 }
 
+/* The change is instant: the thumb simply appears on the new option and the labels take
+   their colours with it. Everything else the control animates stops too. */
 @media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .switcher[data-thumb="slides"] .thumb,
   .option,
+  .active,
   .trigger,
   .menuOption,
   .chevron {

@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -102,6 +103,13 @@ const getCompact = () => compactQuery()?.matches ?? false;
 /** See the hydration note above: the server renders the segmented control. */
 const getServerCompact = () => false;
 
+/**
+ * `useLayoutEffect` on the server logs a warning, and this component IS server-rendered (the
+ * segmented shape is the server snapshot above). The measurement it runs is meaningless
+ * without layout anyway, so on the server it degrades to the effect that never runs.
+ */
+const useMeasureEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 export function LanguageSwitcher() {
   const compact = useSyncExternalStore(subscribeCompact, getCompact, getServerCompact);
   return compact ? <CompactSwitcher /> : <SegmentedSwitcher />;
@@ -115,9 +123,75 @@ export function LanguageSwitcher() {
  * Keyboard: every option is a real button, so Tab reaches each one and Enter/Space picks
  * it. On top of that the arrow keys (plus Home/End) move focus inside the group the way a
  * segmented control is expected to behave — focus only, never a silent language change.
+ *
+ * ## The thumb
+ *
+ * The blue fill of the active language is NOT a background on the active button: it is one
+ * absolutely positioned `<span>` behind all three labels, which slides from the old option
+ * to the new one when the language changes. Switching is a client re-render (these are
+ * buttons over `useLanguage`, not links), so the element survives the change and a real
+ * transition is possible.
+ *
+ * Its geometry is **measured, never assumed**. RO/RU/EN are two glyphs each in a monospace
+ * face, so they *happen* to come out equal — but the padding, the letter-spacing and the
+ * `min-width: 44px` the ≤860px rules add all move with the breakpoint, and a font that
+ * falls back before the webfont loads moves them again. So the thumb reads the live
+ * `getBoundingClientRect()` of the active button, relative to the first one (sub-pixel, and
+ * immune to the ancestor `translate` the header's island animation puts on the whole group
+ * — both rects move together, the difference does not).
+ *
+ * Correct on the FIRST paint: the measurement is a layout effect, so it commits before the
+ * browser paints; until it has, the thumb is transparent, so nothing slides in from nowhere
+ * on load or after a client navigation. The transition is only armed one commit later
+ * (`slides`), which is why the first placement is a jump and every later one is a slide.
  */
 function SegmentedSwitcher() {
   const { locale, setLocale } = useLanguage();
+
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  /** Where the thumb sits, in px from the first option's left edge. `null` = not measured. */
+  const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
+  /** Armed after the first placement — see the note above. */
+  const [slides, setSlides] = useState(false);
+
+  const measure = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const first = track.querySelector<HTMLButtonElement>("button[data-locale]");
+    const active = track.querySelector<HTMLButtonElement>('button[data-active="true"]');
+    if (!first || !active) return;
+    const firstBox = first.getBoundingClientRect();
+    const activeBox = active.getBoundingClientRect();
+    // A track laid out to zero (display:none, a detached tree, jsdom) is not a measurement.
+    if (activeBox.width === 0) return;
+    const next = { x: activeBox.left - firstBox.left, w: activeBox.width };
+    setThumb((prev) => (prev && prev.x === next.x && prev.w === next.w ? prev : next));
+  }, []);
+
+  useMeasureEffect(measure, [measure, locale]);
+
+  /* Arming the slide, one painted frame after the thumb was first placed. The transform is
+     already on screen and does not change here, so adding the transition cannot start one —
+     it only lets the NEXT placement animate.
+     The flip is deliberately inside `requestAnimationFrame` rather than in the effect body:
+     the frame boundary is the thing being waited for, and a synchronous setState in an
+     effect is a cascading render (react-hooks/set-state-in-effect). */
+  useEffect(() => {
+    if (!thumb || slides) return;
+    const frame = requestAnimationFrame(() => setSlides(true));
+    return () => cancelAnimationFrame(frame);
+  }, [thumb, slides]);
+
+  /* Anything that resizes an option resizes the thumb with it: the 860px/400px breakpoints,
+     a rotation, browser zoom, and the frame the monospace webfont swaps in. The options are
+     observed rather than the track, because that is the box the thumb actually copies. */
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => measure());
+    for (const option of track.querySelectorAll("button")) observer.observe(option);
+    return () => observer.disconnect();
+  }, [measure]);
 
   /** Arrow / Home / End move focus between the options; every other key is left alone. */
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -147,17 +221,29 @@ function SegmentedSwitcher() {
 
   return (
     <div
+      ref={trackRef}
       className={`mono ${styles.switcher}`}
       role="group"
       aria-label={GROUP_LABEL}
       onKeyDown={onKeyDown}
+      data-thumb={thumb ? (slides ? "slides" : "placed") : undefined}
     >
+      {/* Decoration: the fill belongs to the button that owns `aria-pressed`, and a screen
+          reader is told which language is on by that, not by this. A <span>, not a button,
+          so `getAllByRole("button")` inside the group still answers exactly three. */}
+      <span
+        aria-hidden="true"
+        className={styles.thumb}
+        style={thumb ? { width: `${thumb.w}px`, transform: `translateX(${thumb.x}px)` } : undefined}
+      />
       {LOCALES.map((code) => {
         const active = code === locale;
         return (
           <button
             key={code}
             type="button"
+            data-locale={code}
+            data-active={active ? "true" : undefined}
             onClick={() => setLocale(code)}
             aria-label={LOCALE_LABELS[code]}
             aria-pressed={active}
