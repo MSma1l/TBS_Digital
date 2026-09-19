@@ -21,17 +21,26 @@ export type NeonEnvironment = StripEnvironment;
 
 function strips(palette: IntroPalette): EnvStrip[] {
   // Thin, bright strips rather than broad panels: on low-roughness glass they read as crisp
-  // highlight lines; wide panels would wash the whole tube in colour.
+  // highlight lines; wide panels would wash the whole surface in colour.
+  //
+  // Re-aimed for a FLAT PANE. The ∞'s layout put broad strips square above, left and in front of
+  // a tube: a tube carries every direction at once, so a wide source slides along it as a moving
+  // line. The one transmissive surface left is the lid's cover glass — 2.4 x 1.5 and flat — and a
+  // flat mirror samples one narrow cone of the environment, so a source that is square-on lands
+  // as a single broad wash over the whole pane and a source that is not lands nowhere at all.
+  // Narrower strips, set OBLIQUE to the open lid's normal (0, 0.29, 0.96) rather than facing it,
+  // and brighter to pay for the smaller solid angle: what sweeps the pane as the lid comes up is
+  // then a hard-edged streak crossing it, which is the only thing that says "glass" at 1×.
   return [
-    // Red overhead: the neon line along the top of every tube section.
-    { color: palette.red, intensity: 7, size: [9, 0.35], position: [0, 4.6, 1.2] },
-    // Blue from the left: a cool edge on the left lobe.
-    { color: palette.blue, intensity: 6, size: [0.35, 7], position: [-4.6, 0.3, 0.8] },
-    // A thin white bar in front and above: the glint that says "glass".
-    { color: palette.txt, intensity: 4, size: [2.6, 0.12], position: [1.6, 3.2, 4.6] },
-    // Faint rims so the far sides still carry colour.
-    { color: palette.redLift, intensity: 2, size: [0.3, 4], position: [4.6, 1, -1.6] },
-    { color: palette.cyan, intensity: 2, size: [7, 0.25], position: [0, -4.6, -0.8] },
+    // Red overhead and forward: the streak that runs down the pane as the lid rises past it.
+    { color: palette.red, intensity: 9, size: [7, 0.22], position: [0, 4.2, 2.2] },
+    // Blue from the left and slightly ahead: the cool edge down the lid's left side.
+    { color: palette.blue, intensity: 8, size: [0.22, 6], position: [-4.4, 1, 1.4] },
+    // The hard white glint, up and in front and off to the right — the one that says "glass".
+    { color: palette.txt, intensity: 7, size: [2.2, 0.09], position: [1.4, 2.4, 4.4] },
+    // Faint rims so the far sides and the underside still carry colour.
+    { color: palette.redLift, intensity: 3, size: [0.22, 4], position: [4.4, 0.8, -1.8] },
+    { color: palette.cyan, intensity: 2.6, size: [5, 0.18], position: [0, -4.2, 1.6] },
   ];
 }
 

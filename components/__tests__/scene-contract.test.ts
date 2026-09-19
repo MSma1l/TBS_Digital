@@ -57,7 +57,6 @@ const PAGE_BUNDLE_ROOTS = [
   "components/three/capability.ts",
   "components/intro/IntroPreloader.tsx",
   "components/intro/IntroFallback.tsx",
-  "components/intro/lemniscate.ts",
   "components/intro/capability.ts",
   "components/intro/tiers.ts",
   "lib",
@@ -189,11 +188,30 @@ const SCROLL_SCAN_ROOTS = ["components/scene", "components/hud", "lib/hud"];
 
 describe("interior stage — ScrollTrigger stays harmless", () => {
   const sceneFiles = SCROLL_SCAN_ROOTS.flatMap((root) => listFiles(root, CODE));
+  /* The GPU subtree is carved out of the scan, and the test below earns that: the detector is a
+     text match on option names, and those names are ordinary English. `PART.snap` in
+     models/brandBoard.ts is the designer's snapping cursor — an index into that model's own parts
+     — and reads as ScrollTrigger's `snap:` to a regex. A model file cannot configure a
+     ScrollTrigger anyway, and the next test proves the only way it could (naming GSAP at all) is
+     shut. Everything else under the roots is still read in full. */
+  const GPU_SUBTREE = "components/scene/three/";
+  const scrollFiles = sceneFiles.filter((file) => !file.startsWith(GPU_SUBTREE));
 
-  it("scans the stage's own files and the HUD chrome's", () => {
+  it("scans the stage's own files and the HUD chrome's, all but the three.js models", () => {
     expect(sceneFiles).toContain("components/scene/SceneStage.tsx");
     expect(sceneFiles).toContain("components/hud/HudChrome.tsx");
     expect(sceneFiles).toContain("lib/hud/gate.ts");
+    expect(sceneFiles).toContain("components/scene/three/models/brandBoard.ts");
+    expect(scrollFiles).toContain("components/scene/SceneDirector.tsx");
+    expect(scrollFiles).toContain("components/scene/choreography.ts");
+    expect(scrollFiles).not.toContain("components/scene/three/models/brandBoard.ts");
+  });
+
+  it("nothing under components/scene/three names GSAP, so nothing there can reach a ScrollTrigger", () => {
+    const gpuFiles = sceneFiles.filter((file) => file.startsWith(GPU_SUBTREE));
+    expect(gpuFiles.length).toBeGreaterThan(10);
+    const naming = gpuFiles.filter((file) => /gsap|ScrollTrigger/i.test(withoutComments(read(file))));
+    expect(naming).toEqual([]);
   });
 
   it("pins the feature detector on fixtures", () => {
@@ -215,7 +233,7 @@ describe("interior stage — ScrollTrigger stays harmless", () => {
   });
 
   it("no file under components/scene, components/hud or lib/hud uses a forbidden feature", () => {
-    const offenders = sceneFiles.flatMap((file) => {
+    const offenders = scrollFiles.flatMap((file) => {
       const src = withoutComments(read(file));
       return FORBIDDEN_SCROLL_FEATURES.filter(([, pattern]) => pattern.test(src)).map(
         ([name]) => `${file}: ${name}`,

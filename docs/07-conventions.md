@@ -175,7 +175,7 @@ generic helpers in `components/three/`. These conventions exist because each one
 real failure, a CSP violation or a weight regression waiting to happen.
 
 **No network, no loaders, no drei.** Both scenes are built procedurally from three core: geometry
-from math (`components/intro/three/geometry.ts`, `components/scene/shapes.ts` and
+from math (`components/intro/three/laptop.ts` and `cameraPath.ts`, `components/scene/shapes.ts` and
 `components/scene/three/*`), for the intro's glass a PMREM environment rendered from emissive strips
 (`components/three/environment.ts`; the interior has used no environment since the hero became a
 chip, 2026-09-17), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
@@ -192,7 +192,7 @@ config replaces the whole option.
 **Per-frame writes live in plain `.ts` modules, not in components.** The React Compiler lint
 (`react-hooks/immutability`) flags assignments to objects a hook returned; plain TypeScript
 helpers called from `useFrame` keep the components to "create once, call per frame, dispose":
-`components/intro/three/{rig,core,particles}.ts` for the intro; `components/scene/three/world.ts`
+`components/intro/three/{rig,laptop,particles}.ts` for the intro; `components/scene/three/world.ts`
 (which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners, which also
 lay the cursor trail), `trail.ts` (the trail's ring buffer; `three/trail.ts` uploads what it
 wrote), `workHelix.ts` (Work's spiral driver, which writes the project cards' inline layout) and
@@ -201,7 +201,7 @@ never re-renders React per frame either: it writes `textContent`, attributes and
 and tweens a plain `fx` object the scene reads.
 
 **Dispose everything you create.** Geometries and materials are disposed by the modules that
-build them (`core.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the intro's
+build them (`laptop.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the intro's
 PMREM generator and its render target in `environment.ts`. R3F 9.7 calls `forceContextLoss()` 500ms
 after unmount but never `renderer.dispose()`; `components/three/renderer.ts` (`retainRenderer`)
 adds it (deferred one tick so StrictMode's remount doesn't dispose a live renderer) and guards
@@ -237,10 +237,16 @@ is a wall-clock sequence, and a stretched burst could outlive the watchdog; noth
 the ticker. A director only tweens elements that have **no** CSS animation or transition on the
 same property.
 
-**Keep the SVG fallback cheap.** It is what devices without a usable GPU see for the whole
-intro: no CSS `filter` on anything that moves (the halo's blur is an SVG `feGaussianBlur`,
-rasterised once), transform and opacity only in its burst, and its animations pause while the
-WebGL scene draws.
+**Keep the static drawing cheap — it is not a fallback path any more.** It carries the whole
+intro on devices without a usable GPU, **and beats 1–2 on every device**, because the 3D canvas
+is transparent until the scene signals ready and the progress cannot pass 0.60 without that
+signal ([05](./05-page-sections.md#the-six-beats-and-who-draws-them)). So: no CSS `filter` on
+anything that moves (the halo's blur is an SVG `feGaussianBlur`, rasterised once), transform and
+opacity only in its burst, at most two `feGaussianBlur` and two filtered elements, its animations
+pause while the WebGL scene draws, and its resting pose — the first thing painted on the page —
+stays inside its node ceiling so the `<h1>` underneath keeps the LCP. Its windows are scrubbed
+from **one** custom property (`FB_PROGRESS_PROP`, `--fb-p`) written once a frame on one element;
+a new part cuts its own window out of that in CSS rather than earning a second write.
 
 **The overlay's hooks are a contract.** `#tbs-intro[data-testid="intro"]` with `data-phase`,
 `data-renderer` and `data-live`; `data-part="…"` on everything the director drives;
@@ -257,7 +263,7 @@ to every visitor, and nothing but a weight measurement would notice — so it fa
 chrome's mount and its lazy parts), `components/scene/SceneStage.tsx`,
 `components/scene/art/**`, `components/scene/shapes.ts`, `components/three/RenderErrorBoundary.tsx`,
 `components/three/capability.ts`, the intro's up-front files (`IntroPreloader.tsx`,
-`IntroFallback.tsx`, `lemniscate.ts`, `capability.ts`, `tiers.ts`) and `lib/**` (tests excluded).
+`IntroFallback.tsx`, `capability.ts`, `tiers.ts`) and `lib/**` (tests excluded).
 In those files a **static value import** of any of these is an error:
 
 - the packages `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`;
@@ -273,6 +279,12 @@ the CSP and GSAP bans (`restrictedImports({ heavy })`); any new `no-restricted-i
 goes into that helper. `components/__tests__/scene-contract.test.ts` mirrors the file list, the
 subpaths and the regex, and reads them straight out of the source. A module added to the page
 bundle's up-front path goes into both lists.
+
+**A deleted file has to leave both lists too.** The test walks each root with a `listFiles` that
+returns `[]` for a path that does not exist — so a root naming a file that was removed stops
+checking anything at all, silently, and stays green. `components/intro/lemniscate.ts` was taken
+out of both lists on 2026-09-20 for exactly that reason when the ∞ was deleted;
+`IntroFallback.tsx` is still there and still what keeps three.js out of the static drawing.
 
 ### The 3D runtime module
 

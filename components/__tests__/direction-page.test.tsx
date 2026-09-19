@@ -101,7 +101,11 @@ describe("action bar", () => {
   it("links the reference project to its real URL when it has one", () => {
     renderPage("produs-digital"); // reference: BizCheck
 
-    const link = screen.getByRole("link", { name: /Vezi proiectul/ });
+    /* Scoped to the bar itself — the button's own row. The projects section carries a second
+       "Vezi proiectul" per project now: the visually hidden list that stands in for the 3D
+       laptop's display for anyone the picture cannot reach (`reelListTitle`). */
+    const bar = screen.getByRole("button", { name: "Vorbește cu echipa" }).parentElement!;
+    const link = within(bar).getByRole("link", { name: /Vezi proiectul/ });
     expect(link).toHaveAttribute("href", "https://bizcheck.md");
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
@@ -139,14 +143,34 @@ describe("action bar", () => {
   });
 });
 
+/* The section holds two shapes of the same list, and CSS picks one: the card GRID
+   (`[data-projects-track]`), and — since the 3D laptop took the section over — a visually hidden
+   list headed "Proiectele care rulează pe ecran" that carries the projects playing on its display
+   as real text, for a screen reader, a search engine or a text browser. The grid is what these
+   tests read; the hidden list is asserted alongside it, because the whole point of it is that the
+   two never disagree. */
+const gridOf = (container: HTMLElement) =>
+  container.querySelector("#proiecte [data-projects-track]") as HTMLElement;
+const reelListOf = (container: HTMLElement) =>
+  container
+    .querySelector("#proiecte")!
+    .querySelector("ul")!
+    .closest("div") as HTMLElement;
+
 describe("relevant projects", () => {
   it("lists the direction's real projects, in the curated order", async () => {
     const container = renderPage("brand-ui");
 
     expect(await screen.findByRole("heading", { name: "Itara Global" })).toBeInTheDocument();
-    const section = container.querySelector("#proiecte")!;
-    const names = Array.from(section.querySelectorAll("h3")).map((h) => h.textContent);
+    const names = Array.from(gridOf(container).querySelectorAll("h3")).map((h) => h.textContent);
     expect(names).toEqual(["Itara Global", "CGAM", "Balloons Breeze"]);
+    // …and the same three, in the same order, in the list that stands in for the machine.
+    expect(within(reelListOf(container)).getByRole("heading", { level: 3 })).toHaveTextContent(
+      "Proiectele care rulează pe ecran",
+    );
+    expect(Array.from(reelListOf(container).querySelectorAll("li b")).map((b) => b.textContent)).toEqual(
+      names,
+    );
   });
 
   it("lists the two real assistant/bot projects, each with its own public URL", async () => {
@@ -154,14 +178,17 @@ describe("relevant projects", () => {
 
     // The case cards name BizCheck too, so wait on the projects section itself.
     await screen.findAllByRole("heading", { name: "BizCheck" });
-    const section = container.querySelector("#proiecte") as HTMLElement;
-    expect(Array.from(section.querySelectorAll("h3")).map((h) => h.textContent)).toEqual([
+    const grid = gridOf(container);
+    expect(Array.from(grid.querySelectorAll("h3")).map((h) => h.textContent)).toEqual([
       "BizCheck",
       "Balloons Breeze",
     ]);
+    const urls = ["https://bizcheck.md", "https://balloonsbreeze.md/"];
+    expect(Array.from(grid.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual(urls);
+    // The hidden list carries the same two links, so neither shape is a dead end.
     expect(
-      Array.from(section.querySelectorAll("a")).map((a) => a.getAttribute("href")),
-    ).toEqual(["https://bizcheck.md", "https://balloonsbreeze.md/"]);
+      Array.from(reelListOf(container).querySelectorAll("a")).map((a) => a.getAttribute("href")),
+    ).toEqual(urls);
   });
 
   it("does not borrow a project from another direction", () => {
@@ -188,9 +215,8 @@ describe("relevant projects", () => {
 
   it("renders a project that HAS a public URL as a link that opens safely", () => {
     const container = renderPage("brand-ui");
-    const section = container.querySelector("#proiecte") as HTMLElement;
 
-    const links = Array.from(section.querySelectorAll("a"));
+    const links = Array.from(gridOf(container).querySelectorAll("a"));
     expect(links.map((a) => a.getAttribute("href"))).toEqual([
       "https://itara-global.md",
       "https://cgam.md",
@@ -203,16 +229,11 @@ describe("relevant projects", () => {
   });
 });
 
-describe("hero card", () => {
-  it("shows the reference project itself — name, category chip and its screenshot", async () => {
-    renderPage("produs-digital");
-
-    expect(await screen.findByText("PROIECT DE REFERINȚĂ")).toBeInTheDocument();
-    expect(screen.getAllByText("BizCheck").length).toBeGreaterThan(0);
-    const shot = screen.getAllByRole("img", { name: "BizCheck" })[0];
-    expect(shot).toHaveAttribute("src", "/projects/bizcheck-1.jpg");
-  });
-
+/* The reference-project card that used to sit under the hero model was taken out on 2026-09-18:
+   the project it named is the first card of "Proiecte relevante" and still carries the action
+   bar's link. The flow scheme it drew for a direction with no shipped project stayed, and moved
+   down beside the "Cum lucrăm" steps, which is what it describes. */
+describe("the flow scheme — for a direction sold as a capability", () => {
   it("draws the flow — not a project — for a direction sold as a capability", () => {
     const container = renderPage("e-commerce");
 
@@ -244,11 +265,11 @@ describe("hero card", () => {
     expect(external).toHaveLength(0);
   });
 
-  it("shows the assistants direction's reference project instead of an offer summary", async () => {
+  it("draws no flow scheme for a direction that has shipped work to show instead", async () => {
     renderPage("asistenti-ia");
 
-    expect(await screen.findByText("PROIECT DE REFERINȚĂ")).toBeInTheDocument();
-    expect(screen.getAllByText("BizCheck").length).toBeGreaterThan(0);
+    expect(await screen.findAllByRole("heading", { name: "BizCheck" })).not.toHaveLength(0);
+    expect(screen.queryByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeNull();
   });
 });
 

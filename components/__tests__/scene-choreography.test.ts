@@ -814,7 +814,9 @@ describe("gates — stepGate (armed by scroll, run in time)", () => {
 /* ---- per-frame state ------------------------------------------------------------------------ */
 
 describe("fx — per-frame smoothing, the entry gate and the light wave", () => {
-  const input = (waveSeq = 0, boost: 0 | 1 = 0) => ({ boost, waveSeq, shape: 0 });
+  /* `stage` is the step of a service page being read, −1 for none; `stepSceneFx` does not read
+     it (the world holds the model on a stage itself), so every case here passes "no step". */
+  const input = (waveSeq = 0, boost: 0 | 1 = 0) => ({ boost, waveSeq, shape: 0, stage: -1 });
   const span = { start: 406, end: 526 };
 
   it("the first frame snaps to the targets, the entry gate included (a deep link never animates in)", () => {

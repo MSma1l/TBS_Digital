@@ -27,14 +27,16 @@ describe("lib/intro without a DOM", () => {
   it("imports with no window or document", async () => {
     expect(typeof window).toBe("undefined");
     expect(typeof document).toBe("undefined");
-    await expect(importIntro()).resolves.toHaveProperty("INTRO_COOKIE", "tbs_intro");
+    await expect(importIntro()).resolves.toHaveProperty("INTRO_COOKIE", "tbs_intro_skip");
   });
 
   it("still reads the cookie value and the cookie header", async () => {
-    const { INTRO_SEEN, isIntroSeen, readIntroSeen } = await importIntro();
+    const { INTRO_COOKIE, INTRO_SEEN, isIntroSeen, readIntroSeen } = await importIntro();
     expect(isIntroSeen(INTRO_SEEN)).toBe(true);
     expect(isIntroSeen("junk")).toBe(false);
-    expect(readIntroSeen("tbs_locale=ru; tbs_intro=seen")).toBe(true);
+    expect(readIntroSeen(`tbs_locale=ru; ${INTRO_COOKIE}=seen`)).toBe(true);
+    // The name it was renamed away from must not gate the server's decision either.
+    expect(readIntroSeen("tbs_locale=ru; tbs_intro=seen")).toBe(false);
   });
 
   it("reports nothing pending, and finishing or subscribing does not throw", async () => {

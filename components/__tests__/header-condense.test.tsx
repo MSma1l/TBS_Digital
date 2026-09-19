@@ -69,8 +69,14 @@ describe("nextCondensed — the threshold and its hysteresis", () => {
   });
 });
 
-/** The navbar as the app mounts it (the CTA needs the shared request flow). */
+/**
+ * The navbar as the app mounts it (the CTA needs the shared request flow), always from the top of
+ * the page. `scrollY` is a defined property on the shared jsdom window, so without this reset a
+ * test that scrolled down leaves the next one mounting an ALREADY condensed header — and every
+ * before/after comparison below would then see no change at all and pass for the wrong reason.
+ */
 function renderNav() {
+  Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
   return render(
     <RequestFlowProvider>
       <Navbar />

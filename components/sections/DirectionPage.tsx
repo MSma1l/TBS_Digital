@@ -82,6 +82,9 @@ const PROJECT_DWELL_MS = 2000;
  */
 const PROJECT_BOOT_HOLD_MS = LAPTOP_BOOT.swap * 1000 + PROJECT_DWELL_MS;
 
+/** One frozen empty set, so "nothing is open" is the same value at every render. */
+const NO_CASES: readonly string[] = Object.freeze([]);
+
 /**
  * A single direction page. Filled directions render the full layout; the rest show a
  * short placeholder until we build them out.
@@ -152,18 +155,27 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
 
   /* ---- the cases: opened in place ----
      Open panels are keyed by case name (unique inside a direction), so a re-render — a
-     language change, a content refresh — keeps what the visitor opened. */
+     language change, a content refresh — keeps what the visitor opened.
+
+     …and the SET is keyed by the direction it was opened on. A client navigation to another
+     service reuses this component, and nothing may stay open from the page before. Read back to
+     empty DURING RENDER for a slug the state does not belong to, never cleared in an effect: an
+     effect would paint the new direction once with the previous one's panels open and then close
+     them a render later, which is the flash this shape exists to avoid. */
   const uid = useId();
-  const [openCases, setOpenCases] = useState<readonly string[]>([]);
+  const [openCases, setOpenCases] = useState<{ slug: string; names: readonly string[] }>({
+    slug,
+    names: NO_CASES,
+  });
+  const openNames = openCases.slug === slug ? openCases.names : NO_CASES;
   const toggleCase = useCallback((name: string) => {
-    setOpenCases((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name],
-    );
-  }, []);
-  /* A client navigation to another direction reuses this component: nothing stays open from
-     the page before. Guarded, so it costs no render on a first mount. */
-  useEffect(() => {
-    setOpenCases((prev) => (prev.length === 0 ? prev : []));
+    setOpenCases((prev) => {
+      const names = prev.slug === slug ? prev.names : NO_CASES;
+      return {
+        slug,
+        names: names.includes(name) ? names.filter((n) => n !== name) : [...names, name],
+      };
+    });
   }, [slug]);
 
   /* ---- the steps: which one is being read, and the model's matching moment ---- */
@@ -286,7 +298,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      `p.id`, React reuses the nodes and `data-entered` stays put.
 
      An attribute, not state — nothing re-renders as the visitor scrolls, and this effect adds
-     no second `react-hooks/set-state-in-effect` on top of the one already at :131. */
+     no `react-hooks/set-state-in-effect`, and no effect in this file does any more. */
   const relatedKey = related.map((p) => p.id).join("|");
   useEffect(() => {
     const root = projectsRef.current;
@@ -323,8 +335,22 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      same projects for anyone who cannot see a picture.
 
      `active` may outrun the list (a content swap can shorten it), so the index the page uses is
-     derived and clamped rather than corrected in an effect. */
-  const [active, setActive] = useState(0);
+     derived and clamped rather than corrected in an effect — and it is keyed by the direction it
+     was counted on, for the same reason the open cases are: a client navigation to another service
+     reuses this component, and the index belongs to the page it was counted on. Both the reset and
+     the clamp are read during render, so the new direction's first paint is already its own. */
+  const [active, setActive] = useState<{ slug: string; at: number }>({ slug, at: 0 });
+  const activeAt = active.slug === slug ? active.at : 0;
+  /** The one way this index moves. Returns the same object when nothing changed: no render. */
+  const moveReel = useCallback(
+    (next: (at: number) => number) =>
+      setActive((current) => {
+        const at = current.slug === slug ? current.at : 0;
+        const to = next(at);
+        return current.slug === slug && current.at === to ? current : { slug, at: to };
+      }),
+    [slug],
+  );
   /* The visitor is MOVING a pointer over the stage, or the focus is inside it: the reel is paused
      while they are. That IS the mechanism WCAG 2.2.2 asks for — auto-updating content that starts
      by itself and runs beside other content needs a way to pause or stop it. It is reachable both
@@ -352,47 +378,45 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      scene fits the machine with (components/scene/choreography.ts), so the two cannot drift. */
   const [screenBox, setScreenBox] = useState<ScreenBox | null>(null);
   const reelCount = related.length;
-  const reelIndex = reelCount > 0 ? Math.min(active, reelCount - 1) : 0;
+  const reelIndex = reelCount > 0 ? Math.min(activeAt, reelCount - 1) : 0;
   const onScreenProject = related[reelIndex];
 
-  /* A different direction is a different set of projects. Guarded, so it costs no render on a
-     first mount (the same shape as the open-cases reset above). */
-  useEffect(() => {
-    setActive((current) => (current === 0 ? current : 0));
-  }, [slug]);
-
+  /* The stage crossing the gate is an EXTERNAL system reporting a change, so everything that
+     follows from it is written here, in the observer's own callback, rather than in an effect
+     watching `reelOnScreen` — an effect would run a whole render behind the crossing, showing one
+     frame of the previous state. Arriving puts the reel back to the first project; leaving stows
+     the boot, so what a visitor finds on the way back is a fresh arrival and not a half-built
+     machine. Both writes are guarded, so a repeated observation costs no render. */
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
-      (entries) =>
-        setReelOnScreen(entries.some((entry) => entry.intersectionRatio >= LAPTOP_BOOT_GATE.on)),
+      (entries) => {
+        const on = entries.some((entry) => entry.intersectionRatio >= LAPTOP_BOOT_GATE.on);
+        setReelOnScreen(on);
+        if (on) moveReel(() => 0);
+        else setBooted((done) => (done ? false : done));
+      },
       { threshold: LAPTOP_BOOT_GATE.on },
     );
     observer.observe(stage);
     return () => observer.disconnect();
-  }, [slug]);
+  }, [slug, moveReel]);
 
-  /* Arriving at the section puts the reel back to the first project and holds it there while the
-     machine boots. Leaving stows both. Guarded, so neither costs a render on a first mount. */
+  /* …and the machine is booted a fixed time after it arrived: the arrival plus one full dwell, so
+     the project the boot lands on is read for as long as every other one. The timer is the whole
+     of this effect — nothing is set from its body. */
   useEffect(() => {
-    if (!reelOnScreen) {
-      setBooted((done) => (done ? false : done));
-      return;
-    }
-    setActive((current) => (current === 0 ? current : 0));
+    if (!reelOnScreen) return;
     const id = window.setTimeout(() => setBooted(true), PROJECT_BOOT_HOLD_MS);
     return () => window.clearTimeout(id);
   }, [reelOnScreen]);
 
   useEffect(() => {
     if (!booted || reelHeld || !reelOnScreen || reelCount < 2) return;
-    const id = window.setInterval(
-      () => setActive((current) => (current + 1) % reelCount),
-      PROJECT_DWELL_MS,
-    );
+    const id = window.setInterval(() => moveReel((at) => (at + 1) % reelCount), PROJECT_DWELL_MS);
     return () => window.clearInterval(id);
-  }, [booted, reelHeld, reelOnScreen, reelCount]);
+  }, [booted, reelHeld, reelOnScreen, reelCount, moveReel]);
 
   /* The window's box is the only thing the hit area needs: `laptopScreenBox` runs the very fit the
      scene runs. A ResizeObserver delivers its first observation on `observe`, so nothing is set
@@ -573,7 +597,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             </div>
             <div className={styles.caseGrid}>
               {sol.cases.items.map((c, i) => {
-                const open = openCases.includes(c.name);
+                const open = openNames.includes(c.name);
                 const panelId = `${uid}-case-${i}`;
                 return (
                   <article key={c.name} className={styles.caseCard} data-open={open ? "" : undefined}>

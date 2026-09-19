@@ -24,6 +24,7 @@ import {
   resetSceneForTests,
   scrollProgress,
   selectSceneShape,
+  selectServiceStage,
   setSceneBoost,
   shapeIndex,
   subscribeSceneInput,
@@ -259,6 +260,11 @@ describe("scrollProgress", () => {
       work: null,
       workHead: null,
       workGap: null,
+      panels: null,
+      panelsPitch: 0,
+      projects: null,
+      steps: null,
+      stepsPin: { start: 0, end: 0 },
       heroExit: { start: 0, end: 0 },
       entry: { start: 0, end: 0 },
       workSpan: { start: 0, end: 0 },
@@ -296,20 +302,20 @@ describe("directions → models", () => {
 
 describe("the input store", () => {
   it("starts idle on the first direction", () => {
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0 });
+    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0, stage: -1 });
   });
 
   it("boosts while any CTA is active, and counts a wave on the rising edge only", () => {
     setSceneBoost("hero-primary", true);
-    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0 });
+    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0, stage: -1 });
 
     // Moving to the other CTA without leaving the boost: no second wave.
     setSceneBoost("hero-secondary", true);
     setSceneBoost("hero-primary", false);
-    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0 });
+    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0, stage: -1 });
 
     setSceneBoost("hero-secondary", false);
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 1, shape: 0 });
+    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 1, shape: 0, stage: -1 });
 
     setSceneBoost("hero-primary", true);
     expect(readSceneInput().waveSeq).toBe(2);
@@ -330,6 +336,19 @@ describe("the input store", () => {
     expect(readSceneInput().shape).toBe(4);
     selectSceneShape("nope");
     expect(readSceneInput().shape).toBe(4);
+  });
+
+  it("holds the model on the step being read, and −1 releases it (a non-finite or negative step is none)", () => {
+    selectServiceStage(2);
+    expect(readSceneInput().stage).toBe(2);
+    // Floored, so a fractional step from a measurement never lands between two stages.
+    selectServiceStage(3.7);
+    expect(readSceneInput().stage).toBe(3);
+    for (const none of [-1, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      selectServiceStage(3);
+      selectServiceStage(none);
+      expect(readSceneInput().stage, String(none)).toBe(-1);
+    }
   });
 
   it("publishes a new frozen snapshot per change and notifies only on a change", () => {
@@ -358,7 +377,7 @@ describe("the input store", () => {
     setSceneBoost("hero-primary", true);
     selectSceneShape("brand-ui");
     resetSceneForTests();
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0 });
+    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0, stage: -1 });
     setSceneBoost("hero-primary", true);
     expect(listener).toHaveBeenCalledTimes(2);
   });

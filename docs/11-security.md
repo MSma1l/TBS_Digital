@@ -145,21 +145,30 @@ Each `three/…` entry is listed under both spellings (`three/addons` and `three
 The ban list was verified by linting probe sources through stdin: every banned static and
 dynamic import reported, near-misses and allowed imports clean.
 
-### The `tbs_intro` cookie
+### The `tbs_intro_skip` cookie — read, never written
+
+**The site no longer stores an intro cookie.** It used to write `tbs_intro=seen` so the intro
+played once per browser session; it now plays on every hard load of the home page, and
+`finishIntro()` only *clears* the legacy name a browser may still be carrying
+(`INTRO_LEGACY_CLEAR_STRING`). The name was changed deliberately: honouring the old one would
+have left every browser that was open across the deploy with no intro at all.
 
 | Attribute | Value | Why |
 |-----------|-------|-----|
+| Name | `tbs_intro_skip` (`INTRO_COOKIE`) | Renamed from `tbs_intro`, which does **not** count any more (`readIntroSeen` matches the exact name) |
+| Who writes it | **nobody in the app** — the E2E suite (`seedIntroSeen`) and QA | Kept readable so a test run, or a session that needs the page without an overlay, can suppress it |
 | Value | `seen` — the only value that counts (`isIntroSeen`) | Anything else, or no cookie, just plays the intro; the value never reaches the DOM |
-| Lifetime | session (no `Max-Age` / `Expires`) | The intro plays again in a new browser session, never twice in one |
-| `Path` | `/` | Set from the home page, read by the server gate for `/`, `/ru`, `/en` |
+| Lifetime | session, where it is seeded | Nothing in the app extends it |
+| `Path` | `/` | Read by the server gate for `/`, `/ru`, `/en`; a cookie scoped deeper would not reach it |
 | `SameSite` | `Lax` | Same as the site's other preference cookies |
-| `HttpOnly` | no — written from JS by `finishIntro()` | It carries no secret; like `tbs_theme` / `tbs_locale` it is a preference |
+| `HttpOnly` | no | It carries no secret and gates nothing but an animation |
 | `Secure` | not set | Consistent with the other preference cookies; production is served over HTTPS with HSTS (`deploy/nginx/tbs.conf`) |
 
-It is listed as an **essential** cookie in the cookie policy (`app/(site)/cookies/content.ts`,
-RO/RU/EN). The gate compares `x-pathname` — which `proxy.ts` overwrites on every document
-request — only with `"/"`; a client that forges it on a prefetch request can only toggle the
-overlay in its own response (pages are rendered per request, and nginx does not cache them).
+Because the site stores nothing, it is **no longer listed as a cookie the site sets** in the
+cookie policy (`app/(site)/cookies/content.ts` says so in its header comment, RO/RU/EN). The
+gate compares `x-pathname` — which `proxy.ts` overwrites on every document request — only with
+`"/"`; a client that forges it on a prefetch request can only toggle the overlay in its own
+response (pages are rendered per request, and nginx does not cache them).
 
 ## The interior 3D stage (2026-09-17)
 

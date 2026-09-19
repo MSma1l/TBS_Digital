@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INTRO_COOKIE,
-  INTRO_COOKIE_STRING,
+  INTRO_LEGACY_CLEAR_STRING,
   INTRO_EVENT,
   INTRO_GONE_EVENT,
   INTRO_OVERLAY_ID,
@@ -63,30 +63,38 @@ describe("intro cookie", () => {
   });
 
   it("reads the cookie out of a cookie string by its exact name", () => {
-    expect(readIntroSeen("a=1; tbs_intro=seen")).toBe(true);
-    expect(readIntroSeen("tbs_intro=seen;b=2")).toBe(true);
-    expect(readIntroSeen("xtbs_intro=seen")).toBe(false);
-    expect(readIntroSeen("tbs_intro=junk")).toBe(false);
-    expect(readIntroSeen("tbs_intro=")).toBe(false);
+    expect(readIntroSeen(`a=1; ${INTRO_COOKIE}=seen`)).toBe(true);
+    expect(readIntroSeen(`${INTRO_COOKIE}=seen;b=2`)).toBe(true);
+    expect(readIntroSeen(`x${INTRO_COOKIE}=seen`)).toBe(false);
+    expect(readIntroSeen(`${INTRO_COOKIE}=junk`)).toBe(false);
+    expect(readIntroSeen(`${INTRO_COOKIE}=`)).toBe(false);
     expect(readIntroSeen("")).toBe(false);
     expect(readIntroSeen(undefined)).toBe(false);
   });
 
-  it("is a session cookie for the whole site", () => {
-    expect(INTRO_COOKIE_STRING).toBe("tbs_intro=seen;path=/;samesite=lax");
-    expect(INTRO_COOKIE_STRING).not.toMatch(/max-age|expires/i);
-    expect(readIntroSeen(INTRO_COOKIE_STRING)).toBe(true);
+  /* The rename is the whole point: a browser still carrying the old session cookie from when
+     the intro played once per session must NOT be read as "already seen". */
+  it("does not answer to the name it used to have", () => {
+    expect(INTRO_COOKIE).not.toBe("tbs_intro");
+    expect(readIntroSeen("tbs_intro=seen")).toBe(false);
+  });
+
+  it("clears the legacy cookie on the path it was written with, and expires it", () => {
+    expect(INTRO_LEGACY_CLEAR_STRING).toBe("tbs_intro=;path=/;max-age=0;samesite=lax");
+    expect(readIntroSeen(INTRO_LEGACY_CLEAR_STRING)).toBe(false);
   });
 });
 
 describe("finishIntro", () => {
-  it("writes exactly the session cookie, which then reads back as seen", () => {
+  /* The site never suppresses its own intro: it plays on every hard load of the home page.
+     The one cookie write is the legacy clear, so a browser open across the rename recovers. */
+  it("writes only the legacy clear, and never marks the intro as seen", () => {
     const setCookie = vi.spyOn(Document.prototype, "cookie", "set");
     finishIntro({ played: true });
     expect(setCookie).toHaveBeenCalledTimes(1);
-    expect(setCookie).toHaveBeenCalledWith(INTRO_COOKIE_STRING);
+    expect(setCookie).toHaveBeenCalledWith(INTRO_LEGACY_CLEAR_STRING);
     setCookie.mockRestore();
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    expect(readIntroSeen(document.cookie)).toBe(false);
   });
 
   it("dispatches INTRO_EVENT with the detail it was given", () => {

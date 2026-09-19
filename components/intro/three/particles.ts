@@ -69,6 +69,9 @@ export function createOrbitParticles(
       uniforms.uPulse.value = fx.pulse;
       uniforms.uViewportHalfHeight.value = halfHeightPx;
       uniforms.uMaxSize.value = PARTICLE_MAX_CSS_PX * pixelRatio;
+      // The cloud sizes and fades with the flight: nothing while the camera is inside the
+      // chassis, full once it is outside and the machine is seen whole (`uFlight`, materials.ts).
+      uniforms.uFlight.value = fx.flight;
     },
 
     setLite(lite) {

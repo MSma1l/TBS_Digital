@@ -17,25 +17,70 @@ The landing page is a single scroll, top to bottom. Sections carry a mono index 
 
 ## First-visit intro (preloader)
 
-A full-screen HUD overlay that plays **once per browser session**, on a **hard load of the home
-page** (`/`, `/ru`, `/en`): a glass ∞ with orbiting particles, the readout
-`SYSTEM_SYNCHRONIZATION: NN%`, then `ACCESS_GRANTED`, a burst that flies into the camera, and
-the page coming in underneath. Wiring (gate, loading tiers, ownership) is in
+A full-screen HUD overlay that plays on **every hard load of the home page** (`/`, `/ru`,
+`/en`): a six-beat cinematic of a laptop — the camera starts on the processor die, the machine
+powers up, the camera leaves through the chassis and the vent, the lid opens, the display fills
+the frame, and the page is behind it. Over it, the readout `SYSTEM_SYNCHRONIZATION: NN%`, then
+`ACCESS_GRANTED`. Wiring (gate, loading tiers, ownership) is in
 [03 — Architecture](./03-architecture.md#the-first-visit-intro); timings live in
 `INTRO_TIMING` (`lib/intro.ts`).
+
+> Replaced the glass ∞ (lemniscate) on 2026-09-20. The machine is the same product as the
+> interior stage's laptop — same 2.4 × 1.62 deck, same 16:10 display, same 107° lid — so the
+> object the visitor flies out of and the one they meet on the page read as one thing.
 
 **The page is never hidden.** The `<h1>` and everything else are server-rendered and painted
 at full opacity *under* the overlay; the overlay has no `role`, no `aria-hidden` on the page,
 no focus trap, and a screen reader can browse the page at once.
 
+### The six beats, and who draws them
+
+**One scalar carries the whole film.** `fx.flight`, 0 → 1: the camera's position, aim, field of
+view and roll are all functions of it (`components/intro/three/cameraPath.ts`, six keys), and so
+are the lid's angle and the display's fill. Beats 1–4 scrub it from the loading progress
+(`flightFromProgress`, `components/intro/flight.ts`); beat 5 is the burst timeline tweening it to
+1. There is no second parameter to keep in step, so a skip from any beat is the same tween.
+
+| Beat | Progress | Flight `u` | What it is | Drawn by |
+|------|----------|-----------|------------|----------|
+| 1 | 0 → 0.24 | 0 → 0.18 | On the die, in the canyon between two rows of tracks, looking back down the cavity. A held frame — it moves 0.04 units in total | **SVG, always** |
+| 2 | 0.24 → 0.60 | 0.18 → 0.40 | The power-up: the die lights from its front edge and the light runs back down the ribs. Everything happens in the material, not in the move | **SVG, always** |
+| 3 | 0.60 → 0.86 | 0.40 → 0.66 | Out through the chassis: the interior with the vent in shot, then outside, low, turned back on the hole it came through — and **aimed at the deck, not at the sky** (K3 `ty` 0.18; see below). The lid is already half up and climbing out of the top of frame | 3D, or SVG |
+| 4 | 0.86 → 1 | 0.66 → 0.84 | Pulled back and round to the front-left; the lid settles at 107° (a back-out ease — it carries ~2° past the top, felt rather than seen) and the display draws itself on, bottom to top | 3D, or SVG |
+| 5 | the burst's own clock | 0.84 → 1 | The dive: the camera lands on the display's normal at the distance that makes it *cover* the viewport, edge to edge | 3D, or SVG |
+| 6 | — | — | The overlay fades and the page entrance plays underneath | the page |
+
+**Beats 1 and 2 are the flat drawing on every device, not just where WebGL is missing.** The 3D
+canvas (`.canvasHost`) sits at `opacity: 0` until the scene reports ready, and the scene's own
+signal is worth 0.40 of the progress — so without it the bar cannot pass **0.60**, which is
+exactly where beat 2 ends. There is no loading case in which the canvas is opaque before beat 3.
+The drawing's windows are therefore the same table: the cross-fade at `sceneReady` is a **match
+cut** at `u` 0.40 (the SVG leaves the die, the 3D arrives at the vent), not a replay. It is also
+why the 3D processor interior is deliberately minimal — one plate and 39 line segments — and the
+detail is spent on the chassis, hinge, lid and display, where the camera actually is. Seven of
+those segments stand up in the vent's aperture and draw its **grille**: the machine is additive and
+writes no depth, so nothing can be occluded and there is no such thing as a hole — a way out has to
+be *drawn*. They carry `aU` 1, so they light last of everything, and the power runs out of the die,
+down the ribs and through the hole as one wave.
+
+**Beat 3 is aimed low, at the deck.** The camera cannot be raised there: it has to leave through an
+aperture 0.067 tall, so K3's position is fixed by the exit ray and the only free number is the
+**aim**. At `ty` 0.55 the camera was tilted ~22° up at empty sky, and the whole machine sat below
+the bottom of frame from `u` 0.46 to 0.63 — only the lid rising after 0.64 brought anything back
+into shot. The deck is at y 0 and the open lid reaches y 1.37, so the aim belongs by the deck
+(**0.18**): the machine then fills the frame from the bottom third upwards and the lid grows out of
+the top of it, which is the beat. Raising the aim again without moving the position empties the
+frame; moving the position to match puts the camera through the back wall. It is still a very low
+shot — lifting it needs a seventh camera key or a higher vent, not a different K3.
+
 ### Phases (`data-phase` on `#tbs-intro`)
 
 | Phase | What is on screen | Notes |
 |-------|-------------------|-------|
-| `boot` | Server HTML: the void, the perspective grid floor, the CSS-animated SVG ∞, and `SYSTEM_SYNCHRONIZATION: ▮` with no number | No JS yet. The skip button and the counter stay hidden until JS takes over. A CSS failsafe is armed: at **7s** the overlay fades out and becomes click-through on its own |
-| `run` | The counter runs 00 → 99; heartbeats at 25/50/75% | JS took over (`data-live`, which cancels the failsafe). Page scroll is locked (and reset to the top unless there is a hash), skip inputs are live, a **9s** watchdog runs in visible time |
-| lock → burst | `100` and `ACCESS_GRANTED`, an implosion, then the burst: the ∞ scales up, particles fly out, the camera dollies in, a white flash and a shockwave; the HUD and skip fade | The "confirm" tone plays only if sound is on **and** the visitor already interacted (a skip counts) |
-| `revealed` | The overlay fades out over .55s; the page entrance plays underneath | `finishIntro({ played: true })`: the session cookie is written and `tbs:intro-done` fires, so the cookie banner may appear. Nothing in the overlay catches a click from here on |
+| `boot` | Server HTML: the void, the perspective grid floor, the machine **whole, composed and asleep** (screen dark, everything at .55), CSS-animated, and `SYSTEM_SYNCHRONIZATION: ▮` with no number | No JS yet. The skip button and the counter stay hidden until JS takes over. A CSS failsafe is armed: at **7s** the overlay fades out and becomes click-through on its own — so a visitor whose JS never arrives sees a whole machine, not a half-built one |
+| `run` | The counter runs 00 → 99; heartbeats at 25/50/75%; beats 1 → 4 of the flight | JS took over (`data-live`, which cancels the failsafe). Page scroll is locked (and reset to the top unless there is a hash), skip inputs are live, a **9s** watchdog runs in visible time |
+| lock → burst | `100` and `ACCESS_GRANTED`, a .22s implosion, then the burst: particles fly out, a white flash and a shockwave, the HUD and skip fade — and beat 5, the dive into the display, which starts at the **lock** and lands at 0.66, a beat before the page is uncovered | The dive is held full-frame through the whole .55s fade: that is the "fly into the screen, the site is behind it" beat, not a cross-fade over a moving camera. The "confirm" tone plays only if sound is on **and** the visitor already interacted (a skip counts) |
+| `revealed` | The overlay fades out over .55s; the page entrance plays underneath | `finishIntro({ played: true })`: `tbs:intro-done` fires (and a legacy `tbs_intro` cookie is cleared), so the cookie banner may appear. Nothing in the overlay catches a click from here on |
 | `leaving` | A plain 300ms fade | The exit without the director: watchdog, an error, or a skip before the director's chunk arrived |
 | gone | — | The overlay is removed when the entrance ends (or ≤3s after reveal as a safety net); the hero's background animations resume |
 
@@ -43,8 +88,19 @@ no focus trap, and a screen reader can browse the page at once.
 `document.fonts.ready` .15, `window` `load` .30, the WebGL scene ready .40 — capped by a
 cinematic curve that takes at least **2.4s** from navigation start, and forced to 100% at
 **5s** whatever is still loading. The counter never shows 100 before the lock, and
-`aria-valuenow` moves in steps of 10 (≤90 until the lock, then 100). If the WebGL scene is not
-ready by 80% of the progress, the burst plays on the SVG.
+`aria-valuenow` moves in steps of 10 (≤90 until the lock, then 100).
+
+**`SCENE_CUTOFF` (0.8) is a five-second deadline, not an 80%-of-the-bar gate.** Without the
+scene's signal the weighted readiness tops out at 0.15 + 0.15 + 0.30 = **0.60**, so the shown
+progress cannot reach 0.8 until `HARD_CAP_MS` forces the target to 1 — the cutoff only ever
+fires in the ~300ms after 5s. A scene that has not arrived by then hands the whole intro to the
+SVG. (Documentation said "80% of the progress" for a long time; it was never what the code did.)
+
+**And a scene that arrives too late is refused outright** (`LATE_SCENE_GOAL = 0.86`). Because the
+camera is scrubbed from the progress, a scene becoming ready at, say, 4.8s would cross-fade in
+with only the last beat left to play: a half-transparent machine whipping into the display in
+under a second, over a drawing that is fading out. Past 0.86 the drawing — already at that
+beat — carries everything.
 
 **Page entrance** (GSAP, `expo.out`, ≤1.5s after reveal), one marked element per target
 (`data-intro-reveal`): grid (opacity + scale) · header (`yPercent` only) · eyebrow and lead
@@ -60,7 +116,14 @@ style is cleared afterwards.
   Home, End. Combinations with Ctrl, Alt or Meta are the browser's and are ignored.
 - **Pointer:** a primary-button press anywhere, or the mouse wheel.
 
-A skip plays the same burst **2.4× faster**; repeated skips only ever speed it up. While the
+A skip plays the same burst **2.4× faster**; repeated skips only ever speed it up. Because the
+whole flight is one scalar, a skip is that same dive tween started early — and its ease is chosen
+when the timeline is built: from a near-standing start it is `power2.inOut`, because a `power3.in`
+from `u` 0.05 spends its first 140ms not moving, which after a button press reads as the skip
+having done nothing. A skip during beats 1–2 has no assembled machine to fly at yet, so the
+drawing is snapped to the composed pose (0.84) in the same frame the burst is built, under cover
+of the .22s implosion.
+While the
 intro runs, a skip key is **spent on the skip**: it is stopped at document capture, so the cookie
 banner's Escape or a menu's arrow keys never see it — but Tab still moves focus.
 
@@ -72,7 +135,7 @@ the readout sits near the bottom edge.
 
 | Case | What happens |
 |------|--------------|
-| Same browser session, `tbs_intro=seen` | The server renders no overlay; no intro JS, no GSAP, no three.js |
+| A `tbs_intro_skip=seen` cookie | The server renders no overlay; no intro JS, no GSAP, no three.js. **The site never writes this cookie** — the E2E suite and QA seed it. It used to play once per session and a reload never replayed it, which reads as the intro being broken |
 | Any page but the home page (`/servicii/*`, legal pages) | Never — the gate is `x-pathname === "/"` |
 | Client-side navigation inside the site (a service page → Home, Back) | Never — the layout that holds the gate is not re-rendered |
 | Client-side navigation **into** the site (the admin's "view site" link) | The shell renders nothing and sets no cookie; the next hard load of `/` plays it |
@@ -84,7 +147,7 @@ the readout sits near the bottom edge.
 | Hidden tab | Not a bypass: the progress clock and the watchdog stop while hidden; a tab opened in the background starts on first view |
 | Print | Hidden |
 
-### SVG fallback or WebGL
+### The drawing or the scene
 
 The shell probes the device once, after hydration, from a ~1 KB chunk
 (`components/intro/capability.ts`), in this order: `ResizeObserver` → reduced motion →
@@ -97,23 +160,104 @@ context again.
 - **The software-renderer rule.** A context drawn by a CPU rasteriser — SwiftShader (also
   headless CI Chromium), Mesa llvmpipe/softpipe, WARP ("Microsoft Basic Render Driver"),
   "Software Rasterizer" — counts as **no WebGL**: `failIfMajorPerformanceCaveat` does not
-  reliably refuse them, and a glass tube at 5 fps is worse than the SVG.
-- **No usable WebGL** → the **SVG fallback** (`IntroFallback.tsx`) carries the whole intro,
+  reliably refuse them, and the flight at 5 fps is worse than the SVG.
+- **No usable WebGL** → the **SVG drawing** (`IntroFallback.tsx`) carries all six beats,
   including a DOM-only burst (transform and opacity only, no filters).
 - **Usable WebGL** → the three.js chunk is requested and the scene cross-fades in once its
-  shaders have compiled and two frames have drawn; the SVG's CSS animations pause behind it.
-  A lost context, an error or a scene not ready by 80% hands the stage back to the SVG.
+  shaders have compiled and two frames have drawn; the drawing's CSS animations pause behind it.
+  A lost context, an error, the 5s cutoff or a scene ready past `LATE_SCENE_GOAL` hands the
+  stage back to the drawing.
+- **The machine is 29 boxes in one `InstancedMesh`**, over one `BoxGeometry`, sized by their own
+  matrices — **six draw calls on high** (five while the lid is shut, four on the governor's lite
+  step), four below: the die plate, the board's tracks, the cover pane, the frame, the halo and the
+  display. The plate and the tracks are **two `createRingMaterial`s written the same `uFill` and
+  `uHead` every frame**, so the power-up is still one wave over the die and then the ribs; they are
+  two only so the plate can run much darker than the tracks. A 0.26 quad the camera skims at 0.03 is
+  not a chip, it is the **floor** — at the tracks' own strength it was one unbroken slab of colour
+  filling the lower half of the frame, while the tracks are hairlines a metre away that have to
+  carry. Two materials, one wave, and still two draw calls. Not thirty meshes: the governor's first
+  two one-second windows *are* the
+  cinematic, and thirty draw calls on a mid phone would spend them, so the only lever is
+  `mesh.count`. The slot table is therefore written in **drop order** — deck, feet, hinge, vent,
+  trackpad, lid rails, hinge covers, the twelve keys, the port strip — and a machine that has
+  given up its keys is still a machine.
+- **The frame is lit on its edges, and drawn on both sides.** A fresnel term
+  (`pow(1 − |n·v|, k)`) is a *silhouette* detector: on a box every fragment of a face shares one
+  normal, so the term is near-constant across it and the whole face lights up — the deck came out a
+  solid glowing tabletop, the keys and the trackpad filled rectangles. `three/edge.ts` therefore
+  carries the interior stage's box-edge measure instead (on the unit box `abs(position) · 2`, drop
+  the largest — constant over a face — and the smallest — zero through the middle — and keep the
+  one between, which only reaches 1 along the twelve edges): faces nearly dark, the edges carrying
+  the light, the fresnel demoted to a grazing lift. The band is a fraction of each box's *own*
+  extent, so a 0.012 vent rail and the 2.4 deck both get a proportionate edge. And the material is
+  **`DoubleSide`**, which is load-bearing rather than tidy: beats 1–3 are flown *inside* the deck's
+  box, and with front faces only the cavity has no floor, no ceiling and no back wall — K2, the
+  frame the cross-fade lands on, was three hinge barrels and a few traces in black. Two sides cost
+  **no extra draw call**, which is the only reason an interior fits inside the six.
+- **The cover pane only exists once the lid moves.** Shut, the lid lies face down over the deck, so
+  the pane faces straight into the cavity the camera is flying along: a flat 2.4 × 1.5 card of
+  refracted environment across a third of the frame through beats 2–3. It is a **plane**, not a box
+  (a box has an underside, and an underside is front-facing from below; `thickness` is a uniform,
+  not a measurement of the geometry, so one quad refracts exactly like the box did), and it is
+  `visible` only while the lid angle is non-zero — so there is no transmission pass at all during
+  the three beats where the frame budget is tightest. It *is* visible when the scene compiles, so
+  no shader is built mid-flight. It also **never writes depth**: it is the only depth writer in an
+  otherwise entirely additive scene and its surface sits proud of the display, and three draws the
+  transmissive list before the transparent one — a pane that writes depth makes the display fail
+  the depth test on every pixel, and beats 4 and 5 end on a black rectangle.
+- **The particle cloud belongs to the machine seen whole.** The orbits are 1.5–2.4 across and
+  centred on the origin — which is where the camera *is* for beats 1–3, so every sprite clamped to
+  the fill-rate cap and the one beat that has to read as a narrow canyon filled with soft blobs.
+  They now arrive as the camera comes out through the vent (`u` 0.42 → 0.68), and as a **size**,
+  not only an alpha, so a hidden sprite costs no fill either. The burst throws them towards the
+  lens in **view space**, where −z is into the screen whatever the camera is doing; the old
+  world-space throw assumed a camera parked on +z and, with a flying one, threw the cloud out of
+  the back of the frame.
 - **Tiers** (`detectTier`): **low** with ≤4 cores or ≤4 GB memory (when the browser says);
   **mid** on a touch-first device or a viewport under 600px on its short side; **high**
-  otherwise. High gets transmission glass with a procedural environment, a halo, 24 scan rings,
-  900 particles and DPR up to 2 (within a pixel budget); mid a fresnel shader, 16 rings, 540
-  particles, DPR ≤1.5; low 240 particles and DPR 1.
+  otherwise. **High** gets the transmissive cover pane over the display (the scene's *one*
+  transmissive surface, and the reason it also installs the procedural PMREM environment — whose
+  strips are aimed *oblique* to the open lid's normal, because a flat mirror samples one narrow
+  cone and a source square-on would wash the whole pane in a single colour), the
+  halo, all 29 pieces, 900 particles, antialiasing and DPR up to 2 within a pixel budget;
+  **mid** no pane and no halo, 28 pieces (the port strip goes), 540 particles, DPR ≤1.5; **low**
+  16 pieces (the keys go too), 240 particles, DPR 1.
 - **FPS governor:** two slow 1s windows (under 45 fps on high, 40 on mid/low) drop the DPR to
-  1×, then to "lite" (no halo, no rings, half the particles). A **steady** cadence of 24 fps or
-  more is a refresh cap (iOS Low Power Mode, Chrome Energy Saver), not slowness, and costs no
-  quality.
+  1×, then to "lite": no halo, no cover pane, the frame capped at 16 pieces, the board's ribs
+  dropped back to the die's own tracks **and the vent's grille** (the frame the cross-fade lands on
+  stays intact — the lite step gives up the floor, not the composition), half the particles.
+  **Never a material swap** — that
+  would compile a shader in the middle of the cinematic, which is the thing the governor exists
+  to prevent. A **steady** cadence of 24 fps or more is a refresh cap (iOS Low Power Mode,
+  Chrome Energy Saver), not slowness, and costs no quality.
 - **QA switch:** `localStorage.tbs_intro_3d = "force"` skips the caveat and the renderer check,
   so the WebGL scene runs even on SwiftShader. It changes what is drawn, never what the page does.
+
+### The static drawing (`IntroFallback.tsx`)
+
+Not a placeholder: it is what **every** visitor sees for beats 1 and 2, and it is the first
+thing painted on the page at all. A 16:10 laptop with the lid at 107° — the 3D scene's own
+angle — seen three-quarters from the upper left, built from three `matrix(...)` planes so every
+piece inside is a plain axis-aligned `<rect>` or `<circle>` generated from a table.
+
+- **One scrub channel.** The director writes `--fb-p` (0 → 1) on `[data-part="fallback"]` once
+  a frame, quantised to 1/200; every part cuts its own window out of it in CSS with `clamp()`.
+  A frame is one property write on one element. No `@property` — `calc()` reads unregistered
+  custom properties, and nothing animates `--fb-p`, so registering it would only cost
+  compatibility.
+- **Repetition is `<pattern>`, `<symbol>`+`<use>` or a loop over a table**, never a `<path>` per
+  piece: one `<pattern>` is 2 nodes for 45 key caps or ~200 BGA balls. The die's and the board's
+  traces are each a single `<path>` with subpaths carried by three `<use>`, so the dash flows
+  across the subpaths and they light **in order** from one `stroke-dashoffset`.
+- **The resting pose is the whole machine**, composed and asleep — 76 nodes at first paint, as
+  many as the ∞ had. The `fbDie` and `fbBoard` layers are `display: none` until `[data-live]`:
+  parsed, never laid out or painted before the `<h1>` underneath becomes the LCP element.
+- **Ceilings that are load-bearing** (see [07 — Conventions](./07-conventions.md)): exactly two
+  `feGaussianBlur` and two filtered elements, no CSS `filter` on anything that moves, and no
+  text at all — so zero catalog keys and no font dependency before `document.fonts.ready`.
+- **The burst covers the frame.** Without WebGL the drawing scales ×**4.6** about the display's
+  centre (the ∞'s 2.6 left a visible border: the display is 0.532 of the stage, itself 1.28
+  `--intro-w`, so 2.6 stopped at ~64vw). Transform and opacity only.
 
 The overlay is **always dark**, in the light theme too, and has rules for `prefers-contrast:
 more` (no CRT lines or glows) and `forced-colors` (system colours, no decoration).

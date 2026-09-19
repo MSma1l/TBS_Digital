@@ -227,9 +227,7 @@ describe("createTrailMesh — one P5 ribbon in document px", () => {
   const PALETTE = pickSceneRoles({
     cyan: "#4fc3e8",
     blue: "#3970ff",
-    blueText: "#8fb0ff",
     redLift: "#ff5362",
-    redText: "#ff6b7b",
     txt: "#f6f7fb",
     bg: "#0a0b10",
   });

@@ -81,9 +81,11 @@ Verified, no change needed:
   environment is procedural (no fetch); GSAP/R3F write styles through the CSSOM. The
   `<noscript><style>` that hides the intro without JS relies on the existing
   `style-src 'unsafe-inline'`. Details: [docs/11-security.md](docs/11-security.md).
-- **`tbs_intro` cookie**: session, `path=/`, `SameSite=Lax`, written from JS like the other
-  preference cookies; only the literal `seen` counts and the value never reaches the DOM.
-  Listed as essential in the cookie policy.
+- **`tbs_intro_skip` cookie**: read, **never written by the site**. The intro now plays on every
+  hard load of the home page instead of once per session, so nothing sets it; the E2E suite and
+  QA seed it to suppress the overlay, and `finishIntro()` only clears the legacy `tbs_intro`
+  name. Only the literal `seen` counts and the value never reaches the DOM. No longer listed as
+  a cookie the site stores in the cookie policy.
 - **`x-pathname`**: overwritten by `proxy.ts` on document requests and only compared with `"/"`;
   a forged header on a prefetch request can only toggle the overlay in the sender's own
   response (no page caching).

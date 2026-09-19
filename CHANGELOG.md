@@ -16,6 +16,653 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-20 — Fixed & Changed: mașina intro-ului citește ca un obiect, nu ca o carte de neon
+
+Lotul de reglaj vizual (α5) al rescrierii intro-ului. Codul a aterizat; asta e înregistrarea lui.
+Reglajul s-a făcut pe o captură cadru-cu-cadru și a scos la iveală **cinci defecte pe care nu le
+avea nimeni pe listă** — toate compilau, toate desenau, toate treceau testele de atunci.
+
+**Modelul de iluminare s-a schimbat: muchia, nu fața.** `pow(1 - |n·v|, power)` e un **detector de
+siluetă** — o funcție de unghiul feței față de lentilă și de nimic altceva. Pe un tub fiecare
+fragment are normala lui, deci desenează un chenar subțire și forma se citește. Pe o cutie o față e
+PLATĂ: toate fragmentele ei au aceeași normală, deci termenul e practic constant pe toată fața, iar
+puntea de 2,4 × 1,62 se aprindea uniform — o masă luminoasă solidă, cu tastele și trackpadul ca
+dreptunghiuri pline. Ce citește o cutie e **unde se întâlnesc fețele ei**, și asta e un fapt despre
+geometrie, nu despre cameră. `three/edge.ts` poartă acum măsura de muchie a scenei interioare
+(`SURFACE_MODE.edges`): pe cutia unitate `abs(position) * 2` merge de la 0 în centrul unei fețe la
+1 la marginea ei; cel mai MARE dintre cele trei e 1 pe toată fața lui și cel mai MIC e 0 prin
+mijlocul cutiei, deci niciunul nu spune nimic singur — cel din MIJLOC ajunge la 1 doar unde se
+întâlnesc două fețe. Se aruncă maximul și minimul (`x + y + z - hi - lo`) și rămâne o distanță
+curată 0 → 1 până la cea mai apropiată dintre cele douăsprezece muchii.
+
+Deci: fețele aproape stinse (`face` 0,003), muchiile duc lumina (`edge` 0,36), fresnelul retrogradat
+la adaosul razant care trebuia să fie de la bun început (`fres` 0,006 în spatele lui `power` 2,6).
+Banda începe la `soft` 0,88 — 6% din semi-extinderea fiecărei fețe, mai strâns decât cei 8% ai
+modelului interior (0,84), pentru că prin mașina ASTA se zboară, iar o șină de aerisire care
+traversează lentila la 0,025 transformă orice bandă mai lată într-o pată albă. **Constantele mici nu
+sunt greșeli de tipar:** ieșirea shaderului e codată sRGB (`#include <colorspace_fragment>`), care
+jos la valorile astea e aproximativ o radical, deci 0,003 de lumină liniară înseamnă ~6% pe ecran,
+nu 0,3% — iar `DoubleSide` pictează fiecare pixel al punții de **două ori**. La `face` 0,04 asta era
+o masă magenta solidă. Măsura e și scale-invariantă (banda e o fracțiune din extinderea PROPRIE a
+fiecărei cutii), deci o șină de 0,012 și puntea de 2,4 primesc fiecare o muchie proporțională, în
+loc ca șina să devină o bară plină. Halo-ul (`EDGE_HALO`) nu primește față deloc și primește o bandă
+mult mai largă și mai moale (`soft` 0,55, `edge` 0,16, `fres` 0,06), ca să fie o înflorire în jurul
+muchiilor fiecărei piese, nu o a doua mașină înăuntrul primei.
+
+**Șasiul a căpătat un interior.** Lespedea punții era `FrontSide`, deci din cavitate fețele ei
+dinăuntru erau eliminate: la cadrul pe care aterizează dizolvarea din SVG — K2, u 0,40 — nu exista
+literalmente nici perete, nici podea, nici tavan. Trei butuci de balama și câteva trasee plutind în
+negru. `DoubleSide` pe materialul instanțiat comun costă **zero draw call-uri**, și ăsta e singurul
+motiv pentru care cavitatea poate avea un interior într-un buget de șase — e și exact ce face
+modelul interior, din motivul pe care îl scrie el însuși („both sides, so every box edge shows").
+Peste asta, câmpul de nervuri al plăcii a crescut de la 0,34 la **0,9** de o parte și de alta a
+liniei de mijloc (la 0,34 nervurile erau o dungă subțire pe centrul unui cadru altfel negru, iar
+compoziția pe care o cere `cameraPath.ts` la K2 — „câmpul de nervuri al podelei de-a latul părții de
+jos" — pur și simplu nu era adevărată), plus **două șine longitudinale** la ±0,52, ca podeaua să fie
+o grilă în perspectivă și nu o scară.
+
+Și o **grilă de aerisire** stă acum în deschidere. Pe un obiect amestecat aditiv, care nu scrie
+adâncime, nu există așa ceva ca o gaură — nimic nu poate fi ocluzionat — deci o ieșire trebuie
+DESENATĂ: șapte segmente ridicate în planul gurii (conturul aperturii și trei zăbrele), cu `aU` = 1,
+deci se aprind ultimele din tot. Curentul iese din die, curge pe nervuri și trece prin gaură, în
+ordinea asta și într-un singur val. 39 de segmente în total, tot într-un singur buffer. Iar
+`setLite` păstrează **traseele die-ului și grila** (primele 30 de vârfuri, `keepVertices`) și
+renunță la podea — nu invers: pasul guvernatorului n-are voie să golească exact cadrul pe care
+aterizează dizolvarea.
+
+**Timpul 3 era țintit spre cer gol.** `cameraPath.ts`, K3: `ty` **0,55 → 0,18**. Măsurat la 16:10,
+toată mașina stătea sub marginea de jos a cadrului de la u 0,46 până la u 0,63 — camera era
+înclinată ~22° în sus — și doar capacul care se ridică după 0,64 aducea ceva înapoi în cadru.
+Poziția NU poate fi ridicată: camera trebuie să iasă printr-o gaură de 0,067 înălțime, deci `py` e
+fixat la 0,092 de raza de ieșire, și singurul lucru liber aici e **ținta**. Puntea e la y 0 și
+capacul deschis ajunge la y 1,37, deci ținta aparține jos, lângă punte: mașina umple atunci cadrul
+din treimea de jos în sus și capacul crește din vârful ei, ceea ce ȘI ESTE timpul. **Nimic altceva
+nu s-a mișcat** — `resolveKey` cheltuie doar `tx`/`tz` pentru lărgire și lasă `py` în pace, deci
+ieșirea prin gura de aerisire, trecerea pe lângă planul capacului la K4 și distanța de acoperire la
+K5 sunt identice bit cu bit.
+
+### Cele cinci defecte găsite în captură
+
+1. **Lespedea de acoperire ascundea ecranul.** `MeshPhysicalMaterial` scrie adâncime din oficiu și
+   era **singurul scriitor de adâncime** într-o scenă altfel complet aditivă; suprafața ei stă mai
+   în față decât display-ul, iar three desenează lista transmisivă ÎNAINTEA celei transparente —
+   deci ecranul cădea testul de adâncime pe fiecare pixel. **Timpii 4 și 5 se terminau pe un
+   dreptunghi negru**, adică exact pe cadrul spre care zboară tot filmul. Nimic nu citește bufferul
+   ăsta, deci `depthWrite = false` nu costă nimic, iar cadrul, halo-ul și display-ul se compun
+   aditiv peste lespede, așa cum trebuia. (`Fixed`.)
+2. **Închis, capacul stă cu fața în jos** — deci lespedea privea direct în cavitatea prin care
+   zboară camera: o carte plată de 2,4 × 1,5 de mediu refractat, dreaptă peste o treime din cadru,
+   prin toți timpii 2-3. Exact „cartea de neon" de care există lotul ăsta ca să scape. Lespedea a
+   devenit **plan, nu cutie** (o cutie are o talpă, iar talpa e orientată spre față privită de jos;
+   `thickness` e o uniformă, nu o măsurătoare a geometriei, deci un quad refractă exact ca cele
+   douăsprezece triunghiuri) și e ascunsă până când unghiul capacului nu mai e zero. E vizibilă când
+   se compilează scena (`compileAsync` parcurge `traverseVisible`), deci **niciun shader nu se
+   compilează în zbor** — și **nu există niciun pas de transmisie** în cei trei timpi cei mai
+   scumpi, care sunt și cei în care bugetul de cadru e cel mai strâns.
+3. **Iridescența pe o lespede plată e o singură nuanță plată.** E un tent dependent de unghi: pe un
+   tub fiecare fragment are unghiul lui, deci scânteiază; pe un capac plat care umple deschiderea e
+   un unghi și o culoare, iar la 0,45 tot display-ul ieșea un teal de ardezie așezat peste ecran fie
+   că ecranul desena, fie că nu. Acum **0,18** (+ 0,2 × puls), și rămâne peste 0, ca define-ul de
+   iridescență să nu comute și shaderul să nu se recompileze. În același sens a fost re-țintit și
+   mediul PMREM (`three/environment.ts`): benzi mai înguste și mai luminoase, așezate **oblic** față
+   de normala capacului deschis (0, 0,29, 0,96) în loc de frontal — o oglindă plată eșantionează un
+   con îngust din mediu, deci o sursă frontală ar fi spălat toată lespedea cu o singură culoare, iar
+   una care nu e frontală n-ar fi aterizat nicăieri. Ce mătură lespedea când se ridică capacul e
+   acum o dâră cu margine tare.
+4. **Placa die-ului era cel mai plat lucru din film.** Un quad de 0,26 × 0,26 peste care camera
+   zboară la 0,03 nu e un cip pe o placă — e **podeaua**, și umplea jumătatea de jos a cadrului cu
+   un singur `--dark-cyan` neîntrerupt. Despărțită într-un al doilea `createRingMaterial`, condus de
+   **același** `uFill` și același `uHead` scrise în fiecare cadru — deci tot un singur val peste die
+   și apoi peste nervuri, și tot două draw call-uri (erau oricum două meshe). Diferă numai prin
+   putere: `DIE_GAIN` 0,5 față de `BOARD_GAIN` 3, adică placa mult mai întunecată decât traseele
+   fir-de-păr care curg peste ea, care e cum arată un procesor de la un milimetru deasupra lui.
+5. **Display-ul era o pastilă plată de culoare** — și e cadrul pe care aterizează tot zborul.
+   `createRingMaterial` n-are textură și n-are a doua culoare, deci fiecare fragment al unui quad
+   aprins e aceeași valoare. Are acum **mobilier**: o ramă interioară la 4%, patru rânduri de
+   „ieșire" de lungimi neregulate jos pe panou și un bloc în colț, toate în **aceeași geometrie
+   indexată și la același singur draw call**, toate aditive, deci mobilierul pur și simplu curge mai
+   tare decât câmpul pe care stă. `aU` rămâne coordonata verticală a FIECĂRUI vârf, mobilier
+   inclus — deci un rând la 30% înălțime se desenează la `uFill` 0,30 și mobilierul apare
+   **înăuntrul** ștergerii, în loc să se aprindă peste ea.
+
+**Și particulele.** Norul se aprinde acum pe măsură ce camera iese prin gura de aerisire
+(`smoothstep(0.42, 0.68, uFlight)`) și o face ca **dimensiune**, nu doar ca alfa, deci un sprite
+ascuns nu costă nici fill. Înainte orbitele (1,5–2,4 în diametru) stăteau la centimetri de o lentilă
+aflată în origine, fiecare sprite se plafona la `uMaxSize`, iar singurul timp care trebuie să
+citească drept canion îngust se umplea de pete moi. Separat, aruncarea burst-ului era
+`p.z += uExplode * 3.0` — scrisă pentru un rig parcat pe axa +z a LUMII. Cu o cameră care zboară, și
+care privește aproximativ spre −z când pornește burst-ul, linia arunca norul prin **spatele**
+cadrului. Se face acum în **spațiul de vedere** (`mv.z += uExplode * 2.4`), unde −z e întotdeauna în
+ecran oricum ar sta camera; un `uExplode` negativ tot trage norul dinspre lentilă, adică
+imploziunea, exact ca înainte.
+
+### Ce NU e încă bine
+
+Scris aici pentru că următorul om o să vadă exact lucrurile astea și merită să știe că sunt
+cunoscute, nu ratate.
+
+- **Saturare la distanță mică.** Pasajul gurii de aerisire și șinele cavității se albesc. Banda de
+  muchie e o fracțiune fixă din fiecare cutie, deci o șină de 0,012 aflată la 0,025 de lentilă
+  acoperă mult ecran, iar amestecul aditiv n-are nicio rezervă. Reparația adevărată e **tone
+  mapping**, pe care `<Canvas flat>` îl refuză dinadins.
+- **Treimea de jos a cadrului dizolvării e tot subțire.** K2 stă la 0,017 deasupra traseelor plăcii
+  și la 0,29 în fața butucilor de balama (0,34 de planul gurii de aerisire), iar raza de ieșire
+  fixează ambele numere.
+- **Timpul 3 e țintit corect, dar e tot un cadru foarte jos.** Ridicarea lui cere o **a șaptea cheie
+  de cameră** sau o gură de aerisire mai sus — nu o mutare a lui K3, care e prinsă de gaură.
+- **Particulele burst-ului sunt practic invizibile.** Axa e acum corectă, dar norul orbitează
+  originea, iar la K5 originea e la 0,22 în fața lentilei și la 1,08 lateral, cu semi-înălțimea
+  cadrului acolo de 0,17: aproape nimic din ce aruncă burst-ul nu traversează cadrul.
+- **Câmpul display-ului e o singură culoare plată sub mobilierul lui**, fiindcă `createRingMaterial`
+  are o culoare și n-are textură.
+- **Și o atribuire greșită, ca să nu se repete.** Reglajul a pus glow-ul circular moale din ultima
+  secundă pe seama halo-ului desenului static. **Nu e el**: halo-ul trăiește în
+  `[data-part="fallback"]`, pe care `sceneReady` îl duce la `autoAlpha: 0`. Cercul e
+  `data-part="shock"` — inelul de șoc al burst-ului (`border-radius: 50%` în
+  `IntroPreloader.module.css`), preexistent și intenționat. Verificat în cod.
+
+### Draw call-uri și teste
+
+**Draw call-uri, acum** (citite din `intro-laptop.test.ts`): high **6** în regim, **5** cât timp
+capacul e închis (lespedea e ascunsă), **4** la pasul „lite" al guvernatorului (pleacă și halo-ul);
+mid și low **4** tot timpul. Exact **o** suprafață transmisivă în scenă, și numai pe high.
+
+**Testele.** Lotul a adăugat un singur `describe` — „the three settings that fail SILENTLY and in
+the picture", 3 teste — în `components/__tests__/intro-laptop.test.ts` (16 → **19**). Pinuiește
+NUMAI setările care cad tăcut **și în imagine**: materialul cadrului e `DoubleSide`, lespedea nu
+scrie niciodată adâncime, iar placa și traseele primesc un singur `uFill` și un singur `uHead`, cu
+placa mai întunecată dintre cele două. Fiecare dintre ele a costat o captură cadru-cu-cadru ca să
+fie găsită, pentru că revenirea la vechea valoare compilează, desenează, trece toate celelalte teste
+din fișier și costă exact aceleași draw call-uri. **Nimic reglat pe ochi nu e pinuit** — nici
+`face`/`edge`/`fres`/`soft`, nici `DIE_GAIN`/`BOARD_GAIN`/`SCREEN_GAIN`, nici `ty`-ul lui K3: un
+prag pe un număr ales estetic e un test care se schimbă odată cu ochiul, nu o verificare.
+
+### Docs aduse la ce face codul
+
+- [`docs/05`](./docs/05-page-sections.md) — secțiunea intro-ului, scrisă „as built" și adusă la zi
+  pentru rescriere de cineva care nu putea vedea lotul ăsta: ținta timpului 3 și de ce nu poate fi
+  ridicată poziția; cadrul desenat pe **ambele fețe** și de ce e portant, nu ordonat; lespedea de
+  acoperire care apare abia când capacul se mișcă (și care nu scrie niciodată adâncime); placa și
+  traseele ca **două** materiale pe **un** val; interiorul procesorului la 39 de segmente, cu grila
+  gurii de aerisire; ce păstrează pasul „lite" al guvernatorului.
+- [`docs/14`](./docs/14-testing.md) — rândul „Intro flight": `intro-laptop.test.ts` 16 → 19 și cele
+  trei setări care cad tăcut și în imagine.
+- [`docs/03`](./docs/03-architecture.md) și [`docs/07`](./docs/07-conventions.md) — **verificate,
+  nemodificate**: lotul n-a adăugat și n-a șters niciun fișier, n-a mutat nicio responsabilitate și
+  n-a atins nici lista de importuri interzise, nici modulele de scriere per-cadru.
+
+> **Nerulat pentru această intrare**, ca și pentru celelalte loturi ale rescrierii: `npm test`,
+> `npm run lint`, `npm run build` și re-baseline-urile declarate sunt lotul de închidere și se fac o
+> singură dată, la final. Numerele de aici sunt citite din cod și din tabela de chei, nu măsurate în
+> browser; cele marcate „măsurat" vin din captura de reglaj.
+
+**Fișiere:** `components/intro/three/edge.ts` · `components/intro/three/laptop.ts` ·
+`components/intro/three/cameraPath.ts` (numai `ty`-ul lui K3) ·
+`components/intro/three/materials.ts` · `components/intro/three/particles.ts` ·
+`components/intro/three/environment.ts` · `components/__tests__/intro-laptop.test.ts` · docs:
+[`05`](./docs/05-page-sections.md), [`14`](./docs/14-testing.md).
+
+---
+
+## 2026-09-20 — Changed & Removed: scena 3D a intro-ului e camera care zboară prin mașină
+
+Lotul de integrare 3D al rescrierii intro-ului (α4) — cel care leagă cinematica de React și de
+renderer. A aterizat fără intrare proprie; asta e. Tot aici pleacă semnul infinit din cod.
+
+**Camera zboară, obiectul stă.** `components/intro/three/rig.ts` a fost rescris. Vechiul rig
+**încadra obiectul în viewport**: un grup de fit care scala ∞-ul până încăpea, plus `fitRig`,
+`fitWidthFraction`, `baseHalfHeight`, `RigFit`, `RIG_HALF_WIDTH`, `RIG_FIT`, `MAX_YAW` și
+perechile `BASE_Z`/`DOLLY_Z` (6 → 0,9) și `BASE_FOV`/`DOLLY_FOV` (40° → 72°). Toate au plecat.
+Poziția, ținta, unghiul și înclinarea se citesc acum dintr-**un singur scalar**, `fx.flight`,
+prin `cameraAt` (`three/cameraPath.ts`); rig-ul cheltuie poza, nu o mai calculează. Înclinarea se
+cheltuie ca vector `up` al camerei, nu ca rotație după `lookAt`: `lookAt` rezolvă orientarea din
+țintă **și** din `up`, deci înclinarea trebuie să intre înainte, nu după.
+
+**Legănarea e o FEREASTRĂ, nu o rampă** (`SWAY` + `swayWeight`, pure, testate fără three). E
+stinsă la ambele capete, și niciunul nu e o alegere estetică:
+
+- **sub `flight` 0,35 camera e în procesor.** Pereții sunt la un centimetru de lentilă și ei SUNT
+  cadrul; o panoramare de două grade acolo balansează toată imaginea, iar obiectul pare că se
+  rotește în jurul lentilei. Nefilmabil. Timpii 1-2 sunt oricum un cadru ținut — K0 → K1 se mișcă
+  0,04 unități cu totul.
+- **peste 0,86 camera se închide pe ecran**, pe care K5 îl așază exact la distanța de acoperire:
+  ecranul umple cadrul cu margine zero. Orice rest de panoramare acolo deschide o fâșie de fundal
+  pe ultimul cadru al intro-ului.
+
+Între ele — K3 și K4, mașina văzută întreagă din afară — merge la greutate plină: ±0,04 rad derivă
+pe două perioade care nu se împart una în alta (figura nu se repetă), plus parallaxul pointerului,
+ponderat cu aceeași rampă. Legănarea stă pe **cameră** (`rotateY`/`rotateX`, adică o panoramare și
+o înclinare), nu pe obiect: adunată la ȚINTĂ ar fi rotit camera în jurul mașinii.
+
+**`components/intro/IntroLaptop.tsx` (nou)** — învelișul R3F subțire peste `three/laptop.ts`:
+construit o dată, `update` din `useFrame`, `setLite` de la governor, `dispose` la demontare.
+Ia locul lui `InfinityCore.tsx`.
+
+**`IntroScene.tsx`: `near` 0.1 → 0.01, `far` 40 → 14.** Primul e obligatoriu — timpii 1-3 se
+zboară **pe dinăuntrul** șasiului, iar cavitatea are 0,066 de o parte și de alta a liniei ei de
+mijloc, deci un plan apropiat la 0,1 ar fi tăiat tavanul pe fiecare cadru al lor. Al doilea îl
+plătește pe primul: cel mai departe ajunge camera sub 10 unități (K4, retras la plafonul de
+lărgire pe cel mai îngust viewport), iar raportul 1400:1 încape confortabil într-un buffer de
+adâncime de 24 de biți — 4000:1 al vechii perechi nu ar fi încăput, atât de aproape. Poziția și
+unghiul inițiale sunt **K0 însuși** (`cameraAt(0, 1)`), ca primul cadru pictat să fie deja pe
+zbor, nu într-o origine de la care rig-ul apoi sare. **Grupul de fit a dispărut**: mașina stă în
+origine la dimensiunea ei modelată și camera face drumul.
+
+**`tiers.ts`, refăcut.** Au plecat `tubular`/`radial` (segmentele de-a lungul curbei și în jurul
+ei) și `rings` (inelele de scanare). **Detaliul mașinii NU e un număr aici**: cele 29 de piese
+sunt un singur `InstancedMesh`, deci singura manetă e `mesh.count`, iar contorul trebuie să fie un
+**indice în tabela de renunțare** — așa că stă lângă acea tabelă, în `three/laptop.ts`
+(`LAPTOP_SLOT_COUNT` / `_MID` / `_LITE`). Două numere aici ar fi fost o a doua sursă de adevăr
+pentru un singur tablou. A rămas ce costă cu adevărat pe tier: pixeli (`dpr`, `antialias`),
+lespedea transmisivă, al doilea draw call al halo-ului, numărul de particule. `glass: "fresnel"`
+înseamnă acum pur și simplu **„fără lespede"** — shaderul care ținea locul sticlei a plecat cu
+∞-ul, deci mid și low au un shader mai puțin de compilat, exact pe dispozitivele care compilează
+greu.
+
+**`createParticleMaterial`: `uSize` 0,06 → 0,028.** Nu e o reglare pe ochi, e consecința directă a
+scoaterii grupului de fit: shaderul citește `length(modelViewMatrix[0].xyz)` ca `modelScale`, care
+era scara de încadrare și e acum 1. Peste asta, camera e mult mai aproape — K4 stă la 2,4 unități
+de origine, unde vechiul rig stătea la 6 — iar dimensiunea unui punct e invers proporțională cu
+adâncimea în vedere. 0,06 la 6 unități printr-un obiectiv de 40° și 0,028 la 2,4 printr-unul de
+46° cad pe aceiași câțiva pixeli, adică pe ce înseamnă o particulă de lumină. Plafonul de
+fill-rate (`gl_PointSize = min(..., uMaxSize)`) rămâne neatins.
+
+### Removed — semnul infinit, din cod
+
+**Fișiere întregi:** `components/intro/lemniscate.ts` (curba și `LEMNISCATE`) ·
+`components/intro/InfinityCore.tsx` · `components/intro/three/core.ts` ·
+`components/intro/three/geometry.ts`.
+
+**Din `three/materials.ts`:** `TUBE_VERTEX` și cele trei fabrici care depindeau de el —
+`createFresnelGlass` (+ `FresnelGlassUniforms`), `createRimMaterial` (+ `RimUniforms`,
+`RimOptions` și preseturile `RIM` / `HALO`) și `createPulseLineMaterial` (+ `PulseLineUniforms`).
+Toate citeau `uv.x` ca lungime de arc pe o buclă închisă și extrudau pe normală
+(`position + normal * uWidth`) — ceea ce pe un tub lărgește învelișul, iar pe o cutie desparte
+cele șase fețe în șase plăci detașate. Nu erau de „adaptat". Identitatea vizuală însă a trecut
+neatinsă în `three/edge.ts`: formula fresnel verbatim, `GLOW_BLENDING`, `glowAlpha`, culorile
+citite din paletă. Ce a rămas în `materials.ts` — `createPhysicalGlass`, `createRingMaterial`,
+`createParticleMaterial` — a trecut integral.
+
+**Din `fx.ts`:** `dolly` și `spin`, înlocuite de un singur `flight`. Un parametru în loc de doi
+înseamnă că nu există un al doilea număr de ținut în pas și că un „sari peste" de la orice timp e
+același tween spre 1.
+
+**Din listele de importuri grele:** linia `components/intro/lemniscate.ts` din
+`PAGE_BUNDLE_ROOTS`, în `eslint.config.mjs` **și** în
+`components/__tests__/scene-contract.test.ts`. Asta nu e curățenie cosmetică: `listFiles` întoarce
+`[]` pentru o cale care nu există, deci o rădăcină care numește un fișier șters **încetează pur și
+simplu să verifice ceva** — tăcut, și verde. `IntroFallback.tsx` rămâne în ambele liste și e în
+continuare ce ține three.js departe de desenul static.
+
+**`ORBITS` din `three/random.ts` NU a fost șters**, deși figura pe lista de ștergeri: e citit de
+`buildOrbitAttributes` în același fișier, care alimentează particulele — iar ele au rămas în
+scenă. Lăsat la locul lui, intenționat.
+
+### Docs aduse la ce face codul
+
+- [`docs/05`](./docs/05-page-sections.md) — secțiunea intro-ului era scrisă „as built" pe ∞ și a
+  fost rescrisă: tabela celor șase timpi cu banda de progres, `u`-ul și **cine îi desenează**;
+  de ce timpii 1-2 sunt desenul plat pe fiecare dispozitiv (pânza stă la `opacity: 0` până la
+  `sceneReady`, iar fără semnalul scenei bara nu trece de 0,60 — exact unde se termină timpul 2),
+  deci de ce dizolvarea e o tăietură pe potrivire la `u` 0,40; `SCENE_CUTOFF` explicat ca **termen
+  de 5 secunde**, nu ca poartă la 80% din bară, plus garda `LATE_SCENE_GOAL`; cele 29 de piese
+  într-un singur `InstancedMesh` și cele șase draw call-uri; tier-urile și pașii governorului
+  scriși pe ce renunță de fapt; și o secțiune nouă despre desenul static.
+- [`docs/03`](./docs/03-architecture.md) — arborele `components/intro/` (fișierele noi și cele
+  șterse) și cine ce deține: `flight.ts` (progres → zbor, modul separat fiindcă dirijorul are
+  nevoie de el și pe calea fără WebGL) și `three/cameraPath.ts` (lista de cadre **și**
+  măsurătorile mașinii, pe care `three/laptop.ts` le importă în loc să le redeclare).
+- [`docs/02`](./docs/02-tech-stack.md) (rândul three.js și tabela de licențe) ·
+  [`docs/04`](./docs/04-design-system.md) (lista schimbărilor de design) ·
+  [`docs/07`](./docs/07-conventions.md) (lista de importuri grele fără `lemniscate.ts`, plus
+  regula că un fișier șters trebuie să iasă din ea; modulele de scriere per-cadru; „desenul static
+  nu mai e o cale de rezervă") · [`docs/14`](./docs/14-testing.md) (numărătorile intro-ului și
+  rândul nou „Intro flight" pentru `intro-camera-path` și `intro-laptop`).
+
+**Datorie găsită pe parcurs și plătită aici, fiindcă e în aceleași secțiuni:** documentația
+descria încă un intro care se joacă **o dată pe sesiune de browser** și un cookie `tbs_intro`
+scris de site. Codul (`lib/intro.ts`, `app/(site)/cookies/content.ts`) spune de ceva vreme
+altceva — intro-ul se joacă la fiecare încărcare directă a paginii principale, cookie-ul se
+numește `tbs_intro_skip` și **site-ul nu-l scrie niciodată**, doar îl citește, ca o rulare de teste
+să-l poată semăna. Corectat în `docs/03`, `docs/05`, [`docs/11`](./docs/11-security.md) (tabela
+cookie-ului), [`docs/14`](./docs/14-testing.md) (ce seamănă `gotoHydrated`),
+[`docs/16`](./docs/16-i18n-seo.md) (§„The first-visit intro and SEO") și
+[`SECURITY.md`](./SECURITY.md).
+
+**Și în suita e2e, care afirma vechiul comportament.** `e2e/preloader.spec.ts` cerea ca intro-ul să
+scrie cookie-ul și ca o reîncărcare să fie „o vizită de întoarcere" — adică exact defectul raportat
+(„la refresh nu lucrează"). Testele spun acum ce face codul, și păzesc reparația din două părți:
+**nu se scrie niciun cookie** și numele vechi e șters (semănat înainte, verificat dispărut după),
+**o reîncărcare joacă intro-ul din nou** până la 100, iar un cookie semănat de QA sau de suită e
+în continuare onorat (fără suprapunere, fără three.js, fără WebGL). Skip-ul, Escape și ocolirea nu
+mai pretind că lasă „seen" în urmă. `e2e/interior.spec.ts` semăna numele vechi direct într-un
+antet `cookie:` — folosește acum `INTRO_COOKIE`, deci nu mai cerea pagina cu intro-ul pornit fără
+să vrea. `e2e/helpers.ts` și `e2e/README.md` descriu la fel.
+
+> **Nerulat pentru această intrare.** Verificarea grea a rescrierii — `npm test`, `npm run lint`,
+> `npm run build`, măsurătorile B3i / B4 / H / B5 și re-baseline-ul lor scris — e lotul de
+> închidere și se face o singură dată, la final. Numerele de aici sunt citite din cod, nu măsurate
+> în browser.
+>
+> Constatat și neatins: două comentarii din `IntroDirector.tsx` (explozia fără WebGL) încă spun
+> „the SVG ∞ draws in" și „a 2.6x full-screen layer", deși factorul e 4.6 și desenul e o mașină.
+
+**Fișiere:** `components/intro/three/rig.ts` (rescris) · `components/intro/IntroLaptop.tsx` (nou)
+· `components/intro/IntroScene.tsx` · `components/intro/tiers.ts` ·
+`components/intro/three/materials.ts` · `components/intro/fx.ts` · `eslint.config.mjs` ·
+`components/__tests__/scene-contract.test.ts` · `components/__tests__/intro-math.test.ts` ·
+`components/__tests__/intro-scene-math.test.ts` · **șterse:** `components/intro/lemniscate.ts`,
+`components/intro/InfinityCore.tsx`, `components/intro/three/core.ts`,
+`components/intro/three/geometry.ts` · docs: [`02`](./docs/02-tech-stack.md),
+[`03`](./docs/03-architecture.md), [`04`](./docs/04-design-system.md),
+[`05`](./docs/05-page-sections.md), [`07`](./docs/07-conventions.md),
+[`11`](./docs/11-security.md), [`14`](./docs/14-testing.md), [`16`](./docs/16-i18n-seo.md),
+[`SECURITY.md`](./SECURITY.md).
+
+---
+
+## 2026-09-20 — Changed: desenul static al intro-ului nu mai e semnul infinit, ci mașina
+
+Fallback-ul SVG (fără WebGL, dispozitiv lent, scenă care cade) desena o lemniscată din sticlă cu
+comete și orbite. Desenează acum un **laptop 16:10 cu capacul la 107°**, exact `LID_ANGLE.open`
+(1,87 rad) din `components/scene/three/models/laptop.ts`, văzut trei sferturi de sus-stânga — ca
+desenul și scena 3D să fie recunoscute ca **același obiect**, nu ca două lucruri diferite.
+
+**De ce e mai mult decât o schimbare de artă.** Pânza 3D (`.canvasHost`) stă la `opacity: 0` până
+la `sceneReady`, iar `ready` nu poate trece de 0,60 fără semnalul scenei. Deci **primii doi timpi
+ai filmului — „în procesor" și „alimentarea" — sunt văzuți pe desenul plat, pe fiecare
+dispozitiv**, nu doar acolo unde lipsește WebGL. Ferestrele desenului sunt aceleași cu tabela de
+timpi a camerei 3D, deci dizolvarea de la `sceneReady` e o **tăietură pe potrivire** (SVG-ul iese
+din die, 3D-ul intră la gura de aerisire), nu o reluare.
+
+**Un singur canal de scrub.** Directorul scrie `--fb-p` (0 → 1) pe `[data-part="fallback"]` o
+dată pe cadru; fiecare piesă își taie fereastra din el în CSS cu `clamp()`. Fără `@property` —
+`calc()` citește proprietățile custom neînregistrate, iar nimic nu animează `--fb-p`, deci
+înregistrarea ar costa doar compatibilitate. Ferestrele: `0–0,24` pe die · `0,24–0,60`
+alimentarea prin cele 14 trasee (complete la 0,58) · `0,60–0,86` ieșirea prin șasiu, pe lângă
+gura de aerisire · `0,60–0,84` mașina se compune și capacul se deschide · `0,78–0,94` ecranul se
+trezește · burst-ul rămâne al directorului.
+
+**Cum e construit.** Trei planuri, fiecare un `transform="matrix(...)"`, deci tot ce e înăuntru e
+`<rect>`/`<circle>` aliniat pe axe, generat din tabele. Repetiția e `<pattern>` (45 de taste,
+~200 de bile BGA, aripioare, via-uri = 2 noduri fiecare) și `<symbol>`+`<use>` (12 blocuri
+funcționale, 4 nuclee, 6 condensatoare, 4 colțare). Cele 14 trasee ale die-ului și cele 16 ale
+plăcii sunt fiecare **un singur `<path>` cu subcăi**, desenat o dată în `<defs>` și purtat de
+trei `<use>` (halo, miez, puls): dash-ul curge peste subcăi, deci se aprind **în ordine** dintr-un
+singur `stroke-dashoffset`. Balamaua nu e o rotație în spațiul ecranului, ci
+`scaleY(sin ψ) skewX(...)` în planul propriu al capacului, cu `ψ = 92° × --lid`.
+
+**Poza de repaus, pentru LCP.** Înainte de orice JS se desenează **mașina întreagă, compusă,
+adormită** (ecran stins, totul la 0,55): 76 de noduri, exact cât avea ∞-ul. Straturile `fbDie` și
+`fbBoard` sunt `display: none` până la `[data-live]` — parsate, niciodată dispuse sau pictate
+înainte ca `<h1>`-ul de sub suprapunere să fie elementul LCP. Dacă JS nu ajunge niciodată,
+vizitatorul vede 7 secunde o mașină întreagă, nu un pătrat de trasee.
+
+**Cele cinci numere CSS, re-derivate împreună** (nimic nu asertă că se potrivesc, deci se schimbă
+în același commit): `--intro-cy` 47% → **45%** (portret 42% → 40%) · `--hud-top` `×0.2` →
+**`×0.25`** (tălpile ajung la +94 din cele 480 de unități viewBox: 94/480 × 1,28) · `.fbStage
+width` `×1.5` → **`×1.28`** (mașina e 346,3 unități lată, deci iese 0,923 `--intro-w`) ·
+`.fallback transform-origin` de la `50% var(--intro-cy)` la **centrul ecranului**
+(`calc(50% + w*0.082) calc(cy - w*0.182)`, din proiecția lui (120, 78.75) în planul capacului) ·
+`--intro-w` și `aspect-ratio: 480 / 300` **neschimbate**, ca `.flash`, `.shock` și centrarea să
+nu se re-derive.
+
+`EdgeGradient`, `.stopRed*`/`.stopCyan`/`.stopBlue` și clasele de sticlă (`.fbGlass`, `.fbSheen`,
+`.fbCore`) rămân neatinse — ele sunt identitatea, nu lemniscata. Zero text în desen, deci zero
+chei de catalog și nicio dependență de font înainte de `document.fonts.ready`.
+
+**Fișiere:** `components/intro/IntroFallback.tsx` (rescris) · blocul `.fb*` și liniile 26-28 / 83
+din `components/intro/IntroPreloader.module.css` · `components/__tests__/intro-preloader.test.tsx`
+(`path[filter]` → `[filter]`, pentru că halo-ul e acum două `<use>`; plafoanele „exact două
+`feGaussianBlur`" și „exact două elemente filtrate" rămân).
+
+**Măsurat.** 167 de noduri în total, **76 la primul paint** (plafon 80) · 2 `feGaussianBlur`, 2
+elemente filtrate · markup 13.266 B brut / 2.634 B gzip (∞-ul: 28.753 / 1.091 — brut la jumătate,
+gzip **+1.543 B**, pentru că `LEMNISCATE_PATH` se repeta de 16 ori și LZ77 îl strivea, iar o
+mașină n-are ce dedupa). `IntroFallback.tsx` **16,6 KB** (plafon 12,5 KB; codul singur, fără
+comentarii, e 12,5 KB) · blocul `.fb*` **8.245 B**, +3.068 brut / +917 gzip (plafon +2 KB brut).
+**Ambele depășiri cer re-baseline pe H și B5, declarat aici, nu descoperit la poartă.**
+
+## 2026-09-20 — Fixed: datoria de teste și lint a frontend-ului, adunată de la rescrieri
+
+`tsc --noEmit` raporta **49 de erori**, toate în teste, toate descriind cod care fusese înlocuit
+intenționat, iar `npm test` cădea cu **48 de teste în 13 fișiere**. Lint-ul avea trei erori
+`react-hooks/set-state-in-effect`, toate în `components/sections/DirectionPage.tsx`. Regula ținută
+peste tot: testul se aduce la ce face codul ACUM; nu se slăbește o verificare ca să treacă și nu se
+umblă în cod ca să mulțumim un test vechi. Un test care descria o funcție scoasă dinadins a fost
+șters, cu motivul scris mai jos.
+
+**Erorile de tipuri (49 → 0).**
+
+- **`stage` în `SceneInput`** (pasul din „Cum lucrăm" pe care stă modelul): 35 de erori într-un
+  singur ajutor din `scene-choreography.test.ts`, care construia intrarea fără câmp. Adăugat
+  `stage: -1` („niciun pas"); `stepSceneFx` oricum nu-l citește — lumea ține modelul pe un pas, nu
+  stratul de netezire.
+- **Tema deschisă scoasă** (58b18ee) luase cu ea `--blue-text` și `--red-text` din `SCENE_TOKENS`:
+  cheile `blueText` / `redText` au dispărut din paletele-fixtură ale testelor `scene-build`,
+  `scene-helix-model`, `scene-mesh-wave`, `scene-trail` și `scene-palette`.
+
+**Teste șterse, cu motivul fiecăruia.**
+
+- `scene-palette.test.ts`: `relative luminance splits the two themes`, `light tokens → ink`,
+  `samePalette compares every role`, `tryReadScenePalette keeps quiet on a bad token` și tot
+  `describe("observeThemeChange")`. Cele cinci exporturi pe care le chemau
+  (`INK_LUMINANCE`, `relativeLuminance`, `samePalette`, `tryReadScenePalette`,
+  `observeThemeChange`) au plecat odată cu tema deschisă — pagina e mereu aproape neagră, deci
+  `pickSceneRoles` are un singur mod. Verificarea că un token stricat aruncă o eroare care îl
+  numește a rămas, mutată pe `readScenePalette`, și s-a adăugat una care fixează cele cinci roluri
+  rămase.
+- `scene-helix-model.test.ts`: paleta-fixtură `INK` și cele două perechi de aserțiuni care
+  comutau tema pe ea (`uInk` = 1, baza de 0,85 a hologramei în ink). `uInk` supraviețuiește în
+  shadere, permanent 0, exact cum scrie comentariul modulului; testele spun acum asta.
+- `direction-page.test.tsx`: `shows the reference project itself` și `shows the assistants
+  direction's reference project instead of an offer summary`. Cardul de referință de sub modelul
+  din hero a fost scos pe 2026-09-18 — proiectul pe care îl numea e primul card din „Proiecte
+  relevante" și duce mai departe linkul din bara de acțiuni. `describe`-ul „hero card" s-a
+  redenumit după ce a mai rămas în el: schema de flux, mutată lângă pașii „Cum lucrăm".
+
+**Teste aduse la ce face codul acum.**
+
+- **Modelele scenei s-au reașezat**: cheia din `SERVICE_MODEL` nu mai e și numele modelului —
+  `cubes` e desenat de stiva de produs, `integration-hub` de bancul de conducte. `scene-build` cere
+  acum numele reale ale grupurilor, iar ciclul cuburilor (`CUBE_CYCLE`, dintr-un fișier pe care
+  lumea nu-l mai construiește) s-a înlocuit cu REGULA care a rămas: cât timp modelul încă intră,
+  lumea îi dă pasul 0, deci blocul pe care aterizează roiul stă neclintit, iar bucla pornește abia
+  după aceea.
+- **`scene-contract.test.ts`** raporta `brandBoard.ts: snap`. Detectorul e o potrivire de text pe
+  nume de opțiuni ScrollTrigger, iar `PART.snap` din acel model e cursorul care se aliniază la
+  grilă — un indice, nu o opțiune de derulare. Subarborele `components/scene/three/` a ieșit din
+  scanare, cu un test nou care plătește scutirea: **niciun fișier de acolo nu pomenește GSAP sau
+  ScrollTrigger**, deci nu poate configura niciunul. Restul rădăcinilor se citesc în întregime, ca
+  până acum.
+- **`scene-laptop.test.ts`**: `laptopBootSettle` a fost rescrisă și acum se lasă puțin ÎNAPOI
+  înainte de a porni (anticiparea care face zborul să pară aruncat, nu pornit) — testul cerea încă
+  „nu merge niciodată înapoi". Cere acum ce face: o pierdere de cel mult a douăzecea parte din zbor,
+  revenită pe pozitiv până la un sfert din el. La fel, piesa apropiată ajunge cu un fir peste slot,
+  nu fix pe el. Descrierea-fixtură a proiectelor a fost lungită: încăpea în două rânduri, deci nu
+  mai rămânea nimic de spus cu „…".
+- **`lib/__tests__/scene.test.ts`**: instantaneele intrării primesc `stage: -1`, sonda de derulare
+  primește cele cinci cutii adăugate între timp (`panels`, `panelsPitch`, `projects`, `steps`,
+  `stepsPin`), iar `selectServiceStage` — care nu avea niciun test — are acum unul.
+- **`direction-page.test.tsx`**: secțiunea „Proiecte relevante" poartă acum DOUĂ forme ale
+  aceleiași liste — grila de carduri și lista ascunsă vizual care ține locul ecranului 3D pentru
+  cine nu vede imaginea. Testele citesc grila (`[data-projects-track]`) și verifică pe lângă ea că
+  lista ascunsă numește aceleași proiecte, în aceeași ordine, cu aceleași linkuri; linkul
+  proiectului de referință se caută în bara de acțiuni, nu în toată pagina.
+- **`directions-selector.test.tsx`**: pastilele nu se mai selectează pe `mouseenter` (1f16576 — un
+  rând care derulează pe sub un cursor parcat primea oricum evenimentele de graniță și schimba
+  singur serviciul, și cu el modelul 3D). Cele 19 `fireEvent.mouseEnter` au devenit
+  `fireEvent.pointerMove`, iar remedierea are în sfârșit testul ei de regresie: pastila care ajunge
+  sub un cursor nemișcat nu selectează nimic, iar un pixel de mișcare reală o selectează.
+- **`header-condense.test.tsx`**: un test se baza pe derularea lăsată în urmă de cel dinainte și
+  monta antetul DEJA condensat, comparând două stări identice. `renderNav()` pune acum `scrollY`
+  pe 0 înainte de fiecare montare.
+- **`scene-laptop.test.ts`, rulajul de proiecte**: jsdom 25 nu implementează
+  `HTMLImageElement.loading` — proprietatea se citește `undefined` și scrisul ei nu ajunge la
+  atribut — deci `warm()`, care o citește și o scrie exact ca o pagină, nu avea ce comuta. Testul
+  își pune accesorul înapoi, exact cum îl definește specificația, și îl scoate după el.
+
+**Lint: `react-hooks/set-state-in-effect` × 3, în `DirectionPage.tsx`, toate scoase fără nicio
+dezactivare de regulă.**
+
+- **Setul de cazuri deschise** și **indicele rulajului** se resetau în câte un efect legat de
+  `slug`. Ambele sunt acum ȚINUTE PE DIRECȚIA pe care au fost numărate (`{ slug, names }`,
+  `{ slug, at }`) și citite înapoi la gol în timpul randării. Un efect ar fi desenat pagina nouă o
+  dată cu panourile paginii dinainte deschise și le-ar fi închis un render mai târziu.
+- **Sosirea machetei în ecran** scria `setBooted` / `setActive` dintr-un efect care urmărea
+  `reelOnScreen`. Scrierile au trecut în callback-ul propriu al `IntersectionObserver`-ului — un
+  sistem exterior care raportează o schimbare, adică exact locul pe care regula îl indică — iar
+  efectul rămas ține doar cronometrul de boot, care nu setează nimic din corpul lui.
+
+**Verificat:** `tsc --noEmit` — 0 erori în tot ce ține de această intrare (49 → 0) ·
+`npm run lint` — 0 probleme în fișierele atinse · `npm test` — **1589 treceri, 1597 teste**, de la
+1531/1579 · cele patru pagini de serviciu răspund 200 pe serverul de dezvoltare, cu grila de
+proiecte și lista ei ascunsă în pagină.
+
+> Rămân roșii 8 teste în `components/__tests__/intro-preloader.test.tsx`,
+> `components/__tests__/intro-math.test.ts` și `lib/__tests__/intro.server.test.ts`, plus erorile de
+> tipuri și lint din fișierele de lucru ale intro-ului. Nu țin de această intrare: rescrierea
+> intro-ului e în curs în paralel, pe aceleași fișiere, și a fost lăsată neatinsă intenționat.
+>
+> Datorie constatată, nerezolvată aici: `three/models/cubes.ts`, `integrationHub.ts`, `meshWave.ts`,
+> `neural.ts` și `commerceLoop.ts` nu mai sunt construite de lume — singurele importuri rămase sunt
+> din teste. Comentariul din `world.ts` (~:929) încă descrie blocul de cuburi ținut 1,4 s, care a
+> plecat cu modelul.
+
+Fișiere: `components/sections/DirectionPage.tsx`, `components/__tests__/scene-build.test.ts`,
+`scene-choreography.test.ts`, `scene-contract.test.ts`, `scene-helix-model.test.ts`,
+`scene-laptop.test.ts`, `scene-mesh-wave.test.ts`, `scene-palette.test.ts`, `scene-trail.test.ts`,
+`direction-page.test.tsx`, `directions-selector.test.tsx`, `header-condense.test.tsx`,
+`lib/__tests__/scene.test.ts`.
+
+---
+
+## 2026-09-20 — Fixed: pictograma site-ului era logoul Next.js, nu al nostru
+
+De la schela proiectului, `app/favicon.ico` era pictograma implicită `create-next-app` — discul
+negru cu triunghiul alb, 25 931 de octeți, patru intrări (16/32/48 BMP + 256 PNG), nemodificată
+din 16 septembrie. Site-ul livra deci logoul framework-ului în fila browserului, la favorite și
+pe ecranul de start. Nu exista `app/icon.*`, `apple-icon.*`, `app/manifest.ts`, nici intrare
+`icons` în `generateMetadata()`.
+
+**Ce s-a schimbat și de ce.**
+
+- **`app/icon.svg` — semnătura TBS**, aceeași pe care o desenează antetul
+  (`components/layout/Navbar.tsx`): literele „TBS" urmate de punctul roșu. App Router preia
+  fișierul după nume și emite singur
+  `<link rel="icon" href="/icon.svg?<hash>" sizes="any" type="image/svg+xml">`; nu e nevoie de
+  nicio intrare `icons` în metadate, deci `generateMetadata()` rămâne neatins.
+
+- **Culorile sunt o COPIE a token-urilor din `app/globals.css`, nu o referință.** Un fișier
+  static nu poate citi `var()`, așa că valorile sunt scrise literal: `#0a0b10` (token `bg` /
+  `dark-bg`) pentru placă, `#f6f7fb` (token `txt` / `dark-txt`) pentru semnătură, `#ef263d`
+  (token `red`) pentru punct. **Dacă paleta se mută, fișierul trebuie actualizat manual** —
+  comentariul din SVG spune asta explicit.
+
+- **Desenat ca trasee conturate, nu ca `<text>`.** O pictogramă nu are font web la dispoziție,
+  deci Archivo ar fi căzut tăcut pe ce oferă sistemul. Grosimea 2,6 la o înălțime de literă de 14
+  reproduce bastonul Archivo ExtraBold, iar capetele drepte păstrează terminațiile plate. Potrivirea
+  e ceva mai largă decât `tracking-[-0.04em]` din antet, ca ochiurile lui „B" să supraviețuiască la
+  16×16 — pictograma trebuie să se citească acolo, nu să fie o scenă.
+
+- **Placa închisă e obligatorie**, nu decorativă: semnătura e deschisă la culoare, iar pe un fond
+  transparent ar dispărea în filele browserului în temă luminoasă.
+
+- **`proxy.ts`: excepția din `matcher` trece de la `favicon.ico` la `icon.svg`.** Lista scutea
+  pictograma de nonce-ul per cerere; cum fișierul s-a redenumit, fără schimbarea asta `/icon.svg`
+  ar fi început să treacă prin proxy și să primească un CSP și un nonce de care nu are nevoie.
+
+- **`app/favicon.ico` șters.** Nimic din depozit nu îl mai referea (singura mențiune era chiar
+  excepția din `proxy.ts`, actualizată mai sus).
+
+**Verificat:** `/` servește `<link rel="icon" href="/icon.svg?icon.2sm59ugl3lg2x.svg" sizes="any"
+type="image/svg+xml">` și zero mențiuni de `favicon` · `GET /icon.svg` → `200`,
+`Content-Type: image/svg+xml` · `GET /favicon.ico` → `404` · documentul își păstrează CSP-ul cu
+nonce, iar `/icon.svg` nu mai primește unul (excepția funcționează) · randat la 16/32/160 px:
+„TBS." se citește și la 16 · `tsc --noEmit` nu raportează nimic în fișierele atinse (cele 49 de
+erori rămase sunt preexistente, toate în `components/__tests__/scene-*.test.ts`).
+
+> **Notă pentru cine repetă verificarea:** stiva din `docker-compose.yml` rulează frontend-ul în
+> `NODE_ENV: production`, dintr-o imagine standalone fără montare de surse — `localhost:3000` **nu**
+> e un server de dezvoltare și nu preia modificări fără reconstruire. Verificarea de mai sus s-a
+> făcut cu `next dev` într-un container separat, pe alt port, ca să nu tulbure stiva pornită.
+>
+> `AGENTS.md` trimite la `node_modules/next/dist/docs/` (la fel comentariile din `proxy.ts`), dar
+> **directorul nu există** în Next 16.2.10. Convenția a fost confirmată direct din sursa instalată:
+> `next/dist/lib/metadata/is-metadata-route.js` listează `svg` în `STATIC_METADATA_IMAGES.icon`, iar
+> `resolve-metadata.js` adună fișierul prin `collectStaticImagesFiles(..., 'icon')`.
+
+Fișiere: `app/icon.svg` (nou), `app/favicon.ico` (șters), `proxy.ts`,
+[`docs/16-i18n-seo.md`](./docs/16-i18n-seo.md) (§3 „SEO surface").
+
+---
+
+## 2026-09-20 — Changed: ceasul intro-ului pregătit pentru secvența cu laptop
+
+Primul lot din înlocuirea intro-ului (semnul infinit → cinematică în șase timpi cu un laptop).
+Atinge numai dirijorul și contractul de timp; nimic vizibil încă, dar tot ce urmează depinde de el.
+
+**Ce s-a schimbat și de ce.**
+
+- **Gardă pentru scena care sosește prea târziu** (`INTRO_TIMING.LATE_SCENE_GOAL = 0.86`). Camera
+  noii secvențe e derulată din progres, deci o scenă 3D care devine gata la 4,8 s ar apărea în
+  dizolvare având doar ultimul timp de jucat: o mașină semi-transparentă care biciuie în ecran în
+  mai puțin de o secundă, peste un desen care se stinge. Peste `0.86` scena e refuzată și desenul,
+  care e deja la acel timp, duce totul. Vechea secvență tolera asta pentru că obiectul 3D semăna cu
+  desenul la orice moment; cea nouă nu.
+
+- **Un singur canal de derulare pentru desen** (`FB_PROGRESS_PROP = "--fb-p"`, scris de dirijor,
+  citit de foaia de stil). Fiecare piesă a desenului își calculează propria fereastră din această
+  valoare în CSS, deci un cadru costă o singură scriere pe un singur element. Înlocuiește
+  `setCharge`, care parcurgea o listă de căi SVG proprii semnului infinit și dispare odată cu el
+  (`data-part="charge"` nu era afirmat de niciun test sau document).
+
+- **Ultimul timp joacă și pe desen.** Explozia fără WebGL derulează acum `--fb-p` la 1 pe durata ei,
+  simetric cu zborul camerei din 3D. Un „sari peste" apăsat în primii doi timpi ridică întâi desenul
+  la mașina compusă (0,84), în cadrul acoperit de implozia de 0,22 s — altfel explozia ar scala o
+  mașină pe jumătate asamblată.
+
+- **`gsap.killTweensOf(fx)` la pornirea exploziei**, ca animația camerei condusă de progres să nu se
+  bată cu cea a exploziei.
+
+- **`SCENE_CUTOFF` documentat corect.** Era citit de toată lumea (documentație inclusă) ca o poartă
+  la 80% din bară. Nu este: fără semnalul scenei, pregătirea ponderată se oprește la
+  `0,15 + 0,15 + 0,30 = 0,60`, deci pragul de 0,8 nu poate fi atins înainte ca `HARD_CAP_MS` să
+  forțeze ținta la 1. E o limită de **5 secunde**, nu de 80%, și marja reală e mult mai mare decât se
+  credea.
+
+- **Explozia acoperă acum cadrul.** Fără WebGL, desenul se scala `2.6` — un număr potrivit pentru
+  ∞, care umplea stadiul. Mașina nu: ea se scalează în jurul **centrului ecranului**, iar ecranul
+  e 0,532 din stadiu, care e el însuși 1,28 `--intro-w`. La 2.6 explozia se oprea la 64vw, adică
+  într-o margine vizibilă. **4.6** dă 3,13 `--intro-w` de acoperire — 113vw în cel mai rău caz
+  (fereastră ultralată, unde `min(50vw, 84vh)` cade pe brațul de 84vh).
+
+- **Testele de cookie ale intro-ului**, rupte de la redenumirea `tbs_intro` → `tbs_intro_skip`,
+  descriu acum comportamentul real, în toate cele trei fișiere: site-ul nu își mai suprimă propriul
+  intro, singura scriere de cookie e ștergerea celui vechi, iar numele vechi nu mai contează ca
+  „văzut" — nici în browser, nici pe server. Cele cinci afirmații din `intro-preloader.test.tsx`
+  care cereau `readIntroSeen(document.cookie) === true` după un skip, un Escape, mișcare redusă, un
+  link cu `#hash` și un director care aruncă **afirmau exact bug-ul raportat** („la refresh nu
+  lucrează"); întoarse, păzesc reparația.
+
+**Verificat:** `tsc --noEmit` curat pe fișierele atinse · `lib/__tests__/intro.test.ts` 27/27 ·
+`lib/__tests__/intro.server.test.ts` 4/4 · `components/__tests__/intro-preloader.test.tsx` 27/27 ·
+`intro-math` + `intro-reveal-contract` 29/29 · intro-ul rulat cap-coadă pe un build standalone de
+producție: `00 → 60 → 85 → 96 → 100`, descoperire la 4,7 s, `--fb-p` 0 → 1 fără salt, zero erori.
+
+**Notă de mediu, pentru cine repetă verificarea:** `next dev` **nu** e un banc de probă valid pe
+acest proiect. Cu `output: "standalone"`, pachetul de client nu se hidratează pe serverul de
+dezvoltare și intro-ul rămâne înghețat pe `data-phase="boot"` / contorul `00`, **fără nicio eroare
+în consolă**. Verificat punând codul curat din git pe același server — se blochează identic.
+Rețeta e cea din `playwright.config.ts`: `npm run build`, copiat `.next/static` și `public` lângă
+`.next/standalone`, apoi `node .next/standalone/server.js`.
+
+Fișiere: `lib/intro.ts`, `components/intro/IntroDirector.tsx`, `components/intro/fx.ts`,
+`components/intro/flight.ts` (nou), `lib/__tests__/intro.test.ts`,
+`lib/__tests__/intro.server.test.ts`, `components/__tests__/intro-preloader.test.tsx`.
+
+---
+
 ## 2026-09-19 — Fixed: pastilele de servicii se puteau auto-selecta la derulare
 
 Aceeași greșeală ca la ruleta laptopului, găsită căutând toate reținerile pe „intrare" din proiect —

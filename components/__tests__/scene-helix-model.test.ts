@@ -63,20 +63,9 @@ import {
 const PALETTE = pickSceneRoles({
   cyan: "#4fc3e8",
   blue: "#3970ff",
-  blueText: "#8fb0ff",
   redLift: "#ff5362",
-  redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
-});
-const INK = pickSceneRoles({
-  cyan: "#0f8fb8",
-  blue: "#3970ff",
-  blueText: "#2446b8",
-  redLift: "#ff5362",
-  redText: "#c8102e",
-  txt: "#0a0b10",
-  bg: "#f4f6fb",
 });
 
 const frame = (over: Partial<HelixFrame> = {}): HelixFrame => ({
@@ -541,7 +530,7 @@ describe("helix model — behaviour", () => {
     model.dispose();
   });
 
-  it("dim multiplies every draw's uIntensity, in both themes (absent or not finite: 1; clamped to 0..1)", () => {
+  it("dim multiplies every draw's uIntensity, the hologram's glow base included (absent or not finite: 1; clamped to 0..1)", () => {
     const model = createHelixModel(SCENE_TIER_CONFIG.mid, PALETTE);
     const intensities = () => model.objects.map((object) => uniforms(object).uIntensity.value as number);
     model.update(frame());
@@ -549,13 +538,8 @@ describe("helix model — behaviour", () => {
     // The ambient helix behind Work's heading: CORE_BEHIND_COPY_DIM.narrow's glow value.
     model.update(frame({ dim: 0.55, time: 0.1, focus: 1 }));
     expect(intensities()).toEqual([0.55, 0.55, 0.55, 0.55, 0.55]);
-    // A theme switch keeps it; the hologram's own ink base (0.85) is multiplied too.
-    model.setPalette(INK);
-    expect(intensities().slice(0, 4)).toEqual([0.55, 0.55, 0.55, 0.55]);
-    expect(intensities()[4]).toBeCloseTo(0.85 * 0.55, 12);
     model.update(frame({ dim: 0.4, time: 0.2 }));
-    expect(intensities().slice(0, 4)).toEqual([0.4, 0.4, 0.4, 0.4]);
-    expect(intensities()[4]).toBeCloseTo(0.85 * 0.4, 12);
+    expect(intensities()).toEqual([0.4, 0.4, 0.4, 0.4, 0.4]);
     // The accent and the flares never touch it.
     model.setAccent(new Color("#ff2d78"));
     model.update(frame({ dim: 0.4, time: 0.3, focus: 3 }));
@@ -572,8 +556,7 @@ describe("helix model — behaviour", () => {
     expect(intensities().slice(0, 4)).toEqual([0.4, 0.4, 0.4, 0.4]);
     // Back to today's look without a dim.
     model.update(frame({ time: t + 0.05 }));
-    expect(intensities().slice(0, 4)).toEqual([1, 1, 1, 1]);
-    expect(intensities()[4]).toBeCloseTo(0.85, 12);
+    expect(intensities()).toEqual([1, 1, 1, 1, 1]);
     expect([helixDim(undefined), helixDim(Number.NaN), helixDim(-0.5), helixDim(3), helixDim(0.3)]).toEqual([1, 1, 0, 1, 0.3]);
     model.dispose();
   });
@@ -891,11 +874,11 @@ describe("helix model — behaviour", () => {
     for (let i = 0; i < 60; i += 1) model.update(frame({ time: (t += 1 / 60) }));
     expect(gap(colorOf(strands), cyan)).toBeLessThan(start * 0.01);
 
-    // A theme switch keeps the card's accent (at ink strength) and lands on it at once.
+    // A palette swap keeps the card's accent and lands on it at once. One mode: `uInk` stays 0.
     model.setAccent(pink);
-    model.setPalette(INK);
+    model.setPalette(PALETTE);
     expect(gap(colorOf(chips), pink)).toBeLessThan(1e-6);
-    expect(uniforms(strands).uInk.value).toBe(1);
+    expect(uniforms(strands).uInk.value).toBe(0);
     model.dispose();
   });
 

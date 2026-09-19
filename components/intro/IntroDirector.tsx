@@ -12,9 +12,15 @@ import {
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { INTRO_REVEAL_ATTR, INTRO_TIMING, type IntroRevealTarget } from "@/lib/intro";
+import {
+  FB_PROGRESS_PROP,
+  INTRO_REVEAL_ATTR,
+  INTRO_TIMING,
+  type IntroRevealTarget,
+} from "@/lib/intro";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import type { IntroCapability } from "./capability";
+import { flightFromProgress } from "./flight";
 import { createIntroFx } from "./fx";
 import { TIER_CONFIG } from "./tiers";
 
@@ -51,6 +57,15 @@ type SceneHooks = { ready: () => void; failed: () => void };
 
 /** Skip = the same burst, played this much faster. */
 const SKIP_SPEED = 2.4;
+
+/**
+ * When the camera's dive finishes, in timeline seconds from the lock.
+ *
+ * A beat short of the "reveal" label at 0.72, so the arrival is held — see the tween itself for
+ * why that matters. Keep the two in step: a dive that ends after the reveal plays under a page
+ * that is already fading in, and cannot be seen.
+ */
+const DIVE_END = 0.66;
 
 /*
  * What 0→100% means: honest readiness, weighted, never ahead of a cinematic curve.
@@ -142,8 +157,8 @@ const isTabHiddenOnServer = () => false;
  * device before mounting it and hands the answer down — the scene chunk is requested from
  * that same answer, in parallel with this one.
  *
- * Nothing here re-renders per frame: GSAP writes the counter, the bar, the charge line and
- * `aria-valuenow` straight to the DOM and tweens the plain `fx` object the scene reads in
+ * Nothing here re-renders per frame: GSAP writes the counter, the bar, the drawing's scrub
+ * property and `aria-valuenow` straight to the DOM and tweens the plain `fx` object the scene reads in
  * `useFrame`. React state changes only a handful of times (scene loading → ready → paused).
  */
 export function IntroDirector({
@@ -193,7 +208,6 @@ export function IntroDirector({
       const flash = part("flash");
       const shock = part("shock");
       const ticks = Array.from(root.querySelectorAll<HTMLElement>('[data-part="tick"]'));
-      const charges = Array.from(root.querySelectorAll<SVGElement>('[data-part="charge"]'));
 
       const T = INTRO_TIMING;
       const takeover = performance.now();
@@ -251,6 +265,13 @@ export function IntroDirector({
       const shown = { p: 0 };
       const setBar = gsap.quickSetter(bar, "scaleX");
       const setFxProgress = gsap.quickSetter(fx, "progress");
+      /* The camera's one scalar. Eased on its own rather than driven straight off `shown.p`:
+         the progress can step (a signal lands, the hard cap fires) and a camera must not. */
+      const flightTo = gsap.quickTo(fx, "flight", {
+        duration: 0.5,
+        ease: "power2.out",
+        overwrite: "auto",
+      });
       let lastWhole = 0;
       let lastStep = 0;
       let beats = 0;
@@ -259,9 +280,18 @@ export function IntroDirector({
          which would otherwise write e.g. aria-valuenow 70 and "70" over the locked 100. */
       let locked = false;
 
-      const setCharge = (p: number) => {
-        const offset = (1000 * (1 - p)).toFixed(1);
-        for (const charge of charges) charge.style.strokeDashoffset = offset;
+      /*
+       * The drawing's one scrub channel. Every part of the fallback derives its own window
+       * from this single custom property in CSS, so a frame is one property write on one
+       * element rather than a walk over the parts. Quantised to 1/200 — finer than the eye
+       * on a 480-unit viewBox, and it keeps the style recalc off most frames.
+       */
+      let lastP = -1;
+      const setP = (p: number) => {
+        const q = Math.round(p * 200) / 200;
+        if (q === lastP) return;
+        lastP = q;
+        fallback.style.setProperty(FB_PROGRESS_PROP, String(q));
       };
 
       const heartbeat = safe((index: number) => {
@@ -281,7 +311,8 @@ export function IntroDirector({
         const p = shown.p;
         setBar(p);
         setFxProgress(p);
-        setCharge(p);
+        flightTo(flightFromProgress(p));
+        setP(p);
         // 100 is reserved for the lock: the counter never claims done before the burst.
         const whole = Math.min(99, Math.floor(p * 100));
         if (whole !== lastWhole) {
@@ -305,6 +336,12 @@ export function IntroDirector({
       const sceneReady = safe(() => {
         signals.scene = true;
         if (sceneGone || timeline) return;
+        /* Too late to be worth cross-fading to: see INTRO_TIMING.LATE_SCENE_GOAL. `goal` is
+           declared below in this same closure; every call of this arrives after that line. */
+        if (goal >= T.LATE_SCENE_GOAL) {
+          sceneFailed();
+          return;
+        }
         sceneLive = true;
         root.setAttribute("data-renderer", "webgl");
         setScene((current) => (current === "loading" ? "ready" : current));
@@ -335,7 +372,6 @@ export function IntroDirector({
         counter.textContent = "100";
         setBar(1);
         setFxProgress(1);
-        setCharge(1);
         readout.setAttribute("aria-valuenow", "100");
         label.textContent = latest.current.t("intro.complete");
         label.setAttribute("data-complete", "");
@@ -350,6 +386,10 @@ export function IntroDirector({
 
       const buildBurst = (): gsap.core.Timeline => {
         const webgl = sceneLive;
+        /* A skip during the first two beats leaves the drawing half-assembled with no screen
+           to fly at. Snap it to the composed machine in the same frame the burst is built:
+           the 0.22s implosion and the label's glitch cover the jump. */
+        if (!webgl) fallback.style.setProperty(FB_PROGRESS_PROP, String(Math.max(shown.p, 0.84)));
         const blur = TIER_CONFIG[capability.tier].blurEntrance;
         const tl = gsap.timeline({
           paused: true,
@@ -369,7 +409,35 @@ export function IntroDirector({
           .to(fx, { explode: 1, duration: 0.9, ease: "expo.out" }, "burst")
           .to(fx, { flash: 1, duration: 0.08, ease: "power1.out" }, "burst")
           .to(fx, { flash: 0, duration: 0.5, ease: "power2.in" }, "burst+=0.08")
-          .to(fx, { dolly: 1, spin: 1, duration: 0.85, ease: "power3.in" }, "burst")
+          /*
+           * The dive into the screen, from wherever the flight had got to.
+           *
+           * It starts at the LOCK, not at the burst, and lands at DIVE_END — a beat before the
+           * page is uncovered at 0.72. That timing is the whole shot. Run from the burst over
+           * 0.85s it finished at 1.07, by which point the overlay was a third faded: the camera
+           * reached the display's cover distance underneath a page that was already coming in,
+           * so the last sixth of the flight — the frame the key table is built around — was
+           * never actually seen. Landing early instead holds the full-frame display still for
+           * the whole 0.55s fade, which is the "fly into the screen, the site is behind it"
+           * beat rather than a crossfade over a moving camera.
+           *
+           * Starting at the lock costs nothing: the 0.22s implosion is `fx.charge`, and nothing
+           * in `three/laptop.ts` reads it — on the 3D path those frames were a held pose.
+           *
+           * The ease is chosen when the timeline is built (at the lock), because a skip can
+           * start this from any beat: `power3.in` from a standing start spends its first 140ms
+           * not moving, which after a button press reads as the skip having done nothing.
+           */
+          .to(
+            fx,
+            {
+              flight: 1,
+              duration: DIVE_END,
+              ease: fx.flight < 0.5 ? "power2.inOut" : "power3.in",
+              overwrite: "auto",
+            },
+            "lock",
+          )
           .fromTo(
             flash,
             { opacity: 0, scale: 0.3 },
@@ -386,15 +454,23 @@ export function IntroDirector({
           .to([hud, skipButton], { opacity: 0, y: 10, duration: 0.25, ease: "power2.in" }, "burst");
 
         if (!webgl) {
-          // The DOM-only burst: the SVG ∞ draws in, then flies at the viewer and fades.
-          // Transform + opacity only, no blur: this is the path of devices without a usable
-          // GPU, where a filter over a 2.6x full-screen layer costs whole seconds per frame
-          // (measured under SwiftShader); the flash hides the hard edge anyway.
-          tl.to(fallback, { scale: 0.9, duration: 0.22, ease: "power2.in", overwrite: "auto" }, "lock").to(
-            fallback,
-            { scale: 2.6, autoAlpha: 0, duration: 0.8, ease: "power3.in" },
-            "burst",
-          );
+          /* The DOM-only burst: the drawing draws in, then the display flies at the viewer and
+             fades. Transform + opacity only, NO blur — this is the path of devices without a
+             usable GPU, where a filter over a 4.6x full-screen layer costs whole seconds per
+             frame (measured under SwiftShader); the flash hides the hard edge anyway. */
+          tl.to(fallback, { scale: 0.9, duration: 0.22, ease: "power2.in", overwrite: "auto" }, "lock")
+            /* The last beat, on the drawing, landing where the camera's does and for the same
+               reason: the composed machine is held through the fade rather than still moving
+               under it. A normal run starts this at ~0.995 and it is all but a no-op; a skip
+               starts it at the 0.84 clamp above and it carries the machine the rest of the way. */
+            .to(fallback, { [FB_PROGRESS_PROP]: 1, duration: DIVE_END, ease: "power2.out" }, "lock")
+            /* 4.6, not the ∞'s 2.6, and it is derived rather than chosen. The drawing scales
+               about the display's centre, and the display is 0.532 of the stage, which is itself
+               1.28 `--intro-w` wide: 0.532 × 1.28 × 4.6 = 3.13 `--intro-w` of cover. The worst
+               case is an ultrawide window, where `min(50vw, 84vh)` resolves to the 84vh arm and
+               `--intro-w` is only ~36vw — 3.13 of it is 113vw, so the screen still reaches past
+               the frame. At 2.6 it stopped at 64vw and the burst ended inside a visible border. */
+            .to(fallback, { scale: 4.6, autoAlpha: 0, duration: 0.8, ease: "power3.in" }, "burst");
         }
 
         tl.addLabel("reveal", 0.72)
@@ -423,6 +499,8 @@ export function IntroDirector({
         }
         gsap.ticker.remove(tick);
         gsap.killTweensOf(shown);
+        // The progress-driven camera tween must not fight the burst's own.
+        gsap.killTweensOf(fx);
         if (!sceneLive) sceneFailed();
         timeline = buildBurst();
         timeline.timeScale(speed).play(0);
@@ -455,6 +533,9 @@ export function IntroDirector({
 
       return () => {
         gsap.ticker.remove(tick);
+        /* Explicitly, not just by context revert: a revert re-renders a killed tween at its
+           start value, which would put the camera back inside the processor on the way out. */
+        gsap.killTweensOf(fx);
         gsap.ticker.lagSmoothing(500, 33);
         window.removeEventListener("load", onLoad);
         document.removeEventListener("visibilitychange", onVisibility);

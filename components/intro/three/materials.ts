@@ -1,9 +1,14 @@
 /**
  * The intro's palette and materials.
  *
- * Colours come from the site's CSS tokens at runtime, never from literals: the ∞ stays on
+ * Colours come from the site's CSS tokens at runtime, never from literals: the machine stays on
  * brand if the palette changes, and a token that cannot be read throws, which the director's
  * error boundary turns into the SVG fallback (`readTokenColors`, components/three/palette.ts).
+ *
+ * The four shaders that carried the ∞'s shape — `TUBE_VERTEX` and the fresnel glass, rim and
+ * pulse line built on it — are gone with it. They read `uv.x` as arc length on a closed loop and
+ * extruded along a smooth normal, neither of which means anything on a box; the fresnel itself
+ * lives on in `./edge.ts`, which reads `instanceMatrix` and a per-instance `aU` instead.
  *
  * Every custom shader ends with `#include <colorspace_fragment>`, so its linear-space output
  * is encoded for the sRGB canvas exactly like three's built-in materials.
@@ -13,14 +18,7 @@
  * shared with the interior scene in components/three/glow.ts, which explains why.
  */
 
-import {
-  BackSide,
-  FrontSide,
-  MeshPhysicalMaterial,
-  ShaderMaterial,
-  type Color,
-  type Side,
-} from "three";
+import { FrontSide, MeshPhysicalMaterial, ShaderMaterial, type Color } from "three";
 import { GLOW_ALPHA_GLSL, GLOW_BLENDING } from "@/components/three/glow";
 import { readTokenColors } from "@/components/three/palette";
 
@@ -59,37 +57,19 @@ export function readIntroPalette(root: Element = document.documentElement): Intr
 
 type Uniform<T> = { value: T };
 
-/* ---------------------------------------------------------------- tube vertex shader */
-
-/** Shared by the glass, rim, halo and line: view-space normal and view vector, arc length. */
-const TUBE_VERTEX = /* glsl */ `
-uniform float uWidth;
-varying vec3 vNormal;
-varying vec3 vView;
-varying float vU;
-
-void main() {
-  vU = uv.x;
-  // Extrude along the normal (a uniform scale would drift off the curve at the lobes).
-  vec4 mv = modelViewMatrix * vec4(position + normal * uWidth, 1.0);
-  vNormal = normalize(normalMatrix * normal);
-  vView = normalize(-mv.xyz);
-  gl_Position = projectionMatrix * mv;
-}
-`;
-
 /* ---------------------------------------------------------------------------- glass */
 
 /** Resting iridescence of the physical glass; the heartbeat adds to it. */
 export const GLASS_IRIDESCENCE = 0.45;
 
 /**
- * High tier: transmission glass lit by the procedural PMREM environment.
+ * High tier: transmission glass lit by the procedural PMREM environment. The ONE transmissive
+ * surface in the scene — the laptop's cover glass — because `transmission: 1` re-renders
+ * everything into a multisampled target once per frame per surface.
  *
- * `thickness` is deliberately small. A solid rod refracts like a cylindrical lens: at the
- * sketch's 0.6 (wider than the 0.32 tube) it magnified the pulse line across the whole tube,
- * which read as flat coloured plastic. At 0.12 the glass stays dark and clear, and the line
- * shows as a glowing core that swells a little towards the tube's centre.
+ * `thickness` is deliberately small: a thick slab refracts like a lens and reads as coloured
+ * plastic. The 0.12 here was tuned for a 0.32 rod; `three/laptop.ts` lowers it to the lid's own
+ * 0.05 at construction, since a thickness greater than the slab is a contradiction.
  */
 export function createPhysicalGlass(palette: IntroPalette): MeshPhysicalMaterial {
   return new MeshPhysicalMaterial({
@@ -109,206 +89,6 @@ export function createPhysicalGlass(palette: IntroPalette): MeshPhysicalMaterial
     envMapIntensity: 1.2,
     side: FrontSide,
   });
-}
-
-export type FresnelGlassUniforms = {
-  uWidth: Uniform<number>;
-  uRed: Uniform<Color>;
-  uBlue: Uniform<Color>;
-  uTxt: Uniform<Color>;
-  uTime: Uniform<number>;
-  uGlow: Uniform<number>;
-};
-
-/** Mid/low tiers: a see-through fresnel shell with a red↔blue band and fake highlights. */
-export function createFresnelGlass(palette: IntroPalette): {
-  material: ShaderMaterial;
-  uniforms: FresnelGlassUniforms;
-} {
-  const uniforms: FresnelGlassUniforms = {
-    uWidth: { value: 0 },
-    uRed: { value: palette.red },
-    uBlue: { value: palette.blue },
-    uTxt: { value: palette.txt },
-    uTime: { value: 0 },
-    uGlow: { value: 0 },
-  };
-  const material = new ShaderMaterial({
-    uniforms,
-    vertexShader: TUBE_VERTEX,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uRed;
-      uniform vec3 uBlue;
-      uniform vec3 uTxt;
-      uniform float uTime;
-      uniform float uGlow;
-      varying vec3 vNormal;
-      varying vec3 vView;
-      varying float vU;
-
-      void main() {
-        vec3 n = normalize(vNormal);
-        float facing = clamp(abs(dot(n, normalize(vView))), 0.0, 1.0);
-        float f = pow(1.0 - facing, 2.4);
-        float band = 0.5 + 0.5 * sin(vU * 6.28318 - uTime * 0.8);
-        // Fake specular: a crisp streak along the top of the tube, a softer one on its left.
-        float streak = smoothstep(0.86, 1.0, n.y) * 0.55 + smoothstep(0.92, 1.0, -n.x) * 0.25;
-        vec3 color = mix(uRed, uBlue, band) * f * (1.2 + uGlow) + uTxt * streak;
-        gl_FragColor = vec4(color, clamp(0.08 + f * 0.85 + streak * 0.5, 0.0, 1.0));
-        #include <colorspace_fragment>
-      }
-    `,
-    transparent: true,
-    depthWrite: false,
-    side: FrontSide,
-  });
-  return { material, uniforms };
-}
-
-/* --------------------------------------------------------------------- rim and halo */
-
-export type RimUniforms = {
-  uWidth: Uniform<number>;
-  uRed: Uniform<Color>;
-  uBlue: Uniform<Color>;
-  uHot: Uniform<Color>;
-  uTime: Uniform<number>;
-  uPower: Uniform<number>;
-  uStrength: Uniform<number>;
-  uIntensity: Uniform<number>;
-  uFlash: Uniform<number>;
-};
-
-export type RimOptions = {
-  /** Extrusion along the normal, scene units. */
-  width: number;
-  /** Fresnel exponent: higher is a thinner edge. */
-  power: number;
-  /** Constant multiplier (the halo is a fainter copy). */
-  strength: number;
-  side: Side;
-};
-
-export const RIM: RimOptions = { width: 0.02, power: 3.2, strength: 1, side: FrontSide };
-export const HALO: RimOptions = { width: 0.09, power: 2, strength: 0.28, side: BackSide };
-
-/** The additive fresnel edge on every tier (and, as a wider back-face copy, the halo). */
-export function createRimMaterial(
-  palette: IntroPalette,
-  options: RimOptions,
-): { material: ShaderMaterial; uniforms: RimUniforms } {
-  const uniforms: RimUniforms = {
-    uWidth: { value: options.width },
-    uRed: { value: palette.red },
-    uBlue: { value: palette.blue },
-    uHot: { value: palette.txt },
-    uTime: { value: 0 },
-    uPower: { value: options.power },
-    uStrength: { value: options.strength },
-    uIntensity: { value: 1 },
-    uFlash: { value: 0 },
-  };
-  const material = new ShaderMaterial({
-    uniforms,
-    vertexShader: TUBE_VERTEX,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uRed;
-      uniform vec3 uBlue;
-      uniform vec3 uHot;
-      uniform float uTime;
-      uniform float uPower;
-      uniform float uStrength;
-      uniform float uIntensity;
-      uniform float uFlash;
-      varying vec3 vNormal;
-      varying vec3 vView;
-      varying float vU;
-      ${GLOW_ALPHA_GLSL}
-
-      void main() {
-        float facing = clamp(abs(dot(normalize(vNormal), normalize(vView))), 0.0, 1.0);
-        float f = pow(1.0 - facing, uPower);
-        float band = 0.5 + 0.5 * sin(vU * 6.28318 - uTime * 0.8);
-        vec3 tint = mix(mix(uRed, uBlue, band), uHot, clamp(uFlash, 0.0, 1.0));
-        vec3 color = tint * f * uStrength * uIntensity;
-        gl_FragColor = vec4(color, glowAlpha(color));
-        #include <colorspace_fragment>
-      }
-    `,
-    transparent: true,
-    depthWrite: false,
-    side: options.side,
-    ...GLOW_BLENDING,
-  });
-  return { material, uniforms };
-}
-
-/* ------------------------------------------------------------------------ pulse line */
-
-export type PulseLineUniforms = {
-  uWidth: Uniform<number>;
-  uRed: Uniform<Color>;
-  uBlue: Uniform<Color>;
-  uHot: Uniform<Color>;
-  uTime: Uniform<number>;
-  uHead: Uniform<number>;
-  uBase: Uniform<number>;
-  uFlash: Uniform<number>;
-};
-
-/**
- * The "frequency" line inside the glass with two comets half a loop apart. Not transparent
- * on purpose: three draws it in the opaque pass, so the high tier's transmission pass
- * captures it and the glass visibly refracts it. It still blends as light.
- */
-export function createPulseLineMaterial(palette: IntroPalette): {
-  material: ShaderMaterial;
-  uniforms: PulseLineUniforms;
-} {
-  const uniforms: PulseLineUniforms = {
-    uWidth: { value: 0 },
-    uRed: { value: palette.redLift },
-    uBlue: { value: palette.blue },
-    uHot: { value: palette.txt },
-    uTime: { value: 0 },
-    uHead: { value: 0 },
-    uBase: { value: 0.5 },
-    uFlash: { value: 0 },
-  };
-  const material = new ShaderMaterial({
-    uniforms,
-    vertexShader: TUBE_VERTEX,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uRed;
-      uniform vec3 uBlue;
-      uniform vec3 uHot;
-      uniform float uTime;
-      uniform float uHead;
-      uniform float uBase;
-      uniform float uFlash;
-      varying vec3 vNormal;
-      varying vec3 vView;
-      varying float vU;
-      ${GLOW_ALPHA_GLSL}
-
-      void main() {
-        float band = 0.5 + 0.5 * sin(vU * 6.28318 - uTime * 0.8);
-        vec3 tint = mix(uRed, uBlue, band);
-        // fract(head - u) is 0 at the head and grows behind it: a sharp front, a long tail.
-        float comet = exp(-fract(uHead - vU) * 18.0) + exp(-fract(uHead + 0.5 - vU) * 18.0);
-        float core = 0.6 + 0.4 * clamp(abs(dot(normalize(vNormal), normalize(vView))), 0.0, 1.0);
-        vec3 hot = mix(tint, uHot, clamp(comet * comet, 0.0, 1.0));
-        vec3 color = (tint * uBase * 0.55 + hot * comet * (uBase + comet * 2.5)) * core;
-        color += uHot * uFlash;
-        gl_FragColor = vec4(color, glowAlpha(color));
-        #include <colorspace_fragment>
-      }
-    `,
-    transparent: false,
-    depthWrite: true,
-    ...GLOW_BLENDING,
-  });
-  return { material, uniforms };
 }
 
 /* ------------------------------------------------------------------------ scan rings */
@@ -379,12 +159,27 @@ export type ParticleUniforms = {
   uSync: Uniform<number>;
   uExplode: Uniform<number>;
   uPulse: Uniform<number>;
-  /** Sprite diameter in scene units. */
+  /**
+   * Sprite diameter in scene units, at `modelScale` 1.
+   *
+   * Recalibrated with the fit group: `modelScale` below is `length(modelViewMatrix[0].xyz)`, and
+   * with nothing scaling the world any more that is exactly 1 on every viewport instead of the
+   * old fit's 1.0 (desktop) to 0.51 (phone portrait). The camera also lives an order of magnitude
+   * closer now — K4 sits 2.4 units off the origin where the old rig sat at 6 — and point size is
+   * inverse in view depth. 0.06 at 6 units through a 40 degree lens and 0.028 at 2.4 through a 46
+   * degree one land on the same handful of pixels, which is what a light particle is.
+   */
   uSize: Uniform<number>;
   /** Half the drawing buffer's height in device pixels. */
   uViewportHalfHeight: Uniform<number>;
   /** Fill-rate cap in device pixels. */
   uMaxSize: Uniform<number>;
+  /**
+   * Where the camera is on its flight (`IntroFx.flight`). The cloud is sized and faded by it:
+   * see `outside` in the vertex shader. Not a decoration — it is what keeps the orbits off the
+   * lens while the camera is inside the chassis.
+   */
+  uFlight: Uniform<number>;
 };
 
 /** Round, soft, additive sprites. All motion is in the vertex shader. */
@@ -401,9 +196,10 @@ export function createParticleMaterial(palette: IntroPalette): {
     uSync: { value: 0 },
     uExplode: { value: 0 },
     uPulse: { value: 0 },
-    uSize: { value: 0.06 },
+    uSize: { value: 0.028 },
     uViewportHalfHeight: { value: 400 },
     uMaxSize: { value: 42 },
+    uFlight: { value: 0 },
   };
   const material = new ShaderMaterial({
     uniforms,
@@ -415,6 +211,7 @@ export function createParticleMaterial(palette: IntroPalette): {
       uniform float uSize;
       uniform float uViewportHalfHeight;
       uniform float uMaxSize;
+      uniform float uFlight;
       attribute vec3 aAxisU;
       attribute vec3 aAxisV;
       attribute vec3 aOrbit;
@@ -432,22 +229,36 @@ export function createParticleMaterial(palette: IntroPalette): {
         vec3 p = aAxisU * cos(angle) * (aOrbit.x + radial)
                + aAxisV * sin(angle) * (aOrbit.y + radial)
                + normalAxis * aSeed.y * spread * 0.25;
-        // The burst: thrown outwards and towards the camera (negative = the implosion).
+        // The burst: thrown outwards from the machine (negative = the implosion).
         p += normalize(p + vec3(1e-4)) * uExplode * (2.5 + aSeed.z * 5.0);
-        p.z += uExplode * 3.0;
 
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        // …and towards the LENS, in VIEW space. The camera looks down -z in view space whatever
+        // it is doing in the world, so +z here is out of the screen, always. The old world-space
+        // "p.z += uExplode * 3.0" was written for a rig parked on the world's +z axis; the
+        // flight's camera is looking roughly -z when the burst fires, so that line threw the
+        // cloud out of the BACK of the frame. A negative uExplode still pulls it away from the
+        // lens, which is the implosion, exactly as before.
+        mv.z += uExplode * 2.4;
         gl_Position = projectionMatrix * mv;
 
-        // Projected like geometry, so the rig's fit scale shrinks the sprites on a phone;
-        // capped so the ones sweeping past the camera during the dolly stay cheap to fill.
+        // The cloud belongs to the machine seen WHOLE. Inside the chassis the orbits (1.5 to 2.4
+        // across) sit centimetres from a camera that is at the origin, every sprite clamps to
+        // uMaxSize, and the one beat that has to read as a narrow canyon fills with soft blobs
+        // instead. So they arrive as the camera comes out through the vent and not before — and
+        // as a SIZE, not only an alpha, so a hidden sprite costs no fill either.
+        float outside = smoothstep(0.42, 0.68, uFlight);
+
+        // Projected like geometry. There is no fit group any more, so this is 1 and the sprite is
+        // the size uSize states; the cap is what keeps one that sweeps past the lens during the
+        // dive cheap to fill.
         float modelScale = length(modelViewMatrix[0].xyz);
         float burst = max(uExplode, 0.0);
-        float size = uSize * (0.6 + aSeed.z) * (1.0 + uPulse * 0.5 + burst * 1.2) * modelScale;
+        float size = uSize * (0.6 + aSeed.z) * (1.0 + uPulse * 0.5 + burst * 1.2) * modelScale * outside;
         gl_PointSize = min(size * projectionMatrix[1][1] * uViewportHalfHeight / max(0.2, -mv.z), uMaxSize);
 
         float twinkle = 0.55 + 0.45 * sin(uTime * 1.7 + aPhase * 5.0);
-        vAlpha = (1.0 - smoothstep(0.85, 1.0, uExplode)) * mix(twinkle, 1.0, burst);
+        vAlpha = outside * (1.0 - smoothstep(0.85, 1.0, uExplode)) * mix(twinkle, 1.0, burst);
         vTint = fract(aPhase * 3.7 + aSeed.z * 0.5);
       }
     `,

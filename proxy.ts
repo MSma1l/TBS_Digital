@@ -99,10 +99,13 @@ export const config = {
     /*
      * Run on every page document, but skip things that don't need (or shouldn't
      * pay for) a per-request nonce: API routes, static assets, image optimizer,
-     * favicon, and link-prefetches.
+     * the icon, and link-prefetches.
+     *
+     * `icon.svg` replaced `favicon.ico` here when app/icon.svg became the site's
+     * icon (App Router serves the file-based icon at /icon.svg).
      */
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      source: "/((?!api|_next/static|_next/image|icon.svg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

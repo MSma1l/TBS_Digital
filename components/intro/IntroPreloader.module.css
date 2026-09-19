@@ -20,12 +20,14 @@
  */
 
 .overlay {
-  /* Where the ∞ sits and how wide it is. The WebGL scene fits itself to the same numbers
-     (≈50% of the width in landscape, ≈86% in portrait, slightly above centre), so the SVG
-     fallback, the flash, the shockwave and the HUD all line up with either renderer. */
-  --intro-cy: 47%;
+  /* Where the machine sits and how wide it is. The WebGL scene fits itself to the same
+     numbers, so the SVG fallback, the flash, the shockwave and the HUD line up with either
+     renderer. --intro-cy is the hinge line, 2 points above the ∞'s centre because the lid
+     is tall and the mass is low; --hud-top clears the feet, which reach +94 of the 480
+     viewBox units below it (94 / 480 × 1.28 = 0.25). */
+  --intro-cy: 45%;
   --intro-w: min(50vw, 84vh);
-  --hud-top: calc(var(--intro-cy) + var(--intro-w) * 0.2 + 40px);
+  --hud-top: calc(var(--intro-cy) + var(--intro-w) * 0.25 + 40px);
   --intro-grid: color-mix(in srgb, var(--blue) 24%, transparent);
   --comet-dur: 2.8s;
 
@@ -80,7 +82,7 @@
 
 @media (orientation: portrait) {
   .overlay {
-    --intro-cy: 42%;
+    --intro-cy: 40%;
     --intro-w: 78vw;
   }
 }
@@ -339,18 +341,19 @@
   border-right-width: 1px;
 }
 
-/* ---- SVG fallback ∞ (IntroFallback) --------------------------------------------------- */
+/* ---- SVG fallback: the machine (IntroFallback) ---------------------------------------- */
 
-/* The director tweens THIS layer (heartbeat scale, crossfade to WebGL, the DOM-only burst:
-   scale + fade), so it carries no CSS animation. It zooms around the ∞'s centre. */
+/* ONE scrub channel: the director writes `--fb-p` (0 → 1) here once a frame and every part
+   below cuts its own window out of it with clamp(). No @property: calc() reads unregistered
+   custom properties and nothing here animates --fb-p. The windows are the film's beats (see
+   IntroFallback), on the scalar the 3D camera flies on, so sceneReady is a match cut. The
+   director tweens THIS layer and the burst flies INTO the screen, at viewBox (30.87, -68.27),
+   where one viewBox unit is 1.28/480 of --intro-w — so it carries no CSS animation. */
 .fallback {
-  transform-origin: 50% var(--intro-cy);
+  --fb-p: 0;
+  transform-origin: calc(50% + var(--intro-w) * 0.082) calc(var(--intro-cy) - var(--intro-w) * 0.182);
 }
 
-/* Hidden behind the WebGL scene, the SVG stops moving: 15 of its endless animations are
-   stroke-dashoffset, which runs on the main thread — the same thread as R3F and GSAP. When
-   the scene fails, `data-renderer` goes back to "fallback" before the SVG fades back in, and
-   the animations resume from where they paused. */
 .overlay[data-renderer="webgl"] .fallback * {
   animation-play-state: paused;
 }
@@ -359,14 +362,23 @@
   position: absolute;
   top: var(--intro-cy);
   left: 50%;
-  width: calc(var(--intro-w) * 1.5);
+  /* The machine is 346.3 of the 480 viewBox units wide, so at 1.28 it reads 0.923 --intro-w
+     across; the ∞ read 1.0 at 1.5. Keeping the viewBox keeps .flash and .shock un-derived. */
+  width: calc(var(--intro-w) * 1.28);
   aspect-ratio: 480 / 300;
   translate: -50% -50%;
   perspective: 1400px;
+
+  /* --rest is the resting pose: the machine composed and asleep. --lid is shut only while
+     the machine is out of frame — at rest, and from 0.84 (the skip clamp), it is open. */
+  --rest: clamp(0, (0.05 - var(--fb-p)) / 0.03, 1);
+  --form: clamp(0, (var(--fb-p) - 0.62) / 0.16, 1);
+  --mp: max(var(--rest), var(--form));
+  --mz: calc(1 + 1.25 * clamp(0, (0.86 - var(--fb-p)) / 0.2, 1) * (1 - var(--rest)));
+  --lid: max(var(--rest), clamp(0, (var(--fb-p) - 0.6) / 0.24, 1));
+  --sc: clamp(0, (var(--fb-p) - 0.78) / 0.16, 1);
 }
 
-/* The slow 3D sway and the breathing are two different properties (transform vs scale), so
-   the two animations never fight over one value. */
 .fbTilt {
   position: absolute;
   inset: 0;
@@ -378,10 +390,10 @@
 
 @keyframes introTilt {
   from {
-    transform: rotateX(12deg) rotateY(-20deg) rotateZ(-2deg);
+    transform: rotateX(6deg) rotateY(-9deg);
   }
   to {
-    transform: rotateX(-8deg) rotateY(20deg) rotateZ(2deg);
+    transform: rotateX(-3deg) rotateY(9deg);
   }
 }
 
@@ -390,7 +402,7 @@
     scale: 1;
   }
   to {
-    scale: 1.035;
+    scale: 1.025;
   }
 }
 
@@ -402,18 +414,37 @@
   overflow: visible;
 }
 
-/* The halo is blurred INSIDE the SVG (feGaussianBlur, IntroFallback) and rasterised into its
-   own layer once. A CSS `filter` here would be a compositor filter under the 3D tilt, and
-   the compositor re-runs those every frame the transform changes — i.e. every frame. */
-.fbHalo {
-  opacity: 0.55;
+/* Inherited SVG properties: one rule dresses all three layers, a part needs a class only
+   where it differs, and the pattern fills still win as attributes on their own node. */
+.fbMachine,
+.fbDie,
+.fbBoard {
+  fill: none;
+  stroke: var(--dark-ice);
+  stroke-opacity: 0.4;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+  color: var(--dark-ice);
+}
+
+/* Three `matrix(...)` planes with determinants far from 1: one hairline, three weights. */
+.fbMachine * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* Blurred INSIDE the SVG: a CSS `filter` here would be a compositor filter under the 3D
+   tilt, re-run every frame the transform changes. Beat 4 pulls both layers out to 1. */
+.fbHalo,
+.fbMachine {
+  transform: scale(var(--mz));
+  transform-origin: 56.43% 27.24%;
   will-change: transform;
 }
 
-/* The SVG blur is in viewBox units, so it scales with the ∞; the old 16 CSS px were ~8 units
-   at 1280×800 and ~17 at 390×844. Two strengths, switched where the ∞ gets small (its width
-   `--intro-w` under ~448px, i.e. under 1.4 px per unit), keep the halo's softness in the
-   same range on every screen. */
+.fbHalo {
+  opacity: calc(0.55 * var(--mp));
+}
+
 .fbHaloNarrow {
   display: none;
 }
@@ -430,8 +461,45 @@
   }
 }
 
-.fbBody {
-  will-change: transform;
+.fbMachine {
+  opacity: calc(var(--mp) * (0.55 + 0.45 * var(--form)));
+}
+
+/* First paint draws halo + machine only — ~70 nodes, as many as the ∞ had; the macro
+   layers are parsed but never laid out before [data-live], i.e. after LCP. */
+.fbDie,
+.fbBoard,
+.fbWake {
+  display: none;
+}
+
+.overlay[data-live] :is(.fbDie, .fbBoard, .fbWake) {
+  display: block;
+}
+
+.fbDie {
+  --sig: 2.2s;
+  --w: clamp(0, (var(--fb-p) - 0.26) / 0.32, 1);
+  opacity: min(clamp(0, var(--fb-p) / 0.05, 1), clamp(0, (0.68 - var(--fb-p)) / 0.16, 1));
+  transform: scale(calc(2.5 - 1.85 * clamp(0, var(--fb-p) / 0.66, 1)));
+  transform-origin: 50% 44%;
+}
+
+.fbBoard {
+  --w: clamp(0, (var(--fb-p) - 0.56) / 0.3, 1);
+  --sig: 3.6s;
+  opacity: min(clamp(0, (var(--fb-p) - 0.5) / 0.1, 1), clamp(0, (0.92 - var(--fb-p)) / 0.12, 1));
+  transform: scale(calc(3 - 2.35 * clamp(0, (var(--fb-p) - 0.46) / 0.44, 1)));
+  transform-origin: 53% 36%;
+}
+
+/* The swing, derived in IntroFallback: scaleY(sin ψ) foreshortens, skewX recedes,
+   ψ = 92° × --lid. Without calc() trigonometry the first declaration stands: always open. */
+.fbSwing {
+  transform-box: fill-box;
+  transform-origin: 0 0;
+  transform: scaleY(var(--lid));
+  transform: scaleY(sin(92deg * var(--lid))) skewX(calc(-17.8deg * cos(92deg * var(--lid))));
 }
 
 .stopRed {
@@ -450,137 +518,174 @@
   stop-color: var(--blue);
 }
 
-.fbGlass {
-  fill: none;
-  stroke: color-mix(in srgb, var(--dark-txt) 6%, transparent);
-  stroke-linejoin: round;
+.fbBody {
+  fill: color-mix(in srgb, var(--void) 70%, transparent);
 }
 
-.fbSheen {
-  fill: none;
-  stroke: var(--dark-txt);
-  stroke-opacity: 0.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.fbCore {
-  fill: none;
-  stroke-opacity: 0.4;
-  stroke-linejoin: round;
-}
-
-.fbRing {
-  fill: none;
-  stroke: var(--dark-ice);
-  stroke-opacity: 0.12;
-}
-
-.fbDots,
-.fbSat {
-  fill: none;
-  stroke-linecap: round;
-  animation: introOrbit var(--orbit-dur, 16s) linear infinite;
-}
-
-.fbDots {
-  stroke-width: 2.6;
-}
-
-.fbSat {
-  stroke-width: 9;
-  stroke-opacity: 0.22;
-}
-
-.fbSatCore {
-  fill: none;
-  stroke: var(--dark-txt);
-  stroke-width: 3.6;
-  stroke-linecap: round;
-  animation: introOrbit var(--orbit-dur, 16s) linear infinite;
-}
-
-.fbOrbitA {
-  --orbit-dur: 15s;
-  stroke: var(--red-lift);
-}
-
-.fbOrbitB {
-  --orbit-dur: 21s;
-  stroke: var(--blue);
-}
-
-.fbOrbitB :is(.fbDots, .fbSat, .fbSatCore) {
-  animation-direction: reverse;
-}
-
-.fbOrbitC {
-  --orbit-dur: 11s;
-  stroke: var(--dark-cyan);
-}
-
-@keyframes introOrbit {
-  to {
-    stroke-dashoffset: -1000;
-  }
-}
-
-/* The charge line fills along the ∞ as the counter runs (the director writes its
-   stroke-dashoffset); pre-hydration it is empty. */
-.fbCharge,
-.fbChargeGlow {
-  fill: none;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 1000;
-  stroke-dashoffset: 1000;
-}
-
-.fbCharge {
-  stroke: var(--dark-txt);
-  stroke-width: 1.8;
-}
-
-.fbChargeGlow {
-  stroke-width: 7;
+.fbPlate,
+.fbSilicon {
+  fill: color-mix(in srgb, var(--dark-ice) 6%, transparent);
   stroke-opacity: 0.55;
 }
 
-/* Comets: three dashes of one travelling pulse — long faint trail, mid, white-hot head —
-   whose leading edges are aligned by negative delays (a dash of length L leads by L/1000 of
-   the loop). The second comet runs half a loop behind. */
-.fbComet {
-  fill: none;
-  stroke-linecap: round;
-  animation: introComet var(--comet-dur) linear infinite;
-  animation-delay: calc(var(--comet-dur) * (var(--comet-phase, 0) - var(--comet-lead, 0)));
+.fbFaint {
+  stroke-opacity: 0.22;
+  stroke-width: 0.9;
 }
 
-.fbCometB {
-  --comet-phase: -0.5;
+.fbGlass {
+  fill: color-mix(in srgb, var(--dark-txt) 5%, transparent);
+  stroke: none;
 }
 
-.fbTrail {
-  stroke-dasharray: 170 830;
-  stroke-width: 7;
+.fbSheen {
+  stroke: var(--dark-txt);
   stroke-opacity: 0.16;
+  stroke-width: 7;
+  stroke-linecap: round;
 }
 
-.fbMid {
-  --comet-lead: 0.09;
-  stroke-dasharray: 80 920;
-  stroke-width: 3.6;
+/* The bezel's lit edge: the one place the machine wears the four-stop gradient outright. */
+.fbCore {
+  stroke-width: 1.2;
+  stroke-opacity: 0.7;
+}
+
+/* Two properties, so the two step walks never fight: `translate` runs the column, plain
+   `transform` the row — one element for a keyboard's worth of typing. */
+.fbCaret {
+  fill: color-mix(in srgb, var(--red-lift) 34%, transparent);
+  stroke: var(--red-lift);
+  stroke-opacity: 0.7;
+  animation:
+    introCaretX 2.4s steps(9, end) infinite,
+    introCaretY 9.6s steps(4, end) infinite;
+}
+
+@keyframes introCaretX {
+  to {
+    translate: 180px;
+  }
+}
+
+@keyframes introCaretY {
+  to {
+    transform: translateY(80px);
+  }
+}
+
+.fbLed {
+  fill: var(--red);
+  stroke: none;
+  animation: introLed 1.9s ease-in-out infinite alternate;
+}
+
+@keyframes introLed {
+  from {
+    opacity: 0.2;
+  }
+  to {
+    opacity: 0.9;
+  }
+}
+
+.fbScreen {
+  fill: var(--void);
+  stroke: none;
+}
+
+.fbScreenGlow {
+  fill: var(--dark-cyan);
+  stroke: none;
+  opacity: calc(0.05 + 0.22 * var(--sc));
+}
+
+.fbBracket {
+  color: var(--red-lift);
+  opacity: calc(0.25 + 0.6 * var(--sc));
+}
+
+.fbRim {
+  stroke: var(--dark-cyan);
+  stroke-opacity: 0.75;
+  stroke-width: 1.4;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.74) / 0.2, 1)));
+}
+
+.fbScan,
+.fbTrack {
+  fill: color-mix(in srgb, var(--dark-txt) 10%, transparent);
+  stroke: none;
+  opacity: var(--sc);
+}
+
+.fbScan {
+  animation: introCaretY 4.6s linear infinite;
+}
+
+.fbLog {
+  fill: var(--dark-ice);
+  stroke: none;
+  opacity: calc(0.7 * clamp(0, (var(--fb-p) - (0.8 + 0.026 * var(--i))) / 0.03, 1));
+}
+
+.fbCpu {
+  color: var(--dark-cyan);
+  opacity: calc(0.28 + 0.72 * clamp(0, (var(--fb-p) - (0.2 + 0.05 * var(--i))) / 0.07, 1));
+}
+
+.fbFill {
+  fill: var(--red-lift);
+  stroke: none;
+  opacity: var(--sc);
+  transform-box: fill-box;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--fb-p));
+}
+
+.fbSilicon {
+  fill: color-mix(in srgb, var(--blue) 12%, transparent);
+  stroke: var(--dark-cyan);
   stroke-opacity: 0.45;
 }
 
-.fbHead {
-  --comet-lead: 0.144;
-  stroke: var(--dark-txt);
-  stroke-dasharray: 26 974;
-  stroke-width: 2.6;
+.fbRing {
+  stroke-width: 2.2;
+  stroke-opacity: 0.8;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.1) / 0.14, 1)));
 }
 
-@keyframes introComet {
+/* Dashing runs on across a <path>'s subpaths: 14 (or 16) traces light IN ORDER from one
+   offset. The three .fbPulse lines are the only running dashes left; the ∞ had 15. */
+.fbTrace,
+.fbTraceGlow,
+.fbPulse {
+  stroke-linecap: round;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: calc(1000 * (1 - var(--w, 1)));
+}
+
+.fbTrace {
+  stroke: var(--dark-txt);
+  stroke-width: 1.3;
+  stroke-opacity: 0.9;
+}
+
+.fbTraceGlow {
+  stroke-width: 6;
+  stroke-opacity: 0.4;
+}
+
+.fbPulse {
+  stroke-dasharray: 26 974;
+  stroke-width: 2.2;
+  stroke-opacity: 0.85;
+  animation: introSignal var(--sig, var(--comet-dur)) linear infinite;
+}
+
+@keyframes introSignal {
   from {
     stroke-dashoffset: 1000;
   }
@@ -880,7 +985,10 @@
   .sweep,
   .flash,
   .shock,
-  .fbHalo {
+  .fbHalo,
+  .fbGlass,
+  .fbSheen,
+  .fbScreenGlow {
     display: none;
   }
 

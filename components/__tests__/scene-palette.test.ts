@@ -1,42 +1,27 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  INK_LUMINANCE,
   SCENE_TOKENS,
-  observeThemeChange,
   parseTokenColor,
   pickSceneRoles,
   readScenePalette,
-  relativeLuminance,
-  samePalette,
-  tryReadScenePalette,
   type SceneTokenValues,
 } from "@/components/scene/three/palette";
 
 /*
- * The interior scene's colours come from the site's tokens, never literals, and a theme switch
- * only swaps roles and blend factors. Dark ("glow") adds neon light to the page; light ("ink")
- * draws with the darker text tones. The palette module is pure — no three.js — so the role
- * table is pinned here.
+ * The interior scene's colours come from the site's tokens, never literals. There is ONE mode:
+ * the page is always near-black, so the scene always draws in "glow" — light added to it, neon
+ * on dark. The light theme and everything that watched for a theme switch went with it
+ * (58b18ee "Removed: sunetul si tema deschisa"); `uInk` survives in the shaders, permanently 0.
+ * The palette module is pure — no three.js — so the role table is pinned here.
  */
 
-/** The token values of globals.css, dark and light. */
+/** The token values of globals.css. */
 const DARK: SceneTokenValues = {
   cyan: "#4fc3e8",
   blue: "#3970ff",
-  blueText: "#8fb0ff",
   redLift: "#ff5362",
-  redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
-};
-const LIGHT: SceneTokenValues = {
-  cyan: "#0e93b9",
-  blue: "#3970ff",
-  blueText: "#2a56d6",
-  redLift: "#ff5362",
-  redText: "#d41026",
-  txt: "#10172a",
-  bg: "#f4f7ff",
 };
 
 const rgb = (hex: string) => parseTokenColor(hex)!;
@@ -54,15 +39,10 @@ describe("parseTokenColor", () => {
       expect(parseTokenColor(value), value).toBeNull();
     }
   });
-
-  it("relative luminance splits the two themes", () => {
-    expect(relativeLuminance(rgb(DARK.bg))).toBeLessThan(INK_LUMINANCE);
-    expect(relativeLuminance(rgb(LIGHT.bg))).toBeGreaterThan(INK_LUMINANCE);
-  });
 });
 
 describe("pickSceneRoles", () => {
-  it("dark tokens → glow: neon blue, the lifted red", () => {
+  it("the tokens → glow: neon blue, the lifted red", () => {
     const palette = pickSceneRoles(DARK);
     expect(palette.mode).toBe("glow");
     expect(palette.cyan).toEqual(rgb(DARK.cyan));
@@ -75,25 +55,15 @@ describe("pickSceneRoles", () => {
     expect(Object.values(SCENE_TOKENS)).not.toContain("--on-accent");
   });
 
-  it("light tokens → ink: the text tones", () => {
-    const palette = pickSceneRoles(LIGHT);
-    expect(palette.mode).toBe("ink");
-    expect(palette.cyan).toEqual(rgb(LIGHT.cyan));
-    expect(palette.blue).toEqual(rgb(LIGHT.blueText));
-    expect(palette.red).toEqual(rgb(LIGHT.redText));
-    expect(palette.hot).toEqual(rgb(LIGHT.txt));
-    expect(palette.bg).toEqual(rgb(LIGHT.bg));
+  it("reads five tokens and no theme-dependent one: --blue-text and --red-text left with the light theme", () => {
+    expect(Object.keys(SCENE_TOKENS).sort()).toEqual(["bg", "blue", "cyan", "redLift", "txt"]);
+    expect(Object.values(SCENE_TOKENS)).not.toContain("--blue-text");
+    expect(Object.values(SCENE_TOKENS)).not.toContain("--red-text");
   });
 
   it("an unparsable token throws a descriptive error naming it", () => {
     expect(() => pickSceneRoles({ ...DARK, redLift: "oklch(60% 0.2 20)" })).toThrow(/--red-lift.*oklch/);
     expect(() => pickSceneRoles({ ...DARK, bg: "" })).toThrow(/--bg/);
-  });
-
-  it("samePalette compares every role", () => {
-    expect(samePalette(pickSceneRoles(DARK), pickSceneRoles({ ...DARK }))).toBe(true);
-    expect(samePalette(pickSceneRoles(DARK), pickSceneRoles(LIGHT))).toBe(false);
-    expect(samePalette(pickSceneRoles(DARK), pickSceneRoles({ ...DARK, cyan: "#4fc3e9" }))).toBe(false);
   });
 });
 
@@ -112,61 +82,13 @@ describe("readScenePalette — from the document", () => {
   }
 
   it("reads every role's custom property from <html>", () => {
-    stubTokens(LIGHT);
-    expect(readScenePalette()).toEqual(pickSceneRoles(LIGHT));
+    stubTokens(DARK);
+    expect(readScenePalette()).toEqual(pickSceneRoles(DARK));
     expect(window.getComputedStyle).toHaveBeenCalledWith(document.documentElement);
   });
 
-  it("tryReadScenePalette keeps quiet on a bad token (the caller keeps its palette)", () => {
+  it("throws on a bad token, naming it — the stage's error boundary keeps the static art", () => {
     stubTokens({ ...DARK, cyan: "var(--dark-cyan)" });
     expect(() => readScenePalette()).toThrow(/--cyan/);
-    expect(tryReadScenePalette()).toBeNull();
-  });
-});
-
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
-
-describe("observeThemeChange", () => {
-  afterEach(() => {
-    document.documentElement.removeAttribute("data-theme");
-    vi.restoreAllMocks();
-  });
-
-  it("fires on a data-theme flip and an OS colour-scheme change, until cleaned up", async () => {
-    let schemeListener: (() => void) | null = null;
-    vi.spyOn(window, "matchMedia").mockImplementation(
-      (query: string) =>
-        ({
-          matches: false,
-          media: query,
-          addEventListener: (_type: string, listener: () => void) => {
-            schemeListener = listener;
-          },
-          removeEventListener: () => {
-            schemeListener = null;
-          },
-        }) as unknown as MediaQueryList,
-    );
-    const onChange = vi.fn();
-    const stop = observeThemeChange(onChange);
-    expect(window.matchMedia).toHaveBeenCalledWith("(prefers-color-scheme: dark)");
-
-    document.documentElement.setAttribute("data-theme", "light");
-    await flush();
-    expect(onChange).toHaveBeenCalledTimes(1);
-
-    document.documentElement.setAttribute("data-lang", "ro");
-    await flush();
-    expect(onChange).toHaveBeenCalledTimes(1);
-    document.documentElement.removeAttribute("data-lang");
-
-    (schemeListener as (() => void) | null)?.();
-    expect(onChange).toHaveBeenCalledTimes(2);
-
-    stop();
-    expect(schemeListener).toBeNull();
-    document.documentElement.setAttribute("data-theme", "dark");
-    await flush();
-    expect(onChange).toHaveBeenCalledTimes(2);
   });
 });

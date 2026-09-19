@@ -63,9 +63,35 @@ export const INTRO_TIMING = {
   FAILSAFE_MS: 7000,
   /** The shell forces the overlay out if the director never reveals the page. */
   WATCHDOG_MS: 9000,
-  /** WebGL scene not ready by this share of the progress → the burst plays on the SVG. */
+  /**
+   * WebGL scene not ready by this share of the progress → the burst plays on the SVG.
+   *
+   * Read this as a deadline in seconds, not a share of the bar. Without `signals.scene` the
+   * weighted readiness tops out at 0.15 + 0.15 + 0.30 = 0.60, so the shown progress cannot
+   * reach 0.8 until `HARD_CAP_MS` forces the target to 1. The cutoff therefore only ever
+   * fires in the ~300ms after 5 seconds: a scene that has not arrived by then hands over.
+   */
   SCENE_CUTOFF: 0.8,
+  /**
+   * A scene that becomes ready this late is refused: the flight has no room left to start.
+   *
+   * The camera sequence is scrubbed from the progress, so a scene arriving at 0.86 would
+   * cross-fade in with only the last beat to play — a half-transparent machine whipping into
+   * the screen in under a second, over a drawing that is fading out. The drawing, already at
+   * that beat, carries it instead.
+   */
+  LATE_SCENE_GOAL: 0.86,
 } as const;
+
+/**
+ * The one custom property the director scrubs the static drawing with, 0 → 1.
+ *
+ * The drawing is a single SVG whose every part derives its own window from this value in CSS
+ * (`clamp(0, (var(--fb-p) - a) / b, 1)`), so a frame costs one property write on one element.
+ * Named here, next to the rest of the intro's contract, because the director writes it and the
+ * preloader's stylesheet reads it — neither owns it.
+ */
+export const FB_PROGRESS_PROP = "--fb-p";
 
 /** The attribute the page entrance looks up its targets by. No CSS rule may target it. */
 export const INTRO_REVEAL_ATTR = "data-intro-reveal";

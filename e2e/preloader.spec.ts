@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { messages } from "@/lib/i18n/messages";
 import { INTRO_COOKIE, INTRO_REVEAL_ATTR } from "@/lib/intro";
 import {
+  MIN_TAP_TARGET,
   breakRendererWebGL,
   consoleErrors,
   cookieBanner,
@@ -27,18 +28,18 @@ import {
   recordIntroAttributes,
   recordIntroProgress,
   sampleIntroVisibility,
-  seedConsent,
   sceneStage,
+  seedConsent,
+  seedIntroSeen,
   threeLoaded,
   watchCsp,
   webglContextCount,
-  MIN_TAP_TARGET,
 } from "./helpers";
 
 /*
  * The first-visit intro (components/intro/, gated in app/(site)/layout.tsx).
  *
- * Every other spec is a returning visitor (gotoHydrated seeds `tbs_intro=seen`); this one is
+ * Every other spec is a returning visitor (gotoHydrated seeds the skip cookie); this one is
  * the first visit, through the hooks the overlay declares:
  *  · root `#tbs-intro[data-testid="intro"]`, `data-phase` boot|run|revealed|leaving and
  *    `data-renderer` pending|webgl|fallback;
@@ -167,31 +168,49 @@ test.describe("intro — first visit", () => {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 
-  test("remembers the visit for the session only: tbs_intro=seen, path /, SameSite Lax", async ({
+  /*
+   * The site NEVER writes the skip cookie. The intro used to play once per browser session, so a
+   * reload never replayed it — which is what the client reported as the intro being broken. It
+   * plays on every hard load of the home page now; the cookie is still honoured (this suite seeds
+   * it everywhere else), it is just never set by the site.
+   */
+  test("does not remember the visit: no cookie is written, and the legacy name is cleared", async ({
     page,
     context,
+    baseURL,
   }) => {
-    expect(await introCookie(context)).toBeUndefined();
+    await context.addCookies([
+      { name: "tbs_intro", value: "seen", url: new URL("/", baseURL!).href },
+    ]);
     await firstVisit(page);
     await introGone(page);
 
-    const cookie = await introCookie(context);
-    expect(cookie).toBeDefined();
-    expect(cookie).toMatchObject({
-      name: INTRO_COOKIE,
-      value: "seen",
-      path: "/",
-      expires: -1,
-      sameSite: "Lax",
-      httpOnly: false,
-    });
+    expect(await introCookie(context)).toBeUndefined();
+    expect(await cookieValue(context, "tbs_intro")).toBeUndefined();
   });
 
-  test("a reload is a returning visit: no overlay in the HTML, no three.js, no WebGL", async ({
+  /* The behaviour the rename exists for: a hard reload plays it AGAIN. */
+  test("a reload plays it again: the overlay is in the HTML and runs to 100", async ({ page }) => {
+    await firstVisit(page);
+    await introGone(page);
+
+    const response = await page.reload();
+    expect(await response!.text()).toContain('data-testid="intro"');
+    await expect(introOverlay(page)).toHaveCount(1);
+    await introGone(page, 12_000);
+    expect((await introProgressValues(page)).at(-1)).toBe(100);
+    await expectPageRestored(page);
+  });
+
+  test("a seeded cookie is still honoured: no overlay in the HTML, no three.js, no WebGL", async ({
     page,
+    context,
+    baseURL,
   }) => {
     await firstVisit(page);
     await introGone(page);
+    // What the suite's own helper seeds, and what QA sets by hand.
+    await seedIntroSeen(context, baseURL!);
 
     await countWebGLContexts(page);
     const response = await page.reload();
@@ -218,7 +237,7 @@ test.describe("intro — first visit", () => {
     await introSkip(page).click();
 
     await introGone(page, 5_000);
-    expect(await cookieValue(context, INTRO_COOKIE)).toBe("seen");
+    expect(await cookieValue(context, INTRO_COOKIE)).toBeUndefined();
     expect((await introProgressValues(page)).at(-1)).toBe(100);
     await expectPageRestored(page);
   });
@@ -230,7 +249,7 @@ test.describe("intro — first visit", () => {
     await page.keyboard.press("Escape");
 
     await introGone(page, 5_000);
-    expect(await cookieValue(context, INTRO_COOKIE)).toBe("seen");
+    expect(await cookieValue(context, INTRO_COOKIE)).toBeUndefined();
     await expectPageRestored(page);
   });
 
@@ -404,8 +423,8 @@ test.describe("intro — reduced motion", () => {
     expect(await webglContextCount(page)).toBe(0);
     expect(await threeLoaded(page)).toBe(false);
     expect(await gsapLoaded(page)).toBe(false);
-    // The bypass still counts as "seen" for the session.
-    expect(await cookieValue(page.context(), INTRO_COOKIE)).toBe("seen");
+    // A bypass is still a finish — it just does not suppress the next load either.
+    expect(await cookieValue(page.context(), INTRO_COOKIE)).toBeUndefined();
   });
 });
 

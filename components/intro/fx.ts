@@ -23,10 +23,16 @@ export type IntroFx = {
   explode: number;
   /** The rim/line white-out at the moment of the burst. */
   flash: number;
-  /** Camera dolly into the ∞ (z and fov). */
-  dolly: number;
-  /** The extra half-turn during the dolly. */
-  spin: number;
+  /**
+   * Where the camera is on its six-beat flight, 0 → 1: on the die, the power-up, out through
+   * the chassis, the lid, the screen. The ONE number the rig reads — position, target, fov and
+   * roll are all functions of it, so there is no second parameter to keep in step and a skip
+   * from any beat is the same tween to 1.
+   *
+   * Beats 1–4 are scrubbed from `progress` through `flightFromProgress`; the dive into the
+   * screen is the burst timeline's own tween and is never scrubbed.
+   */
+  flight: number;
 };
 
 /** A fresh, all-zero fx object. Call it once per intro (`useState(createIntroFx)`). */
@@ -38,8 +44,7 @@ export function createIntroFx(): IntroFx {
     burst: 0,
     explode: 0,
     flash: 0,
-    dolly: 0,
-    spin: 0,
+    flight: 0,
   };
 }
 

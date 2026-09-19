@@ -173,6 +173,7 @@ The mechanism, end to end:
 | `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
 | Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated images; `og:locale` follows the served language |
+| Site icon | `app/icon.svg` | The TBS wordmark. App Router picks the file up by name — no `icons` entry in `generateMetadata()` — and emits `<link rel="icon" type="image/svg+xml" sizes="any">`. Its colours are a **copy** of the `globals.css` tokens (a static file cannot read `var()`), so a palette change has to be mirrored by hand |
 | JSON-LD | `app/layout.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph — **only verifiable facts** (brand, URL, contact email, Chișinău/MD, languages). `sameAs` is omitted rather than invented |
 | `noindex` on admin | `next.config.ts` headers | `X-Robots-Tag: noindex, nofollow` on `/admin-tbs-digital*` |
 
@@ -197,10 +198,12 @@ content. It is built so that it does not:
   entrance animates the `<h1>` with transform and blur only — never opacity — so it paints at
   full opacity from the first frame.
 - **It is short and skippable** (a ~2.4s minimum, 5s hard cap, then a ~1.3s burst; any key,
-  click or wheel skips), plays once per session, never on a `#section` deep link, never under
-  reduced motion, and never on any other page.
-- **Crawlers and returning visitors** without JavaScript get it hidden by a `<noscript>` rule;
-  with `tbs_intro=seen` the server does not render it at all.
+  click or wheel skips), never on a `#section` deep link, never under reduced motion, and never
+  on any other page. It plays on **every** hard load of `/` — it used to play once per browser
+  session, which reads as broken on a reload.
+- **Crawlers** without JavaScript get it hidden by a `<noscript>` rule; with a
+  `tbs_intro_skip=seen` cookie the server does not render it at all (the site never writes that
+  cookie — the E2E suite and QA seed it).
 
 **Measured** (headless Chromium, production build, during review): the LCP element is the
 `<h1>` in every run — phone 260 ms on a first visit / 148 ms on a returning one, desktop

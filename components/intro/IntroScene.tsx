@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The WebGL intro: a glass ∞ with orbiting light particles, driven by the director's `fx`.
+ * The WebGL intro: the camera's flight through the machine, driven by the director's `fx`.
  *
  * Reached only through `next/dynamic` — IntroDirector, via the shared 3D runtime module
  * (components/three/runtime.tsx), which the interior stage loads too — so three.js and R3F
@@ -15,33 +15,45 @@
  */
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Group } from "three";
+import { useEffect, useState } from "react";
 import { useRendererFactory, useRetainedRenderer, useSceneReady } from "@/components/three/hooks";
 import { setRendererLite } from "@/components/three/renderer";
 import { clampDpr } from "./capability";
 import type { IntroFx, IntroSceneProps } from "./fx";
-import { InfinityCore } from "./InfinityCore";
+import { IntroLaptop } from "./IntroLaptop";
 import { OrbitParticles } from "./OrbitParticles";
+import { cameraAt } from "./three/cameraPath";
 import { installNeonEnvironment } from "./three/environment";
 import { readIntroPalette, type IntroPalette } from "./three/materials";
 import {
-  BASE_FOV,
-  BASE_Z,
   createFpsGovernor,
   createRigState,
-  fitRig,
   sampleFrame,
   updateRig,
   type GovernorStep,
 } from "./three/rig";
 import { TIER_CONFIG } from "./tiers";
 
+/**
+ * The first frame of the flight, and the clip planes that hold all six of them.
+ *
+ * `near` is 0.01 because beats 1-3 are flown INSIDE the chassis: the cavity is 0.066 either side
+ * of its centre line, so a 0.1 near plane would slice the ceiling open on every frame of them.
+ * `far` is 14 because the furthest the camera ever reaches — K4 backed off to the widen cap on
+ * the narrowest viewport — is under 10. The ratio is 1400:1, which a 24-bit depth buffer carries
+ * comfortably; the 4000:1 of the old pair would not have, this close in.
+ *
+ * `position` and `fov` are the shot list's own K0, so the very first painted frame is already on
+ * the flight rather than at an origin the rig then jumps away from. R3F re-applies this object on
+ * every `<Canvas>` re-render (`paused`, a governor `dpr` step); `updateRig` runs in `useFrame`
+ * afterwards and wins for position and fov, and `near`/`far` are constants by design.
+ */
+const START = cameraAt(0, 1);
 const CAMERA = {
-  position: [0, 0, BASE_Z] as [number, number, number],
-  fov: BASE_FOV,
-  near: 0.1,
-  far: 40,
+  position: [START.px, START.py, START.pz] as [number, number, number],
+  fov: START.fov,
+  near: 0.01,
+  far: 14,
 };
 
 /** The overlay is fixed and never scrolls: no scroll listeners for the measurement. */
@@ -129,11 +141,7 @@ function IntroWorld({
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
-  const width = useThree((state) => state.size.width);
-  const height = useThree((state) => state.size.height);
 
-  const fit = useMemo(() => fitRig(width, height), [width, height]);
-  const rig = useRef<Group>(null);
   const [motion] = useState(createRigState);
   const [governor] = useState(() => createFpsGovernor({ minFps: MIN_FPS[tier], skipDpr }));
   const physical = TIER_CONFIG[tier].glass === "physical";
@@ -149,19 +157,21 @@ function IntroWorld({
   useEffect(() => setRendererLite(gl, lite), [gl, lite]);
 
   useFrame((state, dt) => {
-    if (rig.current) {
-      updateRig(motion, rig.current, state.camera, state.pointer, fx, dt, parallax);
-    }
+    // The aspect is the drawing buffer's, read every frame: `cameraAt` widens the outside keys
+    // on a narrow viewport and derives the final cover distance from it.
+    const aspect = state.size.height > 0 ? state.size.width / state.size.height : 1;
+    updateRig(motion, state.camera, state.pointer, fx, dt, parallax, aspect);
     const next = sampleFrame(governor, dt);
     if (next) onStep(next);
   });
 
+  /* No fit group and no rig group: the machine sits at the origin at its modelled size and the
+     camera does the travelling. `createParticleMaterial` reads `length(modelViewMatrix[0].xyz)`
+     as its `modelScale`, which is why it is calibrated for 1 (see `uSize` in `materials.ts`). */
   return (
-    <group scale={fit.scale} position={[0, fit.offsetY, 0]}>
-      <group ref={rig}>
-        <InfinityCore fx={fx} tier={tier} palette={palette} lite={lite} />
-        <OrbitParticles fx={fx} tier={tier} palette={palette} lite={lite} />
-      </group>
-    </group>
+    <>
+      <IntroLaptop fx={fx} tier={tier} palette={palette} lite={lite} />
+      <OrbitParticles fx={fx} tier={tier} palette={palette} lite={lite} />
+    </>
   );
 }

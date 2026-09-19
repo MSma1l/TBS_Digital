@@ -1,12 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  LEMNISCATE,
-  LEMNISCATE_PATH,
-  LEMNISCATE_VIEWBOX,
-  lemniscatePath,
-  lemniscatePoint,
-} from "@/components/intro/lemniscate";
-import {
   HIGH_TIER_PIXEL_BUDGET,
   TIER_CONFIG,
   clampDpr,
@@ -17,77 +10,9 @@ import {
 import { createIntroFx } from "@/components/intro/fx";
 
 /*
- * The intro's pure parts: the ∞ curve both renderers draw, the device tiers, the DPR clamp
- * and the director↔scene fx object. No three.js, no DOM.
+ * The intro's pure parts: the device tiers, the DPR clamp and the director↔scene fx object.
+ * No three.js, no DOM. (The camera flight has its own file, `intro-camera-path.test.ts`.)
  */
-
-const close = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
-
-/** "M x y L x y … Z" → [[x, y], …]. */
-function pathPoints(path: string): Array<[number, number]> {
-  return path
-    .replace(/^M/, "")
-    .replace(/Z$/, "")
-    .split("L")
-    .map((pair) => pair.trim().split(/\s+/).map(Number) as [number, number]);
-}
-
-describe("lemniscate", () => {
-  it("starts at the right lobe tip and crosses itself at the origin, one strand above the other", () => {
-    expect(lemniscatePoint(0)).toEqual([LEMNISCATE.a, 0, 0]);
-    const [x1, y1, z1] = lemniscatePoint(0.25);
-    const [x2, y2, z2] = lemniscatePoint(0.75);
-    expect(close(x1, 0) && close(y1, 0) && close(x2, 0) && close(y2, 0)).toBe(true);
-    // The strands pass 2·depth apart, more than the tube's diameter: they never intersect.
-    expect(z1 - z2).toBeCloseTo(2 * LEMNISCATE.depth);
-    expect(z1 - z2).toBeGreaterThan(2 * LEMNISCATE.tube);
-  });
-
-  it("is symmetric: mirrored across x by half a loop, across y by running backwards", () => {
-    for (const u of [0.03, 0.11, 0.2, 0.37, 0.42]) {
-      const [x, y, z] = lemniscatePoint(u);
-      const [hx, hy, hz] = lemniscatePoint(u + 0.5);
-      const [bx, by, bz] = lemniscatePoint(1 - u);
-      expect(close(hx, -x) && close(hy, y) && close(hz, -z)).toBe(true);
-      expect(close(bx, x) && close(by, -y) && close(bz, -z)).toBe(true);
-    }
-  });
-
-  it("stays within ±a wide and a/(2√2) tall", () => {
-    for (let i = 0; i < 400; i += 1) {
-      const [x, y, z] = lemniscatePoint(i / 400);
-      expect(Math.abs(x)).toBeLessThanOrEqual(LEMNISCATE.a + 1e-9);
-      expect(Math.abs(y)).toBeLessThanOrEqual(LEMNISCATE.a / (2 * Math.SQRT2) + 1e-9);
-      expect(Math.abs(z)).toBeLessThanOrEqual(LEMNISCATE.depth + 1e-9);
-    }
-  });
-
-  it("draws a closed SVG path that spans about ±160 and fits its viewBox", () => {
-    expect(LEMNISCATE_PATH).toMatch(/^M-?\d/);
-    expect(LEMNISCATE_PATH.endsWith("Z")).toBe(true);
-
-    const points = pathPoints(LEMNISCATE_PATH);
-    expect(points).toHaveLength(128);
-    expect(points.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y))).toBe(true);
-
-    const xs = points.map(([x]) => x);
-    const ys = points.map(([, y]) => y);
-    expect(Math.max(...xs)).toBeCloseTo(160, 0);
-    expect(Math.min(...xs)).toBeCloseTo(-160, 0);
-
-    const [minX, minY, width, height] = LEMNISCATE_VIEWBOX.split(" ").map(Number);
-    expect(Math.min(...xs)).toBeGreaterThan(minX);
-    expect(Math.max(...xs)).toBeLessThan(minX + width);
-    expect(Math.min(...ys)).toBeGreaterThan(minY);
-    expect(Math.max(...ys)).toBeLessThan(minY + height);
-  });
-
-  it("is deterministic and never prints -0", () => {
-    expect(lemniscatePath(128, 100)).toBe(LEMNISCATE_PATH);
-    expect(LEMNISCATE_PATH).not.toMatch(/-0(?![.\d])/);
-    expect(pathPoints(lemniscatePath(2, 100))).toHaveLength(3);
-  });
-});
 
 describe("detectTier", () => {
   const desktop: DeviceProfile = { w: 1440, h: 900, dpr: 2, cores: 8, memory: 8, coarse: false };
@@ -112,17 +37,48 @@ describe("detectTier", () => {
 });
 
 describe("tier config", () => {
+  const [high, mid, low] = (["high", "mid", "low"] as const).map((t) => TIER_CONFIG[t]);
+
   it("never costs more on a lower tier", () => {
-    const [high, mid, low] = (["high", "mid", "low"] as const).map((t) => TIER_CONFIG[t]);
-    for (const key of ["tubular", "radial", "rings", "particles"] as const) {
-      expect(high[key]).toBeGreaterThanOrEqual(mid[key]);
-      expect(mid[key]).toBeGreaterThanOrEqual(low[key]);
-    }
+    expect(high.particles).toBeGreaterThanOrEqual(mid.particles);
+    expect(mid.particles).toBeGreaterThanOrEqual(low.particles);
     expect(high.dpr[1]).toBeGreaterThanOrEqual(mid.dpr[1]);
     expect(mid.dpr[1]).toBeGreaterThanOrEqual(low.dpr[1]);
     expect(low.antialias || low.halo || low.blurEntrance).toBe(false);
-    expect(mid.glass).toBe("fresnel");
+  });
+
+  /*
+   * The two levers that are draw calls rather than numbers. Both belong to the high tier alone,
+   * and both are monotone: a tier that gives up the halo must not keep the transmissive pane,
+   * because the pane is the far more expensive of the two (a full re-render of the scene into a
+   * multisampled target, every frame).
+   */
+  it("spends its two extra draw calls only at the top, and in order", () => {
     expect(high.glass).toBe("physical");
+    expect(high.halo).toBe(true);
+    for (const config of [mid, low]) {
+      expect(config.glass).toBe("fresnel");
+      expect(config.halo).toBe(false);
+    }
+    for (const config of [high, mid, low]) {
+      if (config.glass === "physical") expect(config.halo).toBe(true);
+    }
+  });
+
+  /* `TierConfig` describes pixels and draw calls only. The machine's own piece count is an index
+     into `three/laptop.ts`'s drop table and lives there; a number here would be a second source
+     of truth for one array. */
+  it("carries no per-tier geometry counts", () => {
+    for (const config of [high, mid, low]) {
+      expect(Object.keys(config).sort()).toEqual([
+        "antialias",
+        "blurEntrance",
+        "dpr",
+        "glass",
+        "halo",
+        "particles",
+      ]);
+    }
   });
 });
 
@@ -169,8 +125,7 @@ describe("createIntroFx", () => {
       burst: 0,
       explode: 0,
       flash: 0,
-      dolly: 0,
-      spin: 0,
+      flight: 0,
     });
   });
 

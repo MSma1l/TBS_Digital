@@ -11,7 +11,7 @@
 | Fonts | Google Fonts: **Archivo**, **Montserrat**, **JetBrains Mono**, **Manrope** | Loaded via `next/font`. Montserrat backs Archivo for Cyrillic headings — see [16 — i18n & SEO](./16-i18n-seo.md). |
 | Animations | Plain CSS + a small `IntersectionObserver` hook | Scroll-reveal, marquee, glow, the HUD backdrop, the stat holograms, and the project screenshots' parallax (a CSS scroll-driven animation, no JavaScript) — all doable without a heavy animation library. The exceptions are the intro's timeline and the interior stage's scroll measuring (next row). |
 | Intro timeline, interior scroll | **GSAP** + `@gsap/react` + **ScrollTrigger** | The first-visit preloader's progress, burst and page entrance (`components/intro/IntroDirector.tsx`), and the interior stage's director (`components/scene/SceneDirector.tsx`): ScrollTrigger **measures** the scroll spans the 3D scene reads, and scrubs the hero's desktop parallax. Both load lazily; a returning visitor without a capable GPU never downloads GSAP. |
-| 3D | **three.js** + **@react-three/fiber 9** | The intro's glass ∞ scene (`components/intro/`) and the interior stage's neon microprocessor, cursor circuit trail and five service models (`components/scene/`), both behind one lazy entry (`components/three/runtime.tsx`, one shared chunk). Loaded only after a capability probe; devices without a usable GPU get static SVG art instead. |
+| 3D | **three.js** + **@react-three/fiber 9** | The intro's six-beat camera flight through a laptop (`components/intro/`) and the interior stage's neon microprocessor, cursor circuit trail and five service models (`components/scene/`), both behind one lazy entry (`components/three/runtime.tsx`, one shared chunk). Loaded only after a capability probe; devices without a usable GPU get static SVG art instead. |
 | Content/state | **React Context** (`lib/siteContent.tsx`) over the API | Loads `GET /api/content`; `localStorage` is only an offline cache/fallback. See [09 — Admin Panel](./09-admin.md). |
 | i18n | **Hand-rolled catalogs + Context** (`lib/i18n/`) | RO/RU/EN, no i18n library: ~190 keys typed off the Romanian catalog, locale resolved server-side. See [16](./16-i18n-seo.md). |
 | Request layer | **Next 16 Proxy** (`proxy.ts`, the renamed Middleware) | Per-request CSP nonce + the `x-locale`/`x-pathname` headers the root layout needs. |
@@ -44,7 +44,7 @@ cookie banner — added the only libraries the frontend has beyond Next/React:
 
 | Package | Version | Licence | Used by |
 |---------|---------|---------|---------|
-| `three` | **0.186.0** (exact) | MIT | `components/three/*` (shared helpers), `components/intro/three/*` + `IntroScene.tsx`, `InfinityCore.tsx`, `OrbitParticles.tsx`; since 2026-09-17 also `components/scene/three/**`, `SceneCanvas.tsx`, `SceneWorld.tsx` |
+| `three` | **0.186.0** (exact) | MIT | `components/three/*` (shared helpers), `components/intro/three/*` + `IntroScene.tsx`, `IntroLaptop.tsx`, `OrbitParticles.tsx`; since 2026-09-17 also `components/scene/three/**`, `SceneCanvas.tsx`, `SceneWorld.tsx` |
 | `@react-three/fiber` | **9.7.0** (exact) | MIT | the same scene components (peers: `react`/`react-dom` `>=19 <19.3`) |
 | `gsap` | **3.15.0** (exact) | GSAP Standard "no charge" | `components/intro/IntroDirector.tsx`; since 2026-09-17 `components/scene/SceneDirector.tsx` with the **ScrollTrigger** plugin that ships inside this package (`gsap/ScrollTrigger`) |
 | `@gsap/react` | **2.1.2** (exact) | GSAP Standard "no charge" | `IntroDirector.tsx`, `SceneDirector.tsx` (`useGSAP`, context revert on unmount) |

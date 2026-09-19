@@ -175,7 +175,6 @@ const eslintConfig = defineConfig([
       "components/three/capability.ts",
       "components/intro/IntroPreloader.tsx",
       "components/intro/IntroFallback.tsx",
-      "components/intro/lemniscate.ts",
       "components/intro/capability.ts",
       "components/intro/tiers.ts",
       "lib/**",

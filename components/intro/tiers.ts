@@ -1,7 +1,14 @@
 /**
- * How much of the intro each device tier draws. Pure data, no probe code: the scene's
- * geometry, particles and the director's entrance read it without pulling the capability
- * probe into their chunks.
+ * How much of the intro each device tier draws. Pure data, no probe code: the scene's geometry,
+ * particles and the director's entrance read it without pulling the capability probe into their
+ * chunks.
+ *
+ * The machine's own detail is NOT a number here. Its 29 pieces are one `InstancedMesh`, so the
+ * only lever is `mesh.count`, and the count has to be an index into the drop table that decides
+ * which pieces go first — which is why it lives beside that table, in `three/laptop.ts`
+ * (`LAPTOP_SLOT_COUNT` / `_MID` / `_LITE`). Two numbers here would be a second source of truth
+ * for one array. What is left is what genuinely costs per tier: pixels (`dpr`, `antialias`), the
+ * transmissive pane, the halo's second draw call, and the particle count.
  */
 
 import type { DeviceTier } from "@/lib/device";
@@ -10,15 +17,20 @@ export type TierConfig = {
   /** `[min, max]` device-pixel ratio before the viewport budget (`clampDpr`). */
   dpr: readonly [number, number];
   antialias: boolean;
-  /** Main glass tube: segments along the curve × around it. */
-  tubular: number;
-  radial: number;
-  /** Transmission glass with a procedural environment, or the cheap fresnel shader. */
+  /**
+   * `"physical"` gives the lid a transmissive cover pane — the ONE transmissive surface in the
+   * scene, and the reason the tier also installs the PMREM environment. `"fresnel"` is now
+   * simply "no pane at all": the shader that used to stand in for it read `uv.x` as arc length
+   * on a closed loop and is gone with the ∞ (`three/materials.ts`). One less shader to compile,
+   * on exactly the devices that compile slowly.
+   */
   glass: "physical" | "fresnel";
-  /** A second, wider additive rim shell. */
+  /**
+   * The frame's back-face copy, its instance matrices grown ×1.06 — a second draw call over the
+   * same 29 boxes (`three/laptop.ts`). Inside the chassis it is a flat wash on the walls, so it
+   * only earns its keep once the camera is outside and the machine is seen whole.
+   */
   halo: boolean;
-  /** Scan rings along the curve (0 = none). */
-  rings: number;
   particles: number;
   /** Blur in the `<h1>` entrance (a full-width filter animation is too heavy for low). */
   blurEntrance: boolean;
@@ -28,33 +40,24 @@ export const TIER_CONFIG: Readonly<Record<DeviceTier, TierConfig>> = {
   high: {
     dpr: [1, 2],
     antialias: true,
-    tubular: 420,
-    radial: 32,
     glass: "physical",
     halo: true,
-    rings: 24,
     particles: 900,
     blurEntrance: true,
   },
   mid: {
     dpr: [1, 1.5],
     antialias: false,
-    tubular: 260,
-    radial: 20,
     glass: "fresnel",
     halo: false,
-    rings: 16,
     particles: 540,
     blurEntrance: true,
   },
   low: {
     dpr: [1, 1],
     antialias: false,
-    tubular: 160,
-    radial: 12,
     glass: "fresnel",
     halo: false,
-    rings: 0,
     particles: 240,
     blurEntrance: false,
   },

@@ -10,21 +10,20 @@ import {
 import {
   CAP_MIN_FPS,
   DEFAULT_GOVERNOR,
-  MAX_YAW,
-  RIG_FIT,
+  SWAY,
   createFpsGovernor,
-  fitRig,
-  fitWidthFraction,
   sampleFrame,
   steadyCadence,
+  swayWeight,
   type FpsGovernor,
   type GovernorStep,
 } from "@/components/intro/three/rig";
 
 /*
- * The 3D scene's pure parts: the seeded particle attributes, the fit of the ∞ to the
- * viewport and the FPS governor. `three/random.ts` and `three/rig.ts` only import types from
- * three.js, so none of this needs a WebGL context.
+ * The 3D scene's pure parts: the seeded particle attributes, the camera's handheld weight and
+ * the FPS governor. `three/random.ts` and `three/rig.ts` only import types from three.js, so
+ * none of this needs a WebGL context. (Where the camera actually IS at a given `fx.flight` is
+ * `cameraAt`'s business and is covered by `intro-camera-path.test.ts`.)
  */
 
 describe("mulberry32", () => {
@@ -133,64 +132,44 @@ describe("buildOrbitAttributes", () => {
   });
 });
 
-describe("fitRig", () => {
-  const VIEWPORTS: Array<[number, number]> = [
-    [1280, 800],
-    [1920, 1080],
-    [2560, 1080],
-    [1024, 768],
-    [861, 700],
-    [844, 390],
-    [390, 844],
-    [320, 720],
-    [360, 640],
-    [768, 1024],
-  ];
-
-  it("never scales the ∞ above its modelled size", () => {
-    for (const [w, h] of VIEWPORTS) {
-      const fit = fitRig(w, h);
-      expect(fit.scale).toBeGreaterThan(0);
-      expect(fit.scale).toBeLessThanOrEqual(1);
-    }
-    expect(fitRig(0, 0).scale).toBeLessThanOrEqual(1);
-  });
-
-  it("spans about 50% of the width on a desktop", () => {
-    const fit = fitRig(1280, 800);
-    expect(fit.portrait).toBe(false);
-    expect(fitWidthFraction(fit, 1280, 800)).toBeCloseTo(RIG_FIT.landscapeFill, 2);
-    expect(fit.scale).toBeCloseTo(0.95, 2);
-  });
-
-  it("spans about 86% of the width on a phone in portrait", () => {
-    for (const [w, h] of [
-      [390, 844],
-      [320, 720],
-      [360, 640],
-    ] as const) {
-      const fit = fitRig(w, h);
-      expect(fit.portrait).toBe(true);
-      expect(fitWidthFraction(fit, w, h)).toBeCloseTo(RIG_FIT.portraitFill, 2);
+describe("swayWeight", () => {
+  it("is exactly zero while the camera is inside the machine", () => {
+    // Beats 1-3 run to u 0.35: the walls are a centimetre from the lens and they ARE the frame,
+    // so any pan swings the whole picture. Not "small" — zero.
+    for (const u of [Number.NaN, -1, 0, 0.1, 0.2, 0.3, SWAY.in[0]]) {
+      expect(swayWeight(u)).toBe(0);
     }
   });
 
-  it("stops growing on very wide screens instead of passing 1×", () => {
-    const fit = fitRig(2560, 1080);
-    expect(fit.scale).toBe(1);
-    expect(fitWidthFraction(fit, 2560, 1080)).toBeLessThan(RIG_FIT.landscapeFill);
+  it("is at full weight where the machine is seen whole (K3, K4)", () => {
+    expect(swayWeight(0.66)).toBe(1);
+    expect(swayWeight(0.84)).toBe(1);
   });
 
-  it("lifts the ∞ above the centre, more in portrait (room for the HUD readout)", () => {
-    const land = fitRig(1280, 800);
-    const port = fitRig(390, 844);
-    expect(land.offsetY).toBeGreaterThan(0);
-    expect(port.offsetY).toBeGreaterThan(land.offsetY);
+  it("is gone again by the time the display covers the frame", () => {
+    // K5 sits at exactly the cover distance: a residual pan opens a sliver of background along
+    // one edge on the last frame of the intro.
+    expect(swayWeight(1)).toBe(0);
+    expect(swayWeight(SWAY.out[1])).toBe(0);
+    expect(swayWeight(1.5)).toBe(0);
   });
 
-  it("keeps the sway short of edge-on", () => {
-    expect(MAX_YAW).toBeCloseTo((35 * Math.PI) / 180, 6);
-    expect(MAX_YAW).toBeLessThan(Math.PI / 2);
+  it("never leaves [0, 1] and turns no corners", () => {
+    let previous = 0;
+    for (let i = 0; i <= 400; i += 1) {
+      const w = swayWeight(i / 400);
+      expect(w).toBeGreaterThanOrEqual(0);
+      expect(w).toBeLessThanOrEqual(1);
+      // A step of 1/400 of the flight may not move the weight more than a few percent: the
+      // shorter of the two edges is the 0.12-wide fade-out, whose smoothstep peaks at 1.5/0.12.
+      expect(Math.abs(w - previous)).toBeLessThan(0.04);
+      previous = w;
+    }
+  });
+
+  it("keeps the peak pan under three degrees, pointer and all", () => {
+    expect(((SWAY.yaw + SWAY.pointerYaw) * 180) / Math.PI).toBeLessThan(6);
+    expect(SWAY.pitch).toBeLessThan(SWAY.yaw);
   });
 });
 

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
+import { INTRO_COOKIE, INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { SCENE_SHAPES } from "@/lib/scene";
 import {
   computedTransform,
@@ -276,7 +276,9 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     request,
   }) => {
     const html = await (
-      await request.get("/", { headers: { cookie: "tbs_intro=seen; tbs_cookie_consent=rejected" } })
+      await request.get("/", {
+        headers: { cookie: `${INTRO_COOKIE}=seen; tbs_cookie_consent=rejected` },
+      })
     ).text();
     // Its markup, and the server slot's copy in the RSC payload — not all five drawings.
     const drawings = [...html.matchAll(/data-shape-art(?:="|\\":\\")([a-z-]+)/g)].map((m) => m[1]);

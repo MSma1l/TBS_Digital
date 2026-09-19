@@ -70,7 +70,7 @@ describe("direction selector — every pill is a real link", () => {
 
     // Every selection state, the default one first: the selected pill carries the ↗ cue.
     for (let selected = 0; selected < links.length; selected += 1) {
-      fireEvent.mouseEnter(links[selected]);
+      fireEvent.pointerMove(links[selected]);
       expect(links[selected]).toHaveAttribute("aria-current", "true");
       expect(links[selected]).toHaveTextContent("↗");
       links.forEach((link, i) => expect(link).toHaveAccessibleName(labels[i]));
@@ -83,9 +83,32 @@ describe("direction selector — every pill is a real link", () => {
     expect(links[0]).toHaveAttribute("aria-current", "true");
     expect(links[4]).not.toHaveAttribute("aria-current");
 
-    fireEvent.mouseEnter(links[4]);
+    fireEvent.pointerMove(links[4]);
     expect(links[4]).toHaveAttribute("aria-current", "true");
     expect(links[0]).not.toHaveAttribute("aria-current");
+  });
+
+  /* The pills select on a real MOVEMENT over them, never on arriving under the pointer: a row
+     scrolling past a parked cursor gets the boundary events anyway, and selecting on those would
+     change the direction — and with it the scene's 3D model — for a visitor who pointed at
+     nothing. Fixed 2026-09-19 (1f16576), the same mistake as the service pages' project reel. */
+  it("a pill that scrolls under a parked cursor selects nothing", () => {
+    renderSection();
+    const links = pills();
+    expect(links[0]).toHaveAttribute("aria-current", "true");
+
+    // Exactly what a stationary cursor gets as the row moves under it: boundary events, no move.
+    fireEvent.pointerOver(links[3]);
+    fireEvent.pointerEnter(links[3]);
+    fireEvent.mouseOver(links[3]);
+    fireEvent.mouseEnter(links[3]);
+
+    expect(links[3]).not.toHaveAttribute("aria-current");
+    expect(links[0]).toHaveAttribute("aria-current", "true");
+
+    // One real pixel of movement over it, and it selects.
+    fireEvent.pointerMove(links[3]);
+    expect(links[3]).toHaveAttribute("aria-current", "true");
   });
 });
 
@@ -111,7 +134,7 @@ describe("direction selector — the preview follows the selection", () => {
     renderSection();
     const links = pills();
     for (let i = 0; i < links.length; i += 1) {
-      fireEvent.mouseEnter(links[i]);
+      fireEvent.pointerMove(links[i]);
       const panelText = screen.getByRole("heading", { level: 3 }).parentElement;
       expect(panelText?.querySelector("p")?.textContent?.length ?? 0).toBeGreaterThan(20);
     }
@@ -123,14 +146,14 @@ describe("direction selector — the preview follows the selection", () => {
 
     expect(await screen.findByText("BizCheck")).toBeInTheDocument();
 
-    fireEvent.mouseEnter(links[4]); // Brand & UI → Itara Global
+    fireEvent.pointerMove(links[4]); // Brand & UI → Itara Global
     expect(screen.getByText("Itara Global")).toBeInTheDocument();
     expect(screen.queryByText("BizCheck")).not.toBeInTheDocument();
   });
 
   it("the reference card keeps the tag's · between its chips, as text", async () => {
     const container = renderSection();
-    fireEvent.mouseEnter(pills()[2]); // automatizare-api → Crowe Portal, "CRM PRIVAT · FĂRĂ LINK"
+    fireEvent.pointerMove(pills()[2]); // automatizare-api → Crowe Portal, "CRM PRIVAT · FĂRĂ LINK"
 
     expect(await screen.findByText("CRM PRIVAT")).toBeInTheDocument();
     const row = screen.getByText("CRM PRIVAT").parentElement!;
@@ -140,7 +163,7 @@ describe("direction selector — the preview follows the selection", () => {
     expect(container.querySelector("article")?.textContent).toContain("CRM PRIVAT · FĂRĂ LINK");
 
     // A one-segment tag: one chip, no separator.
-    fireEvent.mouseEnter(pills()[0]); // produs-digital → BizCheck, "PLATFORMĂ WEB"
+    fireEvent.pointerMove(pills()[0]); // produs-digital → BizCheck, "PLATFORMĂ WEB"
     const single = screen.getByText("PLATFORMĂ WEB").parentElement!;
     expect(Array.from(single.children, (el) => el.textContent)).toEqual(["PLATFORMĂ WEB"]);
   });
@@ -150,7 +173,7 @@ describe("direction selector — the preview follows the selection", () => {
      nothing, which read as an apology on a sales page. */
   it("draws the flow for a capability direction, naming no project and linking nowhere", () => {
     const container = renderSection();
-    fireEvent.mouseEnter(pills()[1]); // e-commerce
+    fireEvent.pointerMove(pills()[1]); // e-commerce
 
     expect(screen.getByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeInTheDocument();
     expect(screen.getByText("Ofertă → Plată → Acces")).toBeInTheDocument();
@@ -174,14 +197,14 @@ describe("direction selector — the preview follows the selection", () => {
     const empty = "Pe această direcție nu avem încă un proiect public în portofoliu.";
 
     for (const index of [1, 3]) {
-      fireEvent.mouseEnter(pills()[index]); // e-commerce, then assistants
+      fireEvent.pointerMove(pills()[index]); // e-commerce, then assistants
       expect(screen.queryByText(empty)).toBeNull();
     }
   });
 
   it("shows the two real assistant/bot projects on the assistants direction", async () => {
     renderSection();
-    fireEvent.mouseEnter(pills()[3]); // asistenti-ia
+    fireEvent.pointerMove(pills()[3]); // asistenti-ia
 
     // The reference card is the first curated project of the direction.
     expect(await screen.findByText("BizCheck")).toBeInTheDocument();
@@ -200,7 +223,7 @@ describe("direction selector — one action, not two", () => {
     expect(panelLinks[0].textContent).toContain("Deschide serviciul");
     expect(panelLinks[0].getAttribute("href")).toBe("/servicii/produs-digital");
 
-    fireEvent.mouseEnter(pills()[2]);
+    fireEvent.pointerMove(pills()[2]);
     expect(panelLinks[0].getAttribute("href")).toBe("/servicii/automatizare-api");
   });
 
@@ -211,7 +234,7 @@ describe("direction selector — one action, not two", () => {
     const container = renderSection();
 
     for (let i = 0; i < pills().length; i += 1) {
-      fireEvent.mouseEnter(pills()[i]);
+      fireEvent.pointerMove(pills()[i]);
       const text = container.textContent ?? "";
       expect(text).not.toContain("Contract MD");
       expect(text).not.toContain("Balons Blaze");
@@ -303,7 +326,7 @@ describe("direction selector — a finger selects first, then opens", () => {
     renderSection();
     const links = pills();
 
-    fireEvent.mouseEnter(links[2]);
+    fireEvent.pointerMove(links[2]);
     expect(tap(links[2], "touch").navigated).toBe(true);
 
     act(() => links[4].focus());
@@ -355,7 +378,7 @@ describe("direction selector — a finger selects first, then opens", () => {
     const links = pills();
 
     expect(tap(links[2], "touch").navigated).toBe(false);
-    fireEvent.mouseEnter(links[3]);
+    fireEvent.pointerMove(links[3]);
     expect(links[3]).toHaveAttribute("aria-current", "true");
     expect(tap(links[2], "touch").navigated).toBe(false);
     expect(tap(links[2], "touch").navigated).toBe(true);
@@ -440,14 +463,14 @@ describe("direction selector — the HUD screen and the scene", () => {
     resetSceneForTests();
   });
 
-  it("data-shape follows aria-current on hover, focus and click for all 5, and so does the scene", () => {
+  it("data-shape follows aria-current on a pointer move, focus and click for all 5, and so does the scene", () => {
     const container = renderSection();
     container.addEventListener("click", (e) => e.preventDefault());
     const links = pills();
     const selected = () => links.findIndex((a) => a.getAttribute("aria-current") === "true");
 
     const moves: Array<(el: HTMLElement) => void> = [
-      (el) => fireEvent.mouseEnter(el),
+      (el) => fireEvent.pointerMove(el),
       (el) => act(() => el.focus()),
       (el) => fireEvent.click(el),
     ];
@@ -481,7 +504,7 @@ describe("direction selector — the HUD screen and the scene", () => {
 
     const links = pills();
     for (const [i, slug] of SCENE_SHAPES.entries()) {
-      fireEvent.mouseEnter(links[i]);
+      fireEvent.pointerMove(links[i]);
       // The first direction's drawing is the server slot; the others arrive with their chunk.
       await waitFor(() => expect(anchor?.querySelector("[data-shape-art]")).toHaveAttribute("data-shape-art", slug));
       const arts = anchor?.querySelectorAll("[data-shape-art]") ?? [];
@@ -507,11 +530,11 @@ describe("direction selector — the HUD screen and the scene", () => {
     expect(anchor.querySelector("[data-slot]")).toHaveAttribute("data-shape-art", "produs-digital");
 
     const links = pills();
-    fireEvent.mouseEnter(links[3]);
+    fireEvent.pointerMove(links[3]);
     expect(anchor.querySelector("[data-slot]")).toBeNull();
     await waitFor(() => expect(anchor.querySelector("[data-shape-art]")).toHaveAttribute("data-shape-art", "asistenti-ia"));
 
-    fireEvent.mouseEnter(links[0]);
+    fireEvent.pointerMove(links[0]);
     expect(anchor.querySelectorAll("[data-shape-art]")).toHaveLength(1);
     expect(anchor.querySelector("[data-slot]")).toHaveAttribute("data-shape-art", "produs-digital");
   });
@@ -520,7 +543,7 @@ describe("direction selector — the HUD screen and the scene", () => {
     renderSection();
     const anchor = screenEl().querySelector<HTMLElement>('[data-scene-anchor="services"]')!;
     for (const link of pills()) {
-      fireEvent.mouseEnter(link);
+      fireEvent.pointerMove(link);
       expect(anchor.childElementCount).toBe(0);
     }
     await act(async () => {
@@ -568,7 +591,7 @@ describe("direction selector — the glass reveal hooks", () => {
     const links = pills();
 
     for (const [i, slug] of SCENE_SHAPES.entries()) {
-      fireEvent.mouseEnter(links[i]);
+      fireEvent.pointerMove(links[i]);
       expect(panel?.style.getPropertyValue("--accent")).toBe(solutions[slug]?.accent ?? "var(--blue)");
     }
   });

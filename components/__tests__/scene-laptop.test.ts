@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   LAPTOP_AIR,
   LAPTOP_BOOT,
@@ -332,16 +332,25 @@ describe("the boot sequence", () => {
     for (let a = 0; a < 1; a += 0.002) peak = Math.max(peak, laptopBootSettle(a));
     expect(peak).toBeGreaterThan(1);
     expect(peak).toBeLessThan(1.1);
-    // It never goes backwards past where it set off.
-    for (let a = 0; a <= 1; a += 0.002) expect(laptopBootSettle(a)).toBeGreaterThanOrEqual(0);
+    /* The ring is laid over the drift from the very first frame, so a piece leans BACK a little
+       before it sets off — the anticipation that makes the flight read as a thing being thrown
+       rather than switched on. A lean, never a rewind: a twentieth of the flight at most, and it
+       is the right way round again by a quarter of the way through. */
+    let dip = 0;
+    for (let a = 0; a <= 1; a += 0.002) dip = Math.min(dip, laptopBootSettle(a));
+    expect(dip).toBeLessThan(0);
+    expect(dip).toBeGreaterThan(-0.06);
+    for (let a = 0.25; a <= 1; a += 0.002) expect(laptopBootSettle(a), String(a)).toBeGreaterThan(0);
   });
 
   it("gives a piece from further out a longer flight", () => {
     // Uniform flights are what make a group read as mechanical.
     const near = LAPTOP_BOOT.assembleDwell * LAPTOP_BOOT.assembleNear;
     const t = LAPTOP_BOOT.assemble[0] + near * 0.999;
-    expect(laptopBootAssemble(t, 0, 26, 0)).toBe(1);
-    expect(laptopBootAssemble(t, 0, 26, 1)).toBeLessThan(1);
+    // The near piece is home at the end of its own, shorter flight — a hair past its slot, which is
+    // the ring's overshoot — while one from further out is still well short of its own.
+    expect(laptopBootAssemble(t, 0, 26, 0)).toBeCloseTo(1, 3);
+    expect(laptopBootAssemble(t, 0, 26, 1)).toBeLessThan(0.8);
   });
 
   it("runs one band of light down the body, back to front", () => {
@@ -468,7 +477,10 @@ function cards(count: number): HTMLElement {
     const card = document.createElement(i === 0 ? "a" : "article");
     card.innerHTML =
       `<small>Tag ${i}</small><h3>Project ${i}</h3>` +
-      `<p>A description of project ${i} that is long enough to need wrapping onto a second line and then some more.</p>`;
+      // Deliberately longer than the two lines the display gives a description: the last of them
+      // has to come back ellipsised rather than cut off the edge (`wrapText`, three/hologram.ts).
+      `<p>A description of project ${i} that is long enough to need wrapping onto a second line and then ` +
+      `some more, and a good deal more again after that, so that it cannot possibly fit in the room it is given.</p>`;
     grid.append(card);
   }
   document.body.append(grid);
@@ -553,6 +565,28 @@ function grid(count: number, images = true): HTMLElement {
 
 /** MutationObserver is async; the reel's records land on a microtask. */
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/* jsdom 25 does not implement `HTMLImageElement.loading`: it reads `undefined` and a write never
+   reaches the attribute. `warm()` reads and writes that IDL property, as a page does, so the
+   accessor is put back here exactly as the HTML spec defines it — reflecting the attribute, with
+   anything but `lazy` reading as `eager` — and the reel's own code path is what the tests run.
+   Restored afterwards so nothing else in the file inherits it. */
+const IMG_LOADING = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, "loading");
+beforeAll(() => {
+  Object.defineProperty(HTMLImageElement.prototype, "loading", {
+    configurable: true,
+    get(this: HTMLImageElement) {
+      return this.getAttribute("loading")?.toLowerCase() === "lazy" ? "lazy" : "eager";
+    },
+    set(this: HTMLImageElement, value: string) {
+      this.setAttribute("loading", value);
+    },
+  });
+});
+afterAll(() => {
+  if (IMG_LOADING) Object.defineProperty(HTMLImageElement.prototype, "loading", IMG_LOADING);
+  else Reflect.deleteProperty(HTMLImageElement.prototype, "loading");
+});
 
 describe("the projects reel", () => {
   it("shows the project the page asked for, and nothing else decides", async () => {

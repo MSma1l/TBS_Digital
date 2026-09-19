@@ -993,7 +993,9 @@ rule in [07 — Conventions](./07-conventions.md).
   every "·" in copy. `decorative-dots.test.tsx` and the E2E scan keep them out.
 - **Live clock** — `SYS_TIME 12:04:08 UTC+3` in the header (Chișinău time, real offset). The
   old top status bar is gone.
-- **First-visit intro** — the glass ∞ preloader ([05 — Page Sections](./05-page-sections.md)).
+- **First-visit intro** — the laptop preloader (2026-09-20, replacing the glass ∞): a six-beat
+  camera flight out of the processor and into the display, the first two beats always drawn as
+  flat SVG ([05 — Page Sections](./05-page-sections.md)).
 
 Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fadeIn`,
 `orbit`, `scan`, `blink`, `marquee`. The Tailwind animations live in `app/tailwind.css` with a

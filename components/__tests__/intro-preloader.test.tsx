@@ -294,10 +294,10 @@ describe("IntroPreloader — server markup", () => {
       Number(blur.getAttribute("stdDeviation")),
     );
     expect(blurs).toEqual([8, 16]);
-    const filtered = Array.from(host.querySelectorAll("path[filter]"));
+    const filtered = Array.from(host.querySelectorAll("[filter]"));
     expect(filtered).toHaveLength(2);
-    for (const path of filtered) {
-      const id = path.getAttribute("filter")?.match(/^url\(#(.+)\)$/)?.[1];
+    for (const node of filtered) {
+      const id = node.getAttribute("filter")?.match(/^url\(#(.+)\)$/)?.[1];
       expect(id && host.querySelector(`filter[id="${id}"]`)).toBeTruthy();
     }
   });
@@ -348,7 +348,7 @@ describe("IntroPreloader — in the browser", () => {
     expect(events.detail).not.toHaveBeenCalled();
   });
 
-  it("skip (click) finishes the intro once, sets the cookie, and leaves no style on the page", async () => {
+  it("skip (click) finishes the intro once, writes no cookie, and leaves no style on the page", async () => {
     const markers = mountRevealMarkers();
     const user = userEvent.setup();
     hydrateIntro();
@@ -357,7 +357,11 @@ describe("IntroPreloader — in the browser", () => {
     await user.click(skipButton());
 
     await waitFor(() => expect(overlay()).toBeNull(), SLOW);
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    /* NOT `true`: the site never suppresses its own intro any more — it plays on every hard
+       load of the home page, which is what the client asked for after a session cookie made
+       a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
+       it), it is just never written here. */
+    expect(readIntroSeen(document.cookie)).toBe(false);
     expect(events.detail).toHaveBeenCalledTimes(1);
     // The director had taken over, so the burst played (fast) rather than bailing out.
     expect(events.detail).toHaveBeenCalledWith({ played: true });
@@ -373,7 +377,11 @@ describe("IntroPreloader — in the browser", () => {
     await user.keyboard("{Escape}");
 
     await waitFor(() => expect(overlay()).toBeNull(), SLOW);
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    /* NOT `true`: the site never suppresses its own intro any more — it plays on every hard
+       load of the home page, which is what the client asked for after a session cookie made
+       a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
+       it), it is just never written here. */
+    expect(readIntroSeen(document.cookie)).toBe(false);
     expect(events.detail).toHaveBeenCalledTimes(1);
   });
 
@@ -415,7 +423,11 @@ describe("IntroPreloader — in the browser", () => {
     await waitFor(() => expect(overlay()).toBeNull());
     rootStyle.stop();
     expect(rootStyle.seen).not.toContain("hidden");
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    /* NOT `true`: the site never suppresses its own intro any more — it plays on every hard
+       load of the home page, which is what the client asked for after a session cookie made
+       a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
+       it), it is just never written here. */
+    expect(readIntroSeen(document.cookie)).toBe(false);
     expect(events.detail).toHaveBeenCalledTimes(1);
     expect(events.detail).toHaveBeenCalledWith({ played: false });
     expect(timeline).not.toHaveBeenCalled();
@@ -468,7 +480,11 @@ describe("IntroPreloader — in the browser", () => {
     rootStyle.stop();
     expect(rootStyle.seen).not.toContain("hidden");
     expect(events.detail).toHaveBeenCalledWith({ played: false });
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    /* NOT `true`: the site never suppresses its own intro any more — it plays on every hard
+       load of the home page, which is what the client asked for after a session cookie made
+       a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
+       it), it is just never written here. */
+    expect(readIntroSeen(document.cookie)).toBe(false);
   });
 
   it("a hash that targets nothing does not bypass it", async () => {
@@ -503,7 +519,11 @@ describe("IntroPreloader — in the browser", () => {
     await waitFor(() => expect(overlay()).toBeNull(), { timeout: 2000 });
     expect(events.detail).toHaveBeenCalledTimes(1);
     expect(events.detail).toHaveBeenCalledWith({ played: false });
-    expect(readIntroSeen(document.cookie)).toBe(true);
+    /* NOT `true`: the site never suppresses its own intro any more — it plays on every hard
+       load of the home page, which is what the client asked for after a session cookie made
+       a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
+       it), it is just never written here. */
+    expect(readIntroSeen(document.cookie)).toBe(false);
     expect(document.documentElement.style.overflow).toBe("clip");
   });
 

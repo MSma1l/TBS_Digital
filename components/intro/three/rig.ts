@@ -1,19 +1,23 @@
 /**
- * The scene's motion and its self-tuning, as plain TypeScript.
+ * The intro camera's per-frame write, and the scene's self-tuning.
  *
  * Every per-frame write lives here rather than in a component: the React Compiler lint
  * (`react-hooks/immutability`) flags assignments to objects a hook returned, and a helper
- * called from `useFrame` keeps the components free of them. Only `import type` from three,
- * so `fitRig` and the FPS governor are unit-tested without loading three.js.
+ * called from `useFrame` keeps the components free of them. Only `import type` from three, so
+ * the sway ramp and the FPS governor are unit-tested without loading three.js.
+ *
+ * The object is no longer fitted to the viewport — there is no fit group and nothing scales.
+ * The camera flies instead, and everything about where it is comes from ONE scalar, `fx.flight`,
+ * through `cameraAt` (`./cameraPath.ts`). This file spends that pose; it does not shape it.
  *
  * The FPS governor and the frame-step helpers are shared with the interior scene and live in
  * `components/three/`; they are re-exported here so the intro keeps one import path.
  */
 
-import type { Camera, Object3D } from "three";
+import type { Camera } from "three";
 import { MAX_FRAME_STEP, clamp, lerp } from "@/components/three/motion";
 import type { IntroFx } from "../fx";
-import { LEMNISCATE } from "../lemniscate";
+import { cameraAt } from "./cameraPath";
 
 export { MAX_FRAME_STEP } from "@/components/three/motion";
 export {
@@ -30,61 +34,48 @@ export {
   type GovernorStep,
 } from "@/components/three/governor";
 
-/** Camera before the burst. */
-export const BASE_Z = 6;
-export const BASE_FOV = 40;
-/** Camera at the end of the dolly into the ∞. */
-export const DOLLY_Z = 0.9;
-export const DOLLY_FOV = 72;
-
-/** Half the ∞'s width in scene units: the lobe tip, the glass tube and a little rim glow. */
-export const RIG_HALF_WIDTH = LEMNISCATE.a + LEMNISCATE.tube + 0.08;
-
-/** Share of the viewport width the ∞ spans, and how far it sits above the centre. */
-export const RIG_FIT = {
-  landscapeFill: 0.5,
-  portraitFill: 0.86,
-  /** Fractions of the base frustum's half height; lifts the ∞ clear of the HUD readout. */
-  landscapeLift: 0.06,
-  portraitLift: 0.14,
-} as const;
-
-/** Never let the oscillation and the parallax together turn the ∞ edge-on. */
-export const MAX_YAW = (35 * Math.PI) / 180;
-
-export type RigFit = {
-  scale: number;
-  offsetY: number;
-  portrait: boolean;
-};
-
-/** Half the height of the base frustum at z = 0 (≈ 2.18 scene units). */
-export function baseHalfHeight(): number {
-  return BASE_Z * Math.tan((BASE_FOV * Math.PI) / 360);
-}
+/* ---- the handheld weight ---------------------------------------------------------------- */
 
 /**
- * Scale for the ∞ group so it spans ≈50% of the width in landscape and ≈86% in portrait,
- * never above its modelled size. Computed from the BASE camera, not R3F's live viewport:
- * the camera dollies during the burst, and a fit that followed it would shrink the ∞ just
- * as the camera flies into it.
+ * The sway window, in flight units — and it is a window, not a ramp, because it is switched off
+ * at BOTH ends for reasons that are not decoration.
+ *
+ *  · **Below 0.35 the camera is inside the processor.** Its walls are a centimetre from the lens
+ *    and they ARE the frame; a two-degree pan there swings the whole picture, and the object
+ *    appears to swing around the lens. That is not a handheld shot, it is unfilmable. Beats 1–2
+ *    are a held frame by design (`cameraPath.ts`, K0→K1 moves 0.04 units in total).
+ *  · **Above 0.86 the camera is closing on the display**, which K5 places at exactly the
+ *    `coverDistance` — the distance at which the screen fills the viewport edge to edge with
+ *    ZERO margin. Any residual pan there opens a sliver of background along one edge on the
+ *    last frame of the intro. So the sway is gone again before the dive lands.
+ *
+ * In between — K3 (0.66) and K4 (0.84), the machine seen whole from outside — it runs at full
+ * weight: a slow two-degree drift on two incommensurable periods, which reads as a camera held
+ * by someone rather than as an orbit.
  */
-export function fitRig(width: number, height: number): RigFit {
-  const halfH = baseHalfHeight();
-  const aspect = Math.max(1, width) / Math.max(1, height);
-  const portrait = aspect < 1;
-  const halfW = halfH * aspect;
-  const fill = portrait ? RIG_FIT.portraitFill : RIG_FIT.landscapeFill;
-  const scale = Math.min(1, (halfW * fill) / RIG_HALF_WIDTH);
-  const offsetY = halfH * (portrait ? RIG_FIT.portraitLift : RIG_FIT.landscapeLift);
-  return { scale, offsetY, portrait };
+export const SWAY = {
+  in: [0.35, 0.62] as const,
+  out: [0.86, 0.98] as const,
+  /** Peak pan and tilt from the drift alone, radians (≈2.3° and ≈1.5°). */
+  yaw: 0.04,
+  pitch: 0.026,
+  /** Peak pan and tilt the pointer may add on top, radians. */
+  pointerYaw: 0.05,
+  pointerPitch: 0.035,
+} as const;
+
+/** Pure. How much of the sway and the pointer parallax `u` is worth, 0 → 1 → 0. */
+export function swayWeight(u: number): number {
+  if (!(u > SWAY.in[0])) return 0;
+  const rise = u >= SWAY.in[1] ? 1 : (u - SWAY.in[0]) / (SWAY.in[1] - SWAY.in[0]);
+  const fall =
+    u <= SWAY.out[0] ? 1 : u >= SWAY.out[1] ? 0 : 1 - (u - SWAY.out[0]) / (SWAY.out[1] - SWAY.out[0]);
+  const t = rise < fall ? rise : fall;
+  // Smoothstep at both ends, so the weight itself never turns a corner.
+  return t * t * (3 - 2 * t);
 }
 
-/** Fraction of the viewport width a fitted ∞ covers (at rest, facing the camera). */
-export function fitWidthFraction(fit: RigFit, width: number, height: number): number {
-  const halfW = baseHalfHeight() * (Math.max(1, width) / Math.max(1, height));
-  return (RIG_HALF_WIDTH * fit.scale) / halfW;
-}
+/* ---- the state -------------------------------------------------------------------------- */
 
 export type RigState = {
   /** Scene time in seconds, accumulated from clamped deltas (R3F resets its clock on pause). */
@@ -106,44 +97,54 @@ function isPerspective(camera: Camera): camera is ProjectionCamera {
 }
 
 /**
- * One frame of motion: the ∞ sways within ±35° (never edge-on), floats and breathes, follows
- * a fine pointer when `parallax` is on, pulses and bursts with the fx; the camera dollies.
+ * One frame of camera. Position, aim, roll and field of view are read straight out of the shot
+ * list at `fx.flight`; the only thing added here is the handheld weight, and only where the shot
+ * can carry it.
+ *
+ * The roll is spent as the camera's UP vector rather than as a rotation after the fact, because
+ * `lookAt` resolves the camera's orientation from the aim and `up` together — tilting `up` first
+ * is the one way to roll a camera that is also being aimed. The sway then pans and tilts about
+ * the camera's own axes, which is a pan and a tilt; adding it to the TARGET would swing the
+ * camera around the object instead, which is the thing the verdict says not to do.
+ *
+ * `near` and `far` are NOT written here. R3F re-applies the `camera` prop object on every
+ * `<Canvas>` re-render — which happens on `paused` and on a `dpr` step — so anything this
+ * function does not write every frame is reset to `IntroScene`'s constant. That is deliberate
+ * for the clip planes and would be a bug for anything else.
  */
 export function updateRig(
   state: RigState,
-  rig: Object3D,
   camera: Camera,
   pointer: PointerLike,
   fx: IntroFx,
   dt: number,
   parallax: boolean,
+  aspect: number,
 ): void {
   const step = clamp(dt, 0, MAX_FRAME_STEP);
   state.time += step;
   const t = state.time;
 
   const k = 1 - Math.exp(-3 * step);
-  state.pointerX += ((parallax ? pointer.x : 0) - state.pointerX) * k;
-  state.pointerY += ((parallax ? pointer.y : 0) - state.pointerY) * k;
+  state.pointerX = lerp(state.pointerX, parallax ? pointer.x : 0, k);
+  state.pointerY = lerp(state.pointerY, parallax ? pointer.y : 0, k);
 
-  const yaw = clamp(Math.sin(0.35 * t) * 0.55 + state.pointerX * 0.25, -MAX_YAW, MAX_YAW);
-  rig.rotation.set(
-    Math.sin(0.5 * t) * 0.18 - state.pointerY * 0.15,
-    yaw + fx.spin * Math.PI,
-    Math.sin(0.21 * t) * 0.08,
-  );
-  rig.position.y = Math.sin(0.8 * t) * 0.06;
-  rig.scale.setScalar(
-    1 + Math.sin(2.1 * t) * 0.012 + fx.pulse * 0.045 - fx.charge * 0.1 + fx.burst * 0.5,
-  );
+  const pose = cameraAt(fx.flight, aspect);
+  camera.position.set(pose.px, pose.py, pose.pz);
+  camera.up.set(Math.sin(pose.roll), Math.cos(pose.roll), 0);
+  camera.lookAt(pose.tx, pose.ty, pose.tz);
 
-  const z = lerp(BASE_Z, DOLLY_Z, fx.dolly);
-  if (camera.position.z !== z) camera.position.z = z;
-  if (isPerspective(camera)) {
-    const fov = lerp(BASE_FOV, DOLLY_FOV, fx.dolly);
-    if (camera.fov !== fov) {
-      camera.fov = fov;
-      camera.updateProjectionMatrix();
-    }
+  const weight = swayWeight(fx.flight);
+  if (weight > 0) {
+    // Two periods that do not divide into one another: the drift never repeats a figure.
+    const yaw = Math.sin(0.37 * t) * SWAY.yaw + state.pointerX * SWAY.pointerYaw;
+    const pitch = Math.sin(0.53 * t + 1.1) * SWAY.pitch - state.pointerY * SWAY.pointerPitch;
+    camera.rotateY(yaw * weight);
+    camera.rotateX(pitch * weight);
+  }
+
+  if (isPerspective(camera) && camera.fov !== pose.fov) {
+    camera.fov = pose.fov;
+    camera.updateProjectionMatrix();
   }
 }

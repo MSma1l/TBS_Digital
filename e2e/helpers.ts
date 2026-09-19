@@ -184,8 +184,9 @@ export async function cookieValue(
 }
 
 /**
- * The whole `tbs_intro` cookie, not just its value — the preloader spec asserts it is a
- * session cookie (`expires: -1`) scoped to `/`, `SameSite=Lax`, readable by script.
+ * The whole skip cookie, not just its value. The site never writes it — the intro plays on every
+ * hard load of `/` — so the preloader spec uses this to assert it is ABSENT after an intro, and
+ * every other spec seeds it (`seedIntroSeen`) to skip the intro it is not testing.
  */
 export async function introCookie(context: BrowserContext): Promise<Cookie | undefined> {
   const all = await context.cookies();

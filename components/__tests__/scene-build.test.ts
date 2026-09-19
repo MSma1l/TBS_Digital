@@ -9,7 +9,7 @@ import {
   tickReady,
 } from "@/components/scene/three/compile";
 import { pickSceneRoles } from "@/components/scene/three/palette";
-import { BURST_SPECK, HELIX_BOUND, createSceneWorld, stageHelix } from "@/components/scene/three/world";
+import { BURST_SPECK, HELIX_BOUND, SERVICE_STAGES, createSceneWorld, stageHelix } from "@/components/scene/three/world";
 import type { WorkHelixDriver, WorkHelixMode } from "@/components/scene/workHelix";
 import { layoutFor, placeHelixSpiral, placeServices } from "@/components/scene/choreography";
 import { HELIX_LAYOUT } from "@/components/scene/helix";
@@ -22,7 +22,6 @@ import {
   traceRibbons,
   type CoreFrame,
 } from "@/components/scene/three/core";
-import { CUBE_CYCLE } from "@/components/scene/three/models/cubes";
 import { hubArrivalPulse } from "@/components/scene/three/models/integrationHub";
 import { CHIP_LIFT, CHIP_STACK } from "@/components/scene/three/samples";
 import { watchPixelRatio, type PixelRatioHost } from "@/components/scene/pixelRatio";
@@ -48,9 +47,7 @@ import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "
 const PALETTE = pickSceneRoles({
   cyan: "#4fc3e8",
   blue: "#3970ff",
-  blueText: "#8fb0ff",
   redLift: "#ff5362",
-  redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
 });
@@ -100,7 +97,24 @@ describe("the world, built one part per idle slice", () => {
     expect(names[0]).toEqual(["scene-core"]);
     expect(names[1]).toEqual(["scene-core", "scene-swarm"]);
     expect(names[2]).toEqual(["scene-core", "scene-swarm", "scene-trail"]);
-    expect(names.at(-1)!.slice(3)).toEqual(SCENE_SHAPES.map((shape) => `scene-model-${SERVICE_MODEL[shape]}`));
+    /* One model per direction, in the SCENE_SHAPES order. The KIND key in `SERVICE_MODEL` is the
+       contract's name and no longer the model's own: two directions were given richer models —
+       `cubes` is drawn by the product stack and `integration-hub` by the pipeline bench — and each
+       group keeps the name of the file that builds it, so the two lists read differently here. */
+    expect(SCENE_SHAPES.map((shape) => SERVICE_MODEL[shape])).toEqual([
+      "cubes",
+      "commerce-loop",
+      "integration-hub",
+      "neural",
+      "mesh-wave",
+    ]);
+    expect(names.at(-1)!.slice(3)).toEqual([
+      "scene-model-product-stack",
+      "scene-model-commerce-loop",
+      "scene-model-pipeline-bench",
+      "scene-model-neural",
+      "scene-model-mesh-wave",
+    ]);
     // Still hidden: nothing compiled yet.
     expect(world.root.visible).toBe(false);
     world.dispose();
@@ -230,24 +244,49 @@ describe("the world — the services entrance (burst out of a speck)", () => {
     expect(u.uToR.value).toBeCloseTo(MODEL_RADIUS * place.scale, 9);
     expect(BURST_SPECK).toEqual({ scale: 0.05, radius: 1.35, sprite: 0.5 });
 
-    // Formed after ENTRY_SECONDS.form (22–23 frames at 20 Hz): the model alone, no swarm.
-    for (let i = 0; i < 22; i += 1) frame(scrollY);
+    /* Formed after ENTRY_SECONDS.form (22–23 frames at 20 Hz): the model alone, no swarm — and
+       its own cycle waited for it. The world hands a model still coming in the step 0 (`storyStep`,
+       world.ts), so the block the swarm lands on is exactly where `resetCycle` parked it and the
+       loop starts from there. Measured on the instanced block of the model drawn for shape 0 — the
+       product stack, which replaced the cubes: its hold → explode → assemble lengths are its own
+       and are not exported, so the shape of the rule is pinned here, not one phase's seconds. */
+    const stack = models[0].children[0].children[2] as unknown as {
+      getMatrixAt(i: number, m: Matrix4): void;
+      count: number;
+    };
+    const block = () => {
+      const m = new Matrix4();
+      const out: number[] = [];
+      for (let i = 0; i < stack.count; i += 1) {
+        stack.getMatrixAt(i, m);
+        out.push(...m.elements);
+      }
+      return out;
+    };
+    let revealing: number[] | null = null;
+    for (let i = 0; i < 22; i += 1) {
+      frame(scrollY);
+      // Drawn but not yet formed: every frame of the reveal leaves the block exactly as it was.
+      if (models[0].visible && fx.entry.value < 1) {
+        if (revealing === null) revealing = block();
+        else expect(block()).toEqual(revealing);
+      }
+    }
+    expect(revealing, "the model is drawn part-way through the entrance").not.toBeNull();
     expect(fx.entry.value).toBe(1);
     expect(swarm.visible).toBe(false);
     expect(models[0].visible).toBe(true);
+    expect(block()).toEqual(revealing);
 
-    // The model's own cycle waited for it to form: the cubes hold their block for the whole
-    // CUBE_CYCLE.hold after `formed` (a clock started at the first reveal would explode ~0.3s early).
-    const cubes = models[0].children[0].children[0] as unknown as { getMatrixAt(i: number, m: Matrix4): void };
-    const atFormed = new Matrix4();
-    const later = new Matrix4();
-    cubes.getMatrixAt(0, atFormed);
-    for (let i = 0; i < Math.floor(CUBE_CYCLE.hold * 20) - 3; i += 1) frame(scrollY);
-    cubes.getMatrixAt(0, later);
-    expect(later.elements).toEqual(atFormed.elements);
-    for (let i = 0; i < 20; i += 1) frame(scrollY);
-    cubes.getMatrixAt(0, later);
-    expect(later.elements).not.toEqual(atFormed.elements);
+    // Formed, the loop runs: within one turn of it the block has moved.
+    const atFormed = block();
+    const loopFrames = Math.ceil(SERVICE_STAGES[SERVICE_MODEL[SCENE_SHAPES[0]]].loop * 20);
+    let moved = false;
+    for (let i = 0; i < loopFrames && !moved; i += 1) {
+      frame(scrollY);
+      moved = block().some((v, k) => v !== atFormed[k]);
+    }
+    expect(moved).toBe(true);
 
     // Resting inside the band keeps it; above its start it implodes back into the speck.
     frame(450);

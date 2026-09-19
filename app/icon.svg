@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="TBS Digital">
+  <!--
+    The TBS wordmark, as the header renders it (components/layout/Navbar.tsx): the
+    letters "TBS" followed by the red full stop.
+
+    COLOURS ARE A COPY of the design tokens in app/globals.css, not a reference: a
+    static file cannot read var(). Keep them in step by hand if the palette moves.
+    Token names are written without their CSS prefix because a double hyphen cannot
+    appear inside an XML comment.
+      #0a0b10 = token "bg"  (dark-bg)   the page plate; the site is dark-only
+      #f6f7fb = token "txt" (dark-txt)  the wordmark
+      #ef263d = token "red"             the full stop
+
+    Drawn as stroked centrelines rather than text: a favicon has no webfont, so
+    Archivo would silently fall back to whatever the OS offers. Stroke width 2.6 on
+    a cap height of 14 matches Archivo ExtraBold's stem; butt caps keep the flat
+    terminals. Fitted so the counters in B survive at 16x16, which needs slightly
+    more room than the header's tight tracking.
+  -->
+  <rect width="32" height="32" rx="7" fill="#0a0b10"/>
+  <g fill="none" stroke="#f6f7fb" stroke-width="2.6" stroke-linecap="butt" stroke-linejoin="miter">
+    <!-- T -->
+    <path d="M2 10.3H9.3M5.65 10.3V21.7"/>
+    <!-- B: stem, upper bowl, lower bowl -->
+    <path d="M11.3 10.3V21.7"/>
+    <path d="M11.3 10.3H12.7A3.3 2.85 0 0 1 12.7 16H11.3"/>
+    <path d="M11.3 16H12.7A3.3 2.85 0 0 1 12.7 21.7H11.3"/>
+    <!-- S -->
+    <path d="M24 12.4C24 11.2 23 10.3 21.65 10.3C20.3 10.3 19.3 11.3 19.3 12.6C19.3 14.2 24 17.8 24 19.4C24 20.7 23 21.7 21.65 21.7C20.3 21.7 19.3 20.9 19.3 19.6"/>
+  </g>
+  <!-- the red full stop -->
+  <circle cx="28.2" cy="21.1" r="1.9" fill="#ef263d"/>
+</svg>

@@ -44,15 +44,17 @@ so the data source can change without touching markup.
 │  ├─ intro/               # First-visit preloader — see "The first-visit intro" below
 │  │  ├─ IntroPreloader.tsx + .module.css  # tier 1, the shell: server-rendered overlay, the one
 │  │  │                    #   post-hydration decision, skip inputs, scroll lock, watchdog
-│  │  ├─ IntroFallback.tsx # SVG ∞, CSS-only animation (no WebGL, and before hydration)
+│  │  ├─ IntroFallback.tsx # the static SVG machine, CSS-only (no WebGL, before hydration — and
+│  │  │                    #   beats 1-2 of the film on every device)
 │  │  ├─ IntroDirector.tsx # tier 2 (GSAP): progress, burst, page entrance, scene lifecycle
-│  │  ├─ IntroScene.tsx · InfinityCore.tsx · OrbitParticles.tsx   # tier 3 (three + R3F), reached
+│  │  ├─ IntroScene.tsx · IntroLaptop.tsx · OrbitParticles.tsx    # tier 3 (three + R3F), reached
 │  │  │                    #   only through components/three/runtime.tsx
 │  │  ├─ capability.ts     # the intro's gates, then the shared GPU probe; tiers.ts: TIER_CONFIG
-│  │  ├─ lemniscate.ts · fx.ts  # pure: the ∞ curve; the director ↔ scene contract
-│  │  └─ three/            # imperative three.js, no React: geometry · materials · environment
-│  │                       #   (procedural PMREM) · core · particles · rig (motion) · random —
-│  │                       #   re-exporting what moved to components/three/
+│  │  ├─ flight.ts · fx.ts # pure: progress → the camera's flight; the director ↔ scene contract
+│  │  └─ three/            # imperative three.js, no React: cameraPath (the six-key shot list and
+│  │                       #   the machine's measurements) · laptop · edge · materials ·
+│  │                       #   environment (procedural PMREM) · particles · rig (camera, sway,
+│  │                       #   governor) · random — re-exporting what moved to components/three/
 │  ├─ three/               # 3D helpers shared by the intro and the interior scene — no scene of
 │  │  │                    #   their own (see "The interior stage" below)
 │  │  ├─ runtime.tsx       # THE lazy entry for three.js + R3F: re-exports IntroScene and
@@ -183,17 +185,22 @@ default (`lib/theme/theme.ts`).
 
 ## The first-visit intro
 
-A full-screen HUD preloader plays once per browser session, on a hard load of the home page.
-Behaviour, phases and bypass rules are in [05 — Page Sections](./05-page-sections.md); this is
-how it is wired.
+A full-screen HUD preloader plays on every **hard load of the home page** — a six-beat camera
+flight through a laptop, from the processor die to the display. Behaviour, phases and bypass
+rules are in [05 — Page Sections](./05-page-sections.md); this is how it is wired.
 
 ### The gate — `app/(site)/layout.tsx`
 
 ```ts
-shouldPlayIntro(requestHeaders.get("x-pathname"), (await cookies()).get("tbs_intro")?.value)
+shouldPlayIntro(requestHeaders.get("x-pathname"), (await cookies()).get(INTRO_COOKIE)?.value)
 // true only for x-pathname === "/" (proxy.ts strips /ru and /en, so they count) and no
-// tbs_intro=seen cookie
+// tbs_intro_skip=seen cookie
 ```
+
+> **The site never writes that cookie** (`lib/intro.ts`): the intro used to play once per
+> browser session, which reads as broken on a reload. It is only *honoured*, so the E2E suite
+> (and QA) can seed it and skip the overlay; `finishIntro` clears the old `tbs_intro` name a
+> browser may still be carrying.
 
 When it is true the layout renders, as its **first children**, a `<noscript><style>` that
 hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
@@ -219,8 +226,9 @@ hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
                                                       └─ next/dynamic ssr:false ► runtime → IntroScene
 ```
 
-- A **returning visitor** gets no overlay from the server and downloads neither GSAP nor
-  three.js; reduced motion bypasses before the director is ever requested.
+- **Any page but `/`** — and any client navigation, and anyone carrying the skip cookie — gets
+  no overlay from the server and downloads neither GSAP nor three.js; reduced motion bypasses
+  before the director is ever requested.
 - The shell probes the device **once** and passes the answer to the director as its
   `capability` prop (the probe itself is the site's shared one, `components/three/capability.ts`,
   and its answer is cached for the tab in `sessionStorage.tbs_gpu_probe`, which the interior stage
@@ -240,9 +248,11 @@ hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
 
 | Piece | Owns |
 |-------|------|
-| `lib/intro.ts` | Names and timings (`INTRO_TIMING`), the reveal targets (`INTRO_REVEAL_ORDER`), the server gate, and the one "done" signal: `finishIntro({ played })` writes the session cookie and dispatches the event, idempotently, behind a module flag |
+| `lib/intro.ts` | Names and timings (`INTRO_TIMING`, incl. `LATE_SCENE_GOAL`), the drawing's scrub channel (`FB_PROGRESS_PROP`), the reveal targets (`INTRO_REVEAL_ORDER`), the server gate, and the one "done" signal: `finishIntro({ played })` clears the legacy cookie and dispatches the event, idempotently, behind a module flag |
 | `IntroPreloader` (shell) | The overlay markup, the post-hydration decision (bypass or run), scroll lock, skip inputs, the visibility-aware watchdog, the safety-net unmounts |
-| `IntroDirector` | Progress, the burst, the page entrance (GSAP writes straight to the DOM, never React state per frame), the scene's lifecycle |
+| `IntroDirector` | Progress, the burst, the page entrance (GSAP writes straight to the DOM, never React state per frame), the scene's lifecycle. It scrubs **both** renderers off the same progress: `fx.flight` for 3D, `--fb-p` on the drawing |
+| `intro/flight.ts` | `FLIGHT_MAP` / `flightFromProgress` — progress → the camera's flight. Its own tiny module because the director needs it on the no-WebGL path, where the three.js chunk is never loaded |
+| `three/cameraPath.ts` | The shot list (`FLIGHT_KEYS`, six frames), `cameraAt`, the lid and screen ramps, **and `INTRO_LAPTOP`, the machine's measurements** — `three/laptop.ts` imports them rather than re-declaring them, so the flight and the object cannot drift apart. `import type` only: no three.js, so the whole flight is unit-tested without a GL context |
 | `IntroScene` + `three/*` | Drawing; reports `onReady` / `onLost` and never touches the page |
 
 Every part the director drives is found under the overlay by `data-part`; every entrance
