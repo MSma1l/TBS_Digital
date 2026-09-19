@@ -468,16 +468,22 @@ export function laptopScreenBox(
  * What arms the boot, as a share of the projects window inside the canvas, and the share it has to
  * fall back to before the arrival can be spent a second time.
  *
- * `on` is 0.6 and not "any pixel of it": an arrival nobody sees is worth nothing, and this site has
- * paid for that lesson three times. At 0.6 the window's top two thirds are inside the canvas, which
- * is where the lid and the display are — the machine is fitted to the window's centre and the
- * display sits above it (`LAPTOP_SCREEN.cy`) — so the beat that matters is on screen from the first
- * frame of the sequence and can only get better as the scroll continues.
+ * `on` is 0.3. It was 0.6 — the share at which the display is FIRST fully inside the canvas — which
+ * was right while the sequence was one movement long. It is not right for four: the budget at a
+ * steady scroll is set by how long the display stays on screen from the moment of arming, and every
+ * 0.1 of share given back is 82px of scroll, 0.12s at 700px/s, added to the end of that budget.
+ * Measured at 1280x800: at 0.6 the display was gone 1.04s after arming; at 0.3 it is gone at 1.28s,
+ * and the machine itself at 1.61s.
+ *
+ * What it costs is the FIRST beat, and that is why the first beat is the assembly: at 0.3 the
+ * machine's own footprint is still below the fold and what shows is the top quarter of the volume
+ * the parts drift in from — which is exactly the phase that reads when it is half cut off, because
+ * the parts are arriving from outside anyway. By the time the lid moves, everything is inside.
  *
  * `off` is 0.05, so nothing replays while the visitor is reading the section: only leaving it
  * altogether re-arms the machine, and coming back boots it again.
  */
-export const LAPTOP_BOOT_GATE = { on: 0.6, off: 0.05 } as const;
+export const LAPTOP_BOOT_GATE = { on: 0.3, off: 0.05 } as const;
 
 /**
  * The boot sequence, in seconds from the moment the gate arms. **One table, three readers**: the
@@ -491,8 +497,14 @@ export const LAPTOP_BOOT_GATE = { on: 0.6, off: 0.05 } as const;
  * whatever the visitor does, so a flick cannot leave the lid half open.
  *
  * The beats, and why they are where they are:
- *  · `wake` — the deck answers first, a single pulse along it. The machine is a thing that is
- *    switched on before it is a thing that opens;
+ *  · `assemble` — **the machine is not there yet: it builds itself.** The frame is one
+ *    `InstancedMesh` of thirteen boxes, so the parts can arrive: each one drifts in from its own
+ *    place in a scatter above and around the deck, tumbling, growing out of nothing, and snaps
+ *    into the closed machine — hinge, lip, trackpad, the four lid rails, the key rows, in that
+ *    order, `assembleStagger` apart. It costs no draw call: the same mesh, different matrices;
+ *  · `surge` — a band of light runs the length of the body, from the hinge to the front lip, and
+ *    arrives just as the lid starts to rise. The machine is a thing that is switched on before it
+ *    is a thing that opens;
  *  · `lid` — the anchor of the whole arrival, and the one verb this page has that nothing else on
  *    the site has. A second of travel, eased out with a small settle past the top;
  *  · `crt` — the display opens out of a hairline as the lid passes about half way, which is the
@@ -505,26 +517,36 @@ export const LAPTOP_BOOT_GATE = { on: 0.6, off: 0.05 } as const;
  *    trackpad at `accent`. The tail, deliberately: everything that has to be seen is done by
  *    `swap`, so a visitor who scrolls on has missed nothing but the flourish.
  *
- * **1.65 seconds, and `swap` at 0.86, are a measurement rather than a taste.** The display is only
- * 261 of the window's 576px (`laptopScreenBox`), so from the moment the gate arms — which is
- * exactly the moment it is first fully inside the canvas, measured — it stays fully inside over
- * 468px of scroll travel and half inside over 598px: 0.67s and 0.85s at 700px/s. A visitor who has
- * stopped to look sees all of it at 100%; a visitor scrolling steadily past sees the lid and the
- * tube at 100% and the first project land with the display still half on screen. The first version
- * ran 2.4s with the swap at 1.6 and that visitor had the machine gone before the project arrived.
+ * **The seconds are a measurement, not a taste.** The display is only 261 of the window's 576px
+ * (`laptopScreenBox`), so at a steady 700px/s it is gone about 1.3s after the gate arms — that is
+ * the ceiling, and every beat that has to be SEEN sits under it, each one measured better than the
+ * single-movement sequence this replaced. Everything after `swap` is the tail: the self-test is the one thing this sequence
+ * can afford to spend off screen, because by then the visitor has seen the machine build itself,
+ * light up, open and load.
  */
 export const LAPTOP_BOOT = {
-  total: 1.65,
-  wake: [0, 0.2],
-  lid: [0.05, 0.7],
-  crt: [0.4, 0.66],
-  frames: [0.44, 0.82],
+  total: 1.62,
+  assemble: [0, 0.32],
+  /** How far apart the parts set off, and how long each one's own flight lasts. */
+  assembleStagger: 0.14,
+  assembleDwell: 0.2,
+  /**
+   * The band runs while the machine is SHUT and is finished before the lid stirs: overlapped with
+   * the swing it was there but unreadable, and a movement nobody can name on a single frame is not
+   * a movement of its own.
+   */
+  surge: [0.28, 0.46],
+  /** Half the width of the surge's band, in the 0..1 the body is measured along. */
+  surgeWidth: 0.34,
+  lid: [0.46, 0.9],
+  crt: [0.72, 0.9],
+  frames: [0.76, 0.98],
   frameCount: 5,
-  swap: 0.86,
-  test: [0.7, 1.55],
-  testStep: 0.15,
-  testDwell: 0.32,
-  accent: 1.5,
+  swap: 1.02,
+  test: [0.94, 1.5],
+  testStep: 0.12,
+  testDwell: 0.26,
+  accent: 1.46,
 } as const;
 
 /** Pure. 0 before `from`, 1 after `to`. */
@@ -574,11 +596,40 @@ export function laptopBootTest(t: number, row: number): number {
   return smoothstep(from, from + 0.1, t) * (1 - smoothstep(to - 0.1, to, t));
 }
 
-/** Pure. The power pulse along the deck as the machine wakes, 0 → 1 → 0. */
-export function laptopBootWake(t: number): number {
+/**
+ * Pure. How far the `order`-th part of `count` has landed at `t`, 0 (adrift) → 1 (in place). The
+ * parts set off `assembleStagger / count` apart and each takes `assembleDwell`, eased out, so the
+ * machine builds back to front rather than appearing all at once.
+ *
+ * `order < 0` is the base — the deck and its feet — which is never adrift: it is what stands in the
+ * window before the arrival and what is left when the section is stowed, so the still is a composed
+ * object rather than an empty rectangle.
+ */
+export function laptopBootAssemble(t: number, order: number, count: number): number {
+  if (order < 0) return 1;
   if (!(t >= 0)) return 0;
-  const [from, to] = LAPTOP_BOOT.wake;
-  return smoothstep(from, from + 0.07, t) * (1 - smoothstep(to - 0.16, to, t));
+  const span = count > 0 ? count : 1;
+  const from = LAPTOP_BOOT.assemble[0] + (LAPTOP_BOOT.assembleStagger * order) / span;
+  const to = Math.min(LAPTOP_BOOT.assemble[1], from + LAPTOP_BOOT.assembleDwell);
+  if (t >= to) return 1;
+  // Quadratic ease IN, not out: the part hangs out at its own distance and is then pulled home,
+  // arriving at full speed and stopping dead. Eased OUT it covered two thirds of the flight in the
+  // first fifth of the time and read as something materialising in place rather than arriving.
+  const a = bootRamp(t, from, to);
+  return a * a;
+}
+
+/**
+ * Pure. The surge at `t` for a part sitting at `at` along the body, 0 (the hinge) → 1 (the front
+ * lip): a band of light `surgeWidth` wide running from back to front, 0 outside it.
+ */
+export function laptopBootSurge(t: number, at: number): number {
+  if (!(t >= 0)) return 0;
+  const [from, to] = LAPTOP_BOOT.surge;
+  if (t <= from || t >= to) return 0;
+  const head = bootRamp(t, from, to);
+  const d = Math.abs(at - head) / LAPTOP_BOOT.surgeWidth;
+  return d >= 1 ? 0 : (1 - d) * (1 - d);
 }
 
 /* ---- the steps corner (a service page's "Cum lucrăm") ----------------------------------- */

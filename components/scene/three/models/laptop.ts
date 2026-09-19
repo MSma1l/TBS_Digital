@@ -25,12 +25,14 @@
  * so the texture lands on the panel with no crop and no stretch at all.
  *
  * What it does:
- *  · **arrives** — the whole boot sequence, from a shut and dark machine to the first project on
- *    its display: the deck wakes, the lid swings up on its hinge, the tube opens out of a hairline,
- *    the HUD furniture draws itself, the first project lands with the house's glitch and the body
- *    runs a self-test behind it. The beats and their seconds are `choreography.ts` `LAPTOP_BOOT`,
+ *  · **arrives** — the whole boot sequence, and four movements of four different kinds: the parts
+ *    fly in and build the machine onto its own base, a band of light runs the body from the hinge
+ *    to the lip, the lid swings up on its hinge, and the tube opens out of a hairline onto the HUD
+ *    furniture drawing itself before the first project lands with the house's glitch (the body's
+ *    self-test runs on behind it). The beats and their seconds are `choreography.ts` `LAPTOP_BOOT`,
  *    which the world and the page read from the same table; the world arms it (`arrive`) once the
- *    machine is properly in view and stows it (`stow`) when the section is left;
+ *    machine is coming into view and stows it (`stow`) when the section is left, which leaves the
+ *    base standing — the still is a composed object, never an empty rectangle;
  *  · **turns a little** — it cancels most of the world's shared sway (the panel row's
  *    `PANEL_SWAY_DAMPEN` idiom) and adds a slow yaw of its own about `LAPTOP_POSE.yaw`, so it has
  *    a side without ever turning the display away from the visitor;
@@ -53,10 +55,11 @@ import {
 import type { SceneTierConfig } from "../../tiers";
 import {
   LAPTOP_BOOT,
+  laptopBootAssemble,
   laptopBootCrt,
   laptopBootLid,
+  laptopBootSurge,
   laptopBootTest,
-  laptopBootWake,
 } from "../../choreography";
 import { SURFACE_MODE, createSurfaceMaterial, paint, toColor } from "../materials";
 import type { ScenePalette } from "../palette";
@@ -229,6 +232,51 @@ const SLOT_LITE = SLOT.keys;
 const AXIS_X = new Vector3(1, 0, 0);
 const UNIT = new Vector3(1, 1, 1);
 
+/** A fixed hash: the scatter has to be the same every arrival, and the same for every visitor. */
+function hash(n: number): number {
+  const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+/**
+ * Where each part drifts in from, in model units off its own place, and the axis it tumbles about.
+ * Biased upward and outward so the cloud stands ABOVE the deck: at the gate's share the machine's
+ * own footprint is still below the fold and this is the only part of the arrival that is on screen,
+ * so it has to be the part that lives high in the window.
+ */
+const SCATTER: ReadonlyArray<Vector3> = Array.from({ length: SLOT_COUNT }, (_, i) => {
+  const around = hash(i + 1) * Math.PI * 2;
+  const out = 0.9 + hash(i + 7) * 0.9;
+  return new Vector3(Math.cos(around) * out, 0.6 + hash(i + 13) * 1.2, Math.sin(around) * out);
+});
+const TUMBLE: ReadonlyArray<Vector3> = Array.from({ length: SLOT_COUNT }, (_, i) =>
+  new Vector3(hash(i + 23) - 0.5, hash(i + 31) - 0.5, hash(i + 41) - 0.5).normalize(),
+);
+
+/**
+ * The order the parts arrive in, by slot: the deck and its two feet are the BASE and never arrive
+ * (−1) — they are the still, standing in the window before anything happens and left behind when
+ * the section is stowed. The rest build onto it back to front: hinge, lip, trackpad, the four lid
+ * rails, then the key rows.
+ */
+const ASSEMBLE_ORDER: readonly number[] = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1];
+const ASSEMBLE_COUNT = 10;
+
+/**
+ * Where each part sits along the body for the surge, 0 at the hinge and 1 at the front lip. Hand
+ * placed rather than read off `position.z`, because the lid's rails are still folded over the deck
+ * while the band passes and their own z says nothing about where they look like they are.
+ */
+const SURGE_AT: readonly number[] = [
+  0.5, // deck
+  0, // hinge
+  1, // lip
+  0.78, // trackpad
+  0.12, 0.62, 0.34, 0.34, // lid rails: foot, head, left, right
+  0.2, 0.32, 0.44, // key rows
+  0.24, 0.24, // feet
+];
+
 export type LaptopModel = PanelModel & {
   /**
    * The hologram's texture, or null. The display is not drawn before there is one — a hairline
@@ -295,6 +343,9 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
   const position = new Vector3();
   const scale = new Vector3(1, 1, 1);
   const turn = new Quaternion();
+  const spin = new Quaternion();
+  /** How far each part has landed this frame, filled once at the top of `compose`. */
+  const landing = new Float64Array(SLOT_COUNT);
 
   let gain = PANEL_GAIN[palette.mode];
   const full = config.uiCards > 2 ? SLOT_COUNT : SLOT_MID;
@@ -317,6 +368,19 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
    * table would mean nothing.
    */
   const write = (slot: number, colour: Color, value: number, through?: Matrix4) => {
+    // A part still on its way in: displaced along its own scatter, tumbling, and grown out of
+    // nothing. Same mesh, same draw call — only the matrix differs.
+    const landed = landing[slot];
+    if (landed < 1) {
+      // The two curves are deliberately different: the part reaches its FULL SIZE early (a 0.3
+      // power) while its distance runs down linearly against an eased-IN clock, so what crosses
+      // the window is a whole box travelling rather than a speck growing into place.
+      const away = 1 - landed;
+      position.addScaledVector(SCATTER[slot], away);
+      scale.multiplyScalar(Math.pow(landed, 0.3));
+      spin.setFromAxisAngle(TUMBLE[slot], away * 1.5);
+      turn.multiply(spin);
+    }
     matrix.compose(position, turn, scale);
     if (through) matrix.premultiply(through);
     shellMesh.setMatrixAt(slot, matrix);
@@ -346,10 +410,20 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
   const compose = () => {
     const t = clock;
     const booting = boot >= 0 && boot < LAPTOP_BOOT.total;
+    // Which parts are still on their way in. Stowed, only the base stands; arrived, everything does.
+    for (let i = 0; i < SLOT_COUNT; i += 1) {
+      landing[i] = booting
+        ? laptopBootAssemble(boot, ASSEMBLE_ORDER[i], ASSEMBLE_COUNT)
+        : boot < 0
+          ? ASSEMBLE_ORDER[i] < 0
+            ? 1
+            : 0
+          : 1;
+    }
     // During the arrival the body is on the sequence's clock, not on its own loop: the trackpad
     // takes the boot's one accent and the key rows run a self-test instead of the caret.
-    const accent = booting ? laptopBootWake(boot) * 0.5 + bell(boot, LAPTOP_BOOT.accent, 0.12) : laptopAccentAt(t);
-    const wake = booting ? laptopBootWake(boot) : 0;
+    const surge = (slot: number) => (booting ? laptopBootSurge(boot, SURGE_AT[slot]) : 0);
+    const accent = booting ? surge(SLOT.pad) * 0.6 + bell(boot, LAPTOP_BOOT.accent, 0.12) : laptopAccentAt(t);
     // The lid's angle, and the breath on top of it: a machine at rest is not a still image.
     const angle = laptopLidAngle(open) + Math.sin((t / LAPTOP_LOOP) * Math.PI * 2) * 0.014 * open;
     // A lid-local point sits at hinge + R(π/2 − angle about x) · p: at π/2 the lid stands in the
@@ -358,37 +432,38 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
     lid.quaternion.copy(turn);
     lidMatrix.compose(lid.position, turn, UNIT);
 
-    /* the deck — it answers first, before anything moves */
+    /* the deck — the base the whole thing is built on, and the band's first stop */
     position.set(0, 0, 0);
     scale.set(DECK.w, DECK.t, DECK.d);
     turn.identity();
-    write(SLOT.deck, blue, lerp(gain.rest, gain.lit, wake));
+    write(SLOT.deck, blue, lerp(gain.rest, gain.accent, surge(SLOT.deck)));
 
     /* the hinge barrel: the one part of the machine that is doing something while the lid swings */
     position.set(0, HINGE.y, HINGE.z);
     scale.set(HINGE.w, HINGE.r, HINGE.r);
     turn.identity();
-    write(SLOT.hinge, blue, lerp(gain.rest, gain.body, laptopHingeAt(open)));
+    write(SLOT.hinge, blue, lerp(lerp(gain.rest, gain.body, laptopHingeAt(open)), gain.lit, surge(SLOT.hinge)));
 
-    /* the opening lip at the front edge — it takes the wake pulse with the deck */
+    /* the opening lip at the front edge — where the band ends, just as the lid starts to rise */
     position.set(0, 0, LIP.z);
     scale.set(LIP.w, LIP.t, LIP.d);
     turn.identity();
-    write(SLOT.lip, blue, lerp(gain.rest, gain.body, wake));
+    write(SLOT.lip, blue, lerp(gain.rest, gain.accent, surge(SLOT.lip)));
 
     /* the trackpad — the loop's one accent, and the only thing in the object that passes `lit` */
     position.set(0, DECK.t / 2 + PAD.t / 2, PAD.z);
     scale.set(PAD.w, PAD.t, PAD.d);
     turn.identity();
-    write(SLOT.pad, cyan, lerp(gain.body, gain.accent, accent));
+    write(SLOT.pad, cyan, lerp(gain.body, gain.accent, Math.min(1, accent)));
 
     /* the lid's four rails: the display's own frame, answering every swap — and the tube coming
        on, which is the moment the frame around it has to be brightest */
     const railGain = lerp(gain.body, gain.lit, Math.max(glitchLeft, booting ? crt * (1 - crt) * 4 : 0));
-    writeRail(SLOT.rails, 0, BEZEL.y / 2, LID.w, BEZEL.y, railGain);
-    writeRail(SLOT.rails + 1, 0, LID.h - BEZEL.y / 2, LID.w, BEZEL.y, railGain);
-    writeRail(SLOT.rails + 2, -(LID.w - BEZEL.x) / 2, LID.h / 2, BEZEL.x, LID.h, railGain);
-    writeRail(SLOT.rails + 3, (LID.w - BEZEL.x) / 2, LID.h / 2, BEZEL.x, LID.h, railGain);
+    const rail = (slot: number) => lerp(railGain, gain.lit, surge(slot));
+    writeRail(SLOT.rails, 0, BEZEL.y / 2, LID.w, BEZEL.y, rail(SLOT.rails));
+    writeRail(SLOT.rails + 1, 0, LID.h - BEZEL.y / 2, LID.w, BEZEL.y, rail(SLOT.rails + 1));
+    writeRail(SLOT.rails + 2, -(LID.w - BEZEL.x) / 2, LID.h / 2, BEZEL.x, LID.h, rail(SLOT.rails + 2));
+    writeRail(SLOT.rails + 3, (LID.w - BEZEL.x) / 2, LID.h / 2, BEZEL.x, LID.h, rail(SLOT.rails + 3));
 
     /* the key rows: a caret runs them once a loop, and they are dark the rest of it */
     for (let row = 0; row < KEYS.rows.length; row += 1) {
@@ -400,8 +475,11 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
       position.set(0, DECK.t / 2 + KEYS.t / 2, KEYS.rows[row]);
       scale.set(KEYS.w, KEYS.t, KEYS.d);
       turn.identity();
+      const passing = booting ? surge(slot) : 0;
       const lit = booting ? laptopBootTest(boot, row) : laptopKeyAt(t, row) * open;
-      write(slot, cyan, lerp(gain.rest, gain.lit, lit));
+      // The band crosses ABOVE `lit`: it is the one moment in the arrival that goes hot, and a
+      // band that only reached `lit` was there on the frame but could not be named on it.
+      write(slot, cyan, lerp(lerp(gain.rest, gain.lit, lit), gain.accent, passing));
     }
 
     /* the two feet under the back of the deck */
@@ -414,7 +492,7 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
       position.set(i === 0 ? -FOOT.x : FOOT.x, -DECK.t / 2 - FOOT.t / 2, FOOT.z);
       scale.set(FOOT.w, FOOT.t, FOOT.d);
       turn.identity();
-      write(slot, blue, gain.rest);
+      write(slot, blue, lerp(gain.rest, gain.body, surge(slot)));
     }
 
     shellMesh.instanceMatrix.needsUpdate = true;

@@ -529,8 +529,10 @@ export function composeLaptopBoot(
   ctx.lineCap = "butt";
   ctx.lineJoin = "miter";
 
-  /* the raster: the tube warming up, one line every `scanEvery`, brighter with every step */
-  ctx.globalAlpha = 0.06 + 0.05 * at;
+  /* The raster. It is BRIGHTEST on the first frame and settles from there, the way a tube flares
+     as it takes power and then calms: the furniture that arrives over it reads better against a
+     quieter field, and the flare is the one thing that says "this just came on". */
+  ctx.globalAlpha = Math.max(0.08, 0.34 - 0.06 * at);
   for (let y = 0; y < h; y += HOLOGRAM.scanEvery) ctx.fillRect(0, y, w, 1);
   ctx.globalAlpha = 1;
 

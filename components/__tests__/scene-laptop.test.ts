@@ -8,8 +8,9 @@ import {
   laptopBootCrt,
   laptopBootFrame,
   laptopBootLid,
+  laptopBootSurge,
   laptopBootTest,
-  laptopBootWake,
+  laptopBootAssemble,
   laptopScreenBox,
   placeLaptop,
   projectsShare,
@@ -237,9 +238,10 @@ describe("the machine's own arithmetic", () => {
 
 describe("the boot sequence", () => {
   it("reads in the order the beats are written", () => {
-    // Nothing may run before the machine is switched on, and nothing after the sequence is over.
-    expect(LAPTOP_BOOT.wake[0]).toBe(0);
-    expect(LAPTOP_BOOT.lid[0]).toBeGreaterThanOrEqual(LAPTOP_BOOT.wake[0]);
+    // Four movements, in order: the parts arrive, the body lights, the lid opens, the tube comes on.
+    expect(LAPTOP_BOOT.assemble[0]).toBe(0);
+    expect(LAPTOP_BOOT.surge[0]).toBeGreaterThan(LAPTOP_BOOT.assemble[0]);
+    expect(LAPTOP_BOOT.lid[0]).toBeGreaterThanOrEqual(LAPTOP_BOOT.surge[0]);
     expect(LAPTOP_BOOT.crt[0]).toBeGreaterThan(LAPTOP_BOOT.lid[0]);
     expect(LAPTOP_BOOT.crt[1]).toBeLessThanOrEqual(LAPTOP_BOOT.lid[1]);
     expect(LAPTOP_BOOT.frames[0]).toBeGreaterThanOrEqual(LAPTOP_BOOT.crt[0]);
@@ -299,13 +301,33 @@ describe("the boot sequence", () => {
     expect(laptopBootTest(LAPTOP_BOOT.total, 0)).toBe(0);
   });
 
-  it("wakes the deck once, before anything moves", () => {
-    expect(laptopBootWake(-1)).toBe(0);
-    expect(laptopBootWake(0)).toBeCloseTo(0, 6);
-    const peak = laptopBootWake((LAPTOP_BOOT.wake[0] + LAPTOP_BOOT.wake[1]) / 2);
-    expect(peak).toBeGreaterThan(0.8);
-    expect(laptopBootWake(LAPTOP_BOOT.wake[1])).toBeCloseTo(0, 6);
-    expect(laptopBootWake(LAPTOP_BOOT.total)).toBeCloseTo(0, 6);
+  it("builds the machine onto a base that was always there", () => {
+    // −1 is the base: the deck and its feet stand before the arrival and are left when it is stowed,
+    // so the still is a composed object rather than an empty rectangle.
+    expect(laptopBootAssemble(-1, -1, 10)).toBe(1);
+    expect(laptopBootAssemble(0, -1, 10)).toBe(1);
+    // Everything else is adrift before the sequence and in place after it.
+    for (const order of [0, 4, 9]) {
+      expect(laptopBootAssemble(-1, order, 10)).toBe(0);
+      expect(laptopBootAssemble(LAPTOP_BOOT.assemble[1], order, 10)).toBe(1);
+      expect(laptopBootAssemble(LAPTOP_BOOT.total, order, 10)).toBe(1);
+    }
+    // …and they land back to front, never all at once.
+    const half = LAPTOP_BOOT.assemble[0] + LAPTOP_BOOT.assembleDwell / 2;
+    expect(laptopBootAssemble(half, 0, 10)).toBeGreaterThan(laptopBootAssemble(half, 9, 10));
+  });
+
+  it("runs one band of light down the body, back to front", () => {
+    expect(laptopBootSurge(-1, 0)).toBe(0);
+    expect(laptopBootSurge(LAPTOP_BOOT.surge[0], 0)).toBe(0);
+    expect(laptopBootSurge(LAPTOP_BOOT.surge[1], 1)).toBe(0);
+    expect(laptopBootSurge(LAPTOP_BOOT.total, 0.5)).toBe(0);
+    // The hinge lights before the lip, and each one peaks as the head reaches it.
+    const [from, to] = LAPTOP_BOOT.surge;
+    const early = from + (to - from) * 0.1;
+    const late = from + (to - from) * 0.9;
+    expect(laptopBootSurge(early, 0)).toBeGreaterThan(laptopBootSurge(early, 1));
+    expect(laptopBootSurge(late, 1)).toBeGreaterThan(laptopBootSurge(late, 0));
   });
 
   it("draws boot frames that are furniture and never a word", async () => {

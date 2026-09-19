@@ -16,6 +16,54 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: intro-ul laptopului, patru feluri de efect în 1,62s
+
+Clientul: „fa-mi ca un intro wow, cu secții diferite de efecte". Secvența de dinainte era bună, dar
+era o singură mișcare continuă. Acum are **patru feluri diferite**, fiecare recognoscibil pe un
+singur cadru:
+
+| t | mișcare | ce se vede |
+| --- | --- | --- |
+| 0 → 0,32 | **asamblarea** — cele 13 piese vin din toate direcțiile, se rostogolesc și se fixează, la 0,014s una de alta | puntea pe loc și 6-8 piese în zbor |
+| 0,28 → 0,46 | **valul de curent** — o bandă traversează corpul de la balama la buză, **singurul moment care trece în alb** | mașina închisă, cu o bandă fierbinte pe ea |
+| 0,46 → 0,90 | **capacul** pe balama, cu așezare | capacul la jumătate, ecranul stins |
+| 0,72 → 0,90 | **tubul** — displayul se deschide pe verticală, rasterul cel mai puternic pe primul cadru | bandă orizontală de raster în mijlocul capacului |
+| 1,02 | **primul proiect**, cu glitch | text forfecat |
+
+**Poarta a coborât de la 60% la 30%** din fereastră, ceea ce cumpără secunde reale de vizibilitate.
+Costul cade pe **primul** beat — de aceea primul beat e asamblarea: la 30% ce se vede e sfertul de sus
+al norului din care vin piesele, adică exact faza care se citește și când e tăiată pe jumătate.
+
+**Vizibilitate la 700px/s, față de reperul vechi:**
+
+| Beat | Display pe ecran | Înainte |
+| --- | --- | --- |
+| armare (asamblarea) | 0,44 | — |
+| asamblat | **1,00** | — |
+| capac deschis | **0,90** | 0,86 |
+| primul proiect | **0,54** | 0,46 |
+
+**Niciun beat nu e mai puțin vizibil decât înainte**, și sunt două mișcări noi peste. Plafonul măsurat:
+la 700px/s displayul dispare la ~1,3s după armare, deci orice beat care trebuie văzut stă sub ~1,1s.
+
+**Starea dinainte:** baza — puntea și picioarele — **nu sosește niciodată**; ea e still-ul și stă acolo
+înainte de orice. Asamblarea construiește pe ea, deci primul lucru văzut e o mașină care se naște, nu
+un dreptunghi gol.
+
+**Ce s-a tăiat ca să încapă:** cursa capacului de la 0,65 la 0,44s și autotestul de la 0,90 la 0,56s —
+asamblarea și valul sunt plătite din ele, nu din durata totală (1,65 → **1,62s**). Valul a fost mutat
+**înaintea** capacului: suprapus peste el era prezent, dar nu se putea numi pe un cadru.
+
+**Respinse pe buget, cu motiv:** roiul de particule (ar fi un desen în plus) și separarea cromatică pe
+ecran (ar fi o uniformă nouă în shader).
+
+Neschimbate: **+2 desene**, plafonul 384×240, `[data-scene-layer]`, ruleta de după, și grila neatinsă
+sub 861px, fără 3D și la mișcare redusă.
+
+Fișiere: `components/scene/choreography.ts`, `components/scene/three/models/laptop.ts`,
+`components/scene/three/hologram.ts`, testul scenei. Pagina și CSS-ul neatinse — ambele citesc
+tabelul, deci poarta și momentul primului proiect s-au propagat singure.
+
 ## 2026-09-19 — Added: laptopul pornește — secvența de boot
 
 Clientul: „când ajung la laptop fa un intro frumos… cum se pornește laptopul cu proiecte și se
