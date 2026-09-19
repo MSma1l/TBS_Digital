@@ -468,22 +468,28 @@ export function laptopScreenBox(
  * What arms the boot, as a share of the projects window inside the canvas, and the share it has to
  * fall back to before the arrival can be spent a second time.
  *
- * `on` is 0.3. It was 0.6 — the share at which the display is FIRST fully inside the canvas — which
- * was right while the sequence was one movement long. It is not right for four: the budget at a
- * steady scroll is set by how long the display stays on screen from the moment of arming, and every
- * 0.1 of share given back is 82px of scroll, 0.12s at 700px/s, added to the end of that budget.
- * Measured at 1280x800: at 0.6 the display was gone 1.04s after arming; at 0.3 it is gone at 1.28s,
- * and the machine itself at 1.61s.
+ * `on` is 0.06 — as near "the window's top edge has crossed into the canvas" as a share gets. It was
+ * 0.6, then 0.3, and each drop bought the same thing: at a steady scroll the budget is how long the
+ * display stays on screen from the moment of arming, and arming earlier is the only way to add to
+ * the END of it. Measured at 1280x800, the display is gone 1.04s after arming at 0.6, 1.28s at 0.3
+ * and about 1.44s at 0.06.
  *
- * What it costs is the FIRST beat, and that is why the first beat is the assembly: at 0.3 the
- * machine's own footprint is still below the fold and what shows is the top quarter of the volume
- * the parts drift in from — which is exactly the phase that reads when it is half cut off, because
- * the parts are arriving from outside anyway. By the time the lid moves, everything is inside.
+ * It is not lowered further, and the reason is the SLOW scroller rather than the fast one. Arming
+ * before the window enters at all (a negative share, which `projectsShare`'s `margin` can express)
+ * would spend the assembly below the fold for anyone reading their way down the page — and they are
+ * the visitor this is for. At 0.06 the first piece sets off as the window's top edge appears, which
+ * is the earliest moment the arrival can be said to be on screen at all.
+ *
+ * What it costs is the FIRST beat, and that is why the first beat is the assembly: the machine's own
+ * footprint sits at the window's centre and is not in view yet, so what shows is the upper part of
+ * the volume the pieces drift in from — exactly the phase that reads when it is half cut off,
+ * because the pieces are arriving from outside anyway. By the time the machine is WHOLE the display
+ * is fully inside, which is the beat the visibility floor is set on.
  *
  * `off` is 0.05, so nothing replays while the visitor is reading the section: only leaving it
  * altogether re-arms the machine, and coming back boots it again.
  */
-export const LAPTOP_BOOT_GATE = { on: 0.3, off: 0.05 } as const;
+export const LAPTOP_BOOT_GATE = { on: 0.06, off: 0.02 } as const;
 
 /**
  * The boot sequence, in seconds from the moment the gate arms. **One table, three readers**: the
@@ -498,10 +504,15 @@ export const LAPTOP_BOOT_GATE = { on: 0.3, off: 0.05 } as const;
  *
  * The beats, and why they are where they are:
  *  · `assemble` — **the machine is not there yet: it builds itself.** The frame is one
- *    `InstancedMesh` of thirteen boxes, so the parts can arrive: each one drifts in from its own
- *    place in a scatter above and around the deck, tumbling, growing out of nothing, and snaps
- *    into the closed machine — hinge, lip, trackpad, the four lid rails, the key rows, in that
- *    order, `assembleStagger` apart. It costs no draw call: the same mesh, different matrices;
+ *    `InstancedMesh`, and an instance is very nearly free, so it is cut into TWENTY-NINE pieces:
+ *    three hinge barrels, the opening lip, the trackpad, four lid rails, two hinge covers, twelve
+ *    individual keys and three ports, onto a base of the deck and its two feet that never arrives.
+ *    Twenty-six pieces drift in from their own places in a scatter above the deck, tumbling and
+ *    growing, and RING into their slots rather than stopping dead (`laptopBootSettle`). They are
+ *    staggered over `assembleStagger` — a third of the phase — while each flight lasts up to
+ *    `assembleDwell`, so at any instant a dozen pieces are moving and there is never a frame where
+ *    nothing is. A piece from further out takes longer than one from near by (`assembleNear`):
+ *    identical flights are what made the old ten-piece version read as one mechanical snap;
  *  · `surge` — a band of light runs the length of the body, from the hinge to the front lip, and
  *    arrives just as the lid starts to rise. The machine is a thing that is switched on before it
  *    is a thing that opens;
@@ -518,35 +529,41 @@ export const LAPTOP_BOOT_GATE = { on: 0.3, off: 0.05 } as const;
  *    `swap`, so a visitor who scrolls on has missed nothing but the flourish.
  *
  * **The seconds are a measurement, not a taste.** The display is only 261 of the window's 576px
- * (`laptopScreenBox`), so at a steady 700px/s it is gone about 1.3s after the gate arms — that is
- * the ceiling, and every beat that has to be SEEN sits under it, each one measured better than the
- * single-movement sequence this replaced. Everything after `swap` is the tail: the self-test is the one thing this sequence
- * can afford to spend off screen, because by then the visitor has seen the machine build itself,
- * light up, open and load.
+ * (`laptopScreenBox`), so at a steady 700px/s it is gone about 1.44s after the gate arms — that is
+ * the ceiling, and it is what every number above is solved against: the machine has to be WHOLE
+ * while the display is still fully inside (which is why the assembly ends at 0.52 and not later),
+ * the lid has to finish before the display falls under the 0.90 it measured last round, and the
+ * first project before it falls under 0.54. 0.52s is the longest assembly those three floors leave
+ * room for at this gate; a longer one would have to be bought by arming before the window enters,
+ * and that is paid for by the slow scroller. Everything after `swap` is the tail: the self-test is
+ * the one thing this sequence can afford to spend off screen, because by then the visitor has seen
+ * the machine build itself, light up, open and load.
  */
 export const LAPTOP_BOOT = {
-  total: 1.62,
-  assemble: [0, 0.32],
+  total: 1.8,
+  assemble: [0, 0.52],
   /** How far apart the parts set off, and how long each one's own flight lasts. */
-  assembleStagger: 0.14,
-  assembleDwell: 0.2,
+  assembleStagger: 0.22,
+  assembleDwell: 0.3,
+  /** The share of a full flight the NEAREST piece takes; the furthest takes all of it. */
+  assembleNear: 0.72,
   /**
    * The band runs while the machine is SHUT and is finished before the lid stirs: overlapped with
    * the swing it was there but unreadable, and a movement nobody can name on a single frame is not
    * a movement of its own.
    */
-  surge: [0.28, 0.46],
+  surge: [0.48, 0.66],
   /** Half the width of the surge's band, in the 0..1 the body is measured along. */
   surgeWidth: 0.34,
-  lid: [0.46, 0.9],
-  crt: [0.72, 0.9],
-  frames: [0.76, 0.98],
+  lid: [0.66, 1.1],
+  crt: [0.92, 1.1],
+  frames: [0.94, 1.16],
   frameCount: 5,
-  swap: 1.02,
-  test: [0.94, 1.5],
+  swap: 1.2,
+  test: [1.12, 1.68],
   testStep: 0.12,
   testDwell: 0.26,
-  accent: 1.46,
+  accent: 1.64,
 } as const;
 
 /** Pure. 0 before `from`, 1 after `to`. */
@@ -605,18 +622,29 @@ export function laptopBootTest(t: number, row: number): number {
  * window before the arrival and what is left when the section is stowed, so the still is a composed
  * object rather than an empty rectangle.
  */
-export function laptopBootAssemble(t: number, order: number, count: number): number {
+export function laptopBootAssemble(t: number, order: number, count: number, far = 0): number {
   if (order < 0) return 1;
   if (!(t >= 0)) return 0;
   const span = count > 0 ? count : 1;
   const from = LAPTOP_BOOT.assemble[0] + (LAPTOP_BOOT.assembleStagger * order) / span;
-  const to = Math.min(LAPTOP_BOOT.assemble[1], from + LAPTOP_BOOT.assembleDwell);
-  if (t >= to) return 1;
-  // Quadratic ease IN, not out: the part hangs out at its own distance and is then pulled home,
-  // arriving at full speed and stopping dead. Eased OUT it covered two thirds of the flight in the
-  // first fifth of the time and read as something materialising in place rather than arriving.
-  const a = bootRamp(t, from, to);
-  return a * a;
+  const near = LAPTOP_BOOT.assembleNear;
+  const dwell = LAPTOP_BOOT.assembleDwell * (near + (1 - near) * clamp01(far));
+  const to = Math.min(LAPTOP_BOOT.assemble[1], from + dwell);
+  return t >= to ? 1 : laptopBootSettle(bootRamp(t, from, to));
+}
+
+/**
+ * Pure. A piece's own flight, 0 (adrift) → 1 (seated), as a damped ring rather than a ramp: it
+ * accelerates in, carries about 15% past its slot and oscillates down onto it.
+ *
+ * This is what "abrupt" was. The version before this was a quadratic ease-IN — the piece hung at
+ * its distance, was pulled home and STOPPED, which at ten pieces and 0.2s each read as ten little
+ * impacts. A ring has no single moment of arrival, which is the whole of the difference.
+ */
+export function laptopBootSettle(a: number): number {
+  if (!(a > 0)) return 0;
+  if (a >= 1) return 1;
+  return 1 - Math.exp(-5.2 * a) * Math.cos(8.6 * a);
 }
 
 /**

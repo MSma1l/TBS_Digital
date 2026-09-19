@@ -16,6 +16,57 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: asamblarea laptopului — 29 de piese, curgere fără goluri
+
+Clientul: asamblarea e prea rapidă și **bruscă**; o vrea mai lină, mai detaliată, din mai multe
+componente.
+
+**13 → 29 de piese**, dintre care 26 sosesc: trei butuci de balama, buza, trackpadul, patru șine de
+capac, două capace de balamă, **douăsprezece taste individuale** și trei porturi pe muchia punții.
+Instanțele sunt aproape gratis — același `InstancedMesh`, deci **+2 desene, neschimbat**; cresc doar
+696 de invocări de vertex shader față de 312 și ~2 KB de matrice.
+
+**De ce era „brusc", găsit prin măsurare:** curba de aterizare era un ease-in pătratic care **se
+oprea sec**. Zece impacte mici, unul după altul — asta se citea ca abrupt, nu viteza. Acum aterizarea
+e un **inel amortizat**: piesa trece ~15% peste locul ei și oscilează pe el.
+
+**Curgerea, nu doar durata:** fereastra asamblării a crescut de la 0,32 la **0,52s** (+63%), fiecare
+zbor până la 0,30s și **variat** — piesa cea mai apropiată zboară 72% din durată, cea mai îndepărtată
+toată. Rezultatul: **~14 piese sunt în aer în orice clipă**, iar ultima pleacă la 0,21s, când prima
+abia a aterizat la 0,22s. Ordinea e de la mare la mic: butucii, buza, trackpadul, șinele, apoi tastele
+și porturile umplând în urmă.
+
+**Două efecte, ambele per instanță, zero desene:** fiecare piesă se aprinde la fixare, deci muchiile
+mașinii apar **piesă cu piesă**, nu deja aprinse; iar o undă trece prin cele deja așezate la fiecare
+sosire, deci obiectul licărește continuu în loc să tacă între piese.
+
+**Testul de „lin", verificabil:** banda densă de cadre — dacă două cadre consecutive arată identic,
+curgerea are o gaură. Rezultat: diferență între cadre **6,3%–24,6%** la 861×700 și **10,4%–55,4%** la
+1280×800, **zero perechi sub 0,25%**. Niciun cadru identic cu cel dinainte.
+
+**Poarta a coborât de la 30% la 6%** din fereastră — cât de devreme se poate arma fără să cheltuiască
+asamblarea sub fald. Vizibilitatea la 700px/s, față de runda trecută:
+
+| Beat | Acum | Înainte |
+| --- | --- | --- |
+| asamblat | **1,00** | 1,00 |
+| capac deschis | **0,98** | 0,90 |
+| primul proiect | **0,73** | 0,54 |
+
+Toate pragurile țin, iar ultimele două sunt **substanțial mai bune** decât înainte, deși secvența e
+mai lungă (1,62 → 1,80s).
+
+**Ceva ce rundele anterioare nu măsuraseră:** baleiajele de containment eșantionau mașina **așezată**,
+niciodată piesele în zbor. De aceea împrăștierea laterală e deliberat modestă — casa unei piese
+exterioare e deja la 1,18 unități, iar startul ei e casa plus vectorul. Măsurat pe 14 cadre acoperind
+toată sosirea: înăuntru pe toate laturile, marja cea mai strânsă 61px.
+
+**Respinse, cu motiv:** urma-fantomă în spatele pieselor (ar cere încă o instanță per piesă, iar
+materialul `edges` n-are opacitate per instanță — ar arăta ca o a doua cutie solidă, nu ca o dâră) și
+o rampă de culoare spre roșu (roșul e rolul refuzului în acest proiect, iar o sosire nu e un refuz).
+
+Fișiere: `components/scene/choreography.ts`, `components/scene/three/models/laptop.ts`, testul scenei.
+
 ## 2026-09-19 — Changed: intro-ul laptopului, patru feluri de efect în 1,62s
 
 Clientul: „fa-mi ca un intro wow, cu secții diferite de efecte". Secvența de dinainte era bună, dar

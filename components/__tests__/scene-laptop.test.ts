@@ -8,6 +8,7 @@ import {
   laptopBootCrt,
   laptopBootFrame,
   laptopBootLid,
+  laptopBootSettle,
   laptopBootSurge,
   laptopBootTest,
   laptopBootAssemble,
@@ -315,6 +316,35 @@ describe("the boot sequence", () => {
     // …and they land back to front, never all at once.
     const half = LAPTOP_BOOT.assemble[0] + LAPTOP_BOOT.assembleDwell / 2;
     expect(laptopBootAssemble(half, 0, 10)).toBeGreaterThan(laptopBootAssemble(half, 9, 10));
+  });
+
+  it("lands a piece with a ring, not with a stop", () => {
+    expect(laptopBootSettle(-1)).toBe(0);
+    expect(laptopBootSettle(0)).toBe(0);
+    expect(laptopBootSettle(1)).toBe(1);
+    // It carries past its slot and comes back: that overshoot is the whole difference between
+    // "arrived" and "stopped", and it is what the client called abrupt when it was missing.
+    let peak = 0;
+    for (let a = 0; a < 1; a += 0.005) peak = Math.max(peak, laptopBootSettle(a));
+    expect(peak).toBeGreaterThan(1.05);
+    expect(peak).toBeLessThan(1.3);
+    // …and it crosses its slot more than once on the way down.
+    let crossings = 0;
+    let above = false;
+    for (let a = 0.01; a < 1; a += 0.005) {
+      const now = laptopBootSettle(a) > 1;
+      if (now !== above) crossings += 1;
+      above = now;
+    }
+    expect(crossings).toBeGreaterThan(1);
+  });
+
+  it("gives a piece from further out a longer flight", () => {
+    // Uniform flights are what make a group read as mechanical.
+    const near = LAPTOP_BOOT.assembleDwell * LAPTOP_BOOT.assembleNear;
+    const t = LAPTOP_BOOT.assemble[0] + near * 0.999;
+    expect(laptopBootAssemble(t, 0, 26, 0)).toBe(1);
+    expect(laptopBootAssemble(t, 0, 26, 1)).toBeLessThan(1);
   });
 
   it("runs one band of light down the body, back to front", () => {
