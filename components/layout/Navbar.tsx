@@ -81,8 +81,19 @@ function NavChildLink({
  *
  * At the top of the page the header is a full-width glass bar with a red hairline under it.
  * Once the visitor scrolls (`useHeaderCondensed`, two states with hysteresis) it condenses
- * into a **floating rounded island**: inset from the window's edges, 16px corners, a
+ * into a **floating rounded island**: narrower AND shorter than the bar, 16px corners, a
  * hairline ring and a drop shadow, its red underline pulled in from the edges.
+ *
+ * How it narrows without a single reflow: `--island-pull` (declared on the `<header>`, one
+ * value per breakpoint) is added to the bar's left/right inset AND applied to the row's two
+ * end groups as a `translate` — the logo/clock block rides right, the preferences/CTA/burger
+ * block rides left, the `<nav>` between them stays put. `translate` is a compositor property,
+ * so the flex row is never re-measured and nothing can wrap or shrink: the tap targets keep
+ * their exact pixel sizes and the header's height cannot move. The pulls are measured against
+ * the row's real slack (the free space `justify-between` distributes), tightest at 861px where
+ * the nav, the language group and the CTA share 132px of it; each breakpoint keeps at least
+ * ~40px between neighbouring groups. Beyond `--maxw` the inset switches to hugging the centred
+ * 1280px row instead of the window, so a 1920px screen gets the same island, not a 1.7m-wide one.
  *
  * What makes that safe is the split between the BOX and the PAINT:
  *  · the `<header>` itself keeps the exact height it always had — 13px + the 44px tap-target
@@ -292,7 +303,7 @@ export function Navbar() {
            is part of --header-h. The rule is the full-width bar's own bottom edge, so it
            fades out with the bar — the island below draws its own ring. Its height is never
            touched, by this transition or any other. */
-        className={`sticky top-0 z-(--z-header) border-b transition-[border-color] duration-300 ease-out motion-reduce:transition-none ${
+        className={`sticky top-0 z-(--z-header) border-b transition-[border-color] duration-300 ease-out motion-reduce:transition-none [--island-pull:clamp(24px,12vw_-_14px,60px)] sm:[--island-pull:clamp(40px,46vw_-_254px,145px)] md:[--island-pull:clamp(34px,46vw_-_362px,100px)] lg:[--island-pull:clamp(50px,50vw_-_461px,130px)] xl:[--island-pull:clamp(95px,50vw_-_494px,145px)] ${
           condensed ? "border-transparent" : "border-glass-line"
         }`}
       >
@@ -314,13 +325,17 @@ export function Navbar() {
           data-header-bar=""
           className={`pointer-events-none absolute -z-10 glass-text max-md:bg-glass-solid max-md:backdrop-filter-none transition-[top,right,bottom,left,border-radius,box-shadow] duration-300 ease-out motion-reduce:transition-none after:pointer-events-none after:absolute after:h-px after:bg-linear-to-r after:from-transparent after:via-red after:to-transparent after:shadow-[0_0_14px_var(--glow-red)] after:transition-[left,right,bottom,opacity] after:duration-300 after:ease-out motion-reduce:after:transition-none ${
             condensed
-              ? "top-[7px] right-[clamp(8px,2vw,24px)] bottom-[7px] left-[clamp(8px,2vw,24px)] rounded-lg [box-shadow:0_0_0_1px_var(--line),var(--sh-md)] after:right-[22%] after:bottom-0 after:left-[22%] after:opacity-80"
+              ? "top-[7px] right-[calc(max(clamp(8px,2vw,24px),(100%_-_var(--maxw))/2_+_24px)_+_var(--island-pull))] bottom-[7px] left-[calc(max(clamp(8px,2vw,24px),(100%_-_var(--maxw))/2_+_24px)_+_var(--island-pull))] rounded-lg [box-shadow:0_0_0_1px_var(--line),var(--sh-md)] after:right-[22%] after:bottom-0 after:left-[22%] after:opacity-80"
               : "top-0 right-0 bottom-0 left-0 rounded-none [box-shadow:0_0_0_1px_transparent,0_0_0_transparent] after:right-0 after:-bottom-px after:left-0 after:opacity-100"
           }`}
         />
 
         <div className="mx-auto flex max-w-(--maxw) items-center justify-between gap-[18px] px-(--gutter) py-[13px] max-[381px]:gap-2">
-          <div className="flex min-w-0 items-center gap-4">
+          <div
+            className={`flex min-w-0 items-center gap-4 transition-[translate] duration-300 ease-out motion-reduce:transition-none ${
+              condensed ? "[translate:var(--island-pull)]" : "[translate:0]"
+            }`}
+          >
             {/* The wordmark. A 44px box at every width (the tap target on phones, and the
                 row's height on desktop), glyphs centred in it. */}
             <a
@@ -400,7 +415,11 @@ export function Navbar() {
               is what keeps the language switcher visible on a phone instead of buried in
               the hamburger menu. Keeping the CTA as the group's next sibling also preserves
               the "preferences, then call to action" reading order everywhere. */}
-          <div className="flex items-center gap-5 max-md:gap-3 max-[381px]:gap-2">
+          <div
+            className={`flex items-center gap-5 transition-[translate] duration-300 ease-out max-md:gap-3 motion-reduce:transition-none max-[381px]:gap-2 ${
+              condensed ? "[translate:calc(var(--island-pull)*-1)]" : "[translate:0]"
+            }`}
+          >
             <PreferencesGroup />
             {/* Opens the shared request dialog — a real button, never an anchor. Its text is
                 exactly `nav.cta` (a test compares textContent), so the neon is box-shadow

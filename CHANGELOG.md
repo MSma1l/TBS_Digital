@@ -16,6 +16,48 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: insula antetului se strânge și în lățime
+
+Clientul a cerut ca starea strânsă să se îngusteze, nu doar să scadă în înălțime.
+
+**Mecanismul, ales ca să nu se poată strica.** Rândul nu e micșorat: cele **două grupuri de capăt**
+(logo + ceas, respectiv preferințe + buton + burger) sunt trase spre centru cu `translate`, iar
+meniul dintre ele rămâne pe loc. `translate` e o proprietate de compozitor, deci **rândul flex nu e
+remăsurat niciodată** — nimic nu se poate împacheta pe două rânduri, niciun control nu se poate
+micșora, iar înălțimea antetului nu se poate mișca. Peste lățimea maximă a conținutului insula se
+oprește la rândul centrat de 1280px, deci un ecran de 1920 primește aceeași insulă, nu una tot mai
+lată.
+
+| Lățime | Bară | Insulă | % |
+| --- | --- | --- | --- |
+| 390 | 390 | **308** | 79,1 |
+| 861 | 861 | **758** | 88,1 |
+| 1024 | 1024 | **783** | 76,5 |
+| 1280 | 1280 | **942** | 73,6 |
+| 1440+ | 1440 | 942 | 65,4 |
+
+**Unde cedează, măsurat în toate trei limbile:** la **861px** româna e cea mai lată și lasă doar 84px
+între grupuri (rusa 96,7, engleza 84,2). O tragere mai mare de ~39px ar coborî sub 45px de respiro,
+deci banda aceea primește cea mai mică tragere și rămâne la 88%. Am preferat asta în locul unui meniu
+înghesuit în butonul roșu. Fiecare bandă e dimensionată după propriul ei punct cel mai strâns, ca să
+rămână ~50px între grupuri.
+
+**Verificat din nou, pentru că schimbarea asta e exact genul care reintroduce problema pe care
+designul o previne:** `[data-scene-layer]` măsurat în ambele stări, la același scroll —
+`{y: 71, h: 729}`, `top: 71px`, **identic în fiecare câmp**; `--header-h` rămâne 71px la toate
+lățimile; nicio depășire orizontală nicăieri.
+
+În starea strânsă: meniurile derulante rămân aliniate exact la declanșatorul lor (decalaj 0) și în
+interiorul insulei; popup-ul compact de limbă la 320 și 360 se deschide în interiorul ei; burgerul,
+capcana de focus și Escape funcționează; pragul și histerezisul sunt neatinse, cu aceleași rezultate
+la tremurat.
+
+Testul nou fixează **mecanismul**: traversarea pragului are voie să schimbe doar tokenurile de
+`translate` de pe cele două grupuri de capăt și culoarea marginii antetului — orice redimensionare a
+rândului îl pică.
+
+Fișiere: `components/layout/Navbar.tsx`, `components/__tests__/header-condense.test.tsx`.
+
 ## 2026-09-19 — Added: antetul se strânge într-o insulă plutitoare la derulare
 
 Clientul a cerut ca antetul să se micșoreze la derulare, cu colțuri rotunde și o animație frumoasă.

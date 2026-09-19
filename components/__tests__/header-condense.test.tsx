@@ -143,6 +143,36 @@ describe("the header's painted bar", () => {
     expect(changed.sort()).toEqual(["border-glass-line", "border-transparent"]);
   });
 
+  /**
+   * The island also narrows, and the row's two end groups ride in with it. That MUST happen
+   * through `translate` — a compositor property that never re-measures the flex row. Padding,
+   * margin, width or gap would re-lay the row out on every frame of the transition, and a row
+   * that re-lays out can wrap or shrink a control below its 44px tap target.
+   */
+  it("narrows by translating the row's end groups, never by re-laying the row out", async () => {
+    renderNav();
+    const row = barEl()!.nextElementSibling as HTMLElement;
+    const groups = [...row.children] as HTMLElement[];
+    const before = groups.map((g) => g.className);
+
+    await scrollTo(CONDENSE_AT + 200);
+    const after = groups.map((g) => g.className);
+
+    const swapped = groups.flatMap((_, i) => {
+      const a = before[i].split(/\s+/).filter(Boolean);
+      const b = after[i].split(/\s+/).filter(Boolean);
+      return [...a.filter((c) => !b.includes(c)), ...b.filter((c) => !a.includes(c))];
+    });
+    expect(swapped.length, "only the two END groups move; the <nav> between them stays put").toBe(4);
+    for (const token of swapped) {
+      expect(token, `"${token}" is not a translate — it would re-lay the header row out`).toMatch(
+        /^\[translate:/,
+      );
+    }
+    // The pull itself is one inherited custom property, declared on the header for every breakpoint.
+    expect(headerEl().className).toMatch(/\[--island-pull:/);
+  });
+
   it("keeps the burger, the language group and the CTA through a crossing", async () => {
     renderNav();
     await scrollTo(CONDENSE_AT + 40);
