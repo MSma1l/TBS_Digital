@@ -149,6 +149,30 @@ export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): vo
   probe.panelsPitch = (last.left - first.left) / (PANEL_COLUMNS - 1);
 }
 
+/**
+ * What a service page's projects window has to measure to count as one: a real box, at least this
+ * wide and this tall. It is a grid CELL, not a strip carved out of a row, so there is nothing to
+ * check it against but itself — and the one thing worth checking is that the page laid it out at
+ * all. Closed up it is `display: none` (below 861px, and on a `fallback` / `off` renderer) and a
+ * `getBoundingClientRect` of 0 x 0 is what says so.
+ */
+export const PROJECTS_WINDOW = { minWidth: 140, minHeight: 120 } as const;
+
+/**
+ * The projects window (`probe.projects`): the cell the laptop stands in, measured rather than
+ * derived from the grid. Which cell it is depends on the direction and the width — the hole a
+ * 5-card grid leaves in three columns, the hole a 3-card grid leaves in two, or a cell of its own
+ * at the end of the shelf — so there is no arithmetic that could find it from the row. Null with
+ * no element, or one the page is not laying out.
+ */
+export function writeProjectsWindow(probe: ScrollProbe, el: HTMLElement | null): void {
+  probe.projects = docRect(el, probe.projects);
+  const rect = probe.projects;
+  if (!rect || rect.w < PROJECTS_WINDOW.minWidth || rect.h < PROJECTS_WINDOW.minHeight) {
+    probe.projects = null;
+  }
+}
+
 /** The offset a sticky box pins at (its computed `top`), 0 when that is not a pixel length. */
 function stickyTop(el: Element): number {
   const top = Number.parseFloat(window.getComputedStyle(el).top);
@@ -236,6 +260,7 @@ export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   probe.services = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="services"]`), probe.services);
   writeStepsHost(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="steps"]`));
   writePanelsBand(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="panels"]`));
+  writeProjectsWindow(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="projects"]`));
   const track = stage.querySelector(`[${WORK_TRACK_ATTR}]`);
   probe.work = docRect(track, probe.work);
   const head = track?.previousElementSibling ?? null;

@@ -16,6 +16,59 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Added: un laptop 3D pe care rulează proiectele
+
+Clientul: „fa 3d modelul unui laptop și pe ecrane să meargă aceste cartele". Rundele anterioare
+puseseră rame de dispozitiv în jurul fiecărei capturi; el voia **un obiect**, cu ecran.
+
+**Laptopul** (`components/scene/three/models/laptop.ts`) e făcut din același material ca restul
+scenei: o singură geometrie de cutie instanțiată cu muchii aprinse — blat, balamă, buza din față,
+trackpad, șinele capacului, trei rânduri de taste, picioare. **Două desene pe cadru**, măsurate prin
+comparație pe aceeași pagină, cu și fără el: unul pentru ramă, unul pentru ecran. Fără ramură de
+material nouă, fără uniformă nouă. Capacul se deschide în 1,1s când celula intră în pânză și se
+închide la ieșire; un caret trece peste taste o dată pe buclă.
+
+Unghiul capacului nu e ales din ochi: la 107° ecranul ajunge **perpendicular pe cameră** după ce
+corpul e înclinat spre privitor.
+
+**Ecranul folosește conducta hologramei din spirală**, neschimbată. Plafonul ei de 384×240 este
+**exact 16:10** — aspectul unui ecran de laptop — deci captura cade pe panou fără tăiere și fără
+întindere. Plafonul rămâne ce a fost: o decizie de confidențialitate, nu una tehnică.
+
+**Cum rulează cartelele.** Un modul nou (`projectsReel.ts`) doar **citește** grila: ciclu de 4,2s pe
+proiect, iar cursorul are prioritate — treci peste un card și proiectul ăla apare pe ecran; pleci și
+ciclul continuă **de unde era**. Focusul de la tastatură face același lucru. Grila rămâne neatinsă:
+ea e conținutul, accesibilitatea și varianta fără 3D.
+
+**Datele se schimbă după montare** (conținutul vine din API, imaginile pot fi înlocuite din admin).
+Un observator prinde atât schimbarea listei, cât și înlocuirea unei imagini pe un nod pe care React
+l-a păstrat — al doilea caz a cerut o extindere a hologramei, pentru că altfel același element la
+același index era sărit, adică **exact** cazul „textură veche pentru un proiect a cărui imagine a
+fost schimbată". Verificat pe pagina reală, punând o altă captură pe un card ținut sub cursor.
+
+**Unde stă:** în celula liberă a grilei — gaura pe care o lasă 5 carduri în 3 coloane — deci **zero
+pixeli** adăugați acolo unde există. Unde rândul e plin, își ia rândul lui. Scena **măsoară** celula,
+nu deduce care e: verificat ștergând un card live, grila s-a reașezat și laptopul a urmat-o. Sub
+861px și fără 3D nu există deloc.
+
+**E-mailul din `statistic-1.png`, măsurat nu presupus:** sursa e micșorată de 6,65 ori pe pânză, iar
+pe ecran un caracter are **2,5 pixeli de dispozitiv**, sub pieptenele de scanlines. Mărit de 3× și de
+5×: nicio literă lizibilă. Singurul text care se citește e cel desenat de hologramă — numele și
+indexul.
+
+**Ce a fost mai greu decât pare:** camera e perspectivă, iar celula stă la ~400px de centrul pânzei,
+deci silueta obiectului se înclină în afară cu ~11% și **se schimbă** pe măsură ce celula urcă. Un
+contur dedus din geometrie ar fi fost greșit; limita e măsurată din 26 de cadre ale unei rotații
+complete × 3 poziții de derulare × 3 pagini × 3 lățimi. Măsurătoarea însăși a înșelat de trei ori:
+cardurile vecine sunt și ele obiecte luminoase, ceasul din antet ticăie între două capturi, iar un
+decupaj care iese din ecran derulează pagina în tăcere.
+
+`[data-scene-layer]` identic înainte și după, pe toate paginile și lățimile; zero erori de consolă.
+
+Fișiere noi: `components/scene/three/models/laptop.ts`, `components/scene/projectsReel.ts`,
+`components/__tests__/scene-laptop.test.ts`. Modificate: `world.ts`, `SceneWorld.tsx`,
+`choreography.ts`, `scrollProbe.ts`, `lib/scene.ts`, `hologram.ts`, `DirectionPage.tsx` + CSS.
+
 ## 2026-09-19 — Changed: cardurile de proiect devin ferestre de instrument
 
 Clientul, uitându-se la grila „Proiecte relevante" de pe paginile de servicii: să arate interesant,

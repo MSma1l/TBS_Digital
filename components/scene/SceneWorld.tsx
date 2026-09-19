@@ -15,6 +15,7 @@ import { createFpsGovernor, sampleFrame, type GovernorStep } from "@/components/
 import { useRetainedRenderer } from "@/components/three/hooks";
 import { mediaMatches } from "@/lib/device";
 import {
+  PROJECTS_TRACK_ATTR,
   SCENE_LAYOUT_EVENT,
   SCENE_STAGE_ATTR,
   WORK_ID,
@@ -29,6 +30,7 @@ import { armReady, buildStaged, compileStaged, createReadySignal, tickReady } fr
 import type { ScenePalette } from "./three/palette";
 import { createSceneWorld, stageHelix } from "./three/world";
 import { sceneGovernorOptions, type SceneCanvasTier } from "./tiers";
+import { createProjectsReel } from "./projectsReel";
 import { createWorkHelixDriver } from "./workHelix";
 
 export type SceneWorldProps = {
@@ -142,6 +144,17 @@ export function SceneWorld({
     world.attachWork(driver, () => callbacks.current.onHelix("off"));
     return () => world.attachWork(null);
   }, [world, probe]);
+
+  // A service page's projects reel, for the scene's whole life: it says which project the
+  // laptop's display is showing — the hovered card, the focused one, or the cycle's — and the
+  // world disposes it. It only READS the grid and listens on it; every card stays exactly as
+  // React rendered it, which is what keeps the grid the fallback when there is no laptop.
+  useEffect(() => {
+    const grid = document.querySelector<HTMLElement>(`[${PROJECTS_TRACK_ATTR}]`);
+    if (!grid) return;
+    world.attachProjects(createProjectsReel({ grid }));
+    return () => world.attachProjects(null);
+  }, [world]);
 
   useFrame((state, dt) => {
     // Ready from inside the frame loop: the canvas really drew the compiled scene — never from

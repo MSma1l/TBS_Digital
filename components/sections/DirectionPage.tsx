@@ -493,6 +493,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             <div
               className={styles.projectGrid}
               ref={projectsRef}
+              data-projects-track=""
               style={{ "--card-count": related.length } as CSSProperties}
             >
               {related.map((p, i) => {
@@ -566,6 +567,30 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                   </article>
                 );
               })}
+              {/* The laptop's cell. The shelf gets a machine standing in it and the
+                  screenshots of these very cards play on its display (the scene builds it
+                  from `data-scene-anchor="projects"` and reads the cards through
+                  `data-projects-track` above — read only: not one card is written to).
+
+                  It is the grid's NEXT CELL, which is the hole a 5-card grid leaves in three
+                  columns and a 3-card grid leaves in two, and a cell of its own at the end of
+                  the shelf when the row happens to be full. Either way it covers no card and
+                  moves no copy: a cell cannot overlap its neighbours, and no card's own box
+                  changes. Which cell it landed in is assumed nowhere — the scene MEASURES
+                  this element (components/scene/scrollProbe.ts).
+
+                  See-through, like the panels' instrument window: the canvas draws BEHIND
+                  the page, so the cell paints no fill and there is nothing at all between it
+                  and the canvas. It is laid out only where a model can really arrive — from
+                  861px up, on the `webgl` (or still `pending`) renderer — and is
+                  `display: none` otherwise, so under that the grid is exactly the one we
+                  shipped, holes and all. Decorative and heading-less: nothing focusable, no
+                  copy, no marker for the HUD rail. */}
+              <div
+                aria-hidden="true"
+                className={styles.projStage}
+                data-scene-anchor={desktop ? "projects" : undefined}
+              />
             </div>
           </section>
         )}

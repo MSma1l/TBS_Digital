@@ -149,6 +149,12 @@ export const SERVICES_ID = "servicii";
 export const WORK_ID = "lucrari";
 /** On Work's card grid: the track the helix and its spiral are measured against. */
 export const WORK_TRACK_ATTR = "data-work-track";
+/**
+ * On a service page's "Proiecte relevante" grid: the cards whose screenshots the 3D laptop plays
+ * (`components/scene/projectsReel.ts`). The grid itself is untouched — it is the content, the
+ * accessibility and the fallback; the reel only reads it and listens on it.
+ */
+export const PROJECTS_TRACK_ATTR = "data-projects-track";
 
 /* ---- directions → models ------------------------------------------------------------- */
 
@@ -302,6 +308,13 @@ export type ScrollProbe = {
    */
   panelsPitch: number;
   /**
+   * A service page's projects window (`[data-scene-anchor="projects"]`): the see-through cell the
+   * 3D laptop stands in, inside the "Proiecte relevante" grid. Measured off the element itself, so
+   * it is null wherever the page lays none out — below 861px and on a `fallback` / `off` renderer,
+   * where the cell is `display: none` and the grid is exactly the one we shipped.
+   */
+  projects: DocRect | null;
+  /**
    * A service page's steps host (`[data-scene-anchor="steps"]`): the empty, sticky box beside
    * "Cum lucrăm" the model moves into while the section is read. `y` is where the host RESTS —
    * its document top unstuck, not where it is pinned at this scroll. Null on every page without
@@ -347,6 +360,7 @@ export function createScrollProbe(): ScrollProbe {
     workGap: null,
     panels: null,
     panelsPitch: 0,
+    projects: null,
     steps: null,
     stepsPin: { start: 0, end: 0 },
     heroExit: { start: 0, end: 0 },

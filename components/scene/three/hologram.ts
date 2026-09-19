@@ -239,8 +239,14 @@ export async function composeHologram(
 
 export type HologramSource = {
   texture: CanvasTexture;
-  /** Draw `card` (the `index`-th) in the next idle slot, replacing any pending request; null does nothing. */
-  request(card: HTMLElement | null, index: number): void;
+  /**
+   * Draw `card` (the `index`-th) in the next idle slot, replacing any pending request; null does
+   * nothing. The same card at the same index is skipped once its screenshot is on the texture —
+   * unless `force`, which is how a caller says the card's CONTENT changed under it (a content
+   * swap replacing a project's image on a node React kept). Without it the texture would keep a
+   * screenshot of a project that is no longer there.
+   */
+  request(card: HTMLElement | null, index: number, force?: boolean): void;
   dispose(): void;
 };
 
@@ -351,8 +357,8 @@ export function createHologramSource(size: readonly [number, number], onSwap: ()
 
   return {
     texture,
-    request(card, index) {
-      request(card, index, false);
+    request(card, index, force = false) {
+      request(card, index, force);
     },
     dispose() {
       disposed = true;

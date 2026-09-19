@@ -329,6 +329,86 @@ export function placePanels(
   return out;
 }
 
+/* ---- the projects laptop (a service page's "Proiecte relevante") ------------------------ */
+
+/**
+ * What the laptop LIGHTS, in model units — the mirror of `LAPTOP_LIT` in
+ * `three/models/laptop.ts`, which cannot be imported here (this module is three.js-free and that
+ * one builds geometry at import), and the same distinction the benefits row makes: an object drawn
+ * additively lights past the boxes it is built from, so the fit is made against the lit pixels.
+ *
+ * It is the model's own bound turned by the pose it is drawn at — pitched `LAPTOP_POSE.pitch`
+ * towards the viewer and yawed within `LAPTOP_POSE.yaw` either side — so the silhouette, not the
+ * box, is what the window has to hold: half its depth leans into the height as it pitches and into
+ * the width as it turns. `MODEL_RADIUS` is wrong here for the same reason it is wrong for a panel —
+ * that is the five service models' bound, and fitting this object's diagonal into a cell would draw
+ * a laptop half the size with the air in the wrong place.
+ *
+ * Neither is the turned bound. This object is a UNIT DEEP, its cell stands at the edge of the page
+ * (~400px off the canvas's centre) and it travels the whole height of the canvas as the visitor
+ * scrolls — and the scene's camera is a PERSPECTIVE one (`SCENE_CAMERA`), so the near half of the
+ * machine projects ~11% further from the canvas's centre than the far half and the silhouette leans
+ * OUTWARD, away from that centre, by more the further the cell is from it. The lean is not the same
+ * on both sides either: the pose's own yaw adds to it on one and takes from it on the other.
+ *
+ * So these two numbers are measured on the real pages, not derived. Every frame is diffed against
+ * the same page with the canvas hidden — the cards next door are bright objects too, and a bound
+ * read off the raw frame would be theirs — a row or a column counts only with three lit pixels in
+ * it, the sticky header's ticking clock is excluded, and the sweep runs 26 frames of a full turn at
+ * three scroll positions (the cell high in the viewport, centred, low), on produs-digital,
+ * automatizare-api and asistenti-ia at 1280, 1024 and 861. At the authored 1.52 x 1.17 the worst
+ * frames lit 18px past a left-hand cell's left edge and 19px below a 1024 cell's foot; at
+ * 1.94 x 1.37 every frame of every sweep is inside the cell on all four sides.
+ */
+export const LAPTOP_LIT = { halfWidth: 1.94, halfHeight: 1.37 } as const;
+
+/** Clear air between that lit box and the cell's own chrome, css px per side. */
+export const LAPTOP_AIR = 8;
+
+/**
+ * How much of the projects window is inside the canvas at `scrollY`, 0 → 1. `margin` grows the
+ * canvas by that many pixels on both sides first — the same way the benefits row asks "is it near
+ * enough to be worth building" with the arithmetic it asks "is it worth drawing".
+ */
+export function projectsShare(probe: ScrollProbe, scrollY: number, h: number, margin = 0): number {
+  const win = probe.projects;
+  if (!probe.live || !win || win.w <= 0 || win.h <= 0) return 0;
+  const y0 = win.y - canvasDocTop(scrollY, probe, h);
+  const inside = Math.min(h + margin, y0 + win.h) - Math.max(-margin, y0);
+  return clamp01(inside / win.h);
+}
+
+/**
+ * The laptop's placement at `scrollY`: on the projects window's centre, fitted into it — its height
+ * against the object's own half-height, its width against its half-width, whichever runs out first.
+ * Which one that is depends on the cell: in the hole a 5-card grid leaves, the cell is as tall as
+ * the cards beside it and the WIDTH limits; in a cell of its own at the end of the shelf the height
+ * does.
+ *
+ * A rigid follow, like the benefits row: the window is an ordinary box in the page, and an object
+ * that drifted against it would show outside its own cell and over a card. Null with no window
+ * measured.
+ */
+export function placeLaptop(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  out: Placement = { x: 0, y: 0, scale: 1 },
+): Placement | null {
+  const win = probe.projects;
+  if (!probe.live || !win || win.w <= 0 || win.h <= 0) return null;
+  const k = worldPerPx(h);
+  const cx = win.x + win.w / 2;
+  const cy = win.y + win.h / 2 - canvasDocTop(scrollY, probe, h);
+  const byHeight = Math.max(0, win.h - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfHeight);
+  const byWidth = Math.max(0, win.w - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfWidth);
+  out.x = (cx - w / 2) * k;
+  out.y = -(cy - h / 2) * k;
+  out.scale = Math.min(byHeight, byWidth) * k;
+  return out;
+}
+
 /* ---- the steps corner (a service page's "Cum lucrăm") ----------------------------------- */
 
 /**

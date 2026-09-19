@@ -1126,6 +1126,100 @@ a.project:hover {
   overflow: hidden;
 }
 
+/* ---------- the laptop's cell ----------
+   The shelf's last cell is a machine, not a card: a 3D laptop stands in it and the screenshots of
+   the cards beside it play on its display (components/scene/three/models/laptop.ts). This box is
+   only the window it stands in.
+
+   See-through, exactly like the panels' instrument window (:440-470): the scene's canvas draws
+   BEHIND the page, so the cell paints no fill and nothing sits between it and the canvas. No
+   transform, no perspective, no filter, no `contain`, no clipping overflow — here or on anything
+   above it (docs/07-conventions.md); the card windows' own `perspective` lives on the cards, which
+   are this box's siblings and never its ancestors.
+
+   Its chrome is the grid's own recipe, once more: 1px background LAYERS, each `no-repeat` with an
+   explicit 1px side so no layer is ever a fill — a rule across its head, a guide rail under each of
+   its ends — and two square brackets at its foot. It opens after the last window in the shelf has
+   landed (`--card-count`, the grid's own variable), so the row composes and then the machine is
+   revealed standing in it.
+
+   `min-height` is the one number here that is not taste. In the hole a 5-card grid leaves, the cell
+   stretches to the cards beside it (~333px) and the machine is fitted to the cell's WIDTH; alone in
+   a row at the end of the shelf, only this says how tall it is. 330px is where the two agree — the
+   height at which the width still runs out first for the 1.70 x 1.17 box the scene fits
+   (components/scene/choreography.ts `LAPTOP_LIT`): h >= 16 + 0.688 * (w - 16) at every cell width
+   this grid produces, the 465px of two columns at 1024 included.
+
+   It is worth 90px of page on the two layouts that open a row (a 3-card grid in three columns, a
+   2-card grid in two), and it buys the only thing that was keeping the machine from staying inside
+   its own cell. MEASURED, not reasoned: at 240px the fit was height-limited, and a height-limited
+   machine near the top of the viewport lit 49px ABOVE its cell — the scene's camera is a
+   perspective one, and the near half of a unit-deep object leans outward as its cell travels away
+   from the canvas's centre. At 330px the same sweep stays 8 to 70px INSIDE the cell on all four
+   sides, at every scroll position. It also makes the laptop one size across the three service
+   pages instead of two.
+
+   Either way the scene MEASURES this box rather than assuming it. */
+.projStage {
+  /* Laid out only where a model can really arrive — the gate is right below. */
+  display: none;
+  position: relative;
+  min-height: 330px;
+  /* the card's own radius, so the cell belongs to the shelf it stands in */
+  border-radius: 19px;
+  background:
+    linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
+      top center / 100% 1px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top left 11px / 1px 22px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top right 11px / 1px 22px;
+  opacity: 0;
+  transition: opacity 0.5s var(--motion-ease-out);
+  /* after the last window of the shelf has folded open (:1037-1050, the same ladder) */
+  transition-delay: calc(var(--card-count, 3) * 90ms + 240ms);
+}
+/* The brackets at the cell's foot, on the same 11px gutter as the guide rails above them, so the
+   two read as one frame the eye completes down its sides. 18px arms, no radius. */
+.projStage::before,
+.projStage::after {
+  content: "";
+  position: absolute;
+  bottom: 11px;
+  width: 18px;
+  height: 18px;
+  border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
+  border-bottom-width: 1px;
+}
+.projStage::before {
+  left: 11px;
+  border-left-width: 1px;
+}
+.projStage::after {
+  right: 11px;
+  border-right-width: 1px;
+}
+.projStage[data-entered] {
+  opacity: 1;
+}
+/* Where the cell is actually opened: the two conditions the panels' bay uses, unchanged — the
+   site's desktop breakpoint (the `data-scene-anchor` is not written below it either) and a
+   renderer that will really draw. `fallback` and `off` — no usable WebGL, the QA flag off, reduced
+   motion — never get an empty cell with nothing behind it: the grid is then exactly the one we
+   shipped, its holes included. */
+@media (min-width: 861px) {
+  :global([data-scene-stage][data-renderer="webgl"]) .projStage,
+  :global([data-scene-stage][data-renderer="pending"]) .projStage {
+    display: block;
+  }
+}
+
 /* ---------- steps ----------
    The section the visitor reads to understand how the work runs — and, since 2026-09-18, the
    section that drives the model in the hero: the row in the middle third of the viewport is
@@ -1527,7 +1621,8 @@ a.project:hover {
   .hlNode,
   .hlCorner,
   .hlIndex,
-  .hlWindow {
+  .hlWindow,
+  .projStage {
     opacity: 1;
     transition: none;
   }

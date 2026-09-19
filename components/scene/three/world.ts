@@ -19,11 +19,13 @@
  * per draw object, on the programs the scene already compiled), so it never delays the first
  * picture. Until it is built the work gate stays shut and the cards stay as the server rendered them.
  *
- * A service page has two more residents, and they are why this world now animates more than one
+ * A service page has three more residents, and they are why this world now animates more than one
  * thing at a time: the service model itself, which travels between the hero host and the steps
- * corner (one instance, blended between two placements), and the three small objects of the
- * benefits row, one per panel window. The row is built like the helix — late, one per frame, and
- * only once the probe has measured a row to put it in — so no other page pays for it.
+ * corner (one instance, blended between two placements); the three small objects of the benefits
+ * row, one per panel window; and the laptop standing in the "Proiecte relevante" shelf, whose
+ * display plays that direction's project screenshots through the hologram pipeline Work's helix
+ * uses. All of them are built like the helix — late, one per frame, and only once the probe has
+ * measured a window to put them in — so no other page pays for any of it.
  */
 
 import {
@@ -66,8 +68,10 @@ import {
   placeHelixAmbient,
   placeHelixSpiral,
   panelsShare,
+  placeLaptop,
   placePanels,
   placeServices,
+  projectsShare,
   placeSteps,
   revealOf,
   smoothstep,
@@ -82,6 +86,7 @@ import { stepSceneFx, type SceneFx } from "../fx";
 import { HELIX_LAYOUT } from "../helix";
 import { HELIX, MODEL_RADIUS } from "../shapes";
 import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
+import type { ProjectsReel } from "../projectsReel";
 import type { WorkHelixDriver } from "../workHelix";
 import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
@@ -100,6 +105,7 @@ import { BENCH_RUN, createPipelineBenchModel } from "./models/pipelineBench";
 import { createBrandBoardModel } from "./models/brandBoard";
 import { ASSIST_CYCLE, ASSIST_START, createAssistantLoopModel } from "./models/assistantLoop";
 import { MODEL_SWAY, type ModelFrame, type PanelModel, type SceneModel } from "./models/types";
+import { createLaptopModel, type LaptopModel } from "./models/laptop";
 import { createSurveyFieldModel } from "./models/panel/surveyField";
 import { createPanelFitModel } from "./models/panel/panelFit";
 import { createLaunchRampModel } from "./models/panel/launchRamp";
@@ -153,6 +159,12 @@ export type SceneWorld = {
   attachWork(driver: WorkHelixDriver | null, onRelease?: () => void): void;
   /** The helix's mode as the last frame drew it: the driver's, `off` without one. */
   helixMode(): SceneHelixMode;
+  /**
+   * Hand over the projects reel (`projectsReel.ts`): from then on the laptop's display shows the
+   * card it answers — the hovered or focused one, or the cycle's. The world disposes it. Null
+   * disposes the one attached (the scene is going).
+   */
+  attachProjects(reel: ProjectsReel | null): void;
   setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
   dispose(): void;
@@ -364,6 +376,25 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   const panelSpots: Placement[] = PANEL_FACTORIES.map(() => ({ x: 0, y: 0, scale: 1 }));
   let panelFade = 0;
 
+  /**
+   * The projects laptop, its own hologram source and the reel the page hands over: a service
+   * page's "Proiecte relevante" shelf only. Built like the benefits row — late, one slice, and
+   * only once the probe has a window to put it in — so no other page pays for any of it.
+   *
+   * Its own `HologramSource`, never the helix's: the two show different card lists (Work's
+   * projects and this direction's), and they live on different pages, so sharing one canvas would
+   * only trade a 384x240 texture for a lifetime question neither of them can answer.
+   */
+  let laptop: LaptopModel | null = null;
+  let laptopFade = 0;
+  const laptopSpot: Placement = { x: 0, y: 0, scale: 1 };
+  let reel: ProjectsReel | null = null;
+  let display: HologramSource | null = null;
+  /** What the display is showing, and the reel generation it was composed at. */
+  let screenCard: HTMLElement | null = null;
+  let screenIndex = -1;
+  let screenGeneration = -1;
+
   /* Work: the helix, its hologram and the spiral driver the page hands over. */
   let helix: HelixModel | null = null;
   let helixDone = false;
@@ -541,6 +572,42 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       // the driver restores what it can on its own; the scene goes on without it
     }
     onRelease?.();
+  };
+
+  /**
+   * The project on the laptop's display, once a frame while it is on screen. The reel answers with
+   * the hovered card, the focused one, or the cycle's (`projectsReel.ts`); `composeHologram` draws
+   * it — its screenshot as luminance under scanlines, its name, its index, bracket corners — on a
+   * canvas capped at `config.hologram` (384 x 240 at high), and the model glitches over the swap.
+   *
+   * A pick is composed again when the card changes, when its place in the grid changes, and when
+   * the reel's `generation` moves — which is a content swap having replaced the cards or one of
+   * their images. That last case is the reason `request` takes `force`: the card element can be the
+   * very one already on the texture, with a different project behind it.
+   */
+  const frameScreen = (step: number) => {
+    const model = laptop;
+    if (!model || !reel) return;
+    const pick = reel.pick(step);
+    if (!pick) return;
+    const stale = pick.generation !== screenGeneration;
+    if (!stale && pick.card === screenCard && pick.index === screenIndex) return;
+    screenCard = pick.card;
+    screenIndex = pick.index;
+    screenGeneration = pick.generation;
+    if (!display) {
+      // Handed to the model on its first drawn card (no empty display before it), glitching every swap.
+      let handed = false;
+      const source = createHologramSource(config.hologram, () => {
+        if (!handed) {
+          handed = true;
+          model.setHologram(source.texture);
+        }
+        model.glitch();
+      });
+      display = source;
+    }
+    display.request(pick.card, pick.index, stale);
   };
 
   /**
@@ -879,6 +946,47 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         }
       }
 
+      /* the projects laptop: the one machine in the world with a screen. It stands in the cell the
+         "Proiecte relevante" grid gives it and plays that direction's own project screenshots —
+         the same hologram pipeline Work's helix uses, at the same 384x240 cap, for the same
+         reason. Built the way the row is: never a part `complete()` counts, never in
+         `compileStages()` (it draws on P3 `edges` instanced and P2 `holo`, both already compiled),
+         one slice, and only once there is a window measured to put it in. Every page without one —
+         the home page, a narrow viewport, a `fallback` or `off` renderer — never builds it, never
+         places it, never composes a texture and never disposes anything. */
+      if (!laptop && reel && root.visible && projectsShare(probe, scrollY, h, h * PANEL_BUILD_LEAD) > 0) {
+        laptop = createLaptopModel(config, palette);
+        laptop.setLite(lite);
+        laptop.group.visible = false;
+        root.add(laptop.group);
+        // Its own pre-warm frame, like a panel's: drawn once at reveal 0 (every fragment discards)
+        // so the frame that first shows it uploads nothing.
+        prewarmQueue.add(laptop.group);
+      }
+      if (laptop) {
+        const group = laptop.group;
+        const prewarm = prewarmQueue.has(group);
+        const onScreen = projectsShare(probe, scrollY, h) > 0;
+        const faded = laptopFade + (onScreen ? step : -step) / PANEL_FADE_SECONDS;
+        laptopFade = faded <= 0 ? 0 : faded >= 1 ? 1 : faded;
+        const spot = laptopFade > 0 || prewarm ? placeLaptop(probe, scrollY, w, h, laptopSpot) : null;
+        if (!spot) {
+          group.visible = false;
+        } else {
+          group.position.set(spot.x, spot.y, 0);
+          group.scale.setScalar(spot.scale);
+          // The row's rule again: the world's shared sway, and NOT the pointer lean — the cards
+          // around it already lean in CSS. The model cancels most of this sway and turns on its own.
+          group.rotation.set(0, sway, 0);
+          modelFrame.reveal = laptopFade;
+          modelFrame.prewarm = prewarm;
+          modelFrame.step = step;
+          laptop.update(modelFrame);
+          // Only while it is really being drawn: a reel nobody is watching does not spend projects.
+          if (laptopFade > 0) frameScreen(step);
+        }
+      }
+
       /* Work's helix: on its sticky zone (spiral) or in the band above the heading (ambient) */
       let helixPlace: Placement | null = null;
       try {
@@ -982,12 +1090,23 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       return drawnMode;
     },
 
+    attachProjects(next) {
+      if (next === reel) return;
+      reel?.dispose();
+      reel = next;
+      // Whatever is on the display was composed from cards that are gone.
+      screenCard = null;
+      screenIndex = -1;
+      screenGeneration = -1;
+    },
+
     setLite(next) {
       lite = next;
       core?.setLite(lite);
       swarm?.setLite(lite);
       for (const model of models) model.setLite(lite);
       for (const panel of panels) panel.setLite(lite);
+      laptop?.setLite(lite);
       helix?.setLite(lite);
     },
 
@@ -998,16 +1117,21 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       trail?.setPalette(next);
       for (const model of models) model.setPalette(next);
       for (const panel of panels) panel.setPalette(next);
+      laptop?.setPalette(next);
       helix?.setPalette(next);
     },
 
     dispose() {
       releaseWork();
+      reel?.dispose();
+      reel = null;
       core?.dispose();
       swarm?.dispose();
       trail?.dispose();
       for (const model of models) model.dispose();
       for (const panel of panels) panel.dispose();
+      laptop?.dispose();
+      display?.dispose();
       helix?.dispose();
       hologram?.dispose();
       root.clear();
