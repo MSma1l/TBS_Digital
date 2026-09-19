@@ -812,9 +812,63 @@
   margin: 0 0 var(--sp-5);
 }
 .projectGrid {
+  /* The frame's own positioning context. Nothing else changes here: no `perspective`, no
+     `transform-style`, no `overflow`, no `clip-path`, no `filter`, no `contain` — the
+     brackets clip themselves on their own pseudo-elements, and the stage's depth (and the
+     door to a see-through window in this section later) stays open. */
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+}
+/* ---------- the shelf's frame ----------
+   The section read as ONE object rather than N decorated slabs: a rule across its head with a
+   guide rail hanging off each end, and a bracket at the bottom right that closes only after
+   the last window has landed (`--card-count` below). Built from `.hlWindow`'s own recipe
+   (:466-468) — 1px background LAYERS, each `no-repeat` with an explicit 1px side, so no layer
+   is ever a fill — and animated with `corner-tl` / `corner-br`, already declared at :570/:580.
+   The head rule lives on `::before` rather than on `.projectGrid`'s own background: a
+   background paints inside the border box only, so a layer at `top -10px` would be clipped
+   away entirely and the rule would silently never appear. */
+.projectGrid::before,
+.projectGrid::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+}
+.projectGrid::before {
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  height: 20px;
+  background:
+    linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
+      top left / 100% 1px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top left / 1px 20px,
+    linear-gradient(
+        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
+        transparent
+      )
+      no-repeat top right / 1px 20px;
+}
+/* 28px arms, no radius — nowhere near the 8px the dot rule is about. */
+.projectGrid::after {
+  bottom: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
+  border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+}
+.projectGrid[data-entered]::before,
+.projectGrid[data-entered]::after {
+  opacity: 1;
 }
 .project {
   display: block;
@@ -824,29 +878,235 @@
   padding: var(--sp-4);
   text-decoration: none;
   color: inherit;
-  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  /* This card's place in the row, as a PLAIN NUMBER — never a calc of its own (:196-199). */
+  --step: var(--card-index, 0);
+  /* The lift moved off `transform` onto `translate` so the card can lift while the window
+     inside it turns under the pointer; `transform` on the card would fight the lean. */
+  transition: translate 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
+/* The lift and the accent border stay the LINK's affordance: a card with no public url turns
+   and tips like the rest, but it never offers to be clicked (lib/content.ts:170-172). */
 a.project:hover {
-  transform: translateY(-4px);
-  border-color: var(--blue);
+  translate: 0 -4px;
+  border-color: var(--sol-accent, var(--blue));
   box-shadow: var(--sh-md);
 }
-.projectImage {
+/* The house focus ring, which this card did not have while `.cta` (:103), `.caseToggle`
+   (:717) and `.caseLink` (:791) all did. */
+.project:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ---------- the window on the card ----------
+   The screenshot stops being a cropped rectangle and becomes a window standing on the panel:
+   a 28px title bar carrying the project's own tag, a 12px square ring for its mark, and the
+   capture itself as the glass — never a picture with a frame drawn over it.
+
+   It is drawn in the INTERIOR SCENE'S material language, in CSS. What that language actually
+   is, read off the models: every solid in the scene is a box drawn by `SURFACE_MODE.edges`
+   (components/scene/three/materials.ts) — a lit 1px edge, a face at 0.035 strength, a 0.05
+   fresnel rim, no radius, no light and no shadow, composited ADDITIVELY on near-black; and the
+   scene's one screenshot surface, the Work hologram, is the capture under a square-wave
+   scanline comb inside a hairline frame (the `holo` branch of the same shader).
+   So, here: a 1px accent ring and a halo of ADDED light instead of a drop shadow, hard corners
+   instead of a fillet (a BoxGeometry has no fillet, and every bracket in this module is drawn
+   square), flat token fills instead of any gradient pretending to be a surface, and the glass
+   under a scanline comb. No texture image, no metal, no bevel, no blur, no `filter`. */
+.projLid {
+  display: block;
+  /* The hinge is the window's base. At -72deg the window has folded flat onto the card and
+     the panel under it reads as the deck it rises from. */
+  transform-origin: 50% 100%;
+  transform: perspective(900px) rotateX(0deg);
+  margin-bottom: var(--sp-4);
+  transition: transform 0.24s var(--motion-ease-out);
+}
+.projShell {
+  display: block;
+  position: relative;
+  overflow: clip;
+  border-radius: 0;
+  background: var(--panel2);
+  /* The edge and its halo: light ADDED to the page, the way the scene draws. Deliberately not
+     `--sh-md` — the scene carries no lights and casts no shadows, so a soft drop shadow would
+     be the one realistic thing in the whole object. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--sol-accent, var(--blue)) 34%, transparent),
+    0 0 22px color-mix(in srgb, var(--sol-accent, var(--blue)) 10%, transparent);
+  transition: transform 0.3s var(--motion-ease-out), box-shadow 0.25s var(--motion-ease-out);
+}
+/* The title bar. It carries the project's own tag, moved out from under the image and into
+   the bar, where "CRM PRIVAT · FĂRĂ LINK" reads as a window title and is exactly true. Colour,
+   size, weight and tracking are the old `.projectTag`'s, unchanged — only the surface under
+   them moves from `--panel` to `--panel2`. */
+.projTag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  background: var(--panel2);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--red-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-extra);
+  letter-spacing: 0.08em;
+}
+/* The window's mark: a 12px square RING, the house's node glyph (`.hlNode` at :356-369).
+   Never three round lights — a dot is the one shape this repo does not draw. */
+.projTag::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border: 1px solid color-mix(in srgb, var(--sol-accent, var(--blue)) 45%, transparent);
+  border-radius: 0;
+  transition: border-color 0.25s var(--motion-ease-out), box-shadow 0.25s var(--motion-ease-out);
+}
+/* No image in the document (an admin swap can produce one): no window, no bar — the tag
+   renders exactly as it always did, directly on the card. */
+.projTagLoose {
+  display: block;
+  height: auto;
+  padding: 0;
+  background: none;
+  border-bottom: 0;
+  overflow: visible;
+  white-space: normal;
+}
+.projTagLoose::before {
+  display: none;
+}
+/* The glass. Unchanged in every measured respect — 150px tall, `cover`, anchored to the top —
+   and it only ever gets SMALLER: the 28px bar and the 1px ring come out of the card's existing
+   inner width. No lightbox, no zoom, no full-bleed crop, no 1-up layout on a wide screen
+   (docs/05-page-sections.md:437-441, docs/11-security.md:205-209). The radius and the bottom
+   margin moved to the shell and the lid. */
+.projImage {
   display: block;
   width: 100%;
   height: 150px;
   object-fit: cover;
   object-position: top center;
-  border-radius: var(--r-md);
-  margin-bottom: var(--sp-4);
   background: var(--panel2);
 }
-.projectTag {
-  display: block;
-  color: var(--red-text);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.08em;
+/* The scanline comb and the display's hairline frame, over the glass only — the hologram's
+   two terms (`0.78 + 0.22 * step(...)` and a 0.6% inset frame, materials.ts). It starts below
+   the 28px bar, so the comb never crosses a word of copy, and it takes the screenshot's
+   legibility DOWN, never up. */
+.projShell::after {
+  content: "";
+  position: absolute;
+  inset: 28px 0 0 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) 22%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sol-accent, var(--blue)) 14%, transparent);
+}
+/* The fold. One burst: 0.56s a window, 90ms apart, and the row is still again. No loop, no
+   replay, nothing continuous (WCAG 2.2.2, docs/07-conventions.md:505-510). 90ms and not the
+   panel row's 620ms — five lids at 620ms would run 3.1s and read as five separate events
+   instead of one ripple. Longhands, never the `animation` shorthand: a shorthand carrying a
+   var() easing AND a var() delay is re-parsed at computed-value time and one bad token drops
+   all of it (:196-199, :288-290). */
+@media (prefers-reduced-motion: no-preference) {
+  .project[data-entered] .projLid {
+    animation-name: project-lid;
+    animation-duration: 0.56s;
+    animation-timing-function: var(--motion-ease-out);
+    /* `backwards`, never `both`: `both` freezes the lid on the keyframe's `to` frame and the
+       hover tip below would never apply again. */
+    animation-fill-mode: backwards;
+    animation-delay: calc(var(--step) * 90ms);
+  }
+  /* The mark fires as the window lands — the same beat the scene's stations light on, and the
+     module's own `node-fire` keyframe (:590), reused as it stands. */
+  .project[data-entered] .projTag::before {
+    animation-name: node-fire;
+    animation-duration: 0.6s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: backwards;
+    animation-delay: calc(var(--step) * 90ms + 280ms);
+  }
+  .projectGrid[data-entered]::before,
+  .projectGrid[data-entered]::after {
+    animation-duration: 0.5s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
+  }
+  .projectGrid[data-entered]::before {
+    animation-name: corner-tl;
+  }
+  /* The frame cannot finish before the formation does: the closing bracket waits for the last
+     window in the grid, whatever the direction's card count happens to be. */
+  .projectGrid[data-entered]::after {
+    animation-name: corner-br;
+    animation-delay: calc(var(--card-count, 3) * 90ms + 200ms);
+  }
+  .project:focus-visible .projLid {
+    transform: perspective(900px) rotateX(3deg);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .project:hover .projLid {
+      transform: perspective(900px) rotateX(3deg);
+    }
+  }
+}
+/* A keyframe used by a module must be declared in that module (docs/07-conventions.md:82-84).
+   The `to` frame is character-identical to `.projLid`'s base transform, so `backwards` hands
+   the window back to the cascade with no snap. */
+@keyframes project-lid {
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateX(-72deg);
+  }
+  55% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: perspective(900px) rotateX(0deg);
+  }
+}
+/* The edge goes hot under a pointer or a keyboard focus — the scene's `node-fire` moment as a
+   state rather than an animation, so it costs nothing under `reduce`. Both kinds of card get
+   it; only a link also lifts. */
+.project:focus-visible .projShell {
+  box-shadow:
+    0 0 0 1px var(--sol-accent, var(--blue)),
+    0 0 26px color-mix(in srgb, var(--sol-accent, var(--blue)) 22%, transparent);
+}
+.project:focus-visible .projTag::before {
+  border-color: var(--sol-accent, var(--blue));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sol-accent, var(--blue)) 50%, transparent);
+}
+@media (hover: hover) and (pointer: fine) {
+  .project:hover .projShell {
+    box-shadow:
+      0 0 0 1px var(--sol-accent, var(--blue)),
+      0 0 26px color-mix(in srgb, var(--sol-accent, var(--blue)) 22%, transparent);
+  }
+  .project:hover .projTag::before {
+    border-color: var(--sol-accent, var(--blue));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--sol-accent, var(--blue)) 50%, transparent);
+  }
+}
+/* The lean. `usePointerTilt` writes `--tilt-rx` / `--tilt-ry` and `data-tilting` on the CARD
+   it is attached to, and the WINDOW takes them — so the object turns while the name and the
+   description stay flat and legible. Fine hovering pointers only, never under reduced motion
+   (lib/tilt.ts:39-48). Declared after `:hover` (equal specificity) so a tilting card keeps its
+   lean. Same construction as `.highlight[data-tilting]` at :601-604: the lid's perspective and
+   the shell's are two flattened subtrees, never one shared 3D context, so no window can ever
+   sort itself in front of the card beside it. */
+.project[data-tilting] .projShell {
+  transition-duration: 0.15s;
+  transform: perspective(1000px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
 }
 .projectName {
   font-size: 22px;
@@ -1172,6 +1432,27 @@ a.project:hover {
   .highlight {
     --step: 0;
   }
+  /* Stacked, each card arrives on its own, so the 90ms ladder would only delay the last one —
+     same move as `.highlight` right above. */
+  .project {
+    --step: 0;
+  }
+  /* One column makes the glass a ~665px letterbox band. `42vw` gives it a real crop and is
+     chosen so WIDTH always drives `object-fit: cover`, never height, at every phone width —
+     so the screenshot is still cropped down, never scaled up. */
+  .projImage {
+    height: clamp(150px, 42vw, 210px);
+  }
+  /* The frame pulls in with the gutter. */
+  .projectGrid::before {
+    top: -6px;
+    left: -6px;
+    right: -6px;
+  }
+  .projectGrid::after {
+    bottom: -6px;
+    right: -6px;
+  }
   .stepsCard {
     padding: 26px 20px;
   }
@@ -1219,6 +1500,8 @@ a.project:hover {
   .cta,
   .ghost,
   .project,
+  .projLid,
+  .projShell,
   .highlight,
   .caseCard,
   .caseToggle::after,
@@ -1246,6 +1529,16 @@ a.project:hover {
   .hlIndex,
   .hlWindow {
     opacity: 1;
+    transition: none;
+  }
+  /* The shelf's frame and every window are simply there: the composed state is the design and
+     it carries itself with no motion at all. */
+  .projectGrid::before,
+  .projectGrid::after {
+    opacity: 1;
+    clip-path: none;
+  }
+  .projTag::before {
     transition: none;
   }
   @supports (color: color-mix(in lab, red, red)) {

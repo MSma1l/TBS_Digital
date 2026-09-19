@@ -89,6 +89,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      it writes transforms — no blur, nothing over the canvas. */
   const tilt = usePointerTilt(TILT_MAX.project);
   const highlightsRef = useRef<HTMLElement | null>(null);
+  const projectsRef = useRef<HTMLDivElement | null>(null);
   const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
 
   useEffect(() => {
@@ -236,6 +237,47 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
   const related = projectsForSolution<ProjectItem>(slug, projects);
   const reference = related[0];
   const palette = solutionPalette[slug];
+
+  /* ---- the projects grid: the shelf's frame, then the windows folding open ----
+     Exactly the shape of the panels' observer above: one attribute write per element, once,
+     then it is dropped from the observer. The grid itself is observed alongside its cards —
+     it is what draws the frame — and an element that already carries the mark is skipped, so
+     a content swap can only ever add to the sequence, never replay it.
+
+     Keyed on the joined ids, not on `related.length`: `useSiteContent` renders the default
+     document on the server and the first paint, then swaps in the localStorage cache and then
+     the API document (lib/siteContent.tsx:168-206). A swap that changes WHICH projects are in
+     the grid without changing the count would otherwise leave the new cards unobserved and
+     folded shut for good. A language change does not replay anything: the cards are keyed by
+     `p.id`, React reuses the nodes and `data-entered` stays put.
+
+     An attribute, not state — nothing re-renders as the visitor scrolls, and this effect adds
+     no second `react-hooks/set-state-in-effect` on top of the one already at :131. */
+  const relatedKey = related.map((p) => p.id).join("|");
+  useEffect(() => {
+    const root = projectsRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const targets = [root, ...Array.from(root.children)].filter(
+      (node): node is HTMLElement =>
+        node instanceof HTMLElement && !node.hasAttribute("data-entered"),
+    );
+    if (targets.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          (entry.target as HTMLElement).setAttribute("data-entered", "");
+          observer.unobserve(entry.target);
+        }
+      },
+      /* The bottom margin means a window opens once it is properly on screen rather than as
+         its first pixel crosses the fold — the action bar's "Vezi proiectele relevante"
+         lands straight here (:301-305), and the row should still have its gesture left. */
+      { threshold: 0.25, rootMargin: "0px 0px -10% 0px" },
+    );
+    for (const target of targets) observer.observe(target);
+    return () => observer.disconnect();
+  }, [slug, relatedKey]);
 
   if (!sol) {
     const dir = directions.find((d) => d.slug === slug);
@@ -448,27 +490,57 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               <h2 className="disp">{l(solUI.projectsTitle)}</h2>
               <p>{l(solUI.projectsLead)}</p>
             </div>
-            <div className={styles.projectGrid}>
-              {related.map((p) => {
+            <div
+              className={styles.projectGrid}
+              ref={projectsRef}
+              style={{ "--card-count": related.length } as CSSProperties}
+            >
+              {related.map((p, i) => {
+                const image = p.images?.[0];
+                const glass = image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={image}
+                    alt={p.name}
+                    loading="lazy"
+                    decoding="async"
+                    className={styles.projImage}
+                  />
+                ) : null;
                 const inner = (
                   <>
-                    {p.images?.[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.images[0]}
-                        alt={p.name}
-                        loading="lazy"
-                        decoding="async"
-                        className={styles.projectImage}
-                      />
-                    ) : null}
-                    <small className={`mono ${styles.projectTag}`}>{l(p.tag)}</small>
+                    {/* The window. The project's own tag becomes its title bar and the
+                        screenshot its glass — the capture lives INSIDE the frame, it never
+                        gets a frame drawn over it, and it is only ever made smaller: the
+                        28px bar and the 1px ring come out of the card's existing inner
+                        width (docs/05-page-sections.md:437-441).
+                        Two spans, never divs, because the card is sometimes an <a> — and
+                        nothing added here is an <a>, an <article> or an <h3>, all three of
+                        which components/__tests__/direction-page.test.tsx counts inside
+                        #proiecte. A document with no image for a project still has to
+                        render, so the tag keeps its old standalone form in that branch. */}
+                    {glass ? (
+                      <span className={styles.projLid}>
+                        <span className={styles.projShell}>
+                          <small className={`mono ${styles.projTag}`}>{l(p.tag)}</small>
+                          {glass}
+                        </span>
+                      </span>
+                    ) : (
+                      <small className={`mono ${styles.projTag} ${styles.projTagLoose}`}>
+                        {l(p.tag)}
+                      </small>
+                    )}
                     <h3 className={`disp ${styles.projectName}`}>{p.name}</h3>
                     <p className={styles.projectDesc}>{l(p.desc)}</p>
                   </>
                 );
                 /* Same rule as the /04 grid: only a project with a real link becomes an
-                   <a>; the rest are plain articles. */
+                   <a>; the rest are plain articles. Both kinds get `--card-index` (their
+                   place in the fold) and the pointer lean — on a direction where no project
+                   has a public link, nothing in this section moved at all until now — but
+                   only the <a> lifts and takes the accent border, because that pair is the
+                   link's affordance and these cards go nowhere (lib/content.ts:170-172). */
                 return p.url ? (
                   <a
                     key={p.id}
@@ -476,11 +548,20 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                     target="_blank"
                     rel="noopener noreferrer"
                     className={styles.project}
+                    style={{ "--card-index": i } as CSSProperties}
+                    data-tilt={tilt.enabled ? "on" : "off"}
+                    {...tilt.handlers}
                   >
                     {inner}
                   </a>
                 ) : (
-                  <article key={p.id} className={styles.project}>
+                  <article
+                    key={p.id}
+                    className={styles.project}
+                    style={{ "--card-index": i } as CSSProperties}
+                    data-tilt={tilt.enabled ? "on" : "off"}
+                    {...tilt.handlers}
+                  >
                     {inner}
                   </article>
                 );

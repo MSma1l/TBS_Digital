@@ -16,6 +16,53 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: cardurile de proiect devin ferestre de instrument
+
+Clientul, uitându-se la grila „Proiecte relevante" de pe paginile de servicii: să arate interesant,
+cu animații și ceva 3D. Dintre patru direcții propuse a ales-o pe aceasta — captura nu mai e o
+imagine plată, ci **conținutul afișajului unui dispozitiv** — și a adăugat o condiție: dispozitivul
+să aibă **aceeași textură ca celelalte elemente 3D** din proiect.
+
+**De ce această direcție și nu altele.** Eroul paginii orbitează, panourile pulsează și mătură, șina
+se umple — **nimic nu se pliază**. Un capac care se ridică pe o balama e singurul verb nou pe pagină.
+Și repară un defect real: pe `/servicii/automatizare-api` toate cele trei proiecte sunt fără link
+public, iar singura regulă care mișca ceva în toată secțiunea era hover-ul pe linkuri — deci **niciun
+card nu reacționa la nimic**. Acum toate capătă pliere și înclinare, dar ridicarea și bordura
+colorată rămân doar pentru cele pe care chiar poți apăsa.
+
+**Textura, potrivită prin citire, nu prin aproximare.** Fiecare solid din scenă e o cutie desenată cu
+muchii aprinse (fața la 3,5%, banda de muchie la 90%, aditiv pe negru, fără lumini și fără umbre).
+În CSS asta a devenit: o muchie de 1px în accentul serviciului plus un halou de lumină **adăugată**,
+colțuri drepte (o cutie 3D n-are raze), umpluturi plate fără gradient care să imite metal, iar geamul
+poartă cele două semne ale hologramei din spirală — pieptenele de linii de scanare și firul interior
+de 1px. **Umbra moale și colțurile rotunjite din specificație au fost respinse deliberat**: scena n-are
+lumini, deci o umbră ar fi fost singurul lucru realist din obiect.
+
+Ce **nu** s-a putut potrivi, declarat: amestecul aditiv adevărat (CSS compune altfel, iar singura cale
+ar fi fost un mod de amestecare interzis în zona asta), marginea care se aprinde după unghi, și
+grosimea liniei — liniile din 3D au un pixel de dispozitiv, CSS-ul are un pixel logic, deci la ecran
+dens muchia noastră e de două ori mai groasă.
+
+**Captura nu a fost mărită nicăieri.** Scara maximă randată rămâne **0,4221×**, identică cu cea de
+dinainte: bara de titlu stă deasupra geamului, iar inelul e o umbră, deci niciuna nu ocupă spațiu în
+așezare. Regula proiectului despre detaliile lizibile din capturi e respectată.
+
+**Trei greșeli ale specificației, găsite la contactul cu codul:** linia de cap a ramei era
+specificată ca strat de fundal decalat cu 10px deasupra marginii — un fundal se desenează doar în
+interiorul cutiei, deci ar fi dispărut **tăcut**; pseudo-elementele ramei ar fi devenit celule în
+grilă fără poziționare absolută; iar afirmația din proiectare că „fereastra micșorează captura" era
+falsă — corect e „niciun număr nu crește".
+
+Verificat: contrastul etichetei în bara de titlu **5,479:1** (era 6,030 pe card, ambele peste prag),
+`[data-scene-layer]` identic înainte și după pe toate cele trei pagini și patru lățimi, nicio
+depășire orizontală, iar numărul de linkuri, articole, titluri și imagini din secțiune e neschimbat.
+
+**Semnalat clientului, nelegat de această schimbare:** `public/projects/statistic-1.png` conține o
+**adresă de e-mail vizibilă** în blocul de partajare, la orice lățime.
+
+Fișiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`,
+`components/__tests__/decorative-dots.test.tsx` (modulul intră acum în scanarea regulii).
+
 ## 2026-09-19 — Changed: comutatorul de limbă e rotund și schimbarea alunecă
 
 Clientul a cerut ca RO | RU | EN să fie rotunde și schimbarea să fie animată.

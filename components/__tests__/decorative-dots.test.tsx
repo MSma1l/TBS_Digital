@@ -51,7 +51,14 @@ const SCANNED_SOURCES = [
  * The HUD chrome's CSS Modules (critique R13/§4: the guide and the fibre rail now, the OS layer
  * later). Each is named so a rename cannot silently drop it from the scan.
  */
-const HUD_STYLES = ["components/hud/guide/GuideAssistant.module.css", "components/hud/rail/ScrollRail.module.css"];
+const HUD_STYLES = [
+  "components/hud/guide/GuideAssistant.module.css",
+  "components/hud/rail/ScrollRail.module.css",
+  /* The service page's own module: it now draws the projects grid's frame and the
+     window on every card, in the interior scene's material language — 1px edges, square
+     rings and added light. Nothing round, nothing blurred. */
+  "components/sections/DirectionPage.module.css",
+];
 
 /**
  * Round boxes of dot size in a CSS Module: a rule whose `border-radius` is `50%` or
