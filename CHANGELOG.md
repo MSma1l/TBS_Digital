@@ -16,6 +16,49 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Fixed: ruleta rămânea pe pauză pentru cineva care nu ceruse asta
+
+Clientul: a așteptat **15 secunde** după terminarea animației până când proiectele au început să se
+schimbe.
+
+**Cauza, numită exact:** pauza ruletei se activa pe `pointerenter` — „cursorul a intrat pe zonă". Dar
+când vizitatorul derulează, **laptopul intră sub un cursor care stă nemișcat**, iar browserul
+trimite evenimentele de graniță elementului care a ajuns sub el. Capturat pe containerul care
+rulează, cu cursorul parcat și nemișcat: `pointerover`, `pointerenter`, `mouseover` la 364ms — și
+**niciun `pointermove`**, pentru că vizitatorul n-a mișcat nimic, și niciun `pointerleave` care să
+părăsească zona. Reținerea nu se elibera niciodată. Exact „am așteptat 15 secunde, apoi a pornit" —
+15 secunde fiind momentul în care a mișcat din întâmplare mouse-ul.
+
+**Nu era nici reținerea de după boot, nici ceasul.** Ambele sănătoase: poarta paginii și cea a scenei
+se deschid la o distanță de un cadru una de alta (368ms, ambele la 0,895), iar cu cursorul departe
+ruleta avansează normal.
+
+**Reparația:** pauza se declanșează acum pe **mișcare reală** (`pointermove`) peste mașină, nu pe
+simpla ei prezență sub cursor. O derulare care aduce laptopul sub un cursor nemișcat nu mai oprește
+nimic; un pixel de mișcare reală oprește. S-a adăugat și `pointercancel`, pentru o atingere preluată
+de derulare. WCAG 2.2.2 rămâne satisfăcut pe ambele căi: mișcarea cursorului peste mașină, sau Tab
+până la linkul ecranului.
+
+**Măsurat după reparație:** cursor parcat și nemișcat → `0 → 1 → 2 → 3 → 4 → 0` la ~2s, cu buclă;
+cursor mișcat deliberat pe laptop → ține, și reia la 2,2s după ce pleacă; focus de tastatură → ține,
+și reia la 2,2s după ce pleacă. Primul proiect stă ~3,9s, deci nu e măturat de secvența de boot.
+
+**Și o corecție a măsurătorii mele, meritată:** scriptul meu de reproducere viza grila de carduri,
+care pe calea cu 3D e `display: none` — deci `scrollIntoView` n-a făcut nimic, pagina n-a plecat de
+la hero, iar `getBoundingClientRect` a dat zerouri, parcând cursorul la (0,0). **Testul meu nu testa
+nimic**; cifra „0 timp de 21 de secunde" era corectă și complet lipsită de sens.
+
+**Aceeași greșeală, în altă parte** — găsită prin căutarea tuturor reținerilor pe „intrare", și
+**neatinsă deocamdată**:
+- `components/sections/Directions.tsx:388` — `onMouseEnter` selectează serviciul. Rândul de pastile
+  derulând sub un cursor nemișcat ar selecta un serviciu pe care vizitatorul nu l-a arătat, **iar
+  acea selecție conduce modelul 3D**. Riscul cel mai mare dintre cele trei.
+- `components/layout/Navbar.tsx:185` — deschide un meniu; risc mic doar pentru că antetul e lipit și
+  nu derulează sub cursor.
+- `components/sections/Hero.tsx:157` — un impuls de performanță pentru scenă; se eliberează singur.
+
+Fișier: `components/sections/DirectionPage.tsx`.
+
 ## 2026-09-19 — Fixed & Changed: ecranul laptopului în culoare, fără conturul albastru, și zona de apăsare corectată
 
 Clientul: capturile de pe ecran să fie colorate și mai recognoscibile, și să dispară liniile

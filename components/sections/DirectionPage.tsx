@@ -325,11 +325,19 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      `active` may outrun the list (a content swap can shorten it), so the index the page uses is
      derived and clamped rather than corrected in an effect. */
   const [active, setActive] = useState(0);
-  /* The pointer is over the stage, or the focus is inside it: the reel is paused while it is.
-     That IS the mechanism WCAG 2.2.2 asks for — auto-updating content that starts by itself and
-     runs beside other content needs a way to pause or stop it. It is reachable both ways: with a
-     pointer by moving onto the machine, and from the keyboard by focusing the screen's own link,
-     which is the first thing Tab reaches in this section. */
+  /* The visitor is MOVING a pointer over the stage, or the focus is inside it: the reel is paused
+     while they are. That IS the mechanism WCAG 2.2.2 asks for — auto-updating content that starts
+     by itself and runs beside other content needs a way to pause or stop it. It is reachable both
+     ways: with a pointer by moving onto the machine, and from the keyboard by focusing the
+     screen's own link, which is the first thing Tab reaches in this section.
+
+     MOVING, not merely "the pointer is over it", and that distinction is the whole bug this
+     replaced. A visitor scrolls the machine into the middle of the screen — which is where a
+     cursor already is — and the browser hands the stage a `pointerover`/`pointerenter` for a
+     pointer that never moved (measured: no `pointermove` in the sequence), with no `pointerleave`
+     until they move the mouse off. Latching on enter therefore paused the reel for a visitor who
+     had not asked for it and could not see why, for as long as they sat still: the projects never
+     changed until they happened to jog the mouse. A pause has to be something the visitor DOES. */
   const [reelHeld, setReelHeld] = useState(false);
   /* The stage is on screen, by the very share that arms the machine's arrival in the scene
      (`LAPTOP_BOOT_GATE.on`) — one number, so the boot and the reel start on the same beat and the
@@ -632,12 +640,18 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                 perspective, filter, `contain` or clipping overflow here or above it. The scene
                 MEASURES this box (components/scene/scrollProbe.ts) rather than assuming it.
 
-                The reel pauses under the pointer and while the focus is inside the stage. */}
+                The reel pauses while a pointer MOVES over the stage and while the focus is
+                inside it — never on a bare `pointerenter`, which a scroll fires for a cursor
+                that never moved. */}
             <div
               className={styles.projStage}
               ref={stageRef}
-              onPointerEnter={() => setReelHeld(true)}
+              onPointerMove={() => {
+                // Only the first move of a visit costs a render: after that the state is already true.
+                if (!reelHeld) setReelHeld(true);
+              }}
               onPointerLeave={() => setReelHeld(false)}
+              onPointerCancel={() => setReelHeld(false)}
               onFocus={() => setReelHeld(true)}
               onBlur={() => setReelHeld(false)}
             >
