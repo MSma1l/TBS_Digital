@@ -90,7 +90,7 @@ import type { ProjectsReel } from "../projectsReel";
 import type { WorkHelixDriver } from "../workHelix";
 import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
-import { createHologramSource, type HologramSource } from "./hologram";
+import { composeLaptopScreen, createHologramSource, type HologramSource } from "./hologram";
 import { toColor } from "./materials";
 import { createCommerceLoopModel } from "./models/shopFloor";
 import { createProductStackModel } from "./models/productStack";
@@ -600,13 +600,21 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     if (!display) {
       // Handed to the model on its first drawn card (no empty display before it), glitching every swap.
       let handed = false;
-      const source = createHologramSource(config.hologram, () => {
-        if (!handed) {
-          handed = true;
-          model.setHologram(source.texture);
-        }
-        model.glitch();
-      });
+      const source = createHologramSource(
+        config.hologram,
+        () => {
+          if (!handed) {
+            handed = true;
+            model.setHologram(source.texture);
+          }
+          model.glitch();
+        },
+        // The laptop's own layout over the same pipeline: the display is read the way a screen is
+        // read, so it draws the project's name, tag and description as TEXT at the canvas's native
+        // resolution — the one way to make it legible that does not raise the cap the screenshot
+        // is deliberately crushed by (`hologram.ts` `composeLaptopScreen`).
+        composeLaptopScreen,
+      );
       display = source;
     }
     display.request(pick.card, pick.index, stale);

@@ -16,6 +16,55 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: doar laptopul, rulează singur, iar ecranul se citește
+
+Clientul: „fa să fie automatizat să se schimbe singure… nu se înțelege ce ii pe ecran… dacă apăs pe
+ecranul laptopului să mă ducă încolo, lasă numai laptopul animat și fa mai detaliat proiectele care
+sunt pe ecran".
+
+**„Mai detaliat" s-a rezolvat cu informație, nu cu rezoluție.** Plafonul texturii (384×240) e motivul
+pentru care adresa de e-mail din `statistic-1.png` e ilizibilă; ridicarea lui ar fi făcut-o lizibilă
+pe un ecran mare. În schimb, ecranul desenează acum: bară de titlu cu marcaj, eticheta și „04 / 05",
+captura ca fundal (54% de sus), **numele proiectului la 30px de textură**, două rânduri din descriere
+cu elipsă, și un subsol cu „VEZI PROIECTUL ›" sau „FĂRĂ LINK PUBLIC", plus câte o bifă per proiect.
+La dpr 2 numele se randează la **69 px-dispozitiv** — text desenat la rezoluția nativă a pânzei, nu o
+poză micșorată. Se poate numi proiectul și citi o frază despre el doar de pe ecran.
+
+Un **al doilea layout** în `hologram.ts`, nu o extindere a celui existent: holograma din spirală e un
+plan citit dintr-o privire lângă moleculă, ăsta e un **display**. Work rămâne neatins; ambele împart
+aceeași conductă, aceeași sondă de taint și același plafon.
+
+**Rulează singur** — 4,2s per proiect, fără butoane. WCAG 2.2.2 cere un mecanism de oprire pentru
+conținut care se actualizează automat: mecanismul e **stage-ul însuși**, ajuns din ambele moduri de
+input — pointerul peste laptop oprește ciclul (măsurat: același index 9 secunde, apoi repornește la
+plecare), la fel focusul de tastatură pe ecran, care e primul tab-stop al secțiunii.
+
+**Apăsarea pe ecran duce la proiect.** Elementul de apăsare stă peste **zona displayului**, nu peste
+toată fereastra, iar cutia lui e derivată din aceeași potrivire ca a modelului — deci nu pot ajunge
+să difere. Poziția displayului e **măsurată**: capacul e înclinat, poza înclină toată mașina, iar
+ecranul stă în spatele centrului obiectului, deci camera în perspectivă îl desenează cu ~11% mai
+mic. Proiectele fără URL public primesc un element onest, focusabil, etichetat „fără link public" —
+nu un link mort.
+
+**Conținutul nu a plecat din pagină.** Aceleași proiecte stau într-o listă **ascunsă vizual** prin
+tehnica standard (cutie de 1px + decupare), niciodată `display:none` — altfel ar fi dispărut și
+pentru cititoarele de ecran și pentru motoarele de căutare. Verificat pe **arborele real de
+accesibilitate al Chrome**: toate numele și descrierile sunt expuse, iar linkul ecranului apare ca
+„Vezi proiectul ↗ — BizCheck". Lista se dezvăluie singură la focus, ca nimeni să nu urmărească un
+inel de focus invizibil.
+
+**E-mailul, re-măsurat:** banda eșantionează sursa la 6,65 pixeli per celulă, neschimbat de mărimea
+laptopului, deci o majusculă se randează la 5,5 pixeli **de neclaritate, nu de literă**. Mărit de 5×:
+textul desenat de compozitor e clar cu două rânduri mai sus, banda capturii de sub el e pastă.
+**Niciun caracter lizibil.**
+
+Desene: **+2**, neschimbat. `[data-scene-layer]` identic înainte și după. Sub 861px, fără 3D și la
+mișcare redusă — grila din `efcaef7`, neatinsă.
+
+Fișiere: `components/scene/three/hologram.ts`, `components/scene/three/models/laptop.ts`,
+`components/scene/choreography.ts`, `components/scene/projectsReel.ts`,
+`components/sections/DirectionPage.tsx` + CSS, testul scenei.
+
 ## 2026-09-19 — Changed: laptopul preia secțiunea „Proiecte relevante"
 
 Clientul, după ce a văzut laptopul în celula grilei: „șterge cardurile și mărește modelul 3D al

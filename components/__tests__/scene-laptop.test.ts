@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   LAPTOP_AIR,
   LAPTOP_LIT,
+  LAPTOP_SCREEN,
+  laptopScreenBox,
   placeLaptop,
   projectsShare,
   worldPerPx,
@@ -22,7 +24,7 @@ import {
   laptopKeyAt,
   laptopLidAngle,
 } from "@/components/scene/three/models/laptop";
-import { HOLOGRAM_MAX } from "@/components/scene/three/hologram";
+import { CTA_ATTR, HOLOGRAM_MAX, composeLaptopScreen } from "@/components/scene/three/hologram";
 import { PROJECTS_INDEX_ATTR, createScrollProbe, type ScrollProbe } from "@/lib/scene";
 
 /*
@@ -216,6 +218,159 @@ describe("the machine's own arithmetic", () => {
     expect(laptopHingeAt(0.5)).toBeCloseTo(1, 10);
     expect(laptopHingeAt(-3)).toBe(0);
     expect(laptopHingeAt(7)).toBe(0);
+  });
+});
+
+/* ---- the display's box, and what is drawn on it --------------------------------------------- */
+
+describe("the display inside the window", () => {
+  it("runs the same fit the scene runs, so the hit area cannot drift off the screen", () => {
+    const win = { w: 860, h: 576 };
+    const box = laptopScreenBox(win.w, win.h)!;
+    expect(box).not.toBeNull();
+    const scale = Math.min(
+      (win.w - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfWidth),
+      (win.h - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfHeight),
+    );
+    // …the very scale `placeLaptop` produces for the same box.
+    const place = placeLaptop(pageProbe({ x: 0, y: 2400, w: win.w, h: win.h }), 2400, 1280, 800)!;
+    expect(scale).toBeCloseTo(place.scale / worldPerPx(800), 6);
+    // the display sits above the window's centre, and inside it
+    expect(box.y + box.h / 2).toBeLessThan(win.h / 2);
+    expect(box.x).toBeGreaterThan(0);
+    expect(box.y).toBeGreaterThan(0);
+    expect(box.x + box.w).toBeLessThan(win.w);
+    expect(box.y + box.h).toBeLessThan(win.h);
+    // it is a real target, not a sliver
+    expect(box.w).toBeGreaterThan(44);
+    expect(box.h).toBeGreaterThan(44);
+  });
+
+  it("is generous by exactly the walk the pose gives it", () => {
+    const box = laptopScreenBox(860, 576)!;
+    const scale = (860 - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfWidth);
+    const tall = (576 - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfHeight);
+    const fit = Math.min(scale, tall);
+    expect(box.w).toBeCloseTo((LAPTOP_SCREEN.w + LAPTOP_SCREEN.slack) * fit, 6);
+    expect(LAPTOP_SCREEN.slack).toBeGreaterThan(0);
+  });
+
+  it("has no box at all where the page lays no window out", () => {
+    expect(laptopScreenBox(0, 0)).toBeNull();
+    expect(laptopScreenBox(10, 10)).toBeNull();
+  });
+});
+
+/**
+ * A 2D context that records what was drawn. The same shape `scene-hologram.test.ts` uses for the
+ * Work layout: nothing is rasterised, so what the screen SAYS can be asserted directly.
+ */
+function recorder() {
+  const texts: string[] = [];
+  const target: Record<string, unknown> = {
+    canvas: { width: 384, height: 240 },
+    fillStyle: "#000",
+    strokeStyle: "#000",
+    lineWidth: 1,
+    lineCap: "butt",
+    lineJoin: "miter",
+    textAlign: "start",
+    textBaseline: "alphabetic",
+    globalAlpha: 1,
+    globalCompositeOperation: "source-over",
+    font: "10px sans-serif",
+    measureText: (text: string) => ({ width: text.length * 5 }),
+    getImageData: () => ({ data: new Uint8ClampedArray(4), width: 1, height: 1 }),
+    fillText: (text: string) => texts.push(text),
+    strokeText: (text: string) => texts.push(text),
+  };
+  for (const name of [
+    "setTransform",
+    "clearRect",
+    "fillRect",
+    "strokeRect",
+    "drawImage",
+    "beginPath",
+    "moveTo",
+    "lineTo",
+    "stroke",
+    "save",
+    "restore",
+    "translate",
+  ]) {
+    target[name] = () => {};
+  }
+  return { ctx: target as unknown as CanvasRenderingContext2D, texts };
+}
+
+/** A grid of project cards, exactly the shape DirectionPage renders. */
+function cards(count: number): HTMLElement {
+  const grid = document.createElement("div");
+  grid.setAttribute(CTA_ATTR.link, "Vezi proiectul ↗");
+  grid.setAttribute(CTA_ATTR.private, "fără link public");
+  for (let i = 0; i < count; i += 1) {
+    const card = document.createElement(i === 0 ? "a" : "article");
+    card.innerHTML =
+      `<small>Tag ${i}</small><h3>Project ${i}</h3>` +
+      `<p>A description of project ${i} that is long enough to need wrapping onto a second line and then some more.</p>`;
+    grid.append(card);
+  }
+  document.body.append(grid);
+  return grid;
+}
+
+describe("what the laptop's screen says", () => {
+  it("writes the project's tag, name, description, place and call — as TEXT, not as pixels", async () => {
+    const grid = cards(5);
+    const { ctx, texts } = recorder();
+    const result = await composeLaptopScreen(grid.children[2] as HTMLElement, ctx, [384, 240], 2);
+    // No usable image in jsdom, so the screenshot band is absent — every word below is the
+    // composer's own, drawn at the canvas's native resolution.
+    expect(result).toBe("text");
+    const said = texts.join(" | ");
+    expect(said).toContain("PROJECT 2");
+    expect(said).toContain("TAG 2");
+    expect(said).toContain("03 / 05");
+    expect(said).toMatch(/A description of project 2/);
+    // …and two lines of it, the second ellipsised rather than cut off the edge.
+    expect(texts.filter((t) => t.startsWith("A description") || /project 2/.test(t)).length).toBeGreaterThan(0);
+    expect(said).toContain("…");
+    grid.remove();
+  });
+
+  it("says what the page says about the link, in the page's own language", async () => {
+    const grid = cards(3);
+    const linked = recorder();
+    await composeLaptopScreen(grid.children[0] as HTMLElement, linked.ctx, [384, 240], 0);
+    expect(linked.texts.join(" | ")).toContain("VEZI PROIECTUL");
+
+    const priv = recorder();
+    await composeLaptopScreen(grid.children[1] as HTMLElement, priv.ctx, [384, 240], 1);
+    const said = priv.texts.join(" | ");
+    expect(said).toContain("FĂRĂ LINK PUBLIC");
+    expect(said).not.toContain("VEZI PROIECTUL");
+    grid.remove();
+  });
+
+  it("counts the reel off the grid itself, so it cannot disagree with the page", async () => {
+    const grid = cards(2);
+    const { ctx, texts } = recorder();
+    await composeLaptopScreen(grid.children[1] as HTMLElement, ctx, [384, 240], 9);
+    // The index argument is a fallback; the card's own place in the grid wins.
+    expect(texts.join(" | ")).toContain("02 / 02");
+    grid.remove();
+  });
+
+  it("never draws on a canvas larger than the cap, whatever it is handed", async () => {
+    const grid = cards(2);
+    const { ctx, texts } = recorder();
+    await composeLaptopScreen(grid.children[0] as HTMLElement, ctx, [4096, 4096], 0);
+    // `clampHologramSize` is what keeps a screenshot's fine print illegible; the layout is a
+    // share of that canvas and nothing here can grow it.
+    expect(texts.length).toBeGreaterThan(0);
+    expect(HOLOGRAM_MAX[0]).toBe(384);
+    expect(HOLOGRAM_MAX[1]).toBe(240);
+    grid.remove();
   });
 });
 

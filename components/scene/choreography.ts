@@ -359,13 +359,15 @@ export function placePanels(
  * three scroll positions (the window high in the viewport, centred, low) on produs-digital,
  * automatizare-api and asistenti-ia at 1280, 1024 and 861.
  *
- * Re-measured at the size the machine took when it was given the section (2026-09-19). Centring
- * the model on its LIT box rather than on its boxes (`laptop.ts` `LIFT`) took the wasted air out
- * of the top, and the window is a 1.42 : 1 box, so both constraints now bind at once instead of
- * the height alone: 1.82 x 1.30 leaves every frame of every sweep inside the window, worst margin
- * 19px, and draws the machine ~1.9x larger than the grid cell ever could.
+ * Re-measured again once the copy column went and the machine took the whole section (2026-09-19).
+ * The window is centred now, so the horizontal lean all but disappears — 91 to 143px of clear air
+ * either side — and the object is half as big again, which makes the VERTICAL lean the whole
+ * story: the display travels the height of the canvas as the visitor scrolls, and at the bottom of
+ * the viewport the near half of a unit-deep machine leans further down. At 1.30 the worst frame lit
+ * 22px below the window's foot. `halfHeight` is that reach; `halfWidth` keeps the number measured
+ * before, which the wider window no longer strains.
  */
-export const LAPTOP_LIT = { halfWidth: 1.82, halfHeight: 1.3 } as const;
+export const LAPTOP_LIT = { halfWidth: 1.82, halfHeight: 1.45 } as const;
 
 /** Clear air between that lit box and the cell's own chrome, css px per side. */
 export const LAPTOP_AIR = 8;
@@ -411,6 +413,52 @@ export function placeLaptop(
   out.x = (cx - w / 2) * k;
   out.y = -(cy - h / 2) * k;
   out.scale = Math.min(byHeight, byWidth) * k;
+  return out;
+}
+
+/**
+ * Where the laptop's DISPLAY lands inside its window, in model units — its centre off the window's
+ * centre, and the size it projects at. The page needs this and cannot ask the scene for it: the
+ * thing a visitor presses to open a project has to sit on the screen they are looking at, and it
+ * is a DOM element, laid out by CSS, in a component that must never import three.js.
+ *
+ * So both sides derive it from the same three exported numbers instead. `laptopScreenBox` runs the
+ * very fit `placeLaptop` runs, on the same window box, and these constants say where the display
+ * sits in the object the fit produced.
+ *
+ * MEASURED off rendered frames, like everything else about this object, because a derivation gets
+ * it wrong in three separate ways: the lid leans back, the pose pitches the whole machine, and the
+ * display sits about two thirds of a unit BEHIND the object's centre — so a perspective camera
+ * draws it about 11% smaller than its own size, and the pose's yaw walks its centre sideways as
+ * the machine turns. `slack` is that walk: the display's centre wanders ~0.07 units either way
+ * over a turn, and a target that is a little generous is honest, while one that is exact is wrong
+ * half the time.
+ */
+export const LAPTOP_SCREEN = { cx: 0.11, cy: 0.39, w: 2, h: 1.26, slack: 0.09 } as const;
+
+export type ScreenBox = { x: number; y: number; w: number; h: number };
+
+/**
+ * Pure. The display's box inside a window `w` x `h` css px, in css px from the window's top-left —
+ * or null when the window is too small to hold the machine at all. The page positions its hit area
+ * from this; the scene draws the display from the same fit, so the two cannot drift apart.
+ */
+export function laptopScreenBox(
+  w: number,
+  h: number,
+  out: ScreenBox = { x: 0, y: 0, w: 0, h: 0 },
+): ScreenBox | null {
+  if (!(w > 0) || !(h > 0)) return null;
+  const byWidth = Math.max(0, w - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfWidth);
+  const byHeight = Math.max(0, h - 2 * LAPTOP_AIR) / (2 * LAPTOP_LIT.halfHeight);
+  const scale = Math.min(byWidth, byHeight);
+  if (!(scale > 0)) return null;
+  const width = (LAPTOP_SCREEN.w + LAPTOP_SCREEN.slack) * scale;
+  const height = (LAPTOP_SCREEN.h + LAPTOP_SCREEN.slack) * scale;
+  out.w = width;
+  out.h = height;
+  out.x = w / 2 + LAPTOP_SCREEN.cx * scale - width / 2;
+  out.y = h / 2 - LAPTOP_SCREEN.cy * scale - height / 2;
   return out;
 }
 

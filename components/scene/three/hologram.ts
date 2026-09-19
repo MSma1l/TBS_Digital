@@ -237,6 +237,262 @@ export async function composeHologram(
   return result;
 }
 
+/**
+ * The laptop screen's layout (`composeLaptopScreen`), as px at 240 tall — the canvas is scaled by
+ * `h / 240`, so every number here is a share of the same picture at every tier.
+ *
+ * Why there are two layouts and not one: the Work helix's hologram is a 1.6 x 1.0 plane hanging
+ * beside a molecule, read at a glance while the cards spiral past; the laptop's is a DISPLAY, read
+ * the way a screen is read. `composeHologram` stays exactly as Work shipped it, and this is a
+ * second layout over the same pipeline — the same canvas cap, the same privacy rules, the same
+ * helpers.
+ */
+export const LAPTOP_SCREEN_LAYOUT = {
+  /** The title bar across the head, and the screenshot band's foot as a share of the height. */
+  bar: 26,
+  band: 0.54,
+  pad: 13,
+  /** The footer that carries the call and the reel's ticks. */
+  foot: 26,
+  name: 30,
+  nameMin: 15,
+  desc: 12.5,
+  descLead: 16,
+  descLines: 2,
+  tag: 10.5,
+  index: 11,
+  cta: 11,
+  node: 8,
+  tick: { w: 3, h: 8, gap: 4 },
+  bracket: { arm: 16, inset: 5, width: 2 },
+} as const;
+
+/**
+ * The grid states the call in the visitor's own language (DirectionPage.tsx writes them; nothing
+ * here is a hardcoded string in one language, docs/16-i18n-seo.md). A card that is an `<a>` has a
+ * public page behind it and takes the first; anything else takes the second, which says so rather
+ * than promising a link that is not there.
+ */
+export const CTA_ATTR = { link: "data-cta-link", private: "data-cta-private" } as const;
+
+/** `text` wrapped to at most `lines` lines of `room` px, the last one ellipsised. */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, room: number, lines: number): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width <= room || !line) {
+      line = next;
+      continue;
+    }
+    out.push(line);
+    line = word;
+    if (out.length === lines) break;
+  }
+  if (out.length < lines && line) out.push(line);
+  if (out.length === 0) return out;
+  // Anything that did not fit is said with an ellipsis rather than cut mid-word off the edge.
+  const used = out.join(" ");
+  if (used.replace(/\s+/g, " ") !== words.join(" ")) {
+    let last = out[out.length - 1];
+    while (last.length > 1 && ctx.measureText(`${last}…`).width > room) last = last.slice(0, -1);
+    out[out.length - 1] = `${last.trimEnd()}…`;
+  }
+  return out;
+}
+
+/** How many cards the grid holds, and which one this is: read off the card's own siblings. */
+function cardPlace(card: HTMLElement, index: number): { index: number; total: number } {
+  const parent = card.parentElement;
+  const cards = parent
+    ? Array.from(parent.children).filter((node) => node.tagName === "A" || node.tagName === "ARTICLE")
+    : [];
+  const at = cards.indexOf(card);
+  const total = cards.length;
+  return { index: at >= 0 ? at : Math.max(0, Math.floor(index)), total: total > 0 ? total : 1 };
+}
+
+/**
+ * Compose `card` as a laptop DISPLAY: a title bar with the project's tag and its place in the
+ * reel, the screenshot as the backdrop, then the project's name and two lines of its description,
+ * and a footer with the call and one tick per project.
+ *
+ * **This is how the screen was made legible, and it is the opposite of more pixels.** The canvas
+ * stays capped at `HOLOGRAM_MAX` (384 x 240) and the screenshot stays drawn in `HOLOGRAM.cell`-px
+ * cells, because that cap is the only reason a real e-mail address in a screenshot is not readable
+ * off a 3D display. Text, though, is written into the same canvas with `fillText` at its native
+ * resolution — so the words are crisp exactly where the downscaled screenshot is mush, and what a
+ * visitor can read is what the page chose to say, never what a screenshot happened to contain.
+ */
+export async function composeLaptopScreen(
+  card: HTMLElement,
+  ctx: CanvasRenderingContext2D,
+  size: readonly [number, number],
+  index: number,
+): Promise<"image" | "text"> {
+  const L = LAPTOP_SCREEN_LAYOUT;
+  const img = await usableImage(card);
+  const [w, h] = clampHologramSize(size);
+  const s = h / 240;
+  const px = (value: number) => Math.round(value * s);
+  const pad = px(L.pad);
+  const bar = px(L.bar);
+  const band = Math.round(h * L.band);
+  const foot = px(L.foot);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, w, h);
+
+  let result: "image" | "text" = "text";
+  if (img) {
+    drawImageBand(ctx, img, w, band);
+    result = "image";
+    // The one readback of a compose, and only after a screenshot: a single pixel.
+    try {
+      ctx.getImageData(0, 0, 1, 1);
+    } catch {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, w, h);
+      result = "text";
+    }
+  }
+
+  /* the title bar, washed over the top of the screenshot so its words read */
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+  ctx.fillRect(0, 0, w, bar);
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#fff";
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+
+  const heading = card.querySelector("h3");
+  const place = cardPlace(card, index);
+
+  /* the node mark: a square ring, the house glyph — never a dot */
+  const node = px(L.node);
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad + 0.5, Math.round((bar - node) / 2) + 0.5, node - 1, node - 1);
+
+  /* the tag */
+  const tagEl = card.querySelector("small");
+  const tag = upper(textOf(tagEl));
+  ctx.font = fontOf(tagEl, L.tag * s, "700");
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  if (tag) {
+    const room = w - 2 * pad - node - px(8) - px(52);
+    ctx.fillText(fitText(ctx, tag, room, L.tag * s, L.tag * s, (size_) => fontOf(tagEl, size_, "700")), pad + node + px(8), bar / 2);
+  }
+
+  /* its place in the reel, as two digits over two */
+  ctx.font = fontOf(heading, L.index * s, "700");
+  ctx.textAlign = "right";
+  ctx.fillText(
+    `${String(place.index + 1).padStart(2, "0")} / ${String(place.total).padStart(2, "0")}`,
+    w - pad,
+    bar / 2,
+  );
+
+  /* the rule under the bar, and the one under the screenshot */
+  ctx.globalAlpha = 0.75;
+  ctx.fillRect(0, bar, w, 1);
+  ctx.globalAlpha = 0.45;
+  ctx.fillRect(0, band, w, 1);
+  ctx.globalAlpha = 1;
+
+  /* the name */
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const name = upper(textOf(heading));
+  let y = band + px(10) + px(L.name);
+  if (name) {
+    const font = (value: number) => fontOf(heading, value, "900");
+    ctx.fillText(fitText(ctx, name, w - 2 * pad, px(L.name), px(L.nameMin), font), pad, y);
+  }
+
+  /* one or two lines of what it is */
+  const descEl = card.querySelector("p");
+  const desc = textOf(descEl);
+  if (desc) {
+    ctx.font = fontOf(descEl, L.desc * s, "500");
+    const lines = wrapText(ctx, desc, w - 2 * pad, L.descLines);
+    y += px(6);
+    for (const line of lines) {
+      y += px(L.descLead);
+      if (y > h - foot - px(2)) break;
+      ctx.fillText(line, pad, y);
+    }
+  }
+
+  /* the footer: the call, and one tick per project with this one lit */
+  const parent = card.parentElement;
+  const cta = (parent?.getAttribute(card.tagName === "A" ? CTA_ATTR.link : CTA_ATTR.private) ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const footY = h - foot / 2;
+  if (cta) {
+    ctx.font = fontOf(tagEl, L.cta * s, "700");
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    const label = upper(cta.replace(/[\u2197\u2192\s]+$/u, ""));
+    const room = w - 2 * pad - place.total * px(L.tick.w + L.tick.gap) - px(14);
+    ctx.fillText(fitText(ctx, label, room, L.cta * s, L.cta * s, (v) => fontOf(tagEl, v, "700")), pad, footY);
+    if (card.tagName === "A") {
+      // A chevron, drawn rather than typed: no glyph to depend on.
+      const arm = px(4);
+      const x = pad + Math.min(room, ctx.measureText(label).width) + px(7);
+      ctx.lineWidth = Math.max(1, px(1.5));
+      ctx.beginPath();
+      ctx.moveTo(x, footY - arm);
+      ctx.lineTo(x + arm, footY);
+      ctx.lineTo(x, footY + arm);
+      ctx.stroke();
+    }
+  }
+  const tickW = px(L.tick.w);
+  const tickH = px(L.tick.h);
+  const tickGap = px(L.tick.gap);
+  let tx = w - pad - place.total * (tickW + tickGap) + tickGap;
+  for (let i = 0; i < place.total; i += 1) {
+    ctx.globalAlpha = i === place.index ? 1 : 0.4;
+    const height = i === place.index ? tickH : Math.round(tickH * 0.55);
+    ctx.fillRect(tx, Math.round(footY - height / 2), tickW, height);
+    tx += tickW + tickGap;
+  }
+  ctx.globalAlpha = 1;
+
+  /* bracket corners */
+  const arm = px(L.bracket.arm);
+  const inset = px(L.bracket.inset);
+  ctx.lineWidth = Math.max(1, px(L.bracket.width));
+  ctx.beginPath();
+  for (const [cx, cy, dx, dy] of [
+    [inset, inset, 1, 1],
+    [w - inset, inset, -1, 1],
+    [inset, h - inset, 1, -1],
+    [w - inset, h - inset, -1, -1],
+  ] as const) {
+    ctx.moveTo(cx, cy + dy * arm);
+    ctx.lineTo(cx, cy);
+    ctx.lineTo(cx + dx * arm, cy);
+  }
+  ctx.stroke();
+
+  return result;
+}
+
+/** What draws a card onto the canvas: the Work layout, or the laptop's. */
+export type HologramComposer = (
+  card: HTMLElement,
+  ctx: CanvasRenderingContext2D,
+  size: readonly [number, number],
+  index: number,
+) => Promise<"image" | "text">;
+
 export type HologramSource = {
   texture: CanvasTexture;
   /**
@@ -260,7 +516,11 @@ type IdleWindow = Window & {
  * slot (one compose at a time; a newer request wins), then flags the texture and calls `onSwap`
  * (the model glitches over the swap). A change of `<html lang>` composes the current card again.
  */
-export function createHologramSource(size: readonly [number, number], onSwap: () => void): HologramSource {
+export function createHologramSource(
+  size: readonly [number, number],
+  onSwap: () => void,
+  compose: HologramComposer = composeHologram,
+): HologramSource {
   const [w, h] = clampHologramSize(size);
   const canvas = document.createElement("canvas");
   canvas.width = w;
@@ -299,7 +559,7 @@ export function createHologramSource(size: readonly [number, number], onSwap: ()
     const started = generation;
     let result: "image" | "text" | null = null;
     try {
-      result = await composeHologram(job.card, ctx, [w, h], job.index);
+      result = await compose(job.card, ctx, [w, h], job.index);
     } catch {
       result = null;
     }
