@@ -318,25 +318,22 @@ describe("the boot sequence", () => {
     expect(laptopBootAssemble(half, 0, 10)).toBeGreaterThan(laptopBootAssemble(half, 9, 10));
   });
 
-  it("lands a piece with a ring, not with a stop", () => {
+  it("spends a flight DRIFTING, not hopping and then hanging", () => {
     expect(laptopBootSettle(-1)).toBe(0);
     expect(laptopBootSettle(0)).toBe(0);
     expect(laptopBootSettle(1)).toBe(1);
-    // It carries past its slot and comes back: that overshoot is the whole difference between
-    // "arrived" and "stopped", and it is what the client called abrupt when it was missing.
+    // The distance is spent evenly. The damped cosine this replaced was 66% of the way home a
+    // fifth of the way through the flight, which at 0.7s per piece read as hanging in mid-air.
+    expect(laptopBootSettle(0.2)).toBeLessThan(0.2);
+    expect(laptopBootSettle(0.5)).toBeGreaterThan(0.4);
+    expect(laptopBootSettle(0.5)).toBeLessThan(0.6);
+    // …and it still carries past its slot before settling on it, so there is no moment of impact.
     let peak = 0;
-    for (let a = 0; a < 1; a += 0.005) peak = Math.max(peak, laptopBootSettle(a));
-    expect(peak).toBeGreaterThan(1.05);
-    expect(peak).toBeLessThan(1.3);
-    // …and it crosses its slot more than once on the way down.
-    let crossings = 0;
-    let above = false;
-    for (let a = 0.01; a < 1; a += 0.005) {
-      const now = laptopBootSettle(a) > 1;
-      if (now !== above) crossings += 1;
-      above = now;
-    }
-    expect(crossings).toBeGreaterThan(1);
+    for (let a = 0; a < 1; a += 0.002) peak = Math.max(peak, laptopBootSettle(a));
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThan(1.1);
+    // It never goes backwards past where it set off.
+    for (let a = 0; a <= 1; a += 0.002) expect(laptopBootSettle(a)).toBeGreaterThanOrEqual(0);
   });
 
   it("gives a piece from further out a longer flight", () => {

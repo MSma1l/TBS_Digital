@@ -16,6 +16,51 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Fixed: intro-ul se juca înainte ca vizitatorul să ajungă la laptop
+
+Clientul: „ii prea rapid, eu până ajung, laptopul deja ii strâns". Avea dreptate, și cauza era o
+greșeală în felul în care măsurasem, nu în animație.
+
+**Modelul greșit.** Toate tabelele de vizibilitate de până acum presupuneau un vizitator care
+**derulează continuu la 700px/s și nu se oprește niciodată**. De aceea coborâsem pragul de pornire
+tot mai jos — ca secvența să apuce să se termine înainte ca laptopul să iasă din ecran. Dar un om
+real derulează **până ajunge la obiect și se oprește să se uite**. Contra acelui vizitator, un prag
+timpuriu e cea mai proastă alegere posibilă: toată secvența se cheltuie cât mașina e încă o dungă la
+marginea de jos, iar când omul se uită la ea, s-a terminat.
+
+**Poarta a urcat de la 6% la 60%** — cota la care displayul e prima dată complet în cadru, și aceeași
+la care baza care stă acolo dinainte devine complet vizibilă. Deci nu există o poziție în care
+vizitatorul să privească un soclu singur: încă 17px de derulare și secvența pornește.
+
+**Durata: 1,80s → 4,20s**, iar asamblarea de la 0,52 la **1,85s** (×3,6).
+
+**Și curba de zbor a fost refăcută — fără asta lungirea n-ar fi ajutat.** Cosinusul amortizat acoperea
+toată distanța în **prima cincime** a zborului și restul îl petrecea oscilând pe loc: la 0,2s per
+piesă se citea ca sosire, la 0,7s se citea ca piese care sar o dată și apoi **atârnă**. Acum distanța
+se cheltuie uniform — jumătate din drum la jumătate din zbor — cu o rețineri la plecare și o
+depășire mică la sosire, fără niciun moment de stat pe loc.
+
+**Tabelul care contează acum — vizitatorul care ajunge și se oprește** (derulare 700px/s până când
+mașina e confortabil în cadru, apoi stop): **display 1,00 la fiecare bătaie**, de la armare până la
+final, la 1280×800 **și** la 861×700. Toate cele 4,2 secunde se văd întregi.
+
+**Ce pierde cel care trece în viteză**, spus cinstit: derulând continuu fără oprire, ratează
+asamblarea — la 1,85s mașina a ieșit din cadru. Dar secvența e cronometrată, deci se termină oricum,
+iar părăsirea secțiunii o **pune la loc pe bază**: la întoarcere primește un boot complet, de la
+capăt, niciodată un obiect pe jumătate construit.
+
+**Testul de curgere, pe toată durata nouă:** 56 de cadre în 6,92s, diferență între cadre consecutive
+**0,46%–18,16%**, zero perechi sub 0,25% — niciun cadru identic cu cel dinainte, nici măcar în
+asamblarea de 1,85 secunde.
+
+Neschimbate: **+2 desene**, plafonul 384×240, `[data-scene-layer]`, ruleta de după (care își ține
+acum primul proiect 5,4s, din același tabel), și grila neatinsă sub 861px, fără 3D și la mișcare
+redusă. Containmentul a fost re-măsurat pe toată sosirea, piesele stând acum mult mai mult în
+pozițiile lor îndepărtate: marja cea mai strânsă 54px.
+
+Fișiere: `components/scene/choreography.ts`, testul scenei. Modelul, lumea și pagina citesc tabelul,
+deci toată schimbarea e o tabelă și o curbă.
+
 ## 2026-09-19 — Changed: asamblarea laptopului — 29 de piese, curgere fără goluri
 
 Clientul: asamblarea e prea rapidă și **bruscă**; o vrea mai lină, mai detaliată, din mai multe
