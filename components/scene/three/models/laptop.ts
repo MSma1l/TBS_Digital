@@ -25,9 +25,12 @@
  * so the texture lands on the panel with no crop and no stretch at all.
  *
  * What it does:
- *  · **opens** — the lid swings up off the deck over `LAPTOP_OPEN_SECONDS` as the shelf arrives,
- *    and folds shut again when it leaves. The display is not drawn until the lid is past
- *    `SCREEN_FROM`: a hologram glowing through a closed lid would be a hole in the object;
+ *  · **arrives** — the whole boot sequence, from a shut and dark machine to the first project on
+ *    its display: the deck wakes, the lid swings up on its hinge, the tube opens out of a hairline,
+ *    the HUD furniture draws itself, the first project lands with the house's glitch and the body
+ *    runs a self-test behind it. The beats and their seconds are `choreography.ts` `LAPTOP_BOOT`,
+ *    which the world and the page read from the same table; the world arms it (`arrive`) once the
+ *    machine is properly in view and stows it (`stow`) when the section is left;
  *  · **turns a little** — it cancels most of the world's shared sway (the panel row's
  *    `PANEL_SWAY_DAMPEN` idiom) and adds a slow yaw of its own about `LAPTOP_POSE.yaw`, so it has
  *    a side without ever turning the display away from the visitor;
@@ -48,6 +51,13 @@ import {
   type Texture,
 } from "three";
 import type { SceneTierConfig } from "../../tiers";
+import {
+  LAPTOP_BOOT,
+  laptopBootCrt,
+  laptopBootLid,
+  laptopBootTest,
+  laptopBootWake,
+} from "../../choreography";
 import { SURFACE_MODE, createSurfaceMaterial, paint, toColor } from "../materials";
 import type { ScenePalette } from "../palette";
 import { MODEL_SWAY, place, type ModelFrame, type PanelModel } from "./types";
@@ -157,12 +167,13 @@ export const LAPTOP_TYPE = { from: 0.45, step: 0.55, dwell: 0.5 } as const;
 /** The loop's one accent: the trackpad, once — and nothing else in the object ever crosses `lit`. */
 export const LAPTOP_ACCENT = 2.62;
 
-/** Seconds the lid takes to swing open (or shut), and the reveal at which it starts to. */
-export const LAPTOP_OPEN_SECONDS = 1.1;
-const OPEN_AT = 0.35;
-
-/** The lid has to be at least this far open before the display is drawn at all. */
-const SCREEN_FROM = 0.45;
+/**
+ * The lid is no longer a function of whether the window is on screen: it is the anchor of the
+ * ARRIVAL (`choreography.ts` `LAPTOP_BOOT`), which the world arms once the machine is properly in
+ * view and which then runs in time. Before it, the machine is a deliberate still — shut, dark, a
+ * closed laptop standing in its window — and after it the lid simply stays open.
+ */
+const BOOT_IDLE = -1;
 
 /** Seconds a swap's glitch takes to decay from 1 to 0 — the helix's own (`HELIX_GLITCH_SECONDS`). */
 export const LAPTOP_GLITCH_SECONDS = 0.35;
@@ -189,6 +200,11 @@ export function laptopKeyAt(t: number, row: number): number {
 /** Pure. The loop's one accent: a bell on the trackpad at `LAPTOP_ACCENT`. */
 export function laptopAccentAt(t: number): number {
   return flare(t, LAPTOP_ACCENT, 0.12);
+}
+
+/** Pure. A bell centred on `at` — the boot's accent uses it on its own clock. */
+function bell(t: number, at: number, width: number): number {
+  return t >= 0 ? flare(t, at, width) : 0;
 }
 
 /** Pure. How hard the hinge is working at `open` — a bell, so it is dark at both ends of the swing. */
@@ -222,6 +238,18 @@ export type LaptopModel = PanelModel & {
   setHologram(texture: Texture | null): void;
   /** A project has been swapped onto the display: the house's glitch, and the rails answer it. */
   glitch(): void;
+  /**
+   * Boot: from shut and dark, through the lid, the tube and the self-test. Starts at the top every
+   * time — an arrival that played half of itself is worse than none.
+   */
+  arrive(): void;
+  /** Back to the still: shut, dark, waiting. The world does this when the section is left. */
+  stow(): void;
+  /**
+   * Seconds into the boot, or `-1` while the machine is stowed. The world reads it to know which
+   * boot frame the display should be showing and when the first project may land.
+   */
+  bootAt(): number;
 };
 
 export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette): LaptopModel {
@@ -273,9 +301,12 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
   let shown = full;
   let lite = false;
   let clock = 0;
-  /** 0 shut → 1 open, and the swap glitch, 1 → 0. */
+  /** 0 shut → 1 open, the tube's vertical opening, and the swap glitch, 1 → 0. */
   let open = 0;
+  let crt = 0;
   let glitchLeft = 0;
+  /** Seconds into the arrival, or `BOOT_IDLE` while the machine is stowed. */
+  let boot = BOOT_IDLE;
   shellMesh.count = shown;
 
   /**
@@ -314,7 +345,11 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
 
   const compose = () => {
     const t = clock;
-    const accent = laptopAccentAt(t);
+    const booting = boot >= 0 && boot < LAPTOP_BOOT.total;
+    // During the arrival the body is on the sequence's clock, not on its own loop: the trackpad
+    // takes the boot's one accent and the key rows run a self-test instead of the caret.
+    const accent = booting ? laptopBootWake(boot) * 0.5 + bell(boot, LAPTOP_BOOT.accent, 0.12) : laptopAccentAt(t);
+    const wake = booting ? laptopBootWake(boot) : 0;
     // The lid's angle, and the breath on top of it: a machine at rest is not a still image.
     const angle = laptopLidAngle(open) + Math.sin((t / LAPTOP_LOOP) * Math.PI * 2) * 0.014 * open;
     // A lid-local point sits at hinge + R(π/2 − angle about x) · p: at π/2 the lid stands in the
@@ -323,11 +358,11 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
     lid.quaternion.copy(turn);
     lidMatrix.compose(lid.position, turn, UNIT);
 
-    /* the deck */
+    /* the deck — it answers first, before anything moves */
     position.set(0, 0, 0);
     scale.set(DECK.w, DECK.t, DECK.d);
     turn.identity();
-    write(SLOT.deck, blue, gain.rest);
+    write(SLOT.deck, blue, lerp(gain.rest, gain.lit, wake));
 
     /* the hinge barrel: the one part of the machine that is doing something while the lid swings */
     position.set(0, HINGE.y, HINGE.z);
@@ -335,11 +370,11 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
     turn.identity();
     write(SLOT.hinge, blue, lerp(gain.rest, gain.body, laptopHingeAt(open)));
 
-    /* the opening lip at the front edge */
+    /* the opening lip at the front edge — it takes the wake pulse with the deck */
     position.set(0, 0, LIP.z);
     scale.set(LIP.w, LIP.t, LIP.d);
     turn.identity();
-    write(SLOT.lip, blue, gain.rest);
+    write(SLOT.lip, blue, lerp(gain.rest, gain.body, wake));
 
     /* the trackpad — the loop's one accent, and the only thing in the object that passes `lit` */
     position.set(0, DECK.t / 2 + PAD.t / 2, PAD.z);
@@ -347,8 +382,9 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
     turn.identity();
     write(SLOT.pad, cyan, lerp(gain.body, gain.accent, accent));
 
-    /* the lid's four rails: the display's own frame, answering every swap */
-    const railGain = lerp(gain.body, gain.lit, glitchLeft);
+    /* the lid's four rails: the display's own frame, answering every swap — and the tube coming
+       on, which is the moment the frame around it has to be brightest */
+    const railGain = lerp(gain.body, gain.lit, Math.max(glitchLeft, booting ? crt * (1 - crt) * 4 : 0));
     writeRail(SLOT.rails, 0, BEZEL.y / 2, LID.w, BEZEL.y, railGain);
     writeRail(SLOT.rails + 1, 0, LID.h - BEZEL.y / 2, LID.w, BEZEL.y, railGain);
     writeRail(SLOT.rails + 2, -(LID.w - BEZEL.x) / 2, LID.h / 2, BEZEL.x, LID.h, railGain);
@@ -364,7 +400,8 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
       position.set(0, DECK.t / 2 + KEYS.t / 2, KEYS.rows[row]);
       scale.set(KEYS.w, KEYS.t, KEYS.d);
       turn.identity();
-      write(slot, cyan, lerp(gain.rest, gain.lit, laptopKeyAt(t, row) * open));
+      const lit = booting ? laptopBootTest(boot, row) : laptopKeyAt(t, row) * open;
+      write(slot, cyan, lerp(gain.rest, gain.lit, lit));
     }
 
     /* the two feet under the back of the deck */
@@ -399,9 +436,12 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
 
   applyPalette(palette);
 
-  /** The display exists only once it has something to show and the lid is far enough open. */
+  /**
+   * The display exists only once it has something to show and the tube has begun to open. A
+   * hairline plane is still a draw, so `crt` gates the mesh rather than only scaling it.
+   */
   const showScreen = (prewarm: boolean) => {
-    screenMesh.visible = (screen.uniforms.uMap.value !== null && open > SCREEN_FROM) || prewarm;
+    screenMesh.visible = (screen.uniforms.uMap.value !== null && crt > 0.001) || prewarm;
   };
 
   return {
@@ -414,12 +454,15 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
       const step = frame.step;
       clock += step;
       while (clock >= LAPTOP_LOOP) clock -= LAPTOP_LOOP;
-      // The lid follows the shelf: open while the window is on screen, shut once it is not.
-      const target = frame.reveal > OPEN_AT ? 1 : 0;
-      const travel = step / LAPTOP_OPEN_SECONDS;
-      open = target > open ? Math.min(target, open + travel) : Math.max(target, open - travel);
+      // The arrival runs in TIME, never on the scroll: once the world has armed it, a flick cannot
+      // leave the lid half open (docs/07-conventions.md).
+      if (boot >= 0 && boot < LAPTOP_BOOT.total) boot = Math.min(LAPTOP_BOOT.total, boot + step);
+      open = boot < 0 ? 0 : boot >= LAPTOP_BOOT.total ? 1 : laptopBootLid(boot);
+      crt = boot < 0 ? 0 : boot >= LAPTOP_BOOT.total ? 1 : laptopBootCrt(boot);
       glitchLeft = glitchLeft > 0 ? Math.max(0, glitchLeft - step / LAPTOP_GLITCH_SECONDS) : 0;
       compose();
+      // The tube opens out of a hairline: the plane itself is scaled, so the picture opens with it.
+      screenMesh.scale.set(1, crt, 1);
 
       shell.uniforms.uTime.value = frame.time;
       shell.uniforms.uReveal.value = frame.reveal;
@@ -447,6 +490,31 @@ export function createLaptopModel(config: SceneTierConfig, palette: ScenePalette
 
     glitch() {
       glitchLeft = 1;
+    },
+
+    arrive() {
+      boot = 0;
+      // The body's own loop starts with the arrival, so the caret's first run lands just after the
+      // self-test rather than half way through it.
+      clock = 0;
+      glitchLeft = 0;
+      open = 0;
+      crt = 0;
+      compose();
+    },
+
+    stow() {
+      boot = BOOT_IDLE;
+      open = 0;
+      crt = 0;
+      glitchLeft = 0;
+      screenMesh.scale.set(1, 0, 1);
+      showScreen(false);
+      compose();
+    },
+
+    bootAt() {
+      return boot;
     },
 
     setLite(next) {

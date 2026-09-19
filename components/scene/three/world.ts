@@ -67,6 +67,9 @@ import {
   placeCore,
   placeHelixAmbient,
   placeHelixSpiral,
+  LAPTOP_BOOT,
+  LAPTOP_BOOT_GATE,
+  laptopBootFrame,
   panelsShare,
   placeLaptop,
   placePanels,
@@ -90,7 +93,12 @@ import type { ProjectsReel } from "../projectsReel";
 import type { WorkHelixDriver } from "../workHelix";
 import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
-import { composeLaptopScreen, createHologramSource, type HologramSource } from "./hologram";
+import {
+  composeLaptopBoot,
+  composeLaptopScreen,
+  createHologramSource,
+  type HologramSource,
+} from "./hologram";
 import { toColor } from "./materials";
 import { createCommerceLoopModel } from "./models/shopFloor";
 import { createProductStackModel } from "./models/productStack";
@@ -394,6 +402,13 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let screenCard: HTMLElement | null = null;
   let screenIndex = -1;
   let screenGeneration = -1;
+  /**
+   * The arrival's gate: armed by the share of the window on screen (`LAPTOP_BOOT_GATE`), spent in
+   * TIME by the model, and re-armable only once the section has been left. `bootFrame` is the boot
+   * frame the display is showing, so the texture is painted on a step change and not every frame.
+   */
+  let laptopArmed = false;
+  let bootFrame = -1;
 
   /* Work: the helix, its hologram and the spiral driver the page hands over. */
   let helix: HelixModel | null = null;
@@ -587,6 +602,37 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
    * their images. That last case is the reason `request` takes `force`: the card element can be the
    * very one already on the texture, with a different project behind it.
    */
+  /**
+   * The display's one source. The texture is handed to the model as soon as it exists, because the
+   * first thing on it is a boot frame rather than a project — the model still keeps the screen dark
+   * until its tube opens (`laptop.ts` `showScreen`), so there is never an empty plane.
+   */
+  const ensureDisplay = (model: LaptopModel): HologramSource => {
+    if (!display) {
+      const source = createHologramSource(
+        config.hologram,
+        // Only a project swap glitches; a boot frame is the machine drawing itself, not a change.
+        () => model.glitch(),
+        // The laptop's own layout over the same pipeline: the display is read the way a screen is
+        // read, so it draws the project's name, tag and description as TEXT at the canvas's native
+        // resolution — the one way to make it legible that does not raise the cap the screenshot
+        // is deliberately crushed by (`hologram.ts` `composeLaptopScreen`).
+        composeLaptopScreen,
+      );
+      display = source;
+      model.setHologram(source.texture);
+    }
+    return display;
+  };
+
+  /** One boot frame onto the display: no card, no idle slot, no glitch (`HologramSource.paint`). */
+  const paintBoot = (model: LaptopModel, frame: number) => {
+    const count = reel ? reel.cards().length : 0;
+    ensureDisplay(model).paint((ctx, size) =>
+      composeLaptopBoot(ctx, size, frame, LAPTOP_BOOT.frameCount, count),
+    );
+  };
+
   const frameScreen = () => {
     const model = laptop;
     if (!model || !reel) return;
@@ -597,27 +643,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     screenCard = pick.card;
     screenIndex = pick.index;
     screenGeneration = pick.generation;
-    if (!display) {
-      // Handed to the model on its first drawn card (no empty display before it), glitching every swap.
-      let handed = false;
-      const source = createHologramSource(
-        config.hologram,
-        () => {
-          if (!handed) {
-            handed = true;
-            model.setHologram(source.texture);
-          }
-          model.glitch();
-        },
-        // The laptop's own layout over the same pipeline: the display is read the way a screen is
-        // read, so it draws the project's name, tag and description as TEXT at the canvas's native
-        // resolution — the one way to make it legible that does not raise the cap the screenshot
-        // is deliberately crushed by (`hologram.ts` `composeLaptopScreen`).
-        composeLaptopScreen,
-      );
-      display = source;
-    }
-    display.request(pick.card, pick.index, stale);
+    ensureDisplay(model).request(pick.card, pick.index, stale);
   };
 
   /**
@@ -979,7 +1005,8 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       if (laptop) {
         const group = laptop.group;
         const prewarm = prewarmQueue.has(group);
-        const onScreen = projectsShare(probe, scrollY, h) > 0;
+        const share = projectsShare(probe, scrollY, h);
+        const onScreen = share > 0;
         const faded = laptopFade + (onScreen ? step : -step) / PANEL_FADE_SECONDS;
         laptopFade = faded <= 0 ? 0 : faded >= 1 ? 1 : faded;
         const spot = laptopFade > 0 || prewarm ? placeLaptop(probe, scrollY, w, h, laptopSpot) : null;
@@ -994,9 +1021,47 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
           modelFrame.reveal = laptopFade;
           modelFrame.prewarm = prewarm;
           modelFrame.step = step;
+
+          /* The arrival. It is armed by how much of the window is really inside the canvas, and
+             spent in TIME from there — never scrubbed by the scroll, so a flick cannot leave the
+             lid half open. Leaving the section altogether stows the machine, and coming back boots
+             it again; scrolling about inside the section replays nothing. */
+          const armed = laptopArmed
+            ? share > LAPTOP_BOOT_GATE.off
+            : share >= LAPTOP_BOOT_GATE.on;
+          if (armed !== laptopArmed) {
+            laptopArmed = armed;
+            bootFrame = -1;
+            if (armed) {
+              laptop.arrive();
+            } else {
+              laptop.stow();
+              // Whatever was on the display was composed for a visit that is over.
+              screenCard = null;
+              screenIndex = -1;
+              screenGeneration = -1;
+            }
+          }
+
           laptop.update(modelFrame);
-          // Only while it is really being drawn: nothing is composed for a section nobody reached.
-          if (laptopFade > 0) frameScreen();
+
+          /* What the display is showing: the machine's own boot frames until the sequence says the
+             first project may land, then the reel. Nothing is composed for a section nobody
+             reached, and a stowed machine shows nothing at all. */
+          if (laptopFade > 0) {
+            const boot = laptop.bootAt();
+            if (boot < 0) {
+              bootFrame = -1;
+            } else if (boot < LAPTOP_BOOT.swap) {
+              const wanted = laptopBootFrame(boot);
+              if (wanted !== bootFrame) {
+                bootFrame = wanted;
+                if (wanted >= 0) paintBoot(laptop, wanted);
+              }
+            } else {
+              frameScreen();
+            }
+          }
         }
       }
 
@@ -1107,6 +1172,9 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       if (next === reel) return;
       reel?.dispose();
       reel = next;
+      laptopArmed = false;
+      bootFrame = -1;
+      laptop?.stow();
       // Whatever is on the display was composed from cards that are gone.
       screenCard = null;
       screenIndex = -1;

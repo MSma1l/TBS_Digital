@@ -12,7 +12,12 @@ import {
   type ReactNode,
 } from "react";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
-import { laptopScreenBox, type ScreenBox } from "@/components/scene/choreography";
+import {
+  LAPTOP_BOOT,
+  LAPTOP_BOOT_GATE,
+  laptopScreenBox,
+  type ScreenBox,
+} from "@/components/scene/choreography";
 import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
 import { selectSceneShape, selectServiceStage } from "@/lib/scene";
 import { TILT_MAX } from "@/lib/tilt";
@@ -62,12 +67,20 @@ const pageUI = {
 /**
  * Milliseconds one project holds the laptop's display before the reel moves on.
  *
- * It runs only while the stage is on screen, it stops under the pointer or a focus inside the
- * stage, and any of the controls stops it for the rest of the visit — the pause button is the
- * plain one WCAG 2.2.2 asks for (auto-updating information, in parallel with other content, for
- * longer than five seconds, needs a mechanism to stop it).
+ * It runs only while the stage is on screen, and it stops under the pointer or a focus inside the
+ * stage — that pause is the mechanism WCAG 2.2.2 asks for (auto-updating information, presented in
+ * parallel with other content, needs a way to pause or stop it), reachable with a pointer by
+ * moving onto the machine and from the keyboard by focusing the screen's own link.
  */
 const PROJECT_DWELL_MS = 2000;
+
+/**
+ * …and the machine boots before any of that. The reel is held for the arrival plus one full dwell,
+ * so the project the boot lands on is read for as long as every other one rather than being swept
+ * away a moment after it arrives. Both numbers come from the scene's own table — the sequence and
+ * the page cannot drift apart.
+ */
+const PROJECT_BOOT_HOLD_MS = LAPTOP_BOOT.swap * 1000 + PROJECT_DWELL_MS;
 
 /**
  * A single direction page. Filled directions render the full layout; the rest show a
@@ -318,9 +331,14 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      pointer by moving onto the machine, and from the keyboard by focusing the screen's own link,
      which is the first thing Tab reaches in this section. */
   const [reelHeld, setReelHeld] = useState(false);
-  /* The stage is on screen. It never becomes true where the stage is not laid out (below 861px,
-     `fallback`, `off`, reduced motion), so no timer runs for a visitor who is reading the grid. */
+  /* The stage is on screen, by the very share that arms the machine's arrival in the scene
+     (`LAPTOP_BOOT_GATE.on`) — one number, so the boot and the reel start on the same beat and the
+     sequence lands on the FIRST project rather than on whichever one the clock had reached. It
+     never becomes true where the stage is not laid out (below 861px, `fallback`, `off`, reduced
+     motion), so no timer runs for a visitor who is reading the grid. */
   const [reelOnScreen, setReelOnScreen] = useState(false);
+  /* …and the machine has finished booting. */
+  const [booted, setBooted] = useState(false);
   /* Where the display lands inside the window, so the thing a visitor presses sits on the screen
      they are looking at. Measured off the window itself and put through the same arithmetic the
      scene fits the machine with (components/scene/choreography.ts), so the two cannot drift. */
@@ -339,21 +357,34 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     const stage = stageRef.current;
     if (!stage || typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
-      (entries) => setReelOnScreen(entries.some((entry) => entry.isIntersecting)),
-      { threshold: 0.15 },
+      (entries) =>
+        setReelOnScreen(entries.some((entry) => entry.intersectionRatio >= LAPTOP_BOOT_GATE.on)),
+      { threshold: LAPTOP_BOOT_GATE.on },
     );
     observer.observe(stage);
     return () => observer.disconnect();
   }, [slug]);
 
+  /* Arriving at the section puts the reel back to the first project and holds it there while the
+     machine boots. Leaving stows both. Guarded, so neither costs a render on a first mount. */
   useEffect(() => {
-    if (reelHeld || !reelOnScreen || reelCount < 2) return;
+    if (!reelOnScreen) {
+      setBooted((done) => (done ? false : done));
+      return;
+    }
+    setActive((current) => (current === 0 ? current : 0));
+    const id = window.setTimeout(() => setBooted(true), PROJECT_BOOT_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [reelOnScreen]);
+
+  useEffect(() => {
+    if (!booted || reelHeld || !reelOnScreen || reelCount < 2) return;
     const id = window.setInterval(
       () => setActive((current) => (current + 1) % reelCount),
       PROJECT_DWELL_MS,
     );
     return () => window.clearInterval(id);
-  }, [reelHeld, reelOnScreen, reelCount]);
+  }, [booted, reelHeld, reelOnScreen, reelCount]);
 
   /* The window's box is the only thing the hit area needs: `laptopScreenBox` runs the very fit the
      scene runs. A ResizeObserver delivers its first observation on `observe`, so nothing is set

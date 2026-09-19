@@ -16,6 +16,58 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Added: laptopul pornește — secvența de boot
+
+Clientul: „când ajung la laptop fa un intro frumos… cum se pornește laptopul cu proiecte și se
+deschide laptopul, cât mai wow cu atât mai bine".
+
+**1,65 secunde, cinci mișcări:**
+
+| t | ce se întâmplă |
+| --- | --- |
+| 0,00–0,20 | **trezirea** — blatul și buza iau un puls; mașina e pornită înainte să fie deschisă |
+| 0,05–0,70 | **capacul** — cursa pe balama, cu ~4% peste vârf și așezare; balamaua se aprinde la mijloc |
+| 0,40–0,66 | **tubul** — displayul se deschide pe verticală dintr-un fir de păr |
+| 0,44–0,82 | **cadrele de boot** — cinci cadre pe aceeași pânză: rasterul, bara de titlu, colțurile, o bară de progres. **Niciun cuvânt** |
+| 0,86 | **primul proiect** se compune, cu glitch-ul casei |
+| 0,70–1,55 | **autotestul** — cele trei rânduri de taste în secvență, apoi accentul pe trackpad |
+
+**Un tabel, trei cititori:** modelul își ia pozele, lumea pictează cadrele, iar pagina își ține ruleta
+pentru boot plus un interval întreg — deci proiectul pe care aterizează secvența se citește la fel de
+mult ca oricare altul. Secvența și pagina nu pot ajunge în dezacord.
+
+**Ce o armează, și de ce nu poate fi ratată.** Poarta e la 60% din fereastră — ales pentru că e
+**măsurat exact pragul de la care displayul e complet vizibil** (display 1,00 la armare, în fiecare
+rulare). Secvența e **cronometrată**, nu legată de scroll, deci o derulare bruscă nu poate lăsa
+capacul pe jumătate.
+
+| Caz | Armare | Primul proiect | Display pe ecran |
+| --- | --- | --- | --- |
+| Scroll 700px/s | scroll 731 | t+0,87s | **100% → 46%** pe toată partea esențială |
+| Link direct `#proiecte` | — | — | **100%** pe toate eșantioanele |
+| Reîncărcare în secțiune | — | — | **100%** peste tot |
+| Flick 2500px/s | scroll 765 | — | vizitatorul ajunge la fundul paginii în 0,73s |
+
+Durata a coborât de la 2,4s la **1,65s** tocmai după măsurătoarea la 700px/s: la 2,4s primul proiect
+ateriza cu displayul deja la 0% pe ecran. Pleci și revii — se bootează din nou; te miști în interiorul
+secțiunii — nu.
+
+**Starea dinainte e deliberată:** mașina închisă, ecran stins, blatul și șinele aprinse la repaus —
+un obiect compus, nu un dreptunghi gol.
+
+**Decizii bune luate de agent:** cadrele de boot **nu desenează niciun glif** (un ecran care pornește
+n-are de unde să citească un font și n-are ce căuta să dețină text într-o singură limbă), iar tabelul
+stă în modulul fără three, singurul pe care pagina îl poate importa.
+
+Neschimbate: **+2 desene**, plafonul de 384×240 (cadrele de boot se desenează la aceeași dimensiune),
+ruleta de după (2s, pauză la pointer și la focus), `[data-scene-layer]`, și grila neatinsă sub 861px,
+fără 3D și la mișcare redusă — care nu primește niciodată jumătate de boot, pentru că nu primește
+scenă deloc.
+
+Fișiere: `components/scene/choreography.ts`, `components/scene/three/models/laptop.ts`,
+`components/scene/three/hologram.ts`, `components/scene/three/world.ts`,
+`components/sections/DirectionPage.tsx`, testul scenei.
+
 ## 2026-09-19 — Changed: laptopul fără contur, proiectele se schimbă la 2 secunde
 
 Clientul: scoate conturul și fă cartelele să se schimbe la fiecare 2 secunde.

@@ -485,6 +485,119 @@ export async function composeLaptopScreen(
   return result;
 }
 
+/**
+ * A BOOT frame for the laptop's display: not a project, and not a picture of one. The machine's
+ * own furniture drawing itself, step by step, in the very places the project's furniture will
+ * stand — the title bar and its rule, the band rule, the bracket corners and the reel's ticks —
+ * with a raster settling behind it and a bar filling across the panel.
+ *
+ * It costs nothing the project frame does not already cost: the same canvas, capped at the same
+ * 384 x 240 (`clampHologramSize`), the same one texture. `step` runs 0 .. `steps - 1`, and each
+ * one adds a piece, so the display reads as a machine stepping through its start-up rather than as
+ * something fading in.
+ *
+ * Not one glyph. Every other string on this display is the page's own, in the visitor's language,
+ * drawn in the card's own computed font — and a boot frame has no card to read a font off and no
+ * business owning a caption in one language. The rules, the brackets, the ticks and the bar say it
+ * instead, and the ticks say how many projects are about to run.
+ */
+export function composeLaptopBoot(
+  ctx: CanvasRenderingContext2D,
+  size: readonly [number, number],
+  step: number,
+  steps: number,
+  count: number,
+): void {
+  const L = LAPTOP_SCREEN_LAYOUT;
+  const [w, h] = clampHologramSize(size);
+  const s = h / 240;
+  const px = (value: number) => Math.round(value * s);
+  const pad = px(L.pad);
+  const bar = px(L.bar);
+  const band = Math.round(h * L.band);
+  const foot = px(L.foot);
+  const total = Math.max(1, Math.floor(steps));
+  const at = Math.min(total - 1, Math.max(0, Math.floor(step)));
+  const through = (at + 1) / total;
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#fff";
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+
+  /* the raster: the tube warming up, one line every `scanEvery`, brighter with every step */
+  ctx.globalAlpha = 0.06 + 0.05 * at;
+  for (let y = 0; y < h; y += HOLOGRAM.scanEvery) ctx.fillRect(0, y, w, 1);
+  ctx.globalAlpha = 1;
+
+  /* step 1: the title bar and the node mark */
+  const node = px(L.node);
+  if (at >= 1) {
+    ctx.globalAlpha = 0.72;
+    ctx.fillRect(0, bar, w, 1);
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pad + 0.5, Math.round((bar - node) / 2) + 0.5, node - 1, node - 1);
+  }
+
+  /* step 2: the rule the screenshot band will sit on, and the corners */
+  if (at >= 2) {
+    ctx.globalAlpha = 0.45;
+    ctx.fillRect(0, band, w, 1);
+    ctx.globalAlpha = 1;
+    const arm = px(L.bracket.arm);
+    const inset = px(L.bracket.inset);
+    ctx.lineWidth = Math.max(1, px(L.bracket.width));
+    ctx.beginPath();
+    for (const [cx, cy, dx, dy] of [
+      [inset, inset, 1, 1],
+      [w - inset, inset, -1, 1],
+      [inset, h - inset, 1, -1],
+      [w - inset, h - inset, -1, -1],
+    ] as const) {
+      ctx.moveTo(cx, cy + dy * arm);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx + dx * arm, cy);
+    }
+    ctx.stroke();
+  }
+
+  /* step 3: the head of the bar the name will sit on, so the panel is already framed */
+  if (at >= 3) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(pad, band + px(10), Math.round((w - 2 * pad) * 0.42), Math.max(1, px(2)));
+    ctx.globalAlpha = 1;
+  }
+
+  /* the bar filling across the panel, and the reel's ticks arriving with it */
+  const railY = band + Math.round((h - foot - band) / 2);
+  const railH = Math.max(2, px(4));
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 1;
+  ctx.strokeRect(pad + 0.5, railY + 0.5, w - 2 * pad - 1, railH - 1);
+  ctx.globalAlpha = 1;
+  ctx.fillRect(pad + 2, railY + 2, Math.round((w - 2 * pad - 4) * through), railH - 4);
+
+  if (at >= 3 && count > 0) {
+    const tickW = px(L.tick.w);
+    const tickH = px(L.tick.h);
+    const tickGap = px(L.tick.gap);
+    const lit = Math.round(count * through);
+    let tx = w - pad - count * (tickW + tickGap) + tickGap;
+    const footY = h - foot / 2;
+    for (let i = 0; i < count; i += 1) {
+      ctx.globalAlpha = i < lit ? 0.9 : 0.25;
+      ctx.fillRect(tx, Math.round(footY - tickH / 2), tickW, tickH);
+      tx += tickW + tickGap;
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
 /** What draws a card onto the canvas: the Work layout, or the laptop's. */
 export type HologramComposer = (
   card: HTMLElement,
@@ -503,6 +616,13 @@ export type HologramSource = {
    * screenshot of a project that is no longer there.
    */
   request(card: HTMLElement | null, index: number, force?: boolean): void;
+  /**
+   * Draw straight onto the canvas and flag the texture — no card, no idle slot, no swap. The boot
+   * frames come through here: they are not a project, they have to land on the frame the model
+   * asks for them, and nothing may afterwards think the texture is showing a card (the next
+   * `request` always composes again).
+   */
+  paint(draw: (ctx: CanvasRenderingContext2D, size: readonly [number, number]) => void): void;
   dispose(): void;
 };
 
@@ -619,6 +739,17 @@ export function createHologramSource(
     texture,
     request(card, index, force = false) {
       request(card, index, force);
+    },
+    paint(draw) {
+      if (disposed || !ctx) return;
+      // A pending compose would land on top of this one: drop it, the caller owns the display now.
+      cancelIdle?.();
+      cancelIdle = null;
+      wanted = null;
+      generation += 1;
+      draw(ctx, [w, h]);
+      shown = null;
+      texture.needsUpdate = true;
     },
     dispose() {
       disposed = true;

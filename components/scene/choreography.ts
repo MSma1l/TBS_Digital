@@ -462,6 +462,125 @@ export function laptopScreenBox(
   return out;
 }
 
+/* ---- the laptop's arrival ------------------------------------------------------------------ */
+
+/**
+ * What arms the boot, as a share of the projects window inside the canvas, and the share it has to
+ * fall back to before the arrival can be spent a second time.
+ *
+ * `on` is 0.6 and not "any pixel of it": an arrival nobody sees is worth nothing, and this site has
+ * paid for that lesson three times. At 0.6 the window's top two thirds are inside the canvas, which
+ * is where the lid and the display are — the machine is fitted to the window's centre and the
+ * display sits above it (`LAPTOP_SCREEN.cy`) — so the beat that matters is on screen from the first
+ * frame of the sequence and can only get better as the scroll continues.
+ *
+ * `off` is 0.05, so nothing replays while the visitor is reading the section: only leaving it
+ * altogether re-arms the machine, and coming back boots it again.
+ */
+export const LAPTOP_BOOT_GATE = { on: 0.6, off: 0.05 } as const;
+
+/**
+ * The boot sequence, in seconds from the moment the gate arms. **One table, three readers**: the
+ * model poses itself from it (`three/models/laptop.ts`), the world paints the display's boot frames
+ * and lets the first project in on it (`three/world.ts`), and the page holds its reel back for it
+ * (`sections/DirectionPage.tsx`). It lives here because this module is the scene's pure arithmetic
+ * and the only one of the three a React component may import — `laptop.ts` builds geometry at
+ * import and would drag three.js into the page bundle.
+ *
+ * It is a TIMED sequence, never scrubbed by the scroll (docs/07): once it is armed it plays out
+ * whatever the visitor does, so a flick cannot leave the lid half open.
+ *
+ * The beats, and why they are where they are:
+ *  · `wake` — the deck answers first, a single pulse along it. The machine is a thing that is
+ *    switched on before it is a thing that opens;
+ *  · `lid` — the anchor of the whole arrival, and the one verb this page has that nothing else on
+ *    the site has. A second of travel, eased out with a small settle past the top;
+ *  · `crt` — the display opens out of a hairline as the lid passes about half way, which is the
+ *    difference between a screen powering up and an image fading in;
+ *  · `frames` — the boot frames: the HUD furniture drawing itself in `frameCount` discrete steps,
+ *    in the very places the project's own furniture will stand, so the swap reads as a machine
+ *    finishing its start-up rather than as a picture being replaced;
+ *  · `swap` — the first project composes in, with the house's glitch;
+ *  · `test` — the body's self-test runs on behind it: the three key rows in sequence, then the
+ *    trackpad at `accent`. The tail, deliberately: everything that has to be seen is done by
+ *    `swap`, so a visitor who scrolls on has missed nothing but the flourish.
+ *
+ * **1.65 seconds, and `swap` at 0.86, are a measurement rather than a taste.** The display is only
+ * 261 of the window's 576px (`laptopScreenBox`), so from the moment the gate arms — which is
+ * exactly the moment it is first fully inside the canvas, measured — it stays fully inside over
+ * 468px of scroll travel and half inside over 598px: 0.67s and 0.85s at 700px/s. A visitor who has
+ * stopped to look sees all of it at 100%; a visitor scrolling steadily past sees the lid and the
+ * tube at 100% and the first project land with the display still half on screen. The first version
+ * ran 2.4s with the swap at 1.6 and that visitor had the machine gone before the project arrived.
+ */
+export const LAPTOP_BOOT = {
+  total: 1.65,
+  wake: [0, 0.2],
+  lid: [0.05, 0.7],
+  crt: [0.4, 0.66],
+  frames: [0.44, 0.82],
+  frameCount: 5,
+  swap: 0.86,
+  test: [0.7, 1.55],
+  testStep: 0.15,
+  testDwell: 0.32,
+  accent: 1.5,
+} as const;
+
+/** Pure. 0 before `from`, 1 after `to`. */
+function bootRamp(t: number, from: number, to: number): number {
+  return clamp01((t - from) / (to - from));
+}
+
+/**
+ * Pure. The lid's `open` (0 shut → 1 open) at `t` seconds into the boot: eased out and carried a
+ * little past the top before it settles, the way a hinge with mass stops. Held shut before the
+ * sequence and open after it.
+ */
+export function laptopBootLid(t: number): number {
+  if (!(t >= 0)) return 0;
+  if (t >= LAPTOP_BOOT.lid[1]) return 1;
+  const a = bootRamp(t, LAPTOP_BOOT.lid[0], LAPTOP_BOOT.lid[1]);
+  // A back-out ease: about 4% past the top at ~0.77 of the travel. 10% (the textbook constant)
+  // would be 10 degrees of overshoot on a 107-degree lid, which reads as a bounce, not as mass.
+  const c1 = 0.7;
+  const c3 = c1 + 1;
+  const k = a - 1;
+  return 1 + c3 * k * k * k + c1 * k * k;
+}
+
+/** Pure. The display's vertical opening, 0 (a hairline) → 1 (the whole screen). */
+export function laptopBootCrt(t: number): number {
+  if (!(t >= 0)) return 0;
+  return t >= LAPTOP_BOOT.crt[1] ? 1 : smoothstep(LAPTOP_BOOT.crt[0], LAPTOP_BOOT.crt[1], t);
+}
+
+/**
+ * Pure. Which boot frame the display should be showing at `t`, or −1 for none — before the tube is
+ * warm, and from `swap` on, when the first project owns the texture.
+ */
+export function laptopBootFrame(t: number): number {
+  if (!(t >= LAPTOP_BOOT.frames[0]) || t >= LAPTOP_BOOT.swap) return -1;
+  const a = bootRamp(t, LAPTOP_BOOT.frames[0], LAPTOP_BOOT.frames[1]);
+  const frame = Math.floor(a * LAPTOP_BOOT.frameCount);
+  return frame >= LAPTOP_BOOT.frameCount ? LAPTOP_BOOT.frameCount - 1 : frame;
+}
+
+/** Pure. How lit key row `row` is during the self-test, 0 → 1 (0 outside it). */
+export function laptopBootTest(t: number, row: number): number {
+  if (!(t >= 0)) return 0;
+  const from = LAPTOP_BOOT.test[0] + row * LAPTOP_BOOT.testStep;
+  const to = from + LAPTOP_BOOT.testDwell;
+  return smoothstep(from, from + 0.1, t) * (1 - smoothstep(to - 0.1, to, t));
+}
+
+/** Pure. The power pulse along the deck as the machine wakes, 0 → 1 → 0. */
+export function laptopBootWake(t: number): number {
+  if (!(t >= 0)) return 0;
+  const [from, to] = LAPTOP_BOOT.wake;
+  return smoothstep(from, from + 0.07, t) * (1 - smoothstep(to - 0.16, to, t));
+}
+
 /* ---- the steps corner (a service page's "Cum lucrăm") ----------------------------------- */
 
 /**

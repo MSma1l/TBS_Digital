@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   LAPTOP_AIR,
+  LAPTOP_BOOT,
+  LAPTOP_BOOT_GATE,
   LAPTOP_LIT,
   LAPTOP_SCREEN,
+  laptopBootCrt,
+  laptopBootFrame,
+  laptopBootLid,
+  laptopBootTest,
+  laptopBootWake,
   laptopScreenBox,
   placeLaptop,
   projectsShare,
@@ -24,7 +31,12 @@ import {
   laptopKeyAt,
   laptopLidAngle,
 } from "@/components/scene/three/models/laptop";
-import { CTA_ATTR, HOLOGRAM_MAX, composeLaptopScreen } from "@/components/scene/three/hologram";
+import {
+  CTA_ATTR,
+  HOLOGRAM_MAX,
+  composeLaptopBoot,
+  composeLaptopScreen,
+} from "@/components/scene/three/hologram";
 import { PROJECTS_INDEX_ATTR, createScrollProbe, type ScrollProbe } from "@/lib/scene";
 
 /*
@@ -218,6 +230,91 @@ describe("the machine's own arithmetic", () => {
     expect(laptopHingeAt(0.5)).toBeCloseTo(1, 10);
     expect(laptopHingeAt(-3)).toBe(0);
     expect(laptopHingeAt(7)).toBe(0);
+  });
+});
+
+/* ---- the arrival ---------------------------------------------------------------------------- */
+
+describe("the boot sequence", () => {
+  it("reads in the order the beats are written", () => {
+    // Nothing may run before the machine is switched on, and nothing after the sequence is over.
+    expect(LAPTOP_BOOT.wake[0]).toBe(0);
+    expect(LAPTOP_BOOT.lid[0]).toBeGreaterThanOrEqual(LAPTOP_BOOT.wake[0]);
+    expect(LAPTOP_BOOT.crt[0]).toBeGreaterThan(LAPTOP_BOOT.lid[0]);
+    expect(LAPTOP_BOOT.crt[1]).toBeLessThanOrEqual(LAPTOP_BOOT.lid[1]);
+    expect(LAPTOP_BOOT.frames[0]).toBeGreaterThanOrEqual(LAPTOP_BOOT.crt[0]);
+    expect(LAPTOP_BOOT.frames[1]).toBeLessThan(LAPTOP_BOOT.swap);
+    expect(LAPTOP_BOOT.swap).toBeLessThan(LAPTOP_BOOT.total);
+    expect(LAPTOP_BOOT.test[1]).toBeLessThanOrEqual(LAPTOP_BOOT.total);
+    // The gate can be left before it can be armed again, or the arrival would replay while read.
+    expect(LAPTOP_BOOT_GATE.off).toBeLessThan(LAPTOP_BOOT_GATE.on);
+  });
+
+  it("holds the lid shut before the sequence and open after it, with a settle in between", () => {
+    expect(laptopBootLid(-1)).toBe(0);
+    expect(laptopBootLid(0)).toBeCloseTo(0, 6);
+    expect(laptopBootLid(LAPTOP_BOOT.lid[1])).toBe(1);
+    expect(laptopBootLid(LAPTOP_BOOT.total)).toBe(1);
+    // It carries a little past the top — mass, not a bounce — and comes back to exactly open.
+    let peak = 0;
+    for (let t = 0; t <= LAPTOP_BOOT.lid[1]; t += 0.01) peak = Math.max(peak, laptopBootLid(t));
+    expect(peak).toBeGreaterThan(1);
+    expect(peak).toBeLessThan(1.06);
+  });
+
+  it("opens the tube out of a hairline, inside the lid's own swing", () => {
+    expect(laptopBootCrt(-1)).toBe(0);
+    expect(laptopBootCrt(LAPTOP_BOOT.crt[0])).toBeCloseTo(0, 6);
+    expect(laptopBootCrt(LAPTOP_BOOT.crt[1])).toBe(1);
+    expect(laptopBootCrt(LAPTOP_BOOT.total)).toBe(1);
+    const mid = laptopBootCrt((LAPTOP_BOOT.crt[0] + LAPTOP_BOOT.crt[1]) / 2);
+    expect(mid).toBeGreaterThan(0.3);
+    expect(mid).toBeLessThan(0.7);
+  });
+
+  it("steps through every boot frame once, and hands the display over at the swap", () => {
+    expect(laptopBootFrame(0)).toBe(-1);
+    expect(laptopBootFrame(LAPTOP_BOOT.frames[0] - 0.01)).toBe(-1);
+    const seen = new Set<number>();
+    for (let t = LAPTOP_BOOT.frames[0]; t < LAPTOP_BOOT.swap; t += 0.01) {
+      const frame = laptopBootFrame(t);
+      expect(frame).toBeGreaterThanOrEqual(0);
+      expect(frame).toBeLessThan(LAPTOP_BOOT.frameCount);
+      seen.add(frame);
+    }
+    expect(seen.size).toBe(LAPTOP_BOOT.frameCount);
+    // From the swap on, the project owns the texture and no boot frame may overwrite it.
+    expect(laptopBootFrame(LAPTOP_BOOT.swap)).toBe(-1);
+    expect(laptopBootFrame(LAPTOP_BOOT.total)).toBe(-1);
+  });
+
+  it("runs the self-test one key row at a time", () => {
+    for (const row of [0, 1, 2]) {
+      const at = LAPTOP_BOOT.test[0] + row * LAPTOP_BOOT.testStep + LAPTOP_BOOT.testDwell / 2;
+      const values = [0, 1, 2].map((other) => laptopBootTest(at, other));
+      expect(values[row]).toBeGreaterThan(0.9);
+      for (const other of [0, 1, 2]) if (other !== row) expect(values[other]).toBeLessThan(values[row]);
+    }
+    expect(laptopBootTest(-1, 0)).toBe(0);
+    expect(laptopBootTest(LAPTOP_BOOT.total, 0)).toBe(0);
+  });
+
+  it("wakes the deck once, before anything moves", () => {
+    expect(laptopBootWake(-1)).toBe(0);
+    expect(laptopBootWake(0)).toBeCloseTo(0, 6);
+    const peak = laptopBootWake((LAPTOP_BOOT.wake[0] + LAPTOP_BOOT.wake[1]) / 2);
+    expect(peak).toBeGreaterThan(0.8);
+    expect(laptopBootWake(LAPTOP_BOOT.wake[1])).toBeCloseTo(0, 6);
+    expect(laptopBootWake(LAPTOP_BOOT.total)).toBeCloseTo(0, 6);
+  });
+
+  it("draws boot frames that are furniture and never a word", async () => {
+    const { ctx, texts } = recorder();
+    for (let frame = 0; frame < LAPTOP_BOOT.frameCount; frame += 1) {
+      composeLaptopBoot(ctx, [384, 240], frame, LAPTOP_BOOT.frameCount, 5);
+    }
+    // Not one glyph: a boot screen has no card to read a font off and no business owning copy.
+    expect(texts).toEqual([]);
   });
 });
 
