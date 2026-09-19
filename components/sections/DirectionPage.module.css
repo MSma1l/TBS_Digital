@@ -1155,44 +1155,13 @@ a.project:hover {
   aspect-ratio: 1.42 / 1;
   max-height: 72vh;
   margin-inline: auto;
-  /* The window's own chrome, the module's one recipe: 1px background LAYERS, each `no-repeat`
-     with an explicit 1px side, so no layer is ever a fill — a rule across its head and a guide
-     rail under each of its ends. No fill, no border, no radius, no shadow. */
-  background:
-    linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
-      top center / 100% 1px,
-    linear-gradient(
-        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
-        transparent
-      )
-      no-repeat top left / 1px 26px,
-    linear-gradient(
-        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
-        transparent
-      )
-      no-repeat top right / 1px 26px;
+  /* No chrome. The window carried a head rule and four bracket arms in the module's usual recipe;
+     the client asked for them off, and they were the one thing framing a machine that already
+     draws its own edges. The box still exists — it is what the scene measures and what the
+     screen's hit area is derived from — it simply paints nothing. Do not give it a background,
+     a border or a shadow: anything opaque here would hide the canvas behind it. */
   opacity: 0;
   transition: opacity 0.6s var(--motion-ease-out);
-}
-/* The brackets at the window's foot, completing the frame down its sides. 22px arms, no radius. */
-.projScreen::before,
-.projScreen::after {
-  content: "";
-  position: absolute;
-  bottom: 0;
-  width: 22px;
-  height: 22px;
-  border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
-  border-bottom-width: 1px;
-  pointer-events: none;
-}
-.projScreen::before {
-  left: 0;
-  border-left-width: 1px;
-}
-.projScreen::after {
-  right: 0;
-  border-right-width: 1px;
 }
 .projStage[data-entered] .projScreen {
   opacity: 1;

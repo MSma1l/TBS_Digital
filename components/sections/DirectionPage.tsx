@@ -67,7 +67,7 @@ const pageUI = {
  * plain one WCAG 2.2.2 asks for (auto-updating information, in parallel with other content, for
  * longer than five seconds, needs a mechanism to stop it).
  */
-const PROJECT_DWELL_MS = 4200;
+const PROJECT_DWELL_MS = 2000;
 
 /**
  * A single direction page. Filled directions render the full layout; the rest show a

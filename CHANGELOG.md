@@ -16,6 +16,26 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: laptopul fără contur, proiectele se schimbă la 2 secunde
+
+Clientul: scoate conturul și fă cartelele să se schimbe la fiecare 2 secunde.
+
+- **Conturul ferestrei a fost scos** — linia de cap și cele patru brațe de colț. Cutia rămâne,
+  pentru că ea e ce măsoară scena și din ea se derivă zona de apăsare de pe ecran, dar **nu mai
+  pictează nimic**: orice suprafață opacă acolo ar ascunde chiar pânza din spate. Era singurul lucru
+  care încadra o mașină care își desenează oricum propriile muchii.
+- **Ciclul a coborât de la 4,2s la 2s** per proiect.
+
+**Observație consemnată, nu o obiecție:** ecranul poartă acum numele, eticheta și **două rânduri de
+descriere**. Două secunde ajung ca să observi schimbarea, nu ca să citești descrierea — de aceea
+oprirea la trecerea cu mouse-ul și la focus devine mai importantă decât era la 4,2s.
+
+**Numărul de proiecte pe pagină este conținut, nu cod** (`lib/solutions.ts`, `solutionProjectIds`):
+produs-digital 5, automatizare-api 3, brand-ui 3, asistenți-ia 2, e-commerce 0 — iar ruleta le arată
+pe toate. Un proiect în plus pe o pagină e o intrare în acea listă.
+
+Fișiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`.
+
 ## 2026-09-19 — Changed: doar laptopul, rulează singur, iar ecranul se citește
 
 Clientul: „fa să fie automatizat să se schimbe singure… nu se înțelege ce ii pe ecran… dacă apăs pe
