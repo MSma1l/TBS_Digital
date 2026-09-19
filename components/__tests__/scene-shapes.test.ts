@@ -137,9 +137,12 @@ describe("the chip", () => {
 });
 
 describe("the Work helix", () => {
-  it("is 0.9 wide in radius, 5.4 tall, 2.5 turns: taller than wide, narrower than a service model", () => {
-    expect(HELIX).toEqual({ radius: 0.9, height: 5.4, turns: 2.5 });
+  it("is 1.45 wide in radius, 5.4 tall, 2.5 turns: taller than wide, narrower than a service model", () => {
+    expect(HELIX).toEqual({ radius: 1.45, height: 5.4, turns: 2.5 });
+    // Still taller than it is wide — the radius came out to meet the cards' orbit (shapes.ts),
+    // it did not turn the molecule into a spring: 2.9 across against 5.4 of climb.
     expect(HELIX.height).toBeGreaterThan(2 * HELIX.radius);
+    // And still inside the cloud the swarm flies from, so the handoff never lands outside itself.
     expect(HELIX.radius).toBeLessThan(MODEL_RADIUS);
     // A turn climbs 2.16: roughly ten base pairs' worth of DNA per turn at the high tier's 22 rungs.
     expect(HELIX.height / HELIX.turns).toBeCloseTo(2.16, 12);

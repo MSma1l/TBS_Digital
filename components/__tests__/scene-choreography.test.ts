@@ -50,6 +50,7 @@ import {
   WAVE_GAP_SECONDS,
   WORK_SECONDS,
 } from "@/components/scene/fx";
+import { HELIX_LAYOUT } from "@/components/scene/helix";
 import { CHIP, HELIX, MODEL_RADIUS } from "@/components/scene/shapes";
 import {
   COMMERCE_GATE_RADIUS,
@@ -322,6 +323,42 @@ describe("scene space — the Work helix", () => {
     expect(placeHelixSpiral(unmeasured, 3400, 1280, h, 0.34)).toEqual(placeHelixSpiral(probe, 3400, 1280, h, 0.34));
   });
 
+  it("the cards ride the strand: its drawn radius meets their orbit, and one radius cannot do it at every aspect", () => {
+    /* The world fits the model by the zone's HEIGHT and the cards orbit by its WIDTH, so the
+       radius that would put a card exactly on the strand's cylinder is `6 · orbit / zoneH` and
+       changes with the aspect. These are the three widths the spiral is checked at. */
+    const ride = (zoneW: number, zoneH: number) => {
+      const pxPerUnit = (HELIX_ZONE_FILL * zoneH) / HELIX.height;
+      const orbit = Math.min(HELIX_LAYOUT.orbit[0] * zoneW, HELIX_LAYOUT.orbit[1]);
+      return { pxPerUnit, orbit, strand: HELIX.radius * pxPerUnit, needed: orbit / pxPerUnit };
+    };
+    const desktop = ride(1200, 729);
+    const tablet = ride(944, 697);
+    const narrow = ride(792, 629);
+    expect([desktop.pxPerUnit, desktop.orbit]).toEqual([121.5, 228]);
+    expect(desktop.needed).toBeCloseTo(1.877, 2);
+    expect(tablet.needed).toBeCloseTo(1.544, 2);
+    expect(narrow.needed).toBeCloseTo(1.436, 2);
+
+    // 1.45 is the ride at the square end and most of the way at the wide one — never short of
+    // three quarters, so the strand passes inside every card's silhouette at every width.
+    for (const [name, at] of [["desktop", desktop], ["tablet", tablet], ["narrow", narrow]] as const) {
+      expect(at.strand / at.orbit, name).toBeGreaterThan(0.75);
+      expect(at.strand / at.orbit, name).toBeLessThan(1.15);
+    }
+    // It really did come out to meet them: it used to draw at less than half their orbit.
+    expect((0.9 * desktop.pxPerUnit) / desktop.orbit).toBeLessThan(0.5);
+    expect(desktop.strand).toBeCloseTo(176.2, 1);
+
+    /* And it cannot go further: the hologram's panel is what it reaches first, at the NARROWEST
+       spiral zone. The chips ride `chip.lift` + half a box outside the strand. */
+    const chipReach = HELIX.radius + HELIX_PARTS.chip.lift + Math.hypot(HELIX_PARTS.chip.width, HELIX_PARTS.chip.thickness) / 2;
+    const panelGap = (0.76 - HELIX_LAYOUT.cx) * 792 - Math.min(0.34 * 792, 440) / 2;
+    expect(chipReach * narrow.pxPerUnit).toBeLessThan(panelGap);
+    // The radius that rides at 1280×800 does not fit there — it is the measured cap on one constant.
+    expect((1.877 + HELIX_PARTS.chip.lift + 0.048) * narrow.pxPerUnit).toBeGreaterThan(panelGap);
+  });
+
   it("the arrival arms 0.30 of a layer above the sticky line, so the helix is never off screen while it plays", () => {
     expect(HELIX_ARRIVE_LEAD).toBe(0.3);
     const probe = workProbe();
@@ -357,7 +394,7 @@ describe("scene space — the Work helix", () => {
   it("ambient: lying in the band above Work's heading, centred on it, 0.6 of the width long, clear of the band's edges and never over 120px tall", () => {
     expect(HELIX_AMBIENT).toEqual({ length: 0.6, maxPx: 120, clear: 10 });
     // The strands and chips (radius + 0.1) and the 0/1 bits (1.2 plus half a glyph) all fit in the reach.
-    expect(HELIX_REACH).toBe(1.26);
+    expect(HELIX_REACH).toBe(1.56);
     expect(HELIX_REACH).toBeGreaterThan(HELIX.radius + 0.1);
     const phone = 780;
     const kp = worldPerPx(phone);
@@ -368,7 +405,7 @@ describe("scene space — the Work helix", () => {
       [412, 84],
       [640, 84],
       [767, 90],
-      [390, 400],
+      [320, 400],
     ] as const) {
       const probe = workProbe();
       probe.headerH = 64;
@@ -387,7 +424,9 @@ describe("scene space — the Work helix", () => {
       // The band's centre, in the canvas stuck under the header: never the heading's.
       expect(place.y).toBeCloseTo(-(2380 - band / 2 - (scrollY + 64) - phone / 2) * kp, 9);
     }
-    // The ~84px band binds a phone's helix (64px tall); in a tall band the width binds again.
+    // The ~84px band binds a phone's helix (64px tall); in a tall band on a narrow phone the
+    // length binds again. A wider molecule (HELIX.radius 1.45) fills a band's thickness sooner,
+    // so the crossover moved: at 390px wide the band now binds even at 400px tall.
     expect(binding).toEqual(["band", "band", "band", "band", "band", "length"]);
     // A band too thin for any helix gives scale 0; nothing measured, or no Work: null.
     const thin = workProbe();

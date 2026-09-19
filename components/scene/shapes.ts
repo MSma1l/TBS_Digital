@@ -129,8 +129,28 @@ export function chipPins(perSide: number): ChipPin[] {
  * turn apart, `turns` turns over `height` (centred on the origin). The WebGL model
  * (`three/models/helix.ts`) and the swarm's slot 0 (`three/samples.ts`) build from it; the world
  * scales it to its zone.
+ *
+ * `radius` is what makes the project cards RIDE the strands instead of orbiting outside them.
+ * The world fits the model by its HEIGHT (`placeHelixSpiral`: `pxPerUnit = 0.9 · zoneH / height`,
+ * 121.5px per unit at 1280×800) while the cards' orbit comes from the zone's WIDTH (helix.ts
+ * `HELIX_LAYOUT.orbit` = min(0.19 · zoneW, 240), 228px there). At the old 0.9 the strand drew
+ * 109px against that 228px orbit — the cards swung at 2.09× the strand's radius, every card sat
+ * outside the coil, and a drawn tether between the two had NEGATIVE visible length for every card
+ * on the canvas (the strand point matching a card is always behind the card itself).
+ *
+ * One constant cannot close it at every aspect: the ride radius is `6 · orbit / zoneH`, which is
+ * 1.44 at 861×700, 1.54 at 1024×768 and 1.88 at 1280×800. 1.45 is the exact ride at the square
+ * end and closes 77% of the gap at the wide one, where the card is 289px across and the strand
+ * therefore still passes well inside every card's silhouette. It is as far as the radius can go
+ * for a second reason: at 1.88 the chips reach the hologram's panel at 861×700 (measured: 502.6px
+ * against the panel's left edge at 501.8).
+ *
+ * What it does NOT touch: the helix's drawn HEIGHT and so the clearance under Work's heading
+ * (`placeHelixSpiral`'s scale divides by `height` alone), and the 0/1 bits, whose own radii
+ * (`HELIX_BIT.radius`, 0.2…1.2) are absolute — they now drift inside the coil rather than outside
+ * it, which is the payload being carried within the molecule.
  */
-export const HELIX = { radius: 0.9, height: 5.4, turns: 2.5 } as const;
+export const HELIX = { radius: 1.45, height: 5.4, turns: 2.5 } as const;
 
 /**
  * One project card's step around the helix, radians: the spiral layout turns the cards by it

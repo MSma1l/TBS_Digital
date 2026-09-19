@@ -16,6 +16,51 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Changed: cardurile călăresc acum elicea, nu orbitează în jurul ei
+
+Clientul a cerut ca imaginile proiectelor să fie **legate de firul ADN-ului**. Un cablu între ele s-a
+dovedit imposibil de desenat (raza orbitei cardurilor era de 2,08× raza firului, deci punctul de fir
+corespunzător stătea mereu **în spatele cardului**, cu lungime vizibilă negativă). Clientul a ales
+cealaltă cale: firul vine la carduri.
+
+**Ce limitează raza, măsurat — și nu e ce credeam.** Titlul secțiunii nu limitează deloc: modelul e
+scalat după înălțimea lui, nu după rază, deci muchia de sus a elicei nu se mișcă (verificat: y 107 /
+106 / 102 înainte și după). Șina de fibră nu limitează nici ea — banda de 44px e un clamp al
+*cardurilor*. **Limitează panoul hologramei**, și cel mai tare la ecranul cel mai îngust: plafonul
+onest e 1,82 unități, stabilit la 861×700.
+
+**Raza exactă de „călărire" nu poate fi o singură constantă:** scena potrivește modelul după
+*înălțimea* zonei, iar cardurile orbitează după *lățimea* ei, deci valoarea ideală variază cu 31%
+între formate (1,877 la 1280×800, 1,436 la 861×700).
+
+**Varianta „perfectă" a fost respinsă după ce a fost privită.** La 1,88 elicea se aplatizează într-un
+arc: raportul diametru/pas urcă la 1,74, când ADN-ul real e la 0,59 — și la 861×700 cipurile ating
+panoul hologramei. S-a ales **1,45**: spirala trece pe lângă **ambele** margini ale coloanei de
+carduri, iar cardurile stau înăuntrul ei.
+
+Măsurat pe pagina randată, anvelopa desenată față de orbita cardurilor: **0,51 înainte → 0,84 / 1,01 /
+1,08** la 1280 / 1024 / 861. Un fir care ar tăia exact prin mijlocul cardului din față ar dispărea
+oricum în spatele lui; ce se citește ca „înfiletat" e un fir care trece prin silueta fiecărui card cu
+spira ieșind dincolo de ambele muchii.
+
+**Ce a fost verificat pentru că se putea strica:**
+- silueta pe care aterizează roiul se derivă din aceeași constantă, deci a urmat singură;
+- **împletitura de la apariție** s-a deschis de la 92 la 148px, dar raportul e neschimbat, deci se
+  citește la fel — iar desfășurarea acoperă acum o distanță mai mare;
+- pe telefon elicea ambientală a ieșit cu **~19% mai scurtă**, pentru că o moleculă mai groasă umple
+  mai repede banda; verificat că rămâne în bandă și liberă de orice rând de text;
+- finișul strânge acum firele într-un fascicul de 148px în loc de 92: „tras într-o linie" e puțin mai
+  slab. Neschimbat, dar notat — se poate readuce la absolutul vechi.
+
+**Cele două numere care decid:** contrastul titlului cardului din față peste fir e **7,56–12,16** (cel
+mai prost caz la 861×700, în plină predare între carduri) — pragul e 4,5. Iar banda titlului
+secțiunii rămâne la luminanța albului ei propriu pe toată durata apariției: **niciun pixel din
+„Proiectele care ne reprezintă" nu e atins de elice**.
+
+Fișiere: `components/scene/shapes.ts` (raza), `components/scene/choreography.ts` (întinderea),
+plus testele scenei — inclusiv unul nou care fixează că raportul fir/orbită e între 0,75 și 1,15 la
+toate cele trei formate și că înainte era sub 0,5.
+
 ## 2026-09-19 — Added: ADN-ul se replică la apariție
 
 Clientul a cerut „o animație 3D frumoasă și wow cum apare ADN". Până acum elicea apărea prin roiul

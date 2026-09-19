@@ -424,11 +424,18 @@ export const HELIX_ZONE_FILL = 0.9;
  */
 export const HELIX_AMBIENT = { length: 0.6, maxPx: 120, clear: 10 } as const;
 /**
- * How far the helix reaches from its axis, local units: a strand plus a chip riding on it (under
- * 1.0), and the 0/1 bits drifting up to 1.2 from the axis plus half a glyph's diagonal
- * (models/helix.ts `HELIX_BIT`; scene-helix-model.test.ts checks every part against it).
+ * How far the helix reaches from its axis, local units: a strand plus a chip riding on it
+ * (`HELIX.radius` + the chip's lift and half its box, 1.518), and the 0/1 bits drifting up to 1.2
+ * from the axis plus half a glyph's diagonal (models/helix.ts `HELIX_BIT`; scene-helix-model.test.ts
+ * checks every part against it). It grew with the strand's radius — the molecule the cards ride is
+ * wider than the one that used to sit inside them.
+ *
+ * Only the AMBIENT placement uses it (the spiral is sized by height), so the one thing it changes
+ * is the lying helix in a phone's ~84px band: a fatter molecule laid on its side fills the band's
+ * thickness sooner, so it is ~19% shorter than it was. That is the band being honest about what it
+ * can hold, not a budget — the helix still lies clear of every line of text.
  */
-export const HELIX_REACH = 1.26;
+export const HELIX_REACH = 1.56;
 
 /**
  * The document y of the spiral's sticky zone (one layer tall): under the header while the track
