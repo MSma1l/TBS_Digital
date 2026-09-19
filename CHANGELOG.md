@@ -16,6 +16,49 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-19 — Added: antetul se strânge într-o insulă plutitoare la derulare
+
+Clientul a cerut ca antetul să se micșoreze la derulare, cu colțuri rotunde și o animație frumoasă.
+
+**Capcana, evitată prin proiectare.** `--header-h` e citit în **20 de locuri**, printre care sonda
+scenei 3D (care așază stratul lipit, zona elicei, colțul pașilor și spanurile spiralei), șina de
+fibră, ghidul, Hero și paginile de servicii. Un antet a cărui înălțime de așezare s-ar anima odată cu
+derularea ar trage **toată scena 3D** în sus și în jos la fiecare cadru.
+
+Deci **înălțimea rezervată nu se schimbă niciodată.** `<header>` își păstrează cutia; tot ce se vede
+s-a mutat pe un frate poziționat absolut, `aria-hidden` și fără evenimente de pointer, care poartă
+sticla, inelul, umbra și firul roșu. Acela se strânge.
+
+- **Sus:** bara de azi, pe toată lățimea.
+- **Strâns:** insulă retrasă 7px sus/jos și `clamp(8px, 2vw, 24px)` lateral, colțuri de 16px, inel de
+  1px, iar firul roșu tras la mijlocul lățimii. 56px înălțime desenată în 70px rezervați.
+- **Prag cu histerezis:** se strânge la 72px de derulare, se desface sub 24 — bandă de 48px.
+
+**Dovada că merge:** `[data-scene-layer]` măsurat în ambele stări, la același scroll, spate în spate:
+`{y: 71, h: 729}` și `top: 71px` — **identic**. Eșantionat la șase poziții de derulare peste prag:
+neschimbat. `--header-h` rămâne 71px peste tot.
+
+**Flicker:** 12 traversări → exact 24 de comutări (două pe traversare, cum trebuie). 80 de cadre de
+tremurat de 1px **exact pe prag** → **o singură** comutare; 80 de cadre în interiorul benzii → **zero**.
+
+**Starea e înghețată cât timp pagina e acoperită** (dialogul de cerere fixează `<body>`, ceea ce face
+ca derularea să se citească 0) — altfel bara s-ar desface sub dialog și s-ar re-strânge la închiderea
+lui.
+
+Verificat în starea strânsă: meniurile derulante de pe desktop, burgerul de pe telefon cu capcana lui
+de focus și Escape, comutatorul de limbă și popup-ul lui compact, dialogul de cerere, ordinea la
+tastatură și zonele de atingere de 44px. Contrastul copiei peste pânza 3D care trece pe dedesubt:
+**11,28** pentru textul principal, 6,05 pentru cel secundar — insula pictează identic în ambele stări.
+
+**Compromisuri asumate:** forma animează poziția și raza, nu transformări — o transformare ar
+deforma raza de 16px, inelul de 1px și blurul; costul e izolat într-un singur element gol, în afara
+fluxului, ceea ce dovedesc chiar numerele stratului de mai sus. `clip-path` ar fi fost integral pe
+compozitor, dar taie inelul și umbra, lăsând insula fără muchie pe o pagină aproape neagră. Și bara
+nu poate coborî sub 56px: rândul de atingere de 44px trebuie să rămână 44px.
+
+Fișiere: `components/layout/Navbar.tsx`, `components/layout/useHeaderCondensed.ts` (nou),
+`components/__tests__/header-condense.test.tsx` (nou, nerulat).
+
 ## 2026-09-19 — Changed: cardurile călăresc acum elicea, nu orbitează în jurul ei
 
 Clientul a cerut ca imaginile proiectelor să fie **legate de firul ADN-ului**. Un cablu între ele s-a

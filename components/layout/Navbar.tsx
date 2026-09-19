@@ -18,6 +18,7 @@ import { lockRootScroll } from "@/lib/scrollLock";
 import { shouldInterceptTap } from "@/lib/tapIntent";
 import { PreferencesGroup } from "@/components/ui/PreferencesGroup";
 import { HeaderClock } from "./HeaderClock";
+import { useHeaderCondensed } from "./useHeaderCondensed";
 
 /** Sentence-cases a catalog label ("SERVICII" → "Servicii") for the overlay's large links. */
 const cap = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
@@ -73,12 +74,36 @@ function NavChildLink({
  *
  * `data-intro-reveal="header"` marks the `<header>` for the intro's page entrance, which
  * animates ONLY its transform: opacity or a filter on the header would make it the backdrop
- * root of its own `before:` glass and switch the blur off mid-entrance. No CSS rule may
- * target the attribute — without an intro nothing is hidden.
+ * root of its own glass and switch the blur off mid-entrance. No CSS rule may target the
+ * attribute — without an intro nothing is hidden.
+ *
+ * ## The bar condenses on scroll
+ *
+ * At the top of the page the header is a full-width glass bar with a red hairline under it.
+ * Once the visitor scrolls (`useHeaderCondensed`, two states with hysteresis) it condenses
+ * into a **floating rounded island**: inset from the window's edges, 16px corners, a
+ * hairline ring and a drop shadow, its red underline pulled in from the edges.
+ *
+ * What makes that safe is the split between the BOX and the PAINT:
+ *  · the `<header>` itself keeps the exact height it always had — 13px + the 44px tap-target
+ *    row + 13px + a 1px border (`--header-h`, 77px in the 641–860px band where the language
+ *    group is taller). `--header-h` is read in twenty places, `scrollProbe.readHeaderHeight`
+ *    first among them, and it feeds the 3D stage's sticky layer, the helix's zone, the steps
+ *    corner and the spiral's spans. A header whose layout height moved with the scroll would
+ *    drag the whole scene up and down every frame;
+ *  · everything painted — the glass, the ring, the shadow, the red line — lives on ONE
+ *    absolutely positioned sibling of the content row (`[data-header-bar]`). It is out of
+ *    flow, so its insets and its radius animate without re-laying out a single thing outside
+ *    the header, and the reserved box never moves.
+ *
+ * The glass stays on that element and never on the `<header>`: a backdrop-filter on the
+ * header would make it the backdrop root, and the glass dropdowns inside it would have
+ * nothing left to blur.
  */
 export function Navbar() {
   const t = useT();
   const { openRequest } = useRequestFlow();
+  const condensed = useHeaderCondensed();
   const [menuOpen, setMenuOpen] = useState(false);
   const close = () => setMenuOpen(false);
   const menuId = useId();
@@ -262,14 +287,38 @@ export function Navbar() {
         ref={headerRef}
         data-intro-reveal="header"
         onBlur={menuOpen ? onMenuFocusOut : undefined}
-        /* Glass lives on ::before, never on the header itself: a backdrop-filter here would
-           make the header the backdrop root, and the glass dropdowns inside it would have
-           nothing to blur. It is the TEXT-BEARING glass (`glass-text`): nav links and the
-           clock sit on it over whatever scrolls by, photos included. Below 861px the blur
-           is dropped for a near-opaque sheet — the hero behind it animates, and re-sampling
-           a blur every frame costs phones FPS. */
-        className="sticky top-0 z-(--z-header) border-b border-glass-line before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:glass-text max-md:before:bg-glass-solid max-md:before:backdrop-filter-none after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-linear-to-r after:from-transparent after:via-red after:to-transparent after:shadow-[0_0_14px_var(--glow-red)]"
+        data-condensed={condensed ? "" : undefined}
+        /* The BOX, and nothing else: position, stacking order, and the 1px bottom rule that
+           is part of --header-h. The rule is the full-width bar's own bottom edge, so it
+           fades out with the bar — the island below draws its own ring. Its height is never
+           touched, by this transition or any other. */
+        className={`sticky top-0 z-(--z-header) border-b transition-[border-color] duration-300 ease-out motion-reduce:transition-none ${
+          condensed ? "border-transparent" : "border-glass-line"
+        }`}
       >
+        {/* The PAINT: the only thing that condenses. Absolutely positioned, so its insets,
+            its radius and its shadow animate without re-laying out anything — the header's
+            reserved height stays exactly what --header-h says it is.
+
+            It carries the TEXT-BEARING glass (`glass-text`): nav links and the clock sit on
+            it over whatever scrolls by, the 3D canvas and photos included, and condensing
+            changes neither the tint nor the blur, so the contrast behind the copy is the
+            same in both states. Below 861px the blur is dropped for a near-opaque sheet —
+            the hero behind it animates, and re-sampling a blur every frame costs phones FPS.
+
+            The physical inset properties (top/right/bottom/left) rather than `inset-x` /
+            `inset-y`: those emit the LOGICAL `inset-inline` / `inset-block`, which
+            `transition-property: left` would not name. */}
+        <div
+          aria-hidden="true"
+          data-header-bar=""
+          className={`pointer-events-none absolute -z-10 glass-text max-md:bg-glass-solid max-md:backdrop-filter-none transition-[top,right,bottom,left,border-radius,box-shadow] duration-300 ease-out motion-reduce:transition-none after:pointer-events-none after:absolute after:h-px after:bg-linear-to-r after:from-transparent after:via-red after:to-transparent after:shadow-[0_0_14px_var(--glow-red)] after:transition-[left,right,bottom,opacity] after:duration-300 after:ease-out motion-reduce:after:transition-none ${
+            condensed
+              ? "top-[7px] right-[clamp(8px,2vw,24px)] bottom-[7px] left-[clamp(8px,2vw,24px)] rounded-lg [box-shadow:0_0_0_1px_var(--line),var(--sh-md)] after:right-[22%] after:bottom-0 after:left-[22%] after:opacity-80"
+              : "top-0 right-0 bottom-0 left-0 rounded-none [box-shadow:0_0_0_1px_transparent,0_0_0_transparent] after:right-0 after:-bottom-px after:left-0 after:opacity-100"
+          }`}
+        />
+
         <div className="mx-auto flex max-w-(--maxw) items-center justify-between gap-[18px] px-(--gutter) py-[13px] max-[381px]:gap-2">
           <div className="flex min-w-0 items-center gap-4">
             {/* The wordmark. A 44px box at every width (the tap target on phones, and the
