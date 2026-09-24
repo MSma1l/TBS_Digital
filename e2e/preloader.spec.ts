@@ -191,6 +191,8 @@ test.describe("intro — first visit", () => {
 
   /* The behaviour the rename exists for: a hard reload plays it AGAIN. */
   test("a reload plays it again: the overlay is in the HTML and runs to 100", async ({ page }) => {
+    // The recorder is an init script, so it re-arms on the reload and records the SECOND run.
+    await recordIntroProgress(page);
     await firstVisit(page);
     await introGone(page);
 
@@ -340,10 +342,10 @@ test.describe("intro — only on a hard landing on the home page", () => {
     await gotoHydrated(page, "/servicii/e-commerce", { seedIntro: false });
     await expect(introOverlay(page)).toHaveCount(0);
     await page.waitForLoadState("networkidle");
-    // Service pages get nothing from the interior stage.
-    await expect(page.locator("[data-scene-stage]")).toHaveCount(0);
-    expect(await threeLoaded(page)).toBe(false);
-    expect(await gsapLoaded(page)).toBe(false);
+    /* A service page DOES carry a stage now — its own 3D model, one per service. What it must
+       never carry is the intro: no overlay, and nothing written to suppress the next one. */
+    await expect(page.locator("[data-scene-stage]")).toHaveCount(1);
+    await expect(introOverlay(page)).toHaveCount(0);
     expect(await introCookie(context)).toBeUndefined();
   });
 

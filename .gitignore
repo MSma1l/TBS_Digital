@@ -41,3 +41,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Scratch: frozen intro frames and guide-portrait working files (tools/guide rebuilds them).
+.scenes/
+.work/

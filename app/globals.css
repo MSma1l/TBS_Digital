@@ -139,6 +139,9 @@
   --z-cookie: 280;
   --z-progress: 300;
   --z-modal: 320;
+  /* The full-window loading cover: over the header, the banner and a modal, under the intro,
+     which is a cover with its own clock and its own skip. */
+  --z-page-loading: 350;
   --z-intro: 400;
 
   /* ---- HUD placement ----------------------------------------------------------
@@ -248,6 +251,34 @@
   --dark-bg2: #06070b;
   --dark-panel: #181e30;
   --dark-panel2: #1f2639;
+
+/* The request section's three surfaces. A "material ladder" only exists if the eye can see it:
+     near black the +0.05 term in the contrast formula dominates, so --bg2 against --bg measured
+     1.02:1 and --panel against --panel2 measured 1.10:1 — four levels in the code, one on screen.
+     A first pass solved every step for 1.40:1 from --bg and overshot: the deck came out a light
+     blue-grey, the riser lavender, and the pure-black fields inside it read as holes. Separation
+     is a job for the EDGE as much as for the fill — the deck carries a 1px --line2 border and a
+     real shadow, so it does not need a big jump — while the panel keeps its own, at 1.42:1 over
+     the deck and 1.69:1 above the slots cut into it.
+     The SATURATION is tuned as deliberately as the luminance. At the site's usual 50% these
+     surfaces are large enough to read as a blue slab sitting on a near-black page; the deck is
+     down to 32.6% and the panel to 37.8%, which keeps the family without the section announcing
+     itself as blue. Every contrast pair held or improved through the change. */
+  --dark-deck: #1f232e;
+  /* The proposal panel is DARK, and that is the third answer to the same question.
+     It was near-white, then lavender, then a slate grey card — and a large flat mid-grey is the
+     least attractive value in a dark interface: it competes with the price and the CTA instead of
+     serving them. So the panel stops being the brightest FILL and becomes a recess in the deck
+     whose identity is light: a red-lit rim, a red halo, a light crossing its top rule, and the
+     price in white at 16.58:1 on it. Every text pairing improved by going dark, and so did field
+     identification — the same border measures 1.55:1 on the old panel and 2.45:1 on this one,
+     because a light panel was washing its own outlines out. */
+  --dark-riser: #151820;
+  --dark-riser-line: #5a6176;
+  /* A slot is NOT pure black. At --bg the fields inside the lit panel read as holes punched in
+     a card rather than as recesses cut into it; two values up they still sit 1.70:1 below the
+     panel, which is more separation than anything else in the section has. */
+  --dark-slot: #0d0f14;
   --dark-line: #2c354c;
   --dark-line2: #3b4664;
   --dark-txt: #f6f7fb;
@@ -338,6 +369,10 @@
   --bg2: var(--dark-bg2);
   --panel: var(--dark-panel);
   --panel2: var(--dark-panel2);
+  --deck: var(--dark-deck);
+  --riser: var(--dark-riser);
+  --riser-line: var(--dark-riser-line);
+  --slot: var(--dark-slot);
   --line: var(--dark-line);
   --line2: var(--dark-line2);
   --txt: var(--dark-txt);

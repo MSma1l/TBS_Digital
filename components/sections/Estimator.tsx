@@ -693,6 +693,36 @@ export function Estimator({
      then moves focus into it. The section ignores it: its assistant is always on screen. */
   const [chatOpen, setChatOpen] = useState(isDialog && openAssistant === true);
 
+  /*
+   * The panel lights once, the first time it is reached, and then never again. A one-shot
+   * observer that unobserves itself — the same shape the direction pages use — rather than a
+   * scroll handler or a second permanent observer. The attribute is never removed, so nothing
+   * replays on a scroll back up.
+   * Without IntersectionObserver the attribute is set immediately, so the panel is lit rather
+   * than dead: the sweep is decoration, and its absence must never leave a state behind.
+   */
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.setAttribute("data-entered", "");
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.setAttribute("data-entered", "");
+          io.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const chatPanelRef = useRef<HTMLDivElement>(null);
   const chatToggleRef = useRef<HTMLButtonElement>(null);
@@ -746,6 +776,30 @@ export function Estimator({
   const price = priceIsReal
     ? adminPriceText
     : `${l(SECTION.from)} ${PROJECT_TYPES[typeIndex].price}`;
+
+  /*
+   * The proposal panel acknowledges a price change — and ONLY a real one. It compares the
+   * rendered STRING, so a re-render, a re-selection of the same chip or a change that happens to
+   * land on the same figure fires nothing. The price itself is never animated: it is the owner's
+   * real number and it simply appears, exactly as it always did. What is marked is the moment it
+   * became a different number.
+   * The first render seeds the ref without firing, so the panel does not flash on arrival.
+   */
+  const shownPrice = useRef<string | null>(null);
+  const [commit, setCommit] = useState<"a" | "b" | null>(null);
+  useEffect(() => {
+    if (shownPrice.current === null) {
+      shownPrice.current = price;
+      return;
+    }
+    if (shownPrice.current === price) return;
+    shownPrice.current = price;
+    /* Alternating tokens, not a counter and never a remount: a CSS animation only restarts when
+       its NAME changes, and remounting the panel would take the contact form with it and throw
+       away whatever the visitor had already typed. Two identical keyframes under two names is
+       the whole trick. */
+    setCommit((prev) => (prev === "a" ? "b" : "a"));
+  }, [price]);
 
   const done = node === "finish";
   const current = done ? null : TREE[node];
@@ -1018,6 +1072,9 @@ export function Estimator({
           key={i}
           type="button"
           className={`${styles.choice} ${i === typeIndex ? styles.selected : ""}`}
+          /* Selection used to be conveyed by fill colour alone on a plain button, so it was
+             drawn but never spoken. The role stays `button`. */
+          aria-pressed={i === typeIndex}
           onClick={() => setTypeIndex(i)}
         >
           {l(p.label)}
@@ -1033,6 +1090,7 @@ export function Estimator({
           key={i}
           type="button"
           className={`${styles.choice} ${opts.has(i) ? styles.selected : ""}`}
+          aria-pressed={opts.has(i)}
           onClick={() => toggleOpt(i)}
         >
           {l(o.label)}
@@ -1141,7 +1199,11 @@ export function Estimator({
   /* noValidate: the browser's own bubble would fire first and our localized,
      screen-reader-announced messages would never run. */
   const contactForm = (
-    <form className={styles.form} onSubmit={onSubmit} noValidate>
+    /* `data-status` because `.submit:disabled` is true for BOTH "sending" and "sent", so the
+       button could not tell the two apart: the in-flight light and the landed ring both key off
+       this. It carries no text and invents no state — it is the status the component already
+       holds, exposed to the stylesheet. */
+    <form className={styles.form} data-status={status} onSubmit={onSubmit} noValidate>
       <input
         aria-label={l(PLACEHOLDERS.name)}
         placeholder={l(PLACEHOLDERS.name)}
@@ -1385,9 +1447,18 @@ export function Estimator({
           <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
 
-        <div className={styles.box} data-testid="request-flow" data-layout="section">
+        <div
+          ref={boxRef}
+          className={styles.box}
+          data-testid="request-flow"
+          data-layout="section"
+        >
+          {/* The deck's top rail. Decorative, silent, permanently in motion — the second light
+              runs the proposal panel's own edge and needs no element of its own. */}
+          <span className={styles.railLight} aria-hidden="true" />
+
           <div className={styles.steps}>
-            <div>
+            <div className={styles.bayLeft}>
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step1)}</div>
               {projectChips({ "data-step": "project", "data-active": "true" })}
 
@@ -1397,12 +1468,24 @@ export function Estimator({
               <div className={styles.chat}>{chatBody}</div>
             </div>
 
-            <aside className={styles.result} data-step="contact" data-active="true">
+            {/* The label sits on the DECK, not on the panel: --red-text measures 3.51:1 on the
+                lit riser and fails, and no panel bright enough to separate from the deck can
+                carry it. Out here it is 5.11:1, and all three region labels share one ground. */}
+            <div className={styles.bayRight}>
               <div className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</div>
-              <b className={`disp ${styles.price}`}>{price}</b>
-              <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
-              {contactForm}
-            </aside>
+              <aside
+                className={styles.result}
+                data-step="contact"
+                data-active="true"
+                /* `undefined` keeps the attribute off the markup entirely until a price has
+                   actually changed, so nothing flashes on arrival. */
+                data-commit={commit ?? undefined}
+              >
+                <b className={`disp ${styles.price}`}>{price}</b>
+                <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
+                {contactForm}
+              </aside>
+            </div>
           </div>
         </div>
       </div>

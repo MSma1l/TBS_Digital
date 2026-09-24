@@ -79,6 +79,14 @@ such at the top of the file.
 - Reuse the `.disp` (display) and `.mono` typographic classes; don't reinvent them (except in
   the Tailwind files, which use `font-disp` / `font-hud` — see below).
 - Respect `prefers-reduced-motion` for animations.
+- **A `::before` or `::after` must name itself in its own module's reduce block.** `globals.css`
+  ends with `* { animation: none !important }`, and `*` matches ELEMENTS — a pseudo-element is
+  not matched by it and `animation-name` is not inherited, so an animated pseudo-element runs
+  straight through a reduced-motion preference. Measured both ways in a real browser (2026-09-24):
+  with the preference on, the element's animation computed to `none` and the pseudo-element's to
+  its own name, still running. And the guard must match the specificity of the rule it overrides
+  — a media query adds none — so a rule started by `.x[data-entered]::after` needs the attribute
+  in the guard too.
 - **Keyframes used by a `*.module.css` must be defined in that same file** — a global-only
   keyframe silently no-ops when referenced from a module. See the gotcha in
   [04 — Design System](./04-design-system.md).
@@ -428,7 +436,11 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   since the core's cloud left, and no 3 since the mesh wave's nodes became `+` lines in P4
   (2026-09-17, the brand-ui grid: `swarm` 1 and `pulses` 2 remain). Work's helix added no program
   either, only two modes: `SURFACE_MODE.holo` (4; 3 was the glass shell's) for the hologram and
-  `LINE_MODE.bits` (4) for its 0/1 glyphs.
+  `LINE_MODE.bits` (4) for its 0/1 glyphs. The Team Lead's projection (2026-09-23) added one more,
+  `POINTS_MODE.figure` (4), and reuses `LINE_MODE.synapse` unchanged for its projector rig.
+  **Adding it meant CLOSING a catch-all `else`:** `pulses` was the points shader's bare final
+  branch, so mode 4 would silently have been drawn as synapse pulse heads. Any new mode in any of
+  these families has to check for that first — a bare `else` is a trap, not a default.
 - **The static art** (`components/scene/art/`): no `"use client"`, tokens only, no infinite
   animation, nothing animated on `stroke-dashoffset` or `filter`, no `circle` under r=12, no round
   line caps, `aria-hidden` with no text; hidden under `[data-renderer="webgl"]`. Only the first

@@ -1,0 +1,84 @@
+/* The full-window loading cover: what the visitor looks at until the stage has rendered.
+   The mark in the middle is the shared one (components/ui/Loading.tsx); this file is only the
+   cover and the rules for when it is up. */
+
+.cover {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-page-loading);
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  /* Down by default. The stage brings it up while it is deciding (below), so a page with no
+     stage — or one whose stage has already answered — never flashes it. */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.45s var(--motion-ease-out),
+    visibility 0s linear 0.45s;
+}
+
+/* The perspective grid the whole site is drawn on, so the wait belongs to this site and not to a
+   generic loading screen. */
+.grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    linear-gradient(to right, var(--intro-grid, color-mix(in srgb, var(--blue) 18%, transparent)) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--intro-grid, color-mix(in srgb, var(--blue) 18%, transparent)) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 40%, transparent 100%);
+}
+
+/*
+ * UP ONLY WHILE THE STAGE IS DECIDING.
+ *
+ * `pending` is the server's value too, so the cover is painted on the very first frame and the
+ * visitor never sees a half-built page assemble itself. `webgl`, `fallback` and `off` are all
+ * answers, and any of them takes it down.
+ *
+ * Matched with `:has()` from the root rather than as an ancestor, because the cover is rendered in
+ * the layout: `SceneStage` is `isolate`, so anything inside it is z-scoped to the stage and the
+ * header and the cookie banner would paint over a cover that lived there. A page with no stage
+ * never matches, and so never raises it.
+ */
+:global(html:has([data-scene-stage][data-renderer="pending"])) .cover {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.45s var(--motion-ease-out);
+  /*
+   * THE FAILSAFE, and it is not optional.
+   *
+   * This cover blocks the page: if a stage ever failed to answer — a chunk that never arrives, a
+   * probe that throws somewhere no error boundary catches — a visitor would be left looking at a
+   * blank screen with no way past it. `forwards` means the animation's end state beats the
+   * declarations above, so at 6s the cover comes down whatever the stage is doing. The stage's own
+   * paths are all much shorter than that (`afterIdle` 1500 + 600ms, then the probe and the first
+   * frame), so this only ever fires on a genuine fault.
+   */
+  animation: pageLoadingFailsafe 0.45s var(--motion-ease-out) 6000ms forwards;
+}
+
+@keyframes pageLoadingFailsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* An intro is already a full-window cover with its own clock, its own skip and its own failsafe.
+   Two of them would fight; the intro wins. Same `html:has(#tbs-intro)` test the looping
+   backgrounds use to stand down while it plays. */
+:global(html:has(#tbs-intro)) .cover {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover {
+    transition: none;
+  }
+}

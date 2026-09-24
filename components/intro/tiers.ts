@@ -3,7 +3,7 @@
  * particles and the director's entrance read it without pulling the capability probe into their
  * chunks.
  *
- * The machine's own detail is NOT a number here. Its 29 pieces are one `InstancedMesh`, so the
+ * The machine's own detail is NOT a number here. Its 41 pieces are one `InstancedMesh`, so the
  * only lever is `mesh.count`, and the count has to be an index into the drop table that decides
  * which pieces go first — which is why it lives beside that table, in `three/laptop.ts`
  * (`LAPTOP_SLOT_COUNT` / `_MID` / `_LITE`). Two numbers here would be a second source of truth
@@ -27,7 +27,7 @@ export type TierConfig = {
   glass: "physical" | "fresnel";
   /**
    * The frame's back-face copy, its instance matrices grown ×1.06 — a second draw call over the
-   * same 29 boxes (`three/laptop.ts`). Inside the chassis it is a flat wash on the walls, so it
+   * same 41 boxes (`three/laptop.ts`). Inside the chassis it is a flat wash on the walls, so it
    * only earns its keep once the camera is outside and the machine is seen whole.
    */
   halo: boolean;

@@ -1,0 +1,114 @@
+/* The one loading mark. Used for anything that is not ready yet — data in flight, a scene still
+   compiling, a panel waiting on a fetch. HUD vocabulary, like the rest of the site: four corner
+   brackets, a bar scanning between them, a core that breathes. No text of its own, nothing round,
+   nothing that needs a font.
+
+   Transform, opacity and stroke-dashoffset only, so it stays on the compositor: it exists exactly
+   when the main thread is busiest, which is the whole reason it is CSS and never a canvas. */
+
+.loading {
+  display: block;
+  color: var(--cyan);
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+.loading * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* `sm` sits beside a line of text, `md` inside a panel, `lg` is a section's own placeholder.
+   `fill` takes the box it is given — the caller positions it. */
+.sm {
+  width: 18px;
+  height: 18px;
+}
+.md {
+  width: 40px;
+  height: 40px;
+}
+.lg {
+  width: 88px;
+  height: 88px;
+}
+.fill {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---- the parts ---- */
+
+/* Four corner brackets: the frame every HUD surface on this site is drawn with. */
+.bracket {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-opacity: 0.85;
+  animation: bracket 1.8s var(--motion-ease-out) infinite;
+  animation-delay: calc(var(--i) * 0.12s);
+}
+
+/* The bar that sweeps between them — a scan, the same gesture the intro and the cards use. */
+.scan {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-opacity: 0.55;
+  animation: scan 1.8s var(--motion-ease-out) infinite;
+}
+
+/* The core: what is being waited for. Red, because on this site red is the live thing. */
+.core {
+  stroke: var(--red-text);
+  stroke-width: 3;
+  stroke-dasharray: 5 7;
+  animation: core 1.8s linear infinite;
+}
+
+@keyframes bracket {
+  0%,
+  100% {
+    stroke-opacity: 0.3;
+  }
+  50% {
+    stroke-opacity: 0.9;
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-26%);
+    stroke-opacity: 0;
+  }
+  15%,
+  85% {
+    stroke-opacity: 0.55;
+  }
+  100% {
+    transform: translateY(26%);
+    stroke-opacity: 0;
+  }
+}
+
+@keyframes core {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Still a composed mark with no motion at all — a frame with a bar across it. */
+@media (prefers-reduced-motion: reduce) {
+  .loading * {
+    animation: none;
+  }
+  .bracket {
+    stroke-opacity: 0.85;
+  }
+}
+
+@media (forced-colors: active) {
+  .loading {
+    color: CanvasText;
+  }
+}

@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SERVICE_DRAWINGS, ServiceArt } from "@/components/scene/art/ServiceArt";
 import {
   ART_EXTENT,
-  CUBES_VIEW,
+  STACK_VIEW,
   HUB_SATELLITES,
   NEURAL_FANOUT,
   NEURAL_LAYERS,
@@ -88,14 +88,14 @@ function subpaths(d: string): Subpath[] {
   return out;
 }
 
-const CUBES_ART = serviceArtPaths("produs-digital");
+const STACK_ART = serviceArtPaths("produs-digital");
 const COMMERCE_ART = serviceArtPaths("e-commerce");
 const HUB_ART = serviceArtPaths("automatizare-api");
 const NEURAL_ART = serviceArtPaths("asistenti-ia");
 const MESH_ART = serviceArtPaths("brand-ui");
 
 const PATH_TABLES = {
-  "produs-digital": CUBES_ART,
+  "produs-digital": STACK_ART,
   "e-commerce": COMMERCE_ART,
   "automatizare-api": HUB_ART,
   "asistenti-ia": NEURAL_ART,
@@ -173,7 +173,7 @@ describe("service art — one static illustration per direction", () => {
   it("is computed without randomness: a fresh module load yields the same paths", async () => {
     vi.resetModules();
     const again = await import("@/components/scene/art/serviceArtPaths");
-    expect(again.serviceArtPaths("produs-digital")).toEqual(CUBES_ART);
+    expect(again.serviceArtPaths("produs-digital")).toEqual(STACK_ART);
     expect(again.serviceArtPaths("e-commerce")).toEqual(COMMERCE_ART);
     expect(again.serviceArtPaths("automatizare-api")).toEqual(HUB_ART);
     expect(again.serviceArtPaths("asistenti-ia")).toEqual(NEURAL_ART);
@@ -182,16 +182,19 @@ describe("service art — one static illustration per direction", () => {
 });
 
 describe("service art — each model's geometry", () => {
-  it("cubes: the camera sees the top, front and −x faces the block is drawn with", () => {
-    const facing = (n: Vec3) => projectOrtho(n, CUBES_VIEW.yaw, CUBES_VIEW.pitch, 1)[2];
+  it("the stack: the camera sees the top, front and −x faces the slabs are drawn with", () => {
+    const facing = (n: Vec3) => projectOrtho(n, STACK_VIEW.yaw, STACK_VIEW.pitch, 1)[2];
     for (const n of [[0, 1, 0], [0, 0, 1], [-1, 0, 0]] as Vec3[]) expect(facing(n)).toBeGreaterThan(0);
     for (const n of [[0, -1, 0], [0, 0, -1], [1, 0, 0]] as Vec3[]) expect(facing(n)).toBeLessThan(0);
     // Every face is a closed quad.
-    for (const layer of ["blockTop", "blockFront", "blockSide", "notchTop", "arrivingTop"] as const) {
-      const [face] = subpaths(CUBES_ART[layer]);
+    for (const layer of ["stackTop", "stackFront", "stackSide", "deviceTop", "glass"] as const) {
+      const [face] = subpaths(STACK_ART[layer]);
       expect(face.closed).toBe(true);
       expect(face.points).toHaveLength(4);
     }
+    // Six screens standing apart, and one device in front of them — the model's own count.
+    expect(subpaths(STACK_ART.stackFront)).toHaveLength(6);
+    expect(subpaths(STACK_ART.deviceFront)).toHaveLength(1);
   });
 
   it("e-commerce: the three gates are a circle, a card and a hexagon", () => {
@@ -249,10 +252,22 @@ describe("service art — styles and pure source", () => {
   const css = read("components/scene/art/ServiceArt.module.css");
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-  it("hides the drawing once the WebGL scene draws, and drops all motion under reduced motion", () => {
+  it("shows the drawing ONLY once the stage has given up on WebGL, and drops all motion under reduced motion", () => {
+    // Inverted on purpose: the drawing is the fallback, not a preamble. It used to be painted on
+    // every load and cross-faded out when the live model arrived, so every visitor saw a still
+    // picture first and the model replace it. Now the box is empty while the stage decides
+    // (`pending`, which is also the server's value) and while WebGL draws; only `fallback` and
+    // `off` bring it back. A visitor with no JavaScript never reaches a decision, so the
+    // <noscript> rule in app/(site)/layout.tsx shows it to them unconditionally.
+    expect(rules).toMatch(/\.art\s*\{[^}]*opacity:\s*0/);
     expect(rules).toMatch(
-      /:global\(\[data-scene-stage\]\[data-renderer="webgl"\]\)\s+\.art\s*\{[^}]*opacity:\s*0[^}]*animation:\s*none/,
+      /:global\(\[data-scene-stage\]\[data-renderer="fallback"\]\)\s+\.art,[\s\S]*?opacity:\s*1/,
     );
+    expect(rules).toMatch(
+      /:global\(\[data-scene-stage\]\[data-renderer="off"\]\)\s+\.art\s*\{[^}]*opacity:\s*1/,
+    );
+    // …and nothing re-shows it while WebGL is the renderer.
+    expect(rules).not.toMatch(/data-renderer="webgl"\]\)\s+\.art\s*\{[^}]*opacity:\s*1/);
     expect(rules).toMatch(
       /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.art\s*\{[^}]*animation:\s*none;[^}]*transition:\s*none/,
     );

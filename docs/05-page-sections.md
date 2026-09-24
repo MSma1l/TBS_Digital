@@ -18,9 +18,10 @@ The landing page is a single scroll, top to bottom. Sections carry a mono index 
 ## First-visit intro (preloader)
 
 A full-screen HUD overlay that plays on **every hard load of the home page** (`/`, `/ru`,
-`/en`): a six-beat cinematic of a laptop — the camera starts on the processor die, the machine
-powers up, the camera leaves through the chassis and the vent, the lid opens, the display fills
-the frame, and the page is behind it. Over it, the readout `SYSTEM_SYNCHRONIZATION: NN%`, then
+`/en`): a six-beat cinematic shot from **inside a laptop** — the camera starts on the processor
+die, the machine powers up, the camera crawls down the cavity past the guts, the lid opens above
+it, and it surfaces **up through the keyboard**, where the processor lives. The display fills the
+frame, and the page is behind it. Over it, the readout `SYSTEM_SYNCHRONIZATION: NN%`, then
 `ACCESS_GRANTED`. Wiring (gate, loading tiers, ownership) is in
 [03 — Architecture](./03-architecture.md#the-first-visit-intro); timings live in
 `INTRO_TIMING` (`lib/intro.ts`).
@@ -33,20 +34,231 @@ the frame, and the page is behind it. Over it, the readout `SYSTEM_SYNCHRONIZATI
 at full opacity *under* the overlay; the overlay has no `role`, no `aria-hidden` on the page,
 no focus trap, and a screen reader can browse the page at once.
 
+### How long the film is, and why (2026-09-24)
+
+The beats' wall-clock lengths are not written anywhere — they fall out of two numbers, and for a
+long time those two numbers made the film unwatchable. `MIN_SYNC_MS` was 2400 and the progress was
+capped by `1 - (1 - x) ** 2.2`, an ease-out steep enough to put **47% of the film into the first
+quarter of the time**: beat 1 ran 281 ms, beat 2 — the whole power-up — ran **536 ms**, beat 3
+601 ms. `MIN_SYNC_MS` is 4600 now and the exponent is 1.6 (37% in the first quarter), which puts
+the four beats at roughly 725 / 1280 / 1250 / 1345 ms. It is not flattened further on purpose:
+`FLIGHT_MAP`'s slopes climb across the table precisely to cancel this ease-out, so a linear curve
+would make the last beat — the steepest slope — the fastest in the film instead of the most
+graceful.
+
+The ending was lengthened with them: `DIVE_END` 0.66 → 1, the "reveal" label 0.72 → 1.15, the
+overlay fade 0.55 → 0.7s. At the old numbers the implosion, the burst, the dive into the display
+and the hand-over to the page all happened inside three quarters of a second.
+
+**And loading is no longer allowed to eat the film.** The cinematic clock counts from navigation
+start, which is right — the visitor has been watching since the first paint. Unbounded it is also
+a trap: measured on a software renderer, hydration finished at 2.07s, so the director opened with
+the curve already at 64% and beat 2 ran for **144 ms**. `MAX_PRE_SPEND_MS` caps how much of the
+film a slow arrival may consume; past it the clock's origin slides forward instead, and a second
+clamp keeps that inside the shell's watchdog (9000 → 10000). The cap is **250 ms**, and that
+number is load-bearing rather than cautious: the processor section ends at `--fb-p` 0.34, so at
+the 1200 ms it started life with, the whole processor would be spent before the first frame.
+
+### Four scenes inside the processor (2026-09-24)
+
+The processor section — what the film opens on, and what the flat drawing draws on every device
+— was **720 ms** and one move: the cores lit 106 ms in, with no established frame before them.
+It is 1052 ms and four distinct things now, and the scrub was re-balanced to 0 → 0.34 (from
+0 → 0.26) to hold them.
+
+| scene | window | length | what it is |
+| --- | --- | --- | --- |
+| the slot | `--slot` [0.02, 0.16] | ~417 ms | the canyon walls, the socket kerb, the deck's lip and the capacitor studs come up together while the floor brightens and the recession darkens — the frame resolves from a chip on a shelf into a machined slot |
+| the uncore | `--blk` [0.10, 0.22] | ~368 ms | the block field wipes in left to right: the logic wakes before the cores, which is also the right story |
+| cores, traces, ring | [0.11, 0.32] | ~662 ms | re-spread over the room the other two make |
+| the current leaves | `--heat` [0.26, 0.36] | ~331 ms | the capsule in the +x trough lights and the shot dissolves on it — the one object that survives the match cut AS ITSELF, because `<Cavity/>` is worn by both layers |
+
+Measured by freezing `--fb-p` at each boundary and diffing the frames: every scene differs from
+the one before it by **23–39% of the frame**. The slot brightens ABOVE today's constants rather
+than starting below them, because `--fb-p` is held at 0 for the whole load — the frame a visitor
+stares at while the page arrives must be the one that ships today, not a dimmer version of it.
+
+**Three constants had to be re-solved together, and this is the part with no test.** The die's
+`--z` divisor, the board's `--z` window and the board's scale constant are one system: the
+stylesheet's own invariant is that the two drawings of the same chip stay within a few per cent
+of each other across the dissolve (today's max is 3.44%). Moving the dissolve from 0.26 to 0.34
+breaks it unless all three move. `2.96` was never chosen — it is `196/60 x the die's own scale on
+the frame the dissolve opens` — so on a different frame it is a different number. Solved
+numerically: die `/0.508`, board `[0.34, +0.425]`, constant **2.556** with a **1.936** span (the
+same 0.62 end). Max drift **2.97%**, better than today, and the two are the same size to six
+decimals on the frame the dissolve opens.
+
+The power wave's `--a` table is derived from that same board curve — each piece lights as its
+bounding box first fits the frame — so all eight values were re-derived: 0.374, 0.554, 0.590,
+0.598, 0.606, 0.614, 0.622, 0.630. The last one is full at **0.710**, which is exactly where the
+board begins to fade; that fit is what fixed the dissolve at 0.34 rather than later.
+
+**The 3D camera keys were left alone, deliberately.** The canvas sits at `opacity: 0` until the
+scene reports ready and the readiness weights cap the bar at 0.60 without it, so the processor
+section is drawn by the SVG on every device. New keys in the canyon would have been work nobody
+sees, on the one path where a key inside a box films the inside of a wall.
+
+### The processor's three acts, and the dash bug underneath them (2026-09-24)
+
+The four scenes above were four things happening; they were not a story. The current left a chip
+that nothing had ever reached — `--w` opened at 0.14, before anything had arrived. The section is
+now **cause and effect**, and at every boundary the frame's dominant motion changes register:
+
+| act | window | the only motion in frame |
+| --- | --- | --- |
+| **the arrival** | `--arr` [0.02, 0.17] | inward. A short bright head runs each of the fourteen conductors from the package rim to the silicon, with the under-glow filling in behind it. The chip is dark and something is coming |
+| **the ignition** | `--ign` [0.15, 0.25] | none. The silicon reddens in place, the gradient's hot end floods across, the uncore wipes, the four cores come up 0.022 apart, the ring closes. A static chip becoming a hot chip |
+| **the departure** | `--w` [0.25, 0.40] | outward, and it opens on the exact frame the heat peaks. A near-white hairline grows out through the glow the arrival left standing |
+
+**The windows are in scrub, and only the scrub is fixed.** The nominal ms — `5000·(1 - (1-p)^0.625)`
+against `MIN_SYNC_MS` — would give 487 / 340 / 545, but that assumes the clock starts at zero, and
+it does not: `origin` slides forward with takeover (see `MAX_PRE_SPEND_MS` above), which compresses
+the early acts and leaves the late ones alone. Timed on three cold loads of the headless software
+renderer, where takeover is a worst-case ~2.3 s: arrival **249–347 ms**, ignition **231–365 ms**,
+departure **630–784 ms**, processor section **1.21–1.40 s** in total. Quote the windows, not the
+milliseconds; the milliseconds are a property of the machine it runs on.
+
+`--flare` is `--ign - --cool`, not a window: it has to come back **down**. It is 1 at 0.25 and
+**0.028 at 0.34**, the frame the match dissolve opens — because the frozen `0.508 / 0.425 / 2.556`
+trio holds the die and the board at the same size to six decimals there, and cross-fading a red
+chip onto the board's cold blue one throws that away. A match cut survives a change of scale; it
+does not survive a change of colour. `--heat` moved to [0.25, 0.34] for the same reason: it used
+to still be filling two hundredths *into* the dissolve.
+
+**The reveal was never a reveal.** Every conductor draw on this layer is a dash offset over a
+`<path>` of 14 (or 16) subpaths, and the file claimed those "light IN ORDER from one offset".
+Measured on a bare path of the same shape, reading back the painted fraction of every subpath:
+
+| offset | every subpath |
+| --- | --- |
+| 0 … 750 | **100% painted** |
+| 1000 … 1750 | **0% painted** |
+| 2000 | 100% painted |
+| −250, −500 | 0% painted |
+
+The dash pattern **restarts at every subpath**, and `pathLength` is shared out across all of
+them — so each run is ~71 of the 1000 units, a dash of 1000 swallows it whole, and the draw was a
+**switch** that flipped the entire harness on the first frame `--w` rose above zero. The pattern
+is now cut to one run: `86 914`, where 86 is the longest run there is in `pathLength` units (the
+die's top and bottom fans, 57.728 of 674.736; the board's longest, 163.5 of 2000, is 81.75). Each
+run draws from its own start, short ones finishing before long ones.
+
+Two consequences fall out of the same finding. An inward front cannot be written as an offset at
+all — an offset only draws a run from its *first* point — so the arrival's glow rides a second
+copy of the conductors emitted end-to-end (`#tbs-intro-di`, a `<defs>` child, free at first
+paint). And the standby comet, on 14 runs, was pinned to every run's first 26 units and merely
+**blinked** for 2.6% of each cycle: the one moving thing in the frame a visitor stares at during
+the whole load was a flash, fourteen at once, every 2.2 s. Cut to an 18-unit slug on an 86 period
+it is a comet again, on every conductor, and on the die it runs *toward* the processor.
+
+Measured the same way as before — the same frame photographed with each act forced to zero and
+diffed — the arrival now contributes a **rising 1.8 → 3.4% of the frame** across its whole run.
+Before the fix it contributed **nothing at all between 0.06 and 0.14**, the middle of the act.
+
+First paint went 39 → **40** render objects: one more `<use>` of a single `<path>`.
+
+### Longer conductors, a longer burn, and a splash (2026-09-24)
+
+The three acts read as cause and effect but the section was still thin, and "thin" turned out to
+be three separate things.
+
+**The conductors were stubs.** The side fans ran 62 → 98 and never left the silicon — 36 units of
+travel on a drawing 480 across — so the arrival and the departure had almost nothing to cross.
+They now average **104.6 units against 48.2, 117% more ink**, and the extra length was taken in
+the one direction that has room. The frame is 480 × 300, so pushing the top and bottom tips
+further UP buys nothing: at the opening scale the visible half-height is 134 units and a longer
+tip is simply drawn where nobody can see it. Those six runs were extended **inward** instead, from
+the package edge (98) to 62 — the silicon's own half-height, the relationship the side fans
+already had — which buys 36 units each and moves the tip not one unit. The side fans go the other
+way, out to the package boundary at 152, which clears the heat capsule at x 154 by 2 and the
+capacitor studs at x −156 by 4. Measured: **93% of the ink is inside the frame on the poster
+frame, against 83%**, and all of it by `--fb-p` 0.20. `--run`, the dash constant, is re-derived
+per layer and is now **79** on the die (89.592 user units of 1464.735) against the board's 82.
+
+**The dissolve moved 0.34 → 0.38, and the match cut got better.** The file's invariant was the
+*unweighted* worst size disagreement between the two drawings of the chip, and that charges full
+price for error on the two frames where one layer is invisible. Weighted by what can actually be
+looked at — the die is at opacity `1 − dis` and the board at `dis`, so the visible mismatch is
+the disagreement times `4·dis·(1−dis)` — the shipped point scores 2.87%, and its worst frame is
+the 50/50 crossfade, the worst possible place. Re-solved at 0.38:
+
+| | shipped | now |
+| --- | --- | --- |
+| die `--z` divisor | 0.508 | **0.544** |
+| board `--z` | `[0.34, +0.425]` | **`[0.38, +0.360]`** |
+| board `--bs` | `2.556 − 1.936` | **`2.5027 − 1.8827`** |
+| silicon widths on the opening frame | 153.3775 vs 153.3600 | **150.164768 vs 150.164768** |
+| worst visible mismatch | 2.87% | **1.86%** |
+| mismatch on the 50/50 frame | 2.83% | **0.39%** |
+
+The power wave's `--a` table barely moves (0.380, 0.548, 0.589, 0.597, 0.605, 0.613, 0.621,
+0.629) and still lands full at **0.709**, so `--gt`/`--ft` at 0.71 and the 0.84 skip clamp are
+untouched. That is not luck: pieces 3–8 are governed by the file's own 0.008 floor cascade, not
+by their own fit, so the whole table is pinned by when piece 3 first fits — and the board window
+was chosen to keep it at 0.589.
+
+**The ignition is 40% longer and it lands.** `--ign` goes [0.15, 0.25] → **[0.16, 0.30]**, with
+`--cool` [0.30, 0.39] so `--flare` is still 0.034 on the cut frame. On top of it:
+
+| | window | what it is |
+| --- | --- | --- |
+| `--spl` | [0.16, 0.30] | **the splash** — `4t(1−t)`, a parabola and not a smoothstep, because a strike must not ease in |
+| `--room` | [0.19, 0.33] | the same envelope 0.03 behind: **the light reaching the walls** |
+
+The splash is its own gated layer (`.fbSplash`, in the `[data-live]` `:is()` list), so it costs
+**nothing at first paint** — still 20 + 20 = 40 render objects — and three rings out of one
+`r = 100` circle, born 0.12 of the envelope apart, sweep scale 0.08 → 3.20. Every radius they
+cross is a real edge: 62 the silicon, 98 its x-edge, 128 the power ring, 152 the package
+boundary, 184 the canyon wall's lit face. `vector-effect: non-scaling-stroke` is load-bearing —
+without it the transform scales the stroke too and a front thick at birth would arrive forty
+times thicker. `transform-box` must be **`fill-box`, not `view-box`**: this viewBox starts at
+(−240, −150), so `transform-origin: 50% 50%` against the view box resolves to the corner and the
+wave came out of the bottom right of frame. Measured and fixed.
+
+`--room` is the one thing nobody asked for. The canyon the chip sits in — two machined walls, the
+kerb, the near lip, the floor, the recession — was painted once at `--fb-p` 0 and frozen for the
+whole film, which is why the ignition read as a colour change rather than as a light: there was
+nothing in frame for it to fall on. It now drives `.fbDie .fbFace`, `.fbDie .fbFloor` and
+`.fbDie .fbDeep`, scoped to the die because `<Cavity/>` is worn by both layers and the board's
+copy must not flash.
+
+Measured the same way as the acts — each scalar forced to zero on the element that declares it,
+the same frame diffed:
+
+| | at its peak, as a share of the frame |
+| --- | --- |
+| the arrival | 3.8% → 6.1% (was 1.8 → 3.4%) |
+| the splash | **9.05%** at 0.26; 0.13% on the poster frame |
+| the ignition | 7.7% (was ~5%) |
+| the room | 4.4% |
+
+Three cold loads on the software renderer: arrival **267–371 ms**, ignition + splash + room
+**446–603 ms**, departure **219–457 ms**. Quote the windows, not the milliseconds — `origin`
+slides with takeover and the run-to-run spread is ±20%.
+
+**What is NOT available, and why.** The section cannot get much longer than this in scrub. With
+the pull-back depth frozen (so the framing does not move) and the power wave still required to
+finish by 0.71, a search over the whole constant space finds nothing past **0.36** under the
+unweighted objective and nothing past **~0.38** under the weighted one: beyond that the board has
+to shrink so much faster than the die that the two drawings diverge at the crossfade. More real
+time has to come from the clock — `MIN_SYNC_MS` — not from the scrub, and that is a separate
+change: `1 - (1 - x) ** 1.6` is not free to reshape either, because FLIGHT_MAP's slopes
+(0.75 → 0.61 → 0.72 → 1.29) exist to cancel that exact ease-out.
+
 ### The six beats, and who draws them
 
 **One scalar carries the whole film.** `fx.flight`, 0 → 1: the camera's position, aim, field of
-view and roll are all functions of it (`components/intro/three/cameraPath.ts`, six keys), and so
+view and roll are all functions of it (`components/intro/three/cameraPath.ts`, eight keys), and so
 are the lid's angle and the display's fill. Beats 1–4 scrub it from the loading progress
 (`flightFromProgress`, `components/intro/flight.ts`); beat 5 is the burst timeline tweening it to
 1. There is no second parameter to keep in step, so a skip from any beat is the same tween.
 
 | Beat | Progress | Flight `u` | What it is | Drawn by |
 |------|----------|-----------|------------|----------|
-| 1 | 0 → 0.24 | 0 → 0.18 | On the die, in the canyon between two rows of tracks, looking back down the cavity. A held frame — it moves 0.04 units in total | **SVG, always** |
-| 2 | 0.24 → 0.60 | 0.18 → 0.40 | The power-up: the die lights from its front edge and the light runs back down the ribs. Everything happens in the material, not in the move | **SVG, always** |
-| 3 | 0.60 → 0.86 | 0.40 → 0.66 | Out through the chassis: the interior with the vent in shot, then outside, low, turned back on the hole it came through — and **aimed at the deck, not at the sky** (K3 `ty` 0.18; see below). The lid is already half up and climbing out of the top of frame | 3D, or SVG |
-| 4 | 0.86 → 1 | 0.66 → 0.84 | Pulled back and round to the front-left; the lid settles at 107° (a back-out ease — it carries ~2° past the top, felt rather than seen) and the display draws itself on, bottom to top | 3D, or SVG |
+| 1 | 0 → 0.24 | 0 → 0.18 | On the die, in the canyon the processor's own package walls make, looking back down the cavity. A held frame — it moves 0.04 units in total | **SVG, always** |
+| 2 | 0.24 → 0.60 | 0.18 → 0.40 | The power-up: the die lights from its front edge and the light runs back down the ribs, through the fan and the fin stack, and out of the hole last. Everything happens in the material, not in the move | **SVG, always** |
+| 3 | 0.60 → 0.86 | 0.40 → 0.66 | **Through the guts, then up through the keyboard.** The slowest stretch of the film, with the camera threading between the memory on one flank and the fan on the other. Above it and unseen, the lid swings to 107° and the display starts drawing itself on. Then the camera **surfaces through the keyboard at u 0.602** — the gap between the middle and back key rows — into a machine that is already awake | 3D, or SVG |
+| 4 | 0.86 → 1 | 0.66 → 0.84 | Above the deck and off to the left, turned back on the machine it has just come out of, with the open lid and the lit display in frame; then round to the front | 3D, or SVG |
 | 5 | the burst's own clock | 0.84 → 1 | The dive: the camera lands on the display's normal at the distance that makes it *cover* the viewport, edge to edge | 3D, or SVG |
 | 6 | — | — | The overlay fades and the page entrance plays underneath | the page |
 
@@ -55,23 +267,151 @@ canvas (`.canvasHost`) sits at `opacity: 0` until the scene reports ready, and t
 signal is worth 0.40 of the progress — so without it the bar cannot pass **0.60**, which is
 exactly where beat 2 ends. There is no loading case in which the canvas is opaque before beat 3.
 The drawing's windows are therefore the same table: the cross-fade at `sceneReady` is a **match
-cut** at `u` 0.40 (the SVG leaves the die, the 3D arrives at the vent), not a replay. It is also
-why the 3D processor interior is deliberately minimal — one plate and 39 line segments — and the
-detail is spent on the chassis, hinge, lid and display, where the camera actually is. Seven of
-those segments stand up in the vent's aperture and draw its **grille**: the machine is additive and
-writes no depth, so nothing can be occluded and there is no such thing as a hole — a way out has to
-be *drawn*. They carry `aU` 1, so they light last of everything, and the power runs out of the die,
-down the ribs and through the hole as one wave.
+cut** at `u` 0.40, not a replay: both renderers are looking down the same cavity at the same
+moment, and both then travel it.
 
-**Beat 3 is aimed low, at the deck.** The camera cannot be raised there: it has to leave through an
-aperture 0.067 tall, so K3's position is fixed by the exit ray and the only free number is the
-**aim**. At `ty` 0.55 the camera was tilted ~22° up at empty sky, and the whole machine sat below
+**That is why beat 3 is where the machine's detail lives.** It used to end at `u` ≈ 0.45 — a tenth
+of a flight after the dissolve, perhaps 150 ms — so the interior was built for a shot nobody
+watched, the cavity between the die and the back wall held nothing but flat hairlines, and the intro
+read to a visitor as *a laptop*, because the laptop was all they were ever shown. A seventh camera
+key (**K3**, `u` 0.58) pushed the exit to `u` ≈ 0.60 and bought the corridor a fifth of the film —
+and it is the one stretch **guaranteed to be 3D wherever 3D happens at all**, because the dissolve
+cannot land later than 0.40.
+
+So the cavity has twelve pieces in it now: the processor's package rim (the canyon beat 1 sits in),
+the socket kerb the camera flies over, two capacitor studs, a heatpipe down the `+x` flank, the fan's
+case and hub on `−x`, two sticks of memory, the storage card, and the fin stack hard against the back
+wall. They cost **no extra draw calls** — they are boxes in the frame's one `InstancedMesh` — and
+every position is derived from the corridor `cameraAt` actually flies (x −0.02 → −0.14 at |y| < 0.02)
+rather than chosen: the free volume is everything outboard of x +0.05 and x −0.35, and the tightest
+piece in the whole flight is the kerb, at 0.024 — two and a half near planes.
+
+**Solids for silhouette, hairlines for the wave.** The guts draw as outlines (the edge material's
+contract), while the light that *runs through* them is line work in the board's own buffer, riding
+`aU` — so it switches on in z order as the camera reaches it: the die at `u` ≈ 0.22, the fan's eight
+spokes at ≈ 0.25, the heatsink's nine teeth at ≈ 0.37, and the vent's seven segments last, at 0.39.
+Those seven stand up in the aperture and draw its **grille**: the machine is additive and writes no
+depth, so nothing can be occluded and there is no such thing as a hole — a way out has to be *drawn*.
+The power leaves the die, crosses the machine and goes out of the hole as one wave, and the camera
+follows it down the same corridor a beat behind.
+
+**The way out is in the keyboard, because that is where the processor is.** `HATCH` — 0.34 × 0.09
+at x −0.17, z −0.44, in the deck's top surface — is not a hole cut for the purpose: the key rows sit
+at z −0.11, −0.33 and −0.55 and each key is 0.11 deep, so the deck's top is already clear from
+z −0.495 to −0.385. The aperture is sized by the exit ray and never the other way round: the camera
+crosses the deck's top at x −0.157, measured, with under a thousandth of spread across every aspect,
+because neither K3 nor K4 widens. Like the vent, the opening has to be **drawn** — the machine is
+additive and writes no depth, so nothing can be occluded and there is no such thing as a hole — and
+its frame and three slats ride the power wave's `aU`, lighting at u ≈ 0.28, well before the camera
+arrives. An exit is supposed to be lit.
+
+**The lid has to be open first, and that is physics, not staging.** A shut lid lies flat at y 0.10
+to 0.15 across the whole deck, two hundredths above the deck's own top at 0.08. There is no gap to
+rise through: *a laptop that is closed has no way out of the top*, which is exactly why the first
+version of this flight left sideways through the vent instead. So `lidOpenAt` runs **[0.40, 0.60]**
+and `screenFillAt` **[0.46, 0.68]** — both ahead of the exit rather than behind it. Anything under
+90° still covers the hatch at some height, so the window has to *close* before 0.602, not merely
+open before it. What the camera surfaces into is the lit display, square in front of it, two thirds
+through its power-on wipe. That is a better reveal than a lid getting out of the way.
+
+**The old beat 3 exit was aimed low, at the deck** — kept here because the reasoning still governs
+any shot that leaves through the back wall. The camera could not be raised there: it had to leave
+through an aperture 0.067 tall, so its position was fixed by the exit ray and the only free number
+was the **aim**. At `ty` 0.55 the camera was tilted ~22° up at empty sky, and the whole machine sat below
 the bottom of frame from `u` 0.46 to 0.63 — only the lid rising after 0.64 brought anything back
 into shot. The deck is at y 0 and the open lid reaches y 1.37, so the aim belongs by the deck
 (**0.18**): the machine then fills the frame from the bottom third upwards and the lid grows out of
 the top of it, which is the beat. Raising the aim again without moving the position empties the
-frame; moving the position to match puts the camera through the back wall. It is still a very low
-shot — lifting it needs a seventh camera key or a higher vent, not a different K3.
+frame; moving the position to match puts the camera through the back wall.
+
+K4 is none of those things now: it stands **above** the machine at (−1.55, 0.80, −0.62), aimed
+between the keyboard it came out of and the display above and behind it, so both are in shot. The
+vent is still in the model, and the power still runs out of it — the wave leaves the die, crosses
+the board and goes out of the hole last — but the camera no longer uses it.
+
+**Three numbers elsewhere are the exit, written down.** The particle cloud (`smoothstep(0.60, 0.80,
+uFlight)`), the chassis halo (`ramp(u, 0.60, 0.80)`) and the handheld sway (`SWAY.in`) all mean *the
+camera is outside now*. At their old 0.42 / 0.45 / 0.35 they fired a quarter of a flight early: soft
+blobs filling the canyon, a wall glowing a centimetre off the lens, and a pan inside a corridor where
+the walls **are** the frame. They move with K3 and K4 or they are wrong.
+
+### Why it stopped feeling abrupt
+
+**Both curves are C1 now, and neither was.** Two separate things were making the flight lurch, and
+both were invisible in a still frame.
+
+- **The camera stopped dead at every key.** (Speed at the five interior keys, measured:
+  0.55 / 1.11 / 1.50 / 8.79 / 0.98, and a peak of 21.3 — the corridor now ramps gently instead of
+  jumping to 4.05 mid-crawl.) The shot list was interpolated with a per-segment
+  smoothstep, `t²(3 − 2t)`, whose derivative `6t(1 − t)` is **zero at both ends**. The old comment
+  said "no key is a corner", which was true and beside the point: the continuity was zero-to-zero,
+  so with eight keys the camera came to a full stop six times and accelerated away again.
+  `cameraAt` now runs a **monotone cubic** (Hermite with Fritsch–Carlson tangents) through the same
+  keys, hitting each one just as exactly but carrying its momentum through. Measured, the speed at
+  the five interior keys went from 0 to 0.67 / 1.64 / 4.05 / 7.91 / 3.29, and the peak speed
+  *fell*, 30.5 → 29.3. The two ends keep a zero tangent deliberately: K0 is a held frame and K6 is
+  the landing the burst holds still through the whole 0.55 s fade.
+- **`flightFromProgress` was piecewise linear.** Its slopes climb across the table by design
+  (0.75 → 0.61 → 0.72 → 1.29), which cancels the cinematic curve's ease-out — but straight lines
+  turned each of those into an instantaneous speed change of 19%, 18% and **79%**. The last one
+  lands at `u` 0.66, a hundredth after the camera has whipped out through the vent and while it is
+  swinging round the machine, so the two accelerations compounded into the worst-felt moment in the
+  intro. Same rows, same boundaries, monotone cubic between them.
+
+Monotone, not Catmull-Rom, in both places: every margin the flight has is stated as *the camera is
+never inside X*, and a spline that overshoots by a hundredth of a unit on the way out of the vent
+puts the lens through the sill with nothing in the shot list to say so.
+
+**And the opening shot was pointing the wrong way.** K0's aim sat 0.17 in front of a camera offset
+0.08 from it, so the forward vector's x component was 0.46 — the lens was turned **27° across the
+cavity** rather than down it. Measured by projection, that put the processor's own left package
+wall at ndc.x −1.44, off the side of frame: the shot the table calls *the canyon between two of
+them* showed one wall, and beat 3 then had to swing 27° back before it could start travelling. The
+aim is 0.41 down the cavity now, the turn is 11°, and both walls are in shot.
+
+**Clearance is not visibility, and the first cut of the guts confused them.** Every piece was
+placed for near-plane margin, which is what the tests check — and by projecting all eight corners
+of all twelve along the flight it turned out the fan (x −0.66), both capacitors (behind the start
+point) and the left package wall were **never on screen before `u` 0.61**, i.e. only from outside
+the machine, after the camera had left it. Twelve pieces nobody sees during the beat they exist for
+is the same failure as having none. The banks moved as close to the flight as the near plane
+allows rather than as far as the cavity permits — the fan to x −0.34, memory and storage to +0.50,
+the capacitors ahead of the opening frame — and all twelve are now in shot from `u` 0, for 45% to
+73% of the flight each.
+
+### On a phone
+
+Three things were wrong for a narrow viewport, and none of them showed on a desktop.
+
+**The display did not fit.** Measured by projecting its four corners: on a 0.46 portrait viewport
+only **two** of them were in frame at the key after the exit, the worst 6.1 viewport widths outside
+— a slab of light rather than a laptop. The fix is the mechanism that already existed for this,
+`widen`, raised from 1 to **1.4** on the last two outside keys. It multiplies a key's *horizontal*
+offset from its target by `1 + widen · (max(1, 1/aspect) − 1)`, so on anything 1:1 or wider the
+term is 1 and **the desktop framing does not move at all**. All four corners are now in frame at
+0.46, and three of four at 0.30 with the worst 1% outside, where `MAX_WIDEN` caps the reach.
+
+**The exit ray and the widen were fighting over the same key.** A widened key drags the point where
+the camera crosses the deck's top: at `MAX_WIDEN` it moved to x −0.44, a tenth outside an aperture
+that would then have had to be half the keyboard wide. So the shot list gained an eighth frame —
+**K4, "through" (u 0.64)**, just above the deck and still looking up. K3→K4 is now the whole exit
+ray and both keys have `widen` 0, so the crossing is identical at every aspect; the key *after* it
+is the one that backs off, and it is free to.
+
+**The low tier was dropping the keyboard the camera comes out of.** `LAPTOP_SLOT_LITE` was the
+`keys` index, which gave up all twelve — right while the way out was the vent in the back wall, and
+wrong the moment it became the hatch between two key rows. On the low tier and on the FPS
+governor's lite step the camera surfaced through a keyboard that was not drawn. The drop order
+already ran the rows back to front, so the two that frame the hatch are slots 28–35 and the front
+row is 36–39: the cut moved to the front row. The low tier keeps 36 of 41 pieces — eight more small
+boxes in the same one `InstancedMesh`, no extra draw call, and a key is 0.44 × 0.022 × 0.11.
+
+What was already right, and stayed: `parallax` is gated on `(pointer: fine) and (hover: hover)`, so
+a touch screen never pays for pointer sway; `saveData`, reduced motion and a software renderer each
+refuse WebGL outright; the low tier is `dpr: [1, 1]`, no antialias, no halo pass, no transmissive
+pane and 240 particles, which is four draw calls; the particle cloud's size is multiplied by the
+`outside` gate, so it costs no fill at all until the camera is out; and the drawing's own portrait
+rules (`--intro-w: 78vw`, `--intro-cy: 40%`) predate all of this.
 
 ### Phases (`data-phase` on `#tbs-intro`)
 
@@ -236,9 +576,20 @@ context again.
 ### The static drawing (`IntroFallback.tsx`)
 
 Not a placeholder: it is what **every** visitor sees for beats 1 and 2, and it is the first
-thing painted on the page at all. A 16:10 laptop with the lid at 107° — the 3D scene's own
-angle — seen three-quarters from the upper left, built from three `matrix(...)` planes so every
-piece inside is a plain axis-aligned `<rect>` or `<circle>` generated from a table.
+thing painted on the page at all. Four stacked layers in one tilted stage — halo, machine, board,
+die — of which the **die is the one that opens the film**. The machine underneath it is a 16:10
+laptop with the lid at 107°, the 3D scene's own angle, seen three-quarters from the upper left and
+built from three `matrix(...)` planes so every piece inside is a plain axis-aligned `<rect>` or
+`<circle>` generated from a table.
+
+**The opening frame is the processor, and this is the change that fixed the intro.** It used to be
+the whole assembled, lid-open machine at 0.55 opacity (`--rest` was 1 at `--fb-p` 0), with the
+hand-off to the die squeezed into `--fb-p` 0.02 → 0.05 — about 3% of the scrub, some 20–40 ms
+behind the director's 0.45 s chase tween. That is a cut, not a beat, and it is why the intro read
+as *a laptop* however carefully the 3D shot list started inside the die: **the laptop was the
+poster frame.** `--rest` is gone. At `--fb-p` 0 the die layer is the only one laid out, the carrier
+fills the stage (304 × 196 viewBox units at scale 1.40 against a 480 × 300 box), the ring is
+undrawn, the cores sit on their 0.24 floor and one standby comet runs the trace fan.
 
 - **One scrub channel.** The director writes `--fb-p` (0 → 1) on `[data-part="fallback"]` once
   a frame, quantised to 1/200; every part cuts its own window out of it in CSS with `clamp()`.
@@ -249,15 +600,39 @@ piece inside is a plain axis-aligned `<rect>` or `<circle>` generated from a tab
   piece: one `<pattern>` is 2 nodes for 45 key caps or ~200 BGA balls. The die's and the board's
   traces are each a single `<path>` with subpaths carried by three `<use>`, so the dash flows
   across the subpaths and they light **in order** from one `stroke-dashoffset`.
-- **The resting pose is the whole machine**, composed and asleep — 76 nodes at first paint, as
-  many as the ∞ had. The `fbDie` and `fbBoard` layers are `display: none` until `[data-live]`:
-  parsed, never laid out or painted before the `<h1>` underneath becomes the LCP element.
+- **The resting pose is the processor** — and it is *cheaper* than the machine it replaced. The
+  gate inverted: `.overlay:not([data-live]) :is(.fbHalo, .fbMachine, .fbBoard, .fbWake)` is
+  `display: none`, so **44 elements are laid out at first paint where 69 were** (26 painted render
+  objects, down from 40), and the running animations inside the drawing go from four to one. All
+  163 nodes still ship in the HTML either way — only the layout and paint gate moved — so the
+  `<h1>` underneath keeps the LCP element comfortably. The expensive thing came *off* the critical
+  path with it: the halo's two `feGaussianBlur` over a 540 × 400 user-space region (~1.26 Mpx of
+  offscreen surface at 1920 × 1080) is now behind the gate. Two `<pattern>` fills came onto it in
+  exchange, which is a cache-and-blit, not a filter.
+- **The die is lifted clear of the readout, and the lift is derived.** `--hud-top` reserves the
+  band below `--intro-cy + --intro-w * 0.25`, a budget measured from the *machine's* feet reaching
+  +94 of the 480 viewBox units. Half the carrier is 98 units, so at any scale over 0.957 the
+  processor reaches past that line — at the opening 1.40 it reaches 137.2, and without a lift that
+  is ~140 px of chip painted behind the `SYSTEM_SYNCHRONIZATION` plate and straight across the 2 px
+  progress track, which has no backing of its own. So `.fbDie` translates up by exactly its own
+  overshoot (`--over`, computed from `--s`), which falls to zero on its own at scale 0.957 —
+  `--fb-p` 0.374, before the die has finished dissolving into the board. Change the scale and the
+  clearance follows; do not replace it with a constant.
 - **Ceilings that are load-bearing** (see [07 — Conventions](./07-conventions.md)): exactly two
   `feGaussianBlur` and two filtered elements, no CSS `filter` on anything that moves, and no
   text at all — so zero catalog keys and no font dependency before `document.fonts.ready`.
+- **The die → board hand-off is a match dissolve.** Both macro layers scale about `50% 50%`, and
+  the board's opening 3.4 is *derived*: it is where its 60-wide silicon matches the die's 196-wide
+  one across the 0.26 → 0.36 overlap, so the two drawings of the same chip stay within 8% of each
+  other's apparent size all the way through. The old 0.50 → 0.60 hand-off was 21% out.
+- **The drawing and the flight agree on when you are out of the machine.** `--form` opens at
+  `--fb-p` **0.60**, the same moment the 3D camera crosses the back wall (`u` ≈ 0.60, K3 → K4). At
+  0.62 it left two hundredths of the scrub with nothing in them but a 3% drift — a hold on the
+  exact frame where the camera is supposed to come *out of the laptop*.
 - **The burst covers the frame.** Without WebGL the drawing scales ×**4.6** about the display's
   centre (the ∞'s 2.6 left a visible border: the display is 0.532 of the stage, itself 1.28
-  `--intro-w`, so 2.6 stopped at ~64vw). Transform and opacity only.
+  `--intro-w`, so 2.6 stopped at ~64vw). Transform and opacity only. The re-pose did not move it:
+  `--mz` is 1 at `--fb-p` ≥ 0.86 exactly as before, so the display ends in the same place.
 
 The overlay is **always dark**, in the light theme too, and has rules for `prefers-contrast:
 more` (no CRT lines or glows) and `forced-colors` (system colours, no decoration).
@@ -682,12 +1057,54 @@ CGAM, IQ Arena, Balloons Breeze, Statistic, FLIRT. Note that **CGAM and IQ Arena
 the academy's web platform (cgam.md); IQ Arena is the mobile negotiation game. Screenshots live in
 `public/projects/`.
 
-## /02 — Principles ("Principiile noastre")
+## /02 — Principles ("Cum lucrăm, pe scurt.")
 
-- **Principles grid** (5 cells): Strategie întâi · Sisteme conectate · Estetică digitală ·
-  Rezultate reale · IA aplicată. **Keep.**
-- **Stats row** (4 boxes): originally `50+ / 8+ / 30+ / 24/7`. → **Blank placeholder boxes**
-  (values/labels removed; see rules doc).
+Three numbered rationale cards — `01 / PRODUS`, `02 / PROCES`, `03 / REZULTAT` — each with its
+own accent, three columns above 900px and stacked below. The copy lives in the component as
+`{ ro, ru, en }` literals, not in the catalog. The original five-cell grid and the four-box stats
+row are both gone; the stats row's `50+ / 8+ / 30+ / 24/7` were never measurable from anything the
+project holds.
+
+`accent` and `accentText` are deliberately two tokens: the first tints the hover border and the
+mark, which are graphics and owe 3:1, and the second colours the 12px/800 number, which is TEXT
+and owes 4.5:1. All three brand fills fail as small text.
+
+### The card marks (2026-09-24)
+
+One small line drawing per card, the SAME size in the SAME corner on all three: 38×38 in the
+card's top right, opposite the number. Layers for `01` (a page is one plane, a product is a stack
+of them), three listed stages for `02`, a bracketed sight for `03`. They fade in once on the
+reveal the section already has, 140ms apart, and never move again.
+
+**The sameness is the design, and it is the correction.** The first attempt gave each card a
+different instrument: a CSS 3D model of the site's own processor in `01`, a linked list of the
+three real stages read from `lib/solutions.ts` in `02`, and a large bracketed frame in `03`. Every
+piece was defensible on its own and the row was not: three different visual weights, and the
+empty frame — whose emptiness was the argument, since the only indicator it could display is one
+it invented — read to the owner as a panel that had failed to load. It was replaced rather than
+tuned. What is worth keeping from it is the reason it failed: *an argument the viewer has to be
+told is not an argument*, and a row of three only reads as a row when the three match.
+
+**Drawn to the house rules for line art** (docs/07): straight strokes, square caps and joins, no
+circle anywhere, no decorative dots, and nothing animated on `stroke-dashoffset`. `stroke-width`
+is set in CSS with `vector-effect: non-scaling-stroke`, so the same drawing keeps a 2px stroke
+whatever the box is scaled to instead of going hairline on one card and slab on another.
+
+**Nothing in a mark may ever show a value** — no numeral, no percentage, no axis label, no needle,
+no bar. Card 03's sentence is "Legăm fiecare livrare de un indicator real", and the only
+indicator a component could put in that mark is one it invented. The site has already paid for
+that once: the team card carried "50+ proiecte", "98% clienți mulțumiți" and "24/7" until the
+first was caught contradicting the hero's real portfolio count, and all three were deleted rather
+than re-guessed. The `statusBars` export that still held those literals in `lib/content.ts` was
+dead — one grep hit, its own definition — and went with this change.
+
+**The marks are silent.** `aria-hidden`, `focusable="false"`, no `<title>`, no text: the sentence
+beside each one is the claim and the mark is only that claim drawn, so there is nothing here to
+translate and nothing to fall out of sync with the `{ ro, ru, en }` fields. Under reduced motion
+the base declaration is already the finished pose, because `globals.css` kills every animation
+with `!important`; under forced colours the drawings stay (a line drawing survives flattening to
+one system colour — it is still a legible outline) and only the held-back opacity is released,
+which there would read as a faded glyph.
 
 ## /03 — Services ("Servicii de digitalizare")
 
@@ -704,15 +1121,75 @@ renumbers automatically.
 (`lib/estimatorBridge.ts`). On mobile the grid is an auto-rolling scroll-snap carousel
 (`useAutoCarousel`).
 
-## /05 — Team ("Oamenii din spatele codului")
+## /05 — Team ("Oamenii din spatele produsului")
 
-Left: heading + a `SYSTEM_STATUS` panel with progress bars. Right: team member cards
-(initials avatar, name, role, bio, social links).
+A heading block (eyebrow · title · lead), then the **Team Lead's holographic projection**, then a
+horizontal snap carousel of member cards. Each card carries the `ECHIPA TBS` label, the member's
+photograph (or a gradient initial where none is set), their name and their role. Below the carousel
+sits the stat row, which renders only the stats the owner has actually filled in and disappears
+entirely while they are all blank.
 
-Real content: **Maxim, Danu, Laurentiu** — first names only, by request. Editable from the
-admin's **Echipă** tab. On mobile the cards drop to a single column so the third member
-isn't stranded alone on a row. The `SYSTEM_STATUS` numbers remain decorative placeholders
-(see the rules doc).
+> This section's description was stale until 2026-09-23: it described a `SYSTEM_STATUS` panel with
+> progress bars, member bios and social links, none of which the component renders. `TeamItem` still
+> carries `bio` and the social URLs — the admin's **Echipă** tab still edits them — but the card
+> shows the label, the photograph, the name and the role, and nothing else.
+
+Real content: **Maxim, Danu, Laurentiu** — first names only, by request. Editable from the admin's
+**Echipă** tab. The carousel is a `flex` band with `scroll-snap`, a card about 82vw wide (never
+under 320px) so the next one peeks, and `overscroll-behavior-x: contain` so a swipe that runs off
+the end does not chain to the page or trigger the iOS back gesture.
+
+**A member with no photograph of their own now takes the bundled one**, matched by id
+(`withBundledPhotos` in `lib/siteContent.tsx`). This is a field fallback, not a key-merge: it only
+ever reads the saved list, so a member the owner deleted stays deleted. Before it, a shipped asset
+was shadowed by an empty saved string and the card fell back to its gradient initial while the file
+sat unused in `public/`. An uploaded photograph still wins outright.
+
+### The holographic portrait (2026-09-23)
+
+The card's photograph is PROJECTED rather than printed: he is keyed off his ground, painted in the
+site's cyan, laid under scanlines, swept by a beam and broken twice a cycle by a fault. It is all
+CSS and one SVG filter.
+
+**It could not have been the WebGL scene, and the reason is worth keeping.** A projection built in
+the interior scene stood above the carousel for a day and was removed for this one. The card is
+`background: var(--panel)` and the scene's canvas draws BEHIND the page, so a hologram inside the
+card would need a hole cut through an opaque panel — which would come apart on the card's own
+`:hover` transform, and below 861px, where the scene never starts at all, would show the page
+instead of the card. Here it works at every width, on every renderer, with no canvas.
+
+**The filter is arithmetic, not taste** (`#tbs-holo-key`, defined once per section rather than once
+per card). Its matrix's alpha row is the luminance coefficients, so alpha comes out as the
+picture's own lightness; the transfer below then thresholds that into a silhouette — holding 1 all
+the way to 0.90 and falling to 0 at 1.0, because the ground he was photographed on measures exactly
+1.000 while his jacket peaks at 0.904 and his shirt at 0.895. The colour rows are the same
+coefficients scaled by `--dark-cyan`'s real channels and a gain of 1.05; at 1.3 the blue channel
+went over 1 and clipped, which turned the whole lower half of him a washed white instead of cyan.
+`color-interpolation-filters="sRGB"` is not decoration: those thresholds were measured in sRGB and
+the SVG default is linearRGB, which would put the key somewhere else entirely.
+
+**The scanlines are a MASK, and that is the whole trick.** A mask multiplies alpha, so the lines
+fall on HIM and never on the empty space he was keyed out of; an overlay would have striped the
+card's panel around him. For the same reason the beam and the torn band are further COPIES of the
+photograph rather than gradients laid over the box — a gradient sweeping the whole card reads as a
+grey slab crossing it, which is what the first attempt looked like.
+
+**What breaks, and what must never.** Twice a cycle the raster drops to a coarse mask and a band of
+him tears sideways, on step timings that share no factor so the loop never announces itself. What
+is deliberately absent is anything that rebuilds the picture from nothing: the scene's projection
+re-scanned itself once per loop and the owner read it, correctly, as the image reloading. A
+projection that reassembles itself is the one thing this must never look like.
+
+**Nobody loses the picture.** The photograph is still the photograph and still carries the `alt`;
+everything holographic is a filter, a mask and two faults laid over the same `<img>`. A screen
+reader, a crawler and a browser without filter support all get what they got before. Under
+`prefers-reduced-motion` it holds one clean frame — keyed, tinted, scanlined and perfectly still —
+and under `forced-colors` the filter comes off entirely, because flattening it there would put a
+cyan slab where his face is, and the plain photograph is more use than that.
+
+**The source is a bundled asset shot on a light ground.** `public/team/maxim.webp`, 708 × 944,
+committed with the code. An admin upload still fills the card as it always did, but the key is what
+the light ground buys: on a dark background it would remove nothing.
 
 ## /06 — Partners ("Partenerii noștri")
 
@@ -755,6 +1232,139 @@ see [09 — Admin](./09-admin.md).
   and the origin's room is reserved before the summary is clamped, so the whole stays ≤ 5,000
   characters. The project types and options, with their ids, live in `lib/request/catalog.ts`
   (labels unchanged); `payload.project` and `payload.estimate` mean what they did.
+### The deck (2026-09-24)
+
+An earlier pass recessed the container — `.box` went to `--bg2`, darker than the page, with the
+parts raised on it. **The rule was right and the values were not, and that is measurable rather
+than arguable.** Near black the `+ 0.05` term in the contrast formula dominates, so the ladder
+came out at 1.02:1 from the page to the box, 1.02:1 from the box to a field and 1.10:1 between
+the two parts. Four levels in the code, one on the eye; the section read as a single field of
+near-black with thin red scratches on it.
+
+So the ladder is inverted and given real steps: the box is the LIT object and the room around it
+is the dark one — a console in an unlit room. Three surfaces in the whole section, no more:
+
+| level | token | value | sat | |
+| --- | --- | --- | --- | --- |
+| room | `--bg` | `#0a0b10` | 38% | the page |
+| deck | `--deck` | `#1f232e` | 33% | **1.25:1** over the room, plus a 1px edge and a real shadow |
+| riser | `--riser` | `#151820` | 34% | a recess in the deck, lit on its rim |
+| slot | `--slot` | `#0d0f14` | 35% | the fields, identified by their outline |
+
+**The panel is DARK, and that is the third answer to the same question.** It was near-white, then
+lavender, then a slate grey card — and a large flat mid-grey is the least attractive value in a
+dark interface: it competes with the price and the CTA instead of serving them. So the panel
+stopped being the brightest FILL. Its identity is light now: a red-lit rim, a red halo, a light
+crossing its top rule, and the price in white at **16.58:1** on it.
+
+Going dark improved everything measured. `--txt` 10.50 → **16.58:1**, `--on-ink-mut` 6.06 →
+**9.56:1**, `--red-text` 5.71 → **6.46:1**, `--red-lift` 3.57 → **5.63:1**. And field
+identification improved too, which is the counter-intuitive one: the SAME `--riser-line` border
+measures 1.55:1 on the old light panel and **2.45:1** on this one, because a light panel was
+washing its own outlines out. The border was then lifted to `#5a6176`, which takes it to 2.88:1
+against the panel and 3.11:1 against the field — against 1.55:1 before.
+
+**Saturation is tuned as deliberately as luminance.** At the site's usual 50% these surfaces are
+large enough to read as a blue slab sitting on a near-black page, which is what the owner saw and
+said. The deck came down from 50% to 33% and the panel from 49% to 38% at the same luminance, so
+the section keeps the family without announcing itself as blue. Every contrast pair held or
+improved through the change: `--red-text` on the deck 5.11 → 5.71:1, `--txt` on the riser
+10.43 → 10.50:1, the focus border 3.54 → 3.57:1.
+
+**Solving every step for 1.40:1 was itself an overshoot**, and the second version of this table
+records the correction. At those values the deck came out a light blue-grey, the riser lavender,
+and the pure-black fields inside it read as holes punched in a card rather than as recesses cut
+into it. Separation is a job for the EDGE as much as for the fill: the deck carries a border and
+a shadow, so it does not need a big jump, while the panel keeps its own. Every text pairing
+improved in the process — `--txt` on the riser 9.00 → 10.43:1, the focus border 3.06 → 3.54:1.
+A slot is never `--bg`: two values up it still sits further below its panel than any other pair
+in the section. The tokens live in `globals.css`, not as hexes in the module (docs/04).
+
+**A measurement that moved the markup.** `--red-text` is 5.48:1 on the old panel and **3.51:1 on
+the riser**, so the red region label cannot live there — and no surface bright enough to separate
+from the deck can carry it either (the ceiling is L = 0.0349, which is 1.13:1 from the deck). The
+label therefore sits on the deck ABOVE the panel, at 5.11:1, which is also why all three region
+labels now share one ground and one weight. The copy under the price moved from `--mut` (4.83:1,
+passing and only just) to `--on-ink-mut` (5.19:1).
+
+**The focus cue, and the whole redesign turns on it.** The outline is drawn at `outline-offset`,
+i.e. on the PANEL rather than on the field, so its own contrast is ring-against-panel and it has
+never been the conforming cue here — about 1.2:1. What actually satisfied WCAG 1.4.11 was the
+focus BORDER: `--red` on `--panel2` is 3.60:1. Lighting the panel takes that same border to
+2.30:1 and would have quietly broken the only conforming focus indicator a lead-capture form has.
+`--red-lift` is the fix, measured on every surface a field can sit on: 4.46:1 on the deck, 3.06:1
+on the riser, 6.24:1 against the field's own fill.
+
+**Two lights, one mechanism, one constant speed.** A 2px light crosses the deck's top rail every
+6.4s and another crosses the proposal panel's own top rule every 4.8s, offset by 1.6s so the eye
+always has exactly one thing to follow. Neither crosses a glyph, an input or a hit area at any
+width, and neither ever holds still.
+
+**Both of those are corrections, and both were the same complaint: it brakes and stops.**
+
+*The rail parked.* It translated by `calc(100% + 190px)`, and a percentage in `translateX` is a
+percentage of the ELEMENT — 190px wide — not of the 1242px track it was meant to cross. So the
+light travelled 380px and stopped dead in the middle of the deck for the rest of the cycle;
+sampled frame by frame, its brightest point sat at x=617 for seven consecutive samples. The
+element is now the full width of the track and the BACKGROUND travels, where `100%` means "the
+track minus the image": the light enters off one end and leaves off the other. It now reaches
+x=1234 of 1242 and is found at **11 distinct positions across 14 frames**. There is no rest phase
+at all — a light that holds still halfway is not resting, it is broken.
+
+*The ring braked.* It was a conic gradient rotating behind a 1px masked frame, and a conic
+gradient turns at constant ANGULAR speed. On a rectangle that is not constant perimeter speed: on
+this 477 x 564 panel the light moved about 55% faster past the corners than along the middle of a
+side. Constant speed is the whole difference between a light and a glitch, so the ring was
+replaced with the same straight track the deck has.
+
+**And a third loop was built and removed the same day.** A wide soft band sweeping the deck reads
+as light over near-black and as a STAIN over a surface with its own value — in a still it left
+the left half of the panel visibly dirtier than the right. Motion on a lit surface belongs on its
+edges.
+
+The first version of this put its loops in a 1px line along the top of a 1900px box and in a glow
+breathing behind a panel, and the honest outcome was that the owner looked at the section and
+reported seeing no animation at all. He was right, and it is measurable: a burst of frames diffed
+pixel by pixel showed **0.02%** of the box changing between them — the blinking cursor. The
+current build measures **15.4%** of the panel changing (the ring) and **10.4%** of the box (the
+band). Restraint tuned past the point of visibility is not restraint, it is absence.
+
+They do **not** pause on focus, and that is deliberate too. A version that stopped every loop the
+moment anything inside the box was focused meant that anyone who clicked a chip in the first
+second saw one second of motion and a dead panel for the rest of the visit. Motion that stops the
+instant you engage with it is motion nobody ever sees.
+
+**The selected chip is a lit key, and it took two wrong answers to get there.** It began as
+`--txt`, near-white, which put it at **38× the luminance of the deck** and made it the loudest
+object in the section after the CTA. The fix was worse: the deck's fill carried 26% toward
+`--red-lift` — and mixing a warm accent INTO a blue-grey is how you get mud, a maroon-plum that
+belonged to no palette on this site. So the fill does not move at all now. The chip stays the slot
+it already is and the accent lives on the EDGE: a full-strength border at 6.24:1, the 2px bar
+beneath, a short outer glow, and the label at 18.36:1. Nothing is mixed, so nothing muddies.
+
+**Two traps, both paid for.** `@property --ring-angle` must be registered at the DOCUMENT level: a
+custom property that is not registered interpolates as a string and simply jumps at the end of the
+cycle. The first version declared it inside the `:root` block, where an at-rule is invalid,
+Lightning CSS dropped it silently, and the pixel diff showed seven identical frames followed by
+one that changed — which is exactly what an un-interpolated angle looks like. And `docker compose
+up -d --build` **leaves the previous container running when the build fails**: a CSS parse error
+meant three rounds of "verification" were run against a stale image. Check that the build
+succeeded, not that the container started.
+
+**The price is the hero, and it is still the owner's number.** It is sized like the payoff it is
+(`clamp(34px, 4.6vw, 52px)`, `tabular-nums`), and nothing counts it up or animates it into being.
+What is new is that when it GENUINELY changes the panel marks it once: the component compares the
+rendered STRING, so a re-render or re-picking the same chip fires nothing. The flash alternates
+between two identical keyframes under two names — a CSS animation only restarts when its name
+changes, and the alternative, remounting the panel, would take the contact form with it and throw
+away whatever the visitor had already typed. Verified in a browser: the price went 150 € → 450 €,
+the panel flashed, and the text already typed into the name field was still there.
+
+**Forced colours** leaves the form untouched: the chrome's background images come off, the glow
+is hidden (flattened it would read as a second border), and selection is an inset outline rather
+than a fill — `Highlight`/`HighlightText` on TEXT makes the chip's label vanish, because Chromium
+paints a `Canvas` backplate behind text and `HighlightText` is black in the dark forced scheme.
+
 - **Contact form:** name, email, phone, message + submit. It **does** submit —
   `POST /api/contact`, validated client-side by `lib/validation.ts` and authoritatively by
   the backend, then pushed to the Telegram lead bot

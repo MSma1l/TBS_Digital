@@ -255,6 +255,7 @@ export const en: Record<MessageKey, string> = {
   "cookie.settings": "Essential only",
 
   // --- Intro preloader ---
+  "common.loading": "Loading",
   "intro.status": "SYSTEM_SYNCHRONIZATION",
   "intro.complete": "ACCESS_GRANTED",
   "intro.progressAria": "Loading TBS Digital",

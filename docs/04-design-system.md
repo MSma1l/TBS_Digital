@@ -761,8 +761,157 @@ The first HUD part (IT-OS Phase 4, 2026-09-17): `components/hud/guide/GuideAssis
 CSS Module, loaded by `HudChrome` after arming. Behaviour is in
 [05](./05-page-sections.md#ghid-tbs-the-guide).
 
-**The droid.** A small CSS-3D holographic cube in a light beam, drawn entirely with CSS (no image,
-no canvas, no icon font), inside the avatar button:
+**The assistant (2026-09-24).** The cube droid is gone. The avatar is now a **holographic
+projection of a person** — a cutout portrait in the same light beam, with the same orbit rings
+around her — and she **breathes and blinks**.
+
+- **She TALKS, and she ANSWERS (2026-09-24).** One bubble above her, three modes, and a mouth.
+  - **The bubble she already had gained modes** rather than a second bubble system: `tip` (a topic
+    prompt, as before), `say` (a line she speaks, which goes away after 7s), `faq` (her questions).
+    Precedence is `faq > tip > say` — the questions were asked for, the tip is about the section
+    being read, and the spoken line is ambient. `key={mode}` remounts it, so the rise fires on
+    every change; a shared node would only update the animation's timing, which is the
+    keyframe-name trap this module documents at length. The ✕ closes what is ON SCREEN, not what
+    is set — a bug caught by two existing tests.
+  - **The mouth is not a hole.** Two versions were built and photographed first: a dark ellipse at
+    the lip line reads as a hole punched in her face, and shrinking it until it stopped being a
+    hole left nothing. A still photograph of closed lips has no aperture to reveal. So nothing is
+    added: `.jaw` is a window onto HER OWN LOWER FACE, ellipse-masked (a rectangle shows a straight
+    edge on every side it moves along, which is the signature of a wrong talking still), hinged at
+    the lip line so the chin travels furthest — hinge it the other way and the chest pumps with the
+    voice. It runs only while `data-say` is on the root, and it is ordered BEFORE `.wash` so the
+    scanlines multiply over it instead of it covering them.
+  - **The amplitude is set by the smallest place it runs.** She only ever speaks at launcher size,
+    so the jaw band is 11px on a desktop. Measured: a first pass at 11% / 1.1 gave **0.95px** of
+    travel, a flicker; 22% / 1.2 gives **2.4px** of translation plus the stretch, about 5px of lip
+    displacement on a 106px face. Measured silent: **0.00px**, animation `none`.
+  - **The questions are the estimator's chat**, in its own material: `.ask` is `.chatOption` — a
+    raised chip on `--panel`, `--r-sm`, lifting 2px on hover and pressing 1px down on click, which
+    is the estimator's one shared press rule. It hovers to `--neon-cyan` and not `--red`, because
+    red in this widget is the CTA and the portrait beside it is monochrome cyan. One question per
+    line, not a wrapped row: whole sentences as pills leave the answer nowhere to live.
+  - **The answers are written, not generated,** and every one repeats something the site already
+    says, with the file named beside it in `copy.ts`. No price figure (they are admin-editable), no
+    promise of a call for every request (the site attaches the 30 minutes to one CTA), and one
+    question — "Am I talking to a bot?" — that the honesty rule had been waiting for.
+  - **Pressing her is a DISCLOSURE now, not a dialog opener.** `aria-haspopup="dialog"` is gone,
+    `aria-expanded` is there, and the accessible name says questions. The guided request is one
+    more press, from the CTA inside. Three e2e specs and one unit test moved with it.
+- **The box is SQUARE and it has grown three times: 68 / 104 / 136 / 184**, from 52 / 64x72 / 88. That is
+  a change to the contract above, made deliberately: the avatar is a person now, and at the old
+  size her head was some twenty pixels, where a blink is two. The tip's offsets moved with it
+  (60 -> 80 -> 96, and 80 -> 100 -> 132).
+  - **The 64px step below 400px is arithmetic, not taste.** The phone dock is three 44x44 buttons
+    centred on the bar, about 156px wide — x 82..238 at a 320px viewport (table above). The guide
+    is pinned to `right: 12px` and grows LEFTWARD, so its left edge is `W - 12 - box` and it clears
+    the dock only while that stays above 238: at 320px the box may be at most **70**. An earlier
+    pass took the phone box to 88 and overlapped the dock; 64 clears at 320 (244 > 238) and 88
+    clears from 400px up (300 > 278).
+  - **It cannot collide with the rail**, and that is measured rather than assumed. The box is
+    pinned to `right: 20px` and grows leftward, so its right edge never moves; the rail's painted
+    line sits at `right: 4px`, 12px wide, outside it. Their BOUNDING boxes have overlapped since
+    the 120px step — measured at 1400x900: 28px vertically, 24px horizontally, because
+    `--hud-bottom` is 112 — but nothing painted does.
+- **The portrait** is `public/guide/asistent-*.{webp,avif}`, a **722 x 849 head-to-chest** cutout at
+  384w and 192w (11-31 KB), aspect 0.849 so it drops into the square with room beneath for the
+  beam. Built by `tools/guide/` and **not hand-edited**; that README records why the matte is cut
+  on edges rather than colour, and the two `sharp` traps that cost an afternoon.
+- **It has no colour.** A tinted photograph is still a photograph — under a cyan wash the blazer
+  stayed cream and the skin stayed skin, so it read as a picture of a person rather than a
+  projection of one. The file is carried onto `--neon-cyan` (#38e1ff) by sharp's `tint` ALONE,
+  which works in LAB and replaces the chroma while keeping the luminance; greyscaling first
+  defeats it, because that leaves a single-channel image with no chroma to set.
+- **She fades into the beam.** Cropping to the chest put the white shirt at the bottom of the
+  frame and after the tint it came out brighter than her face. The bottom 38% of the **alpha
+  channel** is ramped to nothing at build time — a projection has no hem — which also means the
+  rim and the scanline mask, both pointing at this same bitmap, follow it with no second shape to
+  keep in step.
+- **The hologram is CSS, and there is no filter in it.** The rule below is not decoration — a
+  filter makes its element a containing block and flattens the `preserve-3d` the orbit rings are
+  drawn in, and two test files enforce it across every HUD module. So the hue and the exposure are
+  **baked into the file** at build time; the scanlines are a dark raster multiplied into her (one
+  line every four pixels), masked by the portrait's own alpha; and the rim is a second painting of
+  her silhouette scaled 1.05 behind her rather than a `drop-shadow`.
+- **She moves like a person, and that is three clocks and not one** (2026-09-24). A single sine on
+  a single element reads as a mechanism however slow it is, so `.figure` **sways**, `.live`
+  **breathes**, and the eyelids **blink** — 11.9s, 4.6s, 9s, which share no short common multiple.
+  They must be separate elements: they all drive `transform`, and two animations on one property
+  do not compose, the last simply wins.
+  - **The sway turns about her CHEST** (`transform-origin: 50% 88%`), and that one number is what
+    makes it read as a person: a rotation about a point low in the frame moves the top of it most,
+    which is a weight shift. Measured on the 64 x 75px launcher figure, tracking the crown through
+    the composed matrices over 31s: the crown travels **4.65px across and 2.03px down, twice as
+    far as the collar**. About the middle instead and the whole bust rocks like a hanging object.
+  - **Neither extreme is a turning point.** Each is written twice, eight per cent of the cycle
+    apart, so she arrives at a pose and HOLDS it before shifting again. The stops are at uneven
+    positions for the same reason. `scaleX` a few thousandths under 1 at the extremes is a head
+    turn — a face narrows off axis.
+  - **The breath is lopsided on purpose**: the peak sits at 36%, not 50%, so the inhale is quick
+    and the exhale a long settle. That asymmetry is most of what makes a still photograph look
+    like it has lungs. It rises from the feet, and it has to be on its own box and not on the
+    image, or the eyelids stay behind and sit a pixel low on every inhale.
+  - **Nothing repeats inside half a minute.** Auto-correlating the crown's trace over 31s, the
+    best self-match is **89.5% at 23.6s** — two sway cycles. A person who loops every few seconds
+    is a machine.
+- **The blink** is the portrait itself. Each eyelid is a small window onto the same bitmap, offset
+  so it samples the strip of skin between the brow and the lash line, and scaled to nothing at
+  rest; a blink is that strip growing down over the eye. The colour matches because it IS her skin,
+  and the spectacle frames never shift because the lid is drawn inside the lens. Placement is
+  `--lx` / `--ly` / `--ls` per eye, measured once and printed by `tools/guide/asset.mjs`. Four
+  blinks in nine seconds, unevenly spaced and one of them a double: a blink on a metronome reads as
+  a machine.
+- **The greeting is a projector firing** (2026-09-24), once per visit, over 3.4s:
+
+  | | what happens |
+  | --- | --- |
+  | 0–160ms | the emitter bar snaps to full width and over-brightens |
+  | 160–420ms | a cone of light opens up out of it |
+  | 300–1280ms | **sixteen bands of her fly in from alternating sides, sheared, bottom first**, while a scanner bar rides up the beam and clears her crown on the same frame the last band lands |
+  | 1280–1460ms | two hard stutters, and at 1300 the raster engages: the signal locks on |
+  | 1400–1900ms | a shockwave leaves her |
+  | 1900–2750ms | she stands there, breathes and blinks |
+  | 2750–3400ms | she settles into the launcher, which rises as she goes |
+
+  **The bands are the whole technique, and they exist because of the constraint rather than in
+  spite of it.** Keyframes in this module may declare only `transform` and `opacity`, so a reveal
+  cannot be a moving mask or a growing clip. Sixteen copies of the same bitmap, each with its own
+  **static** `clip-path` band and its own delay, give the same picture out of transforms alone.
+  **Sixteen and not a dozen:** it is a power of two, so every boundary falls on an exact 6.25% and
+  adjacent clips close with no rounding gap — at 7 or 12 the boundaries are repeating decimals and
+  a sub-pixel seam can open along a band edge. Which side each flies in from and which way it
+  shears is a **static** `:nth-child(odd/even)` rule, so one keyframe block serves all sixteen.
+  - **The stagger is derived:** 16 bands 45ms apart is 675ms, plus a 300ms flight, so the last
+    lands at 1275ms — and the hand-off is at 1300, 25ms after. Get that order wrong and the top of
+    her head is still in the air when the real figure takes over.
+  - **The hand-off is a one-frame cut, not a cross-fade** (`steps(1, end)` on both sides): two
+    paintings of the same part-transparent cutout at half opacity each do not sum to one painting,
+    they sum to a ghost. Each side sits on a wrapper of its own (`.slices`, `.reveal`) because
+    every element underneath already carries an animation, and two animations that touch `opacity`
+    do not compose — the last in the list simply wins.
+  - **`both`, not `backwards`,** on anything that must stay where it landed. Measured: with
+    `backwards` alone each band reverted to the rule's own `opacity: 0` the moment it arrived, so
+    at 1020ms the frame held her head alone, floating, with the body already built and gone.
+  - **Glow without a filter:** `box-shadow` is not `filter` and no test touches it — it is already
+    how `.packet` and the intro's shockwave glow. The ring is **declared at its largest and scaled
+    down to start**, because declared small it would be a round element under 8px, which the
+    decorative-dots rule forbids across every HUD module.
+  - It costs **20 elements**, all inside `.greeting`, all gated behind `[data-live]`, all removed
+    from the DOM when the entrance ends. The launcher's own subtree is untouched.
+
+  It takes no pointer events and is out of the accessibility tree; the button underneath is the
+  control and is never covered by anything clickable.
+- **It waits until she can be seen**, and that is not when the component mounts. TWO things cover
+  the HUD by contract — the intro overlay and the **page-loading cover**
+  (`components/ui/PageLoading.tsx`, up while the 3D stage has not answered). Photographed at
+  1400 x 900 with the greeting at opacity 1 and the root at (1292, 792, 88, 88), the frame showed
+  BootCore turning on the loading cover and nothing of her;
+  `document.elementsFromPoint` inside the root came back `DIV.grid > DIV.cover > SPAN.signal`. The
+  clock now starts on the first frame both are clear, capped at 11s.
+- **Likeness.** The portrait is a real person. It ships in `public/` and is served on every page
+  that mounts the HUD, so it is a consent question and not only a design one.
+
+**The droid (until 2026-09-24).** A small CSS-3D holographic cube in a light beam, drawn entirely
+with CSS (no image, no canvas, no icon font), inside the avatar button:
 
 - **Frame:** the button is `--glass-bg-solid` composited over `--bg` (opaque, see the tip) with a
   1px `--neon-cyan` edge at 45% (full

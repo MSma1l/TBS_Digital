@@ -66,22 +66,11 @@ function project(pose: CameraPose, aspect: number, point: Vec): { x: number; y: 
   return { x: dot(v, right) / (z * tan * aspect), y: dot(v, up) / (z * tan), z };
 }
 
-/** The plane the open lid lies in: signed distance, positive in front of the display. */
-function lidPlane(p: Vec): number {
-  return (
-    SCREEN_OPEN.ny * (p[1] - INTRO_LAPTOP.hinge.y) + SCREEN_OPEN.nz * (p[2] - INTRO_LAPTOP.hinge.z)
-  );
-}
 
-/** Where a segment crosses a plane, as a fraction of it, or −1 when it never does. */
-function crossing(a: number, b: number): number {
-  return a < 0 && b > 0 ? a / (a - b) : -1;
-}
-
-const KEY_NAMES = ["die", "power-up", "interior", "out", "lid", "screen"] as const;
+const KEY_NAMES = ["die", "power-up", "interior", "guts", "through", "above", "lid", "screen"] as const;
 
 describe("FLIGHT_KEYS", () => {
-  it("is six frames tiling [0, 1] with no gap, strictly ascending", () => {
+  it("is eight frames tiling [0, 1] with no gap, strictly ascending", () => {
     expect(FLIGHT_KEYS).toHaveLength(KEY_NAMES.length);
     expect(FLIGHT_KEYS[0].u).toBe(0);
     expect(FLIGHT_KEYS[FLIGHT_KEYS.length - 1].u).toBe(1);
@@ -214,11 +203,15 @@ describe("cameraAt", () => {
 });
 
 describe("the flight, against the machine", () => {
-  const { vent, die, cavity, deck, lid } = INTRO_LAPTOP;
+  const { hatch, die, cavity, deck, lid, hinge } = INTRO_LAPTOP;
 
-  it("stays inside the chassis, and off the die, for beats 1 to 3", () => {
-    for (let i = 0; i <= 200; i += 1) {
-      const u = (i / 200) * 0.4;
+  it("stays inside the chassis, and off the die, all the way to the hatch", () => {
+    // 0.58 — K3, the last key inside the machine. The camera rises through the KEYBOARD at
+    // u 0.602, identical at every aspect because nothing on that segment widens, and the exit
+    // has its own test below. The original window stopped at K2 (0.40) and therefore checked
+    // nothing at all about the corridor this test exists to guard.
+    for (let i = 0; i <= 300; i += 1) {
+      const u = (i / 300) * 0.58;
       const pose = cameraAt(u, 1.6);
       expect(Math.abs(pose.py), `u=${u}`).toBeLessThan(cavity);
       expect(Math.abs(pose.px)).toBeLessThan(deck.w / 2);
@@ -229,68 +222,80 @@ describe("the flight, against the machine", () => {
     }
   });
 
-  it("has the vent in shot at K2 — the frame the cross-fade lands on", () => {
-    // The whole aperture, not just its centre: this frame has to READ as a way out.
+  it("has the hatch in shot at K2 — the frame the cross-fade lands on", () => {
+    // The whole aperture, not just its centre: this frame has to READ as a way out. It is the
+    // KEYBOARD now, above and ahead, not the vent in the back wall — the processor lives under
+    // the keys, so that is where the camera surfaces.
+    // Its CENTRE and its two ends along the flight, not all four corners: from 0.26 away a 0.34
+    // aperture is wider than the frame, and it is supposed to be — the camera is underneath it.
+    // Where the camera actually goes through is pinned by the exit test below; this one is about
+    // the composition, which is that the way out is visible, ahead, and overhead.
     const pose = cameraAt(0.4, 1.6);
-    for (const dx of [-vent.w / 2, 0, vent.w / 2]) {
-      for (const dy of [-vent.h / 2, 0, vent.h / 2]) {
-        const seen = project(pose, 1.6, [vent.x + dx, vent.y + dy, vent.z]);
-        expect(seen.z).toBeGreaterThan(NEAR);
-        expect(Math.abs(seen.x)).toBeLessThan(1);
-        expect(Math.abs(seen.y)).toBeLessThan(1);
-      }
+    for (const dz of [-hatch.d / 2, 0, hatch.d / 2]) {
+      const seen = project(pose, 1.6, [hatch.x, hatch.y, hatch.z + dz]);
+      expect(seen.z).toBeGreaterThan(NEAR);
+      expect(Math.abs(seen.x)).toBeLessThan(1);
+      expect(Math.abs(seen.y)).toBeLessThan(1);
     }
-    // …and off to one side, so the ribs either side of it are the rest of the composition.
-    expect(project(pose, 1.6, [vent.x, vent.y, vent.z]).x).toBeLessThan(-0.15);
+    // Above the aim, so the shot reads as looking UP out of the machine rather than along it.
+    expect(project(pose, 1.6, [hatch.x, hatch.y, hatch.z]).y).toBeGreaterThan(0);
   });
 
-  it("leaves THROUGH the vent, at every aspect", () => {
+  it("leaves UP THROUGH THE KEYBOARD, once, at every aspect", () => {
+    // The processor sits under the keys, so that is where the camera surfaces: it crosses the
+    // deck's top surface exactly once, inside the clear strip between the middle and back rows.
+    // ONCE matters as much as WHERE — a path that pops out and dips back in would satisfy an
+    // aperture check and still be nonsense.
     for (const aspect of ASPECTS) {
+      const crossings: { x: number; z: number }[] = [];
       let previous = position(cameraAt(0.4, aspect));
-      let crossed = false;
-      for (let i = 1; i <= 4000; i += 1) {
-        const u = 0.4 + (i / 4000) * 0.26;
-        const here = position(cameraAt(u, aspect));
-        if (previous[2] > vent.z && here[2] <= vent.z) {
-          const t = (previous[2] - vent.z) / (previous[2] - here[2]);
-          const x = previous[0] + t * (here[0] - previous[0]);
-          const y = previous[1] + t * (here[1] - previous[1]);
-          expect(Math.abs(x - vent.x), `x @ aspect ${aspect}`).toBeLessThan(vent.w / 2);
-          expect(Math.abs(y - vent.y), `y @ aspect ${aspect}`).toBeLessThan(vent.h / 2);
-          crossed = true;
-          break;
+      for (let i = 1; i <= 8000; i += 1) {
+        const here = position(cameraAt(0.4 + (i / 8000) * 0.3, aspect));
+        if (previous[1] <= hatch.y !== (here[1] <= hatch.y)) {
+          const t = (hatch.y - previous[1]) / (here[1] - previous[1]);
+          crossings.push({
+            x: previous[0] + t * (here[0] - previous[0]),
+            z: previous[2] + t * (here[2] - previous[2]),
+          });
         }
         previous = here;
       }
-      expect(crossed, `aspect ${aspect}`).toBe(true);
+      expect(crossings, `aspect ${aspect}`).toHaveLength(1);
+      expect(Math.abs(crossings[0].x - hatch.x), `x @ aspect ${aspect}`).toBeLessThan(hatch.w / 2);
+      expect(Math.abs(crossings[0].z - hatch.z), `z @ aspect ${aspect}`).toBeLessThan(hatch.d / 2);
     }
   });
 
-  it("clears the open lid on the way round, at every aspect", () => {
-    // K3→K4 crosses the lid's plane. A straight run between two keys, so the only thing keeping
-    // the camera out of the panel is where it crosses: past the lid's own edge.
+  it("never gets behind the lid while it is opening, at every aspect", () => {
+    // The old route left through the vent in the BACK wall, so the camera spent beat 4 behind the
+    // machine and the question was where it re-crossed the open lid's plane — past the panel's
+    // edge, or through it. Surfacing through the keyboard puts the camera in FRONT of the hinge
+    // for the whole of the rest of the flight, so the honest invariant is the stronger one: it is
+    // never on the far side of the lid at all, at the angle the lid actually has at that moment.
+    //
+    // Checked against the LIVE angle, not the open one. The panel sweeps 107° between u 0.62 and
+    // 0.84 and passes through every angle in between; a check against its final plane alone would
+    // miss the camera being caught by the panel on its way up.
     for (const aspect of ASPECTS) {
-      let previous = position(cameraAt(0.66, aspect));
-      let found = false;
-      for (let i = 1; i <= 4000; i += 1) {
-        const here = position(cameraAt(0.66 + (i / 4000) * 0.34, aspect));
-        const t = crossing(lidPlane(previous), lidPlane(here));
-        if (t >= 0) {
-          const x = previous[0] + t * (here[0] - previous[0]);
-          expect(Math.abs(x), `aspect ${aspect}`).toBeGreaterThan(lid.w / 2);
-          found = true;
-          break;
-        }
-        previous = here;
+      for (let i = 0; i <= 400; i += 1) {
+        const u = 0.6 + (i / 400) * 0.4;
+        const pose = cameraAt(u, aspect);
+        const angle = lidOpenAt(u) * lid.open;
+        // The panel's outward normal, and the camera's signed distance from the hinge along it.
+        const side =
+          (pose.py - hinge.y) * -Math.cos(angle) + (pose.pz - hinge.z) * Math.sin(angle);
+        const beyondTheEdge = Math.abs(pose.px) > lid.w / 2;
+        expect(side > NEAR || beyondTheEdge, `u=${u} @ ${aspect}`).toBe(true);
       }
-      expect(found, `aspect ${aspect}`).toBe(true);
     }
   });
 
   it("stays clear of the deck once it is outside", () => {
+    // From 0.66, a comfortable margin past the latest exit (0.6058) — the guard now covers the
+    // swing round the machine from the moment the camera is actually out of it.
     for (const aspect of ASPECTS) {
-      for (let i = 0; i <= 200; i += 1) {
-        const u = 0.7 + (i / 200) * 0.3;
+      for (let i = 0; i <= 300; i += 1) {
+        const u = 0.66 + (i / 300) * 0.34;
         const pose = cameraAt(u, aspect);
         const insideDeck =
           Math.abs(pose.px) < deck.w / 2 &&
@@ -381,10 +386,14 @@ describe("lidOpenAt", () => {
     expect(lidOpenAt(-1)).toBe(0);
   });
 
-  it("holds shut until 0.62 and is settled by 0.84", () => {
-    expect(lidOpenAt(0.62)).toBe(0);
-    expect(lidOpenAt(0.6199)).toBe(0);
-    expect(lidOpenAt(0.84)).toBe(1);
+  it("holds shut until 0.40 and is settled by 0.60 — before the camera surfaces", () => {
+    // A shut lid lies flat at y 0.10–0.15 over a deck whose top is 0.08, so there is no gap to
+    // rise through: the panel has to be past vertical BEFORE the camera reaches the hatch at
+    // u 0.602, or the exit is into the underside of the lid.
+    expect(lidOpenAt(0.4)).toBe(0);
+    expect(lidOpenAt(0.3999)).toBe(0);
+    expect(lidOpenAt(0.6)).toBe(1);
+    expect(lidOpenAt(0.602)).toBe(1);
     expect(lidOpenAt(0.9)).toBe(1);
   });
 
@@ -401,18 +410,18 @@ describe("lidOpenAt", () => {
     // c1 = 0.7: 1.76% over, about three quarters of the way through the ramp.
     expect(peak).toBeGreaterThan(1.012);
     expect(peak).toBeLessThan(1.025);
-    expect(at).toBeGreaterThan(0.62);
-    expect(at).toBeLessThan(0.84);
+    expect(at).toBeGreaterThan(0.4);
+    expect(at).toBeLessThan(0.6);
     // The textbook 1.70158 would be 10% — ten degrees of overshoot on a 107-degree lid.
     expect((peak - 1) * INTRO_LAPTOP.lid.open * (180 / Math.PI)).toBeLessThan(3);
   });
 });
 
 describe("screenFillAt", () => {
-  it("draws the screen from 0.62 to 0.95, monotone", () => {
+  it("draws the screen from 0.46 to 0.68, monotone", () => {
     expect(screenFillAt(0)).toBe(0);
-    expect(screenFillAt(0.62)).toBe(0);
-    expect(screenFillAt(0.95)).toBe(1);
+    expect(screenFillAt(0.46)).toBe(0);
+    expect(screenFillAt(0.68)).toBe(1);
     expect(screenFillAt(1)).toBe(1);
     expect(screenFillAt(Number.NaN)).toBe(0);
     let previous = 0;
@@ -423,9 +432,17 @@ describe("screenFillAt", () => {
     }
   });
 
-  it("starts with the lid and finishes before the dive", () => {
-    expect(screenFillAt(0.62)).toBe(lidOpenAt(0.62));
-    expect(screenFillAt(0.95)).toBe(1);
-    expect(lidOpenAt(0.95)).toBe(1);
+  it("starts inside the lid's own window and is awake before the camera surfaces", () => {
+    // The screen starts drawing while the lid is still travelling, and both are finished by the
+    // time the camera is out of the keyboard — what it surfaces into is a machine already awake.
+    expect(screenFillAt(0.4)).toBe(0);
+    expect(lidOpenAt(0.46)).toBeGreaterThan(0);
+    expect(lidOpenAt(0.46)).toBeLessThan(1);
+    // At the exit the lid is done and the display is two thirds drawn: the camera surfaces into a
+    // screen still wiping itself on, which is the reveal, and it completes at 0.68 just after.
+    expect(lidOpenAt(0.602)).toBe(1);
+    expect(screenFillAt(0.602)).toBeGreaterThan(0.6);
+    expect(screenFillAt(0.602)).toBeLessThan(1);
+    expect(screenFillAt(0.68)).toBe(1);
   });
 });

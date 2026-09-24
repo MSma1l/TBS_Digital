@@ -80,7 +80,6 @@ export type Social = { id: string; type: SocialNetwork; url: string };
 export type ContactType = "email" | "phone" | "other";
 export type Contact = { id: string; type: ContactType; value: string };
 export type WorkPlaceholder = { id: string; grad: string };
-export type StatusBar = { label: string; pct: string; val: string };
 export type Deadline = { id: string; name: string; note: string };
 export type Feature = { id: string; label: string };
 export type FooterLink = { label: string; href: string };
@@ -322,12 +321,17 @@ export type TeamMember = {
 
 /** The member `id` is the catalog key segment, so `role` seeds from `team.<id>.role`.
    `bio` starts blank in every language (filled in from the admin). */
-const member = (id: string, name: string): TeamMember => ({
+/**
+ * `photo` defaults to empty, which is what an admin-filled member has until somebody uploads one.
+ * A path passed here is a BUNDLED asset under `public/` — `mediaUrl` returns it untouched, so it
+ * stays same-origin, which is the only reason the scene may read its pixels at all.
+ */
+const member = (id: string, name: string, photo = ""): TeamMember => ({
   id,
   name,
   role: locFromCatalog(`team.${id}.role` as MessageKey),
   bio: locRo(""),
-  photo: "",
+  photo,
   website: "",
   linkedin: "",
   instagram: "",
@@ -339,7 +343,7 @@ const member = (id: string, name: string): TeamMember => ({
    are: they are the stable keys the admin's saved content is matched on, so renaming them
    would orphan whatever has already been filled in. */
 export const team: TeamMember[] = [
-  member("chistol-maxim", "Maxim"),
+  member("chistol-maxim", "Maxim", "/team/maxim.webp"),
   member("danu", "Artem"),
 ];
 
@@ -349,14 +353,6 @@ export const socials: Social[] = [
   { id: "s-telegram", type: "telegram", url: "" },
   { id: "s-linkedin", type: "linkedin", url: "" },
   { id: "s-github", type: "github", url: "" },
-];
-
-/* SYSTEM_STATUS bars — numeric values kept for now (see stats note above). */
-export const statusBars: StatusBar[] = [
-  { label: "PROIECTE", pct: "92%", val: "50+" },
-  { label: "SATISFACȚIE", pct: "98%", val: "98%" },
-  { label: "AUTOMATIZĂRI", pct: "100%", val: "24/7" },
-  { label: "DISPONIBILITATE", pct: "99%", val: "ONLINE" },
 ];
 
 /* ---------- /06 Estimator ----------

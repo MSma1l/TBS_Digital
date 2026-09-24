@@ -211,7 +211,36 @@ export function placeServices(
   if (!probe.live || !probe.services) return null;
   const rect = probe.services;
   const top = canvasDocTop(scrollY, probe, h);
-  const cy = parallax(rect.y + rect.h / 2 - top, h / 2, layout.services.parallax);
+  /**
+   * The rest point is the canvas position CLOSEST TO THE CENTRE THAT THE HOST CAN ACTUALLY REACH
+   * — not the middle of the canvas, and not the anchor's own top-of-page position either.
+   *
+   * `parallax` pulls the model `1 - f` of the way from where the host is towards `restY`, so
+   * `restY` has to be where the host is when you are LOOKING at it. Two pages want two different
+   * answers from the same function:
+   *
+   *  · On the home page the services host is far down the document and you scroll to it, so it
+   *    ends up centred in the viewport. `h / 2` is right there, and was what this used.
+   *  · On a SERVICE page the host is the hero's right column. The page cannot scroll it to the
+   *    middle — it is already as high as it gets at scroll 0 — so `h / 2` is a position it never
+   *    reaches, and the parallax spent `1 - f` of that unreachable distance pushing the model
+   *    DOWN, by more the taller the window was. Measured against the real e-commerce host,
+   *    scrolled to the top: −42px at a 700px window, −8px at 900, +26px at 1100, +60px at 1300,
+   *    +111px at 1600. It read as the model refusing to come up into the hero, and it was only
+   *    ever right at ~950px, where the two rest points happen to coincide — which is why every
+   *    window the tests used missed it.
+   *
+   * `canvasDocTop` clamps the canvas between `stage.top` and `stage.bottom - h`, so the host's
+   * canvas y is bounded by those two ends. Clamping `h / 2` into that interval gives the home
+   * page `h / 2` unchanged and gives a hero host its own top-of-page position, which is exactly
+   * `placeCore`'s convention one function up. The parallax is then zero at rest on both, and
+   * still lags by `1 - f` of whatever the scroll moves afterwards.
+   */
+  const centre = rect.y + rect.h / 2;
+  const lowest = centre - Math.max(probe.stage.top, probe.stage.bottom - h);
+  const highest = centre - probe.stage.top;
+  const restY = Math.min(highest, Math.max(lowest, h / 2));
+  const cy = parallax(centre - top, restY, layout.services.parallax);
   const box = Math.min(rect.w, rect.h * SERVICES_BOX_ASPECT);
   return fitAnchor(w, h, rect.x + rect.w / 2, cy, box, MODEL_RADIUS, layout.services.fill, out);
 }
@@ -698,8 +727,15 @@ export const STEPS_TRAVEL = { form: 0.65, unform: 0.5 } as const;
  * The share of the host that has to be inside the canvas for the travel to start, and the share it
  * falls to before the model goes home. Armed early on purpose: the travel is then spent while the
  * section is still coming up, so the model is parked by the time the copy is being read.
+ *
+ * `home` is the share of its OWN host the model may still have in view when it leaves. Being
+ * "inside the canvas" is not the same question as "being read": the canvas is one viewport tall,
+ * so on a tall window a steps host a thousand pixels down the document is already half inside it
+ * AT SCROLL 0 — and the model then left a hero the visitor was still looking at. That is worst on
+ * `/servicii/e-commerce`, the one direction with no projects section, which puts its steps host
+ * some 600px higher than every other service page's.
  */
-export const STEPS_GATE = { on: 0.5, off: 0.05 } as const;
+export const STEPS_GATE = { on: 0.5, off: 0.05, home: 0.15 } as const;
 
 /**
  * The steps host's document top at `scrollY`: where it rests until the scroll reaches its sticky
@@ -722,6 +758,20 @@ export function stepsShare(probe: ScrollProbe, scrollY: number, h: number): numb
   const hostTop = stepsHostTop(probe, scrollY);
   if (!rect || hostTop === null) return 0;
   const y0 = hostTop - canvasDocTop(scrollY, probe, h);
+  return clamp01((Math.min(h, y0 + rect.h) - Math.max(0, y0)) / rect.h);
+}
+
+/**
+ * How much of the model's OWN host is inside the canvas at `scrollY`, 0 → 1 (0 with no host).
+ *
+ * The counterpart of `stepsShare`, and the question the steps gate actually has to ask: the model
+ * may only go to the corner once the place it belongs is off screen. Unlike the steps host this
+ * one is not pinned, so it is a plain overlap of the host's box with the canvas.
+ */
+export function servicesShare(probe: ScrollProbe, scrollY: number, h: number): number {
+  const rect = probe.services;
+  if (!probe.live || !rect || rect.h <= 0) return 0;
+  const y0 = rect.y - canvasDocTop(scrollY, probe, h);
   return clamp01((Math.min(h, y0 + rect.h) - Math.max(0, y0)) / rect.h);
 }
 

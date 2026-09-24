@@ -16,6 +16,1919 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-24 — Added: asistenta vorbeste, da din gura si raspunde la intrebari frecvente
+
+*„Fa patratul inca mai mare si fa ca sa apara un mesaj mai sus si sa dea din gura de parca ar
+vorbi si adauga dupa ce apasam niste intrebari cu raspunsuri scriptate care ar raspunde la
+intrebari frecvente si fa designul in stilul cum am facut la cerere/estimare si fix aceleasi
+animatii."*
+
+**Patratul:** 88 / 112 / 152 → **68 / 104 / 136 / 184**.
+
+**Gura nu e o gaura.** Am construit si fotografiat doua variante inainte: o elipsa intunecata la
+linia buzelor arata ca o gaura in fata, iar micsorata pana nu mai era gaura nu mai era nimic. O
+fotografie cu buzele inchise n-are ce deschidere sa dezvaluie. Asa ca nu se adauga nimic: `.jaw` e
+o fereastra spre **propria ei jumatate de jos a fetei**, mascata eliptic (un dreptunghi arata o
+muchie dreapta pe fiecare latura pe care se misca — semnatura exacta a unei guri false), cu
+balamaua la linia buzelor, deci barbia se misca cel mai mult. Cu balamaua invers, pieptul pompeaza
+odata cu vocea, care e tell-ul de papusa.
+
+**Amplitudinea e data de locul cel mai mic in care ruleaza.** Ea vorbeste doar la marimea
+lansatorului, deci banda maxilarului are 11px pe desktop. Masurat: prima varianta, cu 11% si 1.1,
+dadea **0.95 px** de deplasare — o palpaire. Cu 22% si 1.2 da **2.4 px** de translatie plus
+intinderea, adica vreo 5px de deplasare a buzelor pe o fata de 106px. Masurat tacand: **0.00 px**,
+animatie `none`.
+
+**Un singur balon, trei moduri.** Ghidul avea deja un balon deasupra ei pentru sugestii de
+sectiune; a primit moduri in loc sa capete un al doilea sistem: `tip`, `say` (o replica, dispare
+dupa 7s) si `faq` (intrebarile). Prioritatea e `faq > tip > say`. Un bug prins de doua teste
+existente: ✕ inchidea ce era **setat**, nu ce se **vedea** — ea putea vorbi in spatele unei
+sugestii, iar ✕ ii taia replica nevazuta si lasa sugestia pe ecran.
+
+**Intrebarile sunt chat-ul estimatorului**, in materialul lui: `.ask` e `.chatOption` — o pastila
+ridicata pe `--panel`, `--r-sm`, care urca 2px la hover si coboara 1px la apasare, exact regula
+comuna de apasare a estimatorului. Trece pe `--neon-cyan` si nu pe `--red`, pentru ca in widget-ul
+asta rosul e CTA-ul, iar portretul de langa e monocrom cian. **Cate una pe rand**, nu un rand care
+se infasoara: propozitii intregi ca pastile nu lasa loc raspunsului.
+
+**Raspunsurile sunt scrise, nu generate**, si fiecare repeta ceva ce site-ul spune deja, cu
+fisierul numit alaturi in `copy.ts`. Fara nicio cifra de pret (preturile sunt editabile din admin),
+fara promisiunea unui apel pentru fiecare cerere (site-ul leaga cele 30 de minute de un singur CTA),
+si cu o intrebare — „Vorbesc cu un robot?" — pe care regula de onestitate a fisierului o astepta.
+
+**Apasarea pe ea e acum o dezvaluire, nu o deschidere de dialog.** `aria-haspopup="dialog"` a
+disparut, `aria-expanded` a aparut, iar numele accesibil spune intrebari. Cererea ghidata e o a
+doua apasare, din CTA-ul dinauntru. Trei specificatii e2e si un test unitar s-au mutat odata cu ea.
+
+**Un defect vechi, a treia oara.** Toate decalajele balonului deriva acum dintr-un singur
+`--guide-box` pe punct de intrerupere. O marime copiata de mana a derivat de doua ori, iar a treia
+oara un `bottom: 116px` masurat pentru un avatar de 88px statea mai jos in fisier decat regula pe
+care o contrazicea si castiga tacut. Fotografiat la 1400x900: marginea de jos a balonului la 115px,
+varful ei la 204 — vorbea din spatele propriei replici. Nu mai sunt literale.
+
+**Si o corectie de codare:** `<source>`-ul AVIF a fost scos. Fiecare fereastra CSS spre portret —
+pleoapele, maxilarul, masca conturului, masca liniilor — il incarca pe cel WebP, iar `<img>`-ul
+primea AVIF-ul. Doua codari cu pierderi ale aceluiasi bitmap difera cu o valoare-doua pe piele
+neteda, iar un petec care trebuie sa se potriveasca la culoare cu pixelii de sub el deseneaza o
+muchie dura acolo unde difera. Un fisier, 31 KB.
+
+**Despre cum s-a lucrat:** un flux cu 15 agenti a produs continutul (ancorat, in trei limbi) si —
+mai valoros — juriul a gasit defecte care se aplicau direct planului meu: nepotrivirea de codare,
+gura care se misca invers, marginile nemascate, si faptul ca la marimea telefonului efectul nu
+exista. Trei dintre ele erau deja in ce construisem.
+
+1616 teste si lint trec.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.tsx`](./components/hud/guide/GuideAssistant.tsx) ·
+[`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`components/hud/guide/copy.ts`](./components/hud/guide/copy.ts) ·
+[`tools/guide/asset.mjs`](./tools/guide/asset.mjs) ·
+[`components/__tests__/guide-assistant.test.tsx`](./components/__tests__/guide-assistant.test.tsx) ·
+[`e2e/guide.spec.ts`](./e2e/guide.spec.ts) ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-24 — Added: proiectorul porneste — asistenta e desenata din saisprezece benzi, intr-un patrat mult mai mare
+
+*„Fa patratul sa fie mai mare si fa o animatie foarte wow cum apare."*
+
+**Patratul:** 72 / 88 / 120 → **88 / 112 / 152**, plus o treapta noua de **64px sub 400px**. Aia
+din urma repara un defect pe care tot eu il introdusesem: dock-ul telefonului e trei butoane de
+44x44 centrate pe bara, cam 156px lat (x 82..238 la o fereastra de 320px), iar ghidul e fixat la
+`right: 12px` si creste spre stanga — deci la 320px cutia poate avea cel mult **70px**. Cu 88 se
+suprapunea. La 400px in sus, 88 trece lejer (300 > 278).
+
+**Intrarea, in 3.4 secunde:** bara emitatorului se deschide brusc la toata latimea si arde peste
+masura (0–160ms); un con de lumina se desface din ea (160–420ms); **saisprezece benzi din ea intra
+din parti alternative, forfecate, de jos in sus**, in timp ce o bara de scanare urca prin fascicul
+si ii trece de crestet exact pe cadrul in care aterizeaza ultima banda (300–1280ms); doua sacadari
+scurte si, la 1300, se aprinde rasterul — semnalul s-a prins (1280–1460ms); o unda de soc pleaca
+din ea (1400–1900ms); sta, respira si clipeste (1900–2750ms); apoi se aseaza in lansator, care se
+ridica pe masura ce ea pleaca (2750–3400ms).
+
+**Benzile sunt toata tehnica, si exista din cauza constrangerii, nu in ciuda ei.** Keyframe-urile
+din modulul asta pot declara doar `transform` si `opacity` — un test le parcurge pe toate — deci o
+dezvaluire nu poate fi o masca in miscare sau o taietura care creste. Saisprezece copii ale
+aceluiasi bitmap, fiecare cu propria taietura **statica** si propria intarziere, dau aceeasi
+imagine doar din transformari. **Saisprezece si nu o duzina:** e o putere a lui doi, deci fiecare
+granita cade pe exact 6.25% si taieturile vecine se inchid fara rest — la 7 sau 12 granitele sunt
+zecimale periodice si se poate deschide o cusatura de sub-pixel. Din ce parte vine fiecare si
+incotro se forfecheaza e o regula **statica** `:nth-child(odd/even)`, deci un singur bloc de
+keyframe-uri serveste toate saisprezece.
+
+**Trei lucruri masurate pe drum, nu ghicite:**
+
+- **Esalonarea e derivata.** 16 benzi la 45ms distanta inseamna 675ms, plus un zbor de 300ms, deci
+  ultima aterizeaza la 1275ms — iar predarea e la 1300, la 25ms dupa. Cu ordinea gresita, varful
+  capului ei e inca in aer cand preia figura reala.
+- **`both`, nu `backwards`.** Fotografiat la 1020ms: cadrul o arata doar cu capul, plutind, cu tot
+  corpul deja construit si disparut. Fiecare banda revenea la `opacity: 0` din propria regula in
+  clipa in care ateriza.
+- **Doua animatii pe acelasi element care ating `opacity` nu se compun** — castiga ultima din
+  lista. Fara un invelis separat pentru benzi si unul pentru figura, benzile erau complet opace
+  din primul cadru al intrarii.
+
+**Predarea e o taietura de un cadru, nu o trecere lina** (`steps(1, end)` de ambele parti): doua
+picturi ale aceluiasi decupaj semi-transparent, la jumatate de opacitate fiecare, nu dau o pictura
+— dau o fantoma.
+
+**Stralucirea fara filtru:** `box-shadow` nu e `filter` si niciun test nu-l atinge. Inelul e
+**declarat la marimea lui maxima si scalat in jos la pornire**, pentru ca declarat mic ar fi un
+element rotund sub 8px, ceea ce regula punctelor decorative interzice in tot HUD-ul.
+
+Costa **20 de elemente**, toate in `.greeting`, toate in spatele portii `[data-live]`, toate scoase
+din DOM cand se termina intrarea. Lansatorul insusi ramane neatins.
+
+**Despre cum s-a lucrat:** am pus in paralel un flux cu trei variante si noua evaluari. Verdictele
+au fost unanime, dar toate despre acelasi lucru — variantele fusesera scrise pe o versiune a
+fisierului pe care o inlocuisem deja intre timp, deci „defectele" gasite erau coliziuni cu
+implementarea mea, nu cu a lor. Ce **am** luat de acolo si a contat: harta de tehnici (box-shadow
+permis, idiomul casei pentru stralucire, capcana numelor de keyframe), **saisprezece benzi ca
+putere a lui doi**, **partile alternative cu forfecare**, si constrangerea dock-ului de telefon —
+care a prins defectul de 88px de mai sus.
+
+1614 teste si lint trec. Tot fara filtre, tot doar `transform` si `opacity` in keyframes.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.tsx`](./components/hud/guide/GuideAssistant.tsx) ·
+[`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`components/__tests__/guide-assistant.test.tsx`](./components/__tests__/guide-assistant.test.tsx) ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-24 — Changed: asistenta se misca acum ca un om, nu ca un mecanism
+
+*„Dar fa sa aiba miscari ca un om viu."*
+
+Respira si clipea, dar restul ei statea nemiscat — si o singura sinusoida pe un singur element se
+citeste ca un mecanism oricat de incet ar merge. Acum sunt **trei ceasuri**: `.figure` se
+**leagana** (11.9s), `.live` **respira** (4.6s), pleoapele **clipesc** (9s). Trebuie sa fie
+elemente separate: toate trei conduc `transform`, iar doua animatii pe aceeasi proprietate nu se
+compun — pur si simplu castiga ultima. Cele trei perioade n-au un multiplu comun scurt.
+
+**Leganarea se invarte in jurul pieptului** (`transform-origin: 50% 88%`), si numarul asta e tot
+ce conteaza: o rotatie in jurul unui punct jos in cadru misca partea de SUS cel mai mult — adica
+o mutare a greutatii, ce face un om care sta in picioare. In jurul mijlocului, tot bustul s-ar
+balansa ca un obiect atarnat.
+
+Masurat pe figura de 64 x 75 px din lansator, urmarind crestetul prin matricele compuse timp de
+31s: **crestetul parcurge 4.65 px pe orizontala si 2.03 px pe verticala, de doua ori mai mult
+decat gulerul**, cu un drum total de 42 px. (Prima masuratoare a fost gresita: sub rotatie cutia
+de incadrare creste, deci marginea ei de sus se misca si cand nimic din interior nu se misca.)
+
+**Niciuna dintre extreme nu e un punct de intoarcere.** Fiecare e scrisa de doua ori, la opt
+procente distanta din ciclu, deci **ajunge intr-o pozitie si o tine** inainte sa se mute iar.
+Opririle sunt la pozitii inegale din acelasi motiv. Un `scaleX` cu cateva miimi sub 1 la extreme e
+o intoarcere de cap — o fata se ingusteaza cand iese de pe axa.
+
+**Respiratia e strambata intentionat:** varful sta la 36%, nu la 50%, deci inspiratia e scurta si
+expiratia o asezare lunga. Asimetria asta e mai toata diferenta dintre o fotografie care pare ca
+are plamani si una pompata.
+
+**Nimic nu se repeta sub jumatate de minut.** Auto-corelat pe urma crestetului timp de 31s, cea
+mai buna potrivire cu sine e **89.5% la 23.6s** — doua cicluri de leganare. Un om care intra in
+bucla la cateva secunde e o masina.
+
+La `hover` respiratia se accelereaza si leganarea se linisteste, cum se indreapta cineva de spate
+cand se intoarce altcineva spre el.
+
+1614 teste si lint trec. Tot fara filtre, si tot doar `transform` si `opacity` in keyframes.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.tsx`](./components/hud/guide/GuideAssistant.tsx) ·
+[`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-24 — Changed: asistenta e acum monocroma, intr-un patrat mai mare, pana la piept
+
+*„Dar fa sa fie fara culori ca o holograma, si fa sa fie intr-un patrat mai mare, si sa fie pana
+la sani."*
+
+**Fara culoare, si asta a fost adevarata problema.** O fotografie colorata sub o spalare cian
+ramane o fotografie: sacoul statea crem, pielea statea piele, si se citea ca *poza unei persoane*,
+nu ca *proiectia* ei. O holograma e **o singura lungime de unda**. Fisierul e dus acum pe
+`--neon-cyan` (#38e1ff) prin `tint` **singur** — lucreaza in LAB si inlocuieste croma pastrand
+luminanta, deci e si desaturarea si nuanta intr-o singura trecere. Prima incercare a fost cu
+`greyscale()` inainte, si n-a mers deloc: ramane o imagine cu un singur canal, fara croma pe care
+`tint` sa o poata seta.
+
+**Patratul.** Cutia din colt trece de la 52 / 64x72 / 88 la **72 / 88 / 120, patrata peste tot.**
+E o schimbare de contract facuta intentionat: avatarul e o persoana acum, iar la marimea veche
+capul ei avea vreo douazeci de pixeli — o clipire acolo are doi. Decalajele bulei au urcat cu ea
+(60 → 80, 80 → 100).
+
+**Pana la piept.** Decupajul trece de la 554 x 628 (cap si umeri) la **722 x 849**, mai jos de
+guler si de reverele sacoului, si mai lat ca umerii sa nu fie taiati de margine. Raportul 0.849
+intra in patrat cu loc dedesubt pentru fascicul. Toate coordonatele pleoapelor au fost
+re-derivate pe noul decupaj, altfel clipitul ar fi cazut alaturi de ochi.
+
+**Si se stinge in fascicul.** Decupajul pana la piept a adus camasa alba in partea de jos a
+cadrului, iar dupa tenta iesea mai stralucitoare decat fata — ochiul mergea la piept, nu la ochi.
+Ultimii 38% din **canalul alfa** se sting patratic la build: o proiectie n-are tiv. Asta face si ca
+conturul si masca liniilor de scanare, care arata amandoua spre acelasi bitmap, sa urmeze automat,
+fara o a doua forma de tinut in pas.
+
+**Liniile de scanare sunt intunecate acum, nu cian** (una la fiecare patru pixeli, `multiply` in
+loc de `screen`): fisierul e deja o singura lungime de unda, deci cianul in plus doar ardea
+luminile. Ce-i mai trebuie unei proiectii e rasterul, nu inca o tenta.
+
+Asetul: **11–31 KB**. Zero filtre, ca si pana acum. 1614 teste si lint trec.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/asset.mjs`](./tools/guide/asset.mjs) · `public/guide/` ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-24 — Changed: cubul din colt a devenit un asistent holografic care respira si clipeste
+
+*„Acum aici fa un 2D model animat cu un asistent holografic in loc de patrat, si cand accesam
+siteul, dupa ce a mers loadingul, ea sa apara cu o animatie frumoasa si daca ii posibil sa aiba
+miscari precum clipire, respirare... asistentul sa fie fata aceasta."*
+
+Ghid TBS nu mai e un cub CSS-3D. E o **proiectie holografica a unei persoane** — un portret
+decupat, in acelasi con de lumina, cu aceleasi inele pe orbita — si **respira si clipeste**.
+
+**Decuparea e taiata pe muchii, nu pe culoare, si asta a fost masurat.** Am potrivit doua modele
+de culoare pentru fundalul de studio si amandoua au picat: fata de un plan, abaterea proprie a
+fundalului ajunge la **48.7**, iar sacoul crem sta la **41** — pe partea luminoasa a cadrului
+subiectul si fundalul au aceeasi culoare, deci niciun prag nu-i desparte. Un model separabil
+`f(x) + g(y)` e si mai prost (media 37 fata de 19). Conturul insa e neechivoc: de-a lungul unei
+linii care taie umarul stang, gradientul trece prin fundal la **0.6–1.4** si sare la **70.8** la
+marginea sacoului — un raport de cincizeci la unu. Deci masca e o inundare dinspre marginea
+cadrului spre interior, care poate trece doar prin pixeli si plati, si de culoarea fundalului, cu
+harta zidurilor ingrosata cu un pixel.
+
+Ambele indicii sunt necesare, si prima incercare o dovedeste: zidita doar pe gradient, inundarea a
+curs prin **par** — suvitele fine lasa goluri de un pixel — iar odata intrata a mancat fata, pentru
+ca pielea neteda e exact regiunea plata pe care un zid de gradient n-o poate tine. 87.4% din cadru
+s-a intors ca fundal.
+
+**Doua capcane `sharp` care au costat o dupa-amiaza**, amandoua tacute: `blur()` pe un buffer brut
+cu **un** canal se intoarce cu **trei** — indexat ca unul singur, comprima masca de trei ori si o
+coboara in cadru, asa ca silueta capului cade peste umeri si fata dispare; iar `joinChannel` cu un
+buffer brut a inghitit restul lantului, `extract` a fost ignorat si n-a aparut niciun canal alfa.
+
+**Clipitul e chiar portretul.** Fiecare pleoapa e o ferestruica spre acelasi bitmap, decalata ca sa
+ia fasia de piele dintre sprancene si linia genelor, si scalata la zero in repaus; clipitul e fasia
+aia crescand peste ochi. Culoarea se potriveste pentru ca **e** pielea ei, si rama ochelarilor nu
+se misca deloc, pentru ca pleoapa e desenata in interiorul lentilei. Patru clipiri in noua secunde,
+la distante inegale si una dubla — o clipire pe metronom se citeste ca o masina.
+
+**Respiratia** e un singur `transform` pe `.figure`, o ridicare de 1.1% in 4.6s, si trebuie sa fie
+pe elementul ala si nu pe imagine: pusa pe imagine, pleoapele raman in urma si stau cu un pixel mai
+jos la fiecare inspiratie.
+
+**Salutul.** O data pe vizita apare ca o proiectie de vreo trei ori cat lansatorul, ancorata in
+acelasi colt, apoi se aseaza in buton (2.4s: 0.9s construire de la picioare in sus, 0.9s tinut,
+0.6s plecare). Nu ia evenimente de pointer si e in afara arborelui de accesibilitate.
+
+**Si asteapta pana cand chiar poate fi vazuta.** Doua lucruri acopera HUD-ul prin contract:
+overlay-ul de intro si **coperta de incarcare a paginii** (`PageLoading`, sus cat timp scena 3D n-a
+raspuns). Fotografiat la 1400 x 900, cu salutul la opacitate 1 si radacina la (1292, 792, 88, 88),
+cadrul arata BootCore invartindu-se pe coperta si nimic din ea;
+`document.elementsFromPoint` in interiorul radacinii a dat `DIV.grid > DIV.cover > SPAN.signal`.
+Ceasul porneste acum pe primul cadru in care amandoua sunt libere, cu plafon la 11s.
+
+**Zero filtre, si asta nu e un detaliu.** Doua fisiere de test interzic `filter:` in fiecare modul
+CSS al HUD-ului, pentru ca un filtru face din elementul lui un bloc containing si aplatizeaza
+`preserve-3d`-ul in care sunt desenate inelele. Asa ca desaturarea si ridicarea care transforma o
+fotografie intr-o proiectie sunt **coapte in fisier** la build (`saturation 0.58`,
+`brightness 1.07`, contrast liniar `1.06`), spalarea cian si liniile de scanare sunt un strat
+mascat de canalul alfa al portretului, iar conturul e o a doua pictare a siluetei scalata 1.05 in
+spatele ei — nu un `drop-shadow`. Am pastrat interdictia originala intacta.
+
+**Asetul:** 554 x 628, la 384w si 192w, **17–28 KB**. Construit de `tools/guide/`, nu editat de
+mana; README-ul de acolo tine toate masuratorile.
+
+**Un lucru de spus cu voce tare:** portretul e o persoana reala si se serveste pe fiecare pagina
+care monteaza HUD-ul. E o chestiune de consimtamant, nu doar de design.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.tsx`](./components/hud/guide/GuideAssistant.tsx) ·
+[`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/`](./tools/guide/README.md) · `public/guide/` ·
+[`components/__tests__/guide-assistant.test.tsx`](./components/__tests__/guide-assistant.test.tsx) ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-24 — Added: trasee mult mai lungi, o aprindere mai lunga cu splash, si lumina care cade pe incapere
+
+*„Animatia la procesor ii putina, fa mai lung sa fie liniile celea si sa dureze mai mult cum se
+aprinde cu un splash, mai adauga si tu ceva de la tine."*
+
+**Traseele erau niste cioturi.** Evantaiele laterale mergeau 62 → 98 si nu paraseau niciodata
+siliciul — 36 de unitati de parcurs pe un desen lat de 480 — asa ca sosirea si plecarea nu aveau
+mai nimic de strabatut. Acum au in medie **104.6 unitati fata de 48.2, cu 117% mai multa cerneala**,
+iar lungimea in plus a fost luata in singura directie unde exista loc. Cadrul e 480 × 300, deci
+impingerea varfurilor de sus si de jos si mai sus nu aduce nimic: la scara de deschidere jumatatea
+de inaltime vizibila e 134 de unitati, iar un varf mai lung e pur si simplu desenat unde nu-l vede
+nimeni. Cele sase trasee au fost extinse **spre interior**, de la marginea capsulei (98) la 62 —
+propria jumatate de inaltime a siliciului — ceea ce adauga cate 36 de unitati fara sa mute varful
+nici macar cu una. Laterale merg invers, pana la 152, unde ocolesc conducta de caldura de la x 154
+cu 2 unitati si condensatoarele de la x −156 cu 4. Masurat: **93% din cerneala e in cadru pe
+cadrul-afis, fata de 83%**, si toata pana la `--fb-p` 0.20.
+
+**Dizolvarea s-a mutat 0.34 → 0.38, si potrivirea a iesit mai bine, nu mai rau.** Invariantul din
+fisier era cea mai mare nepotrivire de marime dintre cele doua desene ale cipului, **neponderata**
+— iar asta taxeaza la pret intreg eroarea exact pe cele doua cadre unde unul dintre straturi e
+invizibil. Ponderata cu ce se poate privi (die-ul e la opacitatea `1 − dis`, placa la `dis`),
+punctul livrat pana acum ia 2.87%, iar cadrul lui cel mai prost e chiar incrucisarea 50/50 — cel
+mai prost loc posibil. Re-rezolvat la 0.38: divizorul die 0.508 → **0.544**, fereastra placii
+`[0.34, +0.425]` → **`[0.38, +0.360]`**, `--bs` `2.556 − 1.936` → **`2.5027 − 1.8827`**. Latimile
+siliciului pe cadrul deschiderii: **150.164768 fata de 150.164768**. Nepotrivirea vizibila maxima
+**1.86% fata de 2.87%**, iar pe cadrul 50/50 **0.39% fata de 2.83%**. Tabelul undei de putere abia
+se misca si tot se termina la **0.709**, deci `--gt`/`--ft` de la 0.71 si pragul de sarire de la
+0.84 raman neatinse.
+
+**Aprinderea e cu 40% mai lunga si acum aterizeaza.** `--ign` [0.15, 0.25] → **[0.16, 0.30]**, cu
+`--cool` [0.30, 0.39] ca `--flare` sa fie tot 0.034 pe cadrul taieturii. Peste ea, doua lucruri
+noi: **`--spl` [0.16, 0.30] — splash-ul**, `4t(1−t)`, o parabola si nu un smoothstep, pentru ca o
+lovitura nu are voie sa intre lin; si **`--room` [0.19, 0.33]** — aceeasi anvelopa cu 0.03 in urma.
+
+Splash-ul e strat propriu, blocat pana dupa hidratare, deci **nu costa nimic la primul cadru** (tot
+20 + 20 = 40 obiecte de randare). Trei inele dintr-un cerc de r = 100, nascute la 0.12 distanta,
+baleiaza scara 0.08 → 3.20; fiecare raza pe care o traverseaza e o muchie reala a desenului: 62
+siliciul, 98 marginea lui, 128 inelul de putere, 152 capsula, 184 fata luminata a peretelui.
+`transform-box` trebuie sa fie **`fill-box`, nu `view-box`** — viewBox-ul incepe la (−240, −150),
+deci `transform-origin: 50% 50%` raportat la view box cade in colt, si unda a iesit din dreapta-jos
+a cadrului. Masurat si reparat.
+
+**`--room` e ce am adaugat de la mine.** Canionul in care sta cipul — doi pereti prelucrati, pragul
+soclului, buza puntii, podeaua, adancitura — era pictat o data la `--fb-p` 0 si inghetat pentru tot
+filmul. De asta aprinderea se citea ca o schimbare de culoare si nu ca o lumina: nu era nimic in
+cadru pe care sa cada. Acum peretii prind flash-ul o clipa dupa cip, asa cum face o incapere.
+
+Masurat la fel ca pana acum — fiecare scalar fortat la zero pe elementul care il declara, acelasi
+cadru diferentiat: sosirea **3.8 → 6.1%** din cadru (era 1.8 → 3.4%), splash-ul **9.05%** la varf
+si 0.13% pe cadrul-afis, aprinderea **7.7%** (era ~5%), incaperea **4.4%**. Trei incarcari reci:
+sosirea **267–371 ms**, aprinderea + splash + incaperea **446–603 ms**, plecarea **219–457 ms**.
+
+**Ce NU se poate, si de ce.** Sectiunea nu mai poate creste mult in derulare. Cu adancimea
+retragerii inghetata (ca incadrarea sa nu se mute) si cu unda de putere obligata sa se termine
+pana la 0.71, o cautare pe tot spatiul de constante nu gaseste nimic peste **0.36** pe obiectivul
+neponderat si nimic peste **~0.38** pe cel ponderat: dincolo, placa trebuie sa se micsoreze atat
+de mult mai repede decat die-ul incat cele doua desene diverg tocmai la incrucisare. Timp real in
+plus trebuie sa vina din ceas — `MIN_SYNC_MS` — nu din derulare, si aia e o schimbare separata.
+
+**Fisiere:** [`components/intro/IntroFallback.tsx`](./components/intro/IntroFallback.tsx) ·
+[`components/intro/IntroPreloader.module.css`](./components/intro/IntroPreloader.module.css) ·
+[`docs/05-page-sections.md`](./docs/05-page-sections.md#longer-conductors-a-longer-burn-and-a-splash-2026-09-24)
+
+---
+
+## 2026-09-24 — Added: impulsul ajunge la procesor, procesorul se aprinde, abia apoi pleaca curentul
+
+*„La prima cu CPU adauga ceva animatii ca ii prea scurt, adauga cum se porneste cu pulsul si
+ajunge la CPU si el incepe sa arda si atunci sa iasa din procesor."*
+
+Cele patru scene de mai jos erau patru lucruri care se intamplau; nu erau o poveste. Curentul
+pleca dintr-un cip la care nu ajunsese nimic niciodata — `--w` se deschidea la 0.14, inainte sa fi
+sosit ceva. Sectiunea are acum **trei acte, in relatie de cauza si efect**, si la fiecare granita
+se schimba complet registrul miscarii din cadru:
+
+| actul | fereastra | singura miscare din cadru |
+| --- | --- | --- |
+| **sosirea** | `--arr` [0.02, 0.17] | spre interior. Un cap scurt si aprins parcurge fiecare dintre cele 14 conductoare, de la marginea capsulei pana la siliciu, iar aura se umple in urma lui. Cipul e intunecat si vine ceva spre el |
+| **aprinderea** | `--ign` [0.15, 0.25] | niciuna. Siliciul se inroseste pe loc, capatul cald al gradientului inunda spre dreapta, blocurile logice se sterg, cele patru nuclee urca la 0.022 distanta, inelul se inchide |
+| **plecarea** | `--w` [0.25, 0.40] | spre exterior, si se deschide exact pe cadrul in care caldura e la maxim. O linie aproape alba creste prin aura pe care sosirea a lasat-o aprinsa |
+
+Ferestrele sunt in derulare, si doar derularea e fixa. Cronometrat pe trei incarcari reci ale
+randorului software (unde preluarea e un caz defavorabil, ~2.3 s): sosirea **249–347 ms**,
+aprinderea **231–365 ms**, plecarea **630–784 ms**, toata sectiunea procesorului **1.21–1.40 s**.
+Milisecundele nominale ar da 487 / 340 / 545, dar presupun ca ceasul incepe de la zero — si nu
+incepe: `origin` aluneca odata cu preluarea, ceea ce comprima actele de la inceput.
+
+`--flare` este `--ign - --cool`, nu o fereastra: trebuie sa si **coboare**. Este 1 la 0.25 si
+**0.028 la 0.34**, cadrul pe care se deschide dizolvarea — pentru ca trio-ul inghetat
+`0.508 / 0.425 / 2.556` tine die-ul si placa la aceeasi marime pana la a sasea zecimala acolo, iar
+o trecere de la un cip rosu la cel albastru-rece al placii ar arunca asta la gunoi. O taietura pe
+potrivire supravietuieste unei schimbari de scara; nu supravietuieste uneia de culoare. `--heat` a
+fost mutata la [0.25, 0.34] din acelasi motiv: se umplea inca doua sutimi *in interiorul*
+dizolvarii.
+
+**Dezvaluirea traseelor nu a fost niciodata o desenare.** Fiecare traseu de pe stratul asta e un
+decalaj de liniuta peste un `<path>` cu 14 (sau 16) subtrasee, iar fisierul sustinea ca acestea
+„se aprind IN ORDINE de la un singur decalaj". Masurat pe un traseu gol de aceeasi forma, citind
+inapoi fractiunea vopsita din fiecare subtraseu: decalaj `0…750` → **fiecare subtraseu 100%**;
+`1000…1750` → **0%**; `2000` → 100%; `-250, -500` → 0%. **Liniuta se reseteaza la fiecare
+subtraseu**, iar `pathLength` se imparte intre ele — deci fiecare traseu are ~71 din cele 1000 de
+unitati, o liniuta de 1000 il inghite intreg, si dezvaluirea era un **comutator** care aprindea tot
+harnasamentul pe primul cadru in care `--w` trecea de zero. Tiparul e acum taiat la marimea unui
+singur traseu: `86 914`, unde 86 e cel mai lung traseu existent in unitati `pathLength`.
+
+Doua consecinte ies din aceeasi descoperire. Un front care merge spre interior nu poate fi scris ca
+decalaj — un decalaj deseneaza un traseu doar dinspre propriul lui *prim* punct — asa ca aura
+sosirii merge pe o a doua copie a conductoarelor, scrisa cap-coada (`#tbs-intro-di`, copil de
+`<defs>`, gratuit la primul cadru). Iar cometa de asteptare, pe 14 trasee, era lipita de primele 26
+de unitati ale fiecaruia si doar **palpaia** 2.6% din fiecare ciclu: singurul lucru care se misca
+in cadrul la care se uita un vizitator pe toata durata incarcarii era un flash, de 14 ori deodata,
+la fiecare 2.2 s. Taiata la un segment de 18 unitati pe o perioada de 86, e din nou o cometa, pe
+fiecare conductor, iar pe die merge *spre* procesor.
+
+Masurat la fel ca inainte — acelasi cadru fotografiat cu fiecare act fortat la zero si diferentiat
+— sosirea contribuie acum cu **1.8 → 3.4% din cadru, in crestere**, pe toata durata ei. Inainte de
+reparatie nu contribuia cu **absolut nimic intre 0.06 si 0.14**, adica mijlocul actului.
+
+Primul cadru a trecut de la 39 la **40** obiecte de randare: inca un `<use>` al unui singur
+`<path>`.
+
+**Fisiere:** [`components/intro/IntroFallback.tsx`](./components/intro/IntroFallback.tsx) ·
+[`components/intro/IntroPreloader.module.css`](./components/intro/IntroPreloader.module.css) ·
+[`docs/05-page-sections.md`](./docs/05-page-sections.md#the-processors-three-acts-and-the-dash-bug-underneath-them-2026-09-24)
+
+---
+
+## 2026-09-24 — Added: patru scene in procesor, in loc de una
+
+*„Ii perfect, dar de la inceput animatia cu procesor ii foarte scurta, mai adauga niste scene."*
+
+Sectiunea procesorului — cu care se deschide filmul, si pe care desenul plat o deseneaza pe orice
+dispozitiv — avea **720 ms si o singura miscare**: nucleele se aprindeau la 106 ms, fara niciun
+cadru stabilit inaintea lor. Acum are **1052 ms si patru lucruri distincte**, iar scrub-ul a fost
+reasezat la 0 → 0.34 (de la 0 → 0.26) ca sa incapa.
+
+| scena | fereastra | durata | ce e |
+| --- | --- | --- | --- |
+| slotul | `--slot` [0.02, 0.16] | ~417 ms | peretii canionului, pragul soclului, buza puntii si condensatoarele urca impreuna, podeaua se lumineaza si adancitura se intuneca — cadrul se rezolva dintr-un cip pe un raft intr-un slot prelucrat |
+| uncore-ul | `--blk` [0.10, 0.22] | ~368 ms | campul de blocuri se sterge de la stanga la dreapta: logica se trezeste inaintea nucleelor, ceea ce e si povestea corecta |
+| nuclee, trasee, inel | [0.11, 0.32] | ~662 ms | reasezate pe spatiul facut de celelalte doua |
+| curentul pleaca | `--heat` [0.26, 0.36] | ~331 ms | capsula din santul +x se aprinde si cadrul se dizolva pe ea — singurul obiect care supravietuieste taieturii CA EL INSUSI, fiindca `<Cavity/>` e purtat de ambele straturi |
+
+Masurat inghetand `--fb-p` la fiecare granita si comparand cadrele: **fiecare scena difera de cea
+dinainte cu 23–39% din cadru**. Nu o miscare tinuta mai mult, ci scene.
+
+**Slotul se lumineaza PESTE constantele de azi, nu porneste sub ele.** `--fb-p` sta la 0 toata
+incarcarea, deci cadrul la care se uita vizitatorul cat vine pagina trebuie sa fie cel care se
+livreaza azi, nu o versiune mai stinsa a lui.
+
+**Trei constante au trebuit re-rezolvate impreuna, si asta e partea fara niciun test.** Divizorul
+`--z` al die-ului, fereastra `--z` a placii si constanta de scara a placii sunt un singur sistem:
+invariantul scris chiar in foaia de stil e ca cele doua desene ale aceluiasi cip raman la cateva
+procente unul de altul pe toata dizolvarea (azi maximul e 3,44%). Mutarea dizolvarii de la 0,26 la
+0,34 il rupe daca nu se misca toate trei — propunerile primite il duceau la 10,9 / 15,1 / 15,3%,
+si niciuna nu se uitase la el. `2.96` n-a fost niciodata ales: e `196/60 x scara die-ului pe
+cadrul pe care se deschide dizolvarea`, deci pe alt cadru e alt numar. Rezolvat numeric: die
+`/0.508`, placa `[0.34, +0.425]`, constanta **2.556** cu span **1.936** (acelasi capat 0,62).
+Deriva maxima **2,97%**, mai bine decat azi, si aceeasi marime pana la a sasea zecimala pe cadrul
+pe care se deschide.
+
+Tabelul `--a` al undei de putere e derivat din aceeasi curba — fiecare piesa se aprinde cand
+cutia ei incape in cadru — deci toate opt au fost re-derivate: 0.374, 0.554, 0.590, 0.598, 0.606,
+0.614, 0.622, 0.630. Ultima e plina la **0,710**, exact unde placa incepe sa dispara; potrivirea
+asta e ce a fixat dizolvarea la 0,34 si nu mai tarziu.
+
+**`MAX_PRE_SPEND_MS` a scazut de la 1200 la 250, si numarul e acum portant.** Sectiunea
+procesorului se termina la `--fb-p` 0.34; la 1200 ms curba e deja la 0,4164 cand directorul
+deseneaza primul cadru, deci **tot procesorul** ar fi cheltuit inainte sa se deseneze ceva.
+
+`MIN_SYNC_MS` 4200 → 4600 (+400 ms) si `HARD_CAP_MS` 5600 → 6000. Filmul creste cu mai putin de
+jumatate de secunda; scena procesorului creste cu 46% si primeste patru batai in loc de una.
+
+**Cheile camerei 3D au fost lasate in pace, deliberat.** Panza sta la `opacity: 0` pana cand scena
+raporteaza gata, iar ponderile de pregatire plafoneaza bara la 0,60 fara ea — deci sectiunea
+procesorului e desenata de SVG pe orice dispozitiv. Chei noi in canion ar fi fost munca pe care
+n-o vede nimeni, pe singura cale unde o cheie in interiorul unei cutii filmeaza interiorul unui
+perete.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `lib/intro.ts` · `components/intro/IntroPreloader.module.css` ·
+`components/intro/IntroFallback.tsx` · `components/intro/IntroDirector.tsx` · `docs/05`.
+
+---
+
+## 2026-09-24 — Changed: intro-ul e mai lung si mai lin, fiindca nu se vedea
+
+*„Fa intro sa fie mai lin, ii prea brusc si nu dovedesc sa vad animatiile."*
+
+Duratele bataillor nu sunt scrise nicaieri — ies din doua numere, si acele doua numere faceau
+filmul de neurmarit. `MIN_SYNC_MS` era 2400, iar progresul era limitat de `1 - (1 - x) ** 2.2`,
+un ease-out destul de abrupt cat sa puna **47% din film in primul sfert de timp**:
+
+| bataia | era | e acum |
+| --- | --- | --- |
+| 1 — cadrul tinut pe die | 281 ms | ~660 ms |
+| 2 — pornirea, lumina prin nervuri, ventilator, radiator | **536 ms** | ~1170 ms |
+| 3 — prin masinarie si in sus prin tastatura | 601 ms | ~1140 ms |
+| 4 — deasupra puntii, intoarcerea spre masina | 982 ms | ~1230 ms |
+
+Jumatate de secunda pentru toata pornirea. Acum `MIN_SYNC_MS` e 4200 si exponentul 1,6 (37% in
+primul sfert). **Nu l-am aplatizat mai mult intentionat**: pantele din `FLIGHT_MAP` cresc de-a
+lungul tabelului tocmai ca sa anuleze acest ease-out, deci o curba liniara ar face ultima bataie
+— cea cu panta cea mai abrupta — cea mai rapida din film in loc de cea mai gratioasa.
+
+**Finalul a fost lungit odata cu ele.** `DIVE_END` 0,66 → 1, eticheta „reveal" 0,72 → 1,15,
+stingerea overlay-ului 0,55 → 0,7s, si tween-urile exploziei cu ele. La numerele vechi implozia,
+explozia, scufundarea in ecran si predarea catre pagina se petreceau **toate in trei sferturi de
+secunda** — asta era jumatatea „prea brusc" a aceleiasi reclamatii.
+
+**Si incarcarea nu mai are voie sa manance filmul.** Ceasul cinematic curge de la navigare, ceea
+ce e corect — vizitatorul se uita de la prima pictura. Nelimitat, e si o capcana: masurat pe un
+randator software, hidratarea s-a terminat la 2,07s, deci directorul pornea cu curba deja la 64%
+si bataia 2 rula **144 ms**. `MAX_PRE_SPEND_MS` (1200) limiteaza cat din film poate consuma o
+sosire lenta; peste atat, originea ceasului aluneca inainte. O a doua limita tine promisiunea
+inauntrul watchdog-ului, mutat 9000 → 10000 ca sa pastreze marja.
+
+Remasurat pe acelasi randator lent, pe scalarul propriu al filmului (`--fb-p`), fara capturi de
+ecran care sub SwiftShader sunt prea lente ca sa esantioneze ceva:
+**bataia 2: 144 ms → 1010 ms. Bataia 3: 471 ms → 1238 ms.**
+
+Butonul de sarire ramane neatins — filmul e mai lung, iar iesirea din el e la fel de aproape.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `lib/intro.ts` · `components/intro/IntroDirector.tsx` · `docs/05`.
+
+---
+
+## 2026-09-24 — Changed: panoul de propunere nu mai e un carton gri, e intunecat si aprins
+
+*„Aici tot nu-mi place culoarea pe background."*
+
+Panoul a fost pe rand aproape alb, apoi lavanda, apoi un gri-ardezie — si **un gri mediu, mare si
+plat e cea mai neatragatoare valoare dintr-o interfata intunecata**: concureaza cu pretul si cu
+butonul in loc sa le serveasca. Asa ca panoul inceteaza sa mai fie UMPLEREA cea mai luminoasa.
+Acum e o adancitura in punte, iar identitatea i-o da lumina: o rama rosie aprinsa, un halou rosu,
+o lumina care ii traverseaza muchia de sus, si pretul in alb la **16,58:1** pe el.
+
+`--riser` `#333a52` → **`#151820`**, `--slot` `#0e1016` → **`#0d0f14`**.
+
+**Intunecarea a imbunatatit tot ce se masoara**, inclusiv lucruri la care nu ma asteptam:
+
+| | inainte | acum |
+| --- | --- | --- |
+| `--txt` pe panou (pretul) | 10,50:1 | **16,58:1** |
+| `--on-ink-mut` (copy) | 6,06:1 | **9,56:1** |
+| `--red-text` | 5,71:1 | **6,46:1** |
+| `--red-lift` (rama, focus) | 3,57:1 | **5,63:1** |
+
+Si identificarea campurilor s-a imbunatatit — asta e cea contraintuitiva. **Aceeasi** bordura
+`--riser-line` masoara 1,55:1 pe panoul deschis si **2,45:1** pe cel intunecat, fiindca un panou
+luminos isi spala propriile contururi. Am ridicat-o apoi la `#5a6176`, ceea ce o duce la 2,88:1
+fata de panou si 3,11:1 fata de camp — contra 1,55:1 inainte.
+
+Sina de sus, remasurata dupa schimbare: **14 pozitii distincte din 14 cadre**, adica nu repeta
+nicio pozitie. Sub `prefers-reduced-motion` ambele lumini raporteaza `none`.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `app/globals.css` · `components/sections/Estimator.module.css` · `docs/05`.
+
+---
+
+## 2026-09-24 — Fixed: lumina se oprea la jumatatea sinei, si albastrul era prea albastru
+
+*„Mai lucreaza cu culoarea asta albastra pe bacground si fulgerul franeaza uneori si se opreste."*
+
+**Lumina chiar se oprea, si e un bug de aritmetica.** Sina o translatam cu
+`calc(100% + 190px)` — dar un procent intr-un `translateX` e procent din ELEMENT, lat de 190px,
+nu din sina de 1242px pe care trebuia sa o traverseze. Deci lumina parcurgea 380px si se oprea
+moarta in mijlocul puntii pentru restul ciclului. Masurat cadru cu cadru, punctul ei cel mai
+luminos statea la x=617 in **sapte esantioane consecutive**.
+
+Acum elementul e cat toata sina si calatoreste FUNDALUL, unde `100%` inseamna „sina minus
+imaginea": lumina intra pe la un capat si iese pe celalalt. Ajunge la x=1234 din 1242 si e gasita
+in **11 pozitii distincte din 14 cadre**. Si nu mai are deloc faza de repaus — o lumina care sta
+pe loc la jumatate nu se odihneste, e stricata.
+
+**Inelul panoului franea din alt motiv, si a fost inlocuit.** Era un gradient conic care se rotea
+in spatele unui cadru mascat de 1px, iar un gradient conic se roteste cu viteza UNGHIULARA
+constanta. Pe un dreptunghi asta nu inseamna viteza de perimetru constanta: pe panoul de 477x564
+lumina trecea cu circa **55% mai repede pe la colturi** decat pe la mijlocul unei laturi. Viteza
+constanta e toata diferenta dintre o lumina si un defect, asa ca inelul a fost inlocuit cu aceeasi
+sina dreapta pe care o are puntea — una peste muchia de sus a panoului, decalata cu 1,6s fata de
+cealalta, ca ochiul sa aiba mereu exact un lucru de urmarit.
+
+**Albastrul a fost coborat, la aceeasi luminanta.** La 50% saturatie suprafetele sunt destul de
+mari ca sa se citeasca drept o lespede albastra pe o pagina aproape neagra. Puntea a coborat de la
+**50% la 33%**, panoul de la **49% la 38%**, iar locasul de la 50% la 36% — fara sa pierd nimic:
+
+| nivel | inainte | acum | separare |
+| --- | --- | --- | --- |
+| puntea | `#1b2236` | `#1f232e` | 1,24 → **1,25:1** peste pagina |
+| panoul | `#2f3a5c` | `#333a52` | 1,42 → **1,40:1** peste punte |
+| locasul | `#0d101a` | `#0e1016` | 1,70 → **1,69:1** sub panou |
+
+Si fiecare pereche de text a tinut sau a castigat: `--red-text` pe punte 5,11 → **5,71:1**,
+`--txt` pe panou 10,43 → **10,50:1**, bordura de focus 3,54 → **3,57:1**.
+
+`@property --ring-angle` a fost sters odata cu inelul — nu mai avea cine sa-l foloseasca.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate, zero erori
+in consola. Sub `prefers-reduced-motion` ambele lumini raporteaza `none`.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `app/globals.css` · `components/sections/Estimator.module.css` · `docs/05`.
+
+---
+
+## 2026-09-24 — Changed: culorile si animatiile sectiunii de cerere, revizuite
+
+*„Mai revizuieste la animatii si la culori."*
+
+Trei corecturi, toate pe defecte vizibile in randare.
+
+**Banda care matura puntea a fost stearsa.** Peste negru aproape pur o banda de 7% alb se citeste
+ca lumina; peste o suprafata care are propria valoare se citeste ca o **pata**. In cadru fix
+jumatatea stanga a panoului era vizibil mai murdara decat dreapta. Construita si scoasa in aceeasi
+zi — miscarea pe o suprafata luminata isi are locul pe MUCHII.
+
+**Scara de material fusese dusa prea departe.** Rezolvasem fiecare treapta la 1,40:1 si am
+depasit: puntea iesise un albastru-gri deschis, panoul lavanda, iar campurile negru pur din el se
+citeau ca gauri perforate intr-un carton, nu ca locasuri taiate in el. Separarea e treaba MUCHIEI
+la fel de mult ca a umplerii — puntea are bordura si umbra, deci nu-i trebuie un salt mare, iar
+panoul si-l pastreaza pe al lui:
+
+| nivel | jeton | inainte | acum | |
+| --- | --- | --- | --- | --- |
+| puntea | `--deck` | `#232b42` | `#1b2236` | 1,24:1 peste pagina, plus bordura si umbra |
+| panoul | `--riser` | `#38436a` | `#2f3a5c` | 1,42:1 peste punte |
+| locasul | `--slot` | `#0a0b10` | `#0d101a` | 1,70:1 sub panou — locas, nu gaura |
+
+Si fiecare pereche de text a castigat: `--txt` pe panou 9,00 → **10,43:1**, bordura de focus
+3,06 → **3,54:1**, copy-ul de sub pret 5,19 → **6,02:1**.
+
+**Pastila selectata nu mai e noroi.** Prima data fusese `--txt`, aproape alb — de 38 de ori mai
+luminoasa decat puntea. Reparatia a fost mai rea: umplutura puntii dusa 26% spre `--red-lift`, si
+**a amesteca un accent cald INTR-un albastru-gri e reteta noroiului** — a iesit un maro-prune care
+nu apartine niciunei palete de pe situl asta. Acum umplutura nu se mai misca deloc: pastila ramane
+locasul care e, iar accentul sta unde ii e locul, pe MUCHIE — bordura la intensitate plina
+(6,24:1), bara de 2px dedesubt, o licarire scurta in exterior, eticheta la 18,36:1. Nimic
+amestecat, deci nimic noroios.
+
+**Cele doua lumini care raman sunt mai ascutite.** Inelul panoului era un arc lat care lumina 40%
+din perimetru odata si aluneca in jur ca o pata; acum e o cometa — cap ingust, coada in urma.
+Sina de sus a trecut de la 1px la 2px si are un varf alb, ca sa se vada ca lumina, nu ca zgarietura.
+
+Masurat pe pagina vie: inelul schimba pixeli in **8 din 8** cadre esantionate, iar punctul cel mai
+luminos al sinei e gasit in **7 pozitii distincte din 14 cadre** inainte sa se parcheze pentru faza
+de repaus. Sub `prefers-reduced-motion` ambele raporteaza `none`.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate, zero erori
+in consola.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `app/globals.css` (`--deck` si `--riser` revizuite, `--slot` nou) ·
+`components/sections/Estimator.module.css` · `components/sections/Estimator.tsx` · `docs/05`.
+
+---
+
+## 2026-09-24 — Changed: sectiunea de cerere e acum o consola luminata, si ceva se misca tot timpul
+
+*„Mai gandestete si fa sa arate mai bine ca cam nu arata bine, adauga ceva animatii interesante."*
+
+Prima incercare a adancit containerul: `.box` a mers pe `--bg2`, mai intunecat decat pagina, cu
+piesele ridicate pe el. **Regula era buna si valorile nu, iar asta se masoara, nu se dezbate.**
+Langa negru termenul `+ 0.05` din formula de contrast domina, deci scara a iesit la 1,02:1 de la
+pagina la cutie, 1,02:1 de la cutie la un camp si 1,10:1 intre cele doua piese. Patru niveluri in
+cod, unul pe ochi — si sectiunea se citea ca un singur camp de negru cu niste zgarieturi rosii pe
+el. Exact asa a si fost primita.
+
+Deci scara e **inversata si i s-au dat trepte adevarate**: cutia e acum obiectul LUMINAT si camera
+din jur e cea intunecata — o consola intr-o incapere nelumiata. Trei suprafete in toata sectiunea,
+niciuna in plus, si toate masurate pe pagina vie:
+
+| nivel | jeton | valoare | masurat |
+| --- | --- | --- | --- |
+| camera | `--bg` | `#0a0b10` | pagina, si fiecare adancitura taiata inapoi in ea |
+| puntea | `--deck` | `#232b42` | **1,400:1** peste camera |
+| panoul | `--riser` | `#38436a` | **1,457:1** peste punte |
+| locasul | `--bg` | `#0a0b10` | **2,040:1** sub panoul in care e taiat |
+
+Pastilele si chatul sunt taiate inapoi in camera, deci stau si ele la 1,400:1 sub punte. Ultima
+treapta — panou spre locas — e cea mai puternica separare disponibila in toata tema asta, si de
+aceea adanciturile fac acum treaba la care containerul esuase.
+
+**O masuratoare care a mutat markup-ul.** `--red-text` e 5,48:1 pe panoul vechi si **3,51:1 pe cel
+luminat**, deci eticheta rosie nu mai poate sta acolo — si niciun panou destul de luminos ca sa se
+separe de punte nu o poate purta (plafonul e L = 0,0349, adica 1,13:1 fata de punte). Eticheta a
+iesit deci pe punte, la 5,11:1, si asa toate trei etichetele de regiune ajung pe acelasi fundal si
+la aceeasi greutate.
+
+**Indiciul de focus, si de el atarna toata schimbarea.** Conturul se deseneaza la `outline-offset`,
+adica pe PANOU si nu pe camp, deci contrastul lui e inel-fata-de-panou si n-a fost niciodata
+indiciul conform — masoara vreo 1,2:1. Ce satisfacea de fapt WCAG 1.4.11 era BORDURA de focus:
+`--red` pe `--panel2` e 3,60:1. Luminarea panoului ar fi dus aceeasi bordura la 2,30:1 si ar fi
+stricat pe tacute singurul indicator de focus conform pe care il are un formular de lead-uri.
+`--red-lift` e reparatia, masurata pe fiecare suprafata pe care poate sta un camp: 4,46:1 pe
+punte, 3,06:1 pe panou, 6,24:1 fata de propria umplutura a campului.
+
+**Ce nu se opreste niciodata — si cat din asta se si vede.** O lumina traseaza toata muchia
+panoului de pret la fiecare 5,2s, o banda lata si difuza traverseaza puntea la fiecare 9s, si o
+lumina de 1px alearga pe muchia de sus a puntii la 7,2s.
+
+**Prima varianta a fost invizibila, si asta se masoara.** Pusesem buclele intr-o linie de 1px pe
+marginea de sus a unei cutii late de 1900px si intr-o licarire care respira in spatele unui panou.
+Rezultatul cinstit: proprietarul s-a uitat si a spus ca nu vede nicio animatie. Avea dreptate — o
+rafala de cadre comparate pixel cu pixel arata **0,02%** din cutie schimbandu-se intre ele, adica
+exact cursorul care clipeste. Varianta de acum masoara **15,4%** din panou (inelul) si **10,4%**
+din cutie (banda). Retinerea reglata dincolo de pragul vizibilitatii nu mai e retinere, e absenta.
+
+**Si nu se opresc la focus, tot deliberat.** O varianta oprea fiecare bucla in clipa in care ceva
+din cutie primea focus — deci cine apasa o pastila in prima secunda vedea o secunda de miscare si
+un panou mort tot restul vizitei.
+
+**Pastila selectata e o tasta aprinsa, nu o lespede alba.** Era `--txt`, aproape alb pur, ceea ce
+o facea **de 38 de ori mai luminoasa decat puntea** si cel mai zgomotos obiect din sectiune dupa
+butonul rosu — pentru o alegere care nu e nici pe departe cel mai important lucru de pe ecran.
+Acum se aprinde in loc sa se inverseze: umplutura puntii dusa 26% spre `--red-lift`, bordura de
+accent si bara de 2px de dedesubt. `--txt` pe ea da 10,4:1, sta la 1,93:1 peste o pastila stinsa
+deci alegerea e limpede, iar bordura e 3,5:1.
+
+**Doua capcane, ambele platite.** `@property --ring-angle` trebuie inregistrat la nivel de
+DOCUMENT: o proprietate personalizata neinregistrata interpoleaza ca sir si pur si simplu sare la
+capatul ciclului. Prima varianta o declarase in interiorul blocului `:root`, unde o regula-at e
+invalida, Lightning CSS a eliminat-o in tacere, iar diferenta de pixeli a aratat sapte cadre
+identice urmate de unul schimbat — exact cum arata un unghi care nu interpoleaza. Si
+`docker compose up -d --build` **lasa containerul vechi sa ruleze cand build-ul esueaza**: o
+eroare de parsare CSS a facut ca trei runde de „verificare" sa fie rulate pe o imagine veche.
+De verificat ca build-ul a REUSIT, nu ca a pornit containerul.
+
+**Pretul e eroul, si e tot cifra ta.** E dimensionat ca rasplata care e (`clamp(34px, 4.6vw, 52px)`,
+`tabular-nums`), si nimic nu-l numara de la zero si nu-l animeaza ca sa apara. Nou e ca atunci cand
+chiar SE SCHIMBA, panoul o marcheaza o data: componenta compara SIRUL randat, deci o re-randare sau
+reapasarea aceleiasi pastile nu declanseaza nimic. Sclipirea alterneaza intre doua seturi identice
+de cadre sub doua nume — o animatie CSS reporneste doar cand ii schimbi NUMELE, iar alternativa,
+remontarea panoului, ar fi luat formularul cu ea si ar fi aruncat tot ce apucase vizitatorul sa
+scrie. Verificat in browser: pretul a trecut 150 € → 450 €, panoul a sclipit, **iar textul deja
+tastat in campul de nume era tot acolo.**
+
+Sub `prefers-reduced-motion` sina raporteaza `none` si sta parcata dincolo de capatul ei, iar
+respiratia raporteaza `none` la mijlocul propriului interval — deci ce ramane e panoul intreg,
+luminat si nemiscat. Sub `forced-colors` cromul isi pierde imaginile de fundal, licarirea se
+ascunde (aplatizata ar citi drept a doua bordura), iar selectia ramane un contur interior.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate, zero erori
+in consola.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+Fisiere: `app/globals.css` (trei jetoane noi: `--deck`, `--riser`, `--riser-line`) ·
+`components/sections/Estimator.module.css` · `components/sections/Estimator.tsx` · `docs/05`.
+
+---
+
+## 2026-09-24 — Changed: sectiunea de cerere a devenit un put de instrument
+
+*„Aici poti sa faci ceva sa arate mai tehnologic cu animatii wow frumoase."*
+
+Ce facea sectiunea sa arate a card de raft n-a fost niciodata miscarea — a fost **materialul**.
+Patru niveluri imbricate purtau toate `background: var(--panel)`: cutia, chatul, fiecare pastila si
+fiecare camp, despartite doar de o linie de 1px si de trei raze diferite, plutind pe o singura
+umbra moale. Nimic din cutie nu avea rang, si nicio animatie nu repara asta.
+
+Acum e o singura regula, pe care privitorul o citeste dintr-o privire fara sa i-o explice nimeni:
+**containerul e o adancitura, tot ce sta in el e o piesa, si tot in ce scrii e iar o adancitura.**
+Putul `.box` trece pe `--bg2` — mai intunecat decat pagina — piesele (`.chat`, `.result`, si
+`.proposal` din dialog) pe `--panel` / `--panel2`, iar campurile pe `--bg`. Doua raze in toata
+sectiunea in loc de trei, si **lumina adaugata in loc de umbra**, regula de peste tot de pe site.
+
+**Gradientul albastru de 145° al panoului de propunere a disparut** — era cel mai invechit lucru
+din fisier, si singura suprafata diferentiata, exact de asta restul se citea plat. In locul lui a
+primit cromul de fereastra pe care il deseneaza deja paginile de directie: o muchie luminata de
+1px care se stinge la capete si doua repere descendente, fiecare strat `no-repeat` cu o latura de
+1px explicita, ca niciunul sa nu poata deveni vreodata o umplere. **Panoul din dialog a primit
+acelasi tratament in acelasi commit**, ca pretul real al proprietarului sa nu apara pe doua panouri
+care arata a produse diferite.
+
+Cromul e vocabularul propriu al sitului, nimic inventat: perechea diagonala de colturi (patru
+straturi de fundal, zero DOM), caroiajul estompat pe podeaua putului la jetonul si pasul sitului,
+si o urma trasata dupa fiecare eticheta de regiune. Prima versiune a acelei urme se termina intr-un
+nod patrat de 10px; pe ecran se citeau ca niste patratele plutind departe in dreapta etichetelor
+lor, asa ca nodul a picat si linia a ramas.
+
+**Ce se misca, si ce nu se misca niciodata.** O trecere de lumina strabate panoul terminat prima
+oara cand ajungi la el — un observator de o singura data scrie `data-entered` si se dezaboneaza,
+deci nu se reia la intoarcere — si apoi sectiunea sta. Selectia deseneaza o bara de 2px sub
+pastila aleasa; cele patru controale se apasa cu 1px sub cursor; iar cat timp o cerere e realmente
+in aer, o lumina strabate muchia de jos a butonului. **Pretul nu se animeaza niciodata**: e cifra
+reala a proprietarului si nimic nu e legat de schimbarea ei.
+
+**Doua defecte reparate in trecere.** Hover-ul si selectia erau O SINGURA declaratie, deci o
+pastila peste care treceai era identica la pixel cu cea aleasa — cu cursorul in cutie nu puteai
+spune ce ai ales. Sunt doua stari acum, iar selectia e marcata printr-o GROSIME, nu prin culoare
+singura. Si cele cinci pastile de tip — primele opriri de Tab din sectiune — n-aveau niciun stil
+de focus. Acum poarta si `aria-pressed`, deci starea e rostita, nu doar desenata.
+
+**Trei capcane, toate masurate, nu deduse — si toate trei m-au prins pe mine:**
+
+1. `globals.css` se termina cu `* { animation: none !important }`, iar `*` se potriveste cu
+   ELEMENTE. Un pseudo-element nu e prins de ea, si `animation-name` nu se mosteneste — deci un
+   `::before` sau `::after` animat trece nestingherit prin preferinta de miscare redusa. Masurat in
+   ambele sensuri intr-un browser real: cu preferinta pornita, animatia elementului a iesit `none`,
+   iar a pseudo-elementului si-a raportat propriul nume, inca ruland. Restul modulelor din repo isi
+   numeau deja pseudo-elementele exact din motivul asta; acesta o face acum si el.
+2. **Un media query nu adauga specificitate.** Garda trebuie sa se potriveasca cu regula pe care o
+   anuleaza: `.box::after { animation: none }` in blocul reduce pierde in fata lui
+   `.box[data-entered]::after`, si trecerea de lumina ruleaza mai departe. Ii trebuie si atributul.
+3. **La culori fortate, selectia e un inel, nu o umplere.** Varianta evidenta —
+   `background: Highlight; color: HighlightText` — facea eticheta pastilei sa dispara cu totul:
+   Chromium deseneaza acolo un backplate in culoarea `Canvas` sub text ca sa garanteze contrastul,
+   iar `HighlightText` in schema intunecata e negru, deci litere negre pe un backplate negru
+   inauntrul unei pastile cyan. Fotografiat la 4x ca sa fiu sigur ca nu e artefact. Un contur
+   interior de 2px nu schimba nicio asezare, lasa eticheta drept `CanvasText` obisnuit si spune
+   totusi limpede ce pastila e aleasa. Separat, `var(--grad-red)` de pe cele doua butoane de trimis
+   e o IMAGINE de fundal, pe care culorile fortate nu o suprascriu desi suprascriu culoarea
+   etichetei — ambele trec pe `background-image: none` acolo.
+
+Verificat in browser real: put `#06070b`, piese `#1f2639`, campuri `#0a0b10`; `aria-pressed`
+corect pe toate noua pastile; bara de selectie `scaleX(1)` pe cea aleasa si `scaleX(0)` pe
+celelalte; sub miscare redusa trecerea de lumina raporteaza `none` si dara de trimitere
+`display: none`; la 390px nimic nu se taie; **nicio eroare in consola**.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md) (scara de material, cromul,
+cele trei capcane) si [`docs/07-conventions.md`](./docs/07-conventions.md) (regula noua:
+un pseudo-element animat se numeste singur in blocul reduce al modulului sau).
+
+Fisiere: `components/sections/Estimator.module.css` · `components/sections/Estimator.tsx` ·
+`docs/05` · `docs/07`.
+
+## 2026-09-24 — Added: fiecare principiu are acum un semn propriu, acelasi pe toate trei
+
+*„Adauga ceva, animatii interesante sau informatii ceva ai idee sau cu modele 3d ceva, gandestete
+si propune." — apoi, pe prima incercare: „tie iti place ce ai facut? mie spre exemplu nu.
+Corecteaza si fami ceva normal."*
+
+Cele trei propozitii din „Cum lucram, pe scurt." erau cele mai abstracte de pe pagina si stateau
+peste nimic. Acum fiecare cartela are **un desen mic in coltul din dreapta sus** — 38x38, acelasi
+loc, aceeasi marime pe toate trei: straturi pentru `01` (o pagina e un singur plan, un produs e un
+teanc de planuri), trei etape insiruite pentru `02`, un vizor in colturi pentru `03`. Apar o
+singura data la intrarea in ecran, la 140ms distanta, si nu se mai misca niciodata.
+
+**Faptul ca sunt LA FEL e tot designul, si asta e corectura.** Prima incercare a dat fiecarei
+cartele alt instrument: un model 3D in CSS al procesorului propriu al sitului la `01`, o lista
+legata cu cele trei etape reale citite din `lib/solutions.ts` la `02`, si o rama mare cu colturi
+la `03`. Fiecare piesa se apara singura; randul, nu. Trei greutati vizuale diferite — iar rama
+goala, a carei goliciune era chiar argumentul (singurul indicator pe care l-as fi putut pune
+acolo era unul inventat), s-a citit ca un panou care nu s-a incarcat. A fost inlocuita, nu
+reglata. Ce merita pastrat e motivul pentru care a cazut: **un argument pe care privitorul trebuie
+sa fie invatat sa-l vada nu e un argument**, iar un rand de trei se citeste ca un rand doar cand
+cele trei seamana.
+
+**Desenate dupa regula casei pentru linie** (docs/07): trasee drepte, capete si imbinari patrate,
+niciun cerc, niciun punct decorativ, nimic animat pe `stroke-dashoffset`. Grosimea conturului sta
+in CSS cu `vector-effect: non-scaling-stroke`, deci acelasi desen pastreaza 2px oricat ar fi
+scalata cutia, in loc sa fie fir de par pe o cartela si lespede pe alta.
+
+**Niciun semn nu are voie sa arate vreo valoare** — nicio cifra, niciun procent, nicio axa, niciun
+ac, nicio bara. Deasupra lui `03` scrie „Legam fiecare livrare de un indicator real", iar singurul
+indicator pe care componenta l-ar putea desena acolo e unul inventat. Situl a platit deja o data
+pentru asta: cartela de echipa a purtat „50+ proiecte", „98% clienti multumiti" si „24/7" pana
+cand primul a fost prins contrazicand numarul real de proiecte din hero, si toate trei au fost
+sterse in loc sa fie reghicite.
+
+**Si `statusBars` a disparut din `lib/content.ts`.** Era mort — un singur rezultat la grep, propria
+lui definitie — si tinea inca exact acei literali, la un fisier distanta de o sectiune despre
+masurare.
+
+**Semnele sunt mute**: `aria-hidden`, `focusable="false"`, fara `<title>`, fara text. Propozitia de
+langa fiecare e afirmatia, iar semnul e doar afirmatia desenata — deci nu e nimic de tradus si
+nimic care sa iasa din sincron cu campurile `{ ro, ru, en }`. Sub `prefers-reduced-motion`
+declaratia de baza e deja poza finala (verificat: `animation-name: none`, opacitate si transformare
+neatinse), iar sub `forced-colors` desenele raman — o linie supravietuieste aplatizarii la o
+singura culoare de sistem — si se elibereaza doar opacitatea retinuta, care acolo s-ar citi ca un
+glif spalacit.
+
+Verificat in browser real: **trei semne, toate 38x38, toate la 25px de marginea cartelei**, acelasi
+contur, niciun cerc, nicio eroare in consola.
+
+**1613 teste in 75 de fisiere**, `tsc --noEmit`, `eslint .` si `npm run build` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md) (semnele, regula de linie si
+de ce a cazut prima incercare) si [`docs/14-testing.md`](./docs/14-testing.md).
+
+Fisiere: `components/sections/Principles.tsx` · `components/sections/Principles.module.css` ·
+`components/__tests__/sections.test.tsx` · `lib/content.ts` (sters `statusBars` si tipul lui) ·
+`docs/05` · `docs/14`.
+
+---
+
+## 2026-09-23 — Changed: holograma a intrat in cartela, in locul fotografiei — si nu se mai reincarca
+
+*„Acum galografica asta trebuie sa fie in boxa ceea in loc de foto, si fa intrun fel animatia sa se
+vada ca ii galografica, sa aiba niste intreruperi, pixeli uneori. Si el la fiecare 5s se reincarca,
+scoate asta."*
+
+Fotografia din cartela e acum PROIECTATA, nu tiparita: e decupat de pe fundalul lui, pictat in
+cyan-ul sitului, asezat sub linii de scanare, maturat de un fascicul si rupt de doua ori pe ciclu.
+Tot din CSS si un singur filtru SVG.
+
+**Proiectia WebGL de deasupra caruselului a disparut**, iar motivul e de pastrat: cartela e
+`background: var(--panel)`, iar panza scenei deseneaza IN SPATELE paginii. O holograma inauntrul
+cartelei ar fi cerut o gaura taiata printr-un panou opac — s-ar fi desfacut la `:hover`-ul propriu
+al cartelei, iar sub 861px, unde scena nici nu porneste, ar fi aratat pagina in loc de cartela.
+Asa merge la orice latime, pe orice randare, fara panza si fara al doilea context GL. Familia de
+puncte si cea de suprafete din `materials.ts` s-au intors **identice cu originalul**.
+
+**Filtrul e aritmetica, nu gust.** Randul de alfa al matricei sunt coeficientii de luminanta, deci
+alfa iese ca propria lui luminozitate; transferul de dedesubt o pragheaza intr-o silueta — tine 1
+pana la 0,90 si cade la 0 la 1,0, fiindca fundalul pe care a fost fotografiat masoara **exact
+1,000**, iar haina lui culmineaza la 0,904 si camasa la 0,895. Randurile de culoare sunt aceiasi
+coeficienti scalati cu canalele reale ale lui `--dark-cyan` si un castig de 1,05 — la 1,3 canalul
+albastru trecea de 1 si se taia, ceea ce facea toata jumatatea lui de jos alb spalacit in loc de
+cyan. Si `color-interpolation-filters="sRGB"` nu e decor: pragurile alea au fost masurate in sRGB,
+iar implicitul SVG e linearRGB, care ar aseza cheia cu totul in alta parte.
+
+**Liniile de scanare sunt o MASCA, si asta e tot trucul.** O masca inmulteste alfa, deci liniile
+cad pe EL si niciodata pe spatiul gol din care a fost decupat; o suprapunere ar fi dungat panoul
+cartelei in jurul lui. Din acelasi motiv fasciculul si banda rupta sunt alte COPII ale fotografiei,
+nu gradiente asezate peste cutie — un gradient care matura toata cutia se citeste ca o lespede gri
+traversand cartela, exact cum a aratat prima incercare.
+
+**Ce se rupe, si ce nu are voie sa se intample.** De doua ori pe ciclu rasterul cade pe o masca
+grosolana si o banda din el se smulge lateral, pe timpi in trepte care nu au factor comun, deci
+bucla nu se anunta niciodata. **Iar reincarcarea a disparut**: proiectia din scena se re-scana o
+data pe bucla, si ai citit-o — corect — ca imaginea care se reincarca. O proiectie care se
+reasambleaza singura e singurul lucru care nu trebuie sa se vada aici.
+
+**Nimeni nu pierde poza.** Fotografia e tot fotografia si poarta tot `alt`-ul; tot ce e holografic
+e un filtru, o masca si doua defectiuni asezate peste acelasi `<img>`. Un cititor de ecran, un
+crawler si un browser fara suport pentru filtru primesc exact ce primeau inainte. Sub
+`prefers-reduced-motion` tine un singur cadru curat — decupat, colorat, cu linii si perfect
+nemiscat — iar sub `forced-colors` filtrul se ia cu totul, fiindca acolo s-ar aplatiza intr-o
+lespede cyan peste fata lui, si fotografia simpla e mai de folos decat atat.
+
+Suita completa, **1609 teste in 75 de fisiere**, `eslint .` si `tsc --noEmit` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md) (filtrul, masca, defectiunile
+si de ce nu putea fi WebGL), [`docs/03-architecture.md`](./docs/03-architecture.md) (stadiul acopera
+iar patru sectiuni) si [`docs/14-testing.md`](./docs/14-testing.md).
+
+Fisiere: `components/sections/Team.tsx` · `components/sections/Team.module.css` ·
+`components/__tests__/sections.test.tsx` · si retragerea proiectiei WebGL din
+`components/scene/three/materials.ts`, `hologram.ts`, `models/teamLead.ts` (sters), `world.ts`,
+`choreography.ts`, `tiers.ts`, `scrollProbe.ts`, `SceneWorld.tsx`, `lib/scene.ts`,
+`app/(site)/page.tsx` · `docs/03` · `docs/05` · `docs/14`.
+
+---
+
+## 2026-09-23 — Changed: proiectia Team Lead-ului e plata, holografica si nemiscata — si seamana cu el
+
+*„Nu seamana deloc. Scoate ochii ca arata urat. Fa mai bine sa nu fie 3D, fa sa fie doar holografic
+si fara sa se roteasca."*
+
+Norul de puncte, volumul, gatul articulat, ochii si leaganul s-au dus, toate. In locul lor: **un
+singur plan intors spre privitor**, desenat de un al cincilea mod in familia de suprafete care
+exista deja (`SURFACE_MODE.portrait`), care citeste portretul o data pe fiecare PIXEL.
+
+**Si avea dreptate — am masurat.** Randarea e capturata prin CDP, redusa la un camp de luminanta
+peste propria ei cutie si corelata cu acelasi camp luat din fotografie. Numerele:
+
+| | r |
+|---|---|
+| o copie colorata a pozei (ideal) | 0,92 |
+| **norul de puncte de care s-a plans** | **0,01** |
+| o silueta goala, fara tonuri inauntru | ~0,00 |
+| **proiectia plata de acum** | **0,69** |
+| plafonul real al conductei (aceeasi cheie si tonuri, aceleasi redimensionari) | 0,82 |
+
+Norul de puncte era **statistic identic cu o silueta goala**. Nu purta nimic din chipul lui, iar
+motivul e aritmetic: un chip aratat la ~320 × 430 css px are, intr-un asemenea nor, cam un punct la
+doi pixeli — recunoasterea nu supravietuieste asa ceva, oricat as fi reglat.
+
+**Trei lucruri pe care masuratoarea le-a gasit si pe care nicio reglare din ochi nu le-ar fi gasit:**
+
+1. **Textura era de trei ori prea mica.** Plafonata la 216 × 288, in timp ce poza se arata la
+   640 × 860 pixeli fizici — fiecare pixel al fetei lui era o marire. E 456 × 608 acum, iar activul
+   a fost reexportat la rezolutia lui nativa, 708 × 944.
+2. **Campul bustului ii taia haina.** O pereche de elipse pictate in canalul verde, folosite intai
+   ca multiplicator si apoi ca masca; ca masca **scotea colturile de jos ale hainei**, fiindca
+   partea cea mai lata a lui, pe randul lui cel mai lat, cade in afara elipsei. Masurat pe regiuni:
+   capul 0,84, torsul **0,24** — si toata prapastia aia era marginea elipsei. Campul a disparut:
+   luminozitatea lui singura, cheiata pe un fundal care masoara exact 1,000, e o silueta completa.
+3. **Orice taie plafonul e un ton aruncat.** Jumatate din el traieste intr-o banda tonala de 0,1
+   latime (haina 0,72, camasa 0,78), deci un castig care impingea varful peste plafon aplatiza
+   aproape tot torsul intr-o singura culoare.
+
+**Ce a ramas holografic**, fiindca asta ai cerut: silueta cheiata, luminozitatea lui purtata in
+lumina, o rama trasata pe conturul lui (din patru citiri ale cheii, nu din elipse — o rama scoasa
+din elipse lucea intr-un inel care nu-l urma), linii de scanare, palpaire fina, granulatie, sosirea
+care urca de pe pastila proiectorului cu o creasta fierbinte pe front, si ruptura. **Nu se misca
+nimic in afara de lumina.**
+
+**Costa mult mai putin decat ce a inlocuit.** Doua apeluri de desenare — planul si rampa — fata de
+un desen de 40.000 de varfuri plus aceeasi rampa, si **nicio citire de textura in shaderul de
+varfuri**, deci nu mai cere nimic ce un shader de fragmente nu poate face. Familia de puncte s-a
+intors **identica cu originalul** (47 de linii adaugate in `materials.ts`, 3 schimbate): modul
+`figure`, uniformele lui si ramura de rig au disparut cu totul.
+
+**Aceeasi capcana, a doua oara, si acum e notata in doua locuri:** ramura hologramei din Work era
+un `else` fara garda, deci modul 5 s-ar fi desenat ca ea. E inchisa ca `} else if (uMode < 4.5) {`,
+si un test o fixeaza.
+
+**Ce nu s-a schimbat:** cartela de alaturi ramane raspunsul intreg sub 861px, fara WebGL, sub
+`forced-colors`, sub `prefers-reduced-motion` si cat timp stadiul decide. Blocul e `aria-hidden`,
+fara nimic focusabil. Sursa e tot un activ pachetat, niciodata un upload, din motivele din
+`docs/11` — si acum si fiindca silueta se cheiaza pe un fundal deschis.
+
+Suita completa, **1638 de teste in 76 de fisiere**, `eslint .` si `tsc --noEmit` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md) (sectiunea, masuratoarea si
+cele trei descoperiri), [`docs/11-security.md`](./docs/11-security.md) (pe panza e acum doar
+luminozitatea lui; canalul verde a disparut) si [`docs/14-testing.md`](./docs/14-testing.md).
+
+Fisiere: `components/scene/three/materials.ts` · `components/scene/three/models/teamLead.ts` ·
+`components/scene/three/hologram.ts` · `components/scene/choreography.ts` ·
+`components/scene/tiers.ts` · `components/scene/three/world.ts` · `components/scene/SceneWorld.tsx` ·
+`public/team/maxim.webp` · `components/__tests__/*` · `docs/05` · `docs/11` · `docs/14`.
+
+---
+
+## 2026-09-23 — Changed: proiectia se citeste ca un chip, misca din cap si din ochi
+
+*„Acum nu se intelege, si fa chiar sa fie 3D model si sa poata sa miste din cap sau din ochi."*
+
+**De ce nu se intelegea, si nu era lipsa de date.** Era SATURATIE. Punctele se amesteca ADITIV,
+sprite-ul acoperea doua celule si jumatate de retea, deci vreo doua puncte si jumatate cadeau pe
+fiecare pixel; suma trecea de 1, `sceneOutput` taia, si orice ton deasupra pragului devenea acelasi
+cyan plat. Fata lui era acolo tot timpul — o stergea lumina.
+
+Am incetat sa ghicesc si am **masurat cadrul randat**: corpul ajungea la 0,675 din maxim cu p50 la
+0,188 la o setare si tot ce e fata se lipea la 1,0 la alta. Reglat pe numere, corpul urca acum la
+0,882 fara sa taie, iar singurii pixeli la plafon sunt ochii lui.
+
+Plus doua lucruri care fac trasaturile sa iasa:
+
+- **Masca de accentuare, din fotografia insasi.** Patru citiri la cativa texeli distanta dau media
+  locala; luminozitatea minus media aia e DETALIUL — orbitele, sira nasului, linia barbii, marginea
+  gulerului. O fata de marimea asta are cateva zeci de puncte latime, si fara sa scoti detaliul din
+  tonul general tot capul se citeste ca o singura textura uniforma.
+- **Podeaua umbrelor, ridicata.** La contrastul propriu al fotografiei, parul lui (0,11) cadea in
+  fundal. O fata fara par nu e mai fidela, e mai putin lizibila.
+
+**Si acum chiar se misca.**
+
+**Gatul e articulat.** Tot ce e deasupra gatului primeste propria rotatie — inclinare, intoarcere si
+aplecare — in jurul unui pivot la baza gatului. Greutatea e 0 sub linia umerilor (masurata la v
+0,594) si 1 deasupra barbiei (0,667), cu trecere lina intre ele, deci o inclinare a capului misca
+maxilarul si nu gulerul. Cele trei rotatii merg pe perioade care nu au factor comun nici intre ele,
+nici cu ale corpului, deci miscarea nu se aseaza niciodata intr-un ciclu pe care sa-l poti numi. Si
+sunt MICI: o proiectie care isi leagana capul se citeste ca o papusa; una care se muta cu cateva
+grade in timp ce sta acolo se citeste ca un om care sta nemiscat.
+
+**Ochii sunt un lucru separat.** Pozitiile sunt MASURATE, nu puse: perechea cea mai intunecata si
+simetrica din banda fetei a iesit la v 0,222, x 0,537 si 0,625, iar desenand cele doua semne inapoi
+pe fotografie au cazut fix pe pupilele lui. Poarta propria directie de privire, deci se poate uita
+in jur fara sa miste capul. **Tin si apoi SAR** — o sacada dureaza sub o cincime de secunda, iar
+interpolarea lina intre doua puncte la care se uita cineva e exact ce se citeste ca papusa. Clipesc,
+cu pleoapa care cade mai repede decat se ridica. Si se deschid abia dupa ce figura s-a asezat — ultima
+bataie a sosirii, si cea care transforma o statuie luminata in cineva care se uita inapoi la tine.
+
+**Treapta `lite` a devenit mai destepta.** Tamponul retelei e acum SORTAT dupa hash-ul din care
+shaderul alege populatia unui punct, deci populatiile sunt blocuri continue — ochii primii, apoi
+suprafata din fata, apoi spatele, apoi mijlocul — iar taietura cade la inceputul cochiliei din
+spate, **numarata exact, nu presupusa** (`Math.round(count * share)` pare acelasi numar si nu e:
+un hash e uniform doar in medie). Deci un GPU care se chinuie pierde VOLUMUL si pastreaza fata
+intreaga. O taiere uniforma la jumatate, care e regula roiului, ar subtia fata — singurul lucru de
+pe obiectul asta care nu-si permite asta.
+
+Reteaua a crescut la **177 × 227** (40.179 de puncte, tot un singur draw call).
+
+**O capcana in care am cazut si e notata:** am numit un camp `snap:` in tabelul privirii, iar
+`scene-contract.test.ts` citeste orice `snap:` de sub components/scene ca fiind al lui
+ScrollTrigger — interzis in stadiul interior. Numele e tot ce are testul dupa ce sa se ghideze. Se
+numeste `flick` acum, si comentariul spune de ce.
+
+**Verificat prin CDP pe build-ul care ruleaza, prin masuratoare, nu din ochi.** Cu corpul complet
+oprit: centroidul benzii umerilor s-a mutat 2px (zgomot), al benzii capului **128px** — deci gatul
+se articuleaza si umerii stau. Ochii se misca 84px fata de cap. Histograma cadrului confirma gama
+tonala. Suita completa, **1657 de teste in 76 de fisiere** (+13), `eslint .` si `tsc --noEmit`
+curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md),
+[`docs/11-security.md`](./docs/11-security.md) (nimic nou nu se citeste de pe el — pozitiile
+ochilor sunt trei numere in cod, iar masca foloseste textura care oricum era esantionata) si
+[`docs/14-testing.md`](./docs/14-testing.md).
+
+Fisiere: `components/scene/three/materials.ts` · `components/scene/three/models/teamLead.ts` ·
+`components/scene/choreography.ts` · `components/scene/three/hologram.ts` ·
+`components/scene/tiers.ts` · `components/__tests__/scene-team-lead.test.ts` · `docs/05` ·
+`docs/11` · `docs/14`.
+
+---
+
+## 2026-09-23 — Changed: proiectia Team Lead-ului e un corp inchis, nu un relief
+
+*„Sa aiba 3D model si in spate si prin parti, ca sa aiba silueta unui om din orice parte."*
+
+Avea dreptate: era un RELIEF — o singura suprafata intoarsa spre privitor. Din lateral ar fi fost o
+foaie. Acum e un corp.
+
+**Trei populatii, nu una.** 62% din celulele retelei stau pe suprafata din FATA, 26% pe cea din
+SPATE si 12% sunt raspandite prin mijloc. Fiindca adancimea fiecareia e campul bustului, iar campul
+cade la zero exact acolo unde se termina silueta, **corpul se inchide singur**: nu exista margine
+deschisa prin care sa se vada inauntru, iar din spate are propria lui silueta, fara fata imprimata
+prin el. Fiecare rand e o elipsa — radacina patrata a unui camp aproape parabolic e un cerc — deci
+din profil are adancimea unui piept, nu grosimea unei coli.
+
+Reteaua a crescut de la 141 × 181 la **177 × 227** (40.179 de puncte, tot un singur draw call):
+38% din ele pleaca de pe fata, deci numarul trebuia sa poarte o fata la densitate intreaga PLUS un
+spate. Si leaganul s-a largit de la ±3,4° la ±35°: un volum pe care nimeni nu-l vede din jur e doar
+un relief scump. Fata lui tot nu paraseste niciodata privitorul — de aceea e leagan, nu rotatie.
+
+**Trei lucruri le-am gresit si le-am gasit fotografiind modelul din 45 in 45 de grade:**
+
+1. **Doua cochilii goale, vazute din lateral, sunt doua foi** — citeau ca o pereche de urechi peste
+   un ou. De aceea exista acum si populatia din mijloc.
+2. **Elipsele campului erau mai late decat silueta masurata.** Campul E adancimea, deci o elipsa mai
+   lata decat corpul face partea aceea mai adanca decat e de lata: capul iesea cu o treime prea
+   mare. Re-masurat pe activul livrat — capul se intinde de la v 0,080 la 0,403 in jurul lui x
+   0,563, umerii se rup la 0,406, torsul ajunge la semi-latime 0,380 — si elipsele urmeaza acum
+   numerele alea.
+3. **`HOLO_DEPTH` era 0,34, cu ~30% prea mult**, si nimic nu-l putea contrazice cat timp figura era
+   un relief. In clipa in care corpul s-a inchis, facea pieptul aproape la fel de adanc pe cat era
+   de lat. E 0,27 acum, si e un raport ANATOMIC: torsul masoara 0,57 unitati semi-latime, un piept
+   e cam 45% din latimea lui in adancime, campul culmineaza la 0,88 a carui radacina e 0,94.
+4. **Centrul elipsei torsului era pe mijlocul siluetei**, deci partea cea mai adanca ieseau
+   abdomenul — o popica. Pe un bust, cel mai adanc loc e pieptul si umerii; elipsa urca la 0,66.
+
+**Si un echilibru pe care l-am nimerit din a doua.** Cu 48/30/22 spatele si mijlocul, care se adauga
+peste tot unde deseneaza fata, **i-au spalat chipul** — capul redevenise o bila. 62/26/12, si
+stralucirea lor tinuta mult sub a fetei, il aduc inapoi fara sa piarda volumul.
+
+**Ce NU poate face, si de ce.** O singura fotografie frontala nu contine niciun profil: nu exista
+nas, barbie sau panta de umar in date. La 90° adevarate e un bust plauzibil, nu unul recognoscibil.
+E o limita a intrarii, nu a modelului. **O a doua fotografie, din profil, ar permite ca adancimea sa
+fie luata din masuratoare in loc de dintr-o bombare presupusa** — atunci ar fi el din orice parte, nu
+doar un om din orice parte.
+
+**Verificat prin CDP** pe build-ul care ruleaza, rotind temporar modelul complet si fotografiindu-l
+din 45 in 45 de grade, apoi la leaganul real de ±35°. Suita completa, **1644 de teste in 76 de
+fisiere** (+4), `eslint .` si `tsc --noEmit` curate.
+
+Documentat in [`docs/05-page-sections.md`](./docs/05-page-sections.md) (corpul si limita lui) si
+[`docs/11-security.md`](./docs/11-security.md) (numarul de puncte).
+
+Fisiere: `components/scene/three/materials.ts` · `components/scene/three/hologram.ts` ·
+`components/scene/three/models/teamLead.ts` · `components/scene/tiers.ts` ·
+`components/__tests__/scene-team-lead.test.ts` · `docs/05` · `docs/11` · `docs/14`.
+
+---
+
+## 2026-09-23 — Added: Team Lead-ul apare ca proiectie holografica in sectiunea Echipa
+
+*„Un model 3D holografic al Team Lead-ului nostru, care sa apara printr-o animatie cinematica de tip
+glitch/holograma."*
+
+Deasupra caruselului cu echipa, pe ecran de cel putin 861px si cu scena WebGL vie, un bloc gol
+(`[data-scene-anchor="lead"]`) rezerva locul in care sta o figura holografica a lui Maxim. O
+deseneaza pânza scenei interioare — de aceea Principles si Team sunt acum INAUNTRUL lui
+`<SceneStage>`.
+
+**Ce este de fapt.** O retea de puncte — 141 × 181 pe nivelul inalt, un singur draw call — in care
+FIECARE celula citeste portretul in SHADERUL DE VARFURI si se aseaza din ce gaseste acolo. Rosul
+poarta luminozitatea lui, verdele campul bustului, deci o singura citire ii spune unui punct tot:
+daca exista, cat de in fata sta si cat de aproape de contur e. Nu e o fotografie agatata pe un plan:
+nu exista piele si nu exista suprafata, doar lumina acolo unde e el. Un nor de puncte nu poate fi
+straniu — e facut din aceeasi lumina ca tot restul paginii.
+
+**Nu compileaza niciun program nou.** Capul lui `materials.ts` declara cinci programe ca invariant;
+asta e un MOD in plus in familia de puncte (`POINTS_MODE.figure`) si refoloseste nemodificat modul
+`synapse` al familiei de linii pentru rampa proiectorului. **Adaugarea a cerut inchiderea unui
+`else` fara garda:** `pulses` era ramura finala goala, deci modul 4 s-ar fi desenat tacut ca niste
+capete de impuls sinaptic. E notat in `docs/07` ca un `else` gol e o capcana, nu o valoare implicita.
+
+**Sosirea, in 3,6 secunde.** Rampa se aprinde bara cu bara, cu o cometa alergand pe ea; figura se
+construieste de jos in sus, punctele curg din pastila la locul lor, o schela rara alerga cu o optime
+de inaltime inaintea umpluturii dense, iar o creasta fierbinte calatoreste pe front. Se rupe de doua
+ori pe drum — o data peste umeri, o data peste fata — si se aseaza. Apoi respira umflandu-si propriul
+relief, se roteste incet pe o perioada pe care n-o imparte cu nimic din scena, se bâlbâie o data la
+fiecare bucla de 6,9s, iar o data pe bucla proiectorul il re-scaneaza de la picioare.
+
+Totul e CRONOMETRAT, niciodata legat de derulare: fiecare bataie e o functie pura de secunde in
+`choreography.ts`, fixata ca tabel in teste, deci o derulare rapida nu poate lasa pe ecran un om pe
+jumatate construit. Iesirea din sectiune retrage proiectorul; intoarcerea joaca o sosire proaspata.
+
+**Trei lucruri pe care le-am gresit intai si le-am gasit uitandu-ma la build-ul care ruleaza:**
+
+1. Nu se desena nimic, desi modelul era construit, armat si cu uniformele corecte. Fiecare model din
+   scena isi seteaza singur `group.visible = frame.reveal > 0 || frame.prewarm` ca PRIMA linie din
+   `update` — conventia casei, pe care al meu n-o respecta.
+2. `easeOutCubic` ducea frontul la creastet pana pe la 2,0s, deci a doua sclipire cadea pe o figura
+   deja terminata. Curba e acum `holoEase`, care calatoreste uniform, iar sclipirile sunt asezate
+   unde e fata de fapt sub ea.
+3. Figura citea ca o silueta plata: luminozitatea lui nu ajungea deloc in stralucirea punctelor.
+   Acum o poarta (`shade`), si asa se intorc ochii, barba si gulerul.
+
+**Fotografia e un activ pachetat, niciodata un upload**, si motivul e in `docs/11`: un upload se
+rezolva prin `mediaUrl` la originea API-ului, care intr-o instalare cu origini separate e
+cross-origin, iar `usableImage` il refuza — ar murdari pânza si ar arunca SecurityError la incarcarea
+in WebGL. `Team.tsx` marcheaza drept sursa doar un membru a carui poza incepe cu `/team/`.
+
+**Un efect secundar care repara o cartela.** Un membru fara poza proprie primeste acum poza pachetata,
+potrivita dupa id (`withBundledPhotos`). E o completare de CAMP, nu o fuziune pe chei: citeste doar
+lista salvata, deci un membru sters ramane sters. Inainte, un activ livrat era umbrit de un sir gol
+salvat si cartela cadea pe initiala colorata — de asta Maxim aparea ca „M" desi fisierul exista.
+
+**Ce primeste un vizitator fara toate astea.** Cartela de alaturi e neatinsa — aceeasi poza, acelasi
+nume, acelasi rol — si e raspunsul intreg sub 861px, fara WebGL, sub `forced-colors`, sub
+`prefers-reduced-motion` si cat timp stadiul inca decide. Gazda e `display: none` in toate, deci nu
+ramane un gol. Blocul e `aria-hidden` si nu contine nimic focusabil; `<img alt>` al cartelei ramane
+singura descriere a chipului lui pe pagina.
+
+**Securitate:** aceeasi conducta Canvas2D → `CanvasTexture` ca holograma din Work, cu aceeasi sonda de
+un pixel si aceleasi reguli. Portretul are PROPRIUL plafon (`PORTRAIT_MAX`, 216 × 288) si cele doua
+constante nu trebuie unite niciodata: 384 × 240 exista ca sa faca ilizibil scrisul marunt dintr-o
+captura de proiect, iar pe portret nu se deseneaza niciun cuvant, niciun chip si niciun indice — un
+test verifica asta. Documentat in [`docs/11-security.md`](./docs/11-security.md).
+
+**De semnalat, si nu e o intrebare tehnica:** e singura imagine de pe sit care randeaza un om real ca
+proiectie semi-transparenta care se bâlbâie. Daca Maxim nu e de acord, stergerea lui
+`public/team/maxim.webp` si a celui de-al treilea argument din `member(…)` opreste tot: predicatul nu
+se mai potriveste, gazda nu se mai randeaza, sonda nu masoara nimic si modelul nu se mai construieste.
+
+**Verificat prin CDP pe build-ul care ruleaza**, la 1600 × 1000: gazda masurata 1280 × 540, scena
+`webgl`, un singur context, zero erori in consola, sosirea fotografiata bataie cu bataie (rampa
+aprinsa + constructie partiala, apoi figura asezata). Suita completa, **1640 de teste in 76 de
+fisiere** (+35), `eslint .` si `tsc --noEmit` curate.
+
+Documentat in [`docs/03-architecture.md`](./docs/03-architecture.md) (scena acopera sase sectiuni,
+ancora `lead`, campul din sonda), [`docs/05-page-sections.md`](./docs/05-page-sections.md) (sectiunea
+era DEJA invechita — descria un panou `SYSTEM_STATUS`, biografii si legaturi sociale pe care
+componenta nu le randeaza; corectata aici), [`docs/07-conventions.md`](./docs/07-conventions.md) si
+[`docs/14-testing.md`](./docs/14-testing.md).
+
+Fisiere: `public/team/maxim.webp` · `components/scene/three/models/teamLead.ts` ·
+`components/scene/three/materials.ts` · `components/scene/three/hologram.ts` ·
+`components/scene/three/world.ts` · `components/scene/choreography.ts` ·
+`components/scene/scrollProbe.ts` · `components/scene/tiers.ts` · `components/scene/SceneWorld.tsx` ·
+`components/sections/Team.tsx` · `Team.module.css` · `app/(site)/page.tsx` · `lib/scene.ts` ·
+`lib/content.ts` · `lib/siteContent.tsx` · `next.config.ts` · `components/__tests__/*`.
+
+---
+
+## 2026-09-23 — Changed: procesorul de pe ecranul de incarcare are volum, pini, trasee si siliciu aprins
+
+*„Deseneaza un model 3D wow detaliat."*
+
+Placile plate citeau ca hartie stivuita. Fiecare strat e acum o **cutie reala** — capac plus patru
+pereti la grosimea lui adevarata — si asta e toata diferenta: peretii prind rotatia, o latura
+luminata si una intunecata, deci desfacerea citeste ca adancime, nu ca scalare. Fetele de jos nu se
+construiesc niciodata; camera e deasupra inclinarii si nu le-ar vedea. Grosimea e exagerata de 2,6
+ori, cum o exagereaza orice desen tehnic — la scara adevarata un substrat de 0,08 are sub jumatate
+de pixel de perete si obiectul redevine hartie. Proportiile dintre straturi raman ale modelului.
+
+**Ce s-a adaugat, tot din `CHIP` (`components/scene/shapes.ts`), nimic inventat:**
+
+- **pini pe pereti**, unde sunt pinii de fapt, la pasul `CHIP.pinGap` si oprindu-se inainte de
+  colturi la `CHIP.pinSpan` — exact ca ale modelului;
+- **trasee rutate** care ies de sub pachet spre marginile placii, cotite la 90° si 45° cum merge
+  rutarea pe o placa, cu **plachete patrate de trecere** in fiecare cot;
+- **patru condensatoare** pe capacul substratului, cate unul pe cadran — ascunse sub capac cand
+  stiva e stransa, descoperite pe masura ce se desface, deci explozia chiar arata ceva;
+- **capacul metalic** cu rama frezata trecuta in trepte, pentru ca e partea dupa care recunosti un
+  procesor si inainte era inca un geam;
+- **matrita aprinsa**: siliciu plin cu centrul incins si grila de 3×2 nuclee pe el, nu un contur.
+
+**Doua lucruri invatate pe drum, notate ca sa nu se repete.** Traseele se traseaza de **doua** ori —
+o data plin si palid, ca placa sa citeasca mereu ca rutata, apoi inca o data ca o liniuta scurta si
+aprinsa care calatoreste pe acelasi drum. Doar liniuta, cum era prima oara, lasa niste scame
+imprastiate care arata a murdarie, nu a trasee. Si `vector-effect: non-scaling-stroke` e obligatoriu:
+fara el, 1,5 unitati de contur intr-un `viewBox` de 100 ajung sub un pixel.
+
+Restul e neschimbat: nu e WebGL (fix atunci chunk-ul scenei si shaderele detin firul principal),
+doar transform si opacity, rotatie de 8s peste o respiratie de 3,4s care nu se impart una la alta.
+Sub `prefers-reduced-motion` ramane poza compusa; sub `forced-colors` se ascunde, pentru ca acolo
+toate suprafetele astea devin o singura umplutura si obiectul se face un ghemotoc gri. 61 de
+elemente, fata de 17.
+
+**Verificat pe build-ul care ruleaza**, prin CDP, in ambele poze ale respiratiei: stransa, se
+citeste fara dubiu ca procesor pe placa; desfacuta, matrita se ridica aprinsa pe axa. Suita
+completa, **1605 teste in 75 de fisiere**, `eslint .` si `tsc --noEmit` curate.
+
+Documentat in [`docs/03-architecture.md`](./docs/03-architecture.md) — sectiunea „The full-window
+cover, and the object on it", care lipsea cu totul si descrie acum si acoperirea, si obiectul.
+
+Fisiere: `components/ui/BootCore.tsx` · `components/ui/BootCore.module.css` ·
+`docs/03-architecture.md`.
+
+---
+
+## 2026-09-23 — Changed: ecranul de incarcare arata procesorul sitului, in vedere explodata, rotindu-se
+
+Marca plata din mijlocul acoperirii a fost inlocuita cu `components/ui/BootCore.tsx`.
+
+**Nu e o forma inventata.** E `CHIP` din `components/scene/shapes.ts` — obiectul pe care il
+deseneaza eroul si din care zboara camera in intro: placa la 2,3, pachetul la 1,0 cu randurile lui
+de pini, capacul la 0,68, matrita la 0,34. Stiva se desface si se strange la loc, iar gestul ala e
+tot al scenei: `coreExitPose` numeste `lift`-ul chiar „exploded view". Deci asteptarea e deja in
+interiorul sitului, nu un spinner imprumutat.
+
+**3D REAL, in CSS.** `perspective` pe scena, `preserve-3d` pe ansamblu, patru placi la adancimi
+reale — deci se ocluzioneaza intre ele si desfacerea citeste ca adancime, nu ca scalare. Sub ele
+amprenta punctata pe care stau toate modelele de pe sit, peste ele axa de asamblare rosie care
+creste exact cat calatoreste matrita, iar in jur cele patru colturi HUD, in spatiul ECRANULUI —
+deci obiectul se roteste inauntrul cadrului, nu cu el.
+
+**De ce nu WebGL, desi e un model 3D.** Fix asta e clipa in care chunk-ul scenei si shaderele detin
+firul principal; a cere acolo un al doilea context GL e cel mai prost lucru posibil. Doar transform
+si opacity, deci fiecare cadru e al compositorului. Saptesprezece elemente.
+
+**Bucla e facuta sa nu se citeasca drept bucla:** rotatia are 8s, respiratia 3,4s. Nu se impart una
+la alta, deci nu aterizeaza de doua ori la fel. Sub `prefers-reduced-motion` ramane poza compusa pe
+care se sprijina animatiile — stiva usor desfacuta, aprinsa, incadrata.
+
+Marimea urmeaza fereastra (`clamp(30px, 7.4vmin, 76px)` pe unitate), deci un telefon primeste
+aceeasi compozitie ca un desktop.
+
+**Verificat prin CDP** pe build-ul care ruleaza, la 600 ms si 2,5 s: acoperirea sus, obiectul
+desenat, nimic nu razbate prin ea; la 10 s coboara. Suita completa, **1605 teste in 75 de fisiere**,
+`eslint .` si `tsc --noEmit` curate.
+
+Fisiere: `components/ui/BootCore.tsx` · `BootCore.module.css` · `components/ui/PageLoading.tsx`.
+
+---
+
+## 2026-09-23 — Added: ecran de incarcare pe toata fereastra pana randeaza stadiul
+
+*„Loading trebuie sa fie pe toata fereastra pana se randeaza totul."*
+
+`components/ui/PageLoading.tsx`: fundalul sitului, grila lui in perspectiva si marca partajata
+(`Loading`) in mijloc, peste tot ecranul. Sus doar cat `data-renderer` e `pending` — valoarea
+serverului, deci e pictat din primul cadru si nimeni nu se uita la o pagina care se asambleaza —
+si coboara la ORICE raspuns: `webgl`, `fallback` sau `off`.
+
+**Nu e inauntrul stadiului, si asta a fost o reparatie pe parcurs.** Prima varianta il monta in
+`SceneStage`, care are `isolate`: asta deschide un context de stivuire, deci `z-index: 350` era
+scopat la stadiu si antetul (120) si bannerul de cookie-uri (280) pictau in continuare peste el —
+vazut in captura, nu dedus. Sta acum in layout si gaseste stadiul cu `:has()`, exact testul pe care
+fundalurile in bucla il folosesc ca sa se opreasca sub intro. O pagina fara stadiu nu-l ridica
+niciodata.
+
+**Doua protectii, si niciuna nu e optionala:**
+
+1. **Un failsafe la 6s.** Acoperirea BLOCHEAZA pagina. Daca un stadiu n-ar raspunde vreodata — un
+   chunk care nu ajunge, o sonda care arunca unde nu prinde nicio bariera — vizitatorul ar ramane
+   pe un ecran gol fara iesire. Animatia cu `forwards` bate declaratiile, deci la 6s coboara
+   orice ar face stadiul. Caile proprii ale stadiului sunt mult mai scurte (`afterIdle` 1500 +
+   600ms, apoi sonda si primul cadru), deci asta se declanseaza doar la o defectiune reala.
+2. **`<noscript>` o scoate cu totul.** Fara JavaScript niciun raspuns nu vine niciodata.
+
+**Un intro o dezarmeaza.** Intro-ul e tot o acoperire pe tot ecranul, cu propriul ceas, propriul
+skip si propriul failsafe; doua care se bat n-ar avea sens, deci intro-ul castiga
+(`html:has(#tbs-intro)`).
+
+**Costa LCP, si asta e tranzactia.** O acoperire opaca peste erou inseamna ca largest contentful
+paint nu e contorizat pana nu se ridica. Intro-ul accepta deja asta la prima vizita; asta o accepta
+la fiecare incarcare a unei pagini cu stadiu, in schimbul faptului ca nu se mai vede niciodata o
+pagina pe jumatate randata.
+
+**Verificat prin CDP** pe build-ul care ruleaza: la 600 ms si 2,5 s → `renderer="pending"`, cover
+`1`, `visibility: visible`, blocheaza, `z: 350`, si nimic nu razbate prin ea; la 10 s →
+`renderer="webgl"`, cover `0`, `visibility: hidden`, nu mai blocheaza. Plus suita completa, **1605
+teste in 75 de fisiere**, `eslint .` si `tsc --noEmit` curate.
+
+Fisiere: `components/ui/PageLoading.tsx` · `PageLoading.module.css` · `app/(site)/layout.tsx` ·
+`app/globals.css` (`--z-page-loading: 350`, intre modal si intro).
+
+---
+
+## 2026-09-23 — Changed: UN singur loading, partajat, folosibil oriunde
+
+*„Adauga un loading general, unde putem sa il utilizam peste tot, la incarcarea datelor, la
+randare..."*
+
+Cele doua stari de incarcare facute pe masura in aceeasi zi (`ModelLoader` pentru gazda modelului,
+`HelixLoader` pentru pista Lucrari) sunt **sterse**. In locul lor, unul singur:
+`components/ui/Loading.tsx`.
+
+**Nu e un spinner**, si nu din incapatanare: fiecare suprafata de pe sit e desenata cu colturi HUD
+si o bara care baleiaza, deci asteptarea e desenata la fel — un cadru din patru colturi, o bara
+trecand intre ele, si un miez rosu, rosul fiind peste tot aici lucrul viu. Sase trasee si un
+`<svg>`; doar transform, opacity si dash-offset, deci ramane pe compositor exact cand firul
+principal e cel mai ocupat. Din acelasi motiv e CSS si niciodata o a doua panza.
+
+**Contractul de accesibilitate e partea care conteaza si e pinuit:**
+
+| cum e chemat | ce e |
+|---|---|
+| `<Loading />` | decorativ, `aria-hidden` — pentru o gazda care e ea insasi `aria-hidden` |
+| `<Loading label={t("common.loading")} />` | `role="status"` + `aria-live="polite"` — pentru munca reala, anuntata |
+
+Patru marimi: `sm` langa un rand de text, `md` intr-un panou, `lg` ca substitut de sectiune,
+`fill` ia cutia pe care i-o dai. Nu poarta text propriu — eticheta vine din catalog, deci o
+folosire decorativa nu costa nicio cheie, iar cheia `common.loading` a fost adaugata in toate trei
+catalogele (ro/ru/en), asa ca niciun apelant nu poate ajunge pe gol.
+
+**Unde se vede CAND e treaba scenei, nu a marcii.** `components/scene/art/SceneLoading.tsx` o
+inveleste si tine regulile care erau imprastiate: vizibila doar cat `data-renderer` e `pending`, si
+cardurile din pista Lucrarilor tinute la `opacity: 0` cat timp e sus. Marca nu stie nimic despre
+scena, deci poate fi folosita la fel de bine pentru o cerere de date sau un panou care asteapta.
+`data-loading` e carligul stabil, pe care il foloseste si regula `<noscript>` din
+`app/(site)/layout.tsx` ca s-o ia de acolo unde nicio decizie nu vine vreodata.
+
+**Verificat prin CDP** pe build-ul care ruleaza: gazda modelului la 700 ms si 2,5 s →
+`renderer="pending"`, loading `1`, ilustratie `0`; la 9 s → `webgl`, loading `0`. Pista Lucrarilor
+inainte de scena → `pending`, loading `1`, card `0`; dupa → `webgl`, `helix="spiral"`, loading `0`,
+card `0.996`. Plus suita completa, **1605 teste in 75 de fisiere** (sase noi pentru `Loading`),
+`eslint .` si `tsc --noEmit` curate.
+
+Fisiere: `components/ui/Loading.tsx` · `Loading.module.css` ·
+`components/scene/art/SceneLoading.tsx` · `SceneLoading.module.css` ·
+`components/sections/{DirectionPage,Directions,Work}.tsx` · `app/(site)/layout.tsx` ·
+`lib/i18n/messages/{ro,ru,en}.ts` · `components/__tests__/loading.test.tsx`.
+Sterse: `components/scene/art/{ModelLoader,HelixLoader}.{tsx,module.css}`.
+
+---
+
+## 2026-09-23 — Added: o stare de incarcare si pentru pista Lucrari
+
+*„Nu vad niciun loading pana se face rendering, ca sa nu mai vad cartelele celea."*
+
+Acelasi tratament ca gazda modelului, dar pentru portofoliu. Cardurile din `Work.tsx` **nu** sunt
+un fallback — scena nu le inlocuieste, le RE-ASEAZA: dupa banda Lucrarilor fiecare card e pus
+singur pe spirala (`[data-scene-stage][data-helix=spiral]`, `workHelix.ts`). Pana cand stadiul
+raporteaza `webgl` insa stau ca o grila plata, iar a ajunge pe grila aia si apoi a o vedea
+pliindu-se in elice e chiar schimbul pe care il ascunde acum `HelixLoader`.
+
+Cat timp `data-renderer` e `pending`: cele doua fire se deseneaza singure de sus in jos, treptele
+intra intre ele, un slot rosu urca pe ax — iar cardurile sunt tinute la `opacity: 0`. **Raman in
+DOM si isi pastreaza cutia**, deci nu se ia nimic de la un crawler sau de la un cititor de ecran si
+inaltimea pistei nu sare; doar pictura lor e amanata.
+
+**Doua capcane, amandoua prinse de teste inainte sa ajunga undeva:**
+
+1. **Regizorul masoara `workHead` ca FRATELE ANTERIOR al pistei** (`lib/scene.ts`). Prima varianta
+   invelise pista intr-un `<div className="relative">` ca sa aiba unde sta loader-ul — ceea ce ii
+   dadea elicei ambientale cutia loader-ului in loc de cea a titlului. `work.test.tsx` a prins-o
+   (`track.previousElementSibling?.querySelector("h2")`). Loader-ul e acum PRIMUL COPIL al pistei,
+   pozitionat absolut, si pista poarta `relative` — nimic nu se interpune intre titlu si grila.
+2. **Driverul elicei aduna copiii pistei.** Un `<svg>` e `SVGElement`, nu `HTMLElement`, iar
+   `workHelix.ts` filtreaza `instanceof HTMLElement` — deci loader-ul e exclus prin constructie,
+   nu din noroc. Doua teste care iterau `track.children` fara filtru au fost aliniate la acelasi
+   criteriu, si pinuieste acum explicit ca loader-ul e acolo si ca elementele cardurilor raman
+   aceleasi peste o schimbare de limba.
+
+**Verificat prin CDP** pe build-ul care ruleaza, derulat la Lucrari inainte ca scena sa fie gata:
+`renderer="pending"`, loader `1`, card `0`; apoi `renderer="webgl"`, `helix="spiral"`, loader `0`,
+card `0.996`. Plus suita completa, **1599 de teste in 74 de fisiere**, `eslint .` si `tsc --noEmit`
+curate.
+
+Fisiere: `components/scene/art/HelixLoader.tsx` · `HelixLoader.module.css` ·
+`components/sections/Work.tsx` · `components/__tests__/work.test.tsx` · `scene-helix.test.ts`.
+
+---
+
+## 2026-09-23 — Added: o stare de incarcare pentru gazda modelului 3D
+
+Ascunderea ilustratiei statice a lasat o gaura pe care am semnalat-o in aceeasi zi: intre primul
+paint si modelul live caseta ramanea **goala** — cat tin sonda de capabilitate, chunk-ul three.js,
+compilarea shaderelor si primul cadru. Pe un telefon, secunde.
+
+`components/scene/art/ModelLoader.tsx` o umple, in vocabularul scenei si nu intr-al altcuiva: o
+amprenta izometrica punctata — aceeasi pe care stau toate modelele — cu trei trepte asamblandu-se
+deasupra ei, din spate in fata, si un pachet rosu coborand pe ax, exact bara pe care o foloseste
+orice flux din ilustratii. Fara text (deci fara cheie de catalog si fara dependenta de font), fara
+nimic rotund, nimic focusabil, `aria-hidden` peste o cutie deja `aria-hidden`.
+
+**Noua elemente si un `<svg>`, doar transform si opacity.** E deliberat CSS si nu inca o panza:
+trebuie sa picteze exact cand chunk-ul scenei si shaderele se bat pe firul principal, care e
+momentul cel mai prost cu putinta pentru un al doilea context WebGL. Sub `prefers-reduced-motion`
+ramane poza compusa pe care se sprijina animatiile; sub `forced-colors` dispare.
+
+**Vizibil doar cat timp stadiul nu s-a hotarat** (`[data-renderer="pending"]`, care e si valoarea
+serverului, deci caseta nu e goala nici la primul paint). La `webgl` se stinge in 0,35 s sub model;
+la `fallback`/`off` se stinge si ilustratia ii ia locul. **Si fara JavaScript nu ramane o minciuna:**
+acolo stadiul nu se hotaraste niciodata, deci regula `<noscript>` din `app/(site)/layout.tsx` — cea
+adaugata pentru ilustratii — il ascunde si le arata pe ele.
+
+Montat in amandoua gazdele care poarta `data-scene-anchor="services"`: coloana din dreapta a
+eroului pe o pagina de serviciu (`DirectionPage.tsx`) si ecranul de directii de pe prima pagina
+(`Directions.tsx`).
+
+**Verificat prin CDP** pe build-ul care ruleaza, decupat pe caseta gazdei: la 700 ms si la 2,5 s →
+`renderer="pending"`, loader `1`, ilustratie `0`; la 9 s → `renderer="webgl"`, loader `0`, model
+desenat. Plus suita completa, **1599 de teste in 74 de fisiere**, `eslint .` si `tsc --noEmit`
+curate.
+
+**O afirmatie a fost ingustata, nu stearsa:** `directions-selector.test.tsx` cerea ca gazda sa n-aiba
+NICIUN copil pe o randare fara slot. Gazda nu mai e niciodata goala, asa ca acum cere ce voia sa
+ceara — zero ILUSTRATII (`[data-shape-art]`) — si pinuieste separat ca loader-ul e acolo.
+
+Fisiere: `components/scene/art/ModelLoader.tsx` · `ModelLoader.module.css` ·
+`components/sections/DirectionPage.tsx` · `Directions.tsx` · `app/(site)/layout.tsx` ·
+`components/__tests__/directions-selector.test.tsx`.
+
+---
+
+## 2026-09-23 — Changed: desenul static nu mai precede modelul 3D, iar modelul se formeaza
+
+*„Corecteaza ca deodata sa apara formarea graficului 3d animat si sa nu mai apara desenele
+statice."*
+
+Pana acum ilustratia statica era pictata la **fiecare** incarcare si stearsa in fade cand sosea
+modelul live. Vizitatorul vedea intai o imagine fixa si apoi un ALT obiect luandu-i locul — fiindca
+desenele infatiseaza generatia anterioara de modele, deci schimbul nu era o taietura pe aceeasi
+silueta, ci un obiect devenind altul.
+
+**Regula s-a inversat.** `.art` e `opacity: 0` implicit; doar `[data-renderer="fallback"]` si
+`[data-renderer="off"]` il aduc inapoi:
+
+| stadiu | ce umple coloana din dreapta a eroului |
+|---|---|
+| `pending` (si valoarea de pe server) | nimic — caseta e goala cat se ia decizia |
+| `webgl` | modelul live, **jucandu-si intrarea** |
+| `fallback` · `off` | desenul |
+
+**Doua cai ar fi ramas altfel cu o caseta goala pentru totdeauna, si amandoua sunt acoperite.** Un
+vizitator fara JavaScript nu ajunge niciodata la o decizie — `data-renderer` ramane la `pending`-ul
+serverului — deci o regula `<noscript><style>` in `app/(site)/layout.tsx` ii arata desenele
+neconditionat, exact tiparul folosit alaturi de suprapunerea intro-ului. Un vizitator al carui GPU
+e refuzat ajunge la `fallback` sau `off` si primeste desenul din tabelul de mai sus.
+
+**Si modelul se FORMEAZA acum, nu mai apare.** `stepSceneFx` fixa poarta de intrare pe primul cadru
+ca un deep link sa nu animeze niciodata. Pe o pagina de serviciu asta insemna ca modelul aparea pur
+si simplu, gata construit, in clipa in care WebGL era pregatit — iar fara desenul de dedesubt
+caseta trecea din gol direct in gata. Conditia e acum `first && heroExit > 0`: peste 0 doar dupa ce
+pagina a inceput sa paraseasca eroul, adica exact cazul deep-link pentru care a fost scrisa. La
+erou poarta isi ruleaza forma de 1,1 s si intrarea e spectacolul.
+
+**Inainte de asta, si pastrat:** ilustratia pentru `produs-digital` a fost redesenata din numerele
+modelului care chiar se randeaza (`models/productStack.ts`) — sase ecrane distantate pe axa stivei
+peste o banca, prabusindu-se in placa dispozitivului din fata. Era o stiva de cuburi 3×3×3, adica
+generatia dinaintea celor cinci modele comise in `1efe5ff`. Conteaza in continuare: pe un
+dispozitiv fara WebGL desenul e tot ce se vede vreodata, deci un desen gresit acolo e continut
+gresit. **Trei raman de refacut** (`e-commerce`, `automatizare-api`, `brand-ui`; `asistenti-ia` se
+potriveste deja, fiindca `models/assistantLoop.ts` imparte silueta lui `buildNeuralGraph`).
+
+**Verificat prin CDP** pe build-ul care ruleaza, la 1600×1000, decupat pe caseta eroului:
+incarcare normala → `renderer="webgl"`, `artOpacity="0"`, `entry="formed"` (desenul nu apare deloc);
+scena oprita → `renderer="off"`, `art="1"` (fallback-ul intact). Plus suita completa, **1599 de
+teste in 74 de fisiere**, `eslint .` si `tsc --noEmit` curate.
+
+**Doua teste apărau comportamentul vechi** si au fost repointate, nu sterse: `service-art.test.tsx`
+cerea regula `[data-renderer="webgl"] .art { opacity: 0 }` — acum cere inversul, plus ca nimic nu
+readuce desenul cat timp randorul e `webgl`; iar `scene-choreography.test.ts` cerea ca o ancora deja
+trecuta, in capul paginii, sa **sara** la format — acum cere sa se armeze si sa se formeze in timp,
+si pinuieste separat ca deep-link-ul (`heroExit > 0`) ramane instant.
+
+Fisiere: `components/scene/art/ServiceArt.module.css` · `art/ServiceArt.tsx` ·
+`art/serviceArtPaths.ts` · `components/scene/fx.ts` · `app/(site)/layout.tsx` ·
+`components/__tests__/service-art.test.tsx` · `scene-choreography.test.ts`.
+Documentatie: [`docs/03`](./docs/03-architecture.md).
+
+---
+
+## 2026-09-23 — Fixed: modelul 3D al serviciului pleca din erou pe un ecran inalt
+
+*„Captura ii prea lunga si animatia sta jos si nu se suie sus."* Raportul era exact, inclusiv
+partea cu inaltimea. Erau **doua** defecte, si amandoua se vedeau doar pe o fereastra inalta.
+
+### Cauza: modelul pleca in coltul sectiunii „Cum lucram" inainte sa fie parasit eroul
+
+Pe o pagina de serviciu modelul are o a doua casa. `world.ts` il muta langa „Cum lucram" cat timp
+sectiunea e citita si il aduce acasa cand e parasita — corect ca intentie, dar poarta punea
+intrebarea gresita:
+
+```ts
+const share = stepsPlace ? stepsShare(probe, scrollY, h) : 0;
+cornerArmed = stepsPlace !== null && (cornerArmed ? share > STEPS_GATE.off : share > STEPS_GATE.on);
+if (!cornerPrimed) { cornerPrimed = true; corner = cornerArmed ? 1 : 0; }  // fara calatorie
+```
+
+`stepsShare` masoara cat din gazda sectiunii e **in panza** — iar panza are inaltimea unei
+ferestre. Pe un ecran inalt, o gazda aflata la ~1000px in document e deja peste pragul de 0,5 **la
+derulare 0**, iar amorsarea din primul cadru teleporta modelul in colt. Rezultatul: erou gol, model
+parcat jos — si fiindca desenul static e la `opacity: 0` sub `data-renderer="webgl"`, in erou nu
+ramanea absolut nimic.
+
+**De ce numai e-commerce.** E singura directie fara sectiune de proiecte (`lib/solutions.ts`,
+`"e-commerce": []`), ceea ce ii urca gazda „Cum lucram" cu vreo 600px fata de orice alta pagina de
+serviciu. Pragul se atingea pe la ~1145px inaltime de fereastra pe e-commerce si pe la ~1800px pe
+produs-digital. Fereastra din raport avea 1300px: exact intre ele.
+
+**Reparatia:** poarta pune acum si a doua intrebare — *si-a parasit modelul casa?* Noul
+`servicesShare` (`choreography.ts`) da cat din gazda proprie e in panza, iar coltul se poate arma
+doar sub `STEPS_GATE.home` (0,15). La derulare 0 eroul e vizibil, deci modelul ramane acasa; dupa
+ce eroul e derulat afara, comportamentul vechi e neatins, inclusiv amorsarea instantanee pentru un
+deep link direct in sectiune.
+
+**Reprodus si verificat prin CDP** pe build-ul care ruleaza, la 1720×1300, cu capturi inainte si
+dupa: inainte — `renderer="webgl"`, `artOpacity="0"`, gazda `{x:946, y:239, w:554, h:320}` goala si
+modelul jos; dupa — tejgheaua desenata in coloana din dreapta a eroului. `produs-digital` verificat
+la fel, fara regresie.
+
+### Al doilea defect, gasit pe drum: punctul de repaus al paralaxei
+
+`placeServices` (`components/scene/choreography.ts`) aseaza modelul pe ancora
+`[data-scene-anchor="services"]`, dar ce decide daca ajunge PE gazda e **punctul de repaus al
+paralaxei** — pozitia spre care `parallax(domY, restY, f)` trage modelul cu `1 − f` din drum. Era
+`h / 2`, mijlocul panzei, si asta e corect pentru exact una dintre cele doua pagini care folosesc
+functia:
+
+- **Pagina principala.** Ancora serviciilor e jos in document si vizitatorul deruleaza pana la ea,
+  deci chiar ajunge centrata in fereastra. `h / 2` e locul unde se afla cand te uiti la ea.
+- **O pagina de serviciu.** Gazda e coloana din dreapta a eroului. Pagina **nu poate** s-o duca in
+  mijloc — la derulare 0 e deja cat de sus va fi vreodata — deci `h / 2` e o pozitie pe care n-o
+  atinge niciodata, iar paralaxa cheltuia `1 − f` din distanta aia inexistenta impingand modelul
+  **in jos**. Panza are inaltimea unei ferestre, deci eroarea crestea cu fereastra.
+
+Masurat prin CDP pe build-ul care ruleaza, pe gazda reala de la `/servicii/e-commerce`, derulat sus:
+**−42px la o fereastra de 700px, −8px la 900, +26px la 1100, +60px la 1300, +111px la 1600.** Se
+citea ca un desen care refuza sa urce in erou pe un ecran inalt. Era corect doar pe la ~950px, unde
+cele doua puncte de repaus se nimeresc sa coincida — de-aia o suita a carei sonda e 1280×800 nu l-a
+vazut niciodata.
+
+**Punctul de repaus e acum `h / 2` prins in intervalul pe care gazda chiar il poate atinge.**
+`canvasDocTop` limiteaza panza intre `stage.top` si `stage.bottom − h`, deci `y`-ul gazdei pe panza
+e marginit de capetele alea; prinzandu-l acolo, pagina principala ramane pe `h / 2` neschimbata, iar
+o gazda din erou capata propria pozitie de sus — exact conventia pe care `placeCore` o foloseste
+deja, o functie mai sus. Paralaxa e zero la repaus pe amandoua si intarzie in continuare cu `1 − f`
+din cat muta derularea.
+
+**Ce NU era de vina**, eliminat cu masuratori inainte de a ajunge aici: desenul SVG static e prezent
+si sanatos pe toate cele cinci pagini (contur real calculat parcurgand traseele); cutia-gazda e
+identica structural si are `min-height: clamp(240px, 26vw, 320px)`; toate cele cinci modele WebGL se
+construiesc si se actualizeaza corect (cel de e-commerce: 4 obiecte, 3748 varfuri, 3,77 × 2,32 ×
+2,00, centrat in origine); si nimic nu fusese sters — `git status` pe `components/scene` era gol.
+Conturul urias al lui `brandBoard` (13106 unitati) e intentionat: `HIDDEN = 1e4`, „parcheaza dincolo
+de planul far ca sa-l taie GPU-ul".
+
+**Un test vechi apara chiar conventia gresita.** „a services host centred in the canvas lands at
+y = 0" muta derularea pana cand gazda era in centrul panzei si cerea ca modelul sa fie tot acolo —
+adica paralaxa zero **mereu**, ceea ce e incompatibil cu a avea paralaxa. E pastrat ca fiind cazul
+paginii principale, si i s-au adaugat celelalte doua jumatati ale contractului: un model de pagina
+de serviciu e in cutia gazdei la derulare 0 la zece inaltimi de fereastra intre 640 si 1800 — si fix
+pe ea oriunde fereastra e prea inalta ca gazda sa ajunga in mijloc — iar o derulare de 200px il muta
+cu `200 × parallax`, la fel ca fratele lui pentru chip.
+
+**Verificat:** suita completa, **1599 de teste in 74 de fisiere**, plus `eslint .` si `tsc --noEmit`
+curate. Paralaxa a fost masurata separat la unsprezece inaltimi de fereastra intre 640 si 1800:
+deplasare **0,00px** peste tot unde gazda nu poate atinge mijlocul. Coltul e pinuit la cinci
+inaltimi intre 900 si 1800, plus contractul lui `servicesShare`.
+
+Fisiere: `components/scene/choreography.ts` · `components/scene/three/world.ts` ·
+`components/__tests__/scene-choreography.test.ts`.
+Documentatie: [`docs/03`](./docs/03-architecture.md).
+
+---
+
+## 2026-09-23 — Changed & Fixed: intro-ul iese prin tastatură, curge fără opriri, și încape pe telefon
+
+Trei cereri, în ordinea în care au venit: *„fă să fie mai lin, nu așa de brusc"*, *„să iasă din
+tastatură unde e poziționat CPU"*, *„optimizează ca să meargă și pe telefon"*. Toate trei au scos
+la iveală defecte pe care nu le avea nimeni pe listă.
+
+### Camera se oprea complet la fiecare cadru
+
+`smooth(t) = t²(3 − 2t)` are derivata `6t(1 − t)`, **zero la ambele capete**. Comentariul vechi
+spunea „no key is a corner" — adevărat, și pe lângă subiect: continuitatea era zero-la-zero, deci
+camera decelera până la oprire la fiecare cheie și accelera din nou. Asta era „brusc": nu un colț,
+ci stop-pornire, de șase ori.
+
+`cameraAt` rulează acum un **cubic monoton** (Hermite cu tangente Fritsch–Carlson) prin aceleași
+chei. Trece prin fiecare la fel de exact, dar își duce inerția prin ele. Monoton, nu Catmull-Rom:
+fiecare marjă de siguranță a zborului e formulată ca *camera nu e niciodată în interiorul lui X*, și
+o splină care depășește cu o sutime la ieșirea prin tastatură bagă lentila în puntea, fără ca lista
+de cadre s-o spună. Capetele păstrează tangenta zero intenționat — K0 e un cadru ținut, K7 e
+aterizarea pe care burst-ul o ține nemișcată pe tot fade-ul de 0,55 s.
+
+**`flightFromProgress` era liniar pe bucăți.** Pantele urcă prin tabel intenționat (0,75 → 0,61 →
+0,72 → 1,29), dar liniile drepte transformau fiecare schimbare într-un **colț**: +19%, +18% și
+**+79%**, instantaneu. Ultimul aterizează la `u` 0,66, o sutime după ce camera a țâșnit afară și în
+timp ce se roteste în jurul mașinii — cele două accelerări se compuneau în cel mai prost moment din
+tot intro-ul. Aceleași rânduri, aceleași limite, cubic monoton între ele.
+
+**Și cadrul de deschidere privea în altă parte.** Ținta lui K0 stătea la 0,17 în fața unei camere
+decalate cu 0,08 de ea, deci componenta x a vectorului înainte era 0,46: lentila era întoarsă **27°
+de-a curmezișul cavității**, nu în lungul ei. Măsurat prin proiecție, asta punea peretele stâng al
+pachetului procesorului la ndc.x −1,44 — în afara cadrului — deci cadrul pe care tabelul îl numește
+*canionul dintre două dintre ele* arăta exact un perete. Ținta e acum la 0,41 în lungul cavității,
+întoarcerea e 11°, și se văd ambii pereți.
+
+### Douăsprezece piese puse pentru lentilă, nu pentru cadru
+
+Piesele din interior fuseseră plasate după **distanța față de planul near**, fiindcă aia verifică
+testele. Proiectând toate cele opt colțuri ale fiecăreia de-a lungul zborului a ieșit la iveală că
+ventilatorul (x −0,66), ambele condensatoare (în spatele punctului de start) și peretele stâng
+**nu erau pe ecran înainte de u 0,61** — vizibile doar din afara mașinii, după ce camera ieșise deja.
+Douăsprezece piese pe care nu le vede nimeni în beat-ul pentru care există e același eșec ca zero
+piese. Băncile s-au mutat cât de aproape de zbor permite planul near, nu cât de departe permite
+cavitatea. **Toate 12 sunt acum în cadru de la primul frame**, cea mai puțin văzută (bordura
+socketului) 35% din zbor.
+
+### Ieșirea prin tastatură — și de ce capacul trebuie să fie deschis înainte
+
+Camera iese acum **în sus, prin tastatură**, fiindcă acolo stă procesorul. `HATCH` (0,34 × 0,09 la
+x −0,17, z −0,44) nu e o gaură tăiată pentru scop: rândurile de taste stau la z −0,11, −0,33 și
+−0,55 și fiecare tastă e adâncă de 0,11, deci suprafața de sus a punții e deja liberă între z −0,495
+și −0,385. Apertura e dimensionată de raza de ieșire, niciodată invers.
+
+**Și aici am lovit fizica.** Un capac închis stă întins la y 0,10–0,15 peste toată puntea, la două
+sutimi deasupra suprafeței ei de sus, la 0,08. **Nu există gol prin care să urci: un laptop închis
+nu are ieșire prin partea de sus** — exact motivul pentru care prima versiune a zborului ieșea
+lateral, prin ventilația din peretele din spate. Deci `lidOpenAt` a trecut la **[0,40, 0,60]** și
+`screenFillAt` la **[0,46, 0,68]**, amândouă înaintea ieșirii în loc de după. Orice unghi sub 90°
+tot acoperă trapa la *o* înălțime, deci fereastra trebuie să se *închidă* înainte de 0,602, nu doar
+să înceapă înainte.
+
+Rezultatul e un beat mai bun decât cel pierdut: camera iese din tastatură **în ecranul deja aprins**,
+la două treimi din ștergerea lui de pornire, în loc să aștepte un capac care se dă la o parte.
+
+### Telefonul: trei lucruri greșite, niciunul vizibil pe desktop
+
+**Ecranul nu încăpea.** Proiectând cele patru colțuri ale lui: pe un ecran portret 0,46 doar **două**
+erau în cadru la cheia de după ieșire, cel mai rău la 6,1 lățimi de ecran în afară — o lespede de
+lumină, nu un laptop. Reparat cu mecanismul care exista deja pentru asta, `widen`, ridicat de la 1 la
+**1,4** pe ultimele două cadre din exterior. Înmulțește doar decalajul *orizontal*, deci pe orice
+raport ≥ 1:1 termenul e 1 și **încadrarea pe desktop nu se mișcă deloc**. Toate patru colțurile sunt
+acum în cadru la 0,46.
+
+**Raza de ieșire și widen-ul se băteau pe aceeași cheie.** O cheie lărgită trage punctul în care
+camera traversează suprafața punții: la `MAX_WIDEN` ajungea la x −0,44, o zecime în afara unei
+aperturi care ar fi trebuit atunci să fie jumătate de tastatură. Lista de cadre a primit **al optulea
+cadru** — K4, chiar deasupra punții, încă privind în sus. K3→K4 e acum toată raza de ieșire și
+amândouă au `widen` 0, deci traversarea e identică la orice raport; cheia de *după* e cea care se dă
+înapoi, și e liberă s-o facă.
+
+**Tier-ul low arunca exact tastatura prin care iese camera.** `LAPTOP_SLOT_LITE` era indexul `keys`,
+care ceda toate cele douăsprezece — corect cât timp ieșirea era prin ventilație, greșit din clipa în
+care a devenit trapa dintre două rânduri. Ordinea de cedare avea deja rândurile din spate în față,
+deci tăietura s-a mutat pe rândul din față: low păstrează 36 din 41 de piese.
+
+### Desenul plat: costul la primul paint, 97 → 39
+
+Desenul SVG e ce vede **fiecare** vizitator la deschidere, și pe multe telefoane și în CI e tot
+intro-ul. Trecerea anterioară îl repozase pe procesor, dar raportase costul greșit: „58 de elemente
+față de 69" numără copiii din `<defs>`, care nu se așază și nu se desenează niciodată, și **nu**
+numără instanțierea `<use>`, care se face. Pe metrica reală — elemente care generează o cutie, plus
+subarborele pe care fiecare `<use>` îl materializează — era **54 → 97, adică +80%**, pe stratul
+negated care se pictează înaintea `<h1>`-ului de dedesubt.
+
+Acum e **39**: cu 28% sub cele 54 de dinaintea întregii munci, și include o podea pe care stratul
+vechi n-o avea. Câștigul vine din două locuri: cele douăsprezece blocuri desenate ca 12 `<use>` ale
+unui `<symbol>` cu 3 noduri (48 de obiecte) au devenit un singur dreptunghi umplut cu `<pattern>`
+(1), iar cavitatea a trecut de la 16 obiecte la 6, unind hairline-urile care împart un contur în
+`<path>`-uri cu mai multe subtrasee. Plăcuța e exactă, nu aproximativă: pasul era deja 31,5 × 39 pe
+un bloc de 27,5 × 34, deci se repetă 4 × 3 fără ca vreo dală să fie tăiată printr-un bloc.
+
+S-a reparat și o regresie a aceleiași treceri: `.fbHatch` împărțea la scala stratului părinte dar nu
+și la **translația** lui, deci trapa cobora 180 de unități cât se mărea — centrul cadrului era în
+interiorul ei doar cât `--rz < 0,118`, iar în restul ieșirii camera era îndreptată spre puntea
+plină. Anularea costă `−T / --bs` în spațiul propriu al copilului.
+
+### Ce e verificat și ce nu
+
+**Verificat:** suita unitară completă, **1595 de teste în 74 de fișiere**, plus `eslint .` și
+`tsc --noEmit` curate, rulate într-un container `node:22-alpine` (`node_modules` local e gol,
+conform AGENTS.md). Invariantele geometrice au fost măsurate separat, citind tabelele din sursă:
+o singură traversare a suprafeței punții per raport de aspect, în interiorul aperturii; camera în
+cavitate până la trapă; spațiu peste planul near față de toate cele 41 de piese la 401 eșantioane ×
+7 rapoarte, cu capacul la unghiul lui real; și viteza la chei, 0 · 0,55 · 1,11 · 1,34 · 9,83 · 9,70
+· 1,15 · 0 la 16:10, cu vârf 21,3 (era 30,5 înainte de splină).
+
+**Neverificat, și merită ochi:** dacă desenul plat chiar *citește* ca „ești în laptop". Nu am putut
+randa nimic în sesiunea asta, deci verific formule, nu imagini. Un verificator independent spune că
+încă nu citește, și că între `--fb-p` 0,46 și 0,60 incinta iese din cadru. Legat de asta, o
+descoperire structurală: **`overflow: visible` pe toate straturile înseamnă că viewBox-ul nu e o
+ramă** — toată cronometrarea pieselor e derivată din „când încape în viewBox", dar rama reală e mai
+mare și depinde de raportul ecranului (pe 1440×900 e ±375 × −211..258, nu ±240 × ±150).
+
+**Un defect găsit și încă nereparat, ca să nu se piardă:** cele cinci ilustrații statice de servicii
+(`components/scene/art/serviceArtPaths.ts`) desenează **generația anterioară de modele**. Se
+construiesc din `CUBE_LAYOUTS`, `COMMERCE_GATES`, `commerceTrackPoint`, `hubLayout` și
+`buildNeuralGraph` din `components/scene/shapes.ts`, dar niciunul dintre cele cinci modele redate
+acum (`productStack`, `shopFloor`, `pipelineBench`, `brandBoard`, `assistantLoop`, comis în
+`1efe5ff`) nu importă nimic din acel fișier. Patru din cinci desenează alt obiect decât modelul care
+le înlocuiește, iar pe un dispozitiv fără WebGL ilustrația greșită e tot ce se vede vreodată — deci e
+conținut greșit, nu o tranziție urâtă. Cele cinci fișiere înlocuite (`cubes.ts`, `commerceLoop.ts`,
+`integrationHub.ts`, `neural.ts`, `meshWave.ts`) sunt tot în arbore, importate doar de două teste.
+
+Fișiere: `components/intro/three/cameraPath.ts` · `three/laptop.ts` · `three/materials.ts` ·
+`three/rig.ts` · `flight.ts` · `tiers.ts` · `IntroDirector.tsx` · `IntroFallback.tsx` ·
+`IntroPreloader.module.css` · `components/__tests__/intro-camera-path.test.ts` ·
+`intro-laptop.test.ts` · `intro-scene-math.test.ts`.
+Documentație: [`docs/05`](./docs/05-page-sections.md#first-visit-intro-preloader) (tabelul
+beat-urilor, ieșirea prin tastatură, secțiunea despre telefon, de ce a încetat să fie brusc) ·
+[`docs/03`](./docs/03-architecture.md) · [`docs/14`](./docs/14-testing.md).
+
+---
+
+## 2026-09-22 — Fixed & Added: intro-ul începe în procesor, nu cu un laptop
+
+„Acolo începe cu laptopul, dar ar trebui să înceapă în interiorul laptopului, la procesor" — și
+avea dreptate. Lista de cadre 3D pornea deja de pe matriță (K0), dar **nimeni nu o vedea**. Două
+cauze, amândouă reparate.
+
+**Cadrul-poster al desenului SVG era laptopul întreg, compus și cu capacul deschis.** La `--fb-p`
+0 variabila `--rest` era 1, deci `.fbMachine` picta la 0.55 opacitate, iar `.fbDie` era
+`display: none` până la `[data-live]`. Predarea către procesor se făcea pe `--fb-p` 0.02 → 0.05 —
+3% din derulare, vreo 20–40 ms în spatele tween-ului de urmărire de 0.45 s al regizorului. Asta e
+o tăietură, nu un început. **`--rest` a dispărut.** Poarta s-a inversat: acum halo-ul, mașina și
+placa sunt ascunse până la `[data-live]`, iar matrița e singurul strat așezat la primul paint —
+**44 de elemente în loc de 69** (26 obiecte desenate, față de 40) și o animație în loc de patru.
+Cele două `feGaussianBlur` ale halo-ului, peste o regiune de 540 × 400 (~1,26 Mpx la 1920 × 1080),
+au ieșit de pe calea critică. În HTML pleacă aceleași 163 de noduri ca înainte — s-a mutat doar
+poarta de layout și paint — deci `<h1>`-ul de dedesubt rămâne elementul LCP.
+
+**Și camera 3D ieșea din carcasă la `u` ≈ 0.45.** Dizolvarea de pe desen nu poate ateriza mai
+devreme de `u` 0.40 (semnalul scenei valorează 0.40 din progres, deci bara nu trece de 0.60 fără
+el, iar `flightFromProgress(0.60)` e fix 0.40). Interiorul avea, prin construcție, o zecime de
+zbor — poate 150 ms — deci fusese construit pentru un cadru pe care nu-l privea nimeni, iar între
+matriță și peretele din spate nu exista **nicio piesă ridicată de pe podea**: doar fire plate.
+Vizitatorul citea intro-ul ca „un laptop", fiindcă laptopul era tot ce i se arăta.
+
+**Un al șaptelea cadru de cameră (K3, `u` 0.58)** mută ieșirea la `u` ≈ 0.60 — măsurat 0.5950 la
+plafonul de lărgire, 0.6058 la 16:10 — și dă coridorului o cincime din film. E singura porțiune
+**garantat 3D oriunde există 3D**. `FLIGHT_MAP` și cadrul K2 (unde aterizează dizolvarea) nu s-au
+atins, deci ceasul de perete al burst-ului e neschimbat.
+
+**Douăsprezece piese în cavitate**, toate derivate din coridorul pe care chiar zboară `cameraAt`
+(x −0.02 → −0.14 la |y| < 0.02), nu alese: rama pachetului procesorului (canionul în care stă
+beat-ul 1), bordura socketului peste care trece camera, două condensatoare, un heatpipe pe flancul
+`+x`, carcasa și butucul ventilatorului pe `−x`, două module de memorie, cardul de stocare și
+radiatorul lipit de peretele din spate. **Zero draw-call-uri în plus** — sunt cutii în singurul
+`InstancedMesh` al ramei. Piesa cea mai strânsă din tot zborul e bordura, la 0.024: două planuri
+near și jumătate.
+
+**Solidele dau silueta, firele duc unda.** Paletele ventilatorului (8) și dinții radiatorului (9)
+sunt linii în bufferul plăcii, deci călăresc `aU` și se aprind în ordinea lui *z* pe măsură ce
+camera ajunge la ele: matrița la `u` ≈ 0.22, ventilatorul la ≈ 0.25, radiatorul la ≈ 0.37, gaura
+ultima, la 0.39.
+
+**Trei numere din alte fișiere erau ieșirea, scrisă de mână.** Norul de particule
+(`smoothstep(0.42, 0.68, uFlight)`), halo-ul șasiului (`ramp(u, 0.45, 0.7)`) și legănarea din mână
+(`SWAY.in` la 0.35) înseamnă toate „camera e afară acum". Cu ieșirea mutată, se declanșau cu un
+sfert de zbor prea devreme — bule moi umplând canionul, un perete strălucind la un centimetru de
+lentilă și o panoramare într-un coridor ai cărui pereți **sunt** cadrul. Toate trei mutate pe 0.60.
+
+**Și o coliziune găsită la verificare, nu în picture.** `--hud-top` rezervă banda de sub
+`--intro-cy + --intro-w * 0.25`, buget măsurat din picioarele *mașinii*, care ajung la +94 din
+cele 480 de unități viewBox. Jumătate din carcasa procesorului are 98 de unități, deci la orice
+scală peste 0.957 trece de linia aceea — la 1.40 ajunge la 137.2, adică ~140 px de cip pictat în
+spatele plăcii `SYSTEM_SYNCHRONIZATION` și de-a curmezișul barei de progres de 2 px, care nu are
+fundal propriu. `.fbDie` se ridică acum exact cu propria depășire (`--over`, calculată din `--s`),
+care scade singură la zero la scala 0.957 — `--fb-p` 0.374, înainte ca matrița să termine de
+dizolvat în placă. **Derivat, nu ales**: schimbi scala, clearance-ul o urmează.
+
+**Cele două randări cad de acord asupra ieșirii.** `--form` se deschide la `--fb-p` 0.60, același
+moment în care camera 3D traversează peretele din spate. La 0.62 rămâneau două sutimi de derulare
+fără nimic în ele în afară de o derivă de 3% — o pauză exact pe cadrul în care camera trebuie să
+iasă din laptop.
+
+**Verificat:** suita unitară completă, **1595 de teste în 74 de fișiere, toate trec**, plus
+`eslint .` și `tsc --noEmit` curate (rulate într-un container `node:22-alpine`; `node_modules`
+local e gol, conform AGENTS.md). Invariantele geometrice ale zborului au fost verificate separat,
+citind tabelele direct din sursă: o singură traversare a planului ventilației per raport de aspect,
+cu x ținut între −0.2215 și −0.2207 și y între 0.0078 și 0.0144 — interiorul aperturii; camera în
+cavitate cât timp e în șasiu (|py| max 0.016 față de limita 0.056); spațiu față de toate piesele
+peste planul near la 401 eșantioane × 9 rapoarte; pasul maxim 0.86 din 1.4 permis; capacul și
+puntea evitate; și K2 încadrând în continuare ventilația la ndc.x −0.395.
+
+**Nevăzut încă pe ecran.** Nu am putut randa nimic în sesiunea asta, deci încadrarea noului cadru
+de deschidere — cât de mare e cipul, cât iese în sus din cadru la scala 1.40 — e derivată din
+viewBox, nu observată. Merită o privire înainte de release.
+
+Fișiere: `components/intro/three/cameraPath.ts` · `three/laptop.ts` · `three/materials.ts` ·
+`three/rig.ts` · `IntroDirector.tsx` · `IntroFallback.tsx` · `IntroPreloader.module.css` ·
+`tiers.ts` · `components/__tests__/intro-camera-path.test.ts` · `intro-laptop.test.ts` ·
+`intro-scene-math.test.ts`.
+Documentație: [`docs/05`](./docs/05-page-sections.md#first-visit-intro-preloader) (tabelul
+beat-urilor, coridorul, desenul static) · [`docs/03`](./docs/03-architecture.md) ·
+[`docs/14`](./docs/14-testing.md).
+
+---
+
+## 2026-09-20 — Fixed: suita e2e, rulată prima oară după rescrieri, afirma lucruri care nu mai sunt adevărate
+
+Prima rulare completă a celor 252 de teste de browser după rescrierea intro-ului. **248 au trecut,
+4 au căzut** — și niciuna nu a arătat un defect al aplicației. Trei descriau comportament schimbat
+intenționat, una era o greșeală a testului nou.
+
+**Trei teste cereau ca paginile de servicii să n-aibă scenă 3D.** Au avut dreptate până în ziua în
+care am adăugat cele cinci modele de servicii, câte unul pe pagină. `HI7` și `W4` afirmau
+`canvas → 0` și `[data-testid^="scene-"] → 0` pe `/servicii/<slug>`, iar testul de intro afirma
+`[data-scene-stage] → 0`. **Invariantul care contează a fost păstrat**, nu șters odată cu
+afirmația veche: `W4` și `HI7` verifică în continuare că nu există niciodată **mai mult de un
+context WebGL viu** — doar că acum contextul de pe pagina de serviciu e cel legitim, iar ce nu are
+voie să se întâmple e ca stadiul paginii principale să supraviețuiască navigării. Pin-ul paginii
+principale rămâne verificat că dispare: el nu urmează vizitatorul.
+
+**A patra era a mea.** Testul nou „o reîncărcare joacă intro-ul din nou" afirma valorile
+contorului fără să instaleze înregistratorul, deci citea `undefined`. Comportamentul cerut trecea
+deja — suprapunerea chiar e înapoi în HTML după reîncărcare; doar afirmația era scrisă greșit.
+`recordIntroProgress` e un script de inițializare, deci se rearmează singur la reîncărcare și
+înregistrează a doua rulare.
+
+**Verificat:** cele trei specuri atinse re-rulate integral — **66/66**.
+
+Fișiere: `e2e/preloader.spec.ts`, `e2e/hud-integration.spec.ts`, `e2e/interior-webgl.spec.ts`.
+
+---
+
 ## 2026-09-20 — Fixed & Changed: mașina intro-ului citește ca un obiect, nu ca o carte de neon
 
 Lotul de reglaj vizual (α5) al rescrierii intro-ului. Codul a aterizat; asta e înregistrarea lui.

@@ -254,7 +254,7 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     });
   });
 
-  test("W4 leaving and coming back three times: no stage away from home, the context released, one live context at most", async ({
+  test("W4 leaving and coming back three times: the home stage is handed over, one live context at most", async ({
     page,
   }) => {
     await trackWebGLContexts(page);
@@ -266,13 +266,18 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       await pill.scrollIntoViewIfNeeded();
       await pill.click();
       await page.waitForURL(`**/servicii/${SCENE_SHAPES[0]}`);
-      await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(0);
-      await expect(page.locator("canvas")).toHaveCount(0);
+      /* The service page has a stage of its own (its service model), so the count is 1, not 0.
+         What must never happen is the home stage's context surviving alongside it — hence the
+         poll below. The home stage's pin is still gone: it does not follow the visitor. */
+      await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(1);
       await expect(page.locator(".pin-spacer")).toHaveCount(0);
       await expectRootUntouched(page, `round ${round}: on the service page`);
       await expect
-        .poll(() => liveWebGLContexts(page), { message: `round ${round}: context released`, timeout: 2_500 })
-        .toBe(0);
+        .poll(() => liveWebGLContexts(page), {
+          message: `round ${round}: the home context did not survive the navigation`,
+          timeout: 2_500,
+        })
+        .toBeLessThanOrEqual(1);
 
       await page.goBack();
       await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl", WEBGL);

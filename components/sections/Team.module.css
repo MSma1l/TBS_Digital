@@ -82,19 +82,188 @@
   margin-bottom: auto;
 }
 
-.photo {
-  width: 132px;
-  height: 132px;
-  object-fit: cover;
-  object-position: center;
-  border-radius: 18px;
+/* ================================================================================================
+ * THE HOLOGRAPHIC PORTRAIT
+ *
+ * The card's photograph, projected rather than printed. All of it is CSS and one SVG filter, and
+ * that is not a compromise — it is the only place it can live. The interior scene's canvas draws
+ * BEHIND the page and this card is `background: var(--panel)`, so a WebGL projection inside it
+ * would need a hole cut through an opaque panel: it would break on the card's own `:hover`
+ * transform, and below 861px, where the scene never starts, the hole would show the page instead
+ * of the card. Here it works on every width, with no canvas and no second GL context.
+ *
+ * Three things do the work:
+ *   · the SVG filter keys his ground away and paints what is left in the site's cyan;
+ *   · a scanline MASK — a mask multiplies alpha, so the lines land on HIM and never on the empty
+ *     space around him, which is the whole reason the stripes are a mask and not an overlay;
+ *   · two brief faults per cycle, a torn band and a coarse block-out, on step timings that share
+ *     no factor, so the loop never announces itself.
+ *
+ * What is deliberately NOT here: anything that rebuilds the picture from nothing. A projection
+ * that reassembles itself every few seconds reads as an image failing to load, which is the one
+ * thing this must never look like.
+ * ============================================================================================= */
+
+/* The filter's own <svg> is 0x0 and out of the flow; only its `url(#…)` is ever used. */
+.defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.holo {
+  position: relative;
   display: block;
-  box-shadow: var(--sh-md);
-  transition: transform 0.3s ease;
+  width: 156px;
+  height: 208px;
+  margin-bottom: var(--sp-4);
+  /* Its own stacking context, so the faults can never paint over the name or the role. */
+  isolation: isolate;
 }
-.person:hover .photo {
-  transform: scale(1.06) rotate(-2deg);
+
+/*
+ * HIM. `object-position: center top` because the crop is a bust: when the box is shorter than the
+ * picture it is the feet that may go, never the face.
+ */
+.shot,
+.tear {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  filter: url(#tbs-holo-key);
 }
+
+.shot {
+  /*
+   * The scanlines, as a MASK. A mask multiplies alpha, so the lines fall on him and the ground he
+   * was keyed out of stays empty — an overlay would have striped the card's panel around him.
+   * 3px pitch: at 208px tall that is about seventy lines down his height, fine enough to read as a
+   * raster and coarse enough to survive a phone.
+   */
+  -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgba(0, 0, 0, 0.8) 2px 3px);
+  mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgba(0, 0, 0, 0.8) 2px 3px);
+  animation: holoLive 4.3s steps(1, end) infinite;
+}
+
+/*
+ * THE TORN BAND. A second copy of him, clipped to one band and pushed sideways — the classic
+ * signal break. It is invisible for all but a fraction of its cycle: a fault you can set your
+ * watch by is not a fault, it is a metronome.
+ */
+.tear {
+  opacity: 0;
+  animation: holoTear 6.7s steps(1, end) infinite;
+}
+
+/*
+ * THE BEAM. One thin bright line travelling the whole box, including the empty space round him —
+ * that is on purpose: it is the projector's sweep passing through the volume he is standing in,
+ * and it is the only part of this that is allowed outside his silhouette.
+ */
+.beam {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  pointer-events: none;
+  /* A THIRD copy of him, lifted hard, showing only through a narrow travelling band. It is a copy
+     rather than an overlay for the same reason the scanlines are a mask: a gradient laid over the
+     box would sweep the empty space beside him and read as a grey slab crossing the card. */
+  filter: url(#tbs-holo-key) brightness(2.3) saturate(0.7);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 42%, #000 48%, #000 52%, transparent 58%);
+  mask-image: linear-gradient(to bottom, transparent 42%, #000 48%, #000 52%, transparent 58%);
+  -webkit-mask-size: 100% 300%;
+  mask-size: 100% 300%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  opacity: 0.85;
+  animation: holoBeam 5.9s linear infinite;
+}
+
+/* He is a bust, so the crop cuts him off at the waist. This fades that cut into the card instead
+   of leaving a straight edge, which is the one thing a projection never has. */
+.holo::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 26%;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--panel), transparent);
+}
+
+/* Live: a fine flicker, and twice a cycle a coarse block-out — the "pixels". The mask switches
+   discretely because `steps(1, end)` never interpolates, which is exactly how a raster drops. */
+@keyframes holoLive {
+  0%,
+  41%,
+  47%,
+  73%,
+  79%,
+  100% {
+    opacity: 1;
+    -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgba(0, 0, 0, 0.8) 2px 3px);
+    mask-image: repeating-linear-gradient(to bottom, #000 0 2px, rgba(0, 0, 0, 0.8) 2px 3px);
+  }
+  43% {
+    opacity: 0.82;
+    -webkit-mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0, 0, 0, 0.15) 0% 50%);
+    mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0, 0, 0, 0.15) 0% 50%);
+    -webkit-mask-size: 7px 7px;
+    mask-size: 7px 7px;
+  }
+  76% {
+    opacity: 0.9;
+    -webkit-mask-image: repeating-linear-gradient(to bottom, #000 0 1px, rgba(0, 0, 0, 0.34) 1px 4px);
+    mask-image: repeating-linear-gradient(to bottom, #000 0 1px, rgba(0, 0, 0, 0.34) 1px 4px);
+  }
+}
+
+@keyframes holoTear {
+  0%,
+  28%,
+  31%,
+  62%,
+  64%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+  29% {
+    opacity: 0.85;
+    transform: translate3d(7px, 0, 0);
+    clip-path: inset(34% 0 52% 0);
+  }
+  30% {
+    opacity: 0.6;
+    transform: translate3d(-5px, 0, 0);
+    clip-path: inset(58% 0 26% 0);
+  }
+  63% {
+    opacity: 0.8;
+    transform: translate3d(-9px, 0, 0);
+    clip-path: inset(12% 0 71% 0);
+  }
+}
+
+@keyframes holoBeam {
+  from {
+    -webkit-mask-position: 0 -100%;
+    mask-position: 0 -100%;
+  }
+  to {
+    -webkit-mask-position: 0 100%;
+    mask-position: 0 100%;
+  }
+}
+
 
 .avatar {
   width: 96px;
@@ -138,8 +307,32 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .person,
-  .photo {
+  .person {
     transition: none;
+  }
+  /* The projection holds a clean frame: keyed, tinted, scanlined, and perfectly still. Everything
+     it loses is a fault, and a fault nobody asked to see is the first thing to go. */
+  .shot,
+  .tear,
+  .beam {
+    animation: none;
+  }
+  .tear,
+  .beam {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  /* Forced colours flattens the filter's output to one fill, which would put a cyan slab where
+     his face is. The photograph is more use than that: the filter comes off and it shows plainly. */
+  .shot {
+    filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .tear,
+  .beam {
+    display: none;
   }
 }

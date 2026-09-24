@@ -167,7 +167,17 @@ export function stepSceneFx(
   }
 
   const y = Number.isFinite(scrollY) ? scrollY : 0;
-  stepGate(fx.entry, y, entry ?? NEVER, step, ENTRY_SECONDS, first);
+  /**
+    * The first frame snaps the entry gate — EXCEPT at the hero, where the entrance IS the show.
+    *
+    * The snap exists so a deep link never animates in: land on `/#servicii` and the model is
+    * already formed. But on a service page the model is the hero's own right column and the
+    * visitor always arrives at the top, so snapping meant the model simply appeared, fully
+    * built, the instant WebGL was ready. `heroExit > 0` is the difference — it is only above 0
+    * once the page has begun to leave the hero, i.e. exactly the deep-link case. At the hero the
+    * gate runs its 1.1s form and the visitor watches the model assemble.
+    */
+  stepGate(fx.entry, y, entry ?? NEVER, step, ENTRY_SECONDS, first && heroExit > 0);
   stepGate(fx.work, y, work ?? NEVER, step, WORK_SECONDS, first);
   if (fx.work.armed) fx.entry.value = fx.entry.armed ? 1 : 0;
   if (!fx.entry.armed && heroExit <= 0) fx.entry.value = 0;

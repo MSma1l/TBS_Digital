@@ -13,6 +13,7 @@ import {
   MORPH_SECONDS,
   SCENE_CAMERA,
   SCENE_LAYOUTS,
+  STEPS_GATE,
   canvasDocTop,
   composeScene,
   coreExitPose,
@@ -29,6 +30,7 @@ import {
   placeHelixAmbient,
   placeHelixSpiral,
   placeServices,
+  servicesShare,
   revealOf,
   smoothstep,
   stepMorph,
@@ -83,6 +85,25 @@ function desktopProbe(): ScrollProbe {
   probe.heroExit = { start: 71, end: 520 };
   // The services anchor "top 90%" → "top 75%" of the 800px viewport.
   probe.entry = { start: 406, end: 526 };
+  return probe;
+}
+
+/**
+ * A probe shaped like a SERVICE page: the model host is the hero's right column, near the top of
+ * the stage, and the page is long enough to scroll. Geometry measured over CDP on the running
+ * build at /servicii/e-commerce, 1603×900 — host `{ x: 887, y: 239, w: 554, h: 320 }` in viewport
+ * coordinates, i.e. y 310 in the document with a 71px header.
+ */
+function servicePageProbe(canvasH: number): ScrollProbe {
+  const probe = createScrollProbe();
+  probe.live = true;
+  probe.version = 1;
+  probe.headerH = 71;
+  probe.layerH = canvasH;
+  probe.stage = { top: 91, bottom: 91 + 4200 };
+  probe.services = { x: 887, y: 310, w: 554, h: 320 };
+  probe.heroExit = { start: 91, end: 540 };
+  probe.entry = { start: 0, end: 1 };
   return probe;
 }
 
@@ -253,14 +274,107 @@ describe("scene space — the sticky canvas and its hosts", () => {
   });
 
   it("a services host centred in the canvas lands at y = 0", () => {
+    // The HOME page's case: the host is far down the document and you scroll to it, so the
+    // position it rests at is the middle of the viewport. Unchanged behaviour, kept as the other
+    // half of the clamp below.
     const probe = desktopProbe();
     const services = probe.services!;
-    // canvas top (scroll + 71) such that the host's centre is at h / 2
     const scroll = services.y + services.h / 2 - h / 2 - 71;
     const place = placeServices(probe, scroll, 1280, h, SCENE_LAYOUTS.desktop)!;
     expect(place.y).toBeCloseTo(0, 9);
     expect(place.scale).toBeGreaterThan(0);
     expect(place.scale * MODEL_RADIUS).toBeLessThanOrEqual(0.45 * h * worldPerPx(h) + 1e-9);
+  });
+
+  it("puts a SERVICE page's model exactly on its hero host at rest, at every window height", () => {
+    // THE BUG THIS PINS. `placeServices` rested its parallax on `h / 2` — the middle of the
+    // canvas. On the home page that is right, because the host really does end up centred. On a
+    // service page the host is the hero's right column, which the page cannot scroll to the
+    // middle: it is already as high as it gets at scroll 0. So the parallax spent `1 - f` of an
+    // unreachable distance pushing the model DOWN, by more the taller the window was. Measured
+    // against the real e-commerce host over CDP: -42px at a 700px window, -8px at 900, +26px at
+    // 1100, +60px at 1300, +111px at 1600. It read as the model refusing to come up into the
+    // hero on a tall screen, and it was only ever right at ~950px, where the two rest points
+    // happen to coincide — which is why a suite that only ever used 800px missed it.
+    for (const windowH of [640, 700, 800, 900, 1000, 1100, 1300, 1440, 1600, 1800]) {
+      const canvasH = windowH - 71;
+      const probe = servicePageProbe(canvasH);
+      const host = probe.services!;
+      const place = placeServices(probe, 0, 1603, canvasH, SCENE_LAYOUTS.desktop)!;
+      const cy = canvasH / 2 - place.y / worldPerPx(canvasH);
+      const want = host.y + host.h / 2 - canvasDocTop(0, probe, canvasH);
+      // Always INSIDE the host's own box — that is the requirement: at the top of the page the
+      // drawing is in the hero, not somewhere below it.
+      expect(Math.abs(cy - want), `window ${windowH}`).toBeLessThan(host.h / 2);
+      // And dead on it once the window is tall enough that the host can never reach the middle
+      // of the canvas, which is where the old rest point sent it and where the error grew.
+      if (canvasH / 2 > host.y + host.h / 2 - probe.stage.top) {
+        expect(cy, `window ${windowH}`).toBeCloseTo(want, 9);
+      }
+      expect(place.scale).toBeGreaterThan(0);
+      expect(place.scale * MODEL_RADIUS).toBeLessThanOrEqual(
+        0.45 * canvasH * worldPerPx(canvasH) + 1e-9,
+      );
+    }
+  });
+
+  it("will not send the model to the steps corner while the hero is still on screen", () => {
+    // THE BUG THIS PINS. The steps gate asked only "is the steps host inside the canvas?" — and
+    // the canvas is ONE VIEWPORT tall. On a tall window a steps host a thousand pixels down the
+    // document is already past STEPS_GATE.on at SCROLL 0, and `world.ts` hard-primes `corner` on
+    // the first frame, so the model teleported into the bottom corner while the visitor was
+    // looking at the hero. The hero's box was then empty and the static drawing is at opacity 0
+    // under `data-renderer="webgl"`, so the page showed NOTHING where the model belongs.
+    //
+    // Reproduced over CDP against the running build at 1720×1300 on /servicii/e-commerce — the
+    // one direction with no projects section, which puts its steps host ~600px higher than any
+    // other service page's. `servicesShare` is the second question the gate now asks.
+    const steps = { x: 1240, y: 1000, w: 260, h: 260 };
+    for (const windowH of [900, 1100, 1300, 1600, 1800]) {
+      const canvasH = windowH - 71;
+      const probe = servicePageProbe(canvasH);
+      probe.steps = steps;
+      probe.stepsPin = { start: steps.y - canvasH, end: steps.y };
+
+      // At the top of the page the hero's host is fully in view, so the corner may not arm …
+      const home = servicesShare(probe, 0, canvasH);
+      expect(home, `window ${windowH} home share`).toBeGreaterThan(STEPS_GATE.home);
+
+      // … and once the hero has been scrolled away it may, which is the behaviour being kept.
+      const past = probe.services!.y + probe.services!.h + canvasH;
+      expect(servicesShare(probe, past, canvasH), `window ${windowH} scrolled past`).toBe(0);
+    }
+  });
+
+  it("servicesShare is the overlap of the model's own host with the canvas", () => {
+    const probe = servicePageProbe(h);
+    const host = probe.services!;
+    expect(servicesShare(probe, 0, h)).toBeCloseTo(1, 9); // fully in view at the top
+    // Scrolled so that exactly half of it is above the canvas's top edge. The canvas's document
+    // top is `scrollY + headerH` once the page has left the stage's own top, so the scroll that
+    // puts the host's mid-line on that edge is `host.y + host.h / 2 - headerH`.
+    const half = host.y + host.h / 2 - probe.headerH;
+    expect(canvasDocTop(half, probe, h)).toBe(host.y + host.h / 2);
+    expect(servicesShare(probe, half, h)).toBeCloseTo(0.5, 9);
+    // Far below it: gone.
+    expect(servicesShare(probe, host.y + host.h + h + 1000, h)).toBe(0);
+    // No host, no share — the home page's own sections and every non-service page.
+    const none = servicePageProbe(h);
+    none.services = null;
+    expect(servicesShare(none, 0, h)).toBe(0);
+  });
+
+  it("scrolling moves a services model up slower than the page (depth, not lag)", () => {
+    // The other half of the contract, and why the rest point may not simply be deleted: once the
+    // page moves, the model must LAG by exactly `1 - parallax` of the scroll. Same shape as the
+    // core's test above, which is the convention `placeServices` now shares.
+    const probe = desktopProbe();
+    const k = worldPerPx(h);
+    const rest = placeServices(probe, 0, 1280, h, SCENE_LAYOUTS.desktop)!;
+    const moved = placeServices(probe, 200, 1280, h, SCENE_LAYOUTS.desktop)!;
+    const pixels = (moved.y - rest.y) / k;
+    expect(pixels).toBeCloseTo(200 * SCENE_LAYOUTS.desktop.services.parallax, 6);
+    expect(moved.x).toBe(rest.x);
   });
 });
 
@@ -865,11 +979,22 @@ describe("fx — per-frame smoothing, the entry gate and the light wave", () => 
     stepSceneFx(fx, 1 / 20, input(), 0, 0, span);
     expect(fx.entry).toEqual({ value: 0, armed: false });
 
-    // A services anchor already past its span at the top of the page stays armed there.
+    // A services anchor already past its span at the top of the page arms there — and FORMS IN
+    // TIME rather than snapping, because at the hero the model's entrance is the show. That is a
+    // service page: the model is the hero's own right column and the visitor always arrives at
+    // the top, so a snap meant the model simply appeared, fully built, the instant WebGL was
+    // ready. The drawing is no longer painted underneath it either (ServiceArt.module.css), so
+    // this entrance is now the only thing that fills the box.
     const early = createSceneFx();
     stepSceneFx(early, 1 / 20, input(), 0, 0, { start: -300, end: -100 });
-    stepSceneFx(early, 1 / 20, input(), 0, 0, { start: -300, end: -100 });
-    expect(early.entry).toEqual({ value: 1, armed: true });
+    expect(early.entry.armed).toBe(true);
+    expect(early.entry.value).toBeCloseTo(1 / 20 / ENTRY_SECONDS.form, 12);
+
+    // …and the case the snap exists for is untouched: past the hero — a deep link — it is
+    // already formed on the first frame.
+    const deep = createSceneFx();
+    stepSceneFx(deep, 1 / 20, input(), 1, 0, { start: -300, end: -100 });
+    expect(deep.entry).toEqual({ value: 1, armed: true });
   });
 
   /* Work's band on the same page: the track's top "top 70%" → "top 55%" of the 800px viewport. */

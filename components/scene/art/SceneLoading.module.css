@@ -1,0 +1,28 @@
+/* WHEN the shared loading mark is shown on a scene host — the mark itself is
+   components/ui/Loading.tsx and knows nothing about the scene. */
+
+.host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s var(--motion-ease-out);
+}
+
+/* Only while the stage has not decided. `pending` is the server's value too, so a host is never
+   empty — and the <noscript> guard in app/(site)/layout.tsx takes the mark away where no decision
+   ever comes, because a loader that can never resolve is a lie. */
+:global([data-scene-stage][data-renderer="pending"]) .host {
+  opacity: 1;
+}
+
+/* Work's cards are the portfolio, not a fallback: the scene RE-PLACES them onto the spiral rather
+   than replacing them. But until the stage reports `webgl` they sit as a flat grid, and meeting
+   that grid and then watching it fold into a helix is the swap this hides. They stay in the DOM
+   and keep their box — nothing is taken from a crawler or a screen reader, and the track's height
+   never jumps — only their paint is held. Everything but the mark itself, so no class is needed
+   on the cards. */
+:global([data-scene-stage][data-renderer="pending"] [data-work-track] > *:not([data-loading])) {
+  opacity: 0;
+  transition: opacity 0.35s var(--motion-ease-out);
+}

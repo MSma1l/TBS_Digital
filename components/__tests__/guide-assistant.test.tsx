@@ -57,7 +57,7 @@ vi.mock("@/lib/api", () => ({
 
 import * as api from "@/lib/api";
 import { GuideAssistant, resetGuideMemoryForTests } from "@/components/hud/guide/GuideAssistant";
-import { GUIDE_COPY } from "@/components/hud/guide/copy";
+import { GUIDE_COPY, GUIDE_FAQ } from "@/components/hud/guide/copy";
 import { CONSENT_KEY, setConsent } from "@/lib/consent";
 import { resetHudBusyForTests, setHudBusy } from "@/lib/hud/busy";
 import { INTRO_OVERLAY_ID, markIntroGone, resetIntroForTests } from "@/lib/intro";
@@ -199,6 +199,18 @@ function renderGuide(options: PageOptions = {}) {
 const guideRoot = () => document.querySelector<HTMLElement>("[data-guide]");
 const avatar = () => screen.getByTestId("guide-avatar");
 const tip = () => screen.queryByTestId("guide-tip");
+const faqPanel = () => screen.queryByTestId("guide-faq");
+const sayBubble = () => screen.queryByTestId("guide-say");
+
+/**
+ * The request flow is TWO presses from the corner now, and that is the change these tests are
+ * here to pin. Pressing her opens her questions; "Deschide ghidul" inside them opens the guided
+ * request. The old one-press path is gone, and the avatar's accessible name says so.
+ */
+const openRequestFromGuide = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(avatar());
+  await user.click(within(faqPanel()!).getByRole("button", { name: ro(GUIDE_COPY.open) }));
+};
 
 const fakeTimers = () =>
   vi.useFakeTimers({
@@ -306,28 +318,96 @@ describe("when the guide renders", () => {
 describe("markup", () => {
   beforeEach(answerConsent);
 
-  it("is a real button that opens a dialog, named from its visible caption", () => {
+  it("is a real button that discloses her questions, named from its visible caption", () => {
     renderGuide();
     const button = screen.getByRole("button", { name: /^Ghid TBS/ });
 
     expect(button).toBe(avatar());
     expect(button.tagName).toBe("BUTTON");
     expect(button).toHaveAttribute("type", "button");
-    expect(button).toHaveAttribute("aria-haspopup", "dialog");
+    /* It is a DISCLOSURE now, not a dialog opener: pressing her expands her questions in place,
+       and the guided request is a second press from inside them. `aria-haspopup="dialog"` would
+       be a promise the control no longer keeps, and so would the old accessible name. */
+    expect(button).not.toHaveAttribute("aria-haspopup");
+    expect(button).toHaveAttribute("aria-expanded", "false");
     expect(button).toHaveAccessibleName(ro(GUIDE_COPY.aria));
-    expect(button).not.toHaveAttribute("aria-expanded");
+    expect(ro(GUIDE_COPY.aria)).toMatch(/întrebăril/i);
     expect(button).not.toHaveAttribute("aria-describedby");
   });
 
-  it("draws the droid as decoration: six faces, a visor bar, two orbits with packets, a signal", () => {
+  it("presses open into her questions, and every answer is one press from a question", async () => {
+    const user = userEvent.setup();
+    renderGuide();
+
+    expect(faqPanel()).toBeNull();
+    await user.click(avatar());
+    expect(faqPanel()).not.toBeNull();
+    expect(avatar()).toHaveAttribute("aria-expanded", "true");
+
+    /* Every scripted question is offered, each as its own control on its own line. */
+    const asked = within(faqPanel()!).getAllByRole("button");
+    for (const entry of GUIDE_FAQ) {
+      expect(within(faqPanel()!).getByRole("button", { name: ro(entry.q) })).toBeInTheDocument();
+    }
+    expect(asked.length).toBeGreaterThanOrEqual(GUIDE_FAQ.length);
+
+    /* Asking replaces the intro with that answer and takes the question off the list, so the
+       same one cannot be asked twice in a row. */
+    const first = GUIDE_FAQ[0];
+    await user.click(within(faqPanel()!).getByRole("button", { name: ro(first.q) }));
+    expect(faqPanel()).toHaveTextContent(ro(first.a));
+    expect(within(faqPanel()!).queryByRole("button", { name: ro(first.q) })).toBeNull();
+
+    /* Pressing her again puts them away. */
+    await user.click(avatar());
+    expect(faqPanel()).toBeNull();
+    expect(avatar()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("says one line after the greeting, and a topic tip outranks it", () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "performance", "Date", "requestAnimationFrame", "cancelAnimationFrame"],
+    });
+    renderGuide();
+    act(() => vi.advanceTimersByTime(34));
+    act(() => vi.advanceTimersByTime(3400));
+
+    /* She greets in her own bubble, and it is her talking: the root says so, which is what the
+       mouth animation keys off. */
+    expect(sayBubble()).not.toBeNull();
+    expect(sayBubble()).toHaveTextContent(ro(GUIDE_COPY.hello));
+    expect(document.querySelector("[data-guide]")).toHaveAttribute("data-say");
+
+    /* It goes away on its own: a line she says is ambient, not a panel. */
+    act(() => vi.advanceTimersByTime(7001));
+    expect(sayBubble()).toBeNull();
+    expect(document.querySelector("[data-guide]")).not.toHaveAttribute("data-say");
+  });
+
+  it("draws the assistant as decoration: a portrait, two eyelids, two orbits with packets, a signal", () => {
     renderGuide();
     const scene = avatar().querySelector('[aria-hidden="true"]')!;
     expect(scene).not.toBeNull();
-    expect(scene.querySelectorAll("[data-face]")).toHaveLength(6);
-    expect(
-      [...scene.querySelectorAll("[data-face]")].map((f) => f.getAttribute("data-face")).sort(),
-    ).toEqual(["back", "bottom", "front", "left", "right", "top"]);
-    expect(scene.querySelector('[data-face="front"]')!.children).toHaveLength(1);
+
+    // The portrait is the person, and it is DECORATION: the button's own label names the control.
+    const portrait = scene.querySelector("img")!;
+    expect(portrait).not.toBeNull();
+    expect(portrait).toHaveAttribute("alt", "");
+    expect(portrait.getAttribute("src")).toMatch(/^\/guide\/asistent-\d+\.webp$/);
+    // Intrinsic size on the tag, so nothing reflows when it decodes.
+    expect(portrait).toHaveAttribute("width");
+    expect(portrait).toHaveAttribute("height");
+    /* ONE ENCODING, and the test guards it. There was an AVIF <source> ahead of the WebP and it
+       had to go: every CSS window onto this portrait — the eyelids, the jaw, the rim's mask, the
+       scanline mask — loads the WebP by URL, and a patch that must colour-match the pixels under
+       it draws a hard edge wherever two lossy encodings of the same bitmap disagree. */
+    expect(scene.querySelector("picture")).toBeNull();
+    expect(portrait.getAttribute("srcset") ?? "").not.toMatch(/\.avif/);
+
+    // One eyelid per eye, each one placed by its own custom properties rather than by a rule.
+    const lids = [...scene.querySelectorAll("[data-eye]")];
+    expect(lids.map((l) => l.getAttribute("data-eye")).sort()).toEqual(["left", "right"]);
+
     expect(scene.querySelectorAll("[data-orbit]")).toHaveLength(2);
     for (const orbit of scene.querySelectorAll("[data-orbit]")) {
       expect(orbit.children).toHaveLength(1);
@@ -336,6 +416,38 @@ describe("markup", () => {
     const caption = [...avatar().children].find((el) => el !== scene)!;
     expect(caption).toHaveAttribute("aria-hidden", "true");
     expect(caption).toHaveTextContent(ro(GUIDE_COPY.label));
+  });
+
+  it("greets once, only after nothing is covering her, and never leaves a second copy behind", () => {
+    /* rAF has to be faked too: the greeting waits on a frame, not on a timer. */
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "performance", "Date", "requestAnimationFrame", "cancelAnimationFrame"],
+    });
+    const flushFrame = () => vi.advanceTimersByTime(34);
+    renderGuide();
+    const root = () => document.querySelector("[data-guide]")!;
+    const greeting = () => document.querySelector('[data-testid="guide-greeting"]');
+
+    // Nothing at first: the greeting waits for a frame on which she can actually be seen.
+    expect(greeting()).toBeNull();
+
+    act(() => {
+      flushFrame();
+    });
+    expect(greeting()).not.toBeNull();
+    // It is decoration and takes no pointer events, so it can never swallow a click meant for
+    // the button underneath it.
+    expect(greeting()).toHaveAttribute("aria-hidden", "true");
+    expect(root()).toHaveAttribute("data-greet");
+    // The same figure, so there is one behaviour and not two.
+    expect(greeting()!.querySelector("img")).not.toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(3400); // ENTER_MS: the projector, the slices, the lock and the settle
+    });
+    expect(greeting()).toBeNull();
+    expect(root()).not.toHaveAttribute("data-greet");
+    expect(root()).toHaveAttribute("data-state", "idle");
   });
 
   it("carries the HUD root attributes and no dialog, header, heading or live region", () => {
@@ -347,9 +459,12 @@ describe("markup", () => {
     expect(root).toHaveAttribute("data-state", "enter");
     expect(root).not.toHaveAttribute("data-away");
     expect(root).not.toHaveAttribute("data-yield");
-    advance(699);
+    /* The entrance now runs the greeting, and the greeting waits for a frame on which nothing is
+       covering her before its clock starts. Under these fake timers rAF never fires, so the
+       cap is what ends it — which is exactly the promise the cap exists to keep. */
+    advance(3399);
     expect(root).toHaveAttribute("data-state", "enter");
-    advance(1);
+    advance(11000 + 3400); // GREET_WAIT_MS, then the greeting itself
     expect(root).toHaveAttribute("data-state", "idle");
 
     lingerOnServicii();
@@ -698,7 +813,7 @@ describe("opening the request flow", () => {
     const user = userEvent.setup();
     renderGuide();
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("chat-panel");
     expect(within(dialog).getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
@@ -713,7 +828,7 @@ describe("opening the request flow", () => {
     renderGuide({ frontCard: 1 });
     centre("servicii");
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("request-flow");
     await sendFrom(user, dialog);
@@ -748,7 +863,7 @@ describe("opening the request flow", () => {
     renderGuide({ frontCard: 1 });
     centre("lucrari");
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("request-flow");
     await sendFrom(user, dialog);
@@ -764,7 +879,7 @@ describe("opening the request flow", () => {
     renderGuide({ frontCard: null });
     centre("lucrari");
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("request-flow");
     await sendFrom(user, dialog);
@@ -778,7 +893,7 @@ describe("opening the request flow", () => {
     renderGuide();
     report("centre", serviceTopic(), true);
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("request-flow");
     await sendFrom(user, dialog);
@@ -794,7 +909,7 @@ describe("opening the request flow", () => {
     const user = userEvent.setup();
     renderGuide();
 
-    await user.click(avatar());
+    await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
     await within(dialog).findByTestId("request-flow");
     await sendFrom(user, dialog);

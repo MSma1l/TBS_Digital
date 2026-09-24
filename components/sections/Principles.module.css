@@ -36,11 +36,97 @@
     transform 0.25s ease,
     box-shadow 0.25s ease,
     border-color 0.25s ease;
+
+  /* The mark hangs off this. `relative` and not a flex row, because the mark is taller than the
+     12px number it sits beside and would otherwise set that row's height. */
+  position: relative;
+
+  /* This card's place in the row, as a PLAIN NUMBER. The delay below multiplies it in one flat
+     calc(); `--step` must never hold a calc of its own — substituting one calc into another
+     inside an animation value made the whole declaration unparseable in DirectionPage.module.css
+     and every delay silently fell back to 0s, firing the entire row at once. */
+  --step: var(--card-index, 0);
 }
 .card:hover {
   transform: translateY(-5px);
   box-shadow: var(--sh-lg);
   border-color: var(--accent, var(--blue));
+}
+
+/* ================================================================================================
+ * THE CARD MARK
+ *
+ * One small drawing per card — the same size, in the same corner, on all three. The sameness is
+ * the design. The first attempt gave each card a different instrument (a CSS 3D model, a list of
+ * stages, a large bracketed frame) and the row came apart: three different visual weights, and
+ * the empty frame read as a panel that had failed to load rather than as a deliberate mark.
+ *
+ * Top RIGHT, opposite the number, which is the one place that is empty in both layouts: it
+ * balances the card's top line at three columns, and fills the space beside the text that opens
+ * up when the grid stacks and a card becomes 780px wide.
+ *
+ * NOTHING HERE MAY EVER SHOW A VALUE — no numeral, no percentage, no axis labels, no needle, no
+ * bar. Card 03's sentence is "Legăm fiecare livrare de un indicator real", and the only indicator
+ * a component could put in that mark is one it invented. The site has already paid for that once:
+ * the team card carried "50+ proiecte", "98% clienți mulțumiți" and "24/7" until the first was
+ * caught contradicting the hero's real portfolio count, and all three were deleted rather than
+ * re-guessed (the note above `initialsOf` in components/sections/Team.tsx). The mark is a sight,
+ * not a readout.
+ * ============================================================================================= */
+
+.mark {
+  position: absolute;
+  top: var(--sp-5);
+  right: var(--sp-5);
+  width: 38px;
+  height: 38px;
+  color: var(--accent, var(--blue));
+  /* 1.25 at a 24-unit viewBox is 2px of stroke at 38px, and `non-scaling-stroke` keeps it at 2px
+     however the box is scaled — without it the same drawing is a hairline on one card and a slab
+     on another the moment the sizes diverge. */
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  /* Square caps and joins, and no circle anywhere in the three drawings: the house rule for line
+     art in this repo (docs/07), and what keeps these in the same family as the HUD brackets and
+     the square nodes the interior already draws. */
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  pointer-events: none;
+  /* The finished pose IS the base declaration. globals.css ends with `animation: none !important`
+     on the universal selector, so anything that exists only inside a keyframe does not exist at
+     all for a reduced-motion visitor. Held a little back from full so the mark reads as a mark on
+     the card rather than as a second heading competing with the number. */
+  opacity: 0.85;
+  transform: none;
+}
+
+/* The one pass. `Reveal` adds the global `rv-in` class once and then unobserves, so this plays
+   once per session and nothing in this section moves again afterwards — no loop, because
+   `#despre` is a destination the header jumps to directly and something still animating when a
+   visitor arrives by anchor is something they cannot stop.
+   `:global(.rv-in)` as a standalone ancestor is the spelling every other module here uses; a
+   bare class name would be hashed and match nothing, silently, with no build error.
+   Longhands, never the `animation` shorthand — a shorthand carrying a var() easing and a var()
+   delay is re-parsed at computed-value time and one bad token drops the lot.
+   `from`-only with `backwards`, never `both`: `both` would pin the element to its keyframe for
+   good and the base declaration above would never apply again. */
+@keyframes mark-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :global(.rv-in) .mark {
+    animation-name: mark-in;
+    animation-duration: 0.5s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: backwards;
+    /* 140ms apart — enough to read as a row arriving in order, short enough that the last mark
+       has landed well before a visitor has finished the first sentence. */
+    animation-delay: calc(var(--step) * 140ms);
+  }
 }
 
 .number {
@@ -54,7 +140,11 @@
   font-size: clamp(19px, 2.4vw, 23px);
   letter-spacing: -0.03em;
   color: var(--txt);
+  /* The mark is 38px in a 24px gutter, so it reaches 62px into the card's top-right. The title
+     is the only line long enough to run under it, and only at three columns. */
+  padding-right: 46px;
 }
+
 .cardText {
   margin: 0;
   color: var(--mut);
@@ -66,9 +156,25 @@
   .grid {
     grid-template-columns: 1fr;
   }
+  .cardTitle {
+    /* Stacked, the card is wide enough that nothing reaches the mark. */
+    padding-right: 0;
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
+  /* The global rule kills every `animation`; it does NOT touch transitions, so the card's own
+     hover lift has to be named here. */
   .card {
     transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  /* Forced colours flattens the accent to one system colour, which is fine for a line drawing —
+     it stays a legible outline. It is `currentColor`, so it follows CanvasText on its own; the
+     only thing worth dropping is the hold-back, which there reads as a faded glyph. */
+  .mark {
+    opacity: 1;
   }
 }

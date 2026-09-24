@@ -1124,8 +1124,11 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
     const section = view.container.querySelector<HTMLElement>("#lucrari")!;
     const track = section.querySelector<HTMLElement>("a, article")!.parentElement!;
     modelBoxes(section, track);
-    const cards = Array.from(track.children) as HTMLElement[];
+    // The track's first child is the loading state (`HelixLoader`, an <svg>), which the driver
+    // itself skips because it collects `instanceof HTMLElement` only. Filter it the same way.
+    const cards = Array.from(track.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
     expect(cards.length).toBeGreaterThanOrEqual(3);
+    expect(track.querySelectorAll("[data-loading]")).toHaveLength(1);
     const rendered = styleOf(cards);
     expect(rendered[0]).toMatch(/--p1/);
 
@@ -1146,7 +1149,12 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
 
     expect(section.textContent).not.toBe(headingBefore);
     expect(section.textContent).toContain("TBS portfolio");
-    expect(Array.from(track.children).every((el, i) => el === cards[i])).toBe(true);
+    // The same card ELEMENTS, in the same order — React reused them rather than remounting, which
+    // is what keeps the driver's inline layout alive. Filtered like the driver's own collector, so
+    // the loading state's <svg> at the head of the track is not compared against a card.
+    const stillCards = Array.from(track.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
+    expect(stillCards.every((el, i) => el === cards[i])).toBe(true);
+    expect(stillCards).toHaveLength(cards.length);
     expect(styleOf(cards)).toEqual(laidOut);
     expect(cards[0].style.getPropertyValue("--p1")).toBe(p1);
     expect(cards[1].style.position).toBe("sticky");

@@ -35,26 +35,28 @@ function Art({ shape, children }: { shape: SceneShape; children: ReactNode }) {
   );
 }
 
-/** Produs digital: a 3×3×3 block being assembled — one corner cube hovering over its slot. */
-function cubesArt() {
+/**
+ * Produs digital: the product stack — six app screens standing apart over a bench, collapsing
+ * into the device slab in front of them. The same object `models/productStack.ts` builds, at the
+ * composed pose a service page opens on, so the cross-fade to the live model lands on one
+ * silhouette instead of swapping one drawing for a different one.
+ */
+function stackArt() {
   const d = serviceArtPaths("produs-digital");
   return (
     <Art shape="produs-digital">
       <path d={d.plate} className={cx(s.hair, s.dash)} />
-      <path d={d.blockSide} className={cx(s.line, s.side)} />
-      <path d={d.blockFront} className={cx(s.line, s.front)} />
-      <path d={d.blockTop} className={cx(s.line, s.top)} />
-      <path d={d.seams} className={s.hair} />
-      <path d={d.notchTop} className={cx(s.line, s.top)} />
-      <path d={d.notchFront} className={cx(s.line, s.front)} />
-      <path d={d.notchSide} className={cx(s.line, s.side)} />
-      <path d={d.driftSide} className={cx(s.line, s.side)} />
-      <path d={d.driftFront} className={cx(s.line, s.front)} />
-      <path d={d.driftTop} className={cx(s.line, s.top)} />
-      <path d={d.guide} className={cx(s.line, s.hot, s.dash)} />
-      <path d={d.arrivingSide} className={cx(s.line, s.hot, s.side)} />
-      <path d={d.arrivingFront} className={cx(s.line, s.hot, s.front)} />
-      <path d={d.arrivingTop} className={cx(s.line, s.hot, s.top)} />
+      <path d={d.grid} className={s.hair} />
+      <path d={d.stackSide} className={cx(s.line, s.side)} />
+      <path d={d.stackFront} className={cx(s.line, s.front)} />
+      <path d={d.stackTop} className={cx(s.line, s.top)} />
+      <path d={d.stackGlass} className={s.glass} />
+      <path d={d.flow} className={cx(s.line, s.hot, s.thick)} />
+      <path d={d.deviceSide} className={cx(s.line, s.side)} />
+      <path d={d.deviceFront} className={cx(s.line, s.front)} />
+      <path d={d.deviceTop} className={cx(s.line, s.top)} />
+      <path d={d.glass} className={cx(s.line, s.glass, s.lit)} />
+      <path d={d.rules} className={s.hair} />
     </Art>
   );
 }
@@ -138,7 +140,7 @@ function meshArt() {
 /** One drawing per direction, in the scene's order. Plain functions (no hooks): each builds its
  *  path table on first use. */
 export const SERVICE_DRAWINGS: Readonly<Record<SceneShape, () => ReactElement>> = {
-  "produs-digital": cubesArt,
+  "produs-digital": stackArt,
   "e-commerce": commerceArt,
   "automatizare-api": hubArt,
   "asistenti-ia": neuralArt,

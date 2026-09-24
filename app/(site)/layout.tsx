@@ -10,6 +10,7 @@ import { HudChrome } from "@/components/hud/HudChrome";
 import { ScrollProgress } from "@/components/ui/ScrollProgress";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import { AnalyticsPixel } from "@/components/ui/AnalyticsPixel";
+import { PageLoading } from "@/components/ui/PageLoading";
 
 /** Marketing chrome for the public site. The admin route sits outside this group. */
 export default async function SiteLayout({
@@ -44,6 +45,21 @@ export default async function SiteLayout({
           <IntroPreloader />
         </>
       )}
+      {/* The service illustrations are hidden until the stage decides it will NOT draw
+          (components/scene/art/ServiceArt.module.css): the drawing is the fallback, not a
+          preamble. With no JavaScript there is no stage and no decision — `data-renderer` stays
+          at the server's `pending` for ever — so this <noscript> style, which is only applied
+          when scripting is off, shows them unconditionally. `[data-shape-art]` is the stable
+          hook; the class itself is hashed by the CSS module. */}
+      <noscript>
+        <style>{`[data-shape-art]{opacity:1!important}[data-loading],[data-page-loading]{display:none!important}`}</style>
+      </noscript>
+      {/* The full-window loading cover. It lives HERE, not inside SceneStage: the stage is
+          `isolate`, which makes a stacking context, so a z-index of 350 in there is scoped to
+          the stage and the header (120) and the cookie banner (280) would still paint over it.
+          It finds the stage with `:has()` instead — the same test the looping backgrounds use
+          to stand down under the intro — so a page with no stage never raises it. */}
+      <PageLoading />
       <ScrollProgress />
       <Navbar />
       {children}

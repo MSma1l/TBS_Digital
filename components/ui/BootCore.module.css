@@ -1,0 +1,446 @@
+/* "The core boots": the site's own processor, built as REAL BOXES, in exploded view, turning.
+ *
+ * Every measurement is `CHIP` from components/scene/shapes.ts — board 2.3, package 1.0, heat
+ * spreader 0.68, die 0.34, and the thicknesses beside them — scaled by one unit, `--u`. The same
+ * object the hero draws and the intro flies out of, so the wait is already inside the site.
+ *
+ * REAL 3D, in CSS: `perspective` + `preserve-3d`, and every layer is a BOX — a top face and four
+ * walls at their true thickness — not a plane. That is the whole difference between stacked paper
+ * and an object: the walls catch the turn, so the stack has mass and the fan reads as depth rather
+ * than as scale.
+ *
+ * It is not WebGL on purpose. This is on screen at exactly the moment the scene's chunk and
+ * shaders own the main thread, and asking for a second GL context there is the worst thing that
+ * could be done. Transform and opacity only, so every frame is the compositor's.
+ */
+
+.stage {
+  /* The subject of the screen, not an indicator in the corner of it — and it follows the viewport,
+     so a phone gets the same composition as a desktop. */
+  --u: clamp(24px, 6.2vmin, 66px);
+  /* How far the stack fans. 0.62 is the largest travel that still lands the die inside the frame
+     once the 60° tilt has projected it; past that the object climbs out of its own brackets. */
+  --gap: calc(var(--u) * 0.62);
+  /* Thickness, exaggerated 2.6× the way any technical illustration exaggerates it: at true scale a
+     0.08 substrate is under half a pixel of wall, and the object goes straight back to being
+     paper. The proportions between the layers are the model's; only the scale is loud. */
+  --tz: 2.6;
+  position: relative;
+  width: calc(6 * var(--u));
+  height: calc(6 * var(--u));
+  perspective: 1200px;
+  perspective-origin: 50% 44%;
+  color: var(--cyan);
+}
+
+/* The whole assembly, on the isometric tilt every drawing here is made at, turning for ever.
+   8s against 3.4s: they do not divide into each other, so the turn and the breath never land
+   together twice — which is what stops a loop from reading as a loop. */
+.spin {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: spin 8s linear infinite;
+}
+
+/* ---- a box ------------------------------------------------------------------------------- */
+
+/*
+ * A box is a zero-size anchor at the assembly's centre with its five faces placed around it: the
+ * lid at `--t`, and four walls standing on `rotateX/rotateY(90deg)` so each wall's own height IS
+ * the thickness. Bottom faces are never built — the camera is above the tilt and would never see
+ * one, and every unbuilt face is one less thing to composite while the main thread is busy.
+ *
+ * `--s` half-size · `--t` thickness · `--i` rank in the fan · `--ox/--oy/--oz` where it sits.
+ */
+.box {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+  transform: translate3d(
+    calc(var(--ox, 0) * var(--u)),
+    calc(var(--oy, 0) * var(--u)),
+    calc(var(--oz, 0) * var(--u))
+  );
+}
+.box > * {
+  position: absolute;
+  display: block;
+  border: 1px solid currentColor;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+/* A group anchor: it rides the fan and holds boxes, but has no faces of its own, so it must NOT
+   pick up the `.box > *` face styling. */
+.group {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+
+/* Carried by whatever fans: the layers themselves, and the one group that rides with them. */
+.fan {
+  animation: breathe 3.4s var(--motion-ease-out) infinite;
+}
+
+/* The lid of the box. */
+.top {
+  width: calc(2 * var(--s) * var(--u));
+  height: calc(2 * var(--s) * var(--u));
+  left: calc(-1 * var(--s) * var(--u));
+  top: calc(-1 * var(--s) * var(--u));
+  transform: translateZ(calc(var(--t) * var(--tz) * var(--u)));
+}
+
+/* The walls. Two run along x, two along y; they are shaded apart so the turn always shows a lit
+   side and a dark one, which is the whole reason the object reads as solid. */
+.wallY {
+  width: calc(2 * var(--s) * var(--u));
+  height: calc(var(--t) * var(--tz) * var(--u));
+  left: calc(-1 * var(--s) * var(--u));
+  top: calc(-0.5 * var(--t) * var(--tz) * var(--u));
+  background: color-mix(in srgb, currentColor 18%, transparent);
+}
+.wallX {
+  width: calc(var(--t) * var(--tz) * var(--u));
+  height: calc(2 * var(--s) * var(--u));
+  left: calc(-0.5 * var(--t) * var(--tz) * var(--u));
+  top: calc(-1 * var(--s) * var(--u));
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+.wN {
+  transform: translate3d(0, calc(-1 * var(--s) * var(--u)), calc(0.5 * var(--t) * var(--tz) * var(--u)))
+    rotateX(90deg);
+}
+.wS {
+  transform: translate3d(0, calc(var(--s) * var(--u)), calc(0.5 * var(--t) * var(--tz) * var(--u)))
+    rotateX(90deg);
+}
+.wE {
+  transform: translate3d(calc(var(--s) * var(--u)), 0, calc(0.5 * var(--t) * var(--tz) * var(--u)))
+    rotateY(90deg);
+}
+.wW {
+  transform: translate3d(calc(-1 * var(--s) * var(--u)), 0, calc(0.5 * var(--t) * var(--tz) * var(--u)))
+    rotateY(90deg);
+}
+
+/* ---- the layers -------------------------------------------------------------------------- */
+
+/* The board, in the site's blue: a via field on the lid, the routing drawn over it. */
+.board {
+  color: var(--blue);
+}
+.board .top {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--blue) 26%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--blue) 26%, transparent) 1px, transparent 1px);
+  background-size: calc(var(--u) * 0.23) calc(var(--u) * 0.23);
+}
+
+/* The package. Its pins are drawn on the WALLS, which is where pins are; `CHIP.pinSpan` is 0.8 of
+   a side, so `background-size: 80%` stops the runs short of the corners exactly as the model's
+   does, and the pitch is `CHIP.pinGap` in the same units as everything else here. */
+.pkg .wallY {
+  background-image: repeating-linear-gradient(
+    to right,
+    currentColor 0 2px,
+    transparent 2px calc(var(--u) * 0.115)
+  );
+  background-size: 80% 100%;
+  background-position: 50% 0;
+  background-repeat: no-repeat;
+}
+.pkg .wallX {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    currentColor 0 2px,
+    transparent 2px calc(var(--u) * 0.115)
+  );
+  background-size: 100% 80%;
+  background-position: 0 50%;
+  background-repeat: no-repeat;
+}
+/* The substrate's lid, the part the die and the capacitors stand on. */
+.pkg .top {
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--cyan) 14%, transparent) 30%,
+    transparent 62%
+  );
+}
+
+/* The heat spreader: the single most recognisable part of a processor, so it has to read as
+   machined metal and not as another pane of glass — a brighter lid, a milled rim stepped into it,
+   and walls solid enough to catch the turn. */
+.ihs > * {
+  background: color-mix(in srgb, var(--cyan) 22%, transparent);
+}
+.ihs .top {
+  background: color-mix(in srgb, var(--cyan) 30%, transparent);
+  box-shadow:
+    inset 0 0 0 calc(var(--u) * 0.09) color-mix(in srgb, var(--cyan) 42%, transparent),
+    inset 0 0 0 calc(var(--u) * 0.1) color-mix(in srgb, var(--bg) 55%, transparent);
+}
+
+/* Capacitor studs beside the die: tall little boxes, hidden under the spreader when the stack is
+   shut and uncovered as it fans — so the explosion actually reveals something. */
+.cap > * {
+  border-color: color-mix(in srgb, var(--cyan) 70%, transparent);
+  background: color-mix(in srgb, var(--cyan) 26%, transparent);
+}
+
+/* The die: the live thing, and the only red in the object. Its lid carries the core grid — a 3×2
+   of them, which is what the scene's own chip draws. */
+.die {
+  color: var(--red-text);
+}
+.die > * {
+  border-width: 2px;
+  background: color-mix(in srgb, var(--red) 62%, transparent);
+}
+/* Lit silicon, not an outline: a hot centre under a 3x2 of cores — the grid the scene's own chip
+   draws — with the glow thrown outward so the die lights the spreader it sits in. */
+.die .top {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--bg) 62%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--bg) 62%, transparent) 1px, transparent 1px),
+    radial-gradient(circle at 50% 50%, var(--red-lift), color-mix(in srgb, var(--red) 92%, transparent) 85%);
+  background-size:
+    33.4% 50.1%,
+    33.4% 50.1%,
+    100% 100%;
+  box-shadow:
+    0 0 calc(var(--u) * 0.3) color-mix(in srgb, var(--red-text) 70%, transparent),
+    0 0 calc(var(--u) * 1.1) color-mix(in srgb, var(--red) 60%, transparent);
+  animation: ignite 1.7s ease-in-out infinite;
+}
+
+/* ---- the dressing ------------------------------------------------------------------------ */
+
+/*
+ * The routing: runs leaving the package for the board's edge, dog-legged at 90° and 45° the way
+ * board routing actually goes, with square via pads where they turn. The dash travels, so the
+ * board reads as carrying signal rather than as a printed texture.
+ *
+ * It sits on the board and fans with it (`--i: 0`), just clear of the lid so it never z-fights.
+ */
+.traces * {
+  vector-effect: non-scaling-stroke;
+}
+.traces {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: calc(4.6 * var(--u));
+  height: calc(4.6 * var(--u));
+  overflow: visible;
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 1.5;
+  stroke-linecap: butt;
+  opacity: 0.85;
+  transform: translateZ(calc(var(--u) * 0.17));
+}
+/* The runs are drawn TWICE: once solid and faint, so the board always reads as routed, and once
+   as a short bright dash travelling the same path, so it reads as carrying signal. A dash alone
+   was the mistake — 16 units lit out of 100 leaves scattered specks that look like dirt, not
+   like traces. */
+.runs {
+  stroke: color-mix(in srgb, var(--cyan) 34%, transparent);
+  stroke-width: 1.5;
+}
+.pulse {
+  stroke: var(--cyan);
+  stroke-width: 2.5;
+  stroke-dasharray: 14 86;
+  animation: run 2.1s linear infinite;
+}
+.pads {
+  stroke: color-mix(in srgb, var(--cyan) 62%, transparent);
+  stroke-width: 5;
+  stroke-linecap: square;
+}
+
+/* The footprint: the dashed plate every model on this site stands on. It does NOT fan — it is the
+   ground the stack rises off, and a ground that moved would take the depth with it. */
+.shadow {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: calc(5.2 * var(--u));
+  height: calc(5.2 * var(--u));
+  border: 1px dashed color-mix(in srgb, var(--blue) 42%, transparent);
+  transform: translateZ(calc(var(--gap) * -1.1));
+}
+
+/* The assembly axis an exploded view is exploded along: stood upright out of the board and grown
+   by the same breath, so it reaches exactly as far as the die travels. */
+.axis {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 2px;
+  height: calc(var(--gap) * 3.6);
+  background: linear-gradient(
+    to top,
+    transparent,
+    color-mix(in srgb, var(--red) 60%, transparent) 30%,
+    var(--red-text)
+  );
+  transform-origin: 50% 100%;
+  animation: axis 3.4s var(--motion-ease-out) infinite;
+}
+
+/* The frame, in SCREEN space: it does not turn with the object, so the object turns inside it.
+   The same four corners the shared Loading mark is drawn with. */
+.frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.bracket {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--cyan);
+  opacity: 0.85;
+  animation: bracket 3.4s var(--motion-ease-out) infinite;
+}
+.tl {
+  top: 0;
+  left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.tr {
+  top: 0;
+  right: 0;
+  border-left: 0;
+  border-bottom: 0;
+}
+.br {
+  right: 0;
+  bottom: 0;
+  border-top: 0;
+  border-left: 0;
+}
+.bl {
+  bottom: 0;
+  left: 0;
+  border-top: 0;
+  border-right: 0;
+}
+
+/* ---- the motion -------------------------------------------------------------------------- */
+
+@keyframes spin {
+  from {
+    transform: rotateX(60deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateX(60deg) rotateZ(360deg);
+  }
+}
+
+/* Assembled → exploded → assembled. `--i` is the rank, so ONE keyframe fans the whole stack: the
+   board stays put, the die travels furthest, and every layer closes on the same frame. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: translate3d(
+      calc(var(--ox, 0) * var(--u)),
+      calc(var(--oy, 0) * var(--u)),
+      calc(var(--i) * var(--gap) * 0.14)
+    );
+  }
+  50% {
+    transform: translate3d(
+      calc(var(--ox, 0) * var(--u)),
+      calc(var(--oy, 0) * var(--u)),
+      calc(var(--i) * var(--gap))
+    );
+  }
+}
+
+@keyframes axis {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(calc(var(--gap) * -1.8)) rotateX(-90deg) scaleY(0.14);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(calc(var(--gap) * -1.8)) rotateX(-90deg) scaleY(1);
+  }
+}
+
+@keyframes ignite {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes run {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bracket {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* No motion: the composed pose the animations rest on — the stack held half-open, so the layers,
+   the capacitors and the lit die are all still readable, framed and turned off the axis. */
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+    transform: rotateX(60deg) rotateZ(38deg);
+  }
+  .fan,
+  .pulse,
+  .axis,
+  .bracket,
+  .die .top {
+    animation: none;
+  }
+  .fan {
+    transform: translate3d(
+      calc(var(--ox, 0) * var(--u)),
+      calc(var(--oy, 0) * var(--u)),
+      calc(var(--i) * var(--gap) * 0.62)
+    );
+  }
+  .axis {
+    opacity: 0.9;
+    transform: translateY(calc(var(--gap) * -1.8)) rotateX(-90deg) scaleY(0.62);
+  }
+}
+
+/* Forced colours flattens every one of these surfaces to the same fill, which turns the object
+   into a grey blob. The cover keeps its background and simply shows nothing. */
+@media (forced-colors: active) {
+  .stage {
+    display: none;
+  }
+}

@@ -61,11 +61,18 @@ const SKIP_SPEED = 2.4;
 /**
  * When the camera's dive finishes, in timeline seconds from the lock.
  *
- * A beat short of the "reveal" label at 0.72, so the arrival is held — see the tween itself for
+ * A beat short of the "reveal" label at 1.15, so the arrival is held — see the tween itself for
  * why that matters. Keep the two in step: a dive that ends after the reveal plays under a page
  * that is already fading in, and cannot be seen.
+ *
+ * Both were lengthened together. At 0.66 and 0.72 the implosion, the burst, the dive into the
+ * display and the hand-over to the page all happened inside three quarters of a second, which is
+ * the "too abrupt" half of the same complaint that lengthened the beats themselves.
  */
-const DIVE_END = 0.66;
+const DIVE_END = 1;
+
+/** Roughly what the burst plus the fade cost after the beats, for the origin clamp below. */
+const BURST_TAIL_MS = 2000;
 
 /*
  * What 0→100% means: honest readiness, weighted, never ahead of a cinematic curve.
@@ -242,12 +249,23 @@ export function IntroDirector({
       else window.addEventListener("load", onLoad, { once: true });
 
       /*
-       * The cinematic clock counts from navigation start (performance.now() = 0), because
-       * the visitor has been watching since the first paint, not since hydration. It stops
-       * while the tab is hidden; a tab that loaded in the background starts it on first
-       * view, as if 400ms had already run.
+       * The cinematic clock counts from navigation start (performance.now() = 0), because the
+       * visitor has been watching since the first paint, not since hydration. It stops while the
+       * tab is hidden; a tab that loaded in the background starts it on first view, as if 400ms
+       * had already run.
+       *
+       * But it is no longer allowed to count ALL of it. Unbounded, a slow arrival simply eats the
+       * film: measured on a software renderer, hydration finished at 2.07s, the director opened
+       * with the curve already at 64%, and beat 2 — the whole power-up — got 144 ms. Past
+       * MAX_PRE_SPEND_MS the origin slides forward instead, so there is always most of a film
+       * left to play. The second clamp keeps that promise inside the shell's watchdog: however
+       * late the takeover, the beats plus the burst still have room to finish before the overlay
+       * is forced out.
        */
-      let origin = isTabHidden() ? Number.POSITIVE_INFINITY : 0;
+      const maxOrigin = Math.max(0, T.WATCHDOG_MS - T.MIN_SYNC_MS - BURST_TAIL_MS);
+      let origin = isTabHidden()
+        ? Number.POSITIVE_INFINITY
+        : Math.min(Math.max(0, takeover - T.MAX_PRE_SPEND_MS), maxOrigin);
       let hiddenAt = isTabHidden() ? takeover : 0;
       const onVisibility = () => {
         const now = performance.now();
@@ -402,11 +420,11 @@ export function IntroDirector({
         tl.addLabel("lock", 0)
           .call(lock, undefined, "lock")
           // implosion: the core draws in, the rim charges, the HUD glitches
-          .to(fx, { charge: 1, duration: 0.22, ease: "power2.in" }, "lock")
-          .to(label, { keyframes: { opacity: [1, 0.25, 1, 0.5, 1] }, duration: 0.22, ease: "none" }, "lock")
-          .addLabel("burst", 0.22)
-          .to(fx, { charge: 0, burst: 1, duration: 0.5, ease: "expo.out" }, "burst")
-          .to(fx, { explode: 1, duration: 0.9, ease: "expo.out" }, "burst")
+          .to(fx, { charge: 1, duration: 0.3, ease: "power2.in" }, "lock")
+          .to(label, { keyframes: { opacity: [1, 0.25, 1, 0.5, 1] }, duration: 0.3, ease: "none" }, "lock")
+          .addLabel("burst", 0.3)
+          .to(fx, { charge: 0, burst: 1, duration: 0.62, ease: "expo.out" }, "burst")
+          .to(fx, { explode: 1, duration: 1.15, ease: "expo.out" }, "burst")
           .to(fx, { flash: 1, duration: 0.08, ease: "power1.out" }, "burst")
           .to(fx, { flash: 0, duration: 0.5, ease: "power2.in" }, "burst+=0.08")
           /*
@@ -427,13 +445,21 @@ export function IntroDirector({
            * The ease is chosen when the timeline is built (at the lock), because a skip can
            * start this from any beat: `power3.in` from a standing start spends its first 140ms
            * not moving, which after a button press reads as the skip having done nothing.
+           *
+           * **The threshold is the EXIT, not a half.** It asks one question — is the camera
+           * already flying, or is it parked? — and the answer changed when K3 pushed the exit
+           * from u ~0.45 to ~0.60. Everything below 0.60 is now inside the machine: the held
+           * frame on the die, the power-up, and the crawl down the corridor, which is the
+           * SLOWEST stretch of the whole film. A skip from there is a standing start and wants
+           * `power2.inOut`; only past the vent is the camera moving fast enough for `power3.in`
+           * to read as an acceleration rather than as a stall.
            */
           .to(
             fx,
             {
               flight: 1,
               duration: DIVE_END,
-              ease: fx.flight < 0.5 ? "power2.inOut" : "power3.in",
+              ease: fx.flight < 0.6 ? "power2.inOut" : "power3.in",
               overwrite: "auto",
             },
             "lock",
@@ -448,7 +474,7 @@ export function IntroDirector({
           .fromTo(
             shock,
             { opacity: 1, scale: 0 },
-            { opacity: 0, scale: 4, duration: 0.7, ease: "expo.out" },
+            { opacity: 0, scale: 4, duration: 0.9, ease: "expo.out" },
             "burst",
           )
           .to([hud, skipButton], { opacity: 0, y: 10, duration: 0.25, ease: "power2.in" }, "burst");
@@ -470,19 +496,19 @@ export function IntroDirector({
                case is an ultrawide window, where `min(50vw, 84vh)` resolves to the 84vh arm and
                `--intro-w` is only ~36vw — 3.13 of it is 113vw, so the screen still reaches past
                the frame. At 2.6 it stopped at 64vw and the burst ended inside a visible border. */
-            .to(fallback, { scale: 4.6, autoAlpha: 0, duration: 0.8, ease: "power3.in" }, "burst");
+            .to(fallback, { scale: 4.6, autoAlpha: 0, duration: 1, ease: "power3.in" }, "burst");
         }
 
-        tl.addLabel("reveal", 0.72)
+        tl.addLabel("reveal", 1.15)
           .set(root, { pointerEvents: "none" }, "reveal")
           .call(reveal, undefined, "reveal")
-          .to(root, { autoAlpha: 0, duration: 0.55, ease: "power2.inOut" }, "reveal")
+          .to(root, { autoAlpha: 0, duration: 0.7, ease: "power2.inOut" }, "reveal")
           // The scene stops drawing once nobody can see it; it is disposed with the overlay
           // at the end of the entrance, so GPU teardown never janks the header/hero.
           .call(
             () => setScene((current) => (current === "ready" ? "paused" : current)),
             undefined,
-            "reveal+=0.55",
+            "reveal+=0.7",
           );
 
         // Built now, at lock, while the overlay is still opaque: the from() states render at
@@ -516,8 +542,19 @@ export function IntroDirector({
           (signals.fonts ? WEIGHT.fonts : 0) +
           (signals.load ? WEIGHT.load : 0) +
           (signals.scene ? WEIGHT.scene : 0);
+        /*
+         * 1.6, not 2.2. The exponent is how front-loaded the film is, and at 2.2 the curve put
+         * **47% of the progress into the first quarter of the time** — which is why beat 1 ran
+         * 281 ms and beat 2, the whole power-up, ran 536 ms. At 1.6 it is 37%, and with
+         * MIN_SYNC_MS at 4600 the four beats come out at roughly 725 / 1280 / 1250 / 1345 ms:
+         * each one long enough to be a thing you watch rather than a thing you miss.
+         * It is not flattened further on purpose. FLIGHT_MAP's slopes climb across the table
+         * (0.75 -> 0.61 -> 0.72 -> 1.29) precisely to cancel this ease-out; take the curve to
+         * linear and the last beat, which has the steepest slope, becomes the fastest in the
+         * film instead of the most graceful.
+         */
         const x = Math.min(1, Math.max(0, elapsed / T.MIN_SYNC_MS));
-        const cinematic = 1 - (1 - x) ** 2.2;
+        const cinematic = 1 - (1 - x) ** 1.6;
         let target = Math.min(cinematic, elapsed >= T.HARD_CAP_MS ? 1 : ready);
         if (target >= 0.999) target = 1;
         if (target > goal + 0.002 || (target === 1 && goal < 1)) {

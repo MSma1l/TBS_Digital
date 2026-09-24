@@ -63,8 +63,16 @@ import { INTRO_LAPTOP, lidOpenAt, screenFillAt } from "./cameraPath";
 import { EDGE, EDGE_HALO, createEdgeMaterial } from "./edge";
 import { createPhysicalGlass, createRingMaterial, type IntroPalette } from "./materials";
 
-const { deck: DECK, hinge: HINGE, vent: VENT, lid: LID, screen: SCREEN, bezel: BEZEL, die: DIE } =
-  INTRO_LAPTOP;
+const {
+  deck: DECK,
+  hinge: HINGE,
+  vent: VENT,
+  hatch: HATCH,
+  lid: LID,
+  screen: SCREEN,
+  bezel: BEZEL,
+  die: DIE,
+} = INTRO_LAPTOP;
 
 /* ---- the furniture the frame is made of ------------------------------------------------------ */
 
@@ -115,6 +123,74 @@ const VENT_RAIL = { t: 0.012, over: 0.012, d: 0.03 } as const;
 const SILL_DROP = 0.017;
 const HOOD = { w: 0.3, t: 0.008, d: 0.036, lift: 0.016, back: 0.016 } as const;
 
+/* ---- the guts ---------------------------------------------------------------------------- */
+
+/**
+ * What the camera flies PAST on its way from the processor to the vent.
+ *
+ * There was nothing here at all until K3. The old shot list left the chassis at u ≈ 0.45, a
+ * tenth of a flight after the dissolve from the SVG drawing lands at 0.40, so the interior was
+ * on screen for something like 150 ms — and the file said so, and spent its budget on the
+ * chassis, the hinge and the lid accordingly. The cavity was a flat grid of hairlines with a
+ * dark ceiling: correct, and empty. A visitor asked what the intro was about and said "a
+ * laptop", because between the die and the back wall there was not one piece of geometry that
+ * stood up off the floor.
+ *
+ * K3 pushed the exit back to u ≈ 0.60, which buys the corridor a fifth of the flight — and it is
+ * the ONE stretch that is guaranteed to be 3D on every device that has 3D, because the dissolve
+ * cannot land later than 0.40. So this is where the detail belongs now.
+ *
+ * **Every number here is measured against the corridor, not chosen — and against the FRUSTUM.**
+ * `cameraAt` runs the camera down x −0.02 → −0.14 at |y| < 0.02 for the whole of K2 → K3, and out
+ * through the vent at x −0.221. The near plane is 0.01 and `intro-laptop.test.ts` demands better
+ * than that from every slot at 401 samples of `u` × 7 aspects.
+ *
+ * Clearance alone is the wrong test, and the first cut of this table failed the right one. Putting
+ * a piece far from the camera keeps it off the lens AND off the screen: measured by projecting
+ * every corner of every slot along the flight, the fan at x −0.66, the two capacitors behind the
+ * start point and the left package wall were **never on screen before u 0.61** — visible only from
+ * OUTSIDE the machine, after the camera had already left it. Twelve pieces nobody sees during the
+ * beat they exist for is the same failure as having none.
+ *
+ * So the banks are as close to the flight as the near plane allows, not as far as the cavity
+ * permits: the fan sits at x −0.34 (0.12 off the corridor at its nearest, twelve near planes), the
+ * memory and storage at x +0.50, the heat path at +0.30, and the capacitors AHEAD of the opening
+ * frame at z −0.05 and −0.15 rather than behind it. Nothing crosses the centre line except the
+ * processor's own rim, which is what the canyon at K0 is MADE of, and the kerb at the back of the
+ * socket, which the camera clears by 0.024 — two and a half near planes.
+ *
+ * They are boxes on the edge material, so each one draws as its own outline and not as a lit
+ * slab (the contract at the top of `./edge.ts`); the light that RUNS through them is line work in
+ * `buildTraces`, which rides the power wave's `aU` and therefore switches on in z order as the
+ * camera reaches it. Solids for silhouette, hairlines for the wave — that division is why twelve
+ * new pieces cost zero extra draw calls.
+ */
+const BOARD_FLOOR = DIE.y - DIE.t / 2;
+/** A piece standing on the board: its centre, given how tall it is. */
+const stand = (h: number): number => BOARD_FLOOR + h / 2;
+const GUTS = {
+  /** The processor's package. These two walls ARE the canyon K0 sits in. */
+  rim: { x: 0.145, w: 0.022, h: 0.026, d: 0.3 },
+  /**
+   * The back of the socket, the one piece the camera flies OVER — and the tightest clearance in
+   * the whole flight, so it is the piece that gets trimmed when a key moves. 0.012 and not 0.014:
+   * re-aiming K2 for the keyboard exit dropped the camera to 0.0094 over it at u 0.318, inside the
+   * 0.01 near plane. Two hundredths of a unit of kerb bought it back.
+   */
+  kerb: { w: 0.312, h: 0.012, d: 0.022 },
+  /** Die → fins, down the +x flank. */
+  pipe: { x: 0.3, z: -0.28, w: 0.055, h: 0.026, d: 0.72 },
+  /** The fin stack, hard against the back wall where the pipe ends. */
+  fins: { x: 0.3, z: -0.7, w: 0.28, h: 0.044, d: 0.09 },
+  /** Two sticks of memory and the storage card, the +x bank. */
+  ram: { x: 0.5, w: 0.46, h: 0.052, d: 0.024, at: [-0.24, -0.35] },
+  ssd: { x: 0.5, z: -0.5, w: 0.46, h: 0.02, d: 0.1 },
+  /** The fan, the −x bank: a case and a hub, with its blades drawn as line work. */
+  fan: { x: -0.34, z: -0.34, w: 0.34, h: 0.044, d: 0.34, hub: 0.13, hubH: 0.04, blade: 0.15 },
+  /** Two capacitor studs beside the die, the first thing past the rim. */
+  cap: { h: 0.034, at: [[0.17, -0.12] as const, [0.2, -0.24] as const] },
+} as const;
+
 /* ---- the slot table -------------------------------------------------------------------------- */
 
 /**
@@ -162,7 +238,15 @@ const lidBox = (
  * chassis, the feet, the hinge, the vent and the lid come first because they are what makes the
  * object a laptop. It is the interior model's table with two changes: the vent takes the slots
  * that machine spends on its front lip (this one is flown out of, not looked at), and its three
- * ports collapse into one strip so the twelve keys still fit inside 29.
+ * ports collapse into one strip so the twelve keys still fit.
+ *
+ * **The guts go in before the lid goes on**, which is both how a machine is assembled — and
+ * `laptopSlotU` spends this order as the edge band's sweep, so it has to read as an assembly —
+ * and what keeps them out of the governor's way. `LAPTOP_SLOT_LITE` is the `keys` index, so the
+ * lite step gives up the keys and the port strip and NOTHING else; the twelve pieces the camera
+ * spends a fifth of the flight threading between survive every tier and every governor step. Put
+ * them after `keys` and the first device that drops a frame deletes the whole point of the
+ * sequence.
  */
 export const LAPTOP_SLOT_AT = {
   deck: 0,
@@ -170,20 +254,36 @@ export const LAPTOP_SLOT_AT = {
   hinge: 3, // 3, 4, 5
   vent: 6, // 6, 7, 8 — sill, lintel, hood
   pad: 9,
-  rails: 10, // 10..13 — foot, head, left, right (lid)
-  cover: 14, // 14, 15 (lid)
-  keys: 16, // 16..27 — three rows of four
-  port: 28,
+  guts: 10, // 10..21 — rim ×2, kerb, caps ×2, heatpipe, fan ×2, memory ×2, storage, fins
+  rails: 22, // 22..25 — foot, head, left, right (lid)
+  cover: 26, // 26, 27 (lid)
+  keys: 28, // 28..35 — the two rows that frame the hatch (z −0.55 and −0.33)
+  keysFront: 36, // 36..39 — the front row (z −0.11), the first keys given up
+  port: 40,
 } as const;
 
-export const LAPTOP_SLOT_COUNT = 29;
+export const LAPTOP_SLOT_COUNT = 41;
 /** Without the port strip (mid), and without the twelve keys either (low, and the governor). */
 export const LAPTOP_SLOT_MID = LAPTOP_SLOT_AT.port;
-export const LAPTOP_SLOT_LITE = LAPTOP_SLOT_AT.keys;
+/**
+ * **The lite step may not take the keyboard the camera comes out of.**
+ *
+ * It used to be `keys`, which dropped all twelve — correct while the way out was the vent in the
+ * back wall. The exit is the hatch in the keyboard now, so on the low tier and on the governor's
+ * lite step the camera was surfacing through a keyboard that was not drawn: a lit rectangle
+ * floating in a bare deck, on exactly the devices this sequence has to read on.
+ *
+ * The drop order already had the rows in the right sequence (`KEYS.rows` runs back to front), so
+ * the two that frame the hatch are slots 28..35 and the front row is 36..39. The cut moved to the
+ * front row: the low tier keeps 36 of 41 pieces, eight more small boxes in the same one
+ * `InstancedMesh` — no extra draw call, and a key is 0.44 × 0.022 × 0.11, nothing on fill.
+ */
+export const LAPTOP_SLOT_LITE = LAPTOP_SLOT_AT.keysFront;
 
 /** The lid's six pieces are contiguous, so one loop re-places them when the hinge turns. */
 const LID_FROM = LAPTOP_SLOT_AT.rails;
 const LID_TO = LAPTOP_SLOT_AT.keys;
+/* rails (4) + covers (2), contiguous by construction — the guts sit BEFORE them, the keys after. */
 
 function buildSlots(): LaptopSlot[] {
   const slots: LaptopSlot[] = [];
@@ -252,7 +352,81 @@ function buildSlots(): LaptopSlot[] {
   /* 9 — the trackpad */
   slots.push(box("pad", 0, DECK.t / 2 + PAD.t / 2, PAD.z, PAD.w, PAD.t, PAD.d));
 
-  /* 10..13 — the lid's four rails: the display's own frame — foot, head, left, right */
+  /* 10..21 — the guts: what the corridor is made of. Two banks, the flight between them. */
+  for (const side of [-1, 1]) {
+    slots.push(
+      box(
+        side < 0 ? "cpu-rim-left" : "cpu-rim-right",
+        side * GUTS.rim.x,
+        stand(GUTS.rim.h),
+        DIE.z,
+        GUTS.rim.w,
+        GUTS.rim.h,
+        GUTS.rim.d,
+      ),
+    );
+  }
+  slots.push(
+    box(
+      "cpu-kerb",
+      DIE.x,
+      stand(GUTS.kerb.h),
+      DIE.z - DIE.d / 2,
+      GUTS.kerb.w,
+      GUTS.kerb.h,
+      GUTS.kerb.d,
+    ),
+  );
+  for (let i = 0; i < GUTS.cap.at.length; i += 1) {
+    const [x, z] = GUTS.cap.at[i];
+    slots.push(box(`cap-${i}`, x, stand(GUTS.cap.h), z, GUTS.cap.h, GUTS.cap.h, GUTS.cap.h));
+  }
+  slots.push(
+    box(
+      "heatpipe",
+      GUTS.pipe.x,
+      stand(GUTS.pipe.h),
+      GUTS.pipe.z,
+      GUTS.pipe.w,
+      GUTS.pipe.h,
+      GUTS.pipe.d,
+    ),
+  );
+  slots.push(
+    box("fan-case", GUTS.fan.x, stand(GUTS.fan.h), GUTS.fan.z, GUTS.fan.w, GUTS.fan.h, GUTS.fan.d),
+  );
+  slots.push(
+    box(
+      "fan-hub",
+      GUTS.fan.x,
+      stand(GUTS.fan.hubH),
+      GUTS.fan.z,
+      GUTS.fan.hub,
+      GUTS.fan.hubH,
+      GUTS.fan.hub,
+    ),
+  );
+  for (let i = 0; i < GUTS.ram.at.length; i += 1) {
+    slots.push(
+      box(
+        `ram-${i}`,
+        GUTS.ram.x,
+        stand(GUTS.ram.h),
+        GUTS.ram.at[i],
+        GUTS.ram.w,
+        GUTS.ram.h,
+        GUTS.ram.d,
+      ),
+    );
+  }
+  slots.push(
+    box("ssd", GUTS.ssd.x, stand(GUTS.ssd.h), GUTS.ssd.z, GUTS.ssd.w, GUTS.ssd.h, GUTS.ssd.d),
+  );
+  slots.push(
+    box("fins", GUTS.fins.x, stand(GUTS.fins.h), GUTS.fins.z, GUTS.fins.w, GUTS.fins.h, GUTS.fins.d),
+  );
+
+  /* 22..25 — the lid's four rails: the display's own frame — foot, head, left, right */
   slots.push(lidBox("rail-foot", 0, BEZEL.y / 2, -LID.t / 2, LID.w, BEZEL.y, LID.t));
   slots.push(lidBox("rail-head", 0, LID.h - BEZEL.y / 2, -LID.t / 2, LID.w, BEZEL.y, LID.t));
   slots.push(
@@ -262,7 +436,7 @@ function buildSlots(): LaptopSlot[] {
     lidBox("rail-right", (LID.w - BEZEL.x) / 2, LID.h / 2, -LID.t / 2, BEZEL.x, LID.h, LID.t),
   );
 
-  /* 14, 15 — the lid's two hinge covers, at its foot beside the rails */
+  /* 26, 27 — the lid's two hinge covers, at its foot beside the rails */
   for (const side of [-1, 1]) {
     slots.push(
       lidBox(
@@ -277,7 +451,9 @@ function buildSlots(): LaptopSlot[] {
     );
   }
 
-  /* 16..27 — the keys */
+  /* 28..39 — the keys. `KEYS.rows` runs BACK TO FRONT, and that order is load-bearing: it puts
+     the two rows that frame the hatch at 28..35, ahead of the lite cut, and the front row at
+     36..39 where the governor can have it. */
   for (let row = 0; row < KEYS.rows.length; row += 1) {
     for (let col = 0; col < KEYS.cols; col += 1) {
       slots.push(
@@ -294,7 +470,7 @@ function buildSlots(): LaptopSlot[] {
     }
   }
 
-  /* 28 — the port strip, the first thing given up */
+  /* 40 — the port strip, the first thing given up */
   slots.push(box("port", PORT.x, PORT.y, PORT.z, PORT.w, PORT.t, PORT.d));
 
   return slots;
@@ -313,7 +489,7 @@ export function laptopSlotU(slot: number): number {
   return slot / (LAPTOP_SLOT_COUNT - 1);
 }
 
-/** How many of the 29 each tier starts with. The governor takes it down from there. */
+/** How many of the 41 each tier starts with. The governor takes it down from there. */
 const TIER_SLOTS: Readonly<Record<IntroTier, number>> = {
   high: LAPTOP_SLOT_COUNT,
   mid: LAPTOP_SLOT_MID,
@@ -338,12 +514,17 @@ const HALO_GROW = 1.06;
  * They run on the board, which is the die's own base: the camera flies 0.03 over them at K0 and
  * 0.017 over them at K2, which is what makes beats 1 and 2 read as a canyon rather than a room.
  *
- * DELIBERATELY MINIMAL — under 40 segments and an 8-vertex plate, all of it in ONE buffer. In 3D
- * the inside of the processor is on screen for at most 150 ms and at partial opacity:
- * `.canvasHost` is transparent until `sceneReady`, so beats 1 and 2 belong to the SVG drawing on
- * every device and in every loading case that could be simulated. The detail that earns its bytes
- * is in the chassis, the hinge, the lid and the display, where the camera actually spends its
- * time — and in the ONE frame of the interior anybody does see, K2.
+ * ONE buffer, and it now carries the guts' light as well as the board's. `.canvasHost` is still
+ * transparent until `sceneReady`, so beats 1 and 2 still belong to the SVG drawing on every device
+ * — but K3 turned "the ONE frame of the interior anybody sees" into a fifth of the flight, u 0.40
+ * to 0.60, guaranteed 3D wherever 3D happens at all. The detail that earns its bytes is therefore
+ * in the corridor too, not only in the chassis, the hinge, the lid and the display.
+ *
+ * The division of labour with `buildSlots` is deliberate: the guts are BOXES there, so each draws
+ * as its own outline, and the light that runs THROUGH them is hairlines here, so it rides `aU`
+ * and switches on in z order as the wave passes. The fan lights at u ≈ 0.25, the fins at ≈ 0.37,
+ * the vent last at 0.39 — the power leaves the die, crosses the machine and goes out of the hole,
+ * and the camera follows it down the same corridor a beat behind.
  *
  * Which is why the rib field is 0.9 either side of the centre line and not 0.34. K2 aims down the
  * cavity from 0.018 above the board: at 0.34 the ribs were a thin bright smear on the centre line
@@ -359,6 +540,11 @@ const TRACE_FROM = DIE.z + DIE.d / 2;
 const TRACE_TO = VENT.z + 0.05;
 const RIB_COUNT = 20;
 const RIB_HALF = 0.9;
+/** The fan's spokes and the heatsink's teeth — hairlines, in the board's own buffer. */
+const FAN_BLADES = 8;
+const FIN_COUNT = 9;
+/** Bars across the hatch, so it reads as a way out of a keyboard and not as a missing key. */
+const HATCH_SLATS = 3;
 /** The two rails that run the length of the rib field, outboard of the die's own pair. */
 const RAIL_X = 0.52;
 /**
@@ -474,8 +660,36 @@ function buildTraces(): { geometry: BufferGeometry; vertices: number; keepVertic
     ventLine(left, y, right, y);
   }
 
-  // The die's tracks and the vent come FIRST in the buffer: the governor's `setDrawRange` keeps
-  // the frame the cross-fade lands on intact and gives up the floor, not the other way round.
+  /* the hatch, seen from underneath: the way OUT, in the keyboard. Same argument as the vent —
+     the machine is additive and writes no depth, so a hole cannot be cut, only drawn — but this
+     one is drawn in the deck's TOP surface, in the clear strip between the middle and back rows
+     of keys, and it is what the camera rises through at u ~0.62. Its `aU` is its own z, so it
+     lights at u ~0.28 as the wave passes beneath it: the exit is lit well before the camera gets
+     to it, which is the whole point of an exit. */
+  const atHatch = (x: number, z: number) => {
+    points.push(x, HATCH.y, z);
+    us.push(traceU(HATCH.z));
+  };
+  const hatchLine = (x0: number, z0: number, x1: number, z1: number) => {
+    atHatch(x0, z0);
+    atHatch(x1, z1);
+  };
+  const hLeft = HATCH.x - HATCH.w / 2;
+  const hRight = HATCH.x + HATCH.w / 2;
+  const hFront = HATCH.z + HATCH.d / 2;
+  const hBack = HATCH.z - HATCH.d / 2;
+  hatchLine(hLeft, hFront, hRight, hFront);
+  hatchLine(hLeft, hBack, hRight, hBack);
+  hatchLine(hLeft, hFront, hLeft, hBack);
+  hatchLine(hRight, hFront, hRight, hBack);
+  for (let i = 1; i <= HATCH_SLATS; i += 1) {
+    const x = hLeft + ((hRight - hLeft) * i) / (HATCH_SLATS + 1);
+    hatchLine(x, hFront, x, hBack);
+  }
+
+  // The die's tracks, the vent and the hatch come FIRST in the buffer: the governor's
+  // `setDrawRange` keeps the frame the cross-fade lands on — and the way out — intact, and gives
+  // up the floor, not the other way round.
   const keepVertices = us.length;
 
   /* the board: the two die tracks carry on to the back wall, two outboard rails join them, and
@@ -488,6 +702,29 @@ function buildTraces(): { geometry: BufferGeometry; vertices: number; keepVertic
   for (let i = 0; i < RIB_COUNT; i += 1) {
     const z = first - (i * (first - TRACE_TO)) / (RIB_COUNT - 1);
     line(-RIB_HALF, z, RIB_HALF, z);
+  }
+
+  /* the fan's blades: eight spokes on the floor inside `fan-case`. Drawn, not modelled — a blade
+     is a box whose every face is flat, so the edge material would light it as a card, and eight
+     rotated boxes would also want eight quaternions that `writeSlot` does not carry. A spoke's
+     `aU` is its own z, so the fan lights across its diameter as the wave sweeps past it rather
+     than all at once, which is the one thing that makes a still object read as turning. */
+  for (let i = 0; i < FAN_BLADES; i += 1) {
+    const a0 = (i * Math.PI * 2) / FAN_BLADES;
+    line(
+      GUTS.fan.x + Math.cos(a0) * GUTS.fan.hub * 0.5,
+      GUTS.fan.z + Math.sin(a0) * GUTS.fan.hub * 0.5,
+      GUTS.fan.x + Math.cos(a0) * GUTS.fan.blade,
+      GUTS.fan.z + Math.sin(a0) * GUTS.fan.blade,
+    );
+  }
+
+  /* the fin stack: a comb under `fins`, every tooth along z, so they light as one — they all sit
+     within 0.09 of each other and the wave is 0.89 long. That is correct: a heatsink is the place
+     the heat has ALREADY reached, and it is the last thing lit before the vent. */
+  for (let i = 0; i < FIN_COUNT; i += 1) {
+    const x = GUTS.fins.x - GUTS.fins.w / 2 + ((i + 0.5) * GUTS.fins.w) / FIN_COUNT;
+    line(x, GUTS.fins.z + GUTS.fins.d / 2, x, GUTS.fins.z - GUTS.fins.d / 2);
   }
 
   const geometry = new BufferGeometry();
@@ -784,7 +1021,10 @@ export function createIntroLaptop(tier: IntroTier, palette: IntroPalette): Intro
         halo.uniforms.uTime.value = time;
         // Inside the chassis a halo is a flat wash on the walls, so it stays down until the
         // camera is out through the vent and comes up as the machine is finally seen whole.
-        halo.uniforms.uIntensity.value = glow * (0.25 + 0.75 * ramp(u, 0.45, 0.7));
+        // The same exit the particle cloud is gated on (`materials.ts`, `outside`): the halo is
+        // the machine's own edge glow seen from OUTSIDE it, and inside the chassis it is a wall
+        // a centimetre off the lens. K3 moved the exit to u ~0.60, so this moved with it.
+        halo.uniforms.uIntensity.value = glow * (0.25 + 0.75 * ramp(u, 0.6, 0.8));
         halo.uniforms.uFlash.value = fx.flash * 0.4;
       }
 

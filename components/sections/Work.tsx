@@ -3,6 +3,7 @@
 import { Fragment, type CSSProperties } from "react";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
 import { Reveal } from "@/components/ui/Reveal";
+import { SceneLoading } from "@/components/scene/art/SceneLoading";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
 import { TILT_MAX } from "@/lib/tilt";
@@ -205,7 +206,7 @@ const DESC_CLASSES =
    a horizontal scrollbar — and a swipe off its end never chains to the page (or, on iOS,
    into the back gesture). The bottom padding is the scrollbar's lane. */
 const GRID_CLASSES =
-  "mt-7 grid grid-cols-3 gap-3.5 max-[901px]:grid-cols-2 max-[901px]:[&>:nth-child(odd):last-child]:col-span-2 " +
+  "relative mt-7 grid grid-cols-3 gap-3.5 max-[901px]:grid-cols-2 max-[901px]:[&>:nth-child(odd):last-child]:col-span-2 " +
   "sm:max-[901px]:[&:not([data-scene-stage][data-helix=spiral]_*)>:nth-child(odd):last-child_[data-parallax=work-media]]:left-1/2 sm:max-[901px]:[&:not([data-scene-stage][data-helix=spiral]_*)>:nth-child(odd):last-child_[data-parallax=work-media]]:edge-fade-x " +
   "max-sm:-mx-(--gutter) max-sm:flex max-sm:snap-x max-sm:snap-mandatory max-sm:overflow-x-auto max-sm:overscroll-x-contain max-sm:px-(--gutter) max-sm:pt-0.5 max-sm:pb-3.5 max-sm:[scroll-padding-inline:var(--gutter)] max-sm:[scrollbar-width:thin] max-sm:[scrollbar-color:var(--red)_transparent]";
 
@@ -241,6 +242,11 @@ export function Work() {
         </Reveal>
 
         <div className={GRID_CLASSES} data-work-track="">
+          {/* Inside the track, not around it: `workHead` is measured as the track's PREVIOUS
+              SIBLING (lib/scene.ts), so a wrapper here would hand the ambient helix the loader's
+              box instead of the heading's. Absolutely positioned, so it is out of the grid's
+              flow and the cards below still tile exactly as they did. */}
+          <SceneLoading />
           {projects.map((p, i) => {
             const [p1, p2] = gradientFor(p, i);
             const style = { "--p1": p1, "--p2": p2 } as CSSProperties;

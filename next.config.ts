@@ -94,7 +94,7 @@ const nextConfig: NextConfig = {
         // components/sections/Work.tsx). An hour of freshness plus a week of
         // stale-while-revalidate is the honest middle: repeat views inside the hour cost
         // nothing, and a replaced screenshot is picked up in the background right after.
-        source: "/:dir(projects|partners)/:path*",
+        source: "/:dir(projects|partners|team)/:path*",
         headers: [
           {
             key: "Cache-Control",

@@ -3,8 +3,18 @@
    Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
    owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
    overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
-   below (52 / 64×72 / 88, 20px from the corner on desktop) ARE that contract, not a local
-   choice.
+   below ARE that contract, not a local choice.
+
+   THE BOX IS SQUARE, AND IT GREW TWICE (2026-09-24): 52 / 64×72 / 88, then 72 / 88 / 120, now
+   88 / 112 / 152. The avatar is a person and not a cube, and a face read at 88px is a thumbnail.
+   Square because the portrait is 0.85 and a square frame holds it with room beneath for the
+   projector beam. The tip's offsets move with it (60 → 80 → 96, and 80 → 100 → 132).
+
+   IT CANNOT COLLIDE WITH THE RAIL, and that is measured rather than assumed. The box is pinned to
+   `right: 20px` and grows LEFTWARD, so its right edge never moves; the rail's painted line sits
+   at `right: 4px`, 12px wide, outside it. Their BOUNDING boxes have overlapped since the 120px
+   step — measured at 1400×900, 28px vertically and 24px horizontally, because `--hud-bottom` is
+   112 — but nothing painted does.
 
    Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
    filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
@@ -28,15 +38,39 @@
   right: max(var(--hud-edge), env(safe-area-inset-right));
   bottom: max(var(--hud-edge), env(safe-area-inset-bottom));
   z-index: var(--z-guide);
-  width: 52px;
-  height: 52px;
+  /* ONE NUMBER PER BREAKPOINT. The tip's offsets and max-heights used to repeat the box's size by
+     hand at four places, and they drifted twice. They derive from this now. */
+  --guide-box: 104px;
+  width: var(--guide-box);
+  height: var(--guide-box);
   pointer-events: none;
+}
+
+/*
+ * A FLOOR FOR NARROW PHONES, and it is arithmetic, not taste. docs/04 fixes the phone dock as
+ * three 44x44 buttons centred on the bar, about 156px wide — x 82..238 at a 320px viewport. The
+ * guide is pinned to `right: 12px` and grows LEFTWARD, so its left edge is at W - 12 - box and
+ * it clears the dock only while that stays above 238: at 320px the box may be at most 70.
+ * 88 does not fit there. Checked across the range: 64 clears at 320 (244 > 238), and 88 clears
+ * from 400px up (300 > 278).
+ */
+@media (max-width: 399px) {
+  .root {
+    --guide-box: 68px;
+  }
+
+  .scene {
+    --bust: 38px;
+    --orbit-a: 44px;
+    --orbit-b: 54px;
+    width: 56px;
+    height: 56px;
+  }
 }
 
 @media (min-width: 641px) {
   .root {
-    width: 64px;
-    height: 72px;
+    --guide-box: 136px;
   }
 }
 
@@ -44,8 +78,7 @@
   .root {
     right: 20px;
     bottom: 20px;
-    width: 88px;
-    height: 88px;
+    --guide-box: 184px;
   }
 }
 
@@ -178,30 +211,35 @@
 
 .scene {
   --cube: 18px;
-  --orbit-a: 38px;
-  --orbit-b: 46px;
+  --bust: 60px;
+  --orbit-a: 70px;
+  --orbit-b: 84px;
   position: relative;
   display: block;
-  width: 44px;
-  height: 44px;
+  width: 86px;
+  height: 86px;
   perspective: 320px;
   transform-style: preserve-3d;
 }
 
 @media (min-width: 641px) {
   .scene {
-    width: 46px;
-    height: 46px;
+    --bust: 78px;
+    --orbit-a: 90px;
+    --orbit-b: 108px;
+    width: 114px;
+    height: 114px;
   }
 }
 
 @media (min-width: 861px) {
   .scene {
     --cube: 24px;
-    --orbit-a: 46px;
-    --orbit-b: 56px;
-    width: 58px;
-    height: 58px;
+    --bust: 106px;
+    --orbit-a: 122px;
+    --orbit-b: 146px;
+    width: 156px;
+    height: 156px;
   }
 }
 
@@ -227,67 +265,380 @@
   background: var(--neon-cyan);
 }
 
-/* The head, in a static three-quarter pose from slightly above: the visor face toward the
-   visitor, turned a little toward the page. */
-.body {
+/*
+ * THE ASSISTANT. A cutout portrait of a real person, dressed as a projection.
+ *
+ * `--bust` is her width and everything else is derived from it: the source is 554 x 628, so the
+ * height is width x 628/554, and every eyelid coordinate below is a percentage of those two
+ * numbers, measured once off the photograph. Nothing here is a magic pixel.
+ *
+ * THE BREATHING LIVES ON THIS ELEMENT and not on the image, because the eyelids have to travel
+ * with the eyes. Put the rise on `.portrait` and the lids stay behind, sitting a pixel low on
+ * every inhale.
+ */
+.figure {
+  --bust-h: calc(var(--bust) * 849 / 722);
   position: absolute;
   left: 50%;
-  top: 44%;
-  width: var(--cube);
-  height: var(--cube);
-  margin: calc(var(--cube) / -2) 0 0 calc(var(--cube) / -2);
-  transform-style: preserve-3d;
-  transform: rotateX(-22deg) rotateY(-24deg);
+  bottom: 18%;
+  width: var(--bust);
+  height: var(--bust-h);
+  translate: -50% 0;
+  /*
+   * THE SWAY TURNS ABOUT HER CHEST, and that one number is what makes it read as a person.
+   * A rotation about a point low in the frame moves the TOP of it most: at 88% down, the crown
+   * of her head travels about eight times as far as her collar. That is a weight shift, which is
+   * what a standing person actually does. Rotate about the middle instead and the whole bust
+   * rocks like a pendulum, which is what a hanging object does.
+   */
+  transform-origin: 50% 88%;
 }
 
-/* Translucent faces with scanlines; the back faces show through, as a hologram's would. */
-.face {
+/* The breath, on its own box because it drives `transform` too and two animations on one
+   property do not compose. It rises from the feet, so the shoulders move and the hem does not. */
+.live {
   position: absolute;
   inset: 0;
-  border: 1px solid var(--neon-cyan);
-  background-color: color-mix(in srgb, var(--neon-cyan) 12%, transparent);
+  transform-origin: 50% 100%;
+}
+
+/*
+ * The portrait. NO FILTER — not here and nowhere in this file.
+ *
+ * The rule at the top of this module is not decoration: a filter makes its element a containing
+ * block and flattens its own `transform-style: preserve-3d`, and this widget draws orbit rings in
+ * 3D over a live WebGL canvas. Two test files enforce it across every HUD module.
+ *
+ * So the desaturation and the lift that turn a photograph into a projection are BAKED INTO THE
+ * FILE at build time (saturation 0.58, brightness 1.07, a 1.06 linear contrast), and the rim
+ * glow below is the file's own no-filter idiom rather than a drop-shadow.
+ */
+.portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+/*
+ * THE RIM, and it is a second painting of her rather than a blur.
+ *
+ * A drop-shadow would trace the cutout's own alpha, which is exactly what is wanted and exactly
+ * what is not allowed. The same shape comes out of the same file used as a MASK over flat cyan,
+ * scaled a few per cent and set behind her: what shows is the few pixels of silhouette her own
+ * edges do not cover. A hologram has a hard outline anyway.
+ */
+.rim {
+  position: absolute;
+  inset: 0;
+  background: var(--neon-cyan);
+  mask-image: url("/guide/asistent-384.webp");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  opacity: 0.55;
+  transform: scale(1.05);
+  transform-origin: 50% 50%;
+  pointer-events: none;
+}
+
+/*
+ * The scanlines, and they are DARK now rather than cyan.
+ *
+ * They used to screen cyan over a colour photograph, because that was the only thing making it
+ * read as a projection. The file is one wavelength already — luminance carried onto --neon-cyan
+ * at build time — so adding more cyan only blew the highlights out. What a projection still needs
+ * is the raster, so this is the line structure alone: one dark line every three pixels, multiplied
+ * into her, masked by the portrait's own alpha so it never paints on the page behind her.
+ * The mask is the same file the <img> loads: one bitmap in the cache, one shape to keep in step.
+ */
+.wash {
+  position: absolute;
+  inset: 0;
   background-image: repeating-linear-gradient(
     to bottom,
-    color-mix(in srgb, var(--neon-cyan) 20%, transparent) 0 1px,
-    transparent 1px 3px
+    color-mix(in srgb, var(--void) 38%, transparent) 0 1px,
+    transparent 1px 4px
   );
-  box-shadow: inset 0 0 6px var(--glow-cyan);
+  mask-image: url("/guide/asistent-384.webp");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  pointer-events: none;
 }
 
-.face[data-face="front"] {
-  background-color: color-mix(in srgb, var(--neon-cyan) 22%, transparent);
-  transform: translateZ(calc(var(--cube) / 2));
-}
-
-.face[data-face="back"] {
-  transform: rotateY(180deg) translateZ(calc(var(--cube) / 2));
-}
-
-.face[data-face="right"] {
-  transform: rotateY(90deg) translateZ(calc(var(--cube) / 2));
-}
-
-.face[data-face="left"] {
-  transform: rotateY(-90deg) translateZ(calc(var(--cube) / 2));
-}
-
-.face[data-face="top"] {
-  transform: rotateX(90deg) translateZ(calc(var(--cube) / 2));
-}
-
-.face[data-face="bottom"] {
-  transform: rotateX(-90deg) translateZ(calc(var(--cube) / 2));
-}
-
-/* The visor: a lit bar across the front face, not an eye. */
-.visor {
+/*
+ * THE EYELIDS, and they are the portrait itself.
+ *
+ * Each lid is a small window onto the same bitmap, offset so it samples the strip of skin just
+ * ABOVE that eye — between the brow and the lash line — and scaled to nothing at rest. A blink
+ * is that strip growing down over the eye. It matches her skin exactly because it IS her skin,
+ * and the spectacle frames never shift, because the lid is drawn inside the lens rather than
+ * over it.
+ *
+ * --lx / --ly place the lid, --ls is where it samples from, all as percentages of the bust.
+ * Measured on a 2.332x magnification of the face: left pupil at 36.57% / 35.25%, right at
+ * 56.16% / 32.66%, the eye opening 9.3% x 4.78%. The lid is a little larger than the opening so
+ * it covers the corners, and it samples 4.6% higher up, which is the lid crease.
+ */
+.lid {
   position: absolute;
-  left: 18%;
-  right: 18%;
-  top: 36%;
+  left: calc(var(--lx) * 1%);
+  top: calc(var(--ly) * 1%);
+  width: 8.42%;
+  height: 4.17%;
+  background-image: url("/guide/asistent-384.webp");
+  background-size: var(--bust) var(--bust-h);
+  background-position:
+    calc(var(--bust) * var(--lx) / -100)
+    calc(var(--bust-h) * var(--ls) / -100);
+  transform-origin: 50% 0;
+  transform: scaleY(0);
+  pointer-events: none;
+}
+
+/*
+ * THE MOUTH, and it is NOT a hole.
+ *
+ * Two attempts were built and photographed before this one. A dark ellipse at the lip line reads
+ * as a hole punched in her face, not as a mouth; shrunk until it stopped being a hole it stopped
+ * being anything. A still photograph of closed lips has no aperture to reveal, and painting one
+ * is exactly what a wrong talking still looks like.
+ *
+ * So nothing is added. `.jaw` is a window onto HER OWN LOWER FACE — the same bitmap the eyelids
+ * blink from, sampled from the lip line down — which drops and stretches on a speech rhythm. At
+ * rest it paints the pixels already underneath it and is invisible; open, her lips part and her
+ * chin lengthens, out of her own skin, with no colour that was not already in the file.
+ *
+ * THE ELLIPTICAL MASK IS NOT DECORATION. A rectangular patch that moves shows a straight edge on
+ * every side it is displaced along — two horizontal smears above and below the mouth and two
+ * vertical discontinuities at the corners, which is where the eye looks. The ellipse has no
+ * straight edge to show.
+ *
+ * `transform-origin: 50% 0` is the jaw's own geometry: displacement grows with distance BELOW the
+ * hinge, so the chin travels furthest and the lip line barely moves. That is the way a jaw opens.
+ * Anchor it the other way and the chest pumps with the voice, which is the puppet tell.
+ * The band stops just past the chin for the same reason — 9% of the bust below the lip line, not
+ * down to the collar.
+ */
+.jaw {
+  position: absolute;
+  left: calc(var(--jx) * 1%);
+  top: calc(var(--mo) * 1%);
+  width: calc(var(--jw) * 1%);
+  height: calc(var(--jh) * 1%);
+  background-image: url("/guide/asistent-384.webp");
+  background-size: var(--bust) var(--bust-h);
+  background-position:
+    calc(var(--bust) * var(--jx) / -100)
+    calc(var(--bust-h) * var(--mo) / -100);
+  clip-path: ellipse(58% 62% at 50% 22%);
+  transform-origin: 50% 0;
+  pointer-events: none;
+}
+
+/* Measured by tools/guide/asset.mjs and printed by it. --mo is where the LIPS PART — 55% down the
+   lip box, not its middle — and a jaw hinged anywhere else drops from the wrong place. */
+.figure {
+  --mx: 40.86;
+  --my: 36.98;
+  --mw: 13.8;
+  --mh: 3.77;
+  --mo: 39.06;
+  --jx: 36;
+  --jw: 24;
+  --jh: 9;
+}
+
+.lid[data-eye="left"] {
+  --lx: 34.24;
+  --ly: 23.99;
+  --ls: 20.59;
+}
+
+.lid[data-eye="right"] {
+  --lx: 49.27;
+  --ly: 22.07;
+  --ls: 18.67;
+}
+
+/* ---- the projector: the greeting's entrance, and nothing the launcher pays for ------------- */
+
+/*
+ * EVERYTHING BELOW ANIMATES ONLY `transform` AND `opacity`, because a test walks every keyframe
+ * block in this file and fails on any other declaration. That is not a limitation worked around
+ * here, it is the technique: a reveal that cannot be a moving mask or a growing clip becomes
+ * SEVEN COPIES with static clips and seven delays, and a glow that cannot be a filter becomes a
+ * border with a box-shadow scaled from a size it was declared at.
+ */
+.projector {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/*
+ * THE STRIKE. One bar, the width of the emitter, that snaps to full width in a sixth of a second
+ * and over-brightens before it settles. It is the first thing that happens and the only thing on
+ * screen for 160ms: a projector announces itself before it draws anything.
+ * box-shadow, not a filter — `filter` is banned in this module and `box-shadow` is not, and it is
+ * already how `.packet` and the intro's shockwave glow.
+ */
+.emitter {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 44%;
   height: 3px;
+  translate: -50% 0;
   background: var(--neon-cyan);
-  box-shadow: 0 0 6px var(--glow-cyan);
+  box-shadow: 0 0 14px 2px var(--glow-cyan);
+  opacity: 0;
+}
+
+/*
+ * THE CONE. A wedge of light, clipped statically out of a gradient — the same shape `.beam` uses
+ * in the launcher, given its own box here because the greeting has no `.scene` around it. It
+ * opens upward from the bar.
+ */
+.cone {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 96%;
+  height: 84%;
+  translate: -50% 0;
+  transform-origin: 50% 100%;
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--neon-cyan) 30%, transparent),
+    color-mix(in srgb, var(--neon-cyan) 4%, transparent) 62%,
+    transparent
+  );
+  clip-path: polygon(44% 100%, 56% 100%, 100% 0, 0 0);
+  opacity: 0;
+}
+
+/*
+ * THE SLICES, and the arithmetic that makes seven identical elements into a scan.
+ *
+ * Each carries the WHOLE portrait (`background-size: 100% 100%`) and is cut down to one band by a
+ * STATIC clip-path, which is legal because only the animation is restricted. `--i` is the band's
+ * index and `--n` how many there are, so the inset is `i/n` from the top and `(n-1-i)/n` from the
+ * bottom — one rule, seven numbers, no hand-written bands to drift out of step with the figure
+ * underneath.
+ *
+ * They arrive BOTTOM FIRST: the delay is `(n-1-i)`, so the band at her chest lands while the one
+ * at her crown is still out of frame, and the picture is drawn up the beam rather than dropped
+ * onto it. Each comes from below and from the left and lands in register — the lateral part is
+ * what makes it read as a signal locking on rather than a blind coming down.
+ */
+.slices,
+.reveal {
+  position: absolute;
+  inset: 0;
+}
+
+.slice {
+  position: absolute;
+  inset: 0;
+  background-image: url("/guide/asistent-384.webp");
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  clip-path: inset(
+    calc(100% * var(--i) / var(--n)) 0
+    calc(100% * (var(--n) - 1 - var(--i)) / var(--n)) 0
+  );
+  opacity: 0;
+}
+
+/* Which side a band flies in from, and which way it shears, as a STATIC rule — so one keyframe
+   block serves all sixteen and the alternation costs nothing. Bands that all come from one side
+   read as a stack sliding; alternating, they read as something being woven. */
+.slice:nth-child(odd) {
+  --s: 1;
+}
+
+.slice:nth-child(even) {
+  --s: -1;
+}
+
+/*
+ * THE SCANNER, riding up the beam with them. Declared at the width it is drawn at and moved only
+ * by `transform`, so nothing here is a dot under the decorative-dots rule and nothing reflows.
+ */
+.scanner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--neon-cyan) 18%,
+    var(--dark-txt) 50%,
+    var(--neon-cyan) 82%,
+    transparent
+  );
+  box-shadow: 0 0 12px 1px var(--glow-cyan);
+  opacity: 0;
+}
+
+/*
+ * THE SHOCKWAVE, when she locks on. A ring, and it is DECLARED AT ITS LARGEST and scaled down to
+ * start — 62% of the greeting across, then transformed. Declared small it would be a round
+ * element under 8px, which the decorative-dots rule forbids across every HUD module; declared
+ * large it is a ring the same family as the orbits. The glow is a box-shadow for the same reason
+ * the emitter's is.
+ */
+.shock {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 62%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border: 2px solid var(--neon-cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 18px 1px var(--glow-cyan), inset 0 0 14px 1px var(--glow-cyan);
+  opacity: 0;
+}
+
+/*
+ * THE GREETING: the same figure, three times the size, once.
+ *
+ * It is anchored to the launcher's own corner and allowed to overflow it — `.root` sets no
+ * overflow and takes no pointer events, and this element takes none either, so nothing it
+ * covers stops being clickable. It is removed from the DOM when the entrance ends (TSX), so it
+ * costs nothing for the rest of the visit.
+ */
+.greeting {
+  position: absolute;
+  right: -4px;
+  bottom: 4px;
+  display: block;
+  width: 230px;
+  height: calc(230px * 849 / 722);
+  pointer-events: none;
+}
+
+.greeting .figure {
+  --bust: 230px;
+  bottom: 0;
+}
+
+@media (min-width: 861px) {
+  .greeting {
+    width: 320px;
+    height: calc(320px * 849 / 722);
+  }
+
+  .greeting .figure {
+    --bust: 320px;
+  }
 }
 
 /* Orbit rings (38px and up) with a packet streak riding each. The trailing rotateZ is where the
@@ -336,16 +687,120 @@
   opacity: 0;
 }
 
+/* ---- the questions: the estimator's chat, in the corner ------------------------------------- */
+
+/*
+ * THE ESTIMATOR'S OWN MATERIAL, and where it could not be copied literally.
+ *
+ * `.ask` is `.chatOption` (Estimator.module.css): a RAISED chip standing off the well — a panel
+ * fill, a hairline border, `--r-sm` — that lifts 2px on hover and presses 1px down on click. That
+ * press is one shared rule there across four different controls, and it is what makes the bay
+ * feel like a single piece of hardware; it is reproduced here for the same reason.
+ *
+ * WHAT CHANGED, AND WHY. The estimator hovers to `--red`. Red in this widget is ACTION — it is
+ * the one CTA fill, and the file says so beside `.tipOpen` — and the portrait beside it is a
+ * monochrome cyan hologram. A red hairline three inches from the red CTA would read as a second
+ * call to action. The chips hover to `--neon-cyan`, which is this corner's own accent, and
+ * everything else about them is the estimator's.
+ *
+ * ONE PER LINE, not a wrapped row. The estimator's options are two-word pills in a bay a third of
+ * a page wide; these are whole questions in a 340px bubble, and six of them wrapped is a ragged
+ * stack with no room left for the answer.
+ */
+.askList {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.ask {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--txt);
+  font: inherit;
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+/*
+ * The hover and the press sit OUTSIDE the reduced-motion block on purpose. The test at
+ * guide-assistant.test.tsx only bans the `animation` and `transition` PROPERTIES out here; a
+ * state rule that changes a colour or a position is not motion in the WCAG sense, it is feedback,
+ * and a visitor who asked for less motion still needs to know a button answered them. The file
+ * already works this way for `.tipOpen`.
+ */
+.ask:hover {
+  border-color: var(--neon-cyan);
+  transform: translateY(-2px);
+}
+
+.ask:active {
+  transform: translateY(1px);
+}
+
+.ask:focus-visible {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 2px;
+}
+
+/*
+ * THE ANSWER IS A BUBBLE, in the estimator's assistant fill — `--blue` 10% over `--panel2`, the
+ * exact mix `.bubble` uses. NOT the visitor-bubble red: nothing here is the visitor talking, and
+ * red is the CTA's.
+ */
+.tip[data-mode="faq"] .tipText,
+.tip[data-mode="say"] .tipText {
+  padding: 11px 13px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--blue) 10%, var(--panel2));
+  line-height: 1.45;
+}
+
+/*
+ * A LINE SHE SAYS IS SPEECH, NOT A TOOLTIP, and it has to look like it. The tip is a console
+ * panel with brackets and a kicker; this is one sentence with a tail pointing back at her. The
+ * tail is a square rotated 45deg, the way the site draws every other diamond — never a circle,
+ * which the decorative-dots rule would catch.
+ */
+.tip[data-mode="say"] {
+  padding: var(--sp-3);
+}
+
+.tip[data-mode="say"] .tipKicker {
+  margin-bottom: 4px;
+}
+
+.tip[data-mode="say"]::after {
+  content: "";
+  position: absolute;
+  right: 26px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  rotate: 45deg;
+  background: color-mix(in srgb, var(--blue) 10%, var(--panel2));
+  border-right: 1px solid var(--neon-cyan);
+  border-bottom: 1px solid var(--neon-cyan);
+}
+
 /* ---- the tip ----------------------------------------------------------------------------------- */
 
 /* Phones: right above the 52px avatar (72px up), clear of the OS dock's 68px top edge. */
 .tip {
   position: fixed;
   right: max(var(--hud-edge), env(safe-area-inset-right));
-  bottom: calc(max(var(--hud-edge), env(safe-area-inset-bottom)) + 60px);
+  bottom: calc(max(var(--hud-edge), env(safe-area-inset-bottom)) + var(--guide-box) + 12px);
   width: min(320px, calc(100vw - 24px));
-  max-height: calc(100vh - var(--header-h) - 88px);
-  max-height: calc(100dvh - var(--header-h) - 88px);
+  max-height: calc(100vh - var(--header-h) - var(--guide-box) - 36px);
+  max-height: calc(100dvh - var(--header-h) - var(--guide-box) - 36px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--sp-3) var(--sp-4) var(--sp-4);
@@ -362,17 +817,24 @@
 /* 641–860px: the avatar is 72px tall, so the tip starts 8px above it (92px up). */
 @media (min-width: 641px) {
   .tip {
-    bottom: calc(max(var(--hud-edge), env(safe-area-inset-bottom)) + 80px);
-    max-height: calc(100vh - var(--header-h) - 108px);
-    max-height: calc(100dvh - var(--header-h) - 108px);
+    max-height: calc(100vh - var(--header-h) - var(--guide-box) - 44px);
+    max-height: calc(100dvh - var(--header-h) - var(--guide-box) - 44px);
   }
 }
 
-/* Desktop: left of the fibre rail, above the 88px avatar box (which ends 108px up). */
+/*
+ * Desktop: clear of the fibre rail, and above the avatar box.
+ *
+ * THE OFFSET IS DERIVED, and it was not. This rule carried `bottom: 116px` — a literal measured
+ * against an 88px avatar — and it sits later in the file than the base rule, so it quietly won
+ * every time the box grew. Measured at 1400x900 with the box at 184: the bubble's bottom edge
+ * landed 115px up while the avatar's top was at 204, and she spoke from behind her own speech.
+ * That is the third time a hand-copied size has drifted here; there are no literals left.
+ */
 @media (min-width: 861px) {
   .tip {
     right: calc(var(--hud-rail-w) + 8px);
-    bottom: 116px;
+    bottom: calc(20px + var(--guide-box) + 12px);
     max-height: calc(100vh - var(--header-h) - 132px);
     max-height: calc(100dvh - var(--header-h) - 132px);
   }
@@ -510,12 +972,123 @@
     animation: guide-tip-in 0.25s var(--motion-ease-out);
   }
 
-  .root[data-state="enter"] .avatar {
-    animation: guide-rise 0.7s var(--motion-ease-out);
+  /*
+   * The launcher waits for the greeting to settle, and it waits on `data-greet` ALONE.
+   *
+   * There used to be a second rule here that started the same rise on `data-state="enter"`, for
+   * the case where no greeting plays. It did not work, and the reason is worth keeping: a CSS
+   * animation is identified by its NAME. The entrance rule started `guide-rise` at mount, it ran
+   * and finished while the page-loading cover still held her back, and when `data-greet` arrived
+   * the name had not changed — so the browser kept the very same animation and merely updated its
+   * delay. Past its active duration, it held the END state. Measured: `animation-name:
+   * guide-rise, delay 1.75s, fill backwards` and `opacity: 1`, at the same instant.
+   *
+   * One rule, one start. `backwards` then holds opacity 0 through the delay, which is the whole
+   * point: two of her in one corner is one too many.
+   */
+  .root[data-greet] .avatar {
+    animation: guide-rise 0.7s var(--motion-ease-out) 1.75s backwards;
   }
 
-  .root[data-state="enter"] .body {
-    animation: guide-enter 0.7s var(--motion-ease-out);
+  /* SHE IS ALIVE for as long as she is on screen, and all of it runs on the launcher and on the
+     greeting alike, so there is one behaviour and not two. */
+  .figure {
+    animation: guide-sway 11.9s ease-in-out infinite;
+  }
+
+  .live {
+    animation: guide-breathe 4.6s ease-in-out infinite;
+  }
+
+  .lid {
+    animation: guide-blink 9s linear infinite;
+  }
+
+  /*
+   * SHE ONLY MOVES HER MOUTH WHILE SHE IS SAYING SOMETHING, and only where it can be seen.
+   * `--bust` is 38px on a narrow phone, which makes the jaw band 3.4px tall: the whole movement
+   * would be a fraction of a pixel. Below 641px the launcher stays still and the GREETING — which
+   * is 230px wide there — still speaks, so the feature exists on every device, at the size where
+   * it registers.
+   */
+  .root[data-say] .greeting .jaw {
+    animation: guide-say 1.9s linear infinite;
+  }
+
+  /*
+   * THE ENTRANCE, and every stage has its OWN keyframe name.
+   *
+   * That is not style. A CSS animation is identified by its name: two rules that start the same
+   * name on the same element do not restart it, they update its timing and leave it wherever it
+   * already was. This file has a fourteen-line comment about the afternoon that cost (see
+   * `.root[data-greet] .avatar`). So: guide-strike, guide-cone, guide-slice, guide-scan,
+   * guide-shock, guide-lock, guide-greet — seven names, seven stages, no collisions.
+   *
+   *      0 ─ 160ms   the emitter bar snaps out to full width and over-brightens
+   *    160 ─ 420ms   the cone of light opens up from it
+   *    300 ─ 1280ms  sixteen bands of her fly in from alternating sides, bottom first
+   *    300 ─ 1280ms  the scanner rides up the beam with them and clears her crown
+   *   1280 ─ 1460ms  two hard stutters, and on 1300 the raster engages: the signal locks on
+   *   1400 ─ 1900ms  a shockwave leaves her
+   *   1900 ─ 2750ms  she stands there, breathes and blinks
+   *   2750 ─ 3400ms  she settles into the launcher, which rises as she goes
+   *
+   * The stagger is DERIVED: sixteen bands 45ms apart is 675ms of it, plus a 300ms flight, so the
+   * last one lands at 1275ms — and the hand-off is at 1300, 25ms after. Get that order wrong and
+   * the top of her head is still in the air when the real figure takes over.
+   */
+  .greeting {
+    animation: guide-greet 3.4s var(--motion-ease-out) forwards;
+  }
+
+  .greeting .projector > .emitter {
+    animation: guide-strike 1.3s var(--motion-ease-out) both;
+  }
+
+  .greeting .projector > .cone {
+    animation: guide-cone 1.3s var(--motion-ease-out) 0.16s backwards;
+  }
+
+  /* Bottom first: the delay counts DOWN the index, so the band at her chest lands while the one
+     at her crown is still below the frame. 70ms apart over seven bands is 420ms of stagger
+     inside a 280ms flight — they overlap, which is what makes it a sweep and not a queue. */
+  /* `both`, not `backwards`. A band holds its 0% before its delay AND its 100% after its flight;
+     with `backwards` alone it reverted to the rule's own `opacity: 0` the moment it landed, so
+     each band appeared, arrived, and vanished 300ms later. Photographed at 1020ms: her head
+     alone, floating, with the whole body already built and gone. */
+  .greeting .projector .slice {
+    animation: guide-slice 0.3s var(--motion-ease-out) both;
+    animation-delay: calc(0.3s + (var(--n) - 1 - var(--i)) * 0.045s);
+  }
+
+  .greeting .projector > .scanner {
+    animation: guide-scan 0.98s linear 0.3s backwards;
+  }
+
+  .greeting .projector > .shock {
+    animation: guide-shock 0.5s var(--motion-ease-out) 1.4s backwards;
+  }
+
+  /* The lock-on, on the figure rather than the projector: what stutters is HER. */
+  .greeting .figure {
+    animation:
+      guide-sway 11.9s ease-in-out infinite,
+      guide-lock 0.18s steps(1, end) 1.28s backwards;
+  }
+
+  /* She is not drawn at all until the slices have finished drawing her, and she takes over on the
+     same frame they leave — `steps(1, end)` on both sides, so there is no crossfade where two
+     paintings of the same person would sum to more than one. Each sits on a wrapper of its own
+     because every element underneath is already carrying an animation, and two that touch
+     `opacity` do not compose: the last one in the list wins. */
+  .greeting .reveal {
+    animation: guide-handover 1.3s steps(1, end) backwards;
+  }
+
+  /* Same again, the other way round: this one ENDS at zero and must stay there, or the bands
+     come back the frame it finishes. */
+  .greeting .projector > .slices {
+    animation: guide-slice-out 1.32s steps(1, end) both;
   }
 
   /* The prompt pulse: three turns of the orbits and three square waves, then rest. */
@@ -534,8 +1107,14 @@
 
 /* Continuous only while the pointer is on it. */
 @media (prefers-reduced-motion: no-preference) and (hover: hover) {
-  .avatar:hover .body {
-    animation: guide-spin 2.4s linear infinite;
+  /* She notices you: the breath quickens and the sway settles, the way a person straightens up
+     when someone turns toward them. */
+  .avatar:hover .live {
+    animation: guide-breathe 2.7s ease-in-out infinite;
+  }
+
+  .avatar:hover .figure {
+    animation: guide-sway 8.1s ease-in-out infinite;
   }
 
   .avatar:hover .orbit[data-orbit="a"] {
@@ -558,21 +1137,354 @@
   }
 }
 
-@keyframes guide-enter {
-  from {
-    transform: rotateX(-22deg) rotateY(-204deg) scale(0.4);
+/*
+ * The breath, and it is DELIBERATELY LOPSIDED. A person breathes in for about four counts and out
+ * for six; a peak at 50% is a machine pumping. The peak sits at 36%, so the inhale is quick and
+ * the exhale is a long settle — which is most of what makes a still photograph look like it has
+ * lungs. Just over one per cent of rise: any more and it reads as being pumped.
+ */
+@keyframes guide-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
   }
-  to {
-    transform: rotateX(-22deg) rotateY(-24deg) scale(1);
+  36% {
+    transform: translateY(-1.25%) scale(1.014);
   }
 }
 
-@keyframes guide-spin {
-  from {
-    transform: rotateX(-22deg) rotateY(-24deg);
+/*
+ * THE SWAY, and the reason it is not a sine.
+ *
+ * Nobody oscillates. A person shifts their weight, HOLDS it for a second or two, then shifts
+ * again — so the two extremes below are each written twice, eight per cent of the cycle apart,
+ * and the eased segments either side turn that into an arrival and a pause rather than a turning
+ * point. The stops are at uneven positions for the same reason.
+ *
+ * `scaleX` a few thousandths under 1 at the extremes is a head TURN: a face narrows as it comes
+ * off axis, and 0.996 is about as far as a flat photograph can be pushed before it shears.
+ *
+ * 11.9s against the breath's 4.6s and the blink's 9s: no two share a short common multiple, so
+ * the three together do not visibly repeat inside a visit.
+ */
+@keyframes guide-sway {
+  0%,
+  100% {
+    transform: rotate(0.9deg) translateX(0.5%) scaleX(1);
   }
-  to {
-    transform: rotateX(-22deg) rotateY(336deg);
+  14% {
+    transform: rotate(1.5deg) translateX(0.9%) scaleX(0.997);
+  }
+  22% {
+    transform: rotate(1.5deg) translateX(0.9%) scaleX(0.997);
+  }
+  46% {
+    transform: rotate(-0.7deg) translateX(-0.6%) scaleX(1);
+  }
+  58% {
+    transform: rotate(-1.4deg) translateX(-1%) scaleX(0.996);
+  }
+  66% {
+    transform: rotate(-1.4deg) translateX(-1%) scaleX(0.996);
+  }
+  84% {
+    transform: rotate(0.3deg) translateX(0.2%) scaleX(0.999);
+  }
+}
+
+/* THE BLINK. Four in nine seconds, unevenly spaced and one of them a double, because a blink on
+   a metronome is the one thing that reads as a machine. Each is 1.6% of the cycle — 144 ms,
+   inside the 100-400 ms a real one takes. The lid is at scaleY(0) for everything in between. */
+@keyframes guide-blink {
+  0%,
+  21.2% {
+    transform: scaleY(0);
+  }
+  22% {
+    transform: scaleY(1);
+  }
+  22.8% {
+    transform: scaleY(0);
+  }
+  47.4% {
+    transform: scaleY(0);
+  }
+  48.2% {
+    transform: scaleY(1);
+  }
+  49% {
+    transform: scaleY(0);
+  }
+  51.6% {
+    transform: scaleY(0);
+  }
+  52.4% {
+    transform: scaleY(1);
+  }
+  53.2% {
+    transform: scaleY(0);
+  }
+  79.4% {
+    transform: scaleY(0);
+  }
+  80.2% {
+    transform: scaleY(1);
+  }
+  81% {
+    transform: scaleY(0);
+  }
+  100% {
+    transform: scaleY(0);
+  }
+}
+
+/* THE STRIKE. A bar that is not there, then is, at full width, over-bright, then settles and
+   burns down. The overshoot at 8% is the whole effect — a projector strikes before it holds —
+   and it is 8% of 1.3s, so the snap is 104ms. It ends at zero so that when the animation lets go
+   the rule's own `opacity: 0` is already what is on screen. */
+/* The launcher is big enough to show a mouth from 641px up. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 641px) {
+  .root[data-say] .avatar .jaw {
+    animation: guide-say 1.9s linear infinite;
+  }
+}
+
+/*
+ * A SPEECH RHYTHM, not a metronome. Syllables of different weight, two real pauses where a
+ * sentence breathes, and no two adjacent openings the same size — a mouth that opens identically
+ * every time is a hinge. Only `transform` moves, which is all this file's keyframes may do.
+ *
+ * THE AMPLITUDE IS SET BY THE SMALLEST PLACE IT RUNS, not by what looks right on a big one. She
+ * only ever speaks at LAUNCHER size — the greeting is over before she says anything — so the jaw
+ * band is 11px tall on a desktop. Measured at the first attempt: a peak of 11% and 1.1 gave
+ * 0.95px of travel, which is a flicker. 22% and 1.2 give about 5px of lip displacement on a
+ * 106px face, which is roughly what a mouth does in speech.
+ */
+@keyframes guide-say {
+  0%,
+  4% {
+    transform: translateY(0) scaleY(1);
+  }
+  8% {
+    transform: translateY(17%) scaleY(1.15);
+  }
+  13% {
+    transform: translateY(4%) scaleY(1.035);
+  }
+  17% {
+    transform: translateY(22%) scaleY(1.2);
+  }
+  23% {
+    transform: translateY(4%) scaleY(1.035);
+  }
+  27% {
+    transform: translateY(13%) scaleY(1.11);
+  }
+  32% {
+    transform: translateY(2%) scaleY(1.02);
+  }
+  36% {
+    transform: translateY(22%) scaleY(1.2);
+  }
+  41% {
+    transform: translateY(6%) scaleY(1.05);
+  }
+  46%,
+  55% {
+    transform: translateY(0) scaleY(1);
+  }
+  60% {
+    transform: translateY(15%) scaleY(1.13);
+  }
+  65% {
+    transform: translateY(2%) scaleY(1.02);
+  }
+  70% {
+    transform: translateY(20%) scaleY(1.18);
+  }
+  75% {
+    transform: translateY(6%) scaleY(1.05);
+  }
+  80% {
+    transform: translateY(11%) scaleY(1.09);
+  }
+  85%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes guide-strike {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.04);
+  }
+  8% {
+    opacity: 1;
+    transform: scaleX(1.12);
+  }
+  14% {
+    opacity: 1;
+    transform: scaleX(0.96);
+  }
+  22% {
+    opacity: 0.9;
+    transform: scaleX(1);
+  }
+  72% {
+    opacity: 0.7;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+/* THE CONE, opening from the bar it stands on. It overshoots too, by less, and then holds — and
+   fades away over the last third, because by then she is the light and it is only the lamp. */
+@keyframes guide-cone {
+  0% {
+    opacity: 0;
+    transform: scaleY(0.02) scaleX(0.34);
+  }
+  18% {
+    opacity: 1;
+    transform: scaleY(1.06) scaleX(1.04);
+  }
+  28% {
+    opacity: 0.92;
+    transform: scaleY(1) scaleX(1);
+  }
+  62% {
+    opacity: 0.8;
+    transform: scaleY(1) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1) scaleX(1);
+  }
+}
+
+/* ONE SLICE, and all seven share it. In from below and from the left, landing in register: the
+   lateral part is what makes it read as a signal locking on rather than a blind coming down. */
+/*
+ * ONE BAND, and all sixteen share it.
+ *
+ * `--s` is +1 or -1 from the nth-child rule above and `--i` is the band's index, so the flight
+ * comes in from alternating sides and the farther bands start farther out. The shear is what
+ * makes it read as something being WOVEN rather than a stack of shelves sliding shut, and the
+ * 0.8% overshoot past centre at 76% is what makes each one LAND rather than arrive.
+ */
+@keyframes guide-slice {
+  0% {
+    opacity: 0;
+    transform: translate3d(calc(var(--s) * (22% - var(--i) * 0.9%)), 24%, 0) skewX(calc(var(--s) * -9deg));
+  }
+  38% {
+    opacity: 1;
+  }
+  76% {
+    opacity: 1;
+    transform: translate3d(calc(var(--s) * -0.8%), 0, 0) skewX(calc(var(--s) * 0.6deg));
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) skewX(0deg);
+  }
+}
+
+/* The slices hand over to the real figure on ONE frame, with no crossfade: two paintings of the
+   same person at half opacity each do not sum to one painting, they sum to a ghost. */
+@keyframes guide-slice-out {
+  0%,
+  99% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes guide-handover {
+  0%,
+  99% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* THE SCANNER, up the beam and out of the top. */
+@keyframes guide-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(6%) scaleX(0.3);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+  88% {
+    opacity: 1;
+    transform: translateY(-96%) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-104%) scaleX(0.6);
+  }
+}
+
+/* THE LOCK. Two hard displacements of a frame and a half each, on `steps(1, end)` so they JUMP
+   rather than slide — a signal does not ease into register. */
+@keyframes guide-lock {
+  0% {
+    transform: translateX(2.2%);
+  }
+  22% {
+    transform: translateX(-1.6%);
+  }
+  44% {
+    transform: translateX(0);
+  }
+  66% {
+    transform: translateX(1.1%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* THE SHOCKWAVE. Declared at 62% of the greeting across and scaled DOWN to start: declared small
+   it would be a round element under 8px, which the decorative-dots rule forbids in every HUD
+   module. It leaves her and thins out, the way the intro's own does. */
+@keyframes guide-shock {
+  0% {
+    opacity: 0;
+    transform: scale(0.08);
+  }
+  12% {
+    opacity: 0.95;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+/* And then she stands down into the corner: 0.9s building, 0.9s held, 0.6s away toward the
+   launcher's own box, which is where she reappears small. */
+@keyframes guide-greet {
+  0%,
+  81% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(16%, 14%) scale(0.38);
   }
 }
 

@@ -80,10 +80,38 @@
   }
 }
 
+/*
+ * Portrait. 78vw of a phone is nearly the whole width, which is the point: the stage is
+ * 1.28 × --intro-w, so the 480-unit viewBox spans 99.84vw and the drawing's frame IS the
+ * screen's. Everything in the drawing is derived from --intro-w, so nothing in it is clipped
+ * and nothing about --hud-top changes — 93.75 of the viewBox lands on --intro-cy + 0.25
+ * --intro-w at every size, and the +40px is pure surplus (49 viewBox units here against 15 on
+ * a 1280px --intro-w, i.e. MORE clearance on a phone, not less).
+ *
+ * THE 33.2vh ARM IS THE BURST, AND IT IS MEASURED. `.fallback` is scaled 4.6× about the
+ * display's centre (IntroDirector, "the DOM-only burst"), which sits at viewBox (30.87,
+ * -68.27) — 0.182 --intro-w ABOVE --intro-cy. Spend that on the machine's own silhouette
+ * (viewBox y -156.6 → 94, so its centre is 0.0835 --intro-w below --intro-cy and its half
+ * height is 0.3341 --intro-w) and the scaled machine covers --intro-cy + 0.2711 --intro-w
+ * ± 1.537 --intro-w. Needing that to reach the bottom of the viewport gives
+ * --intro-w >= 0.6H / 1.8081 = 0.3319H, i.e. 33.2vh; the top needs only 0.316H.
+ * At 78vw the two arms cross at H/W = 2.349, so every mainstream phone (390 × 844 is 2.16,
+ * 412 × 915 is 2.22) keeps the 78vw it has always had, and only the 21:9-and-taller ones
+ * (360 × 900 = 2.5, a folded cover screen at 2.56) get the lift they need — measured, those
+ * two ended the burst 32px and 44px of bare void short at the bottom.
+ *
+ * What the arm CANNOT fix, and does not try to: the DISPLAY alone never covers a portrait
+ * viewport at 4.6. Its scaled height is 2 × 1.0129 --intro-w = 1.58W, which on a 390 × 844
+ * phone is 616px against 844 — 254px short, and short at ANY origin, because the shortfall is
+ * a size and not a placement. The burst therefore ends on the machine's body and then on the
+ * overlay's own void, never on the page (the reveal is a beat later, at the timeline's 0.72,
+ * with .fallback already at autoAlpha 0). The "visible border" the 4.6 exists to prevent is
+ * the machine's edge, and that is covered.
+ */
 @media (orientation: portrait) {
   .overlay {
     --intro-cy: 40%;
-    --intro-w: 78vw;
+    --intro-w: max(78vw, 33.2vh);
   }
 }
 
@@ -369,14 +397,113 @@
   translate: -50% -50%;
   perspective: 1400px;
 
-  /* --rest is the resting pose: the machine composed and asleep. --lid is shut only while
-     the machine is out of frame — at rest, and from 0.84 (the skip clamp), it is open. */
-  --rest: clamp(0, (0.05 - var(--fb-p)) / 0.03, 1);
-  --form: clamp(0, (var(--fb-p) - 0.62) / 0.16, 1);
-  --mp: max(var(--rest), var(--form));
-  --mz: calc(1 + 1.25 * clamp(0, (0.86 - var(--fb-p)) / 0.2, 1) * (1 - var(--rest)));
-  --lid: max(var(--rest), clamp(0, (var(--fb-p) - 0.6) / 0.24, 1));
-  --sc: clamp(0, (var(--fb-p) - 0.78) / 0.16, 1);
+  /*
+   * EVERY HAND-OFF IN THE FILM IS ONE SMOOTHSTEP — t*t*(3 - 2*t), which calc() can express —
+   * AND NONE IS SHORTER THAN 0.08 OF THE SCRUB. Both are the same bug seen twice. `--fb-p` is
+   * quantised to 1/200 and the director's chase runs 0.45s, so a 0.03 window is six
+   * thousandths of a second across one or two quantiser steps: a cut, not a move. And a pair
+   * of LINEAR windows meeting at a corner changes speed inside one frame — the positions are
+   * right and the motion still reads as a stutter, which is what "prea brusc" was. A
+   * smoothstep leaves and arrives at zero velocity, so nothing starts or stops with a jolt and
+   * the layer that takes over starts at the speed the last one finished at.
+   *
+   * The machine has NO resting pose. Frame 0 is the die (.fbDie); --form is the machine's only
+   * entrance, and it is now at 0.66 rather than 0.60 BECAUSE OF THE BEAT ORDER. The camera
+   * does not stand still while a machine materialises around it: it rises out of the keyboard
+   * first (--rt, 0.58 → 0.74, and see .fbHatch) and the machine is what it surfaces INTO. The
+   * 3D is the same shot — `three/cameraPath.ts` crosses the deck's top surface at u 0.602, and
+   * K5, the first frame from OUTSIDE, is at 0.74.
+   *
+   * --lid is [0.40, 0.60], `lidOpenAt`'s own window, to the constant, with `laptopBootLid`'s
+   * back-out ease: the lid opens while the camera is still in the corridor, so that what
+   * surfaces is an ALREADY-OPEN machine. It used to open from 0.60 to 0.84 — i.e. the drawing
+   * faded a shut laptop in around the camera and then opened it, which is the one order the
+   * 3D cannot do (a shut lid lies flat 0.02 above the deck; there is no gap to rise through).
+   * None of that travel is seen, and that is correct: it is not seen in 3D either.
+   *
+   * A skip snaps --fb-p to the 0.84 clamp and tweens from there, so 0.84 has to be coherent
+   * COLD: --form 0.972 (the machine all but solid), --lid 1 (open), --fade 1 (the board and
+   * its hatch gone), --mz 1.035, the display a quarter woken. And --mz is exactly 1 from 0.86,
+   * because --ft reaches 1 there, so the burst's 4.6x is derived against the same framing.
+   */
+  /*
+   * SCENE 1 — THE SLOT. The film used to open on a frame that was already finished and then
+   * light the cores 106 ms later: there was no establishing beat at all. Now the machined slot
+   * closes round the die first — the two canyon walls, the socket kerb, the deck's near lip and
+   * the capacitor studs come up together while the floor brightens and the recession darkens.
+   * It brightens ABOVE today's constants rather than starting below them: --fb-p is held at 0
+   * for the whole load, so the frame a visitor stares at while the page arrives must be the one
+   * that ships today, not a dimmer version of it.
+   * Declared here and not on .fbDie because <Cavity/> is worn by BOTH layers — whatever the
+   * slot settles at, the board inherits through the dissolve.
+   */
+  --kt: clamp(0, (var(--fb-p) - 0.02) / 0.15, 1);
+  --slot: calc(var(--kt) * var(--kt) * (3 - 2 * var(--kt)));
+
+  /*
+   * THE SPLASH ENVELOPE, declared here because two layers wear it: the wave itself is its own
+   * drawing on top of the die, and the die's own parts are struck by it.
+   * 4t(1-t) — nought at both ends, one in the middle, and a PARABOLA rather than a smoothstep
+   * because a strike should arrive with velocity and leave with it; a smoothstep would ease in,
+   * which is the one thing an impact must not do.
+   * [0.16, 0.30] opens on the frame the ignition does and is spent before the current starts to
+   * leave, so the splash is the thing that ENDS the arrival: the fourteen heads land together,
+   * the chip takes it, and the wave is the taking.
+   */
+  --spt: clamp(0, (var(--fb-p) - 0.16) / 0.14, 1);
+  --spl: calc(4 * var(--spt) * (1 - var(--spt)));
+
+  /*
+   * SCENE 3 — THE CURRENT LEAVES. The last thing to happen inside the processor is the one
+   * piece of metal that is a PATH: the capsule standing in the +x trough, running from the
+   * die's own level up past the kerb and out of the top of frame. It is also the only object in
+   * the film that survives the match cut AS ITSELF — .fbHeat is in <Cavity/>, so the board
+   * carries the same capsule at 0.3061 in the same place on the frame, and one window lights
+   * one piece of metal on both sides of the dissolve.
+   */
+  /* [0.25, 0.34], moved off [0.26, 0.36]: it used to still be filling two hundredths INTO the
+     match dissolve, so the one object that survives the cut as itself was changing state on
+     the frames the two drawings had to agree. Now it is full on the exact frame the cut opens
+     and it crosses into the board already lit. It rides act 3 — the current, having crossed
+     the silicon and run back out through the fourteen conductors, leaving up the +x trough. */
+  --ht: clamp(0, (var(--fb-p) - 0.29) / 0.09, 1);
+  --heat: calc(var(--ht) * var(--ht) * (3 - 2 * var(--ht)));
+
+  /* die → board, the match dissolve. --dis is written ONCE here and worn from both sides
+     (1 - --dis on the die, --dis on the board), so the two can never sum to more than one
+     layer's worth of drawing: the old pair fell out of step and put a 71%-opaque die on top
+     of a fully opaque board for a tenth of the scrub. */
+  --dt: clamp(0, (var(--fb-p) - 0.38) / 0.12, 1);
+  --dis: calc(var(--dt) * var(--dt) * (3 - 2 * var(--dt)));
+  /* board → machine. 0.66, alongside --form: the board holds full strength until the last of
+     its guts has finished lighting (0.703, see IntroFallback's --a table), is down to 13% by
+     0.80 where the machine is at 71% and rising, and is gone at 0.84, the skip clamp. It used
+     to hold FULL opacity under a fully formed machine from 0.78 to 0.92. */
+  --gt: clamp(0, (var(--fb-p) - 0.71) / 0.14, 1);
+  --fade: calc(var(--gt) * var(--gt) * (3 - 2 * var(--gt)));
+  --ft: clamp(0, (var(--fb-p) - 0.71) / 0.15, 1);
+  --form: calc(var(--ft) * var(--ft) * (3 - 2 * var(--ft)));
+  /* The pull-in to the burst's framing, off the SAME smoothstep the machine fades in on, so
+     it lands at --mz 1 on the exact frame it reaches full opacity — the machine resolves into
+     place instead of arriving and then sliding. Linear, it sat dead at 2.25 for a sixth of the
+     window and then moved off at 6.25 per unit on one frame. */
+  --mz: calc(1 + 1.25 * (1 - var(--form)));
+  /* `lidOpenAt(u)`, transcribed: a = the ramp, k = a - 1, 1 + 1.7k³ + 0.7k². c1 = 0.7 is the
+     constant `laptopBootLid` uses, so the intro machine and the interior machine open the
+     same way — 1.76% of overshoot at 0.726 of the ramp, which is 1.9° on a 107° lid. */
+  --lt: clamp(0, (var(--fb-p) - 0.4) / 0.2, 1);
+  --lk: calc(var(--lt) - 1);
+  --lid: calc(1 + 1.7 * var(--lk) * var(--lk) * var(--lk) + 0.7 * var(--lk) * var(--lk));
+  /* THE RISE, and it is one window so that nothing in it can fall out of step: the interior
+     sinking (.fbBoard's translate), the deck's underside coming at the camera (.fbHatch's
+     --hz) and that group's own fade are all this one smoothstep. It opens at 0.58, one beat
+     before the machine, and closes at 0.74, which is K5 — the 3D's first frame from outside. */
+  --rt: clamp(0, (var(--fb-p) - 0.58) / 0.16, 1);
+  --rz: calc(var(--rt) * var(--rt) * (3 - 2 * var(--rt)));
+  /* 0.19, not 0.16: the screen's wake now runs to 0.97 instead of stopping at 0.94 and
+     leaving the last twentieth of the film with nothing moving in it but the progress bar. */
+  --st: clamp(0, (var(--fb-p) - 0.78) / 0.19, 1);
+  --sc: calc(var(--st) * var(--st) * (3 - 2 * var(--st)));
 }
 
 .fbTilt {
@@ -433,7 +560,9 @@
 }
 
 /* Blurred INSIDE the SVG: a CSS `filter` here would be a compositor filter under the 3D
-   tilt, re-run every frame the transform changes. Beat 4 pulls both layers out to 1. */
+   tilt, re-run every frame the transform changes. Both layers enter at 0.66 already at
+   --mz 2.25 — the camera has just come up through the keyboard and is still right on top of
+   the machine — and beat 4 pulls them out to 1 by 0.86, which is where they always landed. */
 .fbHalo,
 .fbMachine {
   transform: scale(var(--mz));
@@ -441,8 +570,10 @@
   will-change: transform;
 }
 
+/* The halo is a blurred outline of the MACHINE, so it can only come up with the machine:
+   at rest it used to bloom a laptop silhouette behind a shot of a processor. */
 .fbHalo {
-  opacity: calc(0.55 * var(--mp));
+  opacity: calc(0.55 * var(--form));
 }
 
 .fbHaloNarrow {
@@ -462,39 +593,291 @@
 }
 
 .fbMachine {
-  opacity: calc(var(--mp) * (0.55 + 0.45 * var(--form)));
+  opacity: calc(var(--form) * (0.55 + 0.45 * var(--form)));
 }
 
-/* First paint draws halo + machine only — ~70 nodes, as many as the ∞ had; the macro
-   layers are parsed but never laid out before [data-live], i.e. after LCP. */
-.fbDie,
-.fbBoard,
-.fbWake {
+/* First paint draws the DIE and nothing else, and the count that matters is render objects:
+   every element that generates a box PLUS the subtree each <use> materialises, because a
+   <use> of an n-node <g> costs n every time it is instantiated and a <defs> child costs
+   nothing at all. 20 boxes + 20 <use> instances = 40 — still 40 with the splash, which is a GATED layer of its
+   own and laid out only after [data-live] — against the 97 the cavity's first cut
+   reached (34 + 63) and the 54 the halo and the machine used to lay out — and one running
+   animation (the standby comet) against four. The twentieth is the arrival's head; the second
+   copy of the conductors it fills in behind is a <defs> child and costs nothing at first paint,
+   because both it and the forward copy are reached through <use>. The whole cavity, floor
+   included, is six render
+   objects; see IntroFallback's `<Cavity />`. The
+   other three layers are parsed and never laid out before [data-live] — i.e. after LCP,
+   which is what keeps the <h1> underneath the LCP element. Nothing gated here is reachable
+   without JS: --fb-p cannot leave 0 on its own and the earliest of the four opens at 0.16.
+   Written as one :not() rule, the same shape the HUD's pre-hydration gate uses, rather than
+   none + [data-live] block: a `display: block` at this weight would outrank the
+   prefers-contrast rule that drops .fbHalo, and quietly bring the glow back in high
+   contrast. Nothing here needs `block` anyway — .fbSvg is absolutely positioned. .fbWake
+   is already inside .fbMachine and is listed only so the name keeps its own gate. */
+.overlay:not([data-live]) :is(.fbHalo, .fbMachine, .fbBoard, .fbWake, .fbSplash) {
   display: none;
 }
 
-.overlay[data-live] :is(.fbDie, .fbBoard, .fbWake) {
-  display: block;
-}
-
+/*
+ * Beats 1-2, and the frame EVERY visitor opens on: the processor, close and asleep, INSIDE
+ * something. Both macro layers scale about 50% 50%, so the package this layer ends on and the
+ * one .fbBoard starts on are concentric: the hand-off is a match dissolve, not a jump between
+ * two framings of the same chip.
+ *
+ * 1.12, DOWN FROM 1.40, and the 0.28 it gives up is what buys the shot its cavity. The frame
+ * this layer gets is x ±(240 / --s) and y (98 - 243.75 / --s) upward, because `--over` below
+ * pins the carrier's bottom edge to the HUD's band: at 1.40 that was ±171 × (-76 → 138), so
+ * the 304 × 196 carrier's OWN TOP EDGE sat off the top of frame and there was nowhere to put
+ * a ceiling — 19 units of margin at the sides and nothing else. There was no shot to compose,
+ * only a chip bleeding off every edge. At 1.12 the window is ±214 × (-120 → 148): 62 units
+ * either side for the deck's walls, 22 above for the socket kerb and the recession up the
+ * machine, and 54 below the walls' feet at y 44 for the FLOOR, which shows as a 62 × 54 wing
+ * at each bottom corner where the 304-wide carrier stops covering it. The carrier still draws
+ * 340 × 220 of the 480 × 300 viewBox: the processor fills 72% of the frame each way and reads
+ * as a processor IN A SLOT, framed on four sides, which is the ask.
+ *
+ * ONE SCALE, ONE SMOOTHSTEP. It used to be two linear windows meeting at 0.30 — 1.167 of
+ * scale per unit below it, 1.25 above — which is a speed change inside a single frame on a
+ * scrub quantised to 1/200: a stutter on the exact beat the power-up ends. Now --z is the
+ * whole pull-back and the curve is 0.35 linear + 0.65 smoothstep. The linear third is not
+ * decoration: a bare smoothstep leaves 0 with zero velocity, and the first twentieth of the
+ * film would be a freeze-frame. With it the shot creeps through the power-up (1.12 → 1.05 by
+ * 0.12, while the cores light and the traces run), accelerates through the dissolve where
+ * .fbBoard takes the travel over, and never changes speed at a corner.
+ *
+ * The one corner it does have is --z's own clamp at 0.56, where the 0.35 linear term drops
+ * 0.294 of scale per unit to nothing. It is deliberately left alone: --dis reaches 1 at 0.42,
+ * so this layer has been at opacity 0 for a seventh of the film by then, and .fbBoard — which
+ * IS on screen there — carries the same lead-in as z(1-z)² instead, precisely so that the one
+ * that can be seen arrives at zero velocity.
+ *
+ * --lit is the power arriving. The layer sits at 0.78 while the traces are undrawn, the ring
+ * is open and the cores are on their 0.24 floor, and reaches 1 by 0.18. It is a level, not a
+ * fade-in: at --fb-p 0 the drawing must already be there. It is SMOOTHSTEPPED, and that is a
+ * fix, not decoration: linear, the whole layer's opacity climbed at 1.222 per unit and then
+ * stopped dead at 0.18 — a 100% rate change on a whole layer's opacity, which is exactly the
+ * "prea brusc" this file keeps having to design out. Zero velocity at 0.18 now, and still 0.78
+ * at --fb-p 0 because a smoothstep of 0 is 0.
+ */
 .fbDie {
+  /* the longest of the 14 conductors, in pathLength units — see the dash note below */
+  --run: 79;
   --sig: 2.2s;
-  --w: clamp(0, (var(--fb-p) - 0.26) / 0.32, 1);
-  opacity: min(clamp(0, var(--fb-p) / 0.05, 1), clamp(0, (0.68 - var(--fb-p)) / 0.16, 1));
-  transform: scale(calc(2.5 - 1.85 * clamp(0, var(--fb-p) / 0.66, 1)));
-  transform-origin: 50% 44%;
+  --lp: clamp(0, var(--fb-p) / 0.24, 1);
+  --lit: calc(var(--lp) * var(--lp) * (3 - 2 * var(--lp)));
+
+  /*
+   * THE PROCESSOR SCENE IS THREE ACTS, AND THEY ARE CAUSE AND EFFECT.
+   *
+   * It used to be one: the traces drew outward from 0.14 while nothing had ever arrived, the
+   * uncore lit on its own clock, the cores came up, and the whole thing was over. Power left a
+   * chip it had never reached. Now:
+   *
+   *   ARRIVE  0.02 → 0.17   --arr   the only motion is INWARD. The chip is dark.
+   *   CATCH   0.15 → 0.25   --ign   nothing travels. The silicon reddens in place.
+   *   LEAVE   0.25 → 0.40   --w     the only motion is OUTWARD, and it opens on the peak.
+   *
+   * At every boundary the frame's dominant motion changes register completely, which is what
+   * makes the order read as consequence rather than as a list. The middle act is the hinge:
+   * --w now opens on the exact frame --flare peaks, so the current cannot leave before it has
+   * arrived. It could, before.
+   *
+   * --arr is LINEAR and every other window here is smoothstepped. That is the point: a
+   * travelling head at constant speed reads as a thing being carried, and a head that eases
+   * out reads as a thing running out of energy just as it gets there.
+   */
+  --arr: clamp(0, (var(--fb-p) - 0.02) / 0.16, 1);
+  --it: clamp(0, (var(--fb-p) - 0.16) / 0.14, 1);
+  --ign: calc(var(--it) * var(--it) * (3 - 2 * var(--it)));
+  --ct: clamp(0, (var(--fb-p) - 0.3) / 0.09, 1);
+  --cool: calc(var(--ct) * var(--ct) * (3 - 2 * var(--ct)));
+  /*
+   * AND THE ROOM TAKES IT A BEAT LATER. The same envelope, 0.03 of scrub behind, because light
+   * that leaves a chip reaches the walls after it leaves. Nothing here is a new element: it
+   * drives the canyon's own faces, floor, kerb and recession, which have been painted once and
+   * frozen for the whole film.
+   */
+  --rmt: clamp(0, (var(--fb-p) - 0.19) / 0.14, 1);
+  --room: calc(4 * var(--rmt) * (1 - var(--rmt)));
+  /*
+   * THE HEAT ITSELF, and it is a difference rather than a window because it has to come back
+   * DOWN. --flare is 0 at 0.15, 1 at 0.25, and 0.028 at 0.34 — the frame the match dissolve
+   * opens. That last number is the whole reason --cool exists: the frozen 0.508 / 0.425 /
+   * 2.556 trio holds the die and the board at the same size to six decimals on the frame the
+   * cut opens, and cross-fading a RED chip onto the board's cold blue one throws that away. A
+   * match cut survives a change of scale. It does not survive a change of colour.
+   * It is never negative: --ign is 1 everywhere --cool is non-zero, and both leave and arrive
+   * at zero velocity, so 0.15, 0.25 and 0.35 are all corner-free.
+   */
+  --flare: calc(var(--ign) - var(--cool));
+
+  /*
+   * ACT 3 — THE CURRENT LEAVES. [0.25, 0.40], 822 → 1367 ms. It used to be [0.14, 0.32] and it
+   * is the single change the whole re-cut turns on: the outward run now opens eleven
+   * hundredths later, on --flare's peak, instead of before anything had reached the chip.
+   * It is not a repeat of act 1 even though it walks the same fourteen runs. The arrival is a
+   * BAND MOVING on dark metal in the gradient's own colour; the departure is a near-white
+   * hairline GROWING, outward, into the coloured glow that act 1 left standing and act 2 has
+   * just bloomed. Opposite direction, opposite register, different geometry state.
+   */
+  --w: clamp(0, (var(--fb-p) - 0.3) / 0.16, 1);
+  /*
+   * THE UNCORE, inside the burn but on its own window. The block field on the silicon fills in
+   * left to right, four columns across: the logic wakes BEFORE the cores do, which is also the
+   * right story — it opens on 0.15 with the ignition and closes at 0.24, two hundredths before
+   * the last core finishes. Kept as its own declaration and not folded onto --ign: the wipe is
+   * a direction on the silicon and the flare is a level, and the two want to be retimed apart.
+   */
+  --bt: clamp(0, (var(--fb-p) - 0.17) / 0.1, 1);
+  --blk: calc(var(--bt) * var(--bt) * (3 - 2 * var(--bt)));
+  /*
+   * 0.508, and it is DERIVED with the board's own constant below — the two must be solved
+   * together or the match cut drifts. The pair was re-solved when the dissolve moved from 0.26
+   * to 0.34: across the whole dissolve the two drawings of the same chip now stay within
+   * **2.97%** of each other, against 3.44% today, and they are the SAME SIZE to six decimals on
+   * the frame it opens.
+   */
+  --z: clamp(0, var(--fb-p) / 0.544, 1);
+  --e: calc(var(--z) * var(--z) * (3 - 2 * var(--z)));
+  --s: calc(1.12 - 0.47 * (0.35 * var(--z) + 0.65 * var(--e)));
+  /* THE PROCESSOR IS BIGGER THAN THE MACHINE, SO IT HAS TO BE LIFTED OFF THE READOUT.
+     `--hud-top` reserves the band below `--intro-cy + --intro-w * 0.25`, a budget derived from
+     the machine's feet reaching +94 of the 480 viewBox units. 93.75 is that band in viewBox
+     units and 98 IS STILL THE RIGHT HALF-HEIGHT: the cavity around the carrier grows UPWARD
+     (to y -232, the recession) and OUTWARD (to x ±264, the walls), and its lowest edge — the
+     floor's near lip — ends on y 98, the carrier's own bottom edge, precisely so this number
+     does not have to move. Put the floor at the frame's own bottom instead (y 148) and the
+     lift becomes 148 × 1.12 - 93.75 = 72.4, which drags the carrier's top edge from -109.76
+     to -182 on a frame that stops at -150: the kerb, the recession and 32 units of the
+     processor go off the top to buy 56 units at the bottom that the HUD's band already owns.
+     At the opening 1.12 the carrier reaches 109.76, so the lift is 16.01 units — on a
+     2560-wide viewport 55px, against the 148px the old 1.40 needed — and it falls to zero at
+     --s 0.957, i.e. --fb-p 0.21. The clearance is DERIVED: change --s and it follows.
+
+     IT IS NO LONGER A max(). max(0, 98·--s - 93.75) has a corner exactly where it bites: the
+     lift was falling at 104 viewBox units per unit of --fb-p and stopped inside one frame at
+     0.21, which is a whole layer's POSITION changing speed by 100% — the second of the two
+     kinks a reviewer found. Normalising the excess by its own value at --fb-p 0 (16.01) and
+     smoothstepping it leaves and arrives at zero velocity, keeps 16.01 at 0 and 0 from 0.21
+     exactly, and is never more than 1.54 units (0.0962 × 16.01, the largest gap between a
+     smoothstep and its ramp) below the ramp in between — 4px of the 40px --hud-top already
+     holds clear, on the widest viewport this runs on.
+     375 is the viewBox-unit → px factor (480 across 1.28 × --intro-w). The board below is NOT
+     lifted: it is a zoom-out meant to run past the frame, and by the time it is the only layer
+     the die is gone. */
+  --ov: clamp(0, (98 * var(--s) - 93.75) / 16.01, 1);
+  --over: calc(16.01 * var(--ov) * var(--ov) * (3 - 2 * var(--ov)));
+  opacity: calc((0.78 + 0.22 * var(--lit)) * (1 - var(--dis)));
+  transform: translateY(calc(var(--over) * var(--intro-w) / -375)) scale(var(--s));
+  transform-origin: 50% 50%;
 }
 
+/* Beat 3 — the light leaves the package and runs out through the machine's guts to the vent
+   while the camera keeps backing off, and then rises out of the keyboard.
+   2.96 is derived, not chosen: this layer's silicon is 60 wide against the die's 196, so
+   196/60 × the die's 0.907 at 0.26 is the scale on which the two drawings of the same chip are
+   the SAME SIZE on the frame the dissolve opens. Across the whole 0.26 → 0.42 dissolve they
+   stay within 3.4% of each other, where the two-window pair they replace drifted 8%.
+
+   ONE curve for the layer's whole life, over 0.26 → 0.77, and its shape is `--e + 0.15·--lead`
+   where --lead is z(1-z)². The 0.15 is the same linear lead-in as before and for the same
+   reason — a bare smoothstep leaves 0.26 at zero velocity, and the dissolve would open on a
+   freeze-frame while the die is still travelling at 1.11 of scale per unit. What changed is
+   that z(1-z)² SPENDS it: its slope at z 0 is 1, exactly the linear term's, and its slope at
+   z 1 is 0, where a plain z's is not. The old `0.15z + 0.85e` therefore arrived at 0.77 still
+   moving at 0.69 of scale per unit and stopped inside one frame — a 100% rate change on a
+   whole layer's SCALE, at 33% opacity, which is the first of the two kinks a reviewer found.
+   It now arrives at 0.005. Monotone throughout: the derivative factors to (1-z)(5.55z + 0.15),
+   which is never negative on [0, 1].
+   The curve passes 1.2245 — the scale at which all 392 × 236 is inside the 480 × 300 viewBox —
+   at 0.596, and is down to 0.62 by 0.77 under a machine that is by then carrying the shot.
+
+   --bs is named because .fbHatch has to divide by it: that group carries a TOTAL scale of its
+   own and composes inside this one. */
 .fbBoard {
-  --w: clamp(0, (var(--fb-p) - 0.56) / 0.3, 1);
+  /* the longest of the 16 copper runs, in pathLength units */
+  --run: 82;
   --sig: 3.6s;
-  opacity: min(clamp(0, (var(--fb-p) - 0.5) / 0.1, 1), clamp(0, (0.92 - var(--fb-p)) / 0.12, 1));
-  transform: scale(calc(3 - 2.35 * clamp(0, (var(--fb-p) - 0.46) / 0.44, 1)));
-  transform-origin: 53% 36%;
+  /* The 16 copper runs, drawn at a CONSTANT rate — a dash offset is a length, and a current
+     spreading at a steady speed is the one thing in this file that must stay linear. 0.34, not
+     0.30: the last piece of the machine now lights at 0.703, so the current arrives at the rim
+     on 0.64 rather than standing finished for a tenth of the film. */
+  --w: clamp(0, (var(--fb-p) - 0.42) / 0.3, 1);
+  --z: clamp(0, (var(--fb-p) - 0.38) / 0.36, 1);
+  --e: calc(var(--z) * var(--z) * (3 - 2 * var(--z)));
+  --lead: calc(var(--z) * (1 - var(--z)) * (1 - var(--z)));
+  /*
+   * 2.556 and 1.936, and BOTH are derived, the same way 2.96 and 2.34 were. The dissolve moved
+   * from 0.26 to 0.34 to buy the processor its new beats, and this constant is 196/60 x the
+   * die's own scale ON THE FRAME THE DISSOLVE OPENS — which is a different frame now, so it is
+   * a different number: 196/60 x 0.7824 = 2.556. The span keeps the same 0.62 end.
+   * Solved together with the die's 0.508 divisor and the 0.425 window above: across the whole
+   * dissolve the two drawings of the same chip stay within 2.97% of each other, against 3.44%
+   * today, and they are the same size to six decimals on the frame it opens. Change one of the
+   * three and all three have to be re-solved.
+   */
+  --bs: calc(2.5027 - 1.8827 * (var(--e) + 0.15 * var(--lead)));
+  /* The deck's underside, as a TOTAL scale: 0.42 (a 235 × 160 rectangle half the frame across,
+     the deck seen from well under it) up to 2.0, at which the 240-wide bay is 480 across —
+     the frame's own width, i.e. the camera is through it. */
+  --hz: calc(0.42 + 1.58 * var(--rz));
+  opacity: calc(var(--dis) * (1 - var(--fade)));
+  /* The camera goes UP, so the interior goes down: 180 viewBox units over --rt's window, which
+     at the ~0.9 the board is down to by 0.66 drops the plate's centre three fifths of the way
+     to the bottom edge. 375 is the viewBox-unit → px factor, as in .fbDie. */
+  transform: translateY(calc(var(--rz) * 180 * var(--intro-w) / 375)) scale(var(--bs));
+  transform-origin: 50% 50%;
+}
+
+/* The die's own cavity, at the board's scale — one table, two layers (IntroFallback
+   `<Cavity />`). The 0.3061 that composes it into this layer is an attribute, not a variable:
+   60/196 is a constant of the drawing. It dims as it recedes, off the same --e the scale uses,
+   so the corridor's far end goes dark instead of holding a hard rectangle in the middle of the
+   frame — and at --e 0 (the dissolve) it is at full strength, which is what keeps the die's
+   copy and this one summing to one layer's worth of cavity while they cross-fade. */
+.fbCavity {
+  opacity: calc(1 - 0.5 * var(--e));
+}
+
+/* THE WAY OUT. Total scale --hz, so the group divides out the layer's own --bs and then wears
+   the number it wants; --rz drives the size and the fade together, so nothing in the beat can
+   fall out of step. 6.75·r·(1-r)² is 1 at r 1/3 and 0 at both ends, with a DOUBLE root at 1:
+   the deck's underside comes out of nothing at 0.58, is at full strength at --fb-p 0.642 with
+   its 227 × 66 bay open in the middle of a frame it has just filled, and is down to 6% by the
+   time it is twice that size. A symmetric 4·r·(1-r) held 36% at r 0.9, which is several
+   viewports of tinted plate painted for a frame nobody is looking at — the cost lands hardest
+   in portrait, where the stage is already a viewport wide. Both ends leave at zero velocity,
+   because --rz is itself a smoothstep. */
+.fbHatch {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  /* AND it has to divide out the layer's TRANSLATE too, not only its scale.
+     `.fbBoard` is `translateY(T) scale(--bs)` about its own centre, so the translate lands on
+     screen unscaled while every displacement of a CHILD is multiplied by --bs. Dividing out only
+     the scale left the bay riding the interior down: 180 viewBox units of sink while it expands,
+     which put the frame's centre inside the bay only while --rz < 0.118 — u 0.613 — and pointed
+     the camera at solid deck for the whole visible remainder of the exit. Cancelling in the
+     child's own space costs -T / --bs, and T in viewBox units is --rz * 180. */
+  transform: translateY(calc(var(--rz) * -180px / var(--bs)))
+    scale(calc(var(--hz) / var(--bs)));
+  opacity: calc(6.75 * var(--rz) * (1 - var(--rz)) * (1 - var(--rz)));
+}
+
+/* The power wave — but the schedule is now the FRAME's, not a rank: `--a` is the --fb-p at
+   which each piece's bounding box first fits inside the viewBox at this layer's scale, floored
+   0.008 apart in the 3D's own wave order. The derivation and the table are in IntroFallback.
+   The ramp is 0.08, the floor under which a ramp on a scrub quantised to 1/200 reads as a cut;
+   the caps land at 0.476 and the vent, last as in the 3D, at 0.703. 0.28 is the unlit level —
+   a piece is always THERE, it just isn't carrying yet, which is what makes the board read as a
+   machine from the frame it appears on rather than assembling itself out of black. */
+.fbPart {
+  opacity: calc(0.28 + 0.72 * clamp(0, (var(--fb-p) - var(--a)) / 0.08, 1));
 }
 
 /* The swing, derived in IntroFallback: scaleY(sin ψ) foreshortens, skewX recedes,
-   ψ = 92° × --lid. Without calc() trigonometry the first declaration stands: always open. */
+   ψ = 92° × --lid. Without calc() trigonometry the first declaration stands — the lid still
+   opens on --lid, linearly instead of sinusoidally, and lands open at the same 0.60. */
 .fbSwing {
   transform-box: fill-box;
   transform-origin: 0 0;
@@ -531,6 +914,170 @@
 .fbFaint {
   stroke-opacity: 0.22;
   stroke-width: 0.9;
+}
+
+/* The cavity's dress. A lit face is a surface the camera is close enough to catch light on —
+   the canyon walls' inner edges, the socket kerb, the deck's near lip, the capacitor studs;
+   .fbDeep is the same ribbed metal seen from further down the machine, which is the whole
+   depth cue in a drawing that has no perspective. Half opacity on ONE rect, not a filter. */
+.fbFace {
+  /* Scene 1: the slot resolves. Today's 9% and 0.5 are the FLOOR, not the ceiling — see --slot. */
+  fill: color-mix(in srgb, var(--dark-ice) calc(9% + 8% * var(--slot)), transparent);
+  stroke-opacity: calc(0.5 + 0.3 * var(--slot));
+}
+
+/*
+ * THE BURN LIGHTS THE ROOM, and this is the part nobody asked for.
+ *
+ * Everything the ignition did before happened ON the chip: the silicon reddened, the cores came
+ * up, the gradient's hot end crossed. The canyon the chip sits in — two machined walls, the
+ * socket kerb, the deck's near lip, the floor under the package, the recession above it — was
+ * painted once at --fb-p 0 and then frozen for the entire film. Which is why the ignition read
+ * as a colour change rather than as a light: there was nothing in frame for it to fall on.
+ *
+ * So the wave's own envelope, 0.03 of scrub behind it (--room), rides the surfaces that were
+ * already there. No new element, no filter, no cost — the walls simply catch the flash a beat
+ * after the chip does, the way a room does.
+ *
+ * Scoped to .fbDie because <Cavity/> is worn by BOTH interior layers: the board carries the
+ * same walls at scale 0.3061 on the other side of the match cut, and they must not flash there.
+ */
+.fbDie .fbFace {
+  fill: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--red-lift) calc(55% * var(--room)), var(--dark-ice))
+      calc(9% + 8% * var(--slot) + 14% * var(--room)),
+    transparent
+  );
+  stroke-opacity: calc(0.5 + 0.3 * var(--slot) + 0.35 * var(--room));
+}
+
+.fbDeep {
+  /* The recession DARKENS as the near surfaces come up: that difference is the depth. */
+  opacity: calc(0.5 - 0.08 * var(--slot));
+}
+
+/* The recession is the one surface that should NOT warm — it is the hole the light has not
+   reached — so it only picks up the fraction that bounces, and it stays the depth cue it is. */
+.fbDie .fbDeep {
+  opacity: calc(0.5 - 0.08 * var(--slot) + 0.16 * var(--room));
+}
+
+/* The floor: the same ribbed metal as the recession, but 0.78 rather than 0.5 because it is
+   the nearest surface in the shot and the only one under the package. Without it the frame was
+   closed on three sides and the processor read as a chip on a shelf. */
+.fbFloor {
+  opacity: calc(0.78 + 0.1 * var(--slot));
+}
+
+/* The nearest surface in the shot, and the only one under the package, so it takes the most. */
+.fbDie .fbFloor {
+  opacity: calc(0.78 + 0.1 * var(--slot) + 0.22 * var(--room));
+}
+
+/*
+ * THE SPLASH — its own layer, above the die, in the FRAME's coordinates rather than the chip's.
+ *
+ * Not a shortcut: the die is pulling back across this window, and a wave that expanded with the
+ * chip would be a decal stuck to it. Expanding in the room while the chip recedes is what a
+ * wave leaving a thing looks like. It goes with the die on --dis, because whatever the wave is,
+ * it belongs to the shot the cut ends.
+ */
+.fbSplash {
+  opacity: calc(1 - var(--dis));
+}
+
+/*
+ * Three rings out of one circle of r = 100, each with its own clock 0.12 of the envelope behind
+ * the last, so what leaves the chip is a WAVE TRAIN and not a hoop. The scale sweep 0.08 → 3.20
+ * carries r from 8 to 320 user units, and every radius it crosses on the way is a real edge of
+ * the drawing: 62 the silicon, 98 its x-edge, 128 the power ring, 152 the package boundary and
+ * the conductors' rim, 184 the canyon wall's lit face, and then out of a frame whose
+ * half-diagonal is 283.
+ *
+ * `vector-effect: non-scaling-stroke` is doing real work: without it the transform scales the
+ * stroke too, so a front declared thick at birth would arrive at the frame edge FORTY times
+ * thicker. With it the declared width is the width, and the front can thin from 11 to 2 as it
+ * goes — which is the only way, on a layer with no filters, to say that a wave is spending
+ * itself.
+ */
+.fbBurst,
+.fbBurstGlow {
+  --t: clamp(0, (var(--spt) - 0.12 * var(--b)) / 0.66, 1);
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  /* fill-box, NOT view-box. The reference box has to be the circle's own, because this viewBox
+     starts at (-240, -150) and `transform-origin: 50% 50%` against the view-box resolves to
+     (240, 150) in local coordinates — the corner, not the middle. Measured: the wave came out
+     of the bottom right of frame instead of out of the chip. The circle's own fill box is
+     centred on the circle, so this is exact whatever the viewBox does. */
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transform: scale(calc(0.08 + 3.12 * var(--t)));
+  stroke-opacity: calc(4 * var(--t) * (1 - var(--t)) * var(--k));
+}
+
+.fbBurst {
+  --k: 0.9;
+  stroke: var(--red-lift);
+  stroke-width: calc(2 + 9 * (1 - var(--t)));
+}
+
+/* The bloom, in this file's only idiom for one: a fat, low-opacity second painting of the same
+   geometry. It leads the front rather than trailing it (--b 1 against the front's 0 and 2), so
+   the light arrives before the edge does. */
+.fbBurstGlow {
+  --k: 0.4;
+  stroke: var(--red);
+  stroke-width: calc(8 + 30 * (1 - var(--t)));
+}
+
+/* The deck seen from UNDERNEATH, on the way out through it. A tint, not a mask: at --hz 1 this
+   plate is 1.67 frames across and would otherwise black out the guts that are still finishing
+   their ramps underneath it (the last lands at 0.703, .fbPart). */
+.fbUnder {
+  fill: color-mix(in srgb, var(--void) 45%, transparent);
+  stroke-opacity: 0.28;
+}
+
+/* The bay in the keyboard, seen from above once the camera is out. Void-filled, because what
+   is behind it is the dark the camera came from, not a lighter key; the stroke is .fbMachine's
+   own 1.1 with `vector-effect: non-scaling-stroke`, which at 6.6 viewBox units of foreshortened
+   depth is the whole difference between a slot and a bar. */
+.fbBay {
+  fill: var(--void);
+  stroke: var(--dark-cyan);
+  stroke-opacity: 0.75;
+}
+
+/* And from below, on the way through it. This one scales with .fbHatch, so it is a hairline at
+   --hz 0.42 and 3.2 units across the frame at 2.0 — the edge rushing past the lens. */
+.fbBayRim {
+  fill: none;
+  stroke: var(--dark-cyan);
+  stroke-opacity: 0.8;
+  stroke-width: 1.6;
+}
+
+/* The heat path, the one run of metal the light actually travels: a capsule in the die's
+   trough, a bent hairline-free stroke across the board. Cyan because it is carrying. */
+.fbHeat,
+.fbPipe {
+  stroke: var(--dark-cyan);
+  stroke-opacity: 0.45;
+}
+
+.fbHeat {
+  /* Scene 3 — the current leaves. Its own rule, so the board's long bent run (.fbPipe) is
+     untouched and still lights on its own --a. */
+  fill: color-mix(in srgb, var(--dark-cyan) calc(9% + 13% * var(--heat)), transparent);
+  stroke-opacity: calc(0.45 + 0.4 * var(--heat));
+}
+
+.fbPipe {
+  stroke-width: 15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .fbGlass {
@@ -610,7 +1157,7 @@
   stroke-opacity: 0.75;
   stroke-width: 1.4;
   stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.74) / 0.2, 1)));
+  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.74) / 0.23, 1)));
 }
 
 .fbScan,
@@ -624,15 +1171,35 @@
   animation: introCaretY 4.6s linear infinite;
 }
 
+/* Six lines, 0.09 each over 0.785 → 0.985, NOT the 0.03 they were. 0.03 of a scrub quantised
+   to 1/200 is six steps, and at the director's 0.45s chase each line resolved inside about
+   13ms: six hard switches rather than a log filling in. 0.022 apart, so they overlap and read
+   as one cascade, and the last one lands with the rim's draw at the end of the film. */
 .fbLog {
   fill: var(--dark-ice);
   stroke: none;
-  opacity: calc(0.7 * clamp(0, (var(--fb-p) - (0.8 + 0.026 * var(--i))) / 0.03, 1));
+  opacity: calc(0.7 * clamp(0, (var(--fb-p) - (0.785 + 0.022 * var(--i))) / 0.09, 1));
 }
 
-.fbCpu {
-  color: var(--dark-cyan);
-  opacity: calc(0.28 + 0.72 * clamp(0, (var(--fb-p) - (0.2 + 0.05 * var(--i))) / 0.07, 1));
+/* The four cores come up one after another, 0.05 apart over 0.04 → 0.29 (0.09 each, up from
+   0.07 — under 0.08 a ramp is two quantiser steps and reads as a switch): the first thing that
+   moves after the standby comet, and done as the traces reach the package rim. 0.24 is the
+   asleep floor — visible, so frame 0 reads as a processor, not as a hole. */
+/* SCENE 2 — THE UNCORE, the wipe itself. The second painting of the block tile is revealed
+   left to right; at --blk 0 it is clipped away entirely and the field is exactly what ships
+   today. A percentage inset, so it follows BLOCK_FIELD rather than hard-coding its 122. */
+.fbBlkWipe {
+  clip-path: inset(0 calc(100% - 100% * var(--blk)) 0 0);
+}
+
+/* ACT 2 — the four cores come up 0.022 apart over 0.170 → 0.326, i.e. INSIDE the burn and just
+   behind the uncore's wipe, rather than on a clock of their own that happened to start first.
+   0.24 is still the asleep floor — visible, so frame 0 reads as a processor and not as a hole —
+   and `color` repaints all three parts of <symbol id="tbs-intro-core"> at once, outline, inner
+   fill and cross, because every one of them is drawn on currentColor. */
+.fbDie .fbCpu {
+  color: color-mix(in srgb, var(--red-lift) calc(85% * var(--flare)), var(--dark-cyan));
+  opacity: calc(0.24 + 0.76 * clamp(0, (var(--fb-p) - (0.19 + 0.026 * var(--i))) / 0.1, 1));
 }
 
 .fbFill {
@@ -650,21 +1217,87 @@
   stroke-opacity: 0.45;
 }
 
-.fbRing {
-  stroke-width: 2.2;
-  stroke-opacity: 0.8;
-  stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.1) / 0.14, 1)));
+/* ACT 2 — THE IGNITION, AND ITS ORIGIN. DIE_PARTS[0] is the 196 × 124 rect dead centre of
+   frame: the one shape that IS the chip. So the burn starts on the silicon itself and
+   everything else on the layer is lit BY it, which is the difference between a chip catching
+   and a scene changing colour.
+   Scoped to .fbDie on purpose — .fbSilicon is also the board's own 60-wide die (which has to
+   stay cold, it is the other half of the match cut) and the fan hub on the machine layer. */
+.fbDie .fbSilicon {
+  --hot: color-mix(in srgb, var(--red-lift) calc(100% * var(--flare)), var(--blue));
+  fill: color-mix(in srgb, var(--hot) calc(12% + 10% * var(--flare)), transparent);
+  stroke: color-mix(in srgb, var(--red-lift) calc(70% * var(--flare)), var(--dark-cyan));
+  stroke-opacity: calc(0.45 + 0.45 * var(--flare));
 }
 
-/* Dashing runs on across a <path>'s subpaths: 14 (or 16) traces light IN ORDER from one
-   offset. The three .fbPulse lines are the only running dashes left; the ∞ had 15. */
+/* The gradient's HOT END CROSSES THE DIE. #tbs-intro-die already runs red-lift → red → cyan →
+   blue across x -170 → 170, so the heat is on the drawing from frame 0, parked on the -x half.
+   The ignition is that end flooding right: nothing new is introduced, the existing hot end
+   simply spreads, and everything the gradient paints on this layer — the under-glow, the
+   comet, the power ring — goes hot on one declaration pair.
+   The <stop> nodes live in .fbDie's own <defs>, a DOM descendant, so a descendant selector
+   reaches them and the board's EdgeGradient (#tbs-intro-bd, inside .fbBoard) never moves. */
+.fbDie .stopCyan {
+  stop-color: color-mix(in srgb, var(--red-lift) calc(60% * var(--flare)), var(--dark-cyan));
+}
+
+.fbDie .stopBlue {
+  stop-color: color-mix(in srgb, var(--red) calc(45% * var(--flare)), var(--blue));
+}
+
+/* The power ring closes last, 0.12 → 0.30, timed against the pull-back rather than against the
+   other die parts: r = 128 against the frame's 150-unit half-height plus the lift, so it is
+   whole only once 128·--s + --over <= 150, i.e. --s <= 1.0785, which .fbDie now reaches at
+   0.085 — the draw starts on a ring that is already in frame and ends, at 0.30, on one that is
+   whole. The draw runs clockwise from the right, where the arc is in frame from the start. */
+/* ACT 2 — the ring closes AROUND the burn: retimed to [0.15, 0.27] so the draw opens on the
+   exact frame the die catches and closes two hundredths after the peak, which is the heat
+   reaching the package rim with follow-through rather than a fifth unrelated clock. It still
+   starts on a ring that is already whole in frame — r = 128 against the 150-unit half-height
+   plus the lift needs --s <= 1.0785, which .fbDie reaches at 0.085 — and it still runs
+   clockwise from the right, where the arc is in frame from the start. */
+.fbRing {
+  stroke-width: 2.2;
+  stroke-opacity: calc(0.8 + 0.2 * var(--flare, 0));
+  stroke-dasharray: 1000;
+  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.16) / 0.14, 1)));
+}
+
+/*
+ * THE CONDUCTOR REVEAL, AND THE ONE MEASUREMENT IT ALL TURNS ON.
+ *
+ * This file used to say that dashing runs on across a <path>'s subpaths, so that fourteen
+ * traces light IN ORDER from a single offset. That is not what this browser does, and it never
+ * was. Measured on a bare <path> of 14 subpaths with pathLength 1000 and `stroke-dasharray:
+ * 1000`, reading back the painted fraction of every subpath at a ladder of offsets:
+ *
+ *     offset    0 … 750    every subpath 100% painted
+ *     offset 1000 … 1750   every subpath 0% painted
+ *     offset       2000    every subpath 100% painted
+ *     offset  -250, -500   every subpath 0% painted
+ *
+ * THE DASH PATTERN RESTARTS AT EVERY SUBPATH, and `pathLength` is shared out across all of
+ * them — so each of these runs is only about 71 of the 1000 units, a dash of 1000 swallows it
+ * whole, and the reveal was never a draw at all: it was a switch that flipped the entire
+ * harness on the first frame --w rose above zero. Both the outward draw and the arrival were
+ * being written against arithmetic the renderer does not use.
+ *
+ * So the pattern is cut to the size of ONE RUN — `--run`, the longest run on that layer, in
+ * pathLength units. It is DERIVED and it is per-layer, because the two layers' harnesses are
+ * not the same shape: the die's longest is 89.592 user units of 1464.735 (× 1000 ⇒ 78.92, so
+ * 79) and the board's is 155.592 of 1915.647 (⇒ 81.22, so 82). A dash of `--run` against a
+ * `1000 - --run` gap therefore fits exactly one band on every run and never two, and
+ * `--run * (1 - t)` walks each run's own draw from its own start. Short runs finish before long
+ * ones, which is a stagger the old switch could not have had — and on the die's new geometry
+ * the spread is 61.4 to 78.9 rather than 56.1 to 85.6, so the fourteen now land much closer
+ * together.
+ */
 .fbTrace,
 .fbTraceGlow,
 .fbPulse {
   stroke-linecap: round;
-  stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 * (1 - var(--w, 1)));
+  stroke-dasharray: var(--run) calc(1000 - var(--run));
+  stroke-dashoffset: calc(var(--run) * (1 - var(--w, 1)));
 }
 
 .fbTrace {
@@ -678,11 +1311,100 @@
   stroke-opacity: 0.4;
 }
 
+/*
+ * ACT 1 — THE ARRIVAL. Because the pattern restarts at every subpath (see above), a front that
+ * runs INWARD cannot be written as an offset: an offset only ever draws a run from its own
+ * first point. So the geometry is reversed instead — .fbDie's glow rides #tbs-intro-di, the
+ * same fourteen conductors written end-to-end — and the identical expression act 3 uses grows
+ * each of them from the package rim toward the silicon. One dash rule, both acts, opposite
+ * directions, and nothing here depends on how a renderer wraps a dash pattern.
+ *
+ * Fourteen fronts advance at once rather than one crawling the harness in series, which is the
+ * better reading anyway: power does not arrive down one wire.
+ */
+.fbDie .fbTraceGlow {
+  stroke-dashoffset: calc(86 * (1 - var(--arr)));
+  /* THE BLOOM, in this file's own idiom. There is no filter on this layer and there is not
+     going to be one, so the bloom is what .fbTraceGlow already is — a fat, low-opacity second
+     painting of the same geometry. 6 → 12 is derived, not chosen: the narrowest gap between
+     neighbouring runs is 32 units (the top and bottom fans where they meet the package edge),
+     so a 12-wide halo is a fat glow on each conductor and never a merged smear. */
+  stroke-width: calc(6 + 6 * var(--flare));
+  stroke-opacity: calc(0.4 + 0.38 * var(--flare));
+}
+
+/*
+ * The head itself — a short bright band on every conductor at once, running the length of its
+ * own run rim → silicon. It keeps the FORWARD geometry: a band does not need the path reversed,
+ * only an offset that moves it.
+ *
+ * `18 982` — an 18-unit slug on a 1000-unit period. The period is what buys the EMPTY STATE
+ * that the reveal above cannot have: with the pattern restarting every run, the band sits at
+ * run-local [1000 - d, 1018 - d), so an offset of 918 puts it at 82 — past the end of the
+ * longest run there is (78.92, i.e. `--run` 79) — and 998 puts it at 2, on the silicon. --arr
+ * walks the one to the other. .fbPulse's `26 974` has period 1000 too, but its band is pinned
+ * to the run's start; this one is placed.
+ *
+ * It LANDS rather than switches off: at --arr 1 the head is sitting on the die, and --ign takes
+ * it from there, so what ends the arrival is the chip catching and not a timer.
+ *
+ * BUTT CAPS, AND THAT IS NOT A DETAIL. The three rules above set `stroke-linecap: round`, and
+ * this node is deliberately not in that list: --arr is 0 for the whole load, so a round cap
+ * would paint fourteen 6-wide dots just past the ends of the runs — out in the recession, on
+ * nothing — in the one frame a visitor stares at while the page arrives.
+ */
+.fbArrive {
+  stroke: var(--red-lift);
+  stroke-width: 6;
+  stroke-opacity: calc(0.95 * (1 - var(--ign)));
+  stroke-linecap: butt;
+  stroke-dasharray: 18 982;
+  stroke-dashoffset: calc(918 + 80 * var(--arr));
+}
+
 .fbPulse {
   stroke-dasharray: 26 974;
   stroke-width: 2.2;
   stroke-opacity: 0.85;
   animation: introSignal var(--sig, var(--comet-dur)) linear infinite;
+}
+
+/*
+ * THE STANDBY COMET, on the two hosts that are made of many runs.
+ *
+ * `26 974` sweeping an offset from 1000 to 0 is a travelling band on a path of ONE subpath —
+ * which is what the machine's rim line is, and it is left alone. On the die's fourteen runs and
+ * the board's sixteen it was something else entirely: the pattern restarts on each of them, so
+ * the band was pinned to every run's first 26 units and simply blinked on for the 2.6% of each
+ * cycle the offset spent near a multiple of the period. The one thing moving in the frame a
+ * visitor stares at during the whole load was a flash, 14 times at once, every 2.2 seconds.
+ *
+ * Cut to one run — an 18-unit slug on an 86 period — and swept across exactly that period, it
+ * is a comet again, on every conductor.
+ */
+.fbDie .fbPulse,
+.fbBoard .fbPulse {
+  stroke-dasharray: calc(var(--run) * 0.22) calc(var(--run) * 0.78);
+  animation-name: introSignalRun;
+}
+
+/* The die's runs are written silicon → rim, so forward is OUTWARD. Reversed, the comet points
+   where the film is about to go instead of away from it. It then fades out on --ign: once the
+   die has caught there is nothing left on standby, and act 2's rule is that nothing travels in
+   either direction. The board keeps the forward sweep — there the current IS leaving. */
+.fbDie .fbPulse {
+  animation-direction: reverse;
+  stroke-opacity: calc(0.85 * (1 - var(--ign)));
+}
+
+@keyframes introSignalRun {
+  from {
+    stroke-dashoffset: 0;
+  }
+
+  to {
+    stroke-dashoffset: var(--run);
+  }
 }
 
 @keyframes introSignal {
@@ -986,6 +1708,7 @@
   .flash,
   .shock,
   .fbHalo,
+  .fbSplash,
   .fbGlass,
   .fbSheen,
   .fbScreenGlow {
@@ -1004,6 +1727,14 @@
 
   .skip {
     border-color: var(--dark-txt);
+  }
+
+  /* The recession and the floor are depth cues carried by part-opacity hairlines, and this
+     mode has just taken the halo away: bring them to full strength so the opening frame still
+     reads as a processor inside a machine rather than one on black. */
+  .fbDeep,
+  .fbFloor {
+    opacity: 1;
   }
 }
 

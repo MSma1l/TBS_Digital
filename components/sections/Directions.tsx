@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { Reveal } from "@/components/ui/Reveal";
+import { SceneLoading } from "@/components/scene/art/SceneLoading";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Locale } from "@/lib/i18n/locales";
@@ -482,6 +483,7 @@ export function Directions({ initialArt }: DirectionsProps) {
               data-scene-anchor="services"
               className="pointer-events-none relative min-h-[220px] flex-1 self-stretch sm:min-h-[240px] md:min-h-[220px] lg:min-h-[300px]"
             >
+              <SceneLoading />
               {/* The selected model's static illustration (BrowserServiceArt above). Keyed:
                   each selection mounts its illustration afresh (a one-shot entrance). */}
               {initialArt ? (

@@ -251,8 +251,8 @@ hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
 | `lib/intro.ts` | Names and timings (`INTRO_TIMING`, incl. `LATE_SCENE_GOAL`), the drawing's scrub channel (`FB_PROGRESS_PROP`), the reveal targets (`INTRO_REVEAL_ORDER`), the server gate, and the one "done" signal: `finishIntro({ played })` clears the legacy cookie and dispatches the event, idempotently, behind a module flag |
 | `IntroPreloader` (shell) | The overlay markup, the post-hydration decision (bypass or run), scroll lock, skip inputs, the visibility-aware watchdog, the safety-net unmounts |
 | `IntroDirector` | Progress, the burst, the page entrance (GSAP writes straight to the DOM, never React state per frame), the scene's lifecycle. It scrubs **both** renderers off the same progress: `fx.flight` for 3D, `--fb-p` on the drawing |
-| `intro/flight.ts` | `FLIGHT_MAP` / `flightFromProgress` — progress → the camera's flight. Its own tiny module because the director needs it on the no-WebGL path, where the three.js chunk is never loaded |
-| `three/cameraPath.ts` | The shot list (`FLIGHT_KEYS`, six frames), `cameraAt`, the lid and screen ramps, **and `INTRO_LAPTOP`, the machine's measurements** — `three/laptop.ts` imports them rather than re-declaring them, so the flight and the object cannot drift apart. `import type` only: no three.js, so the whole flight is unit-tested without a GL context |
+| `intro/flight.ts` | `FLIGHT_MAP` / `flightFromProgress` — progress → the camera's flight, a monotone cubic through the table's rows (piecewise-linear put a 79% speed corner at progress 0.86). Its own tiny module because the director needs it on the no-WebGL path, where the three.js chunk is never loaded |
+| `three/cameraPath.ts` | The shot list (`FLIGHT_KEYS`, eight frames — K3 is the run down the cavity past the guts and K4 the rise through the keyboard, which together keep the camera inside the machine to `u` 0.602), `cameraAt`, the lid and screen ramps, **and `INTRO_LAPTOP`, the machine's measurements** — `three/laptop.ts` imports them rather than re-declaring them, so the flight and the object cannot drift apart. `import type` only: no three.js, so the whole flight is unit-tested without a GL context |
 | `IntroScene` + `three/*` | Drawing; reports `onReady` / `onLost` and never touches the page |
 
 Every part the director drives is found under the overlay by `data-part`; every entrance
@@ -429,6 +429,181 @@ mode, the card nearest the band's middle).
   rings were tied to the intro's orbits (`RING_TILTS` / `RING_OMEGA` ≡ the intro's `ORBITS`, pinned
   by a unit test). `CORE`, `RING_TILTS`, `RING_OMEGA` and that test are gone; the intro keeps its own
   `ORBITS` in `components/intro/`.
+
+### The static illustration is the fallback, not a preamble
+
+`components/scene/art/ServiceArt.tsx` draws one line illustration per direction, server-rendered.
+It used to be painted on **every** load and cross-faded out when the live model arrived
+(`[data-renderer="webgl"] .art { opacity: 0 }`), so every visitor saw a still picture first and
+then watched a different object replace it. Two things were wrong with that, and the second is
+why it read so badly: the drawings depict the *previous* generation of models, so the swap was not
+a match cut but one object becoming another.
+
+It is inverted now. `.art` is `opacity: 0` by default; only `[data-renderer="fallback"]` and
+`[data-renderer="off"]` bring it back. So:
+
+| stage | what fills the hero's right column |
+|-------|------------------------------------|
+| `pending` (also the server's value) | nothing — the box is empty while the decision is made |
+| `webgl` | the live model, **playing its entrance** |
+| `fallback` · `off` | the drawing |
+
+**Between first paint and the live model the box is not empty either.** `ModelLoader.tsx` fills it
+while `data-renderer` is `pending`: a dashed isometric footprint with three rungs assembling over
+it and a packet riding down the axis — the stage's own vocabulary, nine elements, transform and
+opacity only, and CSS rather than a second canvas because it has to paint exactly when the scene's
+chunk and shaders are competing for the main thread. It fades at `webgl`, and at `fallback`/`off`
+it gives way to the illustration.
+
+The mark itself is **one shared component**, `components/ui/Loading.tsx`, used for anything that
+is not ready yet — data in flight, a scene compiling, a panel waiting on a fetch. Four HUD corner
+brackets, a bar scanning between them, a red core; six paths, transform/opacity/dash-offset only.
+Decorative and `aria-hidden` with no `label`; a `role="status"` live region with one (from
+`common.loading`). `components/scene/art/SceneLoading.tsx` is the thin wrapper that owns WHEN a
+scene host shows it — the mark knows nothing about the scene.
+
+### The full-window cover, and the object on it
+
+A mark in the corner of a box is the right answer for one host. It is the wrong answer for a whole
+page that is still assembling itself, so a page with a scene is covered outright:
+`components/ui/PageLoading.tsx`, the site's background and its perspective grid over the whole
+viewport.
+
+**When it is up.** Only while `data-renderer` is `pending`. That is the server's value too, so the
+cover is painted on the very first frame and nobody watches the page build itself; `webgl`,
+`fallback` and `off` are all answers and any of them takes it down. It is matched from the root
+with `html:has([data-scene-stage][data-renderer="pending"])` rather than as an ancestor, because
+`SceneStage` is `isolate`: anything rendered inside it is z-scoped to the stage, and the header
+(120) and the cookie banner (280) would paint straight over a cover that lived there. It is
+mounted in `app/(site)/layout.tsx` instead, at `--z-page-loading: 350`. A page with no stage never
+matches and never raises it.
+
+**It blocks the page, so it carries a failsafe.** A `forwards` animation at 6 s takes it down
+whatever the stage is doing. Every one of the stage's own paths is far shorter, so that only fires
+on a genuine fault — a chunk that never arrived, a probe that threw where no boundary caught it —
+and without it that fault would leave a visitor on a blank screen with no way past. The
+`<noscript>` rule beside the drawings' one removes the cover outright, because with no JavaScript
+no answer ever comes. An intro is already a full-window cover with its own clock and its own skip,
+so `html:has(#tbs-intro)` stands this one down rather than letting two of them fight. The trade is
+LCP: an opaque cover over the hero means the largest contentful paint is not counted until it
+lifts, and that is accepted in exchange for never showing a half-rendered page.
+
+**What is on it is `components/ui/BootCore.tsx` — the site's own processor, in exploded view,
+turning.** Not a spinner and not an invented shape: every measurement is `CHIP` from
+`components/scene/shapes.ts`, the object the hero draws and the intro flies out of. A board at 2.3
+carrying a via field and routing that dog-legs out to its edges with square via pads at the turns;
+the substrate at 1.0 with pin runs down all four walls at `CHIP.pinGap`, stopping short of the
+corners at `CHIP.pinSpan`, and four capacitor studs on its lid; the machined heat spreader at 0.68;
+the lit die at 0.34 with its 3×2 of cores. The stack fans apart and closes again — the scene's own
+gesture, the one `coreExitPose`'s `lift` is literally named the exploded view for — over the dashed
+footprint every model on this site stands on, along a red assembly axis that grows exactly as far
+as the die travels, inside four HUD brackets held in SCREEN space so the object turns inside its
+frame rather than with it.
+
+**Real 3D, in CSS, and every layer is a real box.** `perspective` on the stage, `preserve-3d` on
+the assembly, and each layer is a lid plus four walls at its true thickness rather than a plane —
+that is the whole difference between stacked paper and an object, because the walls take the turn
+with one side lit and one dark. Bottom faces are never built: the camera is above the tilt and
+would never see one. Thickness is exaggerated 2.6× the way any technical illustration exaggerates
+it, since at true scale a 0.08 substrate is under half a pixel of wall; the proportions between the
+layers stay the model's.
+
+Two details are worth keeping if this is ever redrawn. The routing is stroked **twice** — solid and
+faint so the board always reads as routed, then a short bright dash travelling the same path — 
+because a dash alone leaves scattered specks that read as dirt, not as traces. And the loop is
+built not to read as one: the turn is 8 s against a 3.4 s breath, which do not divide into each
+other, so the two never land together twice.
+
+**It is deliberately not WebGL, although it is a 3D model.** This is on screen at exactly the
+moment the scene's chunk and shaders own the main thread, and asking for a second GL context there
+is the worst thing that could be done. Transform and opacity only, so every frame belongs to the
+compositor. Under `prefers-reduced-motion` it settles into the composed pose the animations rest
+on — the stack half-open, the die lit, the object framed and turned off its axis. Under
+`forced-colors` it hides: flattening every one of those surfaces to one fill turns the object into
+a grey blob, and the cover keeps its background and simply shows nothing. The size follows the
+viewport (`clamp(24px, 6.2vmin, 66px)` on the unit), so a phone gets the same composition as a
+desktop. It is `aria-hidden`: the page underneath is server-rendered at full opacity and a screen
+reader can read it the whole time, exactly as it can under the intro overlay, and nothing here
+takes focus, so nobody is trapped behind it.
+
+**The Work track gets the same treatment, for the same reason.** Its cards are the portfolio, not a
+fallback — the scene re-places them rather than replacing them — but until `data-renderer` is
+`webgl` they sit as a flat grid, and meeting that grid and then watching it fold into the helix is
+the swap `HelixLoader.tsx` hides. While `pending`, the two strands draw themselves and the cards
+are held at `opacity: 0`; they stay in the DOM and keep their box, so nothing is taken from a
+crawler or a screen reader. **The loader is the track's FIRST CHILD, never a wrapper around it:**
+`workHead` is measured as the track's previous sibling, so anything between the heading and the
+grid hands the ambient helix the wrong box. And `workHelix.ts` collects `instanceof HTMLElement`
+only, so an `<svg>` child is excluded from the cards by construction.
+
+**Two paths would otherwise have been left with an empty box for ever, and both are covered.**
+A visitor with no JavaScript never reaches a decision — `data-renderer` stays at the server's
+`pending` — so a `<noscript><style>` rule in `app/(site)/layout.tsx` shows the drawings
+unconditionally — and hides the loader, which would otherwise spin for ever on a decision that
+never comes. Same shape as the intro overlay's rule beside it. `[data-shape-art]` is the
+stable hook; the CSS-module class is hashed. A visitor whose GPU is refused reaches `fallback` or
+`off` and gets the drawing by the table above.
+
+**And the model now forms instead of appearing.** `stepSceneFx` snapped the entry gate on the
+first frame so that a deep link never animates in. On a service page that meant the model simply
+appeared, fully built, the instant WebGL was ready — and with the drawing no longer painted
+underneath it, the box went from empty straight to finished. The snap is now `first && heroExit >
+0`: above 0 only once the page has begun to leave the hero, which is exactly the deep-link case it
+was written for. At the hero the gate runs its 1.1 s form and the entrance is the show.
+
+### Where a service model sits, and when it may leave the hero
+
+On a service page the model has a second home: `world.ts` moves it beside "Cum lucrăm" while that
+section is read and brings it back when the section is left. The gate used to ask one question —
+`stepsShare`, *is the steps host inside the canvas?* — and the canvas is **one viewport tall**. On
+a tall window a steps host a thousand pixels down the document is already past `STEPS_GATE.on` at
+**scroll 0**, and `world.ts` hard-primes `corner` on the first frame (so a deep link into the
+section finds the model already parked, with no travel). The model therefore teleported into the
+bottom corner while the visitor was still looking at the hero — and because the static drawing sits
+at `opacity: 0` under `data-renderer="webgl"`, the hero showed nothing at all.
+
+It bit exactly one direction. `/servicii/e-commerce` is the only one with no projects section
+(`lib/solutions.ts`, `"e-commerce": []`), which lifts its steps host ~600px above every other
+service page's: the threshold is reached at a window height of about **1145px** there against
+~1800px on `produs-digital`.
+
+The gate now asks a second question — **has the model left home?** `servicesShare` gives the share
+of the model's *own* host inside the canvas, and the corner may only arm below `STEPS_GATE.home`
+(0.15). At the top of the page the hero is in view, so the model stays in it; once the hero is
+scrolled away the old behaviour is untouched, deep-link prime included. Pinned at five window
+heights from 900 to 1800 in `scene-choreography.test.ts`.
+
+### What a service model's parallax rests on
+
+`placeServices` (`choreography.ts`) puts the model on `[data-scene-anchor="services"]`, but the
+number that decides whether it lands ON the host is the parallax's **rest point** — the position
+`parallax(domY, restY, f)` pulls the model `1 - f` of the way towards.
+
+It used to be `h / 2`, the middle of the canvas, and that is right for exactly one of the two pages
+that use this function:
+
+- **The home page.** The services host is far down the document and the visitor scrolls to it, so
+  it really does come to rest centred in the viewport. `h / 2` is where it is when you look at it.
+- **A service page.** The host is the hero's right column. The page *cannot* scroll it to the
+  middle — at scroll 0 it is already as high as it will ever be — so `h / 2` is a position the
+  host never reaches, and the parallax spent `1 - f` of that unreachable distance pushing the
+  model **down**. The canvas is one viewport tall, so the error grew with the window: measured
+  over CDP against the real `/servicii/e-commerce` host, scrolled to the top, **−42px at a 700px
+  window, −8px at 900, +26px at 1100, +60px at 1300, +111px at 1600**. It read as the drawing
+  refusing to come up into the hero on a tall screen. It was only ever right at ~950px, where the
+  two rest points happen to coincide — which is why a suite whose probe is 1280×800 never saw it.
+
+The rest point is now **`h / 2` clamped into the interval the host can actually reach**. Since
+`canvasDocTop` clamps the canvas between `stage.top` and `stage.bottom - h`, the host's canvas `y`
+is bounded by those two ends; clamping into them leaves the home page on `h / 2` unchanged and
+gives a hero host its own top-of-page position — which is `placeCore`'s convention, one function
+up. The parallax is then zero at rest on both, and still lags by `1 - f` of whatever the scroll
+moves afterwards.
+
+Both halves are pinned in `scene-choreography.test.ts`: the home page's host centred in the canvas
+still lands at `y = 0`; a service page's model is inside its host's box at scroll 0 at ten window
+heights from 640 to 1800, and exactly on it wherever the window is tall enough that the host can
+never reach the middle; and a 200px scroll still moves it by `200 × parallax`.
 
 ### The services entrance (IT-OS Phase 2, 2026-09-17)
 

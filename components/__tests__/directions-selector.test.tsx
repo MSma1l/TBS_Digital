@@ -540,16 +540,21 @@ describe("direction selector — the HUD screen and the scene", () => {
   });
 
   it("a bare render (no initial slot) draws no illustration for any direction", async () => {
+    // The host is never empty any more: `ModelLoader` fills it from first paint until the stage
+    // decides, because the illustrations became the fallback rather than a preamble. So the claim
+    // is about ILLUSTRATIONS — `[data-shape-art]` — not about the host having no children.
     renderSection();
     const anchor = screenEl().querySelector<HTMLElement>('[data-scene-anchor="services"]')!;
+    const art = () => anchor.querySelectorAll("[data-shape-art]").length;
+    expect(anchor.querySelectorAll("[data-loading]")).toHaveLength(1);
     for (const link of pills()) {
       fireEvent.pointerMove(link);
-      expect(anchor.childElementCount).toBe(0);
+      expect(art()).toBe(0);
     }
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
-    expect(anchor.childElementCount).toBe(0);
+    expect(art()).toBe(0);
   });
 
   it("the illustration comes before the case card, and nothing on the screen takes focus", () => {

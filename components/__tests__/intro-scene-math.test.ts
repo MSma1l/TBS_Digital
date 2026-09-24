@@ -134,15 +134,18 @@ describe("buildOrbitAttributes", () => {
 
 describe("swayWeight", () => {
   it("is exactly zero while the camera is inside the machine", () => {
-    // Beats 1-3 run to u 0.35: the walls are a centimetre from the lens and they ARE the frame,
-    // so any pan swings the whole picture. Not "small" — zero.
-    for (const u of [Number.NaN, -1, 0, 0.1, 0.2, 0.3, SWAY.in[0]]) {
+    // The camera is inside the machine to u ~0.60 (K3 pushed the exit back from 0.45): the walls
+    // are a centimetre from the lens and they ARE the frame, so any pan swings the whole picture.
+    // Not "small" — zero. 0.5 and 0.58 are the corridor beat, which the old 0.35 window panned.
+    for (const u of [Number.NaN, -1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.58, SWAY.in[0]]) {
       expect(swayWeight(u)).toBe(0);
     }
   });
 
-  it("is at full weight where the machine is seen whole (K3, K4)", () => {
-    expect(swayWeight(0.66)).toBe(1);
+  it("is at full weight where the machine is seen whole (K4, K5)", () => {
+    // 0.72, not 0.66: the window opens at the exit now, and its rise is 0.10 of a flight wide
+    // because a shorter one turns a corner the neighbouring test forbids.
+    expect(swayWeight(0.72)).toBe(1);
     expect(swayWeight(0.84)).toBe(1);
   });
 

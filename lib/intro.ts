@@ -51,18 +51,49 @@ export const INTRO_FORCE_3D_KEY = "tbs_intro_3d";
 export type IntroDoneDetail = { played: boolean };
 
 export const INTRO_TIMING = {
-  /** Cinematic minimum for 0→100%, counted from navigation start. */
-  MIN_SYNC_MS: 2400,
-  /** The progress target is forced to 100% at this point, whatever is still loading. */
-  HARD_CAP_MS: 5000,
+  /**
+   * Cinematic minimum for 0→100%, counted from navigation start.
+   *
+   * 4200, not 2400, and the reason is arithmetic rather than taste. The progress is capped by
+   * the curve below, so the wall-clock length of every beat falls out of these two numbers —
+   * and at 2400 the table was: beat 1 (the held frame on the die) **281 ms**, beat 2 (the
+   * power-up, the light running back through the ribs, the fan and the fin stack) **536 ms**,
+   * beat 3 (the crawl through the guts and up through the keyboard) **601 ms**. Half a second
+   * for the whole power-up. The owner's report was that he could not see the animations, and
+   * the numbers said he was right.
+   */
+  MIN_SYNC_MS: 5000,
+  /**
+   * The progress target is forced to 100% at this point, whatever is still loading.
+   *
+   * It has to stay clear of MIN_SYNC_MS or a slow load gets its film cut off and jumped to the
+   * end: 1.4s of slack, and still 1.5s short of the shell's watchdog.
+   */
+  HARD_CAP_MS: 6400,
   /** Once JS takes over, the counter visibly runs for at least this long. */
   MIN_JS_RUN_MS: 600,
+  /**
+   * The most of the film that LOADING may consume before the director takes over.
+   *
+   * The cinematic clock counts from navigation start, because the visitor has been watching
+   * since the first paint. That is right, and unbounded it is also how the film gets eaten:
+   * measured on a slow machine, hydration finished at 2.07s, so the director opened with the
+   * curve already at 64% and beat 2 — the whole power-up — ran for **144 ms**. Past this much,
+   * the clock's origin slides forward instead, so however long the page took to arrive there is
+   * always most of a film left to play.
+   *
+   * 250, not 1200, and the number is now load-bearing rather than cautious. The processor
+   * section ends at --fb-p 0.34; at a 1200 ms pre-spend the curve is already at 0.4164 when the
+   * director draws its first frame, so the ENTIRE processor — every new beat in it — would be
+   * spent before anything was drawn. At 250 the curve opens at 0.086, inside the first beat.
+   */
+  MAX_PRE_SPEND_MS: 250,
   /** Hydration later than this (read off the CSS failsafe clock) bypasses the intro. */
   LATE_TAKEOVER_MS: 6400,
   /** The pre-hydration CSS failsafe's animation-delay — pinned against the CSS module by a test. */
   FAILSAFE_MS: 7000,
   /** The shell forces the overlay out if the director never reveals the page. */
-  WATCHDOG_MS: 9000,
+  WATCHDOG_MS: 10000,
   /**
    * WebGL scene not ready by this share of the progress → the burst plays on the SVG.
    *

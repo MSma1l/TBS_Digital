@@ -40,21 +40,32 @@ export {
  * The sway window, in flight units — and it is a window, not a ramp, because it is switched off
  * at BOTH ends for reasons that are not decoration.
  *
- *  · **Below 0.35 the camera is inside the processor.** Its walls are a centimetre from the lens
+ *  · **Below 0.60 the camera is inside the machine.** Its walls are a centimetre from the lens
  *    and they ARE the frame; a two-degree pan there swings the whole picture, and the object
  *    appears to swing around the lens. That is not a handheld shot, it is unfilmable. Beats 1–2
- *    are a held frame by design (`cameraPath.ts`, K0→K1 moves 0.04 units in total).
+ *    are a held frame by design (`cameraPath.ts`, K0→K1 moves 0.04 units in total), and K2→K3 is
+ *    a crawl down a corridor whose walls are the guts.
+ *
+ *    **It was 0.35, and 0.35 was measured against a shot list that left the chassis at u ≈ 0.45.**
+ *    K3 pushed the exit back to u ≈ 0.60 (0.595 at the widen cap, 0.606 at 16:10), so the old
+ *    window opened the sway a quarter of a flight before the camera was out of the hole — a pan
+ *    with the vent's lintel a centimetre off the lens. The gate is the EXIT, not a round number:
+ *    move K3 or K4 and move this with them.
  *  · **Above 0.86 the camera is closing on the display**, which K5 places at exactly the
  *    `coverDistance` — the distance at which the screen fills the viewport edge to edge with
  *    ZERO margin. Any residual pan there opens a sliver of background along one edge on the
  *    last frame of the intro. So the sway is gone again before the dive lands.
  *
- * In between — K3 (0.66) and K4 (0.84), the machine seen whole from outside — it runs at full
+ * In between — K4 (0.70) and K5 (0.84), the machine seen whole from outside — it runs at full
  * weight: a slow two-degree drift on two incommensurable periods, which reads as a camera held
  * by someone rather than as an orbit.
+ *
+ * The rise is 0.10 of a flight and cannot be much shorter: the weight is smoothstepped, so its
+ * steepest slope is 1.5/span, and the test that forbids the sway from turning a corner samples
+ * every 1/400 and allows 0.04 of change per sample. A 0.06 rise would fail it at 0.0625.
  */
 export const SWAY = {
-  in: [0.35, 0.62] as const,
+  in: [0.6, 0.7] as const,
   out: [0.86, 0.98] as const,
   /** Peak pan and tilt from the drift alone, radians (≈2.3° and ≈1.5°). */
   yaw: 0.04,

@@ -12,17 +12,25 @@
   fill: none;
   stroke-linecap: butt;
   stroke-linejoin: miter;
+  /* HIDDEN BY DEFAULT — it is the fallback, not a preamble.
+     It used to be painted on every load and then cross-faded out when the live model arrived,
+     which meant every visitor saw a still drawing first and the model replace it. Now the box
+     stays empty while the stage is deciding (`pending`) and while WebGL is drawing, and the
+     drawing appears only once the stage has decided it will NOT draw. `pending` is also the
+     server's value, so a visitor with no JavaScript would never reach a decision — the
+     `<noscript>` style in `ServiceArt.tsx` shows it to them unconditionally. */
+  opacity: 0;
   transition: opacity 0.5s var(--motion-ease-out);
-  animation: materialize 0.45s var(--motion-ease-out) backwards;
 }
 .art * {
   vector-effect: non-scaling-stroke;
 }
 
-/* The live WebGL model replaces the drawing; `fallback`, `pending` and `off` keep it. */
-:global([data-scene-stage][data-renderer="webgl"]) .art {
-  opacity: 0;
-  animation: none;
+/* Only a stage that has given up on WebGL shows the drawing. */
+:global([data-scene-stage][data-renderer="fallback"]) .art,
+:global([data-scene-stage][data-renderer="off"]) .art {
+  opacity: 1;
+  animation: materialize 0.45s var(--motion-ease-out) backwards;
 }
 
 @keyframes materialize {

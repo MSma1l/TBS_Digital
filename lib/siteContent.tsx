@@ -117,12 +117,38 @@ export const SITE_DATA_KEY = "tbs_site_data";
  * onto defaults without resurrecting removed items). A missing key falls back to
  * the default list, which keeps old/partial saved data from breaking the site.
  */
+/**
+ * A saved member with no photograph of their own keeps the BUNDLED one, matched by id.
+ *
+ * This is a field fallback, not the key-merge the note above rejects: it only ever reads the
+ * saved list, so a member the owner deleted stays deleted and nothing is resurrected. What it
+ * fixes is the case where a member exists in both and the owner has simply never uploaded a
+ * picture — before this, the shipped asset was shadowed by an empty string and the card fell
+ * back to its gradient initial while the file sat unused in `public/`.
+ *
+ * Uploading a photograph in the admin still wins outright, as it must.
+ */
+function withBundledPhotos(saved: TeamItem[]): TeamItem[] {
+  let patched = false;
+  const out = saved.map((m) => {
+    if (typeof m.photo === "string" && m.photo.trim() !== "") return m;
+    const bundled = defaultSiteData.team.find((d) => d.id === m.id);
+    if (!bundled?.photo) return m;
+    patched = true;
+    return { ...m, photo: bundled.photo };
+  });
+  // The SAME array back when nothing needed filling, so `mergeSiteData` still hands the caller
+  // the default list itself rather than a copy of it — which is what the merge has always
+  // promised, and what a test pins by identity.
+  return patched ? out : saved;
+}
+
 export function mergeSiteData(overrides: Partial<SiteData> | null | undefined): SiteData {
   if (!overrides) return defaultSiteData;
   return {
     stats: overrides.stats ?? defaultSiteData.stats,
     services: overrides.services ?? defaultSiteData.services,
-    team: overrides.team ?? defaultSiteData.team,
+    team: withBundledPhotos(overrides.team ?? defaultSiteData.team),
     projects: overrides.projects ?? defaultSiteData.projects,
     socials: overrides.socials ?? defaultSiteData.socials,
     partners: overrides.partners ?? defaultSiteData.partners,

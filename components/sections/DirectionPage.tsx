@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
+import { SceneLoading } from "@/components/scene/art/SceneLoading";
 import {
   LAPTOP_BOOT,
   LAPTOP_BOOT_GATE,
@@ -478,6 +479,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               `data-scene-anchor`, so the host must keep a real width. Decorative and
               heading-less: nothing focusable, and no section marker for the HUD rail. */}
           <div className={styles.modelHost} data-scene-anchor="services" aria-hidden="true">
+            <SceneLoading />
             {modelArt}
           </div>
         </section>

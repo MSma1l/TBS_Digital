@@ -252,6 +252,7 @@ export const ru: Record<MessageKey, string> = {
   "cookie.settings": "Только необходимые",
 
   // --- Intro preloader ---
+  "common.loading": "Загрузка",
   "intro.status": "SYSTEM_SYNCHRONIZATION",
   "intro.complete": "ACCESS_GRANTED",
   "intro.progressAria": "Загрузка TBS Digital",

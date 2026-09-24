@@ -34,6 +34,20 @@ import {
   type StubbedCall,
 } from "./helpers";
 
+/**
+ * The guided request is TWO presses from the corner now. Pressing her opens her questions in the
+ * bubble above her; "Deschide ghidul" inside them opens the request flow. The avatar's accessible
+ * name says questions, so a one-press path here would be testing a promise the control no longer
+ * makes.
+ */
+async function openRequestFromGuide(page: Page) {
+  await guideAvatar(page).click();
+  const faq = page.getByTestId("guide-faq");
+  await expect(faq).toBeVisible();
+  await faq.getByRole("button", { name: GUIDE_COPY.open.ro }).click();
+}
+
+
 /*
  * Ghid TBS (IT-OS Phase 4): the holographic cube droid in the bottom-right corner
  * (components/hud/guide/GuideAssistant.tsx), mounted by components/hud/HudChrome.tsx once the
@@ -196,7 +210,7 @@ test.describe("Ghid TBS at 1280", () => {
     await gotoHydrated(page, "/");
     await armHud(page);
 
-    await guideAvatar(page).click();
+    await openRequestFromGuide(page);
     const dialog = modalDialog(page);
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveCount(1);
@@ -357,7 +371,7 @@ test.describe("Ghid TBS on a service page", () => {
     const tip = await lingerForTip(page, '[data-guide-topic="service"]');
     await expect(tip.getByText(GUIDE_COPY.prompts.service.ro, { exact: true })).toBeVisible();
 
-    await guideAvatar(page).click();
+    await openRequestFromGuide(page);
     const flow = requestFlow(modalDialog(page));
     await expect(chatPanel(flow)).toBeVisible();
     await expect(chatToggle(flow)).toHaveAttribute("aria-expanded", "true");
@@ -408,7 +422,7 @@ test.describe("Ghid TBS on a 375×812 phone", () => {
     });
     await expectNoHorizontalScroll(page);
 
-    await avatar.click();
+    await openRequestFromGuide(page);
     await expect(modalDialog(page)).toBeVisible();
     const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     const underDialog = await page.evaluate(({ x, y }) => {

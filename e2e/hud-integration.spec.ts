@@ -168,16 +168,18 @@ test.describe("HUD integration", () => {
     await expectRootUntouched(page, "after arming the HUD and a full scroll");
   });
 
-  test("HI7 /servicii/e-commerce: no canvas, no scene, no live context, and the HUD is there", async ({ page }) => {
+  test("HI7 /servicii/e-commerce: one stage, never a second live context, and the HUD is there", async ({ page }) => {
     await trackWebGLContexts(page);
     await gotoHydrated(page, "/servicii/e-commerce");
     await armHud(page);
     await expect(guideAvatar(page)).toBeVisible();
     await scrollThrough(page);
 
-    await expect(page.locator("canvas")).toHaveCount(0);
-    await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(0);
-    expect(await liveWebGLContexts(page)).toBe(0);
+    /* A service page carries its own 3D model now — one per service — so it has a stage of its
+       own. The invariant that still has to hold is the one this file exists for: ONE WebGL
+       context at a time across the whole site, never a second one stacked on top. */
+    await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(1);
+    expect(await liveWebGLContexts(page)).toBeLessThanOrEqual(1);
     // Two parts at 1280 since Phase 5: the guide and the rail.
     await expect(page.locator("[data-hud]")).toHaveCount(2);
     await expect(guideRoot(page)).toHaveCount(1);

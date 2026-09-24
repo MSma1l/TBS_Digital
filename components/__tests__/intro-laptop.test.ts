@@ -97,7 +97,7 @@ function clearance(slot: LaptopSlot, px: number, py: number, pz: number, lidAngl
 }
 
 describe("the slot table", () => {
-  it("is 29 pieces, every index used once and none left empty", () => {
+  it("is 41 pieces, every index used once and none left empty", () => {
     expect(LAPTOP_SLOTS).toHaveLength(LAPTOP_SLOT_COUNT);
     for (const slot of LAPTOP_SLOTS) {
       expect(slot).toBeDefined();
@@ -106,7 +106,7 @@ describe("the slot table", () => {
     expect(new Set(LAPTOP_SLOTS.map((s) => s.name)).size).toBe(LAPTOP_SLOT_COUNT);
   });
 
-  it("tiles 0..28 with the named groups, with no gap and no overlap", () => {
+  it("tiles 0..40 with the named groups, with no gap and no overlap", () => {
     // Each entry in the map is a group's FIRST slot; the next entry's start is its end.
     const starts = Object.values(LAPTOP_SLOT_AT);
     expect(starts).toEqual([...starts].sort((a, b) => a - b));
@@ -114,7 +114,8 @@ describe("the slot table", () => {
     expect(new Set(starts).size).toBe(starts.length);
     expect(starts[starts.length - 1]).toBeLessThan(LAPTOP_SLOT_COUNT);
 
-    const sizes = [1, 2, 3, 3, 1, 4, 2, 12, 1];
+    //          deck feet hinge vent pad guts rails cover keys keysFront port
+    const sizes = [1, 2, 3, 3, 1, 12, 4, 2, 8, 4, 1];
     expect(sizes.reduce((a, b) => a + b, 0)).toBe(LAPTOP_SLOT_COUNT);
     let at = 0;
     for (let i = 0; i < starts.length; i += 1) {
@@ -123,21 +124,48 @@ describe("the slot table", () => {
     }
   });
 
-  it("gives up the port last of all and the keys next to last", () => {
+  it("gives up the port last of all and the FRONT key row next to last", () => {
     // The governor's two steps, and the only two the table promises.
     expect(LAPTOP_SLOT_MID).toBe(LAPTOP_SLOT_AT.port);
-    expect(LAPTOP_SLOT_LITE).toBe(LAPTOP_SLOT_AT.keys);
+    // NOT `keys`: the camera surfaces through the hatch between the two rows that frame it, so
+    // the lite step may only have the front row. See the note on LAPTOP_SLOT_LITE.
+    expect(LAPTOP_SLOT_LITE).toBe(LAPTOP_SLOT_AT.keysFront);
     expect(LAPTOP_SLOTS[LAPTOP_SLOT_COUNT - 1].name).toBe("port");
     for (let i = LAPTOP_SLOT_LITE; i < LAPTOP_SLOT_MID; i += 1) {
-      expect(LAPTOP_SLOTS[i].name).toMatch(/^key-/);
+      expect(LAPTOP_SLOTS[i].name).toMatch(/^key-2-/);
     }
-    // What survives the lite step is still a laptop: chassis, feet, hinge, vent, pad and lid.
+    // What survives the lite step is still a laptop: chassis, feet, hinge, vent, pad and lid —
+    // AND all twelve guts. The camera spends u 0.40 to 0.60 threading between them, which is the
+    // one stretch of the interior that is guaranteed 3D on every device, so they are exactly the
+    // pieces the governor must never be allowed to take.
     const kept = LAPTOP_SLOTS.slice(0, LAPTOP_SLOT_LITE).map((s) => s.name);
     expect(kept[0]).toBe("deck");
-    for (const name of ["vent-sill", "vent-lintel", "vent-hood", "pad", "rail-left", "rail-right"]) {
+    for (const name of [
+      "vent-sill",
+      "vent-lintel",
+      "vent-hood",
+      "pad",
+      "rail-left",
+      "rail-right",
+      "cpu-rim-left",
+      "cpu-rim-right",
+      "cpu-kerb",
+      "heatpipe",
+      "fan-case",
+      "fan-hub",
+      "ram-0",
+      "ram-1",
+      "ssd",
+      "fins",
+    ]) {
       expect(kept).toContain(name);
     }
-    expect(kept.some((name) => name.startsWith("key-"))).toBe(false);
+    // The two rows that FRAME the hatch survive — the camera comes out between them, so a lite
+    // step that took them would leave it surfacing through a keyboard that is not drawn. Only the
+    // front row (key-2-*) goes.
+    expect(kept).toContain("key-0-0");
+    expect(kept).toContain("key-1-3");
+    expect(kept.some((name) => name.startsWith("key-2-"))).toBe(false);
   });
 
   it("is made of real boxes: finite, sized, and inside the machine's own reach", () => {
@@ -384,17 +412,33 @@ describe("the flight, against the boxes", () => {
     }
   });
 
-  it("keeps the camera inside the cavity for as long as it is inside the chassis", () => {
-    // `deck.t` was raised from the interior model's 0.07 to 0.16 for exactly this reason, and
-    // the headroom it buys is the claim being pinned here.
-    const { deck, cavity } = INTRO_LAPTOP;
+  it("keeps the camera inside the cavity until it is in the hatch", () => {
+    // The cavity is 0.066 either side of the centre line and the near plane is 0.01, so there are
+    // 0.056 of legal vertical travel for the whole interior journey.
+    //
+    // The camera now LEAVES through the deck's top surface rather than sideways through the vent,
+    // so "inside the chassis implies inside the cavity" is no longer the invariant — it would
+    // forbid the exit. The invariant is that the only place it is allowed to pass the ceiling is
+    // the hatch in the keyboard: below the deck's top it stays in the cavity, and where it is
+    // above the cavity it is inside the aperture, horizontally, by more than a near plane.
+    const { hatch } = INTRO_LAPTOP;
     for (const aspect of ASPECTS) {
       for (let i = 0; i <= 400; i += 1) {
-        const pose = cameraAt(i / 400, aspect);
-        const inside =
-          Math.abs(pose.px) < deck.w / 2 && Math.abs(pose.pz) < deck.d / 2 && Math.abs(pose.py) < deck.t;
-        if (!inside) continue;
-        expect(Math.abs(pose.py), `u=${(i / 400).toFixed(3)}`).toBeLessThan(cavity - NEAR);
+        const u = i / 400;
+        const pose = cameraAt(u, aspect);
+        const underTheDeck =
+          Math.abs(pose.px) < INTRO_LAPTOP.deck.w / 2 &&
+          Math.abs(pose.pz) < INTRO_LAPTOP.deck.d / 2 &&
+          pose.py < hatch.y;
+        if (!underTheDeck) continue;
+        if (Math.abs(pose.py) < INTRO_LAPTOP.cavity - NEAR) continue;
+        // Above the cavity but still under the keys: it can only be on its way through the hatch.
+        expect(Math.abs(pose.px - hatch.x), `x u=${u} @ ${aspect}`).toBeLessThan(
+          hatch.w / 2 - NEAR,
+        );
+        expect(Math.abs(pose.pz - hatch.z), `z u=${u} @ ${aspect}`).toBeLessThan(
+          hatch.d / 2 - NEAR,
+        );
       }
     }
   });

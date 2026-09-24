@@ -76,6 +76,7 @@ import {
   placeServices,
   projectsShare,
   placeSteps,
+  servicesShare,
   revealOf,
   smoothstep,
   stepMorph,
@@ -395,6 +396,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
    */
   let laptop: LaptopModel | null = null;
   let laptopFade = 0;
+
   const laptopSpot: Placement = { x: 0, y: 0, scale: 1 };
   let reel: ProjectsReel | null = null;
   let display: HologramSource | null = null;
@@ -865,10 +867,23 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
 
       /* the steps corner: on a service page the model moves beside "Cum lucrăm" while it is read
          and goes home when the section is left. No host (any other page, or below 861px, where
-         the page does not render one) and it never leaves the hero. */
+         the page does not render one) and it never leaves the hero.
+
+         IT MAY ONLY LEAVE ONCE ITS OWN HOST IS OFF SCREEN. "Inside the canvas" is not the same
+         question as "being read": the canvas is one viewport tall, so on a tall window a steps
+         host a thousand pixels down is already past STEPS_GATE.on at SCROLL 0, and the first
+         frame's hard prime below then teleported the model into the corner while the visitor was
+         still looking at the hero — which is exactly what it looked like: an empty hero and the
+         model parked at the bottom of the page. Reproduced over CDP at 1720×1300 on
+         /servicii/e-commerce, the direction whose missing projects section puts its steps host
+         ~600px higher than any other. `servicesShare` is the second question. */
       const stepsPlace = placeSteps(probe, scrollY, w, h, stepsSpot);
       const share = stepsPlace ? stepsShare(probe, scrollY, h) : 0;
-      cornerArmed = stepsPlace !== null && (cornerArmed ? share > STEPS_GATE.off : share > STEPS_GATE.on);
+      const homeShare = stepsPlace ? servicesShare(probe, scrollY, h) : 0;
+      cornerArmed =
+        stepsPlace !== null &&
+        homeShare <= STEPS_GATE.home &&
+        (cornerArmed ? share > STEPS_GATE.off : share > STEPS_GATE.on);
       if (!cornerPrimed) {
         cornerPrimed = true;
         corner = cornerArmed ? 1 : 0;

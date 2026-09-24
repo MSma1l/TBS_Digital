@@ -22,7 +22,6 @@
 
 import {
   COMMERCE_GATES,
-  CUBE_LAYOUTS,
   buildNeuralGraph,
   commerceTrackPoint,
   hubLayout,
@@ -187,7 +186,7 @@ function fit<K extends string>(layers: Readonly<Record<K, Seg[]>>): Record<K, st
   return out;
 }
 
-/* ---- produs-digital: assembling cubes --------------------------------------------------- */
+/* ---- produs-digital: the product stack -------------------------------------------------- */
 
 type Box = { min: Vec3; max: Vec3 };
 type Faces = { top: Seg; front: Seg; side: Seg };
@@ -204,70 +203,98 @@ function boxFaces({ min, max }: Box, P: View): Faces {
   };
 }
 
-const cube = (c: Vec3, size: number): Box => ({
-  min: sub(c, [size / 2, size / 2, size / 2]),
-  max: add(c, [size / 2, size / 2, size / 2]),
-});
+/**
+ * Yaw/pitch of the stack. `models/productStack.ts` turns its whole group by `POSE`
+ * (y −0.98, x 0.24) and the camera then looks down −z, so the drawing reaches the same
+ * three-quarter view by turning the CAMERA the other way. The stack runs along z, and at this
+ * yaw the six screens stay separated instead of collapsing into one silhouette.
+ */
+export const STACK_VIEW = { yaw: 0.62, pitch: 0.2 } as const;
 
-/** Yaw/pitch of the cubes: the three faces above are the visible ones (tested). */
-export const CUBES_VIEW = { yaw: Math.PI / 4 + 0.1, pitch: 0.55 } as const;
+/**
+ * The drawing is the model's own composed pose — the frame a service page opens on
+ * (`LOOP_START` 1.95 s, "a full stack mid-walkthrough"), not a moment of the collapse. Every
+ * number below is `models/productStack.ts`'s own; `STACK` mirrors the ones that file keeps
+ * private, and the test pins them against it.
+ */
+const STACK = {
+  screens: 6,
+  /** A screen's half sizes, and the slab thickness the drawing gives it to read as an object. */
+  screen: { hw: 0.43, hh: 0.62, t: 0.022 },
+  gap: 0.38,
+  /** `homeZ(i)` in the model: the six standing apart along the stack axis. */
+  homeZ: (i: number) => (i - 5) * 0.38 - 0.3,
+  /** The device slab in front, and its lit glass. */
+  device: { z: 0.92, hw: 0.56, hh: 0.8, t: 0.09, inset: 0.07 },
+  /** The bench: a plate on `BENCH_Y` with a grid, the model's own extents. */
+  bench: { y: -0.7, x: 0.78, front: 1.15, back: -1.4, cols: 4, rows: 4 },
+} as const;
 
-function buildCubes() {
-  const P = view(CUBES_VIEW.yaw, CUBES_VIEW.pitch);
-  const { spacing: c, size } = CUBE_LAYOUTS.cube;
-  const H = 1.5 * c;
-  const block = boxFaces({ min: [-H, -H, -H], max: [H, H, H] }, P);
+function buildStack() {
+  const P = view(STACK_VIEW.yaw, STACK_VIEW.pitch);
+  const q = (corners: Vec3[]) => line(corners.map((c) => xy(P(c))), true);
+  const { screen: SC, device: DV, bench: B } = STACK;
 
-  // Seams between the 27 cells on the three visible faces.
-  const seams: Seg[] = [];
-  const seam = (a: Vec3, b: Vec3) => seams.push(line([xy(P(a)), xy(P(b))]));
-  for (const k of [-c / 2, c / 2]) {
-    seam([k, H, -H], [k, H, H]);
-    seam([-H, H, k], [H, H, k]);
-    seam([k, -H, H], [k, H, H]);
-    seam([-H, k, H], [H, k, H]);
-    seam([-H, -H, k], [-H, H, k]);
-    seam([-H, k, -H], [-H, k, H]);
+  /* the bench: its plate, then a grid across it — the plinth the whole thing stands on */
+  const plate = [q([[-B.x, B.y, B.back], [B.x, B.y, B.back], [B.x, B.y, B.front], [-B.x, B.y, B.front]])];
+  const grid: Seg[] = [];
+  for (let i = 1; i < B.cols; i += 1) {
+    const x = -B.x + (2 * B.x * i) / B.cols;
+    grid.push(line([xy(P([x, B.y, B.back])), xy(P([x, B.y, B.front]))]));
+  }
+  for (let i = 1; i < B.rows; i += 1) {
+    const z = B.back + ((B.front - B.back) * i) / B.rows;
+    grid.push(line([xy(P([-B.x, B.y, z])), xy(P([B.x, B.y, z]))]));
   }
 
-  // The empty top-front corner cell: its three inner faces tile exactly the hexagon the
-  // missing cube covered, so, painted over the block, they "remove" it.
-  const [x0, x1, y0, z0] = [-H, -H + c, H - c, H - c];
-  const q = (corners: Vec3[]) => line(corners.map((p) => xy(P(p))), true);
-  const notch: Faces = {
-    top: q([[x0, y0, z0], [x1, y0, z0], [x1, y0, H], [x0, y0, H]]),
-    front: q([[x0, y0, z0], [x1, y0, z0], [x1, H, z0], [x0, H, z0]]),
-    side: q([[x1, y0, z0], [x1, y0, H], [x1, H, H], [x1, H, z0]]),
-  };
+  /* the six screens, standing apart along z: thin slabs in the xy plane, back to front */
+  const stackTop: Seg[] = [];
+  const stackFront: Seg[] = [];
+  const stackSide: Seg[] = [];
+  const stackGlass: Seg[] = [];
+  for (let i = 0; i < STACK.screens; i += 1) {
+    const z = STACK.homeZ(i);
+    const f = boxFaces({ min: [-SC.hw, -SC.hh, z - SC.t], max: [SC.hw, SC.hh, z + SC.t] }, P);
+    stackTop.push(f.top);
+    stackFront.push(f.front);
+    stackSide.push(f.side);
+    // the panel inside each frame: what makes a slab read as a SCREEN and not as a card
+    const g = SC.hw * 0.72;
+    const h = SC.hh * 0.78;
+    stackGlass.push(q([[-g, -h, z + SC.t], [g, -h, z + SC.t], [g, h, z + SC.t], [-g, h, z + SC.t]]));
+  }
 
-  // The missing cube hovering high over its slot, and two more drifting in.
-  const slot: Vec3 = [(x0 + x1) / 2, y0, (z0 + H) / 2];
-  const hover = add(slot, [0, 2.5 * c + size / 2, 0]);
-  const arriving = boxFaces(cube(hover, size), P);
-  const driftA = boxFaces(cube([-H - 1.55 * c, 0.3 * c, -0.8], size), P);
-  const driftB = boxFaces(cube([H + 0.25 * c, -0.35 * c, H + 1.15 * c], size), P);
+  /* the device slab in front, and the lit glass in it — the thing the stack collapses into */
+  const dz = DV.z;
+  const device = boxFaces({ min: [-DV.hw, -DV.hh, dz - DV.t], max: [DV.hw, DV.hh, dz + DV.t] }, P);
+  const gw = DV.hw - DV.inset;
+  const gh = DV.hh - DV.inset;
+  const glass = [q([[-gw, -gh, dz + DV.t], [gw, -gh, dz + DV.t], [gw, gh, dz + DV.t], [-gw, gh, dz + DV.t]])];
+  // four content rules across the glass, so it reads as a screen with something on it
+  const rules: Seg[] = [];
+  for (let i = 1; i <= 4; i += 1) {
+    const y = gh - (2 * gh * i) / 5;
+    rules.push(line([xy(P([-gw * 0.82, y, dz + DV.t])), xy(P([gw * (i === 2 ? 0.2 : 0.62), y, dz + DV.t]))]));
+  }
 
-  // A dashed drop line from the hovering cube into its slot, and the build plate.
-  const guide = [line([xy(P(sub(hover, [0, size / 2, 0]))), xy(P(slot))])];
-  const [py, pr] = [-H - 0.3 * c, H + 0.8 * c];
-  const plate = [q([[-pr, py, -pr], [pr, py, -pr], [pr, py, pr], [-pr, py, pr]])];
+  /* the flow: a packet running from the back screen into the device, which is the loop's verb */
+  const flow = [
+    line([xy(P([0, SC.hh * 0.16, STACK.homeZ(5)])), xy(P([0, SC.hh * 0.16, dz - DV.t]))]),
+  ];
 
   return fit({
     plate,
-    blockSide: [block.side],
-    blockFront: [block.front],
-    blockTop: [block.top],
-    seams,
-    notchTop: [notch.top],
-    notchFront: [notch.front],
-    notchSide: [notch.side],
-    driftSide: [driftA.side, driftB.side],
-    driftFront: [driftA.front, driftB.front],
-    driftTop: [driftA.top, driftB.top],
-    guide,
-    arrivingSide: [arriving.side],
-    arrivingFront: [arriving.front],
-    arrivingTop: [arriving.top],
+    grid,
+    stackSide,
+    stackFront,
+    stackTop,
+    stackGlass,
+    deviceSide: [device.side],
+    deviceFront: [device.front],
+    deviceTop: [device.top],
+    glass,
+    rules,
+    flow,
   });
 }
 
@@ -607,7 +634,7 @@ function buildMesh() {
 /* ---- the tables ServiceArt.tsx draws from ----------------------------------------------- */
 
 const BUILDERS = {
-  "produs-digital": buildCubes,
+  "produs-digital": buildStack,
   "e-commerce": buildCommerce,
   "automatizare-api": buildHub,
   "asistenti-ia": buildNeural,

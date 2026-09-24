@@ -247,7 +247,13 @@ export function createParticleMaterial(palette: IntroPalette): {
         // uMaxSize, and the one beat that has to read as a narrow canyon fills with soft blobs
         // instead. So they arrive as the camera comes out through the vent and not before — and
         // as a SIZE, not only an alpha, so a hidden sprite costs no fill either.
-        float outside = smoothstep(0.42, 0.68, uFlight);
+        //
+        // 0.60, not 0.42: this pair is the EXIT, written as a number, and K3 moved the exit from
+        // u ~0.45 to 0.5950 (the widen cap) — 0.6058 (16:10). At 0.42 the cloud was already a
+        // third of the way in by the time the camera was still a beat short of the vent, which is
+        // precisely the failure the paragraph above exists to prevent. laptop.ts carries the
+        // same number for the halo; they move together or the machine glows before it is visible.
+        float outside = smoothstep(0.60, 0.80, uFlight);
 
         // Projected like geometry. There is no fit group any more, so this is 1 and the sprite is
         // the size uSize states; the cap is what keeps one that sweeps past the lens during the

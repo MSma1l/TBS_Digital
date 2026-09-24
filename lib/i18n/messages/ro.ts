@@ -267,6 +267,7 @@ export const ro = {
   // `intro.status` / `intro.complete` are HUD codes shown identically in every language;
   // `intro.progressAria` is what a screen reader announces for the progress bar.
   // `intro.skipKey` is the key-cap beside the skip label (aria-hidden, fine pointers only).
+  "common.loading": "Se încarcă",
   "intro.status": "SYSTEM_SYNCHRONIZATION",
   "intro.complete": "ACCESS_GRANTED",
   "intro.progressAria": "Se încarcă TBS Digital",
