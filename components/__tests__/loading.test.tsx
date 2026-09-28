@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { Loading } from "@/components/ui/Loading";
@@ -66,5 +68,45 @@ describe("Loading — the shared waiting mark", () => {
     expect(container.querySelector("[tabindex]")).toBeNull();
     // Nothing round anywhere on this site, the mark included.
     expect(container.querySelector("circle, ellipse")).toBeNull();
+  });
+});
+
+describe("PageLoading — the handover out of the intro", () => {
+  const css = readFileSync(resolve(process.cwd(), "components/ui/PageLoading.module.css"), "utf8");
+
+  it("stands down for the whole of an intro, and never comes back up after one", () => {
+    /*
+     * ONE COVER PER LOAD. Two full-window covers would fight while the film plays, and after it
+     * the page is finished — so a second one is just a second loading screen for someone who has
+     * already watched the first. Measured before this rule: the film revealed the page at 8.19s
+     * and this cover was up from 8.21s to 13.80s over a page that was already painted.
+     *
+     * The stand-down therefore has TWO selectors and neither of them may narrow to a phase: the
+     * overlay's presence covers the film, and `data-intro-played` — written on <html> by
+     * `finishIntro` on the frame of the reveal — covers everything after it, including the 1.5s
+     * in which the overlay is still fading.
+     */
+    /* No regex: a heredoc has eaten the escapes in this repo twice, so this reads the rule by
+       hand. */
+    const at = css.indexOf("html:has(#tbs-intro");
+    expect(at, "the intro stand-down rule").toBeGreaterThan(-1);
+    const open = css.indexOf("{", at);
+    const selector = css.slice(at, open);
+    const body = css.slice(open, css.indexOf("}", open));
+    expect(body).toContain("display: none");
+    /* A phase test here is the bug: it is what let the cover back up mid-fade. */
+    expect(selector, "the whole life of the overlay, not one phase of it").not.toContain(
+      "data-phase",
+    );
+    expect(selector, "and after it is gone, for the rest of the document").toContain(
+      "html[data-intro-played]",
+    );
+  });
+
+  it("is up only while the stage has not answered, and always comes down at 6s", () => {
+    // The cover blocks the page, so its failsafe is not optional.
+    expect(css).toContain('[data-scene-stage][data-renderer="pending"]');
+    expect(css).toContain("pageLoadingFailsafe");
+    expect(css).toContain("6000ms forwards");
   });
 });

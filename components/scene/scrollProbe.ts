@@ -150,6 +150,87 @@ export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): vo
 }
 
 /**
+ * `el`'s border box in document pixels **as the page laid it out**, with every ancestor transform
+ * left out — the offset chain, not `getBoundingClientRect`.
+ *
+ * The hero's stat group is transformed by three different things at three different moments: the
+ * intro's entrance moves and rotates it (`{ y: 40, rotateX: -14 }`, cleared at the end), the desktop
+ * scroll parallax slides its wrapper (`PARALLAX_LAYERS["hero-stats"]`), and a scroll reveal offsets
+ * a section. A rect read off the rendered box during any of them is the box at that instant, and
+ * the scene would fit a panel to it and keep it there until the next refresh. `offsetTop` /
+ * `offsetLeft` / `offsetWidth` / `offsetHeight` are layout, so what comes back is where the card
+ * RESTS however it is being animated — which is where the number belongs.
+ *
+ * The walk is exact for this group: every ancestor up to `<body>` is a plain static or relative box
+ * with no border. It is not a general replacement for `docRect`, and nothing else uses it.
+ */
+function layoutRect(el: HTMLElement, into: DocRect | null): DocRect {
+  const rect = into ?? { x: 0, y: 0, w: 0, h: 0 };
+  rect.w = el.offsetWidth;
+  rect.h = el.offsetHeight;
+  let x = 0;
+  let y = 0;
+  let node: HTMLElement | null = el;
+  while (node) {
+    x += node.offsetLeft;
+    y += node.offsetTop;
+    node = node.offsetParent as HTMLElement | null;
+  }
+  rect.x = x;
+  rect.y = y;
+  return rect;
+}
+
+/**
+ * What one of the hero's stat windows has to measure to count as one. A metric card is a real box
+ * in the copy column at every width; what says "the page opened this one for the scene" is the
+ * renderer gate in `app/globals.css` — below 861px, and on a `fallback` / `off` renderer, the card
+ * keeps its glass and the anchor is not written at all. These floors only keep a box that is being
+ * laid out to nothing (a collapsed grid, a hidden section) from scaling a panel to nothing.
+ */
+export const STAT_WINDOW = { minWidth: 96, minHeight: 72 } as const;
+
+/**
+ * Has the page opened this card as a window for the scene? `app/globals.css` sets `--stat-window: 1`
+ * inside the one gated block that also takes the card's paint away, and 0 everywhere else — so the
+ * swap and the drawing cannot disagree, at any width, on any renderer, in either theme. Read rather
+ * than re-derived here: a second copy of "861px and a renderer that draws" would be a second answer.
+ */
+function statWindowOpen(el: Element): boolean {
+  return window.getComputedStyle(el).getPropertyValue("--stat-window").trim() === "1";
+}
+
+/**
+ * The hero's stat windows (`probe.stats`), in DOM order, each measured on its own element.
+ *
+ * The array is reused in place and its rects with it — a refresh happens on every resize, and the
+ * scene reads these every frame. A window the page is not laying out (0 x 0, or under the floors
+ * above) drops the WHOLE set: the two panels are one group in the hero's composition, and drawing
+ * one of a pair because the other collapsed is worse than drawing neither.
+ */
+export function writeStatWindows(probe: ScrollProbe, hosts: ArrayLike<HTMLElement>): void {
+  const count = hosts.length;
+  if (count === 0) {
+    probe.stats.length = 0;
+    return;
+  }
+  for (let i = 0; i < count; i += 1) {
+    const host = hosts[i] as HTMLElement;
+    if (!statWindowOpen(host)) {
+      probe.stats.length = 0;
+      return;
+    }
+    const rect = layoutRect(host, probe.stats[i] ?? null);
+    if (rect.w < STAT_WINDOW.minWidth || rect.h < STAT_WINDOW.minHeight) {
+      probe.stats.length = 0;
+      return;
+    }
+    probe.stats[i] = rect;
+  }
+  probe.stats.length = count;
+}
+
+/**
  * What a service page's projects window has to measure to count as one: a real box, at least this
  * wide and this tall. It is a grid CELL, not a strip carved out of a row, so there is nothing to
  * check it against but itself — and the one thing worth checking is that the page laid it out at
@@ -245,8 +326,9 @@ export function readHeaderHeight(stage: HTMLElement): number {
 }
 
 /**
- * Everything but the spans: the stage's top and bottom, the sticky layer's height, both
- * anchors' boxes and Work's track, heading and the band above it (null while one is not in the
+ * Everything but the spans: the stage's top and bottom, the sticky layer's height, every
+ * anchor's box (the hero core's, the services host's, the steps host's, the benefits row's, the
+ * hero's stat windows and the projects cell) and Work's track, heading and the band above it (null while one is not in the
  * page), the header height — then `version++` and `live`. Call it after the spans, at the end of
  * a refresh.
  */
@@ -260,6 +342,7 @@ export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   probe.services = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="services"]`), probe.services);
   writeStepsHost(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="steps"]`));
   writePanelsBand(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="panels"]`));
+  writeStatWindows(probe, stage.querySelectorAll<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="stat"]`));
   writeProjectsWindow(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="projects"]`));
   const track = stage.querySelector(`[${WORK_TRACK_ATTR}]`);
   probe.work = docRect(track, probe.work);

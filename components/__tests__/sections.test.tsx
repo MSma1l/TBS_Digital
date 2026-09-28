@@ -69,14 +69,15 @@ describe("Services section", () => {
 });
 
 describe("Team section", () => {
-  // The section was redesigned: the old "ECHIPA" + "SYSTEM_STATUS" HUD framing is gone,
-  // replaced by the "ECHIPA TBS" card label. The test now describes what ships.
-  it("renders its card label and lead copy", async () => {
+  // The section was redesigned twice: the old "ECHIPA" + "SYSTEM_STATUS" HUD framing went, then
+  // the "ECHIPA TBS" card label went with every other kicker on the site (2026-09-25). What is
+  // left is what the section is: a heading, a lead, and the people.
+  it("renders its heading, lead copy and a card per member", async () => {
     withProvider(<Team />);
 
-    // One label per member card, so there are as many as there are members.
-    expect((await screen.findAllByText("ECHIPA TBS")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("Oamenii din spatele produsului.")).toBeInTheDocument();
     expect(screen.getByText(/O echipă mică și implicată/)).toBeInTheDocument();
+    expect(screen.queryByText("ECHIPA TBS")).toBeNull();
   });
 
   /*
@@ -86,7 +87,7 @@ describe("Team section", () => {
    */
   it("projects the photograph without taking the picture away from anybody", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findAllByText("ECHIPA TBS");
+    await screen.findByText("Oamenii din spatele produsului.");
 
     const holo = container.querySelector('[class*="holo"]');
     expect(holo).not.toBeNull();
@@ -106,7 +107,7 @@ describe("Team section", () => {
 
   it("defines the key and the tint ONCE for the section, not once per card", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findAllByText("ECHIPA TBS");
+    await screen.findByText("Oamenii din spatele produsului.");
     const filters = container.querySelectorAll("filter#tbs-holo-key");
     expect(filters).toHaveLength(1);
     // sRGB, because the key's thresholds were measured in sRGB and the SVG default is linearRGB —
@@ -124,7 +125,7 @@ describe("Team section", () => {
 
   it("invents no projection for a member who has no photograph", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findAllByText("ECHIPA TBS");
+    await screen.findByText("Oamenii din spatele produsului.");
     expect(container.querySelectorAll('[class*="holo"]')).toHaveLength(1);
     expect(container.querySelectorAll('[class*="avatar"]').length).toBeGreaterThan(0);
   });
@@ -138,7 +139,7 @@ describe("Team section", () => {
       JSON.stringify({ team: [{ ...defaultSiteData.team[0], photo: "" }] }),
     );
     const { container } = withProvider(<Team />);
-    await screen.findAllByText("ECHIPA TBS");
+    await screen.findByText("Oamenii din spatele produsului.");
     expect(container.querySelector("img")).toHaveAttribute("src", "/team/maxim.webp");
   });
 });
@@ -246,7 +247,7 @@ describe("Team stats come from real data, or not at all", () => {
     withProvider(<Team />);
 
     // The team itself renders, so this is 'no stats', not 'nothing rendered'.
-    expect(await screen.findAllByText("ECHIPA TBS")).not.toHaveLength(0);
+    expect(await screen.findByText("Oamenii din spatele produsului.")).toBeInTheDocument();
     expect(screen.queryByText("50+")).not.toBeInTheDocument();
     expect(screen.queryByText("98%")).not.toBeInTheDocument();
     expect(screen.queryByText(/clienți mulțumiți/)).not.toBeInTheDocument();

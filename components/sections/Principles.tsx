@@ -55,7 +55,6 @@ const WHY: Why[] = [
 ];
 
 const SECTION = {
-  eyebrow: L("De ce TBS", "Почему TBS", "Why TBS"),
   title: L("Cum lucrăm, pe scurt.", "Как мы работаем, коротко.", "How we work, in short."),
 };
 
@@ -124,7 +123,6 @@ export function Principles() {
     <section id="despre" className={styles.section}>
       <div className="container">
         <Reveal className={styles.head}>
-          <div className={`mono ${styles.eyebrow}`}>{l(SECTION.eyebrow)}</div>
           <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
         </Reveal>
 

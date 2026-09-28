@@ -86,7 +86,11 @@ export function probeIntroCapability(): IntroCapability {
   });
 
   if (typeof window.ResizeObserver === "undefined") return answer(false);
-  if (mediaMatches(PREFERS_REDUCED_MOTION)) return answer(false);
+  /* Reduced motion normally means the SVG film at most — but the intro only reaches this probe
+     under reduced motion when `tbs_intro_force` asked for it (IntroPreloader.tsx), and someone
+     who has ALSO set `tbs_intro_3d=force` is QA or the owner checking the real thing. Both flags
+     together are the only way past this line; one alone still answers "no". */
+  if (mediaMatches(PREFERS_REDUCED_MOTION) && !force3d) return answer(false);
   if ((navigator as NavigatorExtras).connection?.saveData) return answer(false);
   // A software renderer answers "no" unless QA forced 3D; a context a scene lost (or gave up
   // on as too slow) earlier in this tab answers "no" too.

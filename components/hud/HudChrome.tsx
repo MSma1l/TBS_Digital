@@ -8,8 +8,9 @@ import { afterIdle } from "@/lib/idle";
 import { onIntroGone } from "@/lib/intro";
 
 /**
- * Ghid TBS (components/hud/guide): the avatar in the bottom-right corner and its linger tip.
- * Its chunk (component, copy, CSS module, lucide's X) is fetched only once the gate opens.
+ * The assistant (components/hud/guide): the avatar in the bottom-right corner, her greeting and
+ * her questions. Her chunk (component, copy, CSS module, lucide's X) is fetched only once the
+ * gate opens. She offers nothing by herself — the guide's linger tip went on 2026-09-26.
  */
 const GuideAssistant = dynamic(() => import("./guide/GuideAssistant").then((m) => m.GuideAssistant), {
   ssr: false,
@@ -28,10 +29,10 @@ const ScrollRail = dynamic(() => import("./rail/ScrollRail").then((m) => m.Scrol
 type HudPart = { Part: ComponentType; desktopOnly?: true };
 
 /**
- * The HUD chrome's parts (the Ghid TBS guide, the fibre rail; the OS layer in a later phase),
+ * The HUD chrome's parts (the assistant, the fibre rail; the OS layer in a later phase),
  * each a `next/dynamic({ ssr: false })` chunk, rendered together in ONE commit once the gate
  * opens. The server never renders any of them, so the HTML does not grow. The order is the DOM
- * order, so the tab order after the footer: the guide, then the rail's section buttons.
+ * order, so the tab order after the footer: the assistant, then the rail's section buttons.
  */
 const PARTS: readonly HudPart[] = [{ Part: GuideAssistant }, { Part: ScrollRail, desktopOnly: true }];
 

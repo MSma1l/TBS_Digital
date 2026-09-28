@@ -358,6 +358,114 @@ export function placePanels(
   return out;
 }
 
+/* ---- the hero's stat panels ------------------------------------------------------------- */
+
+/**
+ * The air left between a stat panel's lit face and its window's own edge, css px per side.
+ *
+ * Not a measurement, a decision: these panels are drawn additively and their edge glows, and the
+ * grid gives the two windows a 12px gutter at the narrow end (`gap-3`) — so a panel that filled its
+ * window to the pixel would lay its glow on the neighbour's edge. Three pixels per side is a
+ * quarter of that gutter, and the face keeps 99% of the window's width at every width the panels
+ * are drawn at.
+ */
+export const STAT_AIR = 3;
+
+/** Seconds a panel dissolves in over as the hero brings it in, and out again. */
+export const STAT_FADE_SECONDS = 0.3;
+
+/**
+ * A stat panel's box in world units: its centre, and the size its plane is scaled to. Not a
+ * `Placement`, which is one scalar: these panels fill a window of the page whose aspect is the
+ * grid's, not theirs — two columns at 1025px and up, stacked rows from 861 to 1024 — so the fit is
+ * per axis and the face's canvas is drawn to the same aspect (`three/statFace.ts`). A single scale
+ * would letterbox them inside their own windows and move the numbers off the place the cards kept.
+ */
+export type StatSpot = { x: number; y: number; w: number; h: number };
+
+/**
+ * How much of the hero's stat windows is inside the canvas at `scrollY`, 0 → 1: the band from the
+ * first window's top to the last one's bottom (they are one group in the composition, and they
+ * fade together). `margin` grows the canvas by that many pixels on both sides first — the same way
+ * the benefits row asks "near enough to be worth building" with the arithmetic it asks "worth
+ * drawing" with. 0 with no window measured.
+ */
+export function statsShare(probe: ScrollProbe, scrollY: number, h: number, margin = 0): number {
+  const boxes = probe.stats;
+  if (!probe.live || boxes.length === 0) return 0;
+  const first = boxes[0];
+  const last = boxes[boxes.length - 1];
+  const top = Math.min(first.y, last.y);
+  const bottom = Math.max(first.y + first.h, last.y + last.h);
+  const band = bottom - top;
+  if (band <= 0) return 0;
+  const y0 = top - canvasDocTop(scrollY, probe, h);
+  const inside = Math.min(h + margin, y0 + band) - Math.max(-margin, y0);
+  return clamp01(inside / band);
+}
+
+/**
+ * The `index`-th stat panel: on its own window's centre, sized to that window less `STAT_AIR` a
+ * side. A rigid follow, like the benefits row's — these windows are ordinary boxes in the copy
+ * column, and a panel that drifted against one would sit off the card it replaced. Null with no
+ * window measured at that index.
+ */
+export function placeStat(
+  probe: ScrollProbe,
+  scrollY: number,
+  w: number,
+  h: number,
+  index: number,
+  out: StatSpot = { x: 0, y: 0, w: 0, h: 0 },
+): StatSpot | null {
+  const win = probe.live ? probe.stats[index] : undefined;
+  if (!win || win.w <= 0 || win.h <= 0) return null;
+  const k = worldPerPx(h);
+  const cx = win.x + win.w / 2;
+  const cy = win.y + win.h / 2 - canvasDocTop(scrollY, probe, h);
+  out.x = (cx - w / 2) * k;
+  out.y = -(cy - h / 2) * k;
+  out.w = Math.max(0, win.w - 2 * STAT_AIR) * k;
+  out.h = Math.max(0, win.h - 2 * STAT_AIR) * k;
+  return out;
+}
+
+/**
+ * Which stat window a page point (document px) is inside, or -1. The panels answer the pointer
+ * themselves — the cards they replaced tilted under it — and the windows are the same boxes the
+ * DOM lays out, so the hit test is arithmetic on the probe rather than a DOM read per frame.
+ */
+export function statAt(probe: ScrollProbe, docX: number, docY: number): number {
+  if (!probe.live) return -1;
+  for (let i = 0; i < probe.stats.length; i += 1) {
+    const box = probe.stats[i];
+    if (docX >= box.x && docX <= box.x + box.w && docY >= box.y && docY <= box.y + box.h) return i;
+  }
+  return -1;
+}
+
+/**
+ * Pure. Where inside window `index` a page point lies, -1..1 on both axes (0 at its centre, y
+ * positive downwards, the way the DOM measures), clamped. The panel leans by it.
+ */
+export function statLocal(
+  probe: ScrollProbe,
+  index: number,
+  docX: number,
+  docY: number,
+  out: { x: number; y: number } = { x: 0, y: 0 },
+): { x: number; y: number } {
+  const box = probe.live ? probe.stats[index] : undefined;
+  if (!box || box.w <= 0 || box.h <= 0) {
+    out.x = 0;
+    out.y = 0;
+    return out;
+  }
+  out.x = Math.max(-1, Math.min(1, ((docX - box.x) / box.w) * 2 - 1));
+  out.y = Math.max(-1, Math.min(1, ((docY - box.y) / box.h) * 2 - 1));
+  return out;
+}
+
 /* ---- the projects laptop (a service page's "Proiecte relevante") ------------------------ */
 
 /**

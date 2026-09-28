@@ -115,6 +115,22 @@ describe("probeIntroCapability", () => {
     expect(getContext).not.toHaveBeenCalled();
   });
 
+  it("…unless BOTH QA flags are set: the intro is forced AND 3D is forced", () => {
+    /* The probe is only reached under reduced motion when `tbs_intro_force` asked for the intro
+       at all (IntroPreloader.tsx). Whoever also set `tbs_intro_3d=force` is checking the real
+       film, not being surprised by motion. One flag alone still answers no. */
+    vi.stubGlobal("ResizeObserver", StubResizeObserver);
+    mockMatchMedia((query) => query.includes("prefers-reduced-motion"));
+    getContext.mockImplementation((() => fakeContext()) as unknown as GetContext);
+    window.localStorage.setItem(INTRO_FORCE_3D_KEY, "force");
+    try {
+      expect(probeIntroCapability().webgl).toBe(true);
+      expect(getContext).toHaveBeenCalledWith("webgl2", { failIfMajorPerformanceCaveat: false });
+    } finally {
+      window.localStorage.removeItem(INTRO_FORCE_3D_KEY);
+    }
+  });
+
   it("says no WebGL when the visitor asked to save data, without touching a canvas", () => {
     vi.stubGlobal("ResizeObserver", StubResizeObserver);
     Object.defineProperty(navigator, "connection", {

@@ -97,19 +97,29 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Run on every page document, but skip things that don't need (or shouldn't
-     * pay for) a per-request nonce: API routes, static assets, image optimizer,
-     * the icon, and link-prefetches.
+     * Run on every page DOCUMENT, and skip only what neither needs nor should pay for a
+     * per-request nonce: API routes, static assets, the image optimizer, the icon, and the
+     * router's own RSC prefetches.
      *
-     * `icon.svg` replaced `favicon.ico` here when app/icon.svg became the site's
-     * icon (App Router serves the file-based icon at /icon.svg).
+     * `icon.svg` replaced `favicon.ico` here when app/icon.svg became the site's icon (the
+     * App Router serves the file-based icon at /icon.svg).
+     *
+     * **`{ key: "purpose", value: "prefetch" }` is deliberately NOT here** (2026-09-25),
+     * although Next's own CSP guide lists it. That recipe assumes this function only adds a
+     * nonce; here it also carries `x-pathname`, which the root layout turns into the
+     * self-canonical, the hreflang set AND the first-visit intro's gate (`shouldPlayIntro`).
+     * The legacy `Purpose: prefetch` header is sent by BROWSERS, not by this Next version's
+     * router (which sends `next-router-prefetch` and nothing else — checked in
+     * `next/dist/client/components/app-router-headers.js`), and Chrome sends it when it
+     * preloads a URL it predicted from that profile's own history. So the visitor who comes
+     * back most often — the owner typing the address and pressing Enter — was being served a
+     * document with no `x-pathname`: no intro, no canonical, and no CSP header at all.
+     * Measured on the running container: `GET /` carried `id="tbs-intro"` once, the same
+     * request with `Purpose: prefetch` carried it zero times.
      */
     {
       source: "/((?!api|_next/static|_next/image|icon.svg).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
+      missing: [{ type: "header", key: "next-router-prefetch" }],
     },
   ],
 };

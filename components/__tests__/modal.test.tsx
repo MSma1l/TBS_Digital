@@ -15,7 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useRef, useState, type RefObject } from "react";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Modal } from "@/components/ui/Modal";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
@@ -56,6 +56,7 @@ function Harness({
   closeOnEscape,
   withDescription = true,
   locale = "ro" as Locale,
+  ground,
 }: {
   onCloseSpy?: () => void;
   focusEmailFirst?: boolean;
@@ -63,6 +64,7 @@ function Harness({
   closeOnEscape?: boolean;
   withDescription?: boolean;
   locale?: Locale;
+  ground?: "panel" | "ink";
 }) {
   const [open, setOpen] = useState(false);
   const emailRef = useRef<HTMLInputElement>(null);
@@ -82,12 +84,12 @@ function Harness({
         }}
         title={TITLE}
         description={withDescription ? DESCRIPTION : undefined}
-        eyebrow={{ ro: "Cerere", ru: "Заявка", en: "Request" }}
         initialFocusRef={
           focusEmailFirst ? (emailRef as RefObject<HTMLElement | null>) : undefined
         }
         closeOnOverlayClick={closeOnOverlayClick}
         closeOnEscape={closeOnEscape}
+        ground={ground}
         footer={
           <button type="button" onClick={() => onCloseSpy?.()}>
             {SEND_LABEL}
@@ -173,6 +175,24 @@ describe("Modal — accessibility contract", () => {
     expect(screen.getByRole("heading", { name: TITLE.ru })).toBeInTheDocument();
     // The ✕ has no text, so its name is the only thing a screen reader gets.
     expect(screen.getByRole("button", { name: "Закрыть" })).toBeInTheDocument();
+  });
+});
+
+describe("Modal — the panel's ground", () => {
+  /* `ground="ink"` is what the request dialog asks for: its body is the estimator DECK, a lit
+     console whose design needs the page's dark ground behind it rather than `--panel`, which it
+     measures about 1.06:1 against. A prop with no test is a prop the next cleanup deletes. */
+  it("adds a class for an ink panel and leaves the default alone", async () => {
+    await openModal();
+    const plain = dialog().className;
+    cleanup();
+
+    await openModal({ ground: "ink" });
+    const ink = dialog().className;
+
+    expect(ink).not.toBe(plain);
+    expect(ink.split(" ").length).toBe(plain.split(" ").length + 1);
+    for (const cls of plain.split(" ")) expect(ink).toContain(cls);
   });
 });
 

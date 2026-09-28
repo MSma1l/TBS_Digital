@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { messages } from "@/lib/i18n/messages";
-import { INTRO_COOKIE, INTRO_REVEAL_ATTR } from "@/lib/intro";
+import { INTRO_COOKIE, INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
 import {
   MIN_TAP_TARGET,
   breakRendererWebGL,
@@ -92,7 +92,12 @@ async function expectPageRestored(page: Page): Promise<void> {
   expect(state.htmlOverflow).not.toBe("hidden");
   expect(state.htmlStyle, "the scroll lock leaves no style attribute on <html>").toBeNull();
   expect(state.bodyPosition).not.toBe("fixed");
-  expect(state.markers, "the entrance targets are still on the page").toBe(8);
+  /* Counted from the contract, never typed here: the entrance had eight targets until the
+     red kicker was removed site-wide (2026-09-26) and `eyebrow` left the order with it. A
+     literal went stale that same day, in four specs at once. */
+  expect(state.markers, "the entrance targets are still on the page").toBe(
+    INTRO_REVEAL_ORDER.length,
+  );
   expect(state.styledMarkers, "no [data-intro-reveal] keeps an inline style").toBe(0);
 }
 

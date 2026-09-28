@@ -96,30 +96,17 @@ No catalog key was added or removed, and no visitor copy was written into a comp
 
 ### The HUD chrome adds no keys
 
-The Ghid TBS guide (IT-OS Phase 4, 2026-09-17) adds **no catalog key**. Its copy is the narrower
-form above: `GUIDE_COPY` in `components/hud/guide/copy.ts`, every string an `L(ro, ru, en)` object
-rendered through `useLoc()`. The file has no directive and only type imports, so the E2E specs
-import it and find the controls by exactly these strings (the lazy chunk ships the copy; nothing
-reaches the page bundle).
+The HUD's parts carry their own copy in the narrower form above — an `L(ro, ru, en)` object per
+string in the part's own module, rendered through `useLoc()` — and add **no catalog key**. The
+modules have no directive and only type imports, so the E2E specs import them and find the
+controls by exactly these strings; the lazy chunk ships the copy and nothing reaches the page
+bundle.
 
-| `GUIDE_COPY` field | RO | RU | EN | Where |
-|--------------------|----|----|----|-------|
-| `label` | Ghid TBS | Гид TBS | TBS Guide | the caption under the droid and the tip's kicker (both `aria-hidden`, upper-cased in CSS) |
-| `aria` | Ghid TBS: deschide asistentul ghidat pentru cerere | Гид TBS: открыть пошагового ассистента заявки | TBS Guide: open the guided request assistant | the avatar button's accessible name — it starts with the visible caption (WCAG 2.5.3) |
-| `open` | Deschide ghidul | Открыть гид | Open the guide | the tip's red action |
-| `never` | Nu mai arăta în această vizită | Не показывать до конца визита | Don't show again this visit | the tip's opt-out (until reload) |
-| `dismiss` | Închide sugestia | Закрыть подсказку | Close the tip | the ✕ button's accessible name |
-| `prompts.servicii` | Nu ești sigur ce direcție ți se potrivește? Ghidul pune câteva întrebări scurte și trimite echipei rezumatul. | Не уверены, какое направление подходит? Гид задаст несколько коротких вопросов и отправит команде итог. | Not sure which direction fits you? The guide asks a few short questions and sends the team a summary. | the tip on `#servicii` |
-| `prompts.lucrari` | Ai în minte un proiect asemănător? Descrie-l pas cu pas — îți răspundem în cel mult o zi lucrătoare. | Задумали похожий проект? Опишите его по шагам — ответим в течение одного рабочего дня. | Have a similar project in mind? Describe it step by step — we reply within one business day. | the tip on `#lucrari` |
-| `prompts.service` | Vrei să vezi dacă direcția asta se potrivește proiectului tău? Ghidul te ajută să formulezi cererea. | Хотите понять, подходит ли это направление вашему проекту? Гид поможет сформулировать заявку. | Want to check whether this direction fits your project? The guide helps you put the request into words. | the tip on a service page's steps |
-
-**Honest by construction.** It is a guide that asks a few questions — never "AI", never "online"
-or a promised response time beyond the one business day the estimator's `SENT_COPY` already
-promises. The ids it writes into a lead (`guide`, `guide-prompt`, `servicii` / `lucrari` /
-`service`) are raw ids, not translated, like every origin row. The service page's topic is an
-attribute (`data-guide-topic="service"` on the steps section), not text, so it changes nothing a
-crawler or a screen reader sees; the guide itself is client-only, rendered after an interaction,
-and never in the server HTML.
+The Ghid TBS guide (IT-OS Phase 4) was the first of them, with a `GUIDE_COPY` table here. It was
+removed on 2026-09-26 and its copy with it; what its entry pinned holds for every part that
+follows: **honest by construction** — never "AI", never "online", and no promised response time
+beyond the one business day the estimator's `SENT_COPY` already promises. Ids written into a lead
+(a CTA `source`, a section topic) are raw ids, not translated, like every origin row.
 
 **The fibre rail (Phase 5) adds no key either, and reuses four.** `components/hud/rail/copy.ts`
 holds `RAIL_COPY` — the `<nav>`'s name **"Secțiunile paginii" / "Разделы страницы" / "Page
@@ -130,8 +117,8 @@ sections"** and the three home markers the menu has no word for: `top` ("Începu
 never name the same section differently. On any other page a marker's label is the section's own
 first heading, already localized by the page — whitespace-collapsed and clipped to 60 characters
 with an ellipsis, counted in code points so a clip never splits a character. The rail promises
-nothing: every string is a section's name. Like the guide's, the file has no directive and only
-type imports, so the E2E specs import `RAIL_COPY` and `RAIL_HOME_SECTIONS` instead of retyping the
+nothing: every string is a section's name. As above, the file has no directive and only type
+imports, so the E2E specs import `RAIL_COPY` and `RAIL_HOME_SECTIONS` instead of retyping the
 words.
 
 ---
@@ -185,6 +172,16 @@ Because the nonce is minted per request, **every page renders dynamically** (`aw
 headers()` in the root layout). That is a deliberate trade: a nonce'd CSP over a statically
 prerendered page would ship HTML whose scripts carry a stale nonce.
 
+### A preloaded document is the same document (2026-09-25)
+
+The root layout builds the self-canonical and the hreflang set from `x-pathname`, which `proxy.ts`
+sets. Until 2026-09-25 the proxy's matcher skipped any request carrying the legacy
+`Purpose: prefetch` header — a **browser's** header, sent on the document it preloads when the
+omnibox predicts a URL — so those documents were rendered with no `x-pathname`: no canonical, no
+hreflang, no intro and no CSP. The matcher now skips only the Next router's own RSC prefetch
+(`next-router-prefetch`), and a preloaded document is byte-for-byte the document a typed address
+gets. See [11 — Security](./11-security.md#the-html-csp-and-the-first-visit-intro-2026-09-16).
+
 ### The first-visit intro and SEO
 
 A full-screen overlay on a first visit to `/` could look like an interstitial hiding the
@@ -227,6 +224,15 @@ a crawler or an assistive technology sees:
   crawler never does.
 - **The entrance markers are never moved by the scroll effects** (the parallax targets wrappers),
   and the `<h1>` is never hidden.
+- **The hero's numbers are drawn by the scene from 2026-09-25, and they are still HTML.** Where a
+  panel is drawn (861px and up, on a `webgl` renderer) the metric card keeps its box, its text and
+  its place in the accessibility tree and loses only its paint (`opacity: 0` and no glass); the
+  panel's face is composed FROM that text, so there is one copy of the number, in the visitor's
+  language, and the scene cannot drift from the DOM. It is not hidden text for a crawler's benefit:
+  the same words are what a sighted visitor reads, and every reader that does not run WebGL — a
+  crawler, a text browser, a `prefers-reduced-motion` or Save-Data visitor, a low-tier device, a
+  narrow window, the `tbs_scene_3d=off` switch — gets the painted cards themselves. Nothing was
+  added to the HTML and nothing was taken out of it.
 
 ---
 

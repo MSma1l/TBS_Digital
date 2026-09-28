@@ -63,6 +63,42 @@
   animation: modalPanelIn 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/*
+ * A PANEL FOR CONTENT THAT BRINGS ITS OWN SURFACES.
+ *
+ * `--panel` is right for a dialog whose body is text and fields drawn straight onto it. It is
+ * wrong for one whose body is an object with its own three-surface ladder — the request deck,
+ * whose whole design is a lit console standing in an UNLIT room (the long note in
+ * components/sections/Estimator.module.css). Measured: the deck reads 1.25:1 against the page
+ * ground it was built on and about 1.06:1 against `--panel`, so on the default panel the
+ * console and the room it stands in are the same colour and the object stops being an object.
+ * A hovered chip made it plainer still — `.choice:hover` fills with `--panel`, so on a
+ * `--panel` dialog it punched a hole rather than lifting.
+ *
+ * This modifier hands such a body the page's own ground, and nothing else.
+ */
+.panelInk {
+  background: var(--bg);
+  /*
+   * AND IT MAY USE THE WHOLE WINDOW. The 760px above is a signed-off dimension for a dialog
+   * whose body is text and fields; this one's body is the request deck, and measured at a
+   * 1080px-tall window the cap left the deck 107px short of fitting while 320px of screen went
+   * unused below the panel. The deck is not stretched by this — the panel is content-sized, so
+   * it only grows as far as the deck actually needs.
+   */
+  max-height: calc(100dvh - 2 * var(--sp-5));
+}
+
+/* The deck brings its own padding and its own internal rhythm, so the generous dialog gutters
+   are doubling up on it. Reclaimed: 12px of head and 16px of body. */
+.panelInk .head {
+  padding: var(--sp-5) var(--sp-6) var(--sp-4);
+}
+
+.panelInk .body {
+  padding: var(--sp-5);
+}
+
 .panel:focus-visible {
   outline: 2px solid var(--red);
   outline-offset: -2px;
@@ -72,6 +108,10 @@
 @supports not (height: 1dvh) {
   .panel {
     max-height: min(760px, calc(100vh - 2 * var(--sp-5)));
+  }
+  /* The ink twin, or this block would put the 760px cap back on it. */
+  .panelInk {
+    max-height: calc(100vh - 2 * var(--sp-5));
   }
 }
 
@@ -93,15 +133,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-}
-
-.eyebrow {
-  margin: 0;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semi);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--red-text);
 }
 
 .title {

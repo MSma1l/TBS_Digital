@@ -123,6 +123,17 @@ change.** It still holds because:
   motion, a service page, the admin and the forced-WebGL scene, and `e2e/preloader.spec.ts`
   asserts it on every run ("needs no CSP change and logs no errors").
 
+**One class of document was being served with no policy at all, and was fixed on 2026-09-25.**
+The matcher in `proxy.ts` carried Next's own CSP-guide recipe, which excludes requests holding
+`next-router-prefetch` **or** the legacy `Purpose: prefetch` header. The second one is not sent by
+this Next version's router at all — it is sent by BROWSERS, on the document they preload when the
+omnibox predicts a URL from history. Measured on the running container: `GET /` came back with a
+`content-security-policy` header, the same request with `Purpose: prefetch` came back with none
+(and with no `x-pathname`, so no intro and no canonical either). The matcher now excludes only
+`next-router-prefetch`, which is an RSC payload rather than a document; `Sec-Purpose:
+prefetch;prerender`, the modern header, was never excluded and still is not.
+`app/__tests__/proxy-matcher.test.ts` pins the rule so the recipe cannot come back.
+
 ### Imports that would break the CSP fail lint instead
 
 drei, three's loaders and decoders, physics engines and worker pools pass `tsc`, the unit tests
@@ -273,7 +284,7 @@ several up-front files were outside the list. Fixed before release (review findi
 - `tbs_gpu_probe` is listed as an **essential** entry in the cookie policy
   (`app/(site)/cookies/content.ts`, RO/RU/EN): session storage, yes/no values, identifies nobody,
   gone when the tab closes.
-- **`tbs_hud` (2026-09-17)** switches the HUD chrome (guide, rail, OS windows) off in that
+- **`tbs_hud` (2026-09-17)** switches the HUD chrome (the rail, later the OS windows) off in that
   browser: only the literal `"off"` counts; any other value, or storage that throws, is ignored.
   A tampered value can only keep the HUD from loading there; the page itself does not change. Like
   `tbs_scene_3d` it is not a cookie-policy entry, because the site never writes it. The chrome's
@@ -293,36 +304,27 @@ several up-front files were outside the list. Fixed before release (review findi
 - **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
   through React (escaped), exactly as the whole tag was rendered before.
 
-### The Ghid TBS guide (IT-OS Phase 4, 2026-09-17)
+### The Ghid TBS guide — removed (2026-09-26)
 
-The guide (`components/hud/guide/*`, `lib/hud/linger.ts`; behaviour in
-[05](./05-page-sections.md#ghid-tbs-the-guide)) added **no dependency, no storage and no CSP
-change**:
+The guide (IT-OS Phase 4, 2026-09-17) was a holographic assistant in the bottom-right corner that
+offered help about the section a visitor lingered on. It was **removed on 2026-09-25, briefly restored on the 26th at the owner's request and removed again the same day, for good**: `components/hud/guide/*`, `lib/hud/linger.ts`, `lib/hud/obscure.ts`, `lib/hud/busy.ts`,
+`public/guide/*`, `tools/guide/*` and `e2e/guide.spec.ts` are gone, and with them the
+`data-guide-topic` attribute, the `data-guide` root and the `guide` / `guide-prompt` request
+sources. Nothing replaced it.
 
-- **No new storage and no cookie.** Its memory (tips shown, the cooldown, "Nu mai arăta") is one
-  module variable: it lasts the page lifetime, survives client navigation and is gone on reload.
-  The only key the HUD reads is `tbs_hud` (listed above: QA and E2E, never written by the site).
-  The cookie policy does not change.
-- **It sends only what the visitor submits.** Showing, pulsing, dismissing or opting out sends
-  nothing — no request, no analytics event. Pressing the avatar or "Deschide ghidul" only opens
-  the existing request dialog; a lead leaves only through the existing `POST /api/contact`
-  submit, with the same validation and escaping as every other request. The guide
-  adds to that message nothing but ids from fixed lists, each validated before it is written:
-  `- Serviciu: <slug>` (a slug `lib/directions.ts` knows), `- Proiect: <name> (<id>)` (the project
-  at that index in the site's own content, `lucrari` topic only), `- Secțiune: <topic>`
-  (`isGuideTopic`: `servicii`, `lucrari` or `service` — whatever a `data-guide-topic` attribute
-  carries) and `- Sursă (CTA): guide | guide-prompt`.
-- **Nothing fetched, nothing parsed.** Its chunk arrives through `next/dynamic` from the site's
-  own origin after arming; the ✕ is a lucide-react component rendered by React (inline SVG, no
-  sprite, no icon font); the copy is static `{ ro, ru, en }` text; no `dangerouslySetInnerHTML`,
-  no `eval`, no `Worker`, no `blob:`.
-- **It reads only geometry and attributes**: IntersectionObserver entries, `getBoundingClientRect`
-  for the focus-overlap guard, `data-guide-topic`, `data-helix-front`, `document.activeElement`
-  (to know whether the visitor is typing — never the field's value). No new `window` global and no
-  new event.
-- **Measured on every run:** `e2e/guide.spec.ts` (a service page with the guide armed, lingered on
-  and opened) and `e2e/hud-integration.spec.ts` (HI6, the home page armed and scrolled through)
-  assert 0 `securitypolicyviolation` events and no console error.
+It had added no dependency, no storage key, no cookie, no request and no CSP change, so its removal
+takes nothing off the review's list — it only shrinks the surface:
+
+- **The only lead rows it could write are unreachable.** `- Secțiune: <topic>` came from a
+  `data-guide-topic` attribute it read off the page. The row's validation
+  (`isGuideTopic`: `servicii`, `lucrari`, `service`) and the `RequestContext.guideTopic` field
+  stay, because the format is the estimator's, not the guide's; no CTA passes one today, so the
+  row no longer appears in any lead. `POST /api/contact` validates exactly as before.
+- **One asset less to serve.** The 384px WebP portrait it drew (`public/guide/`) and the
+  `sharp`-based tool that produced it (`tools/guide/`, a dev-only script, never shipped) are gone.
+- **Still measured on every run:** `e2e/hud-integration.spec.ts` (HI6, the home page armed and
+  scrolled through) asserts 0 `securitypolicyviolation` events and no console error — now with the
+  rail as the whole chrome.
 
 ### The fibre rail (IT-OS Phase 5, 2026-09-17)
 

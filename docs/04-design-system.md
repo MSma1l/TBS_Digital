@@ -204,7 +204,6 @@ One ladder for every fixed or sticky layer, low → high:
 | — | 100 | lightbox (module literal) |
 | `--z-rail` | 104 | fibre scroll rail (from 861px) |
 | `--z-os` | 108 | OS layer: the dock (`z-index: 10` inside it) and the windows (their order, 1–3, inside it) |
-| `--z-guide` | 112 | Ghid TBS avatar and its tip |
 | `--z-nav-overlay` | 115 | burger menu overlay — **under** the header on purpose, so the burger stays usable |
 | `--z-header` | 120 | sticky header |
 | `--z-dropdown` | 130 | desktop dropdowns |
@@ -451,6 +450,50 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
   `translate` — two properties, so they compose. `data-tilt="on|off"` says whether the card can
   tilt (`off` on the server). A tilt never touches an intro entrance marker.
 
+### The hero stat panels (2026-09-25)
+
+Where the scene draws them (861px and up, `data-renderer="webgl"` — see
+[05 — /01 Hero](./05-page-sections.md#01--hero) for the conditions and the fallback), the hero's
+two metric cards are **holographic panels in the 3D scene** rather than glass cards on the page. One
+`PlaneGeometry` each on `SURFACE_MODE.holo` — the Work hologram's own branch, so they arrive in the
+palette's colour, under the same scanline comb, in the same hairline frame, with the same voxel
+dissolve and the same glitch over a content swap. One draw call and one texture per panel; no frame
+geometry, no vertex dots, no second plane.
+
+**The face is the card.** `three/statFace.ts` composes it from the card's own DOM: every string is
+its `textContent` and every size, weight, family, margin and padding is its COMPUTED style, scaled
+by the one ratio between the canvas and the card's LAYOUT box (`offsetHeight`, so the intro's
+entrance, the scroll parallax and the card's own tilt cannot lean a letter). The face therefore
+carries the counted portfolio number, the visitor's language and any copy or token change with
+nothing authored twice. Drawn on it, in this order: a faint pane (`STAT_FACE.plate`, 0.055 — an
+additive hologram cannot darken what is behind it, so it lifts its own surface instead), the
+wireframe hanging off the top-right corner, the number, a short rule, the label wrapped as the card
+wraps it, the note upper-cased on the card's own tracking, the group's two-digit tick and the
+bracket corners.
+
+**Greyscale on purpose.** The `holo` branch keeps a coloured pixel's own hue and maps a grey one
+into the palette, so a face drawn in colour would be a surface with a colour the palette did not
+give it — allowed for a screenshot on the laptop's display, not for the hero's own numbers. The two
+cards' accents are carried the way the cards carry them: by the wireframe (an octahedron for the
+portfolio, a ring gyroscope for the automations, on the same resting pose the CSS hologram is
+parked at, `rotateX(-20deg) rotateY(35deg)`), and by nothing else.
+
+**Placement and motion.** Fitted to the card's own window, per axis, less `STAT_AIR` (3px) a side —
+a rectangle, not a scaled square: the windows are 0.98 : 1 in two columns and 2.2 : 1 stacked at
+861–1024px, and one scale would letterbox the number away from the place the card kept. A rigid
+follow of the page, with no sway: these are numbers to read, not scenery. The pointer is answered
+from the scene itself — the fine pointer's page position (`fx.pointerX/Y`) against the measured
+windows, so there is no DOM read per frame — with a lean of `STAT_MOTION.lean` (0.14 rad) towards
+the cursor, a lift of 0.12 world units towards the viewer and 22% more light while it is there.
+Idle, each panel breathes on a float of ±0.02 rad of yaw and ±0.014 of pitch, out of phase between
+the two. The group dissolves in and out with `STAT_FADE_SECONDS` (0.3s) as the hero arrives and
+leaves.
+
+**Canvas size.** `SCENE_TIER_CONFIG[tier].statFace` — 512 × 288 high, 384 × 224 mid. Bigger than the
+hologram's cap and for the opposite reason: that one must not be legible, this one is a number the
+visitor reads. The canvas is never larger than the window's own device pixels (the scene's dpr is
+capped at 1.75), and it is re-sized when the window's aspect changes.
+
 ### Directions — the HUD screen
 
 - Pills: `rounded-pill` glass links; the selected one (`aria-current`) takes the direction's
@@ -527,14 +570,15 @@ dark wash → the glass edge and corner brackets → the copy.
 
 ## Cyber Dark / Neon Cyan / Obsidian Black
 
-The palette of the HUD chrome: the fibre scroll rail, the Ghid TBS avatar, the OS dock and
-windows, and the Command Center form. It is built from the existing system: two brand names map
+The palette of the HUD chrome: the fibre scroll rail, the OS dock and windows, and the Command
+Center form. It is built from the existing system: two brand names map
 onto tokens that already existed, and the new tokens follow the same rules as the rest of the
 file (a graphic tone and a text tone, dark twins remapped in one place, always-dark islands never
 remapped).
 
-> **Status (2026-09-17): the Ghid TBS guide (IT-OS Phase 4, [below](#ghid-tbs--the-guide)) and the
-> fibre rail with the thin cyan scrollbar (Phase 5, [below](#the-fibre-rail)) are built on them.**
+> **Status (2026-09-17): the fibre rail with the thin cyan scrollbar (Phase 5,
+> [below](#the-fibre-rail)) is built on them.** The Ghid TBS guide (Phase 4) was too, and was
+> removed on 2026-09-26.
 > The tokens are in `app/globals.css` and `app/tailwind.css`; when they landed alone, the home page
 > rendered byte-identical screenshots with and without them (1280 and 390px, both themes, five
 > scroll positions) and the Tailwind CSS chunk did not change.
@@ -699,7 +743,7 @@ field fill is `color-mix(in srgb, var(--on-obsidian) 4%, var(--obsidian))`, whic
     The thumb is 3.44:1 against the light `--bg` and 12.53:1 against the dark one.
     `scrollbar-color` is inherited and `scrollbar-width` is not, so every inner scroller without a
     colour of its own gets a cyan thumb at the normal width: the request dialog's body, the burger
-    menu (with classic scrollbars), the guide's tip. Checked with classic scrollbars at 1280 and
+    menu (with classic scrollbars). Checked with classic scrollbars at 1280 and
     390px in both themes (P5-C lab): it reads as the HUD's information colour and is accepted, so
     no module overrides it. The estimator chat log (`--line2`) and Work's phone band (`--red`) keep
     the colours they set. Classic scrollbars still take width (10px thin on the page, 15px in the
@@ -707,11 +751,11 @@ field fill is `color-mix(in srgb, var(--on-obsidian) 4%, var(--obsidian))`, whic
 
 ### Stacking and placement
 
-The three layers sit in the [stacking ladder](#stacking-order) under the burger overlay: rail 104,
-then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
+The layers sit in the [stacking ladder](#stacking-order) under the burger overlay: rail 104, then
+the OS layer 108, both below `--z-nav-overlay` 115.
 
 ```css
---z-rail: 104;   --z-os: 108;   --z-guide: 112;
+--z-rail: 104;   --z-os: 108;
 --hud-edge: 12px;  --hud-rail-w: 44px;  --hud-dock-h: 56px;  --hud-bottom: 112px;
 ```
 
@@ -721,8 +765,6 @@ then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
 |------|-----|
 | Rail | `fixed; right: 0; width: var(--hud-rail-w); top: calc(var(--header-h) + 16px); bottom: var(--hud-bottom)` |
 | Dock | bottom-centre at `bottom: var(--hud-edge)`, `--hud-dock-h` tall; 72×52 buttons with visible labels (about 240px wide) |
-| Guide avatar | `right: 20px; bottom: 20px`; an 88×88 box (it covers 20–108px from the bottom, under where the rail ends at 112) |
-| Guide tip | `right: calc(var(--hud-rail-w) + 8px); bottom: 116px; width: min(320px, 100vw - 24px)` |
 | Window frame | top `--header-h` + `--hud-edge`; bottom `--hud-bottom`; right `--hud-rail-w` + `--hud-edge`; left `--hud-edge`. A maximized window uses the same insets |
 
 **Below 861px**
@@ -731,8 +773,6 @@ then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
 |------|-----|
 | Rail | none; the 2px top progress bar stays, restyled as a fibre |
 | Dock | bottom-centre, `bottom: max(12px, env(safe-area-inset-bottom))`; three 44×44 buttons, about 156px wide (x 82–238 at 320px) |
-| Guide avatar | `right: 12px; bottom: 12px`; 52×52 up to 640px, 64×72 from 641 to 860px (x 256–308 at 320px, clear of the dock) |
-| Guide tip | `bottom: 72px` (the dock's top edge is at 68px) |
 | Windows | the request Modal's `sheet` size |
 
 **When the chrome shows:**
@@ -741,251 +781,243 @@ then the OS layer 108, then the guide 112, all below `--z-nav-overlay` 115.
   unanswered, or when QA sets the `tbs_hud=off` flag. So nothing ever collides with the cookie
   banner (z 280) or the intro.
 - **Page covered** (the request dialog or the burger menu): nothing is hidden or made `inert`.
-  The z-order covers the chrome and the dialog traps Tab. Guide prompts are held back, and live
-  polling and rail writes pause.
-- **Away:** while the home page's own request form (`#estimare`) is in view, the dock and the
-  guide go together to opacity 0 with `pointer-events: none`, and their buttons get
-  `tabIndex=-1`. They are never set to `display: none`, `visibility: hidden` or `inert`, so focus
-  can come back to them.
+  The z-order covers the chrome and the dialog traps Tab, and live polling and rail writes pause.
+- **Away:** while the home page's own request form (`#estimare`) is in view, the dock goes to
+  opacity 0 with `pointer-events: none` and its buttons get `tabIndex=-1`. It is never set to
+  `display: none`, `visibility: hidden` or `inert`, so focus can come back to it.
 - **Typing** (below 861px): the dock steps away while a text field has focus.
 - **Obscuring:**
-  - the guide yields when the focused element overlaps it;
   - a window fades to `.12` when it fully covers the focused element;
   - a focused element hidden under the dock is scrolled clear of it.
 - **Footer on phones:** the footer gains `--hud-dock-h` + 2 × `--hud-edge` of bottom padding
   while the dock exists, so its last link stays tappable.
 
-### Ghid TBS — the guide
+### Asistent TBS — the corner assistant
 
-The first HUD part (IT-OS Phase 4, 2026-09-17): `components/hud/guide/GuideAssistant.tsx` and its
-CSS Module, loaded by `HudChrome` after arming. Behaviour is in
-[05](./05-page-sections.md#ghid-tbs-the-guide).
+The first HUD part (IT-OS Phase 4, 2026-09-17), and since 2026-09-24 a photographic hologram: a
+monochrome 722×849 head-to-chest cutout in a light beam, with orbit rings, that breathes, blinks and
+mouths what she says — **inside her square and never outside it**.
 
-**The assistant (2026-09-24).** The cube droid is gone. The avatar is now a **holographic
-projection of a person** — a cutout portrait in the same light beam, with the same orbit rings
-around her — and she **breathes and blinks**.
+**Her mouth (2026-09-27), and the thing five passes missed: THE OPENING IS UNCOVERED, NEVER
+DRAWN.**
 
-- **She TALKS, and she ANSWERS (2026-09-24).** One bubble above her, three modes, and a mouth.
-  - **The bubble she already had gained modes** rather than a second bubble system: `tip` (a topic
-    prompt, as before), `say` (a line she speaks, which goes away after 7s), `faq` (her questions).
-    Precedence is `faq > tip > say` — the questions were asked for, the tip is about the section
-    being read, and the spoken line is ambient. `key={mode}` remounts it, so the rise fires on
-    every change; a shared node would only update the animation's timing, which is the
-    keyframe-name trap this module documents at length. The ✕ closes what is ON SCREEN, not what
-    is set — a bug caught by two existing tests.
-  - **The mouth is not a hole.** Two versions were built and photographed first: a dark ellipse at
-    the lip line reads as a hole punched in her face, and shrinking it until it stopped being a
-    hole left nothing. A still photograph of closed lips has no aperture to reveal. So nothing is
-    added: `.jaw` is a window onto HER OWN LOWER FACE, ellipse-masked (a rectangle shows a straight
-    edge on every side it moves along, which is the signature of a wrong talking still), hinged at
-    the lip line so the chin travels furthest — hinge it the other way and the chest pumps with the
-    voice. It runs only while `data-say` is on the root, and it is ordered BEFORE `.wash` so the
-    scanlines multiply over it instead of it covering them.
-  - **The amplitude is set by the smallest place it runs.** She only ever speaks at launcher size,
-    so the jaw band is 11px on a desktop. Measured: a first pass at 11% / 1.1 gave **0.95px** of
-    travel, a flicker; 22% / 1.2 gives **2.4px** of translation plus the stretch, about 5px of lip
-    displacement on a 106px face. Measured silent: **0.00px**, animation `none`.
-  - **The questions are the estimator's chat**, in its own material: `.ask` is `.chatOption` — a
-    raised chip on `--panel`, `--r-sm`, lifting 2px on hover and pressing 1px down on click, which
-    is the estimator's one shared press rule. It hovers to `--neon-cyan` and not `--red`, because
-    red in this widget is the CTA and the portrait beside it is monochrome cyan. One question per
-    line, not a wrapped row: whole sentences as pills leave the answer nowhere to live.
-  - **The answers are written, not generated,** and every one repeats something the site already
-    says, with the file named beside it in `copy.ts`. No price figure (they are admin-editable), no
-    promise of a call for every request (the site attaches the 30 minutes to one CTA), and one
-    question — "Am I talking to a bot?" — that the honesty rule had been waiting for.
-  - **Pressing her is a DISCLOSURE now, not a dialog opener.** `aria-haspopup="dialog"` is gone,
-    `aria-expanded` is there, and the accessible name says questions. The guided request is one
-    more press, from the CTA inside. Three e2e specs and one unit test moved with it.
-- **The box is SQUARE and it has grown three times: 68 / 104 / 136 / 184**, from 52 / 64x72 / 88. That is
-  a change to the contract above, made deliberately: the avatar is a person now, and at the old
-  size her head was some twenty pixels, where a blink is two. The tip's offsets moved with it
-  (60 -> 80 -> 96, and 80 -> 100 -> 132).
-  - **The 64px step below 400px is arithmetic, not taste.** The phone dock is three 44x44 buttons
-    centred on the bar, about 156px wide — x 82..238 at a 320px viewport (table above). The guide
-    is pinned to `right: 12px` and grows LEFTWARD, so its left edge is `W - 12 - box` and it clears
-    the dock only while that stays above 238: at 320px the box may be at most **70**. An earlier
-    pass took the phone box to 88 and overlapped the dock; 64 clears at 320 (244 > 238) and 88
-    clears from 400px up (300 > 278).
-  - **It cannot collide with the rail**, and that is measured rather than assumed. The box is
-    pinned to `right: 20px` and grows leftward, so its right edge never moves; the rail's painted
-    line sits at `right: 4px`, 12px wide, outside it. Their BOUNDING boxes have overlapped since
-    the 120px step — measured at 1400x900: 28px vertically, 24px horizontally, because
-    `--hud-bottom` is 112 — but nothing painted does.
-- **The portrait** is `public/guide/asistent-*.{webp,avif}`, a **722 x 849 head-to-chest** cutout at
-  384w and 192w (11-31 KB), aspect 0.849 so it drops into the square with room beneath for the
-  beam. Built by `tools/guide/` and **not hand-edited**; that README records why the matte is cut
-  on edges rather than colour, and the two `sharp` traps that cost an afternoon.
-- **It has no colour.** A tinted photograph is still a photograph — under a cyan wash the blazer
-  stayed cream and the skin stayed skin, so it read as a picture of a person rather than a
-  projection of one. The file is carried onto `--neon-cyan` (#38e1ff) by sharp's `tint` ALONE,
-  which works in LAB and replaces the chroma while keeping the luminance; greyscaling first
-  defeats it, because that leaves a single-channel image with no chroma to set.
-- **She fades into the beam.** Cropping to the chest put the white shirt at the bottom of the
-  frame and after the tint it came out brighter than her face. The bottom 38% of the **alpha
-  channel** is ramped to nothing at build time — a projection has no hem — which also means the
-  rim and the scanline mask, both pointing at this same bitmap, follow it with no second shape to
-  keep in step.
-- **The hologram is CSS, and there is no filter in it.** The rule below is not decoration — a
-  filter makes its element a containing block and flattens the `preserve-3d` the orbit rings are
-  drawn in, and two test files enforce it across every HUD module. So the hue and the exposure are
-  **baked into the file** at build time; the scanlines are a dark raster multiplied into her (one
-  line every four pixels), masked by the portrait's own alpha; and the rim is a second painting of
-  her silhouette scaled 1.05 behind her rather than a `drop-shadow`.
-- **She moves like a person, and that is three clocks and not one** (2026-09-24). A single sine on
-  a single element reads as a mechanism however slow it is, so `.figure` **sways**, `.live`
-  **breathes**, and the eyelids **blink** — 11.9s, 4.6s, 9s, which share no short common multiple.
-  They must be separate elements: they all drive `transform`, and two animations on one property
-  do not compose, the last simply wins.
-  - **The sway turns about her CHEST** (`transform-origin: 50% 88%`), and that one number is what
-    makes it read as a person: a rotation about a point low in the frame moves the top of it most,
-    which is a weight shift. Measured on the 64 x 75px launcher figure, tracking the crown through
-    the composed matrices over 31s: the crown travels **4.65px across and 2.03px down, twice as
-    far as the collar**. About the middle instead and the whole bust rocks like a hanging object.
-  - **Neither extreme is a turning point.** Each is written twice, eight per cent of the cycle
-    apart, so she arrives at a pose and HOLDS it before shifting again. The stops are at uneven
-    positions for the same reason. `scaleX` a few thousandths under 1 at the extremes is a head
-    turn — a face narrows off axis.
-  - **The breath is lopsided on purpose**: the peak sits at 36%, not 50%, so the inhale is quick
-    and the exhale a long settle. That asymmetry is most of what makes a still photograph look
-    like it has lungs. It rises from the feet, and it has to be on its own box and not on the
-    image, or the eyelids stay behind and sit a pixel low on every inhale.
-  - **Nothing repeats inside half a minute.** Auto-correlating the crown's trace over 31s, the
-    best self-match is **89.5% at 23.6s** — two sway cycles. A person who loops every few seconds
-    is a machine.
-- **The blink** is the portrait itself. Each eyelid is a small window onto the same bitmap, offset
-  so it samples the strip of skin between the brow and the lash line, and scaled to nothing at
-  rest; a blink is that strip growing down over the eye. The colour matches because it IS her skin,
-  and the spectacle frames never shift because the lid is drawn inside the lens. Placement is
-  `--lx` / `--ly` / `--ls` per eye, measured once and printed by `tools/guide/asset.mjs`. Four
-  blinks in nine seconds, unevenly spaced and one of them a double: a blink on a metronome reads as
-  a machine.
-- **The greeting is a projector firing** (2026-09-24), once per visit, over 3.4s:
+Every earlier version painted a dark shape ON her closed lips while the photographed lower lip
+stayed roughly where it was. That is a slit cut into a shut mouth — which is what "the cut"
+meant — and no amount of colour, masking, easing or anatomy in the teeth can talk the eye out of
+it. A real mouth does the opposite: the lower lip travels down, and the dark interior is what was
+behind it all along.
 
-  | | what happens |
-  | --- | --- |
-  | 0–160ms | the emitter bar snaps to full width and over-brightens |
-  | 160–420ms | a cone of light opens up out of it |
-  | 300–1280ms | **sixteen bands of her fly in from alternating sides, sheared, bottom first**, while a scanner bar rides up the beam and clears her crown on the same frame the last band lands |
-  | 1280–1460ms | two hard stutters, and at 1300 the raster engages: the signal locks on |
-  | 1400–1900ms | a shockwave leaves her |
-  | 1900–2750ms | she stands there, breathes and blinks |
-  | 2750–3400ms | she settles into the launcher, which rises as she goes |
+So the order inverts. The interior and the teeth are painted FIRST; `.jaw`, a window onto her own
+lower lip sitting exactly on the seam (`--mo`), is laid over them and covers them completely while
+her mouth is shut; and on a beat the lip TRAVELS DOWN and uncovers precisely as much as it moved.
 
-  **The bands are the whole technique, and they exist because of the constraint rather than in
-  spite of it.** Keyframes in this module may declare only `transform` and `opacity`, so a reveal
-  cannot be a moving mask or a growing clip. Sixteen copies of the same bitmap, each with its own
-  **static** `clip-path` band and its own delay, give the same picture out of transforms alone.
-  **Sixteen and not a dozen:** it is a power of two, so every boundary falls on an exact 6.25% and
-  adjacent clips close with no rounding gap — at 7 or 12 the boundaries are repeating decimals and
-  a sub-pixel seam can open along a band edge. Which side each flies in from and which way it
-  shears is a **static** `:nth-child(odd/even)` rule, so one keyframe block serves all sixteen.
-  - **The stagger is derived:** 16 bands 45ms apart is 675ms, plus a 300ms flight, so the last
-    lands at 1275ms — and the hand-off is at 1300, 25ms after. Get that order wrong and the top of
-    her head is still in the air when the real figure takes over.
-  - **The hand-off is a one-frame cut, not a cross-fade** (`steps(1, end)` on both sides): two
-    paintings of the same part-transparent cutout at half opacity each do not sum to one painting,
-    they sum to a ghost. Each side sits on a wrapper of its own (`.slices`, `.reveal`) because
-    every element underneath already carries an animation, and two animations that touch `opacity`
-    do not compose — the last in the list simply wins.
-  - **`both`, not `backwards`,** on anything that must stay where it landed. Measured: with
-    `backwards` alone each band reverted to the rule's own `opacity: 0` the moment it arrived, so
-    at 1020ms the frame held her head alone, floating, with the body already built and gone.
-  - **Glow without a filter:** `box-shadow` is not `filter` and no test touches it — it is already
-    how `.packet` and the intro's shockwave glow. The ring is **declared at its largest and scaled
-    down to start**, because declared small it would be a round element under 8px, which the
-    decorative-dots rule forbids across every HUD module.
-  - It costs **20 elements**, all inside `.greeting`, all gated behind `[data-live]`, all removed
-    from the DOM when the entrance ends. The launcher's own subtree is untouched.
+That also rules the old ghost out **by construction** rather than by luck. A travelling patch
+exposes a strip of untouched original at its top edge — that strip was the phantom second lip.
+Here the strip is exactly the aperture's height (both come off one number per beat) and the
+patch's opaque core is narrower than the aperture is wide, so no exposed original is ever left
+over. Its side fades land inside the aperture; its bottom fade runs to 62% of the patch, past
+where the lip's own edge ends up after a full 1.37px of travel, so it spends itself on chin —
+which has nothing to double. (At 46% it stopped on the lip's edge, and a faint second edge came
+back.)
 
-  It takes no pointer events and is out of the accessibility tree; the button underneath is the
-  control and is never covered by anything clickable.
-- **It waits until she can be seen**, and that is not when the component mounts. TWO things cover
-  the HUD by contract — the intro overlay and the **page-loading cover**
-  (`components/ui/PageLoading.tsx`, up while the 3D stage has not answered). Photographed at
-  1400 x 900 with the greeting at opacity 1 and the root at (1292, 792, 88, 88), the frame showed
-  BootCore turning on the loading cover and nothing of her;
-  `document.elementsFromPoint` inside the root came back `DIV.grid > DIV.cover > SPAN.signal`. The
-  clock now starts on the first frame both are clear, capped at 11s.
-- **Likeness.** The portrait is a real person. It ships in `public/` and is served on every page
-  that mounts the HUD, so it is a consent question and not only a design one.
+**And both lips move now (2026-09-28).** Until then only the lower one did, and a jaw dropping
+under an upper lip nailed to the photograph is the last thing that still said "painted on": in a
+face the two edges PART, and the eye reads the parting rather than the drop.
 
-**The droid (until 2026-09-24).** A small CSS-3D holographic cube in a light beam, drawn entirely
-with CSS (no image, no canvas, no icon font), inside the avatar button:
+So the same construction runs once more, mirrored. `.upperLip` is a window onto her own upper lip
+and the philtrum above it, sitting on the same seam; it TRAVELS UP, and `.mouthTop` — a strip of
+its own, anchored at the seam by `transform-origin: 50% 100%` — grows up by exactly what the lip
+vacated. Both run off the same stops as the jaw, so the dark can never be taller than the lip has
+lifted, nor shorter. A third of the jaw, because that is anatomy: a mandible drops ten to fifteen
+millimetres on an open vowel and the upper lip lifts one or two. The widest syllable moves it
+**0.453px against the jaw's 1.511px**.
 
-- **Frame:** the button is `--glass-bg-solid` composited over `--bg` (opaque, see the tip) with a
-  1px `--neon-cyan` edge at 45% (full
-  `--neon-cyan` plus `--neon-cyan-ring` on hover, focus and while a tip shows), `--r-sm`, `--sh-md`,
-  and two 10px L-shaped corner brackets (8px below 861px), square ends.
-- **Cube:** six translucent faces (`--neon-cyan` 12%, the front 22%; 1px scanlines every 3px;
-  an inset `--glow-cyan`), `preserve-3d` under `perspective: 320px`, resting in a three-quarter
-  pose from slightly above (`rotateX(-22deg) rotateY(-24deg)`). 18px, 24px from 861px.
-- **Visor:** a 3px lit bar across the front face — a bar, not an eye.
-- **Beam:** a cone of `--neon-cyan` 34% widening up from a 2px emitter bar.
-- **Orbits:** two rings (`border-radius: 50%`, 38 / 46px, 46 / 56px from 861px — never under 38px)
-  in `--neon-cyan` at 55% and 35%, each carrying a 10×2px packet streak.
-- **Signal:** a square outline that is only drawn during the prompt pulse.
-- **Caption:** "GHID TBS" / "ГИД TBS" / "TBS GUIDE" in the mono stack, bold, uppercase,
-  `--cyan-text` on solid glass: hidden up to 640px, 9px (`--fs-2xs`, tracking .04em) from 641 to
-  860px, 11px (`--fs-xs`, .08em) from 861px. The button's accessible name starts with the same words.
+**NEITHER PHOTOGRAPHIC PATCH IS EVER TRANSFORMED, AND THAT IS THE WHOLE OF "THE CUT".**
 
-**The tip.** `--glass-bg-solid` **composited over `--bg`** (`background-color: var(--bg)` under a
-one-colour gradient of the glass), a 1px `--neon-cyan` border, `--r-md`, `--sh-lg` +
-`--neon-cyan-ring`. The glass alone is 94% opaque, and in the app the text of a Directions case
-card or a project card under the tip ghosted through its sentence (clearly readable in the light
-theme, where that card is an ink block); over `--bg` it looks the same on the plain page and shows
-nothing through. Its contents:
+The first version of the upper lip was transformed like the jaw, and the user's verdict was that
+the lip still did not move and now there was a visible cut at her mouth. Both halves of that were
+one cause, and it is not a perceptual argument — it is three frames measured row by row at device
+pixels:
 
-- a kicker (the caption's words, `--cyan-text`, 11px mono, a 16×2px cyan streak before it);
-- the sentence (`--fs-md`, body font, `--txt`);
-- "Deschide ghidul" — the one red action (`--grad-red-cta`, `--on-accent`, `--neon-red`), ≥44px;
-- "Nu mai arăta în această vizită" — outlined `--line2`, `--mut` text, ≥44px;
-- a 44×44 ✕ (lucide `X`, `strokeWidth 1.75`, square caps and miter joins) in the top-right corner.
-- Scrolls inside itself (`max-height` = the viewport under the header, minus its offset) rather
-  than growing past the header.
+- silent, with a compositing layer FORCED onto the patches, is identical — to 0.1 of a luminance
+  unit on every row — to her SPEAKING with her mouth shut;
+- the same patch with `transform: none` WHILE she speaks is identical to silence;
+- therefore the difference is the transform, not the movement.
 
-**Placement** (critique R2; the root box IS the avatar box, so `[data-guide]` measures what a
-visitor sees):
+A transformed element gets its own compositing layer, and that layer rasterises the background
+image against the device grid about half a pixel out of step with the inline paint. On the upper
+lip, where the portrait's gradient is the steepest on her face — 27 luminance units per device row
+— that half pixel is **up to 47 units arriving in one frame**: her lip flattens and an edge appears
+the instant she starts to speak. That is the cut, and it had been there on the lower lip all along,
+at 17 units, which is why "taitura" kept coming back. It also ate the lift whole: the registration
+error is downward and the lift is upward, so 0.45px of real movement arrived as nothing.
 
-| Width | Avatar box | Tip |
-|-------|-----------|-----|
-| ≤640px | 52×52 at `right/bottom: max(var(--hud-edge), env(safe-area-inset-*))` | `bottom: 72px` (12 + 60), `width: min(320px, 100vw - 24px)`, right edge as the avatar's |
-| 641–860px | 64×72, same corner | `bottom: 92px` — 8px above the taller 72px avatar (R2 says 72, which would overlap it) |
-| ≥861px | 88×88 at `right: 20px; bottom: 20px` | `right: calc(var(--hud-rail-w) + 8px); bottom: 116px` |
+So the lips move WITHOUT a transform. The photograph slides inside a box that never moves
+(`background-position-y`, offset from a named `--bpy`) and the window it is seen through retreats
+with it (`mask-position`, which carries the mask's own soft edge along, where a `clip-path` would
+cut a hard line across her lip). Both are paint properties: no layer, no re-registration, and
+silence and speech rasterise the same. The offsets are written as a fraction of `--bust-h`, never
+in px, so they still scale at `--bust` 38 and 60.
 
-Both sit at `--z-guide` (112), under the burger overlay, the request dialog and the intro, which
-cover them with no hide logic.
+The gradients — the aperture, the strip above the seam, the teeth, the crease — keep their
+transforms. They have no photograph to register against, so there is nothing for a layer to put out
+of step. `components/__tests__/guide-assistant.test.tsx` enforces exactly that split: the two lips
+may animate only the paint properties, everything else only `transform` and `opacity`, and neither
+lip may carry a `transform` anywhere.
 
-**States** (attributes on the `[data-hud][data-guide]` root):
+**Measured after the fix**, at device pixels with the sway cancelled and the crop anchored on the
+seam: silence, and speech at two different closures, are identical on every row; at a small
+syllable the upper lip's dark band moves up by 11–24 units and at the widest by 16–34. The largest
+step between neighbouring rows at rest is 80.1, against silence's 80.7 — no new edge anywhere.
 
-| Attribute | Look |
-|-----------|------|
-| `data-state="enter"` (0.7s after mount) | the entrance |
-| `data-state="idle"` | at rest, static |
-| `data-state="prompt"` | a tip is shown: the frame lit, the pulse |
-| `data-away` | avatar and tip at opacity 0, `pointer-events: none`, `translate: 0 8px`; buttons `tabIndex -1` |
-| `data-yield` | the same fade, while focus sits under the guide |
+**And the loop closes now.** The cycle ran from `scaleY` 0 at 100% to 0.1692 at 0%: the first
+syllable was centred at 0.010 with its opening half-width reaching back past the start, so the
+curve was simply cut there and the mouth JUMPED to 27% of its opening once every 4.7 seconds. The
+generator now measures a syllable's distance on the CIRCLE, so one that straddles the seam keeps
+its tail at the other end, and it asserts that the first and last frame are the same number.
 
-**Motion rules** (WCAG 2.2.2; transform and opacity only; keyframes in the module):
 
-- Every animation and transition is declared inside `@media (prefers-reduced-motion:
-  no-preference)`. Under reduce the droid is still, and the tip still appears.
-- **Entrance:** 0.7s — the button rises and fades in (`translateY(12px) scale(.92)` → rest) while the
-  cube turns 180° into its pose.
-- **Prompt pulse:** 3 × 1.4s — both orbits turn once per beat and the square signal wave expands
-  and fades; then rest. The tip itself fades up in 0.25s.
-- **Hover:** the cube spins (2.4s a turn) and the orbits turn only while a pointer is on it, and
-  only under `(hover: hover)`, so a tap never leaves it spinning.
-- No `animation-fill-mode` on the tip or avatar: a filled end value would outrank the away/yield
-  opacity.
-- Never `backdrop-filter` or `filter` anywhere in the guide: it sits over the live WebGL canvas,
-  and a blurred ancestor flattens `preserve-3d`.
+The aperture carries BOTH axes in one animation, which is what makes syllables rather than a
+pulse: wide and flat is "e/i", narrow and tall is "o/u", both open is "a", both at zero is
+"m/b/p". The width moves on its own, slower centres, so wide never coincides with tall — that
+disagreement *is* the viseme.
 
-**Contrast.** P4-B measured the tip on the worst glass pixel: the kicker `--cyan-text` 4.69 light /
-8.92 dark; the tip text 15.60 / 13.07; "Nu mai arăta" `--mut` 4.98 / 7.01; white on the red CTA
-4.72 / 6.88. Composited over `--bg` the backdrop is fixed, so the values are the "over `--bg`"
-column of the glass table above (`--txt` 17.75 / 15.68, `--mut` 5.67 / 8.41, `--cyan-text` 5.34 /
-10.70). The droid's cyan strokes clear 3:1 in both themes.
+**The rhythm is irregular on purpose, because an even one is a metronome.** Seven evenly spaced
+syllables looping every 1.9s is a rate the eye learns in two passes, and learning it is what
+"robotic" means. The cycle is **4.7s with 22 syllables** at uneven centres, with four pauses of four
+different lengths. Since she only ever speaks for 7s at a time, a visitor sees **one and a half
+turns of it** and never a repeat.
+
+**And then "the lips seem slow", which was not about speed at all.** Every syllable was WIDER
+than the distance to the next one — half-width over centre-spacing 1.06 to 1.22 — so neighbours
+fused into a single plateau and the 22 syllables produced only **twelve visible openings, 2.55 a
+second**, against the 5–6 of real speech. Between them the lip did not return; it sagged. The
+individual movement was never slow: its rise measured **89ms**, which is a normal jaw. Narrowing
+every half-width to 0.60 of itself turns the same 22 syllables into **22 openings, 4.68 a
+second**.
+
+**The beat is also asymmetric now**, because a jaw drops faster than it closes and a raised
+cosine is symmetric — symmetry was part of what read as sluggish. The two halves of each syllable
+are stretched in opposite directions (0.75 / 1.25): **45ms down, 75ms back up**. She is shut 24%
+of the cycle.
+
+And the timing function is **`linear`, which is the opposite of the old mistake rather than a
+return to it**. `linear` was wrong when the keyframes were sixteen *poses*: one speed between them
+and an instant turn at each. `ease-in-out` fixed the turns and bought a worse problem — velocity
+zero at all sixteen, which is a series of little moves. The curve now lives IN the keyframes, and the stops are
+placed **by curvature rather than at a fixed interval**: a speech envelope is mostly flat pause
+with a few short climbs, so a uniform grid pays the same price everywhere — too coarse exactly
+where the mouth moves, wasted in the pauses. The generator samples finely and keeps only the
+stops without which the polyline would stray more than **0.02px** from the true curve, and that
+error is verified rather than assumed. That gives 228 stops for the aperture, 190 for the lip,
+136 for the teeth and 74 for the crease, against a uniform grid of 158.
+
+Played linear, the polyline *is* the curve. Measured in the browser across the rendered cycle:
+largest velocity change between samples **12.7 px/s**, **zero** steps over 40. It was 7.7 before
+and the rise is correct — the movements are faster now, so their acceleration is higher. It is
+not a sampling artefact: doubling the stops only moves the computed figure from 11.6 to 10.7.
+
+Two probes had to be fixed before those numbers could be believed. One stepped the rendered cycle
+every 31ms — coarser than a 45ms fall, so it aliased the motion and reported 17.9; at 10ms it
+agrees with the generator. The other took the mouth's reference height by dividing its rect by the
+scaleY of that instant, which amplifies rounding when scaleY is near zero, and had been reporting
+an aperture of 1.71px that does not exist.
+
+All three keyframe blocks are **generated**, and the generator now rewrites whatever duration it
+finds on the shorthand and fails loudly if it does not find exactly three. It used to match the
+literal `1.9s`; once the file said something else the match silently did nothing, the keyframes
+were written for one cycle length and played at another, and every measurement taken through
+`currentTime` landed on the wrong phase.
+
+The **teeth** are painted because she is closed-mouthed in the photograph. An arch, not a comb:
+divisions where a front arch has them (canine · lateral · central | central · lateral · canine),
+the midline strongest, the centrals brighter than the laterals than the canines as the arch turns
+away, a translucent biting edge. **They are not white.** At `--txt` 56% they were the lightest
+thing on a face whose brightest skin sits well under white, and the eye goes to the lightest
+thing.
+
+**And 30% was still too much.** The complaint survived the first climb-down, so the question
+became a measurement rather than a taste: photographed at 4x and read as luminance, the teeth
+peaked at 189 against a cheek at 202 and a lip at 198 — *not* brighter than her skin, which means
+the glare was never absolute brightness but **local contrast against the dark cavity right next
+to them**. So the enamel came down and the teeth peaked at 176, below the lip they sit behind and
+below the cheek.
+
+**And they still did not look real, because the problem was never colour. THE BAND WAS 0.358px
+TALL.** `.teeth` is a child of `.mouth` and `.mouth` is the element that scales, so the painted
+band is 26% × 2.4435px × the aperture's scaleY. That is 0.36 of a device pixel at 1x and 0.72 at
+2x — **never one whole pixel on any display**. The renderer drew it as one row at 27% coverage or
+two at 13.6%, and because the height and its sub-pixel phase change every frame with scaleY, the
+row count and the brightness changed continuously through every syllable. **The teeth flickered.**
+That is how the luminance figures could be right and the teeth still wrong.
+
+**Three of the four layers were then deleted, because arithmetic says they never reached a
+screen:** the tooth divisions at 15.2/31.2/49–51/67.2/83.2%, each a 1.6% band = **0.16px** wide —
+for one of them to be a single device pixel at 2x, `--bust` would have to be about 280px, 2.6× her
+drawn size, so the whole canine · lateral · central story this document used to tell was
+unreachable at *any* dpr and only ever averaged into a tint; and the enamel's three vertical
+stops, which ran down the 0.358px axis, where no device row could hold two of them. (The radius
+is kept though its vertical curvature is 0.315px and the band renders as a rectangle: it becomes
+true if she is ever drawn larger, and removing it changes nothing.) What is left is the two
+layers that DO resolve across the width — the corner shading, a 2.6px ramp, and the midline
+highlight, a 3.5px hump.
+
+**The band is now 72% of the aperture instead of 26%** — measured at about **1.05px** at the widest
+syllable, a whole row instead of a third of one — and a fourth generated block, `guide-teeth`,
+keeps them dark until the mouth passes 55% of its opening and full only from 85%. They are
+therefore on screen **24% of the time and fully lit 5%**, so below the gate there is no thin band
+left to flicker and above it there is a stable row. Peak luminance now reads **167–173** against
+176 before: per pixel the enamel is dimmer, but there is three times more of it, so brightness is
+roughly a wash. The fix here was the flicker, not the brightness.
+
+**What is NOT fixed, and is worth knowing:** the band is a percentage of an element that scales,
+so the arch still stretches and shrinks with the jaw, and a tooth is bone. The anatomically right
+answer is a rigid crown behind a growing window — `.teeth` at `height: 100%` with its own
+counter-scale — which was designed and costed and then left on the shelf: at a 1.43px aperture the
+stretch is below what a pixel can show, while the change makes the enamel 1.84× more present at
+the peak, which is the complaint it started from.
+
+Every beat of all three comes off one number, the aperture's own opening, so they cannot drift
+apart — the strip the lip vacates and the height the aperture reaches are ONE quantity, and the
+three keyframe blocks are generated from it rather than typed. Editing a stop by hand puts them
+out of step and the ghost comes back.
+
+Sized off the measured lip box, never in pixels: at her drawn size the box measures 14.6×4.7px,
+the aperture opens to **1.42px** and the lip travels **1.42px** — the same number to the
+hundredth, measured separately, which is the ghost-lip invariant holding: the strip the lip
+vacates *is* the aperture — a third of its
+own height, which is what a conversational voice does; at 2.55px it was more than half, an open
+mouth at every syllable. It sits under `.wash`, so the scanlines cross the teeth too —
+part of the hologram rather than a white shape on top of one. Shut whenever she is not speaking,
+under reduced motion, and below 641px. Behaviour is in
+[05](./05-page-sections.md#asistent-tbs-the-corner-assistant).
+
+**Three things went on 2026-09-26, and every one of them was something she did unasked:** the
+guide's tip (the prompt that appeared after a linger), the greeting (one sentence in a bubble the
+moment her entrance finished — the panel the owner photographed), and **the entrance itself**.
+
+That entrance was a 3.4 s build at 230 px (320 from 861 px) — three times her launcher, anchored to
+her corner and overflowing it up and to the left: a projector cone, sixteen clipped bands of her
+flying in from alternating sides, a scanner riding up the beam, a two-frame lock-on stutter, a
+shockwave, and a settle. *"Fa sa nu apara mare, scoate, lasa doar asistentul cel mic in patrat."*
+All of it is gone from the component and the stylesheet (which lost ~470 lines and nine keyframes).
+What is left is **one opacity fade**, 0.4 s, on the launcher — opacity and not the old `guide-rise`,
+which also scaled and lifted her, because a transform changes the box the HUD specs measure against
+the right edge of the viewport and against the rail's markers.
+
+Her bubble has **one mode** left, her questions, and it is only ever on screen because someone
+pressed her for it. Her mouth still moves while an answer is up, for 7 s, which is the only thing
+`data-say` means now. `data-state` is gone with the entrance: there is no state to be in.
+
+Her box is `--guide-box`: 68 below 400px (it has to clear the phone dock's 156px bar at 320), 104,
+136 from 641px and **184 from 861px** at `right/bottom: 20px` — which is why `--hud-bottom` is 208
+there, so the fibre rail stops 4px above her instead of running under her (at 112 its last two
+markers sat inside her box and the bottom one could not be pressed).
+
+Everything else about her is this section's rules, not her own: the palette above, the stacking
+ladder, **no `backdrop-filter` and no `filter`** anywhere in a part or above one (she sits over the
+live WebGL canvas), **no round dot** and square line caps, every animation inside
+`@media (prefers-reduced-motion: no-preference)` and limited to `transform` and `opacity`.
 
 ### The fibre rail
 
@@ -996,10 +1028,10 @@ native scrollbar, which stays the scrollbar. Behaviour is in
 
 **Placement** (critique R2): `position: fixed; top: calc(var(--header-h) + 16px); right: 0;
 bottom: var(--hud-bottom); width: var(--hud-rail-w)` (44px) at `--z-rail` (104) — under the OS
-layer, the guide, the burger overlay, the request dialog and the intro, which cover it with no
+layer, the burger overlay, the request dialog and the intro, which cover it with no
 hide logic. The root takes no pointer events; only the marker buttons do. Inside it the fibre and
 the nav are inset by half a marker (22px) at both ends, so every 44×44 button stays inside the
-rail box: clear of the header above, and 4px above the guide's 88px avatar box below (the rail
+rail box: clear of the header above, and clear of the bottom 112px of the edge below (the rail
 ends at 112px, the avatar box at 108px). A `max-width: 860px` `display: none` backs up HudChrome's
 media gate.
 
@@ -1025,7 +1057,7 @@ media gate.
   from the page side, at 85%; full, with a `--glow-cyan` glow, on hover or focus.
 - **Label** on hover and `:focus-visible` only: to the left of the button, mono bold `--fs-xs`,
   uppercase, tracking .08em, `--txt` on `--glass-bg-solid` composited over `--bg` (≥15:1 in both
-  themes, the guide tip's recipe), a 1px `--neon-cyan` edge, square corners, `--sh-md`, at most
+  themes), a 1px `--neon-cyan` edge, square corners, `--sh-md`, at most
   `min(420px, 100vw − 120px)` wide with an ellipsis. Hidden by `opacity: 0` and
   `clip-path: inset(50%)` — never `display: none` — so it stays the button's accessible name.
 - **Focus ring:** `outline: 2px solid var(--txt); outline-offset: -2px`.
@@ -1054,7 +1086,7 @@ HUD (or has it switched off) still has a progress indicator.
 |--------------|-------|
 | `bg-` / `text-` / `border-` … `neon-cyan` · `cyan-text` · `obsidian` · `on-obsidian` · `on-obsidian-mut` · `obsidian-neon` · `obsidian-line` | `--<same name>` |
 | `shadow-neon-cyan` | `--neon-cyan-ring` |
-| `z-(--z-rail)` · `z-(--z-os)` · `z-(--z-guide)` · `w-(--hud-rail-w)` · `bottom-(--hud-bottom)` … | arbitrary values, no theme key |
+| `z-(--z-rail)` · `z-(--z-os)` · `w-(--hud-rail-w)` · `bottom-(--hud-bottom)` … | arbitrary values, no theme key |
 
 - **`shadow-neon-cyan` is the ring, not a shadow colour.** When a `--shadow-*` key and a
   `--color-*` key share a name, the shadow key wins (checked by compiling `app/tailwind.css`
@@ -1064,7 +1096,7 @@ HUD (or has it switched off) still has a progress indicator.
   and without these keys.
 - `--glow-cyan` has no Tailwind name. Use it in an arbitrary value:
   `shadow-[0_0_8px_var(--glow-cyan)]`.
-- The HUD parts themselves are CSS Modules (the guide's is), in lazy chunks and outside
+- The HUD parts themselves are CSS Modules (the rail's is), in lazy chunks and outside
   `@source`, so these names serve the Tailwind files (the first screen and the interior stage).
 
 ## Typography

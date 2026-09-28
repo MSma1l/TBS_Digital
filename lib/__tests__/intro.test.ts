@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   INTRO_COOKIE,
+  INTRO_FORCE_KEY,
   INTRO_LEGACY_CLEAR_STRING,
+  INTRO_LEGACY_COOKIE,
   INTRO_EVENT,
   INTRO_GONE_EVENT,
   INTRO_OVERLAY_ID,
@@ -9,13 +11,16 @@ import {
   INTRO_SEEN,
   INTRO_TIMING,
   finishIntro,
+  hashSkipsIntro,
   isIntroOnScreen,
   isIntroPending,
   isIntroSeen,
   markIntroGone,
   onIntroDone,
   onIntroGone,
+  readIntroForce,
   readIntroSeen,
+  readNavigationKind,
   resetIntroForTests,
   shouldPlayIntro,
   type IntroDoneDetail,
@@ -283,13 +288,98 @@ describe("intro timings and entrance order", () => {
     expect(INTRO_REVEAL_ORDER).toEqual([
       "grid",
       "header",
-      "eyebrow",
       "title",
       "lead",
       "cta",
       "stats",
       "ticker",
     ]);
+  });
+});
+
+describe("the film always fits inside the shell's watchdog", () => {
+  /*
+   * The director's clock counts PAINTED FRAMES (`filmMs`), the shell's watchdog counts WALL time.
+   * On a ~3 fps renderer the frame clock advances ~450ms a second, so without a wall-clock
+   * deadline of its own the film is still at two thirds when the overlay is taken away. The
+   * director forces the curve to its end at `WATCHDOG_MS - BURST_TAIL_MS - 400`; these are the
+   * constants that have to leave room for it.
+   */
+  it("leaves a burst's length between the film's deadline and the watchdog", () => {
+    const BURST_TAIL_MS = 2000; // components/intro/IntroDirector.tsx
+    const deadline = Math.max(INTRO_TIMING.HARD_CAP_MS, INTRO_TIMING.WATCHDOG_MS - BURST_TAIL_MS - 400);
+    expect(deadline).toBeLessThan(INTRO_TIMING.WATCHDOG_MS);
+    expect(INTRO_TIMING.WATCHDOG_MS - deadline).toBeGreaterThanOrEqual(BURST_TAIL_MS);
+    // …and the deadline never cuts a film that is running on time.
+    expect(deadline).toBeGreaterThanOrEqual(INTRO_TIMING.HARD_CAP_MS);
+    expect(INTRO_TIMING.HARD_CAP_MS).toBeGreaterThan(INTRO_TIMING.MIN_SYNC_MS);
+  });
+});
+
+describe("a #section in the address bar (hashSkipsIntro)", () => {
+  /*
+   * The rule exists because every internal link on this site writes a hash into the address bar
+   * (`#servicii`, `#lucrari`, `#top` from the logo). Before 2026-09-25 ANY hash bypassed the
+   * intro, so once a visitor had clicked one link, every later reload skipped it — the intro
+   * looked deleted. An arrival on a deep link still skips it: that visitor asked for the section.
+   */
+  it("skips the intro for an arrival on a deep link, and not for a reload", () => {
+    expect(hashSkipsIntro("navigate", true)).toBe(true);
+    expect(hashSkipsIntro("back_forward", true)).toBe(true);
+    expect(hashSkipsIntro("prerender", true)).toBe(true);
+    expect(hashSkipsIntro("unknown", true)).toBe(true);
+    expect(hashSkipsIntro("reload", true)).toBe(false);
+  });
+
+  it("never skips it without a hash that targets something", () => {
+    for (const kind of ["navigate", "reload", "back_forward", "prerender", "unknown"] as const) {
+      expect(hashSkipsIntro(kind, false)).toBe(false);
+    }
+  });
+
+  it("reads the navigation kind, and answers `unknown` where the API says nothing", () => {
+    const real = performance.getEntriesByType;
+    try {
+      performance.getEntriesByType = (() => [{ type: "reload" }] as unknown as PerformanceEntryList) as typeof performance.getEntriesByType;
+      expect(readNavigationKind()).toBe("reload");
+      performance.getEntriesByType = (() => [{ type: "something-else" }] as unknown as PerformanceEntryList) as typeof performance.getEntriesByType;
+      expect(readNavigationKind()).toBe("unknown");
+      performance.getEntriesByType = (() => []) as typeof performance.getEntriesByType;
+      expect(readNavigationKind()).toBe("unknown");
+      performance.getEntriesByType = (() => {
+        throw new Error("no");
+      }) as typeof performance.getEntriesByType;
+      expect(readNavigationKind()).toBe("unknown");
+    } finally {
+      performance.getEntriesByType = real;
+    }
+  });
+});
+
+describe("the force switch (readIntroForce)", () => {
+  it("counts only the literal `force`, and survives storage that throws", () => {
+    localStorage.removeItem(INTRO_FORCE_KEY);
+    expect(readIntroForce()).toBe(false);
+    localStorage.setItem(INTRO_FORCE_KEY, "yes");
+    expect(readIntroForce()).toBe(false);
+    localStorage.setItem(INTRO_FORCE_KEY, "force");
+    expect(readIntroForce()).toBe(true);
+    localStorage.removeItem(INTRO_FORCE_KEY);
+
+    const real = Storage.prototype.getItem;
+    try {
+      Storage.prototype.getItem = () => {
+        throw new Error("blocked");
+      };
+      expect(readIntroForce()).toBe(false);
+    } finally {
+      Storage.prototype.getItem = real;
+    }
+  });
+
+  it("is its own key, not the legacy cookie's name", () => {
+    expect(INTRO_FORCE_KEY).toBe("tbs_intro_force");
+    expect(INTRO_FORCE_KEY).not.toBe(INTRO_LEGACY_COOKIE);
   });
 });
 

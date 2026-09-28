@@ -9,14 +9,12 @@ import styles from "./Team.module.css";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  eyebrow: L("Echipa", "Команда", "Team"),
   title: L("Oamenii din spatele produsului.", "Люди за продуктом.", "The people behind the product."),
   lead: L(
     "O echipă mică și implicată, cu roluri reale — de la strategie la cod și testare.",
     "Небольшая вовлечённая команда с реальными ролями — от стратегии до кода и тестирования.",
     "A small, hands-on team with real roles — from strategy to code and testing.",
   ),
-  label: L("ECHIPA TBS", "КОМАНДА TBS", "TBS TEAM"),
 };
 
 /*
@@ -85,7 +83,6 @@ export function Team() {
       <div className="container">
         <Reveal className={styles.top}>
           <div>
-            <div className={`mono ${styles.eyebrow}`}>{l(SECTION.eyebrow)}</div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
           </div>
           <p className={styles.lead}>{l(SECTION.lead)}</p>
@@ -99,7 +96,6 @@ export function Team() {
             const photo = stored ? mediaUrl(stored) : "";
             return (
               <article key={m.id} className={styles.person}>
-                <span className={`mono ${styles.personLabel}`}>{l(SECTION.label)}</span>
                 {photo ? (
                   /*
                    * Projected, not printed. The photograph itself is still the only picture here

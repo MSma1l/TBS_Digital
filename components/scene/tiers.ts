@@ -50,6 +50,13 @@ export type SceneTierConfig = {
   helixBits: number;
   /** The hologram's canvas texture (px): small on purpose, so a screenshot's fine print stays illegible. */
   hologram: readonly [number, number];
+  /**
+   * A hero stat panel's face texture (px, `three/statFace.ts`). Larger than the hologram and for the
+   * opposite reason: that one must not be legible, this one is a NUMBER the visitor reads. The cap
+   * only binds where a window is wide and short (861-1024px, where the two cards stack), and the
+   * canvas is never bigger than the window's own device pixels — the scene's dpr is capped at 1.75.
+   */
+  statFace: readonly [number, number];
 };
 
 export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig>> = {
@@ -75,6 +82,7 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     helixRungs: 22,
     helixBits: 36,
     hologram: [384, 240],
+    statFace: [512, 288],
   },
   mid: {
     dpr: [1, 1.5],
@@ -98,6 +106,7 @@ export const SCENE_TIER_CONFIG: Readonly<Record<SceneCanvasTier, SceneTierConfig
     helixRungs: 14,
     helixBits: 20,
     hologram: [256, 160],
+    statFace: [384, 224],
   },
 };
 

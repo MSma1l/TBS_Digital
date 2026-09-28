@@ -7,15 +7,8 @@
 .head {
   margin-bottom: 26px;
 }
-.eyebrow {
-  color: var(--red-text);
-  font-weight: var(--fw-bold);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
 .title {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: clamp(26px, 3.2vw, 40px);
   letter-spacing: -0.04em;
   color: var(--txt);

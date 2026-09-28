@@ -11,15 +11,8 @@
   align-items: end;
   flex-wrap: wrap;
 }
-.eyebrow {
-  color: var(--red-text);
-  font-weight: var(--fw-bold);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
 .title {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: clamp(28px, 3.5vw, 44px);
   letter-spacing: -0.04em;
   color: var(--txt);
@@ -74,13 +67,6 @@
   border-color: var(--red);
 }
 
-.personLabel {
-  color: var(--red-text);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.11em;
-  margin-bottom: auto;
-}
 
 /* ================================================================================================
  * THE HOLOGRAPHIC PORTRAIT
@@ -201,6 +187,25 @@
 
 /* Live: a fine flicker, and twice a cycle a coarse block-out — the "pixels". The mask switches
    discretely because `steps(1, end)` never interpolates, which is exactly how a raster drops. */
+/*
+ * THE HOLOGRAM KEEPS RUNNING OFF SCREEN, AND THAT IS DELIBERATE.
+ *
+ * These three are the most expensive animations on the page: `holoLive` moves a `mask-image` and
+ * a `mask-size`, `holoTear` a `clip-path`, `holoBeam` a `-webkit-mask-position` — none can be
+ * carried by the compositor, so every frame re-rasterises a filtered portrait, and measured in
+ * the running page all three were still going with this section far out of view.
+ *
+ * Pausing them off screen was written and backed out, because of `steps(1, end)` above. These
+ * curves HOLD deliberately broken states: a coarse block-out for 172ms, a torn band for 67ms,
+ * about a tenth of each cycle. Stop inside one of those windows and the frozen state is exactly
+ * what the first painted frame of the return shows. Today the phase on re-entry is arbitrary and
+ * the glitch is one of many states; paused, leaving during a glitch guarantees coming back to it.
+ * A fault you can set your watch by is not a fault — a stuck one is.
+ *
+ * The estimator's two lights ARE paused off screen (Estimator.module.css): they are linear sweeps
+ * with no held states, so no frame of them is conspicuous.
+ */
+
 @keyframes holoLive {
   0%,
   41%,

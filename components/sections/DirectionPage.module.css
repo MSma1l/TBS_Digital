@@ -47,13 +47,6 @@
   padding: clamp(36px, 6vw, 72px) 0 clamp(44px, 5vw, 72px);
 }
 
-.eyebrow {
-  color: var(--red-text);
-  font-size: 13px;
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.1em;
-}
-
 .title {
   font-family: var(--font-display-stack);
   font-weight: var(--fw-extra);
@@ -602,15 +595,10 @@
   transition-duration: 0.15s;
   transform: perspective(1000px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
 }
-.highlight b {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.09em;
-  color: var(--red-text);
-}
 .highlight h2 {
   font-size: 22px;
   letter-spacing: -0.03em;
-  margin: var(--sp-3) 0 var(--sp-2);
+  margin: 0 0 var(--sp-2);
   color: var(--txt);
 }
 .highlight p {
@@ -810,6 +798,14 @@
 .projectsTop p {
   color: var(--mut);
   margin: 0 0 var(--sp-5);
+}
+/* The reel's scroll box. A plain block that changes nothing about the shelf inside it — until the
+   phone breakpoint turns it into a scroller (see the max-width: 760px block). It is also the box
+   the arrival observer watches (DirectionPage.tsx): where the cards run sideways the grid is four
+   screens wide, so the SHARE of the grid on screen can never reach the observer's threshold, while
+   this box is exactly what the visitor has in front of them. */
+.projectsReel {
+  display: block;
 }
 .projectGrid {
   /* The frame's own positioning context. Nothing else changes here: no `perspective`, no
@@ -1292,6 +1288,7 @@ span.projHit:focus-visible {
    model aimed at it (an `elementsFromPoint` at the host's centre used to come back with this
    section on top). Everything visible is on `.stepsCard`. */
 .steps {
+  position: relative;
   margin-top: 60px;
 }
 /* The card itself, unchanged in every respect that was measured: the `--ink` surface, the
@@ -1299,11 +1296,14 @@ span.projHit:focus-visible {
    host's column on a WebGL desktop — it is the section's only child, full width, everywhere
    else. */
 .stepsCard {
+  position: relative;
+  overflow: hidden;
   padding: 36px;
   border-radius: var(--r-xl);
   background: var(--ink);
   color: #fff;
 }
+
 .steps h2 {
   font-size: var(--fs-2xl);
   letter-spacing: -0.04em;
@@ -1369,18 +1369,103 @@ span.projHit:focus-visible {
     pointer-events: none;
   }
 }
+/*
+ * THREE PANELS ABREAST, not a list of three lines.
+ *
+ * The block holds three short sentences and the card is as wide as the page, so as a stacked list
+ * it was one column of type and a great deal of dark. Side by side they use the width they have,
+ * each with its own index set enormous behind it, and a spine across the top that fills as they
+ * are read.
+ *
+ * The reading order survives the change: the observer that decides which step is live watches the
+ * 1px marks below, spread down this block's height, not the panels — three panels abreast cross a
+ * reading line on the same frame and would all light at once.
+ */
 .stepsList {
   position: relative;
-  padding-left: 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 1.6vw, 20px);
+  padding-top: 26px;
+}
+
+/* Where a direction has a flow scheme beside the rows, the steps get half the card and three
+   panels abreast would be three narrow slivers — they stay stacked there. */
+.stepsBody[data-flow="on"] .stepsList {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+/* And on a narrow card there is no width to spread into. */
+@media (max-width: 860px) {
+  .stepsList {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+  .stepRow {
+    padding-bottom: clamp(38px, 9vw, 54px);
+  }
+  .stepBig {
+    font-size: clamp(74px, 20vw, 110px);
+  }
+}
+
+/*
+ * The reading marks: invisible, spread over the whole SECTION so they cross the observer's band
+ * one at a time. Inside the card's list they landed 73px apart against a 72px band, and the three
+ * states were handed over inside 177px of scroll — measured, and it is what made the lighting look
+ * like a fault. Across the section they are roughly twice that.
+ */
+.stepMark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  /* Equal shares of the block, the last of them the block's own foot: with `--n` steps there are
+     `--n + 1` marks, so mark 0 sits at 8% and mark `--n` at 100%. The last step gets as long a
+     turn on the reading line as the first — spreading only the steps put the third one 30px from
+     the bottom, a blink before the block counted as read. */
+  top: calc(8% + var(--m) * (92% / var(--n, 3)));
+  pointer-events: none;
 }
 /* The rail: a 2px line down the left of the rows, dim at rest, filled by the fill below. */
+/* The spine, across the TOP of the three panels rather than down their left. It is its own
+   container so the light below can be placed in a share of the spine's width — the panels' count
+   and the card's width both change, and a px offset would be wrong at every one of them. */
 .stepsTrack {
   position: absolute;
   left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 2px;
+  right: 0;
+  top: 0;
+  height: 2px;
   background: var(--ink-line);
+  container-type: inline-size;
+  transform-origin: 0 50%;
+}
+
+/*
+ * THE LIGHT AT THE HEAD OF THE FILL.
+ *
+ * Not a loop: its position IS `--steps-progress`, the same number the fill is scaled by and the
+ * same one the reading-line observer writes. So it can only ever be where the reading is — it
+ * slides from panel to panel as the steps are read, and it holds still while they are not.
+ * One transform, nothing to repaint, and nothing to pause when the section is off screen.
+ */
+.stepsSpark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: -34px;
+  width: 68px;
+  border-radius: 999px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--obsidian-neon) 85%, #fff),
+    transparent
+  );
+  transform: translateX(calc(var(--steps-progress, 0) * 100cqw));
+  transition: transform 0.55s var(--motion-ease-out);
+  pointer-events: none;
 }
 /* Cyan on an always-dark block is `--obsidian-neon` (docs/04, Neon Cyan rule 4).
    The default fill is driven by `--steps-progress`, which the observer writes on the section
@@ -1390,8 +1475,8 @@ span.projHit:focus-visible {
   width: 100%;
   height: 100%;
   background: var(--obsidian-neon);
-  transform-origin: 50% 0;
-  transform: scaleY(var(--steps-progress, 0));
+  transform-origin: 0 50%;
+  transform: scaleX(var(--steps-progress, 0));
   transition: transform 0.5s var(--motion-ease-out);
 }
 /* Where the engine has them, the fill follows the scroll itself rather than the steps: the
@@ -1421,31 +1506,178 @@ span.projHit:focus-visible {
    neighbours were a few pixels either side of the reading line and the lit number flickered
    between them. At ~110px each, one step is read at a time and the hand-off is legible. The
    section is taller for it, which is the trade the client accepted. */
+/*
+ * ONE STEP, ONE PANEL. The index at the top, the sentence under it, and the same index again set
+ * enormous in the corner — the one thing that gives a single short sentence something to sit on.
+ */
 .stepRow {
+  position: relative;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 70px 1fr;
+  align-content: start;
   gap: 14px;
-  padding: clamp(22px, 2.6vw, 34px) 0;
-  border-top: 1px solid var(--ink-line);
-  transition: border-color 0.35s var(--motion-ease-out);
+  padding: clamp(20px, 2.2vw, 30px) clamp(18px, 2vw, 26px) clamp(58px, 6vw, 78px);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, #fff 3%, transparent);
+  transition:
+    border-color 0.35s var(--motion-ease-out),
+    background-color 0.35s var(--motion-ease-out),
+    translate 0.35s var(--motion-ease-out);
 }
+
 .stepRow b {
+  position: relative;
   color: var(--on-ink-mut);
-  font-size: 18px;
+  font-size: 15px;
+  letter-spacing: 0.12em;
   transition: color 0.35s var(--motion-ease-out), text-shadow 0.35s var(--motion-ease-out);
 }
-/* The row being read. Colour is the whole signal — no size change, so no line ever moves. */
-.stepRow[data-state="live"] b {
+
+.stepRow p {
+  position: relative;
+  margin: 0;
+  color: var(--on-ink);
+  font-size: clamp(16px, 1.35vw, 19px);
+  line-height: 1.45;
+}
+
+/* The big index, in the site's own three stops — `[data-progress]`'s, the same the footer's
+   wordmark closes the page on. Bottom-right of its own panel, clipped by the panel's radius, and
+   behind the copy: it is scenery, not a number to read. */
+.stepBig {
+  position: absolute;
+  right: -4px;
+  bottom: -12px;
+  font-size: clamp(88px, 8vw, 132px);
+  font-weight: var(--fw-black);
+  line-height: 0.8;
+  letter-spacing: -0.06em;
+  color: transparent;
+  background: linear-gradient(140deg, var(--blue), var(--violet2), var(--cyan));
+  background-clip: text;
+  -webkit-background-clip: text;
+  opacity: 0.16;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.4s var(--motion-ease-out);
+}
+
+/*
+ * THE ARRIVAL. The spine draws itself, then the panels come up one after another, and each one's
+ * giant index rises into it a beat later.
+ *
+ * Gated on BOTH attributes: `data-armed` is written at mount, so a visitor whose JavaScript never
+ * runs sees the finished block rather than three empty outlines, and `data-entered` is latched
+ * once, so it plays on the way in and never again.
+ *
+ * The panel's arrival uses `transform` and its lit state uses `translate` — two properties, so the
+ * 3px lift of the step being read composes with the entrance instead of fighting its fill. The
+ * index rises on `translate` for the same reason: its opacity belongs to the lit state.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .steps[data-armed]:not([data-entered]) .stepsTrack {
+    transform: scaleX(0.001);
+  }
+  .steps[data-armed]:not([data-entered]) .stepRow {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  .steps[data-armed]:not([data-entered]) .stepBig {
+    translate: 0 26px;
+  }
+
+  .steps[data-armed][data-entered] .stepsTrack {
+    animation: steps-spine 620ms var(--motion-ease-out) both;
+  }
+  .steps[data-armed][data-entered] .stepRow {
+    animation: steps-panel 640ms var(--motion-ease-out) both;
+    animation-delay: calc(var(--s, 0) * 140ms + 160ms);
+  }
+  .steps[data-armed][data-entered] .stepBig {
+    animation: steps-index 720ms var(--motion-ease-out) both;
+    animation-delay: calc(var(--s, 0) * 140ms + 340ms);
+  }
+}
+
+/* The spine, drawn out from its left end — the direction the steps are read in. */
+@keyframes steps-spine {
+  from {
+    transform: scaleX(0.001);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes steps-panel {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Only the translate: the index's brightness is the lit state's to decide, and an opacity here
+   would pin it at the entrance's value for good. */
+@keyframes steps-index {
+  from {
+    translate: 0 26px;
+  }
+  to {
+    translate: none;
+  }
+}
+
+/*
+ * THE ONE BEING READ. `data-active` is written by the reading-line observer, so the lit panel and
+ * the lit rail can never disagree — and it is the only thing that changes, so no line moves.
+ */
+.steps[data-active="1"] .stepRow:nth-of-type(1),
+.steps[data-active="2"] .stepRow:nth-of-type(2),
+.steps[data-active="3"] .stepRow:nth-of-type(3),
+.steps[data-active="4"] .stepRow:nth-of-type(4) {
+  border-color: color-mix(in srgb, var(--obsidian-neon) 45%, transparent);
+  background: color-mix(in srgb, var(--obsidian-neon) 7%, transparent);
+  translate: 0 -3px;
+}
+
+.steps[data-active="1"] .stepRow:nth-of-type(1) b,
+.steps[data-active="2"] .stepRow:nth-of-type(2) b,
+.steps[data-active="3"] .stepRow:nth-of-type(3) b,
+.steps[data-active="4"] .stepRow:nth-of-type(4) b {
   color: var(--obsidian-neon);
   text-shadow: 0 0 16px color-mix(in srgb, var(--obsidian-neon) 55%, transparent);
 }
-.stepRow[data-state="live"] {
-  border-top-color: color-mix(in srgb, var(--obsidian-neon) 45%, transparent);
+
+/*
+ * DONE — the section is behind the reading line.
+ *
+ * All three carried out and none of them live: the spine is full, every panel keeps a quiet lit
+ * border and a brighter index, and nothing is lifted. Before this the observer wrote the step
+ * COUNT here, so the last panel stayed in its live state for the whole rest of the page, which is
+ * a box stuck on rather than a process finished.
+ */
+.steps[data-active="done"] .stepRow {
+  border-color: color-mix(in srgb, var(--obsidian-neon) 22%, transparent);
 }
-.stepRow p {
-  margin: 0;
-  color: var(--on-ink);
-  line-height: 1.5;
+
+.steps[data-active="done"] .stepRow b {
+  color: color-mix(in srgb, var(--obsidian-neon) 70%, var(--on-ink-mut));
+}
+
+.steps[data-active="done"] .stepBig {
+  opacity: 0.26;
+}
+
+.steps[data-active="1"] .stepRow:nth-of-type(1) .stepBig,
+.steps[data-active="2"] .stepRow:nth-of-type(2) .stepBig,
+.steps[data-active="3"] .stepRow:nth-of-type(3) .stepBig,
+.steps[data-active="4"] .stepRow:nth-of-type(4) .stepBig {
+  opacity: 0.42;
 }
 
 /* ---------- the flow scheme, beside the steps ----------
@@ -1457,12 +1689,6 @@ span.projHit:focus-visible {
   border-radius: var(--r-lg);
   background: var(--ink2);
   padding: clamp(18px, 2.4vw, 26px);
-}
-.flowLabel {
-  color: var(--on-ink-mut);
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.08em;
-  font-size: var(--fs-xs);
 }
 .flowTitle {
   display: block;
@@ -1502,9 +1728,76 @@ span.projHit:focus-visible {
 }
 
 /* ---------- bottom ---------- */
+/*
+ * THE CLOSE. It was a heading, a line and a button standing in the page's own dark with nothing
+ * around them, which is why it read as an afterthought rather than as the end of the page. It is
+ * a panel now — the HUD's own language, the same brackets the estimator's deck and the guide's
+ * launcher wear — and the copy sits inside it rather than in a void.
+ */
 .bottom {
+  position: relative;
   margin-top: 55px;
+  padding: clamp(34px, 5vw, 56px) clamp(18px, 4vw, 48px);
   text-align: center;
+  border-radius: var(--r-xl);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--panel) 70%, transparent),
+    transparent 75%
+  );
+}
+
+/* The four corner brackets, as one element with two gradients per corner: an inset ring would
+   draw a whole box, and the point of a bracket is the gap between them. */
+.bottomFrame {
+  position: absolute;
+  inset: 0;
+  /* `--line` is the hairline used INSIDE a panel; on the page's own dark it disappears. The
+     brackets are the only thing drawing the panel's shape, so they take a lighter tone. */
+  --bracket: color-mix(in srgb, var(--cyan) 38%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bracket), var(--bracket)) 0 0 / 1px 34px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 0 0 / 34px 1px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 100% 0 / 1px 34px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 100% 0 / 34px 1px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 0 100% / 1px 34px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 0 100% / 34px 1px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 100% 100% / 1px 34px no-repeat,
+    linear-gradient(var(--bracket), var(--bracket)) 100% 100% / 34px 1px no-repeat;
+}
+
+/* The thread across the top of the panel: the site's own three stops, drawn out from the middle
+   when the close comes into view. One transform, and it plays once — there is nothing here that
+   repeats, so nothing to pause when the page is scrolled away. */
+.bottomThread {
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--blue), var(--violet2), var(--cyan), transparent);
+  transform-origin: 50% 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bottomThread {
+    animation: bottom-thread 700ms var(--motion-ease-out) both;
+    animation-timeline: view();
+    animation-range: entry 10% entry 70%;
+  }
+}
+
+@keyframes bottom-thread {
+  from {
+    transform: scaleX(0.001);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 0.9;
+  }
 }
 .bottom h2 {
   font-size: clamp(30px, 5vw, 40px);
@@ -1578,9 +1871,65 @@ span.projHit:focus-visible {
     align-items: start;
   }
   .highlights,
-  .projectGrid,
   .caseGrid {
     grid-template-columns: 1fr;
+  }
+  /* ---------- the projects run sideways ----------
+     Five cards one under another made this section 1972px tall on a 390px phone — a whole page
+     of scrolling for a list you take in at a glance when it is a strip. So on a phone the shelf
+     is a shelf: the cards stand in a row and you push them along, the way Work's grid already
+     does on the same widths (components/sections/Work.tsx:207-210).
+
+     THE SCROLL BOX IS THE WRAPPER, NEVER THE GRID. The grid carries the shelf's frame on
+     `::before` / `::after`, and both hang 6px OUTSIDE it — an overflow box on the grid would cut
+     them away, and an absolutely positioned child of a scroller scrolls with its content anyway.
+     Out here the frame stays whole, and the wrapper's padding is what gives it room. */
+  .projectsReel {
+    display: block;
+    /* Out to the screen's own edges and back in again, so the next card is visibly waiting there
+       rather than stopping at the text column. */
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+    /* The frame hangs 6px out of the grid, the lift takes 4px more: 12px clears both. The
+       negative margin gives every one of those pixels back, so the section is the same height it
+       would have been. */
+    padding-block: 12px;
+    margin-block: -12px;
+    overflow-x: auto;
+    /* A swipe that runs out of cards stays here: it never turns into the browser's back gesture. */
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    /* A snapped card lands on the text column, not on the screen's edge. */
+    scroll-padding-inline: var(--gutter);
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--sol-accent, var(--blue)) 45%, transparent) transparent;
+  }
+  .projectGrid {
+    display: flex;
+    /* As wide as the cards themselves. The frame is drawn against THIS box, so at the screen's
+       width it would end after the first card; at the shelf's width it runs the whole reel, and
+       the closing bracket still waits for the last window (`--card-count`). */
+    width: max-content;
+    /* ...but never narrower than the screen, so the frame still spans it when two short cards
+       do not fill the row. */
+    min-width: 100%;
+  }
+  /* A direction with ONE project has nothing to push. `max-content` and a growing card cannot be
+     combined — a flex item that grows contributes its own max-content width to the container, and
+     the card's is the width its description would take unwrapped, which made the reel 6171px wide
+     and the text one long line. So the single-card reel is sized the ordinary way instead, and
+     then the card can fill it. */
+  .projectGrid:has(> .project:only-child) {
+    width: auto;
+  }
+  .project {
+    /* Work's own card width on these widths (Work.tsx:86): wide enough to read, narrow enough
+       that the next one shows at the edge. */
+    flex: 0 0 min(390px, max(82vw, 320px));
+    scroll-snap-align: start;
+  }
+  .project:only-child {
+    flex-grow: 1;
   }
   /* Stacked there is no row for the pulse to run along, and each panel comes into view on
      its own as the visitor scrolls — so the hand-over delay goes, and every panel plays its
@@ -1589,14 +1938,10 @@ span.projHit:focus-visible {
   .highlight {
     --step: 0;
   }
-  /* Stacked, each card arrives on its own, so the 90ms ladder would only delay the last one —
-     same move as `.highlight` right above. */
-  .project {
-    --step: 0;
-  }
-  /* One column makes the glass a ~665px letterbox band. `42vw` gives it a real crop and is
-     chosen so WIDTH always drives `object-fit: cover`, never height, at every phone width —
-     so the screenshot is still cropped down, never scaled up. */
+  /* `42vw` is chosen so WIDTH always drives `object-fit: cover`, never height, at every phone
+     width — the screenshot is still cropped down, never scaled up. It was picked when one column
+     made the glass a ~665px letterbox band; in the strip the card is ~320px wide and the crop is
+     286x164 at 390px, which width still drives. */
   .projImage {
     height: clamp(150px, 42vw, 210px);
   }
@@ -1643,12 +1988,9 @@ span.projHit:focus-visible {
     justify-content: center;
     text-align: center;
   }
-  /* The rail and the number column give up what a phone needs for the step's sentence. */
-  .stepsList {
-    padding-left: 18px;
-  }
+  /* The old rail-and-number-column row is gone: a step is a panel now, one column, and the
+     spine runs across the top rather than down the left. */
   .stepRow {
-    grid-template-columns: 44px 1fr;
     gap: 10px;
   }
 }

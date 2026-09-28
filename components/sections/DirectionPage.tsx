@@ -181,6 +181,36 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
 
   /* ---- the steps: which one is being read, and the model's matching moment ---- */
   const stepsRef = useRef<HTMLElement | null>(null);
+
+  /*
+   * THE BLOCK LIGHTS ONCE, WHEN IT IS REACHED.
+   *
+   * `data-armed` at mount holds the panels in their withheld pose — written from an effect, so a
+   * visitor whose JavaScript never arrives sees the finished block rather than three empty
+   * outlines. `data-entered` is a latch: the observer unobserves itself, so scrolling back up and
+   * down again does not replay it. Same shape as the footer's ignition.
+   */
+  useEffect(() => {
+    const section = stepsRef.current;
+    if (!section) return;
+    section.setAttribute("data-armed", "");
+    if (typeof IntersectionObserver === "undefined") {
+      section.setAttribute("data-entered", "");
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          entry.target.setAttribute("data-entered", "");
+          io.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.25 },
+    );
+    io.observe(section);
+    return () => io.disconnect();
+  }, []);
   const stepRowsRef = useRef<(HTMLElement | null)[]>([]);
   const stepCount = sol?.steps.length ?? 0;
 
@@ -188,65 +218,55 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     const section = stepsRef.current;
     if (!section || stepCount === 0 || typeof IntersectionObserver === "undefined") return;
     const rows = stepRowsRef.current
-      .slice(0, stepCount)
+      .slice(0, stepCount + 1)
       .filter((node): node is HTMLElement => node instanceof HTMLElement);
     if (rows.length === 0) return;
 
-    /* THE READING LINE, at 45% of the viewport: one row is being read, never three.
-       The observer's root margin leaves a band 8% of the viewport tall around that line, and
-       the row is LIVE while it crosses the band, PAST once it has left it upwards. The band
-       has to be thin, and this is the whole reason: the middle THIRD of a 800px viewport is
-       266px, and a three-step section is shorter than that, so a middle-third band holds all
-       three rows at once — every number lit, and the model with no single stage to hold. The
-       rows are also spaced so that one is on the line at a time (DirectionPage.module.css).
-       Root margin, not a scroll handler: nothing here runs while the section is off screen. */
+    /*
+     * THE READING LINE, at 45% of the viewport — and the state is COUNTED from it, not read off
+     * what happens to be inside the observer's band.
+     *
+     * The band only says WHEN to look. What the block shows is derived from positions every time
+     * it does: how many marks have already crossed the line. That matters because between two
+     * marks nothing is in the band at all, and the old code read that emptiness as "the whole
+     * block is behind us" — so the lighting went 1 → done → 2 → done → 3, which is exactly the
+     * flicker that was reported. Counting cannot do that: it only ever goes up as you scroll down
+     * and back down as you scroll up.
+     *
+     * There is one mark more than there are steps. The extra one sits at the section's tail, and
+     * its crossing is what "done" means: the block is genuinely behind the reading line, rather
+     * than merely between two of its own steps.
+     *
+     * Root margin, not a scroll handler: nothing here runs while the section is off screen.
+     */
     const READING_LINE = 0.45;
-    const inBand = new Set<number>();
     let reported = -1;
 
-    /* Two rows can touch the band at a boundary; the one whose middle is nearest the reading
-       line is the one being read. Measured in the observer's callback — on a crossing, never
-       per scrolled frame. */
-    const pick = (): number => {
-      if (inBand.size === 0) return -1;
-      const line = window.innerHeight * READING_LINE;
-      let best = -1;
-      let bestDistance = Number.POSITIVE_INFINITY;
-      for (const index of inBand) {
-        const rect = rows[index].getBoundingClientRect();
-        const distance = Math.abs((rect.top + rect.bottom) / 2 - line);
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          best = index;
-        }
-      }
-      return best;
-    };
-
     const apply = () => {
-      const current = pick();
-      /* With no row on the line the section is either still coming (nothing read) or already
-         above it (all of it read). Asked of the section itself rather than remembered from
-         the rows: an observer is silent about a row whose state did not CHANGE, so a set of
-         "rows seen going up" keeps saying `past` long after the visitor scrolled back. */
-      const allPast =
-        current < 0 && section.getBoundingClientRect().top < window.innerHeight * READING_LINE;
+      const line = window.innerHeight * READING_LINE;
+      const crossed = rows.map((row) => row.getBoundingClientRect().top < line);
+      /* The tail mark is the last one; the steps are the ones before it. */
+      const ended = crossed[stepCount] === true;
+      let doneCount = 0;
+      for (let i = 0; i < stepCount; i += 1) if (crossed[i]) doneCount += 1;
+      const current = ended ? -1 : doneCount - 1;
+
       for (let i = 0; i < rows.length; i += 1) {
-        rows[i].dataset.state =
-          current >= 0
-            ? i === current
-              ? "live"
-              : i < current
-                ? "past"
-                : "ahead"
-            : allPast
-              ? "past"
-              : "ahead";
+        rows[i].dataset.state = ended ? "past" : i < doneCount ? (i === current ? "live" : "past") : "ahead";
       }
-      /* The fallback fill for an engine without `animation-timeline: view()`: the steps
-         already read, out of all of them. Written on the section, never on html or body. */
-      const done = current >= 0 ? current + 1 : allPast ? rows.length : 0;
-      section.style.setProperty("--steps-progress", String(Math.min(1, done / rows.length)));
+      /* The fallback fill for an engine without `animation-timeline: view()`: the steps already
+         read, out of all of them. Written on the section, never on html or body. */
+      section.style.setProperty("--steps-progress", String(Math.min(1, doneCount / stepCount)));
+      /*
+       * Which step is being read, as an attribute the stylesheet selects on — and `done` once the
+       * section is behind the reading line.
+       *
+       * It used to write the step COUNT there, so after the block had been read the last panel
+       * stayed lit for the whole rest of the page: not "the third step is happening now" but a box
+       * stuck on. `done` lets the stylesheet say the true thing — all of them carried out, none
+       * live.
+       */
+      section.dataset.active = ended ? "done" : String(doneCount);
       /* The point of the whole feature: the world holds the model on this step's moment.
          Once per change of value — never once per intersection callback. */
       if (current !== reported) {
@@ -256,23 +276,27 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     };
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const index = rows.indexOf(entry.target as HTMLElement);
-          if (index < 0) continue;
-          if (entry.isIntersecting) inBand.add(index);
-          else inBand.delete(index);
-        }
-        apply();
-      },
-      /* The band: 41% → 49% of the viewport, i.e. 8% of it centred on the reading line. */
-      { rootMargin: "-41% 0px -51% 0px", threshold: 0 },
+      /* Every callback asks the same question again, from positions — so it does not matter which
+         mark moved, only that one did. */
+      apply,
+      /*
+       * The root is everything ABOVE the reading line: the viewport with its bottom 55% cut off.
+       * A mark entering it has crossed the line; leaving it upwards, at the top of the screen,
+       * changes nothing, because `apply` reads positions rather than this set.
+       *
+       * It used to be a band 8% of the viewport tall AROUND the line, and that was the flaw: a
+       * fast flick can carry a mark clean through a 72px band between two frames, and an observer
+       * that was outside before and outside after says nothing at all. A region 45% of the
+       * viewport tall cannot be jumped that way — once a mark is in it, it stays in.
+       */
+      { rootMargin: "0px 0px -55% 0px", threshold: 0 },
     );
     for (const row of rows) observer.observe(row);
 
     return () => {
       observer.disconnect();
       section.style.removeProperty("--steps-progress");
+      delete section.dataset.active;
       /* Leaving the page releases the model: no page holds a stage it is not showing. */
       selectServiceStage(-1);
     };
@@ -304,18 +328,28 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
   useEffect(() => {
     const root = projectsRef.current;
     if (!root || typeof IntersectionObserver === "undefined") return;
+    /* What is WATCHED and what is OPENED are not always the same element. The grid's own frame
+       opens when `.projectsReel` — the box around it — arrives, because where the cards run
+       sideways on a phone the grid is four screens wide: a threshold measured as a SHARE of the
+       target can never be met by a target that long, and the frame would stay dark for good. The
+       wrapper is the box the visitor actually has on screen, at every width. */
+    const opens = new Map<Element, HTMLElement>();
+    const watch = (target: HTMLElement | null, opened: HTMLElement | null = target) => {
+      if (target && opened && !opened.hasAttribute("data-entered")) opens.set(target, opened);
+    };
     // The stage rides the same observer: whichever of the two shapes the page laid out is the one
     // that ever intersects, so each gets its entrance exactly once and the other costs nothing.
-    const targets = [stageRef.current, root, ...Array.from(root.children)].filter(
-      (node): node is HTMLElement =>
-        node instanceof HTMLElement && !node.hasAttribute("data-entered"),
-    );
-    if (targets.length === 0) return;
+    watch(stageRef.current);
+    watch(root.parentElement instanceof HTMLElement ? root.parentElement : root, root);
+    for (const card of Array.from(root.children)) {
+      watch(card instanceof HTMLElement ? card : null);
+    }
+    if (opens.size === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
-          (entry.target as HTMLElement).setAttribute("data-entered", "");
+          opens.get(entry.target)?.setAttribute("data-entered", "");
           observer.unobserve(entry.target);
         }
       },
@@ -324,7 +358,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
          lands straight here (:301-305), and the row should still have its gesture left. */
       { threshold: 0.25, rootMargin: "0px 0px -10% 0px" },
     );
-    for (const target of targets) observer.observe(target);
+    for (const target of opens.keys()) observer.observe(target);
     return () => observer.disconnect();
   }, [slug, relatedKey]);
 
@@ -439,7 +473,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     return (
       <section className={`section ${styles.placeholder}`}>
         <div className="container">
-          <div className={`mono ${styles.eyebrow}`}>{t("dir.section.kicker")}</div>
           <h1 className={styles.phTitle}>{dir ? t(dir.labelKey) : ""}</h1>
           <p className={styles.phLead}>{t("dir.page.soon")}</p>
           <Link href="/#servicii" className={`mono ${styles.back}`}>
@@ -468,7 +501,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
 
         <section className={styles.hero}>
           <div>
-            <div className={`mono ${styles.eyebrow}`}>{l(sol.eyebrow)}</div>
             <h1 className={styles.title}>{l(sol.title)}</h1>
             <p className={styles.intro}>{l(sol.intro)}</p>
           </div>
@@ -568,7 +600,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                 <span aria-hidden="true" className={`mono ${styles.hlIndex}`}>
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <b className="mono">{l(solUI.benefit)}</b>
                 <h2>{l(it.title)}</h2>
                 <p>{l(it.desc)}</p>
               </div>
@@ -762,97 +793,130 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               </div>
             </div>
 
-            <div
-              className={styles.projectGrid}
-              ref={projectsRef}
-              data-projects-track=""
-              data-project-index={reelIndex}
-              data-cta-link={l(solUI.actionProject)}
-              data-cta-private={l(solUI.actionProjectPrivate)}
-              style={{ "--card-count": related.length } as CSSProperties}
-            >
-              {related.map((p, i) => {
-                const image = p.images?.[0];
-                const glass = image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={image}
-                    alt={p.name}
-                    loading="lazy"
-                    decoding="async"
-                    className={styles.projImage}
-                  />
-                ) : null;
-                const inner = (
-                  <>
-                    {/* The window. The project's own tag becomes its title bar and the
-                        screenshot its glass — the capture lives INSIDE the frame, it never
-                        gets a frame drawn over it, and it is only ever made smaller: the
-                        28px bar and the 1px ring come out of the card's existing inner
-                        width (docs/05-page-sections.md:437-441).
-                        Two spans, never divs, because the card is sometimes an <a> — and
-                        nothing added here is an <a>, an <article> or an <h3>, all three of
-                        which components/__tests__/direction-page.test.tsx counts inside
-                        #proiecte. A document with no image for a project still has to
-                        render, so the tag keeps its old standalone form in that branch. */}
-                    {glass ? (
-                      <span className={styles.projLid}>
-                        <span className={styles.projShell}>
-                          <small className={`mono ${styles.projTag}`}>{l(p.tag)}</small>
-                          {glass}
+            {/* On a phone the cards run sideways instead of stacking (max-width: 760px in
+                the module). The strip has to CLIP to scroll, and the shelf's frame hangs 6px
+                outside the grid on its own pseudo-elements — so the scroll box is this wrapper
+                and the grid keeps its frame, whole, inside it. Above that width it is a plain
+                block that changes nothing, and the grid is the same shelf it has always been.
+                It is also the box the arrival observer watches (:328) — see why there. */}
+            <div className={styles.projectsReel}>
+              <div
+                className={styles.projectGrid}
+                ref={projectsRef}
+                data-projects-track=""
+                data-project-index={reelIndex}
+                data-cta-link={l(solUI.actionProject)}
+                data-cta-private={l(solUI.actionProjectPrivate)}
+                style={{ "--card-count": related.length } as CSSProperties}
+              >
+                {related.map((p, i) => {
+                  const image = p.images?.[0];
+                  const glass = image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={image}
+                      alt={p.name}
+                      loading="lazy"
+                      decoding="async"
+                      className={styles.projImage}
+                    />
+                  ) : null;
+                  const inner = (
+                    <>
+                      {/* The window. The project's own tag becomes its title bar and the
+                          screenshot its glass — the capture lives INSIDE the frame, it never
+                          gets a frame drawn over it, and it is only ever made smaller: the
+                          28px bar and the 1px ring come out of the card's existing inner
+                          width (docs/05-page-sections.md:437-441).
+                          Two spans, never divs, because the card is sometimes an <a> — and
+                          nothing added here is an <a>, an <article> or an <h3>, all three of
+                          which components/__tests__/direction-page.test.tsx counts inside
+                          #proiecte. A document with no image for a project still has to
+                          render, so the tag keeps its old standalone form in that branch. */}
+                      {glass ? (
+                        <span className={styles.projLid}>
+                          <span className={styles.projShell}>
+                            <small className={`mono ${styles.projTag}`}>{l(p.tag)}</small>
+                            {glass}
+                          </span>
                         </span>
-                      </span>
-                    ) : (
-                      <small className={`mono ${styles.projTag} ${styles.projTagLoose}`}>
-                        {l(p.tag)}
-                      </small>
-                    )}
-                    <h3 className={`disp ${styles.projectName}`}>{p.name}</h3>
-                    <p className={styles.projectDesc}>{l(p.desc)}</p>
-                  </>
-                );
-                /* Same rule as the /04 grid: only a project with a real link becomes an
-                   <a>; the rest are plain articles. Both kinds get `--card-index` (their
-                   place in the fold) and the pointer lean — on a direction where no project
-                   has a public link, nothing in this section moved at all until now — but
-                   only the <a> lifts and takes the accent border, because that pair is the
-                   link's affordance and these cards go nowhere (lib/content.ts:170-172). */
-                return p.url ? (
-                  <a
-                    key={p.id}
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.project}
-                    style={{ "--card-index": i } as CSSProperties}
-                    data-tilt={tilt.enabled ? "on" : "off"}
-                    {...tilt.handlers}
-                  >
-                    {inner}
-                  </a>
-                ) : (
-                  <article
-                    key={p.id}
-                    className={styles.project}
-                    style={{ "--card-index": i } as CSSProperties}
-                    data-tilt={tilt.enabled ? "on" : "off"}
-                    {...tilt.handlers}
-                  >
-                    {inner}
-                  </article>
-                );
-              })}
+                      ) : (
+                        <small className={`mono ${styles.projTag} ${styles.projTagLoose}`}>
+                          {l(p.tag)}
+                        </small>
+                      )}
+                      <h3 className={`disp ${styles.projectName}`}>{p.name}</h3>
+                      <p className={styles.projectDesc}>{l(p.desc)}</p>
+                    </>
+                  );
+                  /* Same rule as the /04 grid: only a project with a real link becomes an
+                     <a>; the rest are plain articles. Both kinds get `--card-index` (their
+                     place in the fold) and the pointer lean — on a direction where no project
+                     has a public link, nothing in this section moved at all until now — but
+                     only the <a> lifts and takes the accent border, because that pair is the
+                     link's affordance and these cards go nowhere (lib/content.ts:170-172). */
+                  return p.url ? (
+                    <a
+                      key={p.id}
+                      href={p.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.project}
+                      style={{ "--card-index": i } as CSSProperties}
+                      data-tilt={tilt.enabled ? "on" : "off"}
+                      {...tilt.handlers}
+                    >
+                      {inner}
+                    </a>
+                  ) : (
+                    <article
+                      key={p.id}
+                      className={styles.project}
+                      style={{ "--card-index": i } as CSSProperties}
+                      data-tilt={tilt.enabled ? "on" : "off"}
+                      {...tilt.handlers}
+                    >
+                      {inner}
+                    </article>
+                  );
+                })}
+              </div>
             </div>
           </section>
         )}
 
-        {/* The Ghid TBS topic of a service page (components/hud/guide): lingering here offers the
-            guide, which opens the request flow with this service.
-
-            The rail on the left fills as the section is read, the number of the step in the
+        {/* The rail on the left fills as the section is read, the number of the step in the
             middle third of the viewport lights, and the same index is handed to the scene, so
             the model in the hero holds on that step's moment. */}
-        <section className={styles.steps} data-guide-topic="service" ref={stepsRef}>
+        <section className={styles.steps} ref={stepsRef}>
+          {/*
+            * THE READING MARKS, and they are why the panels can sit side by side.
+            *
+            * The step being read is decided by an observer holding a line at 45% of the viewport,
+            * which only works on things that cross it ONE AT A TIME — three panels abreast cross
+            * it on the same frame. So the observer watches these instead: 1px marks in the steps'
+            * order, and the panels light off `data-active`, which the same observer writes.
+            *
+            * They are spread over the whole SECTION, not over the card's list. Inside the list
+            * they came out 73px apart while the observer's band is 72px tall, so the three states
+            * were handed over inside 177px of scroll — under two notches of a wheel, which is what
+            * made the lighting look like a fault. Over the section they are ~157px apart.
+            *
+            * Empty, absolutely placed and hidden from assistive tech: they carry no copy, and
+            * nothing moves for them.
+            */}
+          {Array.from({ length: sol.steps.length + 1 }, (_, i) => (
+            <span
+              key={`mark-${i}`}
+              aria-hidden="true"
+              className={styles.stepMark}
+              style={{ "--m": i, "--n": sol.steps.length } as CSSProperties}
+              data-state="ahead"
+              ref={(node) => {
+                stepRowsRef.current[i] = node;
+              }}
+            />
+          ))}
           {/* The painted card. The section itself carries no background at all: the scene's
               canvas draws BEHIND the page, so anything opaque over the corner host hides the
               model that is aimed at it. Everything the card is — the ink surface, the radius,
@@ -866,17 +930,21 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               <div className={styles.stepsList}>
                 <span aria-hidden="true" className={styles.stepsTrack}>
                   <span className={styles.stepsFill} />
+                  {/* The head of the fill: a light that slides along the spine to the step being
+                      read. It is not a loop — its position IS `--steps-progress`, so it can only
+                      ever be where the reading is. */}
+                  <span className={styles.stepsSpark} />
                 </span>
+
                 {sol.steps.map((st, i) => (
-                  <div
-                    key={i}
-                    className={styles.stepRow}
-                    data-state="ahead"
-                    ref={(node) => {
-                      stepRowsRef.current[i] = node;
-                    }}
-                  >
+                  <div key={i} className={styles.stepRow} style={{ "--s": i } as CSSProperties}>
+                    {/* The index, twice: once as the panel's label and once enormous behind it.
+                        Same number, no new copy — the big one is what gives a three-sentence
+                        block something to look at. */}
                     <b className="mono">{String(i + 1).padStart(2, "0")}</b>
+                    <span aria-hidden="true" className={`disp ${styles.stepBig}`}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
                     <p>{l(st)}</p>
                   </div>
                 ))}
@@ -887,7 +955,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                   card, under the model; it belongs here, beside the steps that deliver it. */}
               {sol.flow?.length ? (
                 <aside className={styles.flowAside}>
-                  <div className={`mono ${styles.flowLabel}`}>{l(sol.cardLabel)}</div>
                   <strong className={`disp ${styles.flowTitle}`}>{l(sol.cardTitle)}</strong>
                   <p className={styles.flowText}>{l(sol.cardText)}</p>
                   <ol className={styles.flow}>
@@ -919,6 +986,12 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
         </section>
 
         <section className={styles.bottom}>
+          {/* The close was a heading, a line and a button floating in the page's own dark. It is
+              a panel now, in the HUD's own language: a thread across the top and four corner
+              brackets. Decoration only — nothing here is read, focusable or clickable. */}
+          <span className={styles.bottomFrame} aria-hidden="true">
+            <span className={styles.bottomThread} />
+          </span>
           <h2 className="disp">{l(solUI.bottomTitle)}</h2>
           <p>{l(solUI.bottomLead)}</p>
           <button

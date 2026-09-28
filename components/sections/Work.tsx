@@ -11,7 +11,6 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  eyebrow: L("Portofoliu TBS", "Портфолио TBS", "TBS portfolio"),
   title: L("Proiectele care ne reprezintă.", "Проекты, которые говорят за нас.", "The projects that speak for us."),
   lead: L(
     "De la platforme web la aplicații mobile — produse duse până la lansare.",
@@ -225,14 +224,7 @@ export function Work() {
       <div className="mx-auto max-w-(--maxw)">
         <Reveal className="mb-2 flex flex-wrap items-end justify-between gap-5">
           <div>
-            <div className="flex items-center gap-2.5 font-hud text-sm font-bold uppercase leading-[1.4] tracking-[.1em] text-red-text">
-              {l(SECTION.eyebrow)}
-              <span
-                aria-hidden="true"
-                className="hidden h-px w-12 bg-linear-to-r from-red/70 to-transparent sm:block"
-              />
-            </div>
-            <h2 className="mt-2 mb-0 font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt">
+            <h2 className="m-0 font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt">
               {l(SECTION.title)}
             </h2>
           </div>

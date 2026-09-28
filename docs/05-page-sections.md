@@ -245,6 +245,69 @@ time has to come from the clock — `MIN_SYNC_MS` — not from the scrub, and th
 change: `1 - (1 - x) ** 1.6` is not free to reshape either, because FLIGHT_MAP's slopes
 (0.75 → 0.61 → 0.72 → 1.29) exist to cancel that exact ease-out.
 
+### The film's clock counts frames, not seconds (2026-09-25)
+
+The processor was being missed entirely, and it was not because it was too fast.
+
+Timed on a cold load with the software renderer, sampling `--fb-p` on rAF inside the page: **the
+first frame on which it was anything but zero already read 0.265** — past the whole arrival and
+most of the ignition. **Three frames** rendered before 0.42. **None** of them in the arrival, one
+in the ignition. Nothing was skipped by the beats being short; the browser simply did not paint
+for 1.2s after hydration while `performance.now() - origin` ran on regardless, and the film went
+by in a tab still showing the previous frame.
+
+`MAX_PRE_SPEND_MS` was meant to prevent exactly this, and could not: it is applied to the clock's
+ORIGIN at takeover, not to the first frame that actually paints.
+
+So the director accumulates its own clock from frames it was drawn on, capped per step:
+
+```
+filmMs = first tick ? min(wall, MAX_PRE_SPEND_MS) : filmMs + min(now - lastTick, 150)
+```
+
+A stall now costs the film 150ms rather than however long it lasted, and the first frame opens at
+`MAX_PRE_SPEND` at the latest whatever happened before it. 150 and not less, so a device genuinely
+rendering at 7fps is barely clamped and still finishes. `HARD_CAP_MS` keeps its promise on the
+WALL clock, so however slowly the film advances it is still forced to its end.
+
+| measured on the software renderer | before | after |
+| --- | --- | --- |
+| frames rendered before 0.42 | 3 | **13** |
+| first `--fb-p` ever drawn | 0.265 | **0.050** |
+| frames in the arrival (≤ 0.14) | 0 | **4** |
+| frames in the ignition (0.13–0.30) | 1 | **6** |
+| biggest jump between two frames | 0.095 | **0.040** |
+
+**The watchdog had to grow with it.** A clock that refuses to skip takes longer in wall time on a
+machine slow enough to stall it — the film reached its end at 10.07s, which the old 10s watchdog
+would have cut mid-burst. It is 12s now: a broken page shows the overlay two seconds longer, and a
+slow but working one gets to finish.
+
+### The film was spending its time in the wrong places (2026-09-25)
+
+Even drawn, the balance was wrong. The processor — scrub 0 → 0.38, **38% of the film**, and the
+part with every new beat in it — took **1254ms of 7.9s, 16% of the time**. The machine, which is
+four rectangles and a lid, took **1627ms**.
+
+The cause is the director's own curve. `p = 1 - (1 - x) ** 1.6` is an ease-OUT: fast through scrub
+early, slow late. Two changes:
+
+- **the exponent, 1.6 → 1.35.** 38% of the scrub now gets 29.8% of the time instead of 25.8%. It is
+  deliberately NOT taken to linear: FLIGHT_MAP's slopes climb across the table (0.75 → 0.61 → 0.72
+  → 1.29) to cancel this ease-out, and a flat curve makes the last beat the fastest in the film.
+  Checked at 1.35 — camera speed per beat, slope × dp/dt at each band's midpoint — the bands come
+  out **0.980 / 0.714 / 0.686 / 0.862** in units of 1/T. The last is still below the first, which
+  is the property that has to hold.
+- **`MIN_SYNC_MS` 5000 → 5800**, and `HARD_CAP_MS` 6400 → 7200 to keep its 1.4s of slack.
+
+And the acts were re-cut inside the same 0 → 0.38, taking from the arrival and giving to the burn:
+`--ign` **[0.13, 0.30]** (0.17 of scrub, was 0.14), `--arr` [0.02, 0.14], `--spl` [0.13, 0.29],
+`--room` [0.16, 0.32]. The match dissolve widened, `--dt` 0.12 → **0.15**, because the cut into the
+board read as exactly that — a cut.
+
+Nominal, on a machine that paints every frame: the processor **1291 → 1730ms (+34%)** and the
+ignition **483 → 757ms (+57%)**.
+
 ### The six beats, and who draws them
 
 **One scalar carries the whole film.** `fx.flight`, 0 → 1: the camera's position, aim, field of
@@ -443,7 +506,7 @@ under a second, over a drawing that is fading out. Past 0.86 the drawing — alr
 beat — carries everything.
 
 **Page entrance** (GSAP, `expo.out`, ≤1.5s after reveal), one marked element per target
-(`data-intro-reveal`): grid (opacity + scale) · header (`yPercent` only) · eyebrow and lead
+(`data-intro-reveal`): grid (opacity + scale) · header (`yPercent` only) · lead
 (y + blur) · title (y, scale, blur — **never opacity**, it is the LCP element) · CTA wrapper ·
 stats (y + `rotateX`, transform only) · ticker (y). The low tier drops the blurs. Every inline
 style is cleared afterwards.
@@ -475,12 +538,15 @@ the readout sits near the bottom edge.
 
 | Case | What happens |
 |------|--------------|
+| A document request that never reached `proxy.ts` | Until 2026-09-25 the proxy skipped any request carrying the legacy `Purpose: prefetch` header — a **browser's** header, sent on the document Chrome preloads when its omnibox predicts a URL from history. Without the proxy there is no `x-pathname`, so the gate said no: **the visitor who returns most often never saw the intro**, and that response also had no CSP and no canonical. The matcher now skips only the router's own RSC prefetch |
 | A `tbs_intro_skip=seen` cookie | The server renders no overlay; no intro JS, no GSAP, no three.js. **The site never writes this cookie** — the E2E suite and QA seed it. It used to play once per session and a reload never replayed it, which reads as the intro being broken |
 | Any page but the home page (`/servicii/*`, legal pages) | Never — the gate is `x-pathname === "/"` |
 | Client-side navigation inside the site (a service page → Home, Back) | Never — the layout that holds the gate is not re-rendered |
 | Client-side navigation **into** the site (the admin's "view site" link) | The shell renders nothing and sets no cookie; the next hard load of `/` plays it |
-| `prefers-reduced-motion: reduce` | Hidden by CSS before hydration, then finished silently (`played: false`, cookie set); GSAP is never requested |
-| A `/#section` deep link whose target exists | Hidden by CSS (`html:has(:target)`) and bypassed after hydration — the visitor asked for a place on the page |
+| `prefers-reduced-motion: reduce` | Hidden by CSS before hydration (`.overlay[data-phase="boot"]`), then finished silently (`played: false`); GSAP is never requested |
+| A `/#section` deep link whose target exists, **arrived at** | Hidden by CSS (`html:has(:target)`, boot phase only) and bypassed after hydration — the visitor asked for a place on the page |
+| The same `/#section` URL **reloaded** | **Plays** (2026-09-25). Every internal link on this site writes a hash into the address bar (`#servicii`, `#lucrari`, `#top` from the wordmark), so the old "any hash bypasses" rule meant that one click cost a visitor the intro on every later F5 — the intro looked deleted. `hashSkipsIntro` (lib/intro.ts) reads `PerformanceNavigationTiming.type` and lets a reload through |
+| `localStorage.tbs_intro_force = "force"` | **Plays anyway**, past reduced motion and past a deep link. The site never writes it; it exists so the owner and QA can see the intro on a machine that asks for less motion. The CSS rules above are scoped to the boot phase precisely so a forced intro is visible rather than running under a hidden overlay |
 | JavaScript disabled | Hidden by a `<noscript><style>` rule; no cookie |
 | JavaScript late (the CSS failsafe clock is past 6.4s) | Bypassed, so a half-faded overlay never snaps back |
 | JavaScript never arrives (blocked or broken chunk) | The CSS failsafe fades it out at 7s and makes it click-through |
@@ -842,11 +908,11 @@ reduced motion.
     (min 1.22:1 at 1024×768); at 6vw the hero text is 100% ≥ 4.5:1 at 900 and 1024.
   - From 1025px: the right-hand column, centred, at full strength.
 - **Phone scrim** (`data-scene-scrim`, below 861px): a radial pool of the page colour over the
-  core and under the eyebrow, headline and lead, at `--hero-scrim`.
-- **Copy:** an eyebrow (`TBS DIGITAL / WEB · SOFTWARE · AI`, no dot; a short red hairline after it
-  from 641px);
-  the page's only `<h1>` (34→74px on phones, 44→92px from 861px) whose closing full stop is a plain
-  red glyph; the lead. Trilingual literals (`L()` in the component), not catalog keys.
+  core and under the headline and lead, at `--hero-scrim`.
+- **Copy:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px) whose closing full stop
+  is a plain red glyph; the lead. The kicker line above it (`TBS DIGITAL / WEB · SOFTWARE · AI`)
+  was removed on 2026-09-25, with every other kicker on the site — see
+  [No kicker lines](#no-kicker-lines-2026-09-25). Trilingual literals (`L()` in the component), not catalog keys.
 - **CTAs:** the primary `cta-neon` button **"Începe proiectul"** with an `aria-hidden` ↗ SVG opens
   the request dialog (`source: "hero"`); the secondary ghost link **"Explorăm serviciile ↓"** goes
   to `#servicii`. Both **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
@@ -857,13 +923,27 @@ reduced motion.
   glass cards (`data-metric="projects|automation"`) with a red / blue accent and an accent
   hairline along the top. The portfolio count is `projects.length` in its own `<b>` (no count-up,
   no card when it is 0); `24/7` is a fixed claim. Solid glass instead of blur below 861px.
+  - **Drawn by the 3D scene from 2026-09-25 (`[data-scene-anchor="stat"]`).** At 861px and up, on
+    a renderer that really draws (`[data-scene-stage][data-renderer="webgl"]`), the card keeps its
+    box and loses its paint (`app/globals.css`), and the scene draws a **holographic panel** in
+    that box instead — the same number, label and note, composed from the card's own text and
+    computed type onto a small canvas and drawn on the Work hologram's shader
+    ([04](./04-design-system.md#the-hero-stat-panels-2026-09-25)). It leans towards the pointer
+    over it, lifts a little out of the page while it is there, and breathes on a slow float.
+  - **The card is still the page's.** Not `display: none`, not `visibility: hidden`, not `inert`:
+    a screen reader reads the number exactly as before, the text is still selectable by software
+    that reads the DOM, and wherever a panel is not drawn — below 861px, on a `fallback` / `off`
+    renderer, under reduced motion, on a low-tier device, with the `tbs_scene_3d=off` switch, and
+    for any crawler that does not run WebGL — the visitor sees the glass cards we have always
+    shipped. There is no second copy of the numbers anywhere.
   - **A wireframe hologram** in each card's corner (`data-hologram`): an octahedron for the
     portfolio, a gyroscope of rings for the automations — hairlines only, no vertex dots. It turns
     slowly only while the stage allows motion (`data-motion="live"`), the intro is gone and the
     hero is on screen; otherwise it rests on a three-quarter pose. Still under reduced motion.
   - **Tilt:** under a mouse a card tilts up to 8° towards the pointer and settles back when it
     leaves; never on touch, never under reduced motion. The group's entrance marker is never
-    styled.
+    styled. Where the 3D panel is drawn the lean is the panel's, in the scene's own perspective,
+    and the card underneath it is not transformed at all.
 
 From 861px the hero is two columns and fills the first screen together with the ticker.
 
@@ -888,8 +968,8 @@ shown, wrapped and centred, without the seam separator.
 screen the 3D model draws behind. Its copy is trilingual `L()` literals in the component; each
 direction's accent and reference project come from `lib/solutions.ts` and the live portfolio.
 
-- **Heading row:** eyebrow **"Alege direcția potrivită"** with a red hairline, the `<h2>`, and the
-  lead.
+- **Heading row:** the `<h2>` and the lead. (Its kicker, **"Alege direcția potrivită"** with a red
+  hairline, went on 2026-09-25.)
 - **Pills** (`<nav aria-label="Direcțiile de servicii">`): five **real links** to
   `/servicii/<slug>`, in the scene's order (Produs digital · E-commerce · Automatizare & API ·
   Asistenți IA & boturi · Brand & UI). The selected one carries `aria-current="true"`, its
@@ -933,9 +1013,9 @@ direction's accent and reference project come from `lib/solutions.ts` and the li
 
 ## Work
 
-`components/sections/Work.tsx`, in Tailwind (`section#lucrari`, 2026-09-17). Eyebrow
-**"Portofoliu TBS"**, the `<h2>` **"Proiectele care ne reprezintă."** and a lead, then one HUD
-card per project from the store — fully editable from the admin's **Proiecte** tab
+`components/sections/Work.tsx`, in Tailwind (`section#lucrari`, 2026-09-17). The `<h2>`
+**"Proiectele care ne reprezintă."** and a lead (its **"Portofoliu TBS"** kicker went on
+2026-09-25), then one HUD card per project from the store — fully editable from the admin's **Proiecte** tab
 ([09 — Admin](./09-admin.md)).
 
 - **The card** is a link (`<a target="_blank" rel="noopener noreferrer">`) when the project has a
@@ -1037,8 +1117,8 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   scroll.
 - **Ambient — below 768px (or a window under 600px tall, or fewer than three projects).** The
   band (or grid) stays exactly as it is, and a small helix lies on its side, at full brightness,
-  **in the empty band above the heading** — between the Directions panel and the "Portofoliu TBS"
-  eyebrow (about 84px on a phone), about 60px tall there and at most 0.6 of the screen wide,
+  **in the empty band above the heading** — between the Directions panel and Work's `<h2>`
+  (about 84px on a phone), about 60px tall there and at most 0.6 of the screen wide,
   touching no text and no card — coloured after the card nearest the middle of the band. It is not behind the
   heading: there its flaring chips and packets turned the headline's pixels near-white, and keeping
   the copy readable left it a faint trace in the dark theme and nothing at all in the light one. The
@@ -1056,6 +1136,134 @@ Seeded content (`lib/content.ts`, nine projects): BizCheck, Itara Global, DocuSa
 CGAM, IQ Arena, Balloons Breeze, Statistic, FLIRT. Note that **CGAM and IQ Arena are two different projects** — CGAM is
 the academy's web platform (cgam.md); IQ Arena is the mobile negotiation game. Screenshots live in
 `public/projects/`.
+
+## Service pages — "Proiecte relevante"
+
+`components/sections/DirectionPage.tsx` (`<section id="proiecte">`), styled by `.projects` /
+`.projectsReel` / `.projectGrid` / `.project`.
+
+**Two shapes, and CSS chooses.** From 861px up on a renderer that really draws, the 3D laptop
+stage is laid out and the grid below it is `display: none` — the projects run on the machine's
+display and pressing it opens the one that is on it. Everywhere else — a phone, `fallback`, `off`,
+reduced motion — the stage is `display: none` and the grid is what carries the projects.
+
+**On a phone the grid is a strip, not a column** (2026-09-28). Five cards one under another made
+this section **1972px tall on a 390px phone** — a page and a half of scrolling for a list you take
+in at a glance when the cards stand side by side. Below 761px they do: a scroll-snap strip you push
+along, written the way Work's grid already is on the same widths
+([Work.tsx:207-210](../components/sections/Work.tsx)), down to the card width,
+`min(390px, max(82vw, 320px))`. The section is **477px** there now, and the next card is visible at
+the screen's edge, so nothing has to say "swipe".
+
+**The scroll box is the wrapper, never the grid.** `.projectsReel` exists for exactly this: the
+grid carries the shelf's frame on `::before` / `::after` and both hang 6px OUTSIDE it, so an
+overflow box on the grid would cut them away — and an absolutely positioned child of a scroller
+scrolls with its content in any case. Out on the wrapper the frame stays whole, and the wrapper's
+12px of padding (given back as a negative margin, so the section's height is unchanged) is what
+keeps the clip off the frame and off the card's 4px lift. The strip reaches the screen's own edges
+the same way Work's does, `margin-inline: calc(-1 * var(--gutter))` against `padding-inline:
+var(--gutter)`, and a snapped card still lands on the text column because `scroll-padding-inline`
+is the gutter too. `overscroll-behavior-x: contain` keeps a swipe that runs out of cards from
+turning into the browser's back gesture.
+
+**The grid is `width: max-content` there**, which is what makes the frame right: drawn against a
+box the width of the screen it would end after the first card, and against the shelf's own width it
+runs the whole reel, with the closing bracket still waiting for the last window (`--card-count`).
+One consequence is worth knowing: a flex item that GROWS contributes its own max-content width to
+such a container, so a growing card made the reel 6171px wide and its description one long line.
+The cards therefore do not grow — except when there is only one of them, where there is nothing to
+push and the reel is sized the ordinary way instead so the single card can fill the row.
+
+**What is watched and what is opened are not the same element.** The arrival observer's threshold
+is a SHARE of its target, and once the cards run sideways the grid is four screens wide: the share
+of it on screen tops out around 0.235 on a 390px phone, under the 0.25 the observer asks for, and
+the frame would have stayed dark for good. So the wrapper — the box the visitor actually has in
+front of them, at every width — is what is observed, and what it opens is the grid. The cards are
+still watched one by one and open themselves, and the 3D stage still rides the same observer.
+
+**The 90ms ladder came back with the strip.** Stacked, each card arrived on its own as the visitor
+scrolled, so a ladder would only have delayed the last one and `--step` was pinned to 0. Side by
+side they arrive together, so they cascade again, exactly as they do on a desktop.
+
+## Service pages — "Cum lucrăm" and the close
+
+`components/sections/DirectionPage.tsx`, the `/servicii/<slug>` pages.
+
+**The steps.** A list, read one at a time: an IntersectionObserver holds a reading line at 45% of
+the viewport, and what is lit is COUNTED from it — how many of the block's marks have already
+crossed. The rail beside them fills to match, and the 3D model docks into a sticky corner
+(`data-scene-anchor="steps"`, desktop and WebGL only) on the step's own moment.
+
+**Three panels abreast** (2026-09-27). The block holds three short sentences and the card is as
+wide as the page, so as a stacked list it was one column of type and a great deal of dark — and the
+data has nothing more to give: the three capabilities with descriptions (`items`) are already drawn
+higher up the page, and `flow` only exists on some directions. So the richness comes from form.
+Each step is a panel now: its index in mono at the top, the sentence under it, and the SAME index
+set enormous in the bottom corner in the site's own three stops (`[data-progress]`'s, the ones the
+footer's wordmark closes the page on). A spine runs across the top and fills as they are read. The
+panel being read lifts 3px, takes a cyan border and a barely-there fill, and lights both of its
+indices.
+
+**And that needed a deeper move than it looks.** The live step is chosen by a reading line at 45%
+of the viewport, which only works on things that cross it ONE AT A TIME — three panels abreast
+cross it on the same frame. So the observer watches invisible 1px marks spread down the block's
+height in the steps' order, and the panels light off `data-active`, which the same observer writes.
+One truth, two drawings; the model's docking on the step's moment is untouched.
+
+**How the lighting is decided** (2026-09-28). Three things were wrong with the first version of it,
+and they were one thing: it read the state off whatever happened to be inside the observer's band,
+instead of counting.
+
+- The marks were children of the panel row, so all three sat within 73px of each other against a
+  72px band — every state handed over inside 177px of scroll, most of it at once.
+- Between two marks nothing is in the band at all, and that emptiness was read as "the block is
+  behind us", so the lighting went 1 → done → 2 → done → 3.
+- A band 8% of the viewport tall can be flicked clean through between two frames, and an observer
+  that was outside before and outside after reports nothing.
+
+Now the marks are direct children of the section and the state is derived from positions on every
+callback: `doneCount` is how many marks are above the line, the last of them is `live`, and the
+observer's root is everything ABOVE the line (`rootMargin: 0px 0px -55% 0px`) rather than a band
+around it — a region 45% of the viewport tall cannot be jumped, and once a mark is in it, it stays
+in. The result can only move one way as you scroll, and reverses exactly on the way back up,
+because nothing is remembered between callbacks.
+
+**There is one mark more than there are steps.** The extra one sits at the block's foot, and its
+crossing is what `data-active="done"` means: the block is genuinely behind the reading line, not
+merely between two of its own steps. Before it existed the attribute kept the step COUNT, so the
+third panel stayed lit for the whole rest of the page — a box stuck on rather than a step
+happening. In `done` all three panels are lit equally and calmly (index at .26, border cyan at
+22%), none of them raised.
+
+The marks take equal shares of the block — mark `--m` of `--n` steps at `8% + --m × (92% / --n)`,
+so mark 0 is at 8% and the tail at 100%. Spreading only the steps put the third one 30px from the
+foot, a blink before the block counted as read; at 1440×900 each step now holds the line for
+~107px of scroll.
+
+**It lights in sequence when it is reached.** The spine draws out from the left, the panels come up
+one after another 140ms apart, and each one's giant index rises into it a beat later — once, on
+the same latch the footer uses (`data-armed` at mount so a visitor without JavaScript sees the
+finished block, `data-entered` latched once so it never replays). The panel's entrance is on
+`transform` and its lit state on `translate`, two properties, so the 3px lift of the step being
+read composes with the entrance instead of fighting its fill; the index rises on `translate` for
+the same reason, because its opacity belongs to the lit state.
+
+**And a light runs the spine to the step being read.** Not a loop: its position IS
+`--steps-progress`, the number the fill is scaled by and the observer writes, so it can only ever
+be where the reading is. It is placed in units of the spine (`cqw`) because both the step count
+and the card's width change, and a pixel offset would be wrong at every one of them.
+
+Where a direction has a flow scheme beside the rows the steps get half the card, so they stay
+stacked there, and likewise under 860px.
+
+**The close.** `AI UN PROIECT ÎN MINTE?` was a heading, a line and a button standing in the page's
+dark with nothing around them. It is a panel now, with four corner brackets — the HUD's own
+language — and a coloured thread drawn across its top edge as the block enters the viewport
+(`animation-timeline: view()`, once). The brackets take a lighter tone than `--line`: that hairline
+is made for the inside of a panel and disappears on the page's own dark.
+
+Nothing in either block repeats, so neither needs the off-screen pause —
+see [07](./07-conventions.md#the-rest).
 
 ## /02 — Principles ("Cum lucrăm, pe scurt.")
 
@@ -1123,9 +1331,10 @@ renumbers automatically.
 
 ## /05 — Team ("Oamenii din spatele produsului")
 
-A heading block (eyebrow · title · lead), then the **Team Lead's holographic projection**, then a
-horizontal snap carousel of member cards. Each card carries the `ECHIPA TBS` label, the member's
-photograph (or a gradient initial where none is set), their name and their role. Below the carousel
+A heading block (title · lead), then the **Team Lead's holographic projection**, then a
+horizontal snap carousel of member cards. Each card carries the member's photograph (or a gradient
+initial where none is set), their name and their role — the `ECHIPA TBS` label above them went on
+2026-09-25 with every other kicker. Below the carousel
 sits the stat row, which renders only the stats the owner has actually filled in and disappears
 entirely while they are all blank.
 
@@ -1211,23 +1420,41 @@ see [09 — Admin](./09-admin.md).
   `03 · OPȚIUNI SUPLIMENTARE` — plus an estimated-price total. Prices come from the admin;
   an unset price renders `...` (see rules doc). Arriving from a service card pre-selects
   that project type.
-- **Request context (2026-09-17, plumbing for the IT-OS HUD; since Phase 4 the Ghid TBS passes
-  `openAssistant`, `guideTopic` and the `guide` / `guide-prompt` sources — see
-  [Ghid TBS](#ghid-tbs-the-guide); the other new fields still have no caller).** Every CTA opens the one request dialog
+- **One arrangement, two places (2026-09-26).** The dialog used to run this same flow as a
+  three-step wizard on one column — a numbered progress bar, Înapoi/Continuă, the assistant
+  behind a "Ghidat" button — because two bays squeezed into a 960px modal were cramped. The owner
+  asked for one design, so **the dialog now renders the deck**: both bays, the assistant among
+  them, everything on screen. The cramping is answered by the deck measuring ITSELF
+  (`@container deck (width < 711px)`) rather than the window, so it stacks its bays on its own
+  width — 910px and two bays at a 1440px window, one bay inside the dialog on a phone. The page
+  keeps its heading, its lead and `#estimare`; the dialog has its own head and must not carry a
+  second copy of either.
+- **It fits on one screen, without scrolling, from 768px of window height up.** A dialog has a
+  height budget the page does not, so two things answer it: the `ground="ink"` panel drops the
+  760px cap and uses the window (measured, it was stopping at 760 even on a 1080px-tall screen,
+  leaving the deck 107px short), and the deck takes a tighter vertical rhythm under
+  `.box[data-layout="dialog"]` — **spacing only**, never a colour, a border, a radius or a chip's
+  shape, because the moment it were any of those the dialog would be a second design again. The
+  deck is 568px there against 683 before. Below 768px of height it scrolls (48px short at
+  1280×720), which is what a dialog does. `data-layout` survives as BEHAVIOUR only (the corner assistant steps out
+  of the way of the `section` one); nothing in the stylesheet keys off it any more.
+- **Request context (2026-09-17, plumbing for the IT-OS HUD).** Every CTA opens the one request dialog
   (`lib/request/RequestFlowProvider.tsx`) with a `RequestContext`. Besides `serviceSlug`,
   `projectId` / `projectName` and `source`, it now takes:
   - `projectType` — a catalog id (`site`, `crm`, `automation`, `ecommerce`, `mobile`) that wins
     over the slug's mapping; an unknown id is ignored;
   - `optionIds` — exactly these option chips (`design`, `integrations`, `multilingual`, `seo`)
     instead of the default "+ Integrări & API"; `[]` ticks none, unknown ids are dropped;
-  - `openAssistant` — dialog only: it opens on the assistant, with focus in the chat panel;
+  - `openAssistant` — dialog only, and since 2026-09-26 it MOVES FOCUS rather than opening
+    anything: the deck's assistant is on screen either way. The corner assistant passes it on
+    every request she opens, which is what the promise in her accessible name rests on;
   - `guideTopic` — `servicii`, `lucrari` or `service`, written into the origin block as
     `- Secțiune: <topic>` (any other value is left out);
   - `attachment` — a HUD tool's block (`kind` calculator / builder, `count`, optional `summary`,
     `text`): control characters stripped, capped at 1,200 characters with `[…]`
     (`lib/request/attachment.ts`), and a one-line note under the proposal says what travels.
 
-  New `source` ids: `guide`, `guide-prompt`, `os-calculator`, `os-builder`. The sent message is
+  New `source` ids: `os-calculator`, `os-builder` (the guide's two went with it). The sent message is
   the summary, then the attachment, then the origin block, then the transcript; the attachment's
   and the origin's room is reserved before the summary is clamped, so the whole stays ≤ 5,000
   characters. The project types and options, with their ids, live in `lib/request/catalog.ts`
@@ -1372,9 +1599,58 @@ paints a `Canvas` backplate behind text and `HighlightText` is black in the dark
 
 ## Footer
 
-Partners row (the same partners as /06, rendered as chips that link to their sites),
-navigation/services/contact columns, socials, copyright, and the `> ACCESS GRANTED_`
-striped marquee.
+The card the page ends on, in **three tracks**: the brand (the mark, one line of copy, the social
+buttons — note that all three seeded socials ship with an empty url, so until the owner pastes them
+in the admin that row is the one hardcoded email button — and the contacts), then **NAVIGARE**
+(5 hash anchors, relabelled through the catalog) with **PARTENERII NOȘTRI DE AFACERI** stacked
+under it (`#parteneri` is the header menu's jump target — there is no homepage partners section),
+then **PORTOFOLIU** on its own (a fixed "all projects" row plus every project in the store; one
+with a public url opens it, one without falls back to the grid). Then a mono meta line —
+copyright and the two legal links — and the giant `TBS DIGITAL` wordmark cropped by the bottom
+edge.
+
+The stack and the contacts are both about the same hole. The columns ran 5, 10 and 3 rows deep and
+a grid row is as tall as its tallest item, so the two-column phone reflow opened ~220px of dead
+space under NAVIGARE and left a whole cell empty under PARTENERI; stacking the short two against
+the tall one makes it 8 against 10. The contacts moved up out of the meta row for the same reason
+— the brand column was empty below the social buttons, and an address at 12px in the bottom bar was
+the least legible thing in the footer.
+
+**The meta row keeps the assistant's corner clear.** She is fixed bottom-right and the footer is
+the end of the page, so it is always read with her on top of it: measured at 1440×900 the row's
+last link sat entirely inside her box and could not be clicked. The reserve comes from
+`--hud-bottom`, the token that already states where she ends.
+
+**It lights once, when the visitor reaches it** (2026-09-27). `data-armed` goes on at mount — so
+a visitor whose JavaScript never arrives sees a finished footer, not one waiting for a signal —
+and a one-shot observer latches `data-entered` at a third on screen. The thread on the top edge
+draws out from the middle (520ms), the three column heads come up in sequence (120/240/360ms),
+and at 520ms colour climbs up through the wordmark.
+
+That last one is the piece worth knowing: the mark is drawn **twice** — a dim copy that holds the
+height, and a full-colour copy inside a clipped window that climbs out of the bottom edge while
+the copy inside it climbs the exact opposite amount. The two cancel, so the letters never move a
+pixel; what travels is the clip rectangle. Two composited transforms and no repaint. The window
+and the copy share one duration and one delay, written once, because any difference between them
+shows as the letters sliding.
+
+The gradient is `--blue → --violet2 → --cyan`, and it is not a new one: those are
+`[data-progress]`'s stops, the bar that fills across the top of the page as you scroll. The page
+opens on that gradient and closes on it. It used to start and end on `--line`, the interface
+hairline colour, so both ends of the biggest thing on the page faded into the panel; and `.word`
+was a full-viewport block, which meant `background-clip: text` mapped the gradient to that box
+rather than to the letters and the mark sampled a different part of it at every width. The box is
+now the glyph run.
+
+**One thing repeats**: a narrow band of light crossing the top edge, the chip's packet in the only
+vocabulary a plain DOM footer has. One element, one transform, no paint, 82% of its cycle spent off
+the right end, and it starts only once the arrival has finished. It is paused under `data-offscreen`
+(`useOffscreenAttribute`, [07](./07-conventions.md#the-rest)) — the footer is at the bottom of an
+8900px page, so without that it would run unseen for nearly the whole visit.
+
+**The two radial glows are gone.** They hung off the card's corners, positioned partly outside it,
+and the card is `overflow: hidden` — which is what crops the wordmark — so each was sliced off by
+the rounded edge and read as a hard-edged blue and red smear rather than as light.
 
 ## Cookie-consent banner
 
@@ -1402,71 +1678,46 @@ Links to `/cookies`. Nothing tracking loads before a choice — see
   pressing Escape to skip the intro, and a quick second press must not store "rejected" for six
   months on a banner they have not seen. The buttons work at once.
 
-## Ghid TBS (the guide)
+## Asistent TBS (the corner assistant)
 
-IT-OS Phase 4 (2026-09-17). A small holographic cube droid, **"Ghid TBS" / "Гид TBS" / "TBS
-Guide"**, in the bottom-right corner of **every site page** (home, the service pages, the legal
-pages) once the visitor has done something. It is a guide to the existing request flow, not a
-new chat: it never calls itself "AI", never answers questions itself, and promises nothing the
-estimator does not already promise. Code: `components/hud/guide/*`, `lib/hud/linger.ts`, mounted
-by `components/hud/HudChrome.tsx` ([03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17));
-look: [04](./04-design-system.md#ghid-tbs--the-guide).
+IT-OS Phase 4 (2026-09-17), and since 2026-09-24 a **holographic projection of a person** in the
+bottom-right corner of every site page, once the visitor has done something: she breathes, blinks,
+and, when she is pressed, opens a short list of written questions she answers, with one button that
+opens the request flow. She is the size of her square and is never drawn larger. Code: `components/hud/guide/*`, mounted by
+`components/hud/HudChrome.tsx`
+([03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17)); look:
+[04](./04-design-system.md#asistent-tbs--the-corner-assistant).
 
-**When it is there.** Nothing renders — and nothing of it is downloaded — until the cookie
-question is answered, the visitor has interacted (a pointer move, tap, wheel, scroll, key or focus
-change; answering the banner counts), the intro overlay is gone and the browser has an idle slot.
-QA and the E2E suite can switch it off with `localStorage.tbs_hud = "off"`.
+**The GUIDE inside her was removed on 2026-09-26 at the owner's request.** That was the part that
+spoke first: a tip that appeared after 5s of lingering on a section (`#servicii`, `#lucrari`, a
+service page's steps), with "Deschide ghidul" and "Nu mai arăta" under it. Gone with it:
+`lib/hud/linger.ts` and its limits, the centre-line observer and its topic scanning
+(`[data-guide-topic]`, which the service pages no longer carry), the `prompts` copy and the
+`guide-prompt` CTA source.
 
-**The avatar** is a real `<button aria-haspopup="dialog">` named "Ghid TBS: deschide asistentul
-ghidat pentru cerere". Pressing it opens the **request dialog straight on the guided chat**
-(`openAssistant`), focus inside the chat. Closing the dialog hands focus back to the avatar.
+**The GREETING went the same day**, on the second look: "Bună! Am pregătit câteva răspunsuri
+scrise." — one sentence in a bubble the moment her entrance finished, which is the panel the owner
+photographed and asked to be rid of. Gone with it: `GUIDE_COPY.hello`, `GUIDE_COPY.dismiss` (that
+bubble's close label) and the bubble's speech mode with its tail. **Nothing here opens a panel the
+visitor did not ask for.** Her mouth still moves for 7 s after an answer comes up, which is all
+`data-say` means now; the answer itself stays until it is closed. That mouth was rebuilt the
+same day: an aperture that parts at the lip seam with painted teeth, varying its width and its
+height together so the shapes read as syllables instead of one pulse (look:
+[04](./04-design-system.md#asistent-tbs--the-corner-assistant)).
 
-**The tip.** When one topic holds the viewport's **centre line for 5s of visible time** (a hidden
-tab does not count), the droid pulses and a short tip appears above it. It takes no focus, has no
-role and no live region (an unrequested tip must not interrupt a screen reader); it describes the
-avatar (`aria-describedby`), so it is heard on the button. Buttons: **"Deschide ghidul"** (opens
-the flow, like the avatar), **"Nu mai arăta în această vizită"** (no more tips until reload) and
-**✕ "Închide sugestia"**. Escape inside the guide closes the tip; focus that was in it goes to the
-avatar.
+**And the ENTRANCE went on the third look** — *"fa sa nu apara mare, scoate, lasa doar asistentul
+cel mic in patrat."* She used to build herself over the corner of the page at three times her
+launcher for 3.4 s before settling into it (the projector, the sixteen bands, the scanner, the
+lock-on, the shockwave). She now simply fades in where she stands, in 0.4 s, at her own size.
+Gone with it: the `Projector` component and its sixteen slices, the `greeting` and `entering`
+state, the frame loop that waited for nothing to be covering her, `data-greet`, `data-state`, the
+`guide-greeting` test hook, and nine keyframes. Look:
+[04](./04-design-system.md#asistent-tbs--the-corner-assistant).
 
-| Topic | Where | Tip (RO) |
-|-------|-------|----------|
-| `servicii` | the home page's `#servicii` | "Nu ești sigur ce direcție ți se potrivește? Ghidul pune câteva întrebări scurte și trimite echipei rezumatul." |
-| `lucrari` | the home page's `#lucrari` | "Ai în minte un proiect asemănător? Descrie-l pas cu pas — îți răspundem în cel mult o zi lucrătoare." (the same reply time `SENT_COPY` promises) |
-| `service` | a service page's "Cum lucrăm" steps (`DirectionPage`, `data-guide-topic="service"`) | "Vrei să vezi dacă direcția asta se potrivește proiectului tău? Ghidul te ajută să formulezi cererea." |
-
-**Limits** (`GUIDE_LIMITS`):
-
-- at most **2 tips per page lifetime**, each topic at most **once**, **60s** between two tips;
-  a tip closed with ✕ still counts;
-- no tip while the page is covered (the request dialog, the burger menu), the intro is on screen,
-  the banner is waiting, the visitor is typing in a field, the request flow is open, the guide is
-  away, or (from the OS phase on) the visitor is busy with a HUD window; the 5s wait simply starts over;
-- a shown tip goes when its section leaves the centre line, the flow opens, the page is covered,
-  or focus lands on something under the tip.
-
-**Memory lasts the page lifetime.** It is one module variable: it **survives client navigation**
-(home → a service page → back keeps the count and the opt-out) and resets on a reload. Nothing is
-stored — no localStorage, no sessionStorage, no cookie.
-
-**It steps aside.**
-
-- **Away:** while the home page's own request form (`#estimare`) is in view, the avatar and tip
-  fade to opacity 0, take no pointer and leave the tab order (that section *is* the guided flow).
-- **Yield:** when keyboard focus lands on something the guide overlaps, it fades until focus moves
-  on (WCAG 2.4.11).
-- The dialog, the burger menu and the intro sit above it (z 112 < 115); nothing is hidden.
-
-**What it sends.** Only what the visitor then submits in the request form, with the origin block
-the estimator already writes:
-
-- `- Serviciu: <slug>` — on a service page (a slug `lib/directions.ts` knows);
-- `- Proiect: <name> (<id>)` — only when the tip or the centre line is on `#lucrari` and the
-  project spiral has a front card (`data-helix-front`); otherwise no project;
-- `- Secțiune: servicii | lucrari | service` — the topic on the centre line when it was opened;
-- `- Sursă (CTA): guide` (the avatar) or `guide-prompt` (the tip's button).
-
-Nothing is sent when the guide merely shows or a tip is dismissed: no analytics event, no request.
+What she still is: a real button named "Asistent TBS: deschide întrebările frecvente" (the name
+starts with the visible caption, WCAG 2.5.3), 184×184 from 861px and 104 / 68 below it, at
+`--z-guide` (112), with away (over `#estimare`'s request form) and yield (focus under her) both by
+opacity, never `display: none`. She is the reason the rail stops at `--hud-bottom` 208 from 861px.
 
 ## The fibre rail
 
@@ -1478,13 +1729,13 @@ mounted by `components/hud/HudChrome.tsx`
 ([03](./03-architecture.md#the-rails-wiring-it-os-phase-5-2026-09-17)); look:
 [04](./04-design-system.md#the-fibre-rail).
 
-**When it is there.** Like the guide: nothing renders or downloads until the cookie question is
+**When it is there.** Nothing renders or downloads until the cookie question is
 answered, the visitor has interacted, the intro is gone and the browser has an idle slot — and
 then only while the window is at least 861px wide. Narrowing the window below 861px removes it;
 widening brings it back. `localStorage.tbs_hud = "off"` switches it off with the rest of the HUD.
 
-**What it shows.** A faint core line from under the header (16px below it) down to 112px above the
-bottom, just above the guide. A lit thread fills it with the scroll progress (top of the page →
+**What it shows.** A faint core line from under the header (16px below it) down to `--hud-bottom`
+— 112px above the page's foot. A lit thread fills it with the scroll progress (top of the page →
 empty, bottom → full), with a glowing head at its end and a short light streak that travels along
 it **only while the page is scrolling**. One **diamond tick per section** sits where the thread
 ends when that section is scrolled to (kept at least 44px apart): hollow ahead, lit once passed,
@@ -1500,7 +1751,7 @@ sections"**, one 44×44 button per tick; the label shows beside it on hover and 
 | `/cookies` | its 7 numbered headings ("01 Ce sunt cookie-urile" …) |
 | `/confidentialitate` | 14 sections: **more than 8, so the fibre and ticks only, no `<nav>`** (a list of buttons that long is not a shortcut) |
 
-Headings inside the header, the footer, a dialog, an `aria-hidden` subtree, the guide or the rail
+Headings inside the header, the footer, a dialog, an `aria-hidden` subtree or the rail itself
 never name a section, nor does a section holding more than one `h2` (a list of items). A label is
 the heading's text, whitespace collapsed, at most 60 characters. The home list is used only when
 all seven ids are on the page; a client navigation re-reads the sections.
@@ -1509,7 +1760,7 @@ all seven ids are on the page; a client navigation re-reads the sections.
 instantly under reduced motion — and that marker becomes the current one (`aria-current="true"`,
 a short lit streak beside it). The current marker is the last section the scroll has reached.
 
-**Keyboard.** The buttons are real tab stops, **after the footer** (and after the guide) in the
+**Keyboard.** The buttons are real tab stops, **after the footer** in the
 tab order, so the header's tab budget and the intro's "skip is the first Tab stop" hold.
 **Enter or Space** jumps like a click and also **moves focus to the section** (a temporary
 `tabindex="-1"`, removed when focus leaves it), so the next Tab continues inside that section. A
@@ -1517,8 +1768,8 @@ mouse click never moves focus. Every button shows a 2px focus ring and its label
 
 **It stays out of the way.** The column takes no pointer events except its 44×44 buttons. The
 fibre and the markers are inset by **half a marker (22px)** at both ends of the column, so every
-44×44 button stays inside it — clear of the header above and of the guide's avatar box below. It sits under
-the guide, the burger menu, the request dialog and the intro (z 104). While the dialog or the burger
+44×44 button stays inside it — clear of the header above and of the foot below. It sits under
+the burger menu, the request dialog and the intro (z 104). While the dialog or the burger
 covers the page it holds still and re-measures when they close. It never blocks or takes over
 scrolling (only passive listeners), writes nothing on `<html>` or `<body>`, stores nothing and
 sends nothing. It re-measures as the page grows — images and fonts arriving, Work's project spiral
@@ -1533,6 +1784,23 @@ still follows the scroll position, and a jump is instant.
 up in Neon Cyan towards an 18×2px glowing head. From 861px the top bar keeps its old gradient until
 the rail appears, and is hidden while the rail is on the page — a visitor who has not interacted
 (or with the HUD off) still sees progress.
+
+## No kicker lines (2026-09-25)
+
+The site used to put a small red mono line above nearly every heading — the hero's
+`TBS DIGITAL / WEB · SOFTWARE · AI`, Directions' "Alege direcția potrivită", Work's "Portofoliu
+TBS", "De ce TBS", "Echipa", "Cerere / estimare", a service page's own tagline and its section
+kicker, "BENEFICIU" on each of the three benefit panels, "ECHIPA TBS" on each person card, "PROIECT
+REAL DIN PORTOFOLIU" on the case card and its flow card's label. **They are all gone, at the
+owner's request**, together with the copy that fed them (`SECTION.eyebrow` in five sections,
+`Solution.eyebrow` and `Solution.cardLabel`, `solUI.benefit`, the Directions `tag` field, `CASE.ref`
+/ `CASE.none`, the `dir.section.kicker` message key and the `Modal` component's unused `eyebrow`
+prop).
+
+What was kept is what carries information rather than ceremony: a project card's own tag chips
+(admin-editable, different per project), the numbered group labels in the estimator
+(`01 · TIP DE PROIECT`), the principles cards' `01 / PRODUS`, and every ghost index (`01`, `02`,
+`03`). Nothing was replaced: a heading now starts the block.
 
 ## Legal pages
 

@@ -47,8 +47,83 @@ export const INTRO_OVERLAY_ID = "tbs-intro";
  */
 export const INTRO_FORCE_3D_KEY = "tbs_intro_3d";
 
+/**
+ * `localStorage[INTRO_FORCE_KEY] === "force"` plays the intro whatever the browser says: past a
+ * reduced-motion preference and past a `#section` in the address bar. The site never writes it.
+ *
+ * It exists because the two bypasses below are invisible — a visitor whose system asks for less
+ * motion, or whose address bar still carries a `#section`, simply gets no intro and no way to tell
+ * why. The owner reviewing the site, and QA, need one.
+ */
+export const INTRO_FORCE_KEY = "tbs_intro_force";
+
+/** Is the intro forced in this browser? `false` wherever storage is missing or throws. */
+export function readIntroForce(): boolean {
+  try {
+    return typeof localStorage !== "undefined" && localStorage.getItem(INTRO_FORCE_KEY) === "force";
+  } catch {
+    return false;
+  }
+}
+
+/** How the browser says this document was reached (`PerformanceNavigationTiming.type`). */
+export type NavigationKind = "navigate" | "reload" | "back_forward" | "prerender" | "unknown";
+
+/** The current document's navigation kind; `unknown` where the API is missing or empty. */
+export function readNavigationKind(): NavigationKind {
+  try {
+    const entry = performance.getEntriesByType("navigation")[0] as { type?: string } | undefined;
+    const kind = entry?.type;
+    return kind === "navigate" || kind === "reload" || kind === "back_forward" || kind === "prerender"
+      ? kind
+      : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
+ * Pure. Does a `#section` in the address bar mean "skip the intro"?
+ *
+ * Only when the visitor ARRIVED on that link — a deep link from a search result, a shared URL, the
+ * site's own menu. **A reload does not**, and that is the whole point of this rule: every internal
+ * link on this site writes a hash into the address bar (`#servicii`, `#lucrari`, `#top` from the
+ * logo), so once a visitor has clicked one, every later F5 used to land on this bypass and the
+ * intro never played again. That is what "the intro was deleted" looks like from the outside, and
+ * it is what the owner hit while reviewing the site.
+ *
+ * A `back_forward` navigation is an arrival like any other: the hash is what was asked for.
+ */
+export function hashSkipsIntro(kind: NavigationKind, hasTarget: boolean): boolean {
+  return hasTarget && kind !== "reload";
+}
+
 /** `detail` of `INTRO_EVENT`: did the animation actually run, or was it bypassed? */
 export type IntroDoneDetail = { played: boolean };
+
+/**
+ * Written on `<html>` the moment an intro that REALLY PLAYED uncovers the page, and never on a
+ * load where it was bypassed. It means one thing: **this document has already had its cover.**
+ *
+ * The page-loading cover reads it and stands down (`components/ui/PageLoading.module.css`), and
+ * so does the corner assistant before she plays her entrance. Without it the owner got two
+ * loading screens in a row — the film, and then BootCore for another 5.6 seconds — over a page
+ * that was already rendered, complete and interactive underneath.
+ *
+ * It stays for the life of the document, so a client navigation back to the home page in that
+ * same visit does not raise the cover either. That is the same judgement: the page is on screen.
+ *
+ * An attribute and not a module flag, because the rule that needs it is a CSS rule and it has to
+ * be true on the very frame the intro reveals — `finishIntro` writes it before the phase changes.
+ */
+export const INTRO_PLAYED_ATTR = "data-intro-played";
+
+/** Has an intro already uncovered this document? `false` on the server. */
+export function introPlayed(): boolean {
+  return (
+    typeof document !== "undefined" && document.documentElement.hasAttribute(INTRO_PLAYED_ATTR)
+  );
+}
 
 export const INTRO_TIMING = {
   /**
@@ -62,14 +137,20 @@ export const INTRO_TIMING = {
    * for the whole power-up. The owner's report was that he could not see the animations, and
    * the numbers said he was right.
    */
-  MIN_SYNC_MS: 5000,
+  /*
+   * RAISED TO 5800 (2026-09-25), because the film was spending its time in the wrong places.
+   * Timed on a cold load: the processor — the detailed part, and what the whole opening is about
+   * — got 1254 ms of a 7.9 s film, while the machine, which is four rectangles and a lid, got
+   * 1627. "Nici nu dovedeste sa se aprinda." The other half of the fix is the director's curve.
+   */
+  MIN_SYNC_MS: 5800,
   /**
    * The progress target is forced to 100% at this point, whatever is still loading.
    *
    * It has to stay clear of MIN_SYNC_MS or a slow load gets its film cut off and jumped to the
    * end: 1.4s of slack, and still 1.5s short of the shell's watchdog.
    */
-  HARD_CAP_MS: 6400,
+  HARD_CAP_MS: 7200,
   /** Once JS takes over, the counter visibly runs for at least this long. */
   MIN_JS_RUN_MS: 600,
   /**
@@ -83,9 +164,9 @@ export const INTRO_TIMING = {
    * always most of a film left to play.
    *
    * 250, not 1200, and the number is now load-bearing rather than cautious. The processor
-   * section ends at --fb-p 0.34; at a 1200 ms pre-spend the curve is already at 0.4164 when the
-   * director draws its first frame, so the ENTIRE processor — every new beat in it — would be
-   * spent before anything was drawn. At 250 the curve opens at 0.086, inside the first beat.
+   * section ends at --fb-p 0.38; at a 1200 ms pre-spend the whole of it — every beat in it —
+   * would be spent before anything was drawn. At 250, against MIN_SYNC 5800 and the director's
+   * 1.35 curve, the film opens at 0.058: inside the first beat, before the pulse has set off.
    */
   MAX_PRE_SPEND_MS: 250,
   /** Hydration later than this (read off the CSS failsafe clock) bypasses the intro. */
@@ -93,7 +174,16 @@ export const INTRO_TIMING = {
   /** The pre-hydration CSS failsafe's animation-delay — pinned against the CSS module by a test. */
   FAILSAFE_MS: 7000,
   /** The shell forces the overlay out if the director never reveals the page. */
-  WATCHDOG_MS: 10000,
+  /*
+   * RAISED TO 12000 (2026-09-25), and it is the price of the director's frame-counting clock.
+   * That clock advances on frames the browser actually painted rather than on seconds, so on a
+   * machine slow enough to stall it the film now takes LONGER in wall time than it used to —
+   * which is the point, because what it used to do instead was skip the beats. Measured on the
+   * software renderer the film reached its end at 10.07 s, which the old 10 s would have cut
+   * mid-burst. A broken page therefore shows the overlay two seconds longer; a slow but working
+   * one gets to finish.
+   */
+  WATCHDOG_MS: 12000,
   /**
    * WebGL scene not ready by this share of the progress → the burst plays on the SVG.
    *
@@ -131,7 +221,6 @@ export const INTRO_REVEAL_ATTR = "data-intro-reveal";
 export const INTRO_REVEAL_ORDER = [
   "grid",
   "header",
-  "eyebrow",
   "title",
   "lead",
   "cta",
@@ -197,6 +286,16 @@ export function finishIntro(detail: IntroDoneDetail): void {
     document.cookie = INTRO_LEGACY_CLEAR_STRING;
   } catch {
     /* cookies blocked — there is nothing to clear in that browser either */
+  }
+  /* Before the event, and before the phase change that follows it: the cover's rule is CSS and
+     must already be false on the frame the overlay starts fading. Only a film that actually ran
+     counts — a bypassed intro covered nothing, so the page still needs the cover it always had. */
+  if (detail.played) {
+    try {
+      document.documentElement.setAttribute(INTRO_PLAYED_ATTR, "");
+    } catch {
+      /* no document (a non-DOM environment) — nothing was covered there either */
+    }
   }
   try {
     window.dispatchEvent(new CustomEvent<IntroDoneDetail>(INTRO_EVENT, { detail }));
@@ -278,4 +377,7 @@ export function onIntroGone(callback: () => void): () => void {
 export function resetIntroForTests(): void {
   done = false;
   gone = false;
+  if (typeof document !== "undefined") {
+    document.documentElement.removeAttribute(INTRO_PLAYED_ATTR);
+  }
 }

@@ -9,6 +9,12 @@ import s from "./PageLoading.module.css";
  * so it is painted on the first frame and nobody watches the page assemble itself — and comes
  * down on ANY answer: `webgl`, `fallback` or `off`.
  *
+ * **Never after an intro.** A load where the film played has already had its cover, and the page
+ * it reveals is finished: header, title, lead, both CTAs, the static hero art, both stat cards.
+ * Raising this over that is a second loading screen for a visitor who has just sat through the
+ * first, which is what the owner reported on 2026-09-26 — 5.6 measured seconds of it. The rule
+ * lives in the stylesheet (`data-intro-played`, written by `finishIntro`).
+ *
  * **It blocks the page, so it carries a failsafe.** At 6s it comes down whatever the stage is
  * doing (`PageLoading.module.css`); the stage's own paths are all far shorter, so that only fires
  * on a genuine fault. Without it, a chunk that never arrived would leave a visitor on a blank

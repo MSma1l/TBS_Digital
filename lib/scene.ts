@@ -155,6 +155,14 @@ export const WORK_TRACK_ATTR = "data-work-track";
  * fallback — the reel only reads it and listens on it, and never lays a card out differently.
  */
 export const PROJECTS_TRACK_ATTR = "data-projects-track";
+
+/**
+ * The hero's metric group (`Hero.tsx`), which the scene reads the stat panels' faces from
+ * (`components/scene/statCards.ts`). On the group, not on a card: what the scene watches for is a
+ * card appearing or going (the portfolio counter is there only with projects in it) as much as the
+ * text inside one changing.
+ */
+export const STATS_GROUP_ATTR = "data-stats-group";
 /**
  * On the same element: which project is on the laptop's display right now, 0-based. **The page
  * owns it** — the cycle, the prev/next and the markers are all React state in DirectionPage.tsx,
@@ -316,6 +324,18 @@ export type ScrollProbe = {
    */
   panelsPitch: number;
   /**
+   * The hero's stat windows (`[data-scene-anchor="stat"]`), in DOM order: the see-through boxes the
+   * 3D stat panels are drawn in, where the hero's metric cards were. One per metric — the
+   * portfolio counter is there only when the portfolio has projects — so the length is what the
+   * page laid out, never assumed. Empty wherever no box is laid out: below 861px, and on a
+   * `fallback` / `off` renderer, where the cards are the painted cards we have always shipped.
+   *
+   * Two boxes, measured individually rather than one box plus a pitch (the benefits row's trick):
+   * these two are not equal columns — the grid is `lg:grid-cols-2` with a gap, and at 861–1024px
+   * they STACK, so the step between them is vertical. Each panel is fitted to its own box.
+   */
+  stats: DocRect[];
+  /**
    * A service page's projects window (`[data-scene-anchor="projects"]`): the see-through cell the
    * 3D laptop stands in, inside the "Proiecte relevante" grid. Measured off the element itself, so
    * it is null wherever the page lays none out — below 861px and on a `fallback` / `off` renderer,
@@ -368,6 +388,7 @@ export function createScrollProbe(): ScrollProbe {
     workGap: null,
     panels: null,
     panelsPitch: 0,
+    stats: [],
     projects: null,
     steps: null,
     stepsPin: { start: 0, end: 0 },
@@ -400,6 +421,15 @@ export const SCENE_TIMING = {
   IDLE_TIMEOUT_MS: 1500,
   /** Added when an intro overlay was on screen: R3F releases the intro's context 500ms after unmount. */
   AFTER_INTRO_MS: 600,
+  /**
+   * How long into an intro the stage waits before fetching its own chunks behind it.
+   *
+   * Not zero, and the number comes off the film's own clock: the intro requests three.js the
+   * moment its probe answers and had its canvas up at 1.1s on the measured load, so anything
+   * earlier competes with the download the visitor is actually watching. 2500 leaves the whole
+   * rest of the film — the reveal was at 8.2s — for a chunk to arrive in.
+   */
+  WARM_MS: 2500,
   /** The CSS crossfade from the art to the canvas. */
   CROSSFADE_MS: 500,
   /** ResizeObserver → `ScrollTrigger.refresh()` debounce. */

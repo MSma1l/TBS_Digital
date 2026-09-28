@@ -12,6 +12,7 @@ import { messages } from "@/lib/i18n/messages";
 import {
   INTRO_COOKIE,
   INTRO_EVENT,
+  INTRO_FORCE_KEY,
   INTRO_GONE_EVENT,
   INTRO_OVERLAY_ID,
   INTRO_TIMING,
@@ -113,6 +114,16 @@ function watchRootStyle() {
 }
 
 /** A fake CSS failsafe animation on every element, at `currentTime` ms. */
+/** What `PerformanceNavigationTiming` says this document was: an arrival, or a reload. */
+function fakeNavigationKind(kind: "navigate" | "reload") {
+  const real = performance.getEntriesByType;
+  performance.getEntriesByType = ((type: string) =>
+    type === "navigation" ? [{ type: kind }] : real.call(performance, type)) as typeof performance.getEntriesByType;
+  return () => {
+    performance.getEntriesByType = real;
+  };
+}
+
 function fakeFailsafeClock(currentTime: number) {
   Object.defineProperty(Element.prototype, "getAnimations", {
     configurable: true,
@@ -261,10 +272,17 @@ describe("IntroPreloader — server markup", () => {
     );
     expect(css).toMatch(/@keyframes introFailsafe\s*\{\s*to\s*\{[^}]*visibility:\s*hidden;[^}]*pointer-events:\s*none;/);
     expect(css).toMatch(/\.overlay\[data-live\]\s*\{\s*animation:\s*none;/);
+    /* Both scoped to the phase the SERVER renders: the shell re-decides after hydration, and a
+       forced or reloaded intro must be allowed to show rather than run under a hidden overlay. */
     expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.overlay\s*\{\s*display:\s*none !important;/,
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.overlay\[data-phase="boot"\]\s*\{\s*display:\s*none !important;/,
     );
-    expect(css).toMatch(/:global\(html:has\(:target\)\) \.overlay\s*\{\s*display:\s*none !important;/);
+    expect(css).toMatch(
+      /:global\(html:has\(:target\)\) \.overlay\[data-phase="boot"\]\s*\{\s*display:\s*none !important;/,
+    );
+    expect(css, "a running overlay is never hidden by either rule").not.toMatch(
+      /:global\(html:has\(:target\)\) \.overlay\s*\{/,
+    );
   });
 
   it("pins the click-through fade, the paused hidden fallback and the filter-free halo", () => {
@@ -485,6 +503,57 @@ describe("IntroPreloader — in the browser", () => {
        a reload look like a broken intro. The cookie is still HONOURED (the e2e suite seeds
        it), it is just never written here. */
     expect(readIntroSeen(document.cookie)).toBe(false);
+  });
+
+  it("a RELOAD with the same hash still plays the intro", async () => {
+    /* Every internal link writes a hash into the address bar, so this is the everyday case:
+       click "Servicii", press F5. Before this rule the intro never played again. */
+    const section = document.createElement("section");
+    section.id = "servicii";
+    document.body.appendChild(section);
+    window.history.replaceState(null, "", "#servicii");
+    const restore = fakeNavigationKind("reload");
+
+    try {
+      hydrateIntro();
+      await waitFor(() => expect(overlay()).toHaveAttribute("data-phase", "run"));
+      expect(events.detail).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("an ARRIVAL on the same hash still bypasses it", async () => {
+    const section = document.createElement("section");
+    section.id = "servicii";
+    document.body.appendChild(section);
+    window.history.replaceState(null, "", "#servicii");
+    const restore = fakeNavigationKind("navigate");
+
+    try {
+      hydrateIntro();
+      await waitFor(() => expect(overlay()).toBeNull());
+      expect(events.detail).toHaveBeenCalledWith({ played: false });
+    } finally {
+      restore();
+    }
+  });
+
+  it("`tbs_intro_force` plays the intro under reduced motion, and past a deep link", async () => {
+    localStorage.setItem(INTRO_FORCE_KEY, "force");
+    mockReducedMotion();
+    const section = document.createElement("section");
+    section.id = "estimare";
+    document.body.appendChild(section);
+    window.history.replaceState(null, "", "#estimare");
+
+    try {
+      hydrateIntro();
+      await waitFor(() => expect(overlay()).toHaveAttribute("data-phase", "run"));
+      expect(events.detail).not.toHaveBeenCalled();
+    } finally {
+      localStorage.removeItem(INTRO_FORCE_KEY);
+    }
   });
 
   it("a hash that targets nothing does not bypass it", async () => {

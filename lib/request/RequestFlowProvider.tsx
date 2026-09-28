@@ -206,13 +206,17 @@ export function RequestFlowProvider({ children }: { children: ReactNode }) {
         title={l(COPY.title)}
         description={l(COPY.lead)}
         restoreFocusRef={triggerRef}
+        /* The body is the request DECK, a lit console with its own surfaces; it needs the
+           page's ground behind it rather than `--panel`. */
+        ground="ink"
       >
         {/* Mounted only while open, so every opening starts a clean dialog rather than
             resuming a half-finished one from a previous visit to the modal.
 
-            `layout="dialog"` is the stepped arrangement: one column, three steps
-            (project → contents → details) and the assistant behind a button. The home
-            page's `#estimare` keeps the section arrangement it was designed with. */}
+            `layout="dialog"` is no longer a second arrangement. Both it and the home page's
+            `#estimare` render the same deck (2026-09-26, at the owner's request); the value
+            survives because behaviour reads it — the corner assistant steps out of the way of
+            the SECTION's form only, and the specs tell the two apart by it. */}
         <RequestSection context={context ?? undefined} layout="dialog" />
       </Modal>
     </RequestFlowContext.Provider>

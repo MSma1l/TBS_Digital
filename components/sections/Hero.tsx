@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
 import {
@@ -12,7 +12,8 @@ import {
 } from "@/lib/hologram";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
-import { setSceneBoost, type SceneBoostSource } from "@/lib/scene";
+import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
+import { setSceneBoost, STATS_GROUP_ATTR, type SceneBoostSource } from "@/lib/scene";
 import { useSiteContent } from "@/lib/siteContent";
 import { TILT_MAX } from "@/lib/tilt";
 
@@ -20,11 +21,6 @@ import { TILT_MAX } from "@/lib/tilt";
     (which is typed and churny) while staying fully RO/RU/EN. */
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-const EYEBROW = L(
-  "TBS DIGITAL / WEB · SOFTWARE · AI",
-  "TBS DIGITAL / WEB · SOFTWARE · ИИ",
-  "TBS DIGITAL / WEB · SOFTWARE · AI",
-);
 const TITLE = L(
   "Construim digital ce mișcă businessul.",
   "Строим digital, который двигает бизнес.",
@@ -181,6 +177,25 @@ function boostHandlers(source: SceneBoostSource) {
   };
 }
 
+/* The stat windows are desktop-only, and the anchor is not written below 861px rather than being
+   hidden with CSS: the scene measures what carries it, and a card that is a painted card must not
+   be measured at all. The paint itself is swapped in `app/globals.css`
+   (`[data-scene-stage][data-renderer="webgl"] [data-scene-anchor="stat"]`), which also has to
+   agree about the RENDERER — this store answers the width, that block answers the rest. Same
+   external-store shape as `HudChrome`'s `DesktopOnly` and `DirectionPage`'s, and the same
+   breakpoint. */
+function desktopQuery(): MediaQueryList | null {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
+  return window.matchMedia(HUD_DESKTOP_MEDIA);
+}
+function subscribeDesktop(onChange: () => void): () => void {
+  const query = desktopQuery();
+  query?.addEventListener?.("change", onChange);
+  return () => query?.removeEventListener?.("change", onChange);
+}
+const isDesktop = () => desktopQuery()?.matches ?? false;
+const isDesktopOnServer = () => false;
+
 const { release: releasePrimary, ...PRIMARY_BOOST } = boostHandlers("hero-primary");
 const { release: releaseSecondary, ...SECONDARY_BOOST } = boostHandlers("hero-secondary");
 
@@ -227,6 +242,9 @@ export function Hero({ coreArt }: HeroProps) {
 
   // One hook for both cards: a pointer is over one card at a time.
   const tilt = usePointerTilt(TILT_MAX.metric);
+
+  // Whether a card may be a window for the 3D panels at this width (see the store above).
+  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
 
   const title = l(TITLE);
 
@@ -320,16 +338,6 @@ export function Hero({ coreArt }: HeroProps) {
           centres it, `items-end` then sits the stats on the CTA row's baseline. */}
       <div className="relative mx-auto grid w-full max-w-(--maxw) gap-[clamp(32px,5vw,56px)] px-(--gutter) pt-[clamp(32px,7vw,88px)] pb-[clamp(48px,7vw,88px)] md:min-h-[min(860px,calc(100svh_-_var(--header-h)_-_var(--ticker-h)))] md:grid-cols-[1.3fr_.7fr] md:content-center md:items-end">
         <div className="min-w-0">
-          <p
-            data-intro-reveal="eyebrow"
-            className="m-0 flex items-center gap-2.5 font-hud text-xs font-bold uppercase leading-[1.4] tracking-[.1em] text-red-text sm:text-sm"
-          >
-            {l(EYEBROW)}
-            <span
-              aria-hidden="true"
-              className="hidden h-px w-12 bg-linear-to-r from-red/70 to-transparent sm:block"
-            />
-          </p>
 
           {/* The page's only <h1>, and its LCP element: the entrance moves and blurs it, but
               nothing may ever hide it (no opacity / visibility, here or in the intro). The
@@ -404,6 +412,7 @@ export function Hero({ coreArt }: HeroProps) {
         <div data-parallax="hero-stats" className="min-w-0">
           <div
             data-intro-reveal="stats"
+            {...{ [STATS_GROUP_ATTR]: "" }}
             role="group"
             aria-label={l(METRICS_LABEL)}
             className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-4 lg:grid-cols-2"
@@ -415,10 +424,17 @@ export function Hero({ coreArt }: HeroProps) {
               <div
                 key={m.id}
                 data-metric={m.id}
+                data-scene-anchor={desktop ? "stat" : undefined}
                 data-tilt={tilt.enabled ? "on" : "off"}
                 {...tilt.handlers}
                 className={`relative overflow-hidden rounded-lg border border-glass-line p-4 shadow-lg transition-[translate,border-color,transform] duration-300 ease-(--motion-ease-out) hover:-translate-y-1 hover:border-(--accent) max-md:bg-glass-solid motion-reduce:transition-none motion-reduce:hover:translate-none sm:p-5 md:glass data-tilting:duration-150 data-tilting:[transform:perspective(900px)_rotateX(var(--tilt-rx))_rotateY(var(--tilt-ry))] before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${
-                  m.id === "projects" ? "[--accent:var(--red)]" : "[--accent:var(--blue)]"
+                  /* `--accent` is the card's own hairline colour; `--accent-text` is the tone of
+                     it that is legible as TYPE on this background. The 3D panel's face reads both
+                     off the card (three/statFace.ts) — the card states its colour once, and the
+                     hologram does not hard-code a second copy of it. */
+                  m.id === "projects"
+                    ? "[--accent:var(--red)] [--accent-text:var(--red-text)]"
+                    : "[--accent:var(--blue)] [--accent-text:var(--blue-text)]"
                 }`}
               >
                 <MetricHologram shape={hologramShapeFor(m.id)} />

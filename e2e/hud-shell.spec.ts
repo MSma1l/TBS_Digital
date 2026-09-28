@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { CONSENT_KEY } from "@/lib/consent";
 import { LOCALES } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
+import { INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
 import { navMenu } from "@/lib/content";
 import {
   MIN_TAP_TARGET,
@@ -83,7 +83,8 @@ test.describe("returning visit", () => {
     expect(await h1.boundingBox()).toEqual(first.h1);
     await expect(h1).toHaveCSS("opacity", "1");
     expect(await page.locator(`[${INTRO_REVEAL_ATTR}][style]`).count()).toBe(0);
-    expect(await page.locator(`[${INTRO_REVEAL_ATTR}]`).count()).toBe(8);
+    // From the contract, not a literal (see the note in preloader.spec.ts).
+    expect(await page.locator(`[${INTRO_REVEAL_ATTR}]`).count()).toBe(INTRO_REVEAL_ORDER.length);
   });
 });
 

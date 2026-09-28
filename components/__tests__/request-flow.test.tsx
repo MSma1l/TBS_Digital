@@ -126,27 +126,17 @@ async function openFrom(
   /* By NAME: the dialog takes its accessible name from its own heading, and that is what
      a screen reader announces. */
   const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-  /* The flow is code-split, so wait for its container rather than for any one control:
-     inside the dialog the flow is stepped, and only the current step is on screen. */
+  /* The flow is code-split, so wait for its container rather than for any one control. */
   await within(dialog).findByTestId("request-flow");
   return dialog;
 }
 
-/** Walk to the contact step the way a visitor does — the third step of the dialog flow. */
-async function toContactStep(
-  user: ReturnType<typeof userEvent.setup>,
-  dialog: HTMLElement,
-) {
-  await user.click(
-    within(within(dialog).getByTestId("request-steps")).getByRole("button", {
-      name: /Datele tale/,
-    }),
-  );
-}
+/* There is no walking to the contact step any more: since 2026-09-26 the dialog is the same
+   deck as the page, so the fields are on screen from the first frame (the wizard's third step,
+   and the `request-steps` indicator that got there, went with it). */
 
 /** Fill the two required fields inside the dialog and send the request. */
 async function sendFrom(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-  await toContactStep(user, dialog);
   await user.type(within(dialog).getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(within(dialog).getByPlaceholderText(EMAIL_PH), "ion@example.com");
   await user.click(within(dialog).getByRole("button", { name: /Trimite cererea/ }));
@@ -369,8 +359,6 @@ describe("the context the CTA was pressed in travels with the request", () => {
     renderHome();
 
     const dialog = await openFrom(user, CTA.hero);
-    /* In the dialog the assistant is opened on request, so this asks for it first. */
-    await user.click(within(dialog).getByTestId("chat-toggle"));
     /* Nothing here exceeds what a visitor may actually enter — the chat turn stays under
        its 1000-character limit and the details field under its 4000 — yet together they
        overflow the API's 5000-character message. `fireEvent`, not `user.type`: thousands
@@ -379,7 +367,6 @@ describe("the context the CTA was pressed in travels with the request", () => {
       target: { value: "descriere ".repeat(90) },
     });
     await user.click(within(dialog).getByRole("button", { name: "Trimite răspunsul" }));
-    await toContactStep(user, dialog);
     fireEvent.change(within(dialog).getByPlaceholderText(DETAILS_PH), {
       target: { value: "detaliu ".repeat(495) },
     });
@@ -452,7 +439,6 @@ describe("the guide's and the HUD tools' context travels with the request", () =
 
     const dialog = await openFrom(user, OPEN_WITH);
     const panel = await within(dialog).findByTestId("chat-panel");
-    expect(within(dialog).getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
     // Inside the real Modal, whose own initial focus runs in the same commit: it must not win.
     await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
 
@@ -612,7 +598,6 @@ describe("the guide's and the HUD tools' context travels with the request", () =
     );
 
     const dialog = await openFrom(user, OPEN_WITH);
-    await toContactStep(user, dialog);
     fireEvent.change(within(dialog).getByPlaceholderText(DETAILS_PH), {
       target: { value: "detaliu ".repeat(495) },
     });

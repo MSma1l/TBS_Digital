@@ -3,7 +3,15 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useT } from "@/lib/i18n/LanguageProvider";
-import { INTRO_OVERLAY_ID, INTRO_TIMING, finishIntro, markIntroGone } from "@/lib/intro";
+import {
+  INTRO_OVERLAY_ID,
+  INTRO_TIMING,
+  finishIntro,
+  hashSkipsIntro,
+  markIntroGone,
+  readIntroForce,
+  readNavigationKind,
+} from "@/lib/intro";
 import { lockRootScroll } from "@/lib/scrollLock";
 import { PREFERS_REDUCED_MOTION } from "@/lib/device";
 import { visibleTimeout } from "@/lib/visibleTimeout";
@@ -164,11 +172,16 @@ function IntroShell() {
   // The one post-hydration decision.
   useEffect(() => {
     const el = overlay.current;
+    /* The failsafe is not negotiable: past `LATE_TAKEOVER_MS` the CSS has already faded the
+       overlay out, and taking it over then would snap a half-gone overlay back to full. The other
+       two are, and `tbs_intro_force` is how the owner (and QA) sees the intro on a machine that
+       asks for less motion, or on a URL that still carries a `#section`. */
+    const forced = readIntroForce();
     const bypass =
       !el ||
-      prefersReducedMotion() ||
-      hasHashTarget() ||
-      failsafeClock(el) >= INTRO_TIMING.LATE_TAKEOVER_MS;
+      failsafeClock(el) >= INTRO_TIMING.LATE_TAKEOVER_MS ||
+      (!forced &&
+        (prefersReducedMotion() || hashSkipsIntro(readNavigationKind(), hasHashTarget())));
     if (bypass) finishIntro({ played: false });
     // Intentional post-mount setState: the server cannot know the motion preference, the
     // hash or how late JS arrived, so the overlay's fate is decided here, once.

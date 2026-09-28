@@ -4,52 +4,42 @@ import { SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
 import {
   PRIVATE_COPY,
   REQUEST_STEPS,
-  activeStep,
-  activeStepPanels,
   chatInput,
   chatPanel,
+  chatQuickReplies,
   chatSendButton,
-  chatToggle,
-  currentStepItem,
-  expectActiveStep,
   expectNoHorizontalScroll,
   expectTappable,
   fillContactStep,
   flowFields,
-  goBackOneStep,
-  goToStep,
   gotoHydrated,
   modalDialog,
-  openChat,
   openRequestModal,
   requestFlow,
-  requestSteps,
   seedConsent,
   stepPanel,
   stepPanels,
   stubContactApi,
-  type RequestStep,
   type StubbedCall,
 } from "./helpers";
 
 /*
- * The RESTRUCTURED request flow.
+ * The request flow, which is ONE arrangement in two places.
  *
- * The client asked for one order and one rule. The order is `1 choose the project →
- * 2 choose what it should contain → 3 fill in your details`, on a single column, one step on
- * screen at a time — not the two-column estimator squeezed into a 960px modal. The rule is
- * that the conversational assistant is OPTIONAL: it starts only when it is asked for, and the
- * fast path to a sent request must never be locked behind it.
+ * It was two. The home page showed the deck — both bays, everything at once — and the dialog
+ * ran the same flow as three steps on one column with the assistant behind a toggle, because
+ * two columns squeezed into a 960px modal read as cramped. The owner asked for them to be the
+ * same thing (2026-09-26) and the cramping was answered differently: the deck now measures
+ * ITSELF (`@container`) instead of the window, so it stacks its bays on its own width.
  *
- * So this file walks BOTH journeys:
- *   · the fast one — project, options, contact, send, with the chat never touched;
- *   · the guided one — the same flow with the assistant switched on, whose answers have to
- *     end up inside the request that is actually posted.
+ * So what this file walks is the deck, in the dialog:
+ *   · everything on screen at once, and a request that can be sent without a word to the
+ *     assistant — the rule that outlived the wizard: the fast path is never gated;
+ *   · the guided one, whose answers have to end up inside the request that is posted.
  *
  * Everything is addressed through the flow's declared contract — `[data-testid]`,
- * `[data-step]`, `data-active`, `aria-current`, `aria-expanded` — and never through copy or
- * CSS-module class names, because the copy is trilingual and the styles are being rewritten
- * in the very change these tests guard.
+ * `[data-step]`, `data-active` — and never through copy or CSS-module class names, because the
+ * copy is trilingual and the styles move.
  *
  * SAFETY: `POST /api/contact` is stubbed with `page.route()` in every single test, including
  * the ones that never submit. The form inside the flow is live and points at whatever backend
@@ -118,7 +108,7 @@ async function sentBody(calls: StubbedCall[]): Promise<Record<string, unknown>> 
   return calls[0].body as Record<string, unknown>;
 }
 
-test.describe("request flow — the fast path, without the assistant", () => {
+test.describe("request flow — the deck, in the dialog", () => {
   let calls: StubbedCall[];
 
   test.beforeEach(async ({ page, context, baseURL }) => {
@@ -126,53 +116,36 @@ test.describe("request flow — the fast path, without the assistant", () => {
     calls = await stubContactApi(page);
   });
 
-  test("the dialog opens on the project step @smoke", async ({ page }) => {
+  test("the dialog opens on the whole deck @smoke", async ({ page }) => {
     const flow = await openFlowDialog(page);
 
-    // The dialog layout, not the section one — the same flow, told where it is rendered.
     await expect(flow).toHaveAttribute("data-layout", "dialog");
-
-    // Step one is "choose the project", which is the order the client asked for.
-    await expectActiveStep(flow, "project");
-    await expect(stepPanel(flow, "project")).toBeVisible();
-
-    // All three steps exist, so the flow is a flow and not a single screen that renames itself.
+    /* All three regions, all of them live. The wizard's rule was the opposite — exactly one
+       active panel — so this assertion is the change, stated. */
+    await expect(stepPanels(flow)).toHaveCount(REQUEST_STEPS.length);
     for (const step of REQUEST_STEPS) {
-      await expect(stepPanel(flow, step), `the "${step}" step should exist`).toHaveCount(1);
+      await expect(stepPanel(flow, step)).toBeVisible();
+      await expect(stepPanel(flow, step)).toHaveAttribute("data-active", "true");
     }
+    /* The assistant is part of the deck rather than something to ask for, and the contact
+       fields are reachable without pressing anything at all. */
+    await expect(chatPanel(flow)).toBeVisible();
+    await expect(chatInput(flow)).toBeVisible();
+    await expect(flowFields(flow).submit).toBeEnabled();
+    /* Opened from the e-commerce page, so it starts on the shop price. */
+    await expect(flow.getByText(priceForSlug("e-commerce")).first()).toBeVisible();
+    /* And the page's own furniture stayed on the page: one #estimare per document. */
+    await expect(page.locator("#estimare")).toHaveCount(0);
   });
 
-  test("the assistant does not exist until it is asked for", async ({ page }) => {
+  test("sends with the assistant never touched, carrying the service it was opened from", async ({
+    page,
+  }) => {
     const flow = await openFlowDialog(page);
-
-    // Not "hidden" — absent. A panel rendered `display:none` is still in the tab order's
-    // way, still in the accessibility tree of some readers, and still work the visitor did
-    // not ask for.
-    await expect(chatPanel(flow), "the chat panel must not be in the DOM yet").toHaveCount(0);
-
-    // …and the switch says so out loud, for a visitor who cannot see that it is closed.
-    await expect(chatToggle(flow)).toBeVisible();
-    await expect(chatToggle(flow)).toHaveAttribute("aria-expanded", "false");
-  });
-
-  test("project → options → contact → sent, with the chat never touched", async ({ page }) => {
-    const flow = await openFlowDialog(page);
-
-    await expectActiveStep(flow, "project");
-
-    await goToStep(flow, "options");
-    await expectActiveStep(flow, "options");
-
-    await goToStep(flow, "contact");
-    await expectActiveStep(flow, "contact");
 
     await fillContactStep(flow, LEAD);
-
-    // The chat was never opened, and the fast path is not gated behind it.
-    await expect(chatPanel(flow), "the fast path must not need the assistant").toHaveCount(0);
-
     const submit = flowFields(flow).submit;
-    await expect(submit, "the submit button must be reachable without the chat").toBeEnabled();
+    await expect(submit, "the submit must be reachable without the assistant").toBeEnabled();
     await submit.click();
 
     // The request really left: intercepted in the browser, so no lead reaches production.
@@ -191,7 +164,9 @@ test.describe("request flow — the fast path, without the assistant", () => {
     ).toContain("e-commerce");
   });
 
-  test("on the home page the same flow is a section, not a dialog", async ({ page }) => {
+  test("on the home page it is the same deck, as a section rather than a dialog", async ({
+    page,
+  }) => {
     await gotoHydrated(page, "/");
 
     const flow = requestFlow(page);
@@ -200,18 +175,14 @@ test.describe("request flow — the fast path, without the assistant", () => {
     // No dialog was opened to get here.
     await expect(modalDialog(page)).toHaveCount(0);
 
-    // The same three regions — but the section shows them all at once, which is the
-    // signed-off homepage design. There is no stepping and no toggle here: the assistant is
-    // already on screen, so making it "optional" would only hide something that was working.
-    // Optionality is a fix for the DIALOG, where the two-column layout was cramped.
+    // The same three regions, all live, the same assistant — which is the whole point: the
+    // two are one design now, and `data-layout` says only WHERE it is.
     await expect(stepPanels(flow)).toHaveCount(REQUEST_STEPS.length);
-    await expect(activeStepPanels(flow)).toHaveCount(REQUEST_STEPS.length);
-    await expect(chatToggle(flow)).toHaveCount(0);
     await expect(chatInput(flow)).toBeVisible();
   });
 });
 
-test.describe("request flow — the guided path, with the assistant", () => {
+test.describe("request flow — the assistant", () => {
   let calls: StubbedCall[];
 
   test.beforeEach(async ({ page, context, baseURL }) => {
@@ -219,35 +190,19 @@ test.describe("request flow — the guided path, with the assistant", () => {
     calls = await stubContactApi(page);
   });
 
-  test("the toggle opens the assistant and closes it again @smoke", async ({ page }) => {
-    const flow = await openFlowDialog(page);
-    const toggle = chatToggle(flow);
-
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(chatPanel(flow)).toHaveCount(0);
-
-    const panel = await openChat(flow);
-    // The assistant really started: it has a live composer, not an empty shell.
-    await expect(chatInput(panel)).toBeVisible();
-
-    // …and it closes back down, leaving the flow where it was.
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(chatPanel(flow), "closing should retract the panel").toHaveCount(0);
-    await expectActiveStep(flow, "project");
-  });
-
-  test("what was answered in the chat travels inside the sent request", async ({ page }) => {
+  test("what was answered in the chat travels inside the sent request @smoke", async ({
+    page,
+  }) => {
     const flow = await openFlowDialog(page);
 
-    const panel = await openChat(flow);
+    const panel = chatPanel(flow);
+    await expect(panel).toBeVisible();
     await chatInput(panel).fill(DESCRIPTION);
     await chatSendButton(panel).click();
 
     // The visitor's own words, verbatim, as their bubble.
     await expect(panel.getByText(DESCRIPTION, { exact: true })).toBeVisible();
 
-    await goToStep(flow, "contact");
     await fillContactStep(flow, LEAD);
     await flowFields(flow).submit.click();
 
@@ -259,78 +214,27 @@ test.describe("request flow — the guided path, with the assistant", () => {
     );
     expect(String(body.message)).toContain(PRIVATE_COPY.summaryPayloadTitle);
   });
-});
 
-test.describe("request flow — navigation and state", () => {
-  let calls: StubbedCall[];
-
-  test.beforeEach(async ({ page, context, baseURL }) => {
-    await seedConsent(context, baseURL!);
-    calls = await stubContactApi(page);
-  });
-
-  test("the active step is reflected in data-active AND aria-current", async ({ page }) => {
+  test("a chip picked after the conversation still reaches the payload", async ({ page }) => {
     const flow = await openFlowDialog(page);
 
-    for (const step of REQUEST_STEPS) {
-      await goToStep(flow, step as RequestStep);
+    /* The deck's real advantage over the wizard, and the thing worth pinning: the chips and
+       the assistant are on screen together, so changing the project AFTER talking is one
+       press and no navigation — and the request carries the later choice. */
+    await chatQuickReplies(chatPanel(flow)).first().click();
+    const site = stepPanel(flow, "project").getByRole("button").first();
+    /* Named, not merely first: the payload assertion below is a price, and two chips could
+       share one. If the catalogue is ever reordered this fails here rather than passing for
+       the wrong reason. */
+    await expect(site).toHaveAccessibleName(PRIVATE_COPY.estimatorFirstType);
+    await site.click();
+    await expect(site).toHaveAttribute("aria-pressed", "true");
 
-      // The visual half: exactly one panel is active, and it is this one.
-      await expect(activeStepPanels(flow)).toHaveCount(1);
-      await expect(stepPanel(flow, step)).toHaveAttribute("data-active", "true");
-
-      // The assistive half: the indicator names exactly one current step. `data-active` is a
-      // styling hook that a screen reader cannot see — `aria-current` is what it announces,
-      // and the two must never disagree.
-      await expect(requestSteps(flow)).toBeVisible();
-      const current = currentStepItem(flow);
-      await expect(current, `the indicator should mark "${step}" as current`).toHaveCount(1);
-
-      // When the indicator keys its items by step, the two halves must point at the same one.
-      const marked = await current.getAttribute("data-step");
-      if (marked !== null) {
-        expect(marked, "aria-current and data-active must name the same step").toBe(step);
-      }
-    }
-  });
-
-  test("going back does not lose what was already filled in", async ({ page }) => {
-    const flow = await openFlowDialog(page);
-
-    await goToStep(flow, "contact");
-    await fillContactStep(flow, LEAD);
-
-    // Back one step — the visitor changed their mind about the options.
-    await goBackOneStep(flow);
-    expect(await activeStep(flow), "back should leave the contact step").not.toBe("contact");
-
-    // …and forward again. Everything typed is still there: a stepped flow that forgets is
-    // worse than the single screen it replaced.
-    await goToStep(flow, "contact");
-    const f = flowFields(flow);
-    await expect(f.name, "the name must survive a trip back").toHaveValue(LEAD.name);
-    await expect(f.email, "the email must survive a trip back").toHaveValue(LEAD.email);
-    await expect(f.phone, "the phone must survive a trip back").toHaveValue(LEAD.phone);
-  });
-
-  test("the preselected service survives the whole flow", async ({ page }) => {
-    const flow = await openFlowDialog(page);
-
-    const expected = priceForSlug("e-commerce");
-    // Opened from the e-commerce page, so the flow starts on the shop price and not on the
-    // catalogue's first entry.
-    await expect(flow.getByText(expected).first()).toBeVisible();
-
-    await goToStep(flow, "options");
-    await goToStep(flow, "contact");
     await fillContactStep(flow, LEAD);
     await flowFields(flow).submit.click();
 
-    // The proof that it survived is the payload: three steps later the request still carries
-    // the price of the service the visitor was reading about.
     const body = await sentBody(calls);
-    expect(String(body.estimate)).toBe(expected);
-    expect(String(body.message)).toContain(expected);
+    expect(String(body.estimate)).toBe(priceForSlug("produs-digital"));
   });
 });
 
@@ -343,19 +247,20 @@ test.describe("request flow — on a 375px phone", () => {
     await stubContactApi(page);
   });
 
-  test("one step per screen, a bottom sheet, and nothing scrolls sideways", async ({ page }) => {
+  test("the deck stacks into the sheet, and nothing scrolls sideways", async ({ page }) => {
     const flow = await openFlowDialog(page);
     const dialog = modalDialog(page);
 
-    // One step on screen. Not "one is active while the others are merely below the fold" —
-    // the inactive panels must not be rendered visibly at all, which is what makes this a
-    // single-column stepped flow rather than the old long scroll.
-    await expectActiveStep(flow, "project");
-    const visibleSteps = [];
+    /* One column. The deck's own `@container` rule decides this, on the width the deck has
+       rather than on the window's — which is what lets the same markup be two bays at 1440
+       and one here. Measured as geometry, not as a class: every region starts at the same x. */
+    const lefts: number[] = [];
     for (const step of REQUEST_STEPS) {
-      if (await stepPanel(flow, step).isVisible()) visibleSteps.push(step);
+      const box = await stepPanel(flow, step).boundingBox();
+      expect(box, `the "${step}" region should have a layout box`).not.toBeNull();
+      lefts.push(Math.round(box!.x));
     }
-    expect(visibleSteps, "exactly one step may be on screen at 375px").toEqual(["project"]);
+    expect(new Set(lefts).size, "stacked, every region shares one left edge").toBe(1);
 
     // The sheet sits on the bottom edge of the viewport and stays inside it horizontally.
     const viewport = page.viewportSize()!;
@@ -370,39 +275,9 @@ test.describe("request flow — on a 375px phone", () => {
 
     await expectNoHorizontalScroll(page);
 
-    // The two controls a thumb has to hit on this step.
-    await expectTappable(chatToggle(flow), "the assistant toggle");
-
-    // …and the same holds once the flow reaches the contact step, where the sheet is at its
-    // tallest and the submit button is the one target that matters.
-    await goToStep(flow, "contact");
-    await expectActiveStep(flow, "contact");
-    await expectNoHorizontalScroll(page);
+    // The one target that matters, at the bottom of the tallest thing this dialog shows.
+    await flowFields(flow).submit.scrollIntoViewIfNeeded();
     await expectTappable(flowFields(flow).submit, "the submit button");
+    await expectNoHorizontalScroll(page);
   });
-});
-
-/* One COMPLETE journey, walked end to end rather than screenshotting one panel. */
-test.describe("request flow — a full journey", () => {
-    let calls: StubbedCall[];
-
-    test.beforeEach(async ({ page, context, baseURL }) => {
-      await seedConsent(context, baseURL!);
-      calls = await stubContactApi(page);
-    });
-
-    test("project → options → contact → sent", async ({ page }) => {
-        const flow = await openFlowDialog(page);
-
-      await expectActiveStep(flow, "project");
-      await goToStep(flow, "options");
-      await goToStep(flow, "contact");
-      await fillContactStep(flow, LEAD);
-      await flowFields(flow).submit.click();
-
-      const body = await sentBody(calls);
-      expect(body.name).toBe(LEAD.name);
-      expect(body.email).toBe(LEAD.email);
-      expect(String(body.estimate)).toBe(priceForSlug("e-commerce"));
-    });
 });

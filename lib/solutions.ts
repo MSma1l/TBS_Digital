@@ -20,10 +20,8 @@ export type SolutionCase = {
 };
 
 export type Solution = {
-  eyebrow: LocalizedText;
   title: LocalizedText;
   intro: LocalizedText;
-  cardLabel: LocalizedText;
   cardTitle: LocalizedText;
   cardText: LocalizedText;
   items: SolutionItem[];
@@ -41,14 +39,12 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 export const solutions: Record<string, Solution> = {
   "produs-digital": {
     accent: "#3970ff",
-    eyebrow: L("DE LA IPOTEZĂ LA LANSARE", "ОТ ГИПОТЕЗЫ ДО ЗАПУСКА", "FROM HYPOTHESIS TO LAUNCH"),
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
     intro: L(
       "Transformăm o problemă bună într-un produs clar, ușor de folosit și pregătit să crească.",
       "Превращаем хорошую задачу в понятный продукт — удобный и готовый расти.",
       "We turn a good problem into a clear product — easy to use and ready to grow.",
     ),
-    cardLabel: L("PENTRU O IDEE CARE MERITĂ LANSATĂ", "ДЛЯ ИДЕИ, КОТОРУЮ СТОИТ ЗАПУСТИТЬ", "FOR AN IDEA WORTH LAUNCHING"),
     cardTitle: L("Strategie + UX + dezvoltare", "Стратегия + UX + разработка", "Strategy + UX + development"),
     cardText: L(
       "Un drum simplu de la primul workshop la produs funcțional.",
@@ -72,11 +68,6 @@ export const solutions: Record<string, Solution> = {
      stays empty on purpose. */
   "e-commerce": {
     accent: "#ff7268",
-    eyebrow: L(
-      "PRODUSE DIGITALE CARE SE VÂND CLAR",
-      "ЦИФРОВЫЕ ПРОДУКТЫ, КОТОРЫЕ ПРОДАЮТСЯ ПОНЯТНО",
-      "DIGITAL PRODUCTS THAT SELL CLEARLY",
-    ),
     title: L(
       "E-commerce pentru produse, rapoarte și acces digital",
       "E-commerce для продуктов, отчётов и цифрового доступа",
@@ -87,7 +78,6 @@ export const solutions: Record<string, Solution> = {
       "Строим весь поток: предложение, оплата и доступ к продукту или отчёту.",
       "We build the whole flow: the offer, the payment and the access to the product or report.",
     ),
-    cardLabel: L("FLUXUL PE CARE ÎL CONSTRUIM", "ПОТОК, КОТОРЫЙ МЫ СТРОИМ", "THE FLOW WE BUILD"),
     cardTitle: L("Ofertă → Plată → Acces", "Предложение → Оплата → Доступ", "Offer → Payment → Access"),
     cardText: L(
       "Trei pași, fără nimic în plus între decizie și livrare.",
@@ -157,14 +147,12 @@ export const solutions: Record<string, Solution> = {
   },
   "automatizare-api": {
     accent: "#12ae9e",
-    eyebrow: L("CONECTĂM CE CONTEAZĂ", "СОЕДИНЯЕМ ГЛАВНОЕ", "WE CONNECT WHAT MATTERS"),
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
     intro: L(
       "Eliminăm pașii manuali și conectăm sistemele care trebuie să lucreze împreună.",
       "Убираем ручные шаги и соединяем системы, которые должны работать вместе.",
       "We remove manual steps and connect the systems that should work together.",
     ),
-    cardLabel: L("PENTRU ECHIPE MAI EFICIENTE", "ДЛЯ БОЛЕЕ ЭФФЕКТИВНЫХ КОМАНД", "FOR MORE EFFICIENT TEAMS"),
     cardTitle: L("Procese care se mișcă singure", "Процессы, которые движутся сами", "Processes that move on their own"),
     cardText: L(
       "Mai puține copii, erori și rapoarte făcute manual.",
@@ -182,13 +170,11 @@ export const solutions: Record<string, Solution> = {
       L("Testăm, măsurăm și rafinăm fluxul.", "Тестируем, измеряем и улучшаем поток.", "We test, measure and refine the flow."),
     ],
   },
-  /* Written against what actually runs. The eyebrow is the OFFER ("IA care lucrează cu
-     echipa"); everything described as delivered — chat answered by a person, a decision-tree
+  /* Written against what actually runs: everything described as delivered — chat answered by a person, a decision-tree
      qualifier, a Telegram bot that routes requests — is something a visitor can go and see.
      No sentence here claims a language model shipped, because none did. */
   "asistenti-ia": {
     accent: "#9b72ff",
-    eyebrow: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
     title: L(
       "Asistenți și boți conectați la conversații reale",
       "Ассистенты и боты, подключённые к реальным разговорам",
@@ -199,7 +185,6 @@ export const solutions: Record<string, Solution> = {
       "Ответ, квалификация и автоматизация через веб, Telegram и внутренние системы.",
       "Answering, qualification and automation across web, Telegram and internal systems.",
     ),
-    cardLabel: L("PENTRU RĂSPUNSURI ȘI ACȚIUNI RAPIDE", "ДЛЯ БЫСТРЫХ ОТВЕТОВ И ДЕЙСТВИЙ", "FOR FAST ANSWERS AND ACTIONS"),
     cardTitle: L(
       "Chat + asistent de calificare + bot Telegram",
       "Чат + ассистент квалификации + Telegram-бот",
@@ -297,14 +282,12 @@ export const solutions: Record<string, Solution> = {
   },
   "brand-ui": {
     accent: "#3970ff",
-    eyebrow: L("O IDENTITATE CARE SE ȚINE MINTE", "ИДЕНТИЧНОСТЬ, КОТОРУЮ ЗАПОМИНАЮТ", "AN IDENTITY THAT STICKS"),
     title: L("Brand & UI", "Бренд и интерфейс", "Brand & UI"),
     intro: L(
       "Un sistem vizual care arată premium, explică limpede și face produsul mai ușor de folosit.",
       "Визуальная система, которая выглядит премиально, понятно объясняет и делает продукт удобнее.",
       "A visual system that looks premium, explains clearly and makes the product easier to use.",
     ),
-    cardLabel: L("PENTRU O EXPERIENȚĂ COERENTĂ", "ДЛЯ ЦЕЛОСТНОГО ОПЫТА", "FOR A COHERENT EXPERIENCE"),
     cardTitle: L("Brand cu logică de produs", "Бренд с продуктовой логикой", "A brand with product logic"),
     cardText: L(
       "Identitate, interfață și reguli ușor de aplicat.",
@@ -403,7 +386,6 @@ export function projectsForSolution<T extends { id: string }>(
 /** Shared UI copy for the direction pages. */
 export const solUI = {
   back: L("← Înapoi la direcții", "← К направлениям", "← Back to directions"),
-  benefit: L("BENEFICIU", "ПРЕИМУЩЕСТВО", "BENEFIT"),
   stepsTitle: L("Cum lucrăm", "Как мы работаем", "How we work"),
   talk: L("Discută cu echipa", "Обсудить с командой", "Talk to the team"),
   /* --- action bar, straight under the hero --- */

@@ -70,13 +70,53 @@
   }
 }
 
-/* An intro is already a full-window cover with its own clock, its own skip and its own failsafe.
-   Two of them would fight; the intro wins. Same `html:has(#tbs-intro)` test the looping
-   backgrounds use to stand down while it plays. */
-:global(html:has(#tbs-intro)) .cover {
+/*
+ * ONE COVER PER LOAD, and after an intro there is none.
+ *
+ * An intro is already a full-window cover with its own clock, its own skip and its own failsafe,
+ * so the first rule below is uncontroversial: the intro wins while it is on screen.
+ *
+ * The second one is the owner's report, and it overturns what this file used to do. Measured on a
+ * cold load at 1440x900: the film revealed the page at 8.19s and THIS COVER CAME STRAIGHT UP,
+ * staying until 13.80s — 5.6 seconds of BootCore after a film he had already watched. "Dupa intro
+ * eu mai astept si loading."
+ *
+ * The page underneath was photographed with the cover forced down: the header, the title, the
+ * lead, both CTAs, the static hero art and both stat cards, all painted — it is exactly what a
+ * visitor without WebGL is served for good. The cover was hiding a finished page.
+ *
+ * It used to stand down only until the reveal BEGAN, to close a 1236ms window where the page
+ * showed between the two covers ("intro, then the page, then loading, then the page again"). That
+ * fix is obsolete rather than wrong: with no second cover there is no second handover to flicker
+ * between. The scene now arrives the way it does for every other late arrival — the canvas
+ * crossfades in over the art (500ms, SCENE_TIMING.CROSSFADE_MS), and the stat cards fade out
+ * across the same 500ms (app/globals.css) instead of blinking away under a cover nobody sees.
+ *
+ * `data-intro-played` is written by `finishIntro` on the frame of the reveal (lib/intro.ts), so
+ * the two rules hand over without a frame in between. A BYPASSED intro sets nothing and is not
+ * covered by either rule: it uncovered nothing, so the page keeps the cover it always had.
+ */
+:global(html:has(#tbs-intro)) .cover,
+:global(html[data-intro-played]) .cover {
   display: none;
 }
 
+/*
+ * AND A PAGE WITH NO STAGE KEEPS ITS COVER, THOUGH IT CAN NEVER SHOW IT.
+ *
+ * `display: none` here looked free — `/cookies` and `/confidentialitate` ship the cover and no
+ * `[data-scene-stage]`, so the raise rule can never match and the boot core inside runs thirteen
+ * animations nobody can see. It was written, and then backed out, because the layout is SHARED:
+ * a Next.js client navigation from `/cookies` back to `/` keeps the SAME `.cover` node, the stage
+ * mounts at `pending`, and the cover goes from `display: none` straight to raised in ONE style
+ * change. A transition does not start for an element that was not rendered in the previous style
+ * change, so the cover would SNAP to full opacity where today it fades in over 450ms, and the
+ * boot core would restart from phase 0 instead of continuing. Two visible differences on an
+ * ordinary click.
+ *
+ * `@starting-style` or `transition-behavior: allow-discrete` would each fix the snap, and neither
+ * is in this file today — that is a design decision, not a performance one, so it is left alone.
+ */
 @media (prefers-reduced-motion: reduce) {
   .cover {
     transition: none;

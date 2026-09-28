@@ -59,7 +59,6 @@ Run output (traces, screenshots, HTML report) goes to `e2e/.artifacts/`, which i
 | `interior.spec.ts` | the **interior 3D stage on the default path** — a returning visitor whose SwiftShader GPU the stage's strict probe refuses, so the page settles on the static art. E1 `fallback`, no canvas, no three.js or GSAP evaluated, entrance markers untouched, no CSP violation, and Work inside the stage with its cards exactly as React rendered them (one `data-work-track`, every card's `style` just `--p1` / `--p2`, no `data-helix-front`, no `data-helix`) (`@smoke`); E1b without a cached answer the probe makes one throwaway context, a reload none; E2/E3 no decorative dot in the header, main or footer at 1280 and 390px; E4 ←/→ walk the pills with `aria-current` and `data-shape` together, focus never enters the layer; E5 the sticky layer never paints past the stage; E6 hover switches the shape, a click opens the page; E7 a stat card tilts under the mouse and settles, the marker is never styled; E8 a project card tilts and keeps `--p1/--p2`, its screenshot drifts on the view timeline; E8b at 861px the full-row last card keeps its screenshot at a normal card's size; E9/E9b/E10/E11/E11b on a 390px touch screen: the first tap on another pill selects, the second opens, the already-selected pill opens on the first tap, "Deschide serviciul" opens at once, cards never tilt, the services screen comes before the heading; E13 the art never runs an infinite animation; E14 the HTML carries one service drawing and the browser draws the others on a switch; E15 hover and keyboard focus boost the scene, the focus a mouse-closed dialog hands back does not; E16 a multi-part tag keeps its visible "·" on the chips' plate, no chip blurs; E12 reduced motion: `off`, no context, still holograms, no tilt or parallax, the pills still switch; E12b Save-Data; E12c the off flag never requests the probe |
 | `interior-webgl.spec.ts` (`@webgl`) | the **interior stage with WebGL forced** (`forceScene3d`, SwiftShader, 120s per test). W1 one click-through canvas, mid tier on a phone, no inline style on `<html>`, `<body>` or a marker after ScrollTrigger's refreshes, no CSP violation; W2 pauses off screen (300px past the stage's bottom — the stage ends after Work now) and under the burger; W3 a burger round trip keeps the header on top and the scroll position; W4 leaving and coming back three times: no stage away from home, the context released, at most one live context; W5 no sideways scroll at 320 / 390 / 768 / 1280px, once Work's helix mode is applied (`spiral` from 768px, `ambient` below), with two more marks: `#lucrari`'s top and the middle of its card track; W6 a renderer the browser refuses ends on the art (`lost`); W7 no WebGL at all: `no-context`, nothing heavy loaded; W8 a first visit with both scenes forced never draws the stage while the intro is on screen; W9 a forced reload creates exactly one context; W10 a CTA hover boosts without sound and scrolling never hides the headline; W11 scrolled 40px past the services entry band's end (`anchor.top − .75vh + 40`), once the model has formed a pill hover morphs it (`data-morph` running → idle; the pill loop allows ~20s, since the 1.1s burst is at least 22 frames under SwiftShader's 20 Hz clamp); W12 a theme switch while drawing logs no error; W13 a refresh while the request dialog is open (a phone keyboard 844 → 450 → 844px at Y=2500, a desktop resize 1280 → 1100 at Y=3000) leaves the scroll probe matching the DOM; W14 a scene that loads while the stage is off screen keeps its art until it has drawn; W16 (1280×800) scrolled to the services entry band's end, `data-entry` goes `idle` → `burst` → `formed` within 20s (the transitions are recorded with their times and attached as annotations; formed never sooner than 1s after burst), the Directions panel's `box-shadow` changes to its glow, and scrolled above the band's start it goes `burst` → `idle`; W17 (1280×800, mouse) 60 pointer moves over the hero draw the cursor circuit trail — one draw per frame more than the settled idle count while it lives, back to the idle count after the 0.9s fade — and leave one canvas, one live context, the hero CTAs and the header theme toggle hit by a click at their centres, no console error and no CSP violation; **Work's DNA helix** (IT-OS Phase 3): W15 (1280×800) once the helix is built the stage says `data-helix="spiral"` and the section grows; every card keeps its own colours inline; no sideways scroll and `<html>`/`<body>` untouched at the spiral's start, middle and end; at mid-span the front card takes a click at its centre, it is sticky with a positive `z-index`, and every card behind the helix has `pointer-events: none` and takes no hit; Tab through every linked project brings each one to the front (`data-helix-front`) within 3s (the timings are logged); a window narrowed to 700px leaves the spiral at once with every card's `style` attribute back byte for byte; back at 1280 and up past Work the spiral applies again; a client navigation to a service page and back gives new cards with only their two colours (React writes them through the CSSOM, `--p1: #…; --p2: #…;`) and the spiral lays them out again; no CSP violation, no console error. W15t (768×1024 touch) the tablet spiral: the front card takes a tap, back cards none, no sideways scroll. W18 (390×844 touch) the phone keeps its band: `data-helix="ambient"`, `#lucrari` does not move, no card gets an inline layout, a CDP touch swipe along the band moves `data-helix-front`, and a first tap on another pill (E9's case, with the helix drawing) moves nothing below it. W19 (1280×800) a reload scrolled 200px into `#lucrari` keeps the grid: for 8s after `webgl` the section's height and the scroll position do not change and no `spiral` is applied; back at the top the spiral applies, the section grows and the scroll probe matches the DOM |
 | `hud-shell.spec.ts` | the HUD shell of a returning visit: the header clock shows **Chișinău** time (UTC+3 summer, UTC+2 winter) in a New York browser; nothing moves or keeps an inline style after hydration; the cookie banner is focused, names its choices, Escape means essential only, 44px buttons, and at 390/320px it is an **opaque panel with no backdrop blur**; the neon CTA focus ring is `--txt`, 2px outside the button, in both themes; the ticker is one decorative strip; the desktop header row fits one line without sideways scroll at 861, 1024 and 1180px in every locale; at 320 and 390px the burger menu keeps the header at the top and the scroll position (also with classic scrollbars, in a browser of its own; the round trip is `burgerRoundTrip` in `helpers.ts`); desktop dropdowns open on hover and focus, and **Escape closes one the mouse opened** without moving focus |
-| `guide.spec.ts` | the **Ghid TBS guide** (IT-OS Phase 4), armed (`HUD_ON`, consent seeded, `armHud`): at 1280 no `[data-hud]` before any interaction, then a real button (`aria-haspopup="dialog"`, its `GUIDE_COPY.aria` name, 44px, the 88×88 box 20px from the corner at z 112, `enter` → `idle`) (`@smoke`); centred on `#servicii`, no tip at 3.5s and the servicii tip by 12s, `data-state="prompt"`, the avatar described by the sentence alone, no role or live region, focus still on `BODY`, no sideways scroll, no dot, the tip's three buttons 44px; a dismissed tip stays gone after scrolling away and back plus 6s; the avatar opens the dialog on the chat (`chat-panel` visible, `chat-toggle` `aria-expanded="true"`, focus inside) and the stubbed request's origin block is exactly `- Sursă (CTA): guide`; the tip's own button sends `- Secțiune: servicii` / `guide-prompt`; Tab still reaches RO within 40; over `#estimare`'s form `data-away`, opacity 0, `tabindex=-1`, `pointer-events: none`, never `display`/`visibility`/`inert`, and back at the top it returns. Gating: no consent → no HUD after moves and a wheel, accepting the banner brings the avatar with no further move; a first visit never has the guide and the intro in the DOM together (a MutationObserver from the first byte), and the move made during the intro arms it once the overlay is gone. Reduced motion (`contextOptions`): the tip still shows, no computed `animationName` and no `getAnimations()` inside `[data-guide]`. `/servicii/e-commerce`: the `service` tip on `[data-guide-topic="service"]`, the avatar's flow on the shop price, the origin block `- Serviciu: e-commerce` / `- Secțiune: service` / `- Sursă (CTA): guide`, 0 canvases, no three.js or GSAP, 0 CSP violations, no console error. 375×812: the 52×52 avatar 12px from the corner (measured at rest), and with the dialog open a hit at its centre is not the guide. Real waits, not `page.clock` (the tip needs IntersectionObserver entries, `visibleTimeout` and the gate's idle slot in step) |
 | `hud-integration.spec.ts` | the HUD chrome **on the real site** (critique §4, HI1–HI8), armed: HI1 on a 390×844 touch phone a hit at the centre of `#top button`, `#top a[href="#servicii"]`, the header theme toggle and `#servicii nav a:nth-child(3)` lands on the control, never the guide (`@smoke`); HI2 Tab reaches RO within 40; HI3 a hero CTA opens exactly one dialog (one `[role=dialog]`), and a fresh visitor has exactly one cookie banner and no HUD after a move; HI4 no sideways scroll at 320 / 390 / 768 / 1280 in light and dark, top and bottom, the guide inside the width; HI5 no decorative dot after a full scroll (the `[data-hud]` subtree included, the rail's nav attached first) and `<html>`/`<body>` untouched; HI6 0 CSP violations, no console error, three.js and GSAP never loaded after arming (the rail included) and a full scroll; HI7 `/servicii/e-commerce`: 0 canvases, 0 `[data-testid^=scene-]`, 0 live contexts, two `[data-hud]` parts at 1280 (one guide, one rail — one before Phase 5); HI8 the guide away over `#estimare` (opacity 0, `tabindex=-1`) with no visible form control under it, and on the phone the footer's last link ("Cookie-uri") in view with a hit at its centre on the link, not the guide — its size floor is its own 14px line box (the footer's 12px meta row predates the HUD); the rail (Phase 5), at 861 and 1280: HI9 no sideways scroll with the rail armed, the rail 44px wide against the right edge, top to bottom; HI10 `<html>`/`<body>` untouched and no decorative dot after marker jumps down, to the end, back to the top and one keyboard jump; HI11 the guide's box never overlaps the rail's box or any marker button, at the top and the bottom of the page |
 | `scroll-rail.spec.ts` | the **fibre scroll rail** (IT-OS Phase 5), armed (`HUD_ON`, consent seeded, `armHud`): at 1280 no rail and a visible top bar before arming, then one `<nav>` named `RAIL_COPY.nav` with the 7 home markers (labels from `RAIL_HOME_SECTIONS`: the catalog `nav.*` words and `RAIL_COPY`), each `expectTappable`, no links, the `aria-hidden` fibre with `pointer-events: none`, and the top bar `display: none` (`@smoke`); the Lucrări marker lands `#lucrari` at `--header-h` ±2 and becomes `aria-current`, a click does not move focus, at the bottom `--rail-p` is `"1.0000"`, Contact is current, every tick passed and a pulse requested, `expectRootUntouched`, no sideways scroll; Enter on Echipă focuses `#echipa` at the header line and Tab moves on with its tabindex restored; Tab reaches RO within 40 with the rail after the footer in DOM order; the guide and the rail never overlap at the bottom; 390×844: no rail, the top bar is the fibre (2px, `linear-gradient(90deg, transparent, <head colour>)`, a glow, an 18×2 square `::after` head at `right: 0`); reduced motion (`contextOptions`): after wheeling past every marker nothing runs inside `[data-rail]` and no `data-pulse` was set; `/servicii/produs-digital`: ≥ 3 tappable markers, 0 canvases; forced WebGL (`@webgl`, 150s): once Work's spiral applies, the Echipă and Contact markers move (when read before it) and Lucrări still lands on `#lucrari` |
 | `language.spec.ts` | the switcher changes the copy without a reload; the choice persists via `tbs_locale`; a seeded cookie is honoured server-side; all three languages are offered |
@@ -68,7 +67,7 @@ Run output (traces, screenshots, HTML report) goes to `e2e/.artifacts/`, which i
 | `keyboard.spec.ts` | Tab reaches the header controls, Enter/Space activate them, arrow keys move focus inside the language group, the focus ring is really drawn |
 | `modal.spec.ts` | the service-page CTA opens the **real** request flow in a dialog; `role`/`aria-modal`/name from its own heading; focus enters, is trapped over 40 Tab and 40 Shift+Tab presses, and returns to the CTA; ✕ / Escape / a click on the scrim close it, a click (or a drag ending) inside does not; the page behind is frozen and restored to the same pixel; the service is preselected (`/servicii/e-commerce` → €6.000, `/servicii/produs-digital` → €3.000); at 390px it is a bottom sheet with no sideways scroll |
 | `chat.spec.ts` | a freely typed answer becomes a bubble and earns the clarification round; the dialog terminates in a summary rendered on screen that contains what the visitor described; an 80-character unbroken word wraps instead of widening the page (desktop + 390px) |
-| `request-flow.spec.ts` | the **restructured, stepped** request flow — see the section below |
+| `request-flow.spec.ts` | the request flow — the same **deck** on the page and in the dialog; see the section below |
 | `dictation.spec.ts` | with `SpeechRecognition` removed the button is **not rendered at all**; with a fake recogniser injected it appears but constructs and starts nothing until clicked; a click shows the listening state; recognised text lands in an **editable** review box and reaches the field only after "add", carrying the visitor's edits; a refused microphone shows the fallback and leaves both the button and manual typing usable |
 | `sound.spec.ts` | off by default (no `tbs_sound` cookie); **no `AudioContext` is constructed while the page loads** — the constructor is counted from before the app's first line; the first one appears strictly inside the click that turns sound on, and only one is ever built; the choice survives a reload and turning it off drops the cookie; a returning visitor with sound already ON still triggers nothing before a gesture |
 
@@ -174,13 +173,14 @@ appear in the middle of a spec, over the very control it is about to press. The 
   suite runs with the HUD able to arm. It is not a gate; every failure it shows is triaged in the
   phase's `CHANGELOG.md` entry (Phase 4, the guide armed: 291 passed, 0 failed; Phase 5, the rail
   armed too: 306 passed, 0 failed).
-- **The HUD specs** are `guide.spec.ts` (the Ghid TBS: button, linger tip, gating, reduced
-  motion, a service page, a phone, away), `scroll-rail.spec.ts` (the fibre rail: the nav, jumps,
-  keyboard, the phone fibre bar, reduced motion, a service page, the spiral) and
-  `hud-integration.spec.ts` (HI1–HI11: what the armed chrome must never take from the page). Their
-  locators are `guideRoot` (`[data-hud][data-guide]`, with `data-state` / `data-away` /
-  `data-yield`), `guideAvatar` (`[data-testid="guide-avatar"]`), `guideTip`
-  (`[data-testid="guide-tip"]`), `railRoot` (`[data-hud][data-rail]`, carrying `--rail-p`) and
+- **The HUD specs** are `scroll-rail.spec.ts` (the fibre rail: the nav, jumps, keyboard, the
+  phone fibre bar, reduced motion, a service page, the spiral) and `hud-integration.spec.ts`
+  (HI1–HI11: what the armed chrome must never take from the page). `guide.spec.ts` was **deleted
+  on 2026-09-26** with the guide it covered — the linger tip, its prompts and its own CTA source
+  are gone from the site, and what remained of the file was the avatar and her questions, which
+  `hud-integration.spec.ts` already measures. Their locators are `guideRoot`
+  (`[data-hud][data-guide]`, with `data-away` / `data-yield`), `guideAvatar`
+  (`[data-testid="guide-avatar"]`), `railRoot` (`[data-hud][data-rail]`, carrying `--rail-p`) and
   `railNav` (its `<nav>`; absent past 8 sections); the copy is imported from
   `components/hud/guide/copy.ts` (`GUIDE_COPY`) and `components/hud/rail/copy.ts` (`RAIL_COPY`,
   `RAIL_HOME_SECTIONS`, plus `messages.ro` for the `nav.*` keys), never retyped.
@@ -189,44 +189,44 @@ appear in the middle of a spec, over the very control it is about to press. The 
   `railNav(page)` before reading the rail. A marker jump is a smooth `scrollTo`: poll the section's
   top rather than reading it once. Under `test.use({ reducedMotion })` the option is ignored in this
   config; use `contextOptions: { reducedMotion: "reduce" }`.
-- **Linger waits are real time.** The tip needs 5s of visible time on the centre line: a spec
-  centres the topic, checks there is no tip at 3.5s and waits for it until 12s after the scroll (in
-  the page it lands 5.02–5.04s after the scroll).
-  `page.clock` is not used there — it would have to drive the IntersectionObserver entries,
-  `visibleTimeout` and the gate's `requestIdleCallback` in step.
-- **Measure the avatar at rest.** For 0.7s after mounting (`data-state="enter"`) the button is
-  scaled and lifted by its entrance; wait for `data-state="idle"` before reading its box (the
-  root `[data-guide]` box is never transformed).
+- **The avatar's box is stable from the first frame.** It used to be scaled and lifted for 0.7s
+  by an entrance, and a spec had to wait for `data-state="idle"` before reading it. Both the
+  entrance and `data-state` went on 2026-09-26; what is left is a 0.4s opacity fade, chosen
+  because opacity does not move the box these specs measure.
 - **`consoleErrors(page, { allowMissing })`** drops console errors from resources whose path ends
   in one of `allowMissing` — by default `["/api/content"]`, the 404 the Next-only server gives.
   A spec that also reaches another endpoint passes the whole list, the default included.
 
-### `request-flow.spec.ts` — the stepped flow
+### `request-flow.spec.ts` — the deck, in the dialog
 
-The request flow was restructured from a two-column estimator squeezed into a 960px modal
-into a **single-column, stepped** flow in the order the client asked for — `1 choose the
-project → 2 choose what it should contain → 3 fill in your details` — with the conversational
-assistant demoted to an **optional** panel behind a toggle. The rule that matters
-commercially: the fast path to a sent request is **never** gated behind the chat.
+The request flow is ONE arrangement in two places. It was two: the home page showed the deck
+(both bays, everything at once) and the dialog ran the same flow as a **single-column, stepped**
+wizard — `1 choose the project → 2 choose what it should contain → 3 fill in your details`, with
+the assistant behind a toggle — because two columns squeezed into a 960px modal read as cramped.
+
+**On 2026-09-26 the owner asked for one design**, and the cramping was answered differently: the
+deck measures ITSELF (`@container deck (width < 711px)` in `Estimator.module.css`) instead of the
+window, so it stacks its own bays on its own width — two at 1440, one inside the dialog on a
+phone. The wizard, its progress indicator, its Înapoi/Continuă nav and the chat toggle are gone,
+and so is the whole step-walking layer in `helpers.ts` (`goToStep`, `expectActiveStep`,
+`clickStepNav`, `openChat`, …). The rule that OUTLIVED it is the one that mattered commercially:
+the fast path to a sent request is **never** gated behind the chat.
 
 These specs address the flow only through the contract its markup declares, never through
-copy (trilingual, reworded often) or CSS-module class names (rewritten in this very change):
+copy (trilingual, reworded often) or CSS-module class names:
 
 | hook | meaning |
 |---|---|
-| `[data-testid="request-flow"]` | the flow's root; `data-layout="dialog"` in the modal, `"section"` on the home page |
-| `[data-step="project" \| "options" \| "contact"]` | the three step panels; the one on screen carries `data-active="true"` |
-| `[data-testid="request-steps"]` | the progress indicator; its current item carries `aria-current="step"` |
-| `[data-testid="chat-toggle"]` | the assistant's switch, with `aria-expanded` |
-| `[data-testid="chat-panel"]` | the assistant's panel — **absent from the DOM** until the toggle is pressed |
+| `[data-testid="request-flow"]` | the flow's root; `data-layout="dialog"` in the modal, `"section"` on the home page. It is BEHAVIOUR only — nothing in the stylesheet keys off it — and the corner assistant steps out of the way of the `section` one |
+| `[data-step="project" \| "options" \| "contact"]` | the deck's three regions. All three are on screen and all three carry `data-active="true"`; the wizard's "exactly one" rule is what went away |
+| `[data-testid="chat-panel"]` | the assistant inside the DIALOG — present from the first frame, focusable, and what `openAssistant` moves focus to |
 | "Trimite cererea" | the submit button keeps its existing accessible name |
 
 | journey | tests |
 |---|---|
-| **fast path** (no chat) | 4 — the dialog opens on the **project** step with `data-layout="dialog"`; the chat panel is **not in the DOM** and the toggle reads `aria-expanded="false"`; project → options → contact → **send** without ever touching the chat, asserting the posted payload (name, email, phone, the preselected service's price, and the service slug inside `message`); the home page renders the same flow as `data-layout="section"` |
-| **guided path** (with chat) | 2 — the toggle opens the panel and flips `aria-expanded` to `"true"`, and closes it back down leaving the step where it was; an answer typed into the chat ends up **inside the posted `message`**, together with the summary heading |
-| **navigation & state** | 3 — the active step is reflected in **both** `data-active` and `aria-current` (exactly one of each, naming the same step); "back" does not lose typed contact details; the preselected service survives all three steps and is what the payload carries |
-| **375px phone** | 1 — exactly one step panel visible, no horizontal scroll, the sheet anchored to the bottom edge and inside the viewport, ≥44px targets on the chat toggle and the submit button |
+| **the deck** | 3 — the dialog opens on all three regions at once with `data-layout="dialog"`, the assistant visible, the submit already enabled, the opened-from service's price showing and **no `#estimare`** (the anchor belongs to the page); a request sent without the assistant being touched, asserting the posted payload (name, email, phone, the preselected price, the slug inside `message`); the home page renders the same deck as `data-layout="section"` |
+| **the assistant** | 2 — an answer typed into the chat ends up **inside the posted `message`** with the summary heading; and a project chip pressed AFTER the conversation still reaches the payload, which is the deck's own advantage over the wizard (chips and assistant on screen together) |
+| **375px phone** | 1 — the deck stacks (every region shares one left edge, measured as geometry), no horizontal scroll, the sheet anchored to the bottom edge and inside the viewport, a ≥44px submit |
 | **both themes** | 2 — one complete journey each in `light` and `dark`, seeded via `tbs_theme` so the palette is server-rendered rather than toggled afterwards |
 
 Prices are **derived, never typed**: `servicePrice()` reads `lib/content.ts` and
@@ -234,14 +234,11 @@ Prices are **derived, never typed**: `servicePrice()` reads `lib/content.ts` and
 repricing in the admin panel cannot turn these tests red. Every test stubs
 `POST /api/contact`, including the ones that never submit — the form inside the flow is live.
 
-**Contract gap worth closing.** The contract names the container, the steps, the indicator and
-the chat toggle, but never names the control that **moves between steps**. `goToStep()` in
-`helpers.ts` therefore tries, in order: an explicit `[data-testid="request-next"]` /
-`[data-nav="next"]` hook, then a button named like `/continuă|mai departe|următorul|înainte/i`
-(and `/înapoi|pasul anterior/i` backwards), then the step indicator if its items are
-clickable. Whichever the implementation picked, the specs keep working; if it picked none, the
-failure message says exactly which hook is missing rather than dying on a bare locator. Adding
-`data-testid="request-next"` / `"request-back"` would make this unambiguous.
+**The contract gap that closed itself.** This section used to end with one: the contract named
+the container, the steps, the indicator and the chat toggle, but never the control that MOVED
+between steps, so `goToStep()` had to try three different ways of finding it and reported which
+hook was missing when none worked. There are no steps to move between now, and the helper went
+with them.
 
 ### A11y gap this suite caught, now fixed
 

@@ -130,7 +130,7 @@ Verified, no change needed:
 
 ## HUD foundation (2026-09-17) — one dependency, one QA key
 
-The foundation of the IT-OS HUD (guide, fibre rail, OS windows) adds no visible feature yet. Not a
+The foundation of the IT-OS HUD (fibre rail, OS windows) adds no visible feature yet. Not a
 review round; recorded so the next audit starts from the facts.
 
 - **Dependency**: `lucide-react` **1.46.0**, pinned exactly, ISC licence. No dependencies of its

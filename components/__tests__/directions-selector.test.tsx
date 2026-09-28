@@ -175,7 +175,7 @@ describe("direction selector — the preview follows the selection", () => {
     const container = renderSection();
     fireEvent.pointerMove(pills()[1]); // e-commerce
 
-    expect(screen.getByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeInTheDocument();
+    // The scheme is named by its own title now: its label line went with every other kicker.
     expect(screen.getByText("Ofertă → Plată → Acces")).toBeInTheDocument();
     const steps = Array.from(container.querySelectorAll("ol li span")).map(
       (el) => el.textContent,
@@ -208,7 +208,6 @@ describe("direction selector — the preview follows the selection", () => {
 
     // The reference card is the first curated project of the direction.
     expect(await screen.findByText("BizCheck")).toBeInTheDocument();
-    expect(screen.getByText("PROIECT REAL DIN PORTOFOLIU")).toBeInTheDocument();
   });
 });
 

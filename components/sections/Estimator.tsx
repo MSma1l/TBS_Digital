@@ -31,11 +31,11 @@ import {
 } from "@/lib/request/catalog";
 import type { RequestContext } from "@/lib/request/RequestFlowProvider";
 import styles from "./Estimator.module.css";
+import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  eyebrow: L("Cerere / estimare", "Заявка / оценка", "Request / estimate"),
   title: L("Spune-ne ce vrei să construiești.", "Расскажите, что хотите построить.", "Tell us what you want to build."),
   lead: L(
     "Un dialog scurt clarifică cererea, iar rezumatul se atașează automat propunerii.",
@@ -119,7 +119,7 @@ const ORIGIN = {
   title: L("Contextul cererii", "Контекст заявки", "Request context"),
   service: L("Serviciu", "Услуга", "Service"),
   project: L("Proiect", "Проект", "Project"),
-  /* The page area the guide was about (`context.guideTopic`). */
+  /* The page area the request is about (`context.guideTopic`). */
   section: L("Secțiune", "Раздел", "Section"),
   source: L("Sursă (CTA)", "Источник (CTA)", "Source (CTA)"),
 };
@@ -179,120 +179,12 @@ const PLACEHOLDERS = {
   details: L("Adaugă orice detaliu important", "Добавьте любую важную деталь", "Add any important detail"),
 };
 
-/* ---------- stepped layout, used inside the request dialog ----------
-   The home-page section shows everything at once on two columns, which is right at page
-   width and cramped inside a 960px modal. In a dialog the same flow runs on ONE column,
-   one step at a time: the project, then what it should contain, then the visitor's
-   details. The assistant is not part of that path — it is opened on request. */
-
-type StepId = "project" | "options" | "contact";
-
-const STEPS: {
-  id: StepId;
-  /** Short name in the progress indicator — it has to fit three-across on a phone. */
-  label: LocalizedText;
-  /** The step's own heading. */
-  title: LocalizedText;
-  /** One line saying what to do here. */
-  hint: LocalizedText;
-}[] = [
-  {
-    id: "project",
-    label: L("Proiectul", "Проект", "Project"),
-    title: L("Ce construim?", "Что строим?", "What are we building?"),
-    hint: L(
-      "Alege tipul de proiect. Prețul de pornire se schimbă odată cu el.",
-      "Выберите тип проекта. Стартовая цена меняется вместе с ним.",
-      "Pick the project type. The starting price follows it.",
-    ),
-  },
-  {
-    id: "options",
-    label: L("Ce conține", "Что включить", "Contents"),
-    title: L("Ce să conțină?", "Что включить?", "What should it include?"),
-    hint: L(
-      "Bifează ce contează pentru tine. Poți alege mai multe sau niciuna.",
-      "Отметьте, что важно. Можно выбрать несколько или ничего.",
-      "Tick whatever matters to you. Pick several, or none.",
-    ),
-  },
-  {
-    id: "contact",
-    label: L("Datele tale", "Ваши данные", "Your details"),
-    title: L("Datele tale", "Ваши данные", "Your details"),
-    hint: L(
-      "Îți răspundem în cel mult o zi lucrătoare.",
-      "Отвечаем в течение одного рабочего дня.",
-      "We reply within one business day.",
-    ),
-  },
-];
-
-const NAV = {
-  back: L("Înapoi", "Назад", "Back"),
-  next: L("Continuă", "Продолжить", "Continue"),
-  /** Accessible name of the progress list itself. */
-  steps: L("Pașii cererii", "Шаги заявки", "Request steps"),
-};
-
-/**
- * Where you are and how much is left — both, in one line, because a bare "2/3" answers
- * only the first half.
- */
-const stepHint = (index: number): LocalizedText => {
-  const n = index + 1;
-  const total = STEPS.length;
-  const left = total - n;
-  if (left === 0) {
-    return L(
-      `Pasul ${n} din ${total} · ultimul pas`,
-      `Шаг ${n} из ${total} · последний шаг`,
-      `Step ${n} of ${total} · last step`,
-    );
-  }
-  return L(
-    `Pasul ${n} din ${total} · ${left === 1 ? "a mai rămas 1 pas" : `au mai rămas ${left} pași`}`,
-    `Шаг ${n} из ${total} · ${left === 1 ? "остался 1 шаг" : `осталось ${left} шага`}`,
-    `Step ${n} of ${total} · ${left === 1 ? "1 step left" : `${left} steps left`}`,
-  );
-};
-
-/**
- * The two ways through the flow, said plainly.
- *
- * Both are real paths through the same form, and neither is sold as better: one is for a
- * visitor who already knows what they want, the other for one who does not. Nothing here
- * promises anything the flow does not actually do — the fast path really is three steps,
- * and the assistant really does write the summary that travels with the request.
- */
-const PATHS = {
-  title: L(
-    "Două feluri de a ajunge la o cerere",
-    "Два способа дойти до заявки",
-    "Two ways to get to a request",
-  ),
-  fastTitle: L("Rapid", "Быстро", "Fast"),
-  fastCopy: L(
-    "Știi ce vrei: alegi proiectul, bifezi ce conține, completezi datele. Trei pași, nicio întrebare în plus.",
-    "Вы знаете, что нужно: выбираете проект, отмечаете содержимое, заполняете данные. Три шага, без лишних вопросов.",
-    "You know what you want: pick the project, tick the contents, fill in your details. Three steps, no extra questions.",
-  ),
-  guidedTitle: L("Ghidat", "С ассистентом", "Guided"),
-  guidedCopy: L(
-    "Nu ești sigur ce să ceri: asistentul pune câteva întrebări scurte și scrie rezumatul cererii. Poți trimite oricând, fără să-l termini.",
-    "Не уверены, что просить: ассистент задаёт несколько коротких вопросов и пишет итог заявки. Отправить можно в любой момент, не завершая диалог.",
-    "You're not sure what to ask for: the assistant asks a few short questions and writes the request summary. You can send at any point, without finishing it.",
-  ),
-  open: L("Deschide asistentul", "Открыть ассистента", "Open the assistant"),
-  close: L("Închide asistentul", "Закрыть ассистента", "Close the assistant"),
-  /* Shown once the assistant has recorded something, so closing it never looks like
-     throwing that work away — the summary is state, not markup. */
-  kept: L(
-    "Asistentul a notat răspunsurile tale. Pleacă cu cererea, chiar dacă închizi chatul.",
-    "Ассистент записал ваши ответы. Они уйдут вместе с заявкой, даже если вы закроете чат.",
-    "The assistant recorded your answers. They travel with the request, even if you close the chat.",
-  ),
-};
+/* ---------- the dialog used to run this flow as three steps ----------
+   The reason it did is worth keeping, because it is the thing the deck now has to answer:
+   two columns are right at page width and were cramped inside a 960px modal. The owner
+   chose one arrangement for both (2026-09-26), so the answer is no longer a second layout
+   — it is `@container` on the deck (Estimator.module.css), which lets the SAME rules stack
+   the bays on the width the deck actually has instead of the width of the window. */
 
 /* ---------- chat assistant tree ---------- */
 type Opt = { label: LocalizedText; next: string };
@@ -571,14 +463,21 @@ export type EstimatorProps = {
   /**
    * How the same flow is laid out.
    *
-   * `"section"` (the default) is the home page's `#estimare` block, unchanged: heading,
-   * two columns, the assistant always on screen. `"dialog"` is the variant the shared
-   * request modal uses — one column, three steps, and the assistant behind a button.
-   * Only the arrangement differs; the state, the validation and the submitted payload
-   * are the same code in both.
+   * THERE IS ONE ARRANGEMENT. Both values render the same deck — both bays, everything on
+   * screen, the assistant among them. `"dialog"` used to be a second layout (one column,
+   * three steps, the assistant behind a button) and stopped being one on 2026-09-26.
+   *
+   * What the value still decides is small, and all of it is about being inside a modal: the
+   * dialog leaves off the page's heading block and `#estimare` (the modal has its own head,
+   * and an anchor may exist once per document), names its assistant so `openAssistant` can
+   * move focus to it, and suffixes the two element ids so a dialog open over the page does
+   * not put two of each in one document. It is also read as BEHAVIOUR elsewhere — the corner
+   * assistant steps out of the way of the `section` one. The state, the validation and the
+   * submitted payload are the same code either way.
    */
   layout?: "section" | "dialog";
-  /** Rendered next to the chat composer (`data-dictation-slot="estimator-chat"`). */
+  /** Rendered next to the chat composer (`data-dictation-slot="estimator-chat"`, a NAME and
+      not an id — a dialog open over the page has two, so scope any lookup to one estimator). */
   renderChatDictation?: DictationSlot;
   /** Rendered next to the details field (`data-dictation-slot="estimator-details"`). */
   renderDetailsDictation?: DictationSlot;
@@ -650,6 +549,15 @@ export function Estimator({
     attachment,
   } = context ?? {};
   const isDialog = layout === "dialog";
+  /*
+   * ONE DOCUMENT CAN HOLD BOTH OF THESE AT ONCE — the home page's section with the dialog open
+   * over it — and since 2026-09-26 the dialog's assistant is always rendered rather than hidden
+   * behind a button, so the two composers coexist on every such opening rather than only when
+   * someone pressed "Ghidat". Two elements with one id is invalid HTML, and it is what a label,
+   * a `for=` and the dictation button's `targetId` all resolve through: the browser hands them
+   * the FIRST match, which would be the page's field while the visitor types in the dialog's.
+   */
+  const domId = (base: string) => (isDialog ? `${base}-dialog` : base);
   const l = useLoc();
   const t = useT();
   /* Prices are the owner's, edited in the admin — see SERVICE_FOR_TYPE (lib/request/catalog). */
@@ -685,13 +593,6 @@ export function Estimator({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const sent = status === "sent";
 
-  /* ---- stepped layout state (dialog only; the section shows everything at once) ----
-     Both live here, above the step panels, so going back never loses a chip, a typed
-     field or a line of the dialog: the panels are views over this state, not owners of it. */
-  const [stepIndex, setStepIndex] = useState(0);
-  /* `context.openAssistant` (the guide) opens the dialog on the assistant; the effect below
-     then moves focus into it. The section ignores it: its assistant is always on screen. */
-  const [chatOpen, setChatOpen] = useState(isDialog && openAssistant === true);
 
   /*
    * The panel lights once, the first time it is reached, and then never again. A one-shot
@@ -723,47 +624,33 @@ export function Estimator({
     return () => io.disconnect();
   }, []);
 
-  const stepHeadingRef = useRef<HTMLHeadingElement>(null);
+  /* And while the deck is off screen its two lights stop repainting (Estimator.module.css).
+     A second observer on the same node, because the one above is a one-shot latch that
+     unobserves itself — it cannot also report leaving. */
+  useOffscreenAttribute(boxRef);
+
   const chatPanelRef = useRef<HTMLDivElement>(null);
-  const chatToggleRef = useRef<HTMLButtonElement>(null);
-  const mountedRef = useRef(false);
-  const chatWasOpen = useRef(false);
 
-  /* Moving between steps swaps the whole panel, so focus has to follow it — otherwise a
-     keyboard visitor presses "Continuă" and their next Tab starts from the button they
-     just left, below content they never saw. Skipped on mount: the dialog does its own
-     initial focus, and stealing it would fight the modal. */
+  /*
+   * `openAssistant` in the dialog: the assistant is already on screen, so all that is left to
+   * do is take the visitor to it. The guide's avatar passes this on every request it opens
+   * (components/hud/guide/GuideAssistant.tsx), and it used to open a panel that no longer
+   * closes — the deck's assistant is never hidden.
+   *
+   * A microtask, not now: a dialog whose chunk is already loaded mounts this estimator in the
+   * same commit as the Modal, and the Modal's initial-focus effect runs after this one (a
+   * parent's effects follow its children's) — it would move focus straight back to the ✕.
+   */
   useEffect(() => {
-    if (!isDialog) return;
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      return;
-    }
-    stepHeadingRef.current?.focus();
-  }, [stepIndex, isDialog]);
-
-  /* Opening the assistant moves focus into it; closing it hands focus back to the button
-     that closed it, which is the only control still on screen that means "the assistant". */
-  useEffect(() => {
-    if (!isDialog) return;
-    if (chatOpen) {
-      chatWasOpen.current = true;
-      /* A microtask, not now: a dialog opened on the assistant (`context.openAssistant`) whose
-         chunk is already loaded mounts this estimator in the same commit as the Modal, and the
-         Modal's initial-focus effect runs after this one (a parent's effects follow its
-         children's) — it would move focus straight back to its first control. */
-      let cancelled = false;
-      queueMicrotask(() => {
-        if (!cancelled) chatPanelRef.current?.focus();
-      });
-      return () => {
-        cancelled = true;
-      };
-    } else if (chatWasOpen.current) {
-      chatToggleRef.current?.focus();
-      chatWasOpen.current = false;
-    }
-  }, [chatOpen, isDialog]);
+    if (!isDialog || openAssistant !== true) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) chatPanelRef.current?.focus();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDialog, openAssistant]);
 
   /* The admin's price already reads "de la 150€" / "от 150€" / "from 150€", so it is shown
      as written. Only the built-in fallback needs the "de la" prefix glued on. A service that
@@ -937,7 +824,7 @@ export function Estimator({
         projectName && projectId ? `${projectName} (${projectId})` : projectName || projectId;
       rows.push(`- ${l(ORIGIN.project)}: ${named}`);
     }
-    // Only a topic the guide really has: the id is written into the lead verbatim.
+    // Only a topic `lib/hud/topics.ts` really has: the id is written into the lead verbatim.
     if (isGuideTopic(guideTopic)) rows.push(`- ${l(ORIGIN.section)}: ${guideTopic}`);
     if (source) rows.push(`- ${l(ORIGIN.source)}: ${source}`);
     if (rows.length === 0) return "";
@@ -1063,8 +950,8 @@ export function Estimator({
      copies of the contact form would be two sets of validation rules waiting to drift.
      --------------------------------------------------------------------------------- */
 
-  /* `marks` carries the step attributes when the caller has no wrapper of its own to put
-     them on — the section arranges these blocks itself, the dialog wraps each in a step. */
+  /* `marks` carries the region attributes. Both layouts pass the same ones now; the argument
+     survives because it is the chips' only way to be marked from outside. */
   const projectChips = (marks?: Record<string, string>) => (
     <div className={styles.choices} {...marks}>
       {PROJECT_TYPES.map((p, i) => (
@@ -1136,7 +1023,7 @@ export function Estimator({
       {current && (
         <form className={styles.compose} onSubmit={sendDraft}>
           <textarea
-            id="estimator-chat-input"
+            id={domId("estimator-chat-input")}
             data-dictation-target="estimator-chat"
             className={styles.composeInput}
             aria-label={l(CHAT.inputLabel)}
@@ -1157,7 +1044,7 @@ export function Estimator({
                 `data-dictation-slot` attribute. */}
             <span className={styles.dictationSlot} data-dictation-slot="estimator-chat">
               {renderChatDictation?.({
-                targetId: "estimator-chat-input",
+                targetId: domId("estimator-chat-input"),
                 onTranscript: (text) => setDraft((prev) => appendText(prev, text)),
               })}
             </span>
@@ -1249,19 +1136,21 @@ export function Estimator({
       )}
       <div className={styles.detailsField}>
         <textarea
-          id="estimator-details"
+          id={domId("estimator-details")}
           data-dictation-target="estimator-details"
           aria-label={l(PLACEHOLDERS.details)}
           placeholder={l(PLACEHOLDERS.details)}
           value={details}
           onChange={(e) => setDetails(e.target.value)}
           maxLength={4000}
-          rows={3}
+          /* One row shorter in the dialog, where the height is a budget: it is the only field
+             whose size is a choice rather than a line of text, and it still grows on scroll. */
+          rows={isDialog ? 2 : 3}
         />
         {/* Second dictation mount point — same contract as the chat one. */}
         <span className={styles.dictationSlot} data-dictation-slot="estimator-details">
           {renderDetailsDictation?.({
-            targetId: "estimator-details",
+            targetId: domId("estimator-details"),
             onTranscript: (text) => setDetails((prev) => appendText(prev, text)),
           })}
         </span>
@@ -1293,201 +1182,106 @@ export function Estimator({
   );
 
   /* ---------------------------------------------------------------------------------
-     Dialog: one column, three steps, the assistant on request.
+     THE DECK — one arrangement, on the page and in the dialog.
+     ---------------------------------------------------------------------------------
+     The dialog used to be a three-step wizard of its own: a numbered progress bar, one
+     panel at a time, Înapoi/Continuă, and the assistant behind a "Ghidat" button. The
+     owner asked for the two to be the same thing (2026-09-26), and they are: the console
+     deck, both bays, everything on screen at once. What the wizard owned and the deck did
+     not — the attachment note and `openAssistant` — is carried below.
+
+     `data-layout` is no longer a look. Both layouts render the same classes; the attribute
+     stays because it is BEHAVIOUR that reads it: the corner assistant steps out of the way
+     of `[data-testid="request-flow"][data-layout="section"]` only (the home page's own
+     form), and the specs use it to tell the two apart. Nothing in the stylesheet keys off
+     it any more.
      --------------------------------------------------------------------------------- */
-  if (isDialog) {
-    const last = STEPS.length - 1;
-    const attached = attachmentNote();
-    return (
-      <div className={styles.flow} data-testid="request-flow" data-layout="dialog">
-        <div className={styles.progressBlock}>
-          <ol
-            className={styles.progress}
-            data-testid="request-steps"
-            aria-label={l(NAV.steps)}
-          >
-            {STEPS.map((s, i) => (
-              <li key={s.id} className={styles.progressItem}>
-                {/* Every step is reachable at any moment: nothing here validates a gate,
-                    so a visitor who wants to send straight away is one press away from
-                    the contact fields. */}
-                <button
-                  type="button"
-                  className={`${styles.progressStep} ${
-                    i === stepIndex ? styles.progressCurrent : ""
-                  } ${i < stepIndex ? styles.progressDone : ""}`}
-                  aria-current={i === stepIndex ? "step" : undefined}
-                  onClick={() => setStepIndex(i)}
-                >
-                  <span className={styles.progressNum}>{i + 1}</span>
-                  <span className={styles.progressLabel}>{l(s.label)}</span>
-                </button>
-              </li>
-            ))}
-          </ol>
-          <p className={styles.progressHint} role="status">
-            {l(stepHint(stepIndex))}
-          </p>
-        </div>
+  const attached = attachmentNote();
+  const deck = (
+    <div
+      ref={boxRef}
+      className={styles.box}
+      data-testid="request-flow"
+      data-layout={isDialog ? "dialog" : "section"}
+    >
+      {/* The deck's top rail. Decorative, silent, permanently in motion — the second light
+          runs the proposal panel's own edge and needs no element of its own. */}
+      <span className={styles.railLight} aria-hidden="true" />
 
-        {/* The price is the owner's, and it stays on screen through every step — it is
-            what the visitor is being asked to react to. */}
-        <div className={styles.proposal}>
-          <span className={`mono ${styles.proposalLabel}`}>{l(SECTION.proposal)}</span>
-          <span className={styles.proposalType}>{l(PROJECT_TYPES[typeIndex].label)}</span>
-          <b className={`disp ${styles.proposalPrice}`}>{price}</b>
-        </div>
-        {attached && <p className={styles.stepNote}>{attached}</p>}
+      <div className={styles.steps}>
+        <div className={styles.bayLeft}>
+          {/* Real headings. On the page they sit under the section's own <h2>; in the dialog
+              under the modal's, where they are the ONLY structure a screen reader gets — the
+              wizard had a heading per step and the deck had none. */}
+          <h3 className={`mono ${styles.stepLabel}`}>{l(SECTION.step1)}</h3>
+          {projectChips({ "data-step": "project", "data-active": "true" })}
 
-        {STEPS.map((s, i) => (
-          <section
-            key={s.id}
-            className={styles.step}
-            data-step={s.id}
-            {...(i === stepIndex ? { "data-active": "true" } : {})}
-            aria-labelledby={`request-step-${s.id}`}
-          >
-            <h3
-              id={`request-step-${s.id}`}
-              className={styles.stepTitle}
-              tabIndex={-1}
-              ref={i === stepIndex ? stepHeadingRef : undefined}
-            >
-              {l(s.title)}
-            </h3>
-            <p className={styles.stepHint}>{l(s.hint)}</p>
-            {s.id === "project" && (
-              <>
-                {projectChips()}
-                <p className={styles.stepNote}>{l(RESULT_COPY)}</p>
-              </>
-            )}
-            {s.id === "options" && optionChips()}
-            {s.id === "contact" && contactForm}
-          </section>
-        ))}
+          <h3 className={`mono ${styles.stepLabel}`}>{l(SECTION.step2)}</h3>
+          {optionChips({ "data-step": "options", "data-active": "true" })}
 
-        <div className={styles.stepNav}>
-          <button
-            type="button"
-            className={styles.navBack}
-            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-            disabled={stepIndex === 0}
-          >
-            {l(NAV.back)}
-          </button>
-          {stepIndex < last && (
-            <button
-              type="button"
-              className={styles.navNext}
-              onClick={() => setStepIndex((i) => Math.min(last, i + 1))}
-            >
-              {l(NAV.next)}
-            </button>
-          )}
-        </div>
-
-        {/* The two paths, and the only control that starts the assistant. It sits after
-            the steps because that is where it belongs in the flow: the request can be
-            sent without ever opening it. */}
-        <div className={styles.paths}>
-          <div className={`mono ${styles.pathsTitle}`}>{l(PATHS.title)}</div>
-          <div className={styles.pathList}>
-            <div className={`${styles.path} ${chatOpen ? "" : styles.pathActive}`}>
-              <b className={styles.pathName}>{l(PATHS.fastTitle)}</b>
-              <p className={styles.pathCopy}>{l(PATHS.fastCopy)}</p>
-            </div>
-            <div className={`${styles.path} ${chatOpen ? styles.pathActive : ""}`}>
-              <b className={styles.pathName}>{l(PATHS.guidedTitle)}</b>
-              <p className={styles.pathCopy}>{l(PATHS.guidedCopy)}</p>
-              <button
-                ref={chatToggleRef}
-                type="button"
-                className={styles.pathButton}
-                data-testid="chat-toggle"
-                aria-expanded={chatOpen}
-                aria-controls={chatOpen ? "request-assistant" : undefined}
-                onClick={() => setChatOpen((open) => !open)}
-              >
-                {l(chatOpen ? PATHS.close : PATHS.open)}
-              </button>
-            </div>
-          </div>
-          {turns.length > 0 && <p className={styles.pathKept}>{l(PATHS.kept)}</p>}
-        </div>
-
-        {chatOpen && (
+          {/* In the dialog this is also the thing `openAssistant` takes a visitor to, so it
+              is focusable and named there. On the page it is one part of a section that is
+              already announced by its own heading, and needs neither. */}
           <div
-            id="request-assistant"
-            ref={chatPanelRef}
-            tabIndex={-1}
-            role="group"
-            aria-label={l(SECTION.assistant)}
-            className={`${styles.chat} ${styles.chatPanel}`}
-            data-testid="chat-panel"
+            className={styles.chat}
+            ref={isDialog ? chatPanelRef : undefined}
+            tabIndex={isDialog ? -1 : undefined}
+            id={isDialog ? "request-assistant" : undefined}
+            role={isDialog ? "group" : undefined}
+            aria-label={isDialog ? l(SECTION.assistant) : undefined}
+            data-testid={isDialog ? "chat-panel" : undefined}
           >
             {chatBody}
           </div>
-        )}
-      </div>
-    );
-  }
+        </div>
 
-  /* ---------------------------------------------------------------------------------
-     Section: the home page's `#estimare`, unchanged.
-     --------------------------------------------------------------------------------- */
+        {/* The label sits on the DECK, not on the panel: --red-text measures 3.51:1 on the
+            lit riser and fails, and no panel bright enough to separate from the deck can
+            carry it. Out here it is 5.11:1, and all three region labels share one ground. */}
+        <div className={styles.bayRight}>
+          <h3 className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</h3>
+          {/* A <div>, not the <aside> it was. `<aside>` is a `complementary` landmark, and this
+              is the proposal and the send button — the primary thing on the deck, not content
+              tangential to it. Tolerable on a page full of landmarks; inside the dialog it
+              announced the request form itself as an aside. */}
+          <div
+            className={styles.result}
+            data-step="contact"
+            data-active="true"
+            /* `undefined` keeps the attribute off the markup entirely until a price has
+               actually changed, so nothing flashes on arrival. */
+            data-commit={commit ?? undefined}
+          >
+            <b className={`disp ${styles.price}`}>{price}</b>
+            <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
+            {/* What the calculator already chose for this visitor. Only ever present when a
+                caller passed an attachment, which today is the OS calculator opening the
+                dialog — but it is rendered by the deck rather than by a layout, so whatever
+                passes one next gets the line too. The block itself travels in the message
+                either way (`buildMessage`); this is the visitor's half of that promise. */}
+            {attached && <p className={styles.attached}>{attached}</p>}
+            {contactForm}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  /* The dialog has its own heading, its own lead and its own ✕ (lib/request/RequestFlowProvider
+     .tsx). It takes the deck and nothing around it — the page furniture below would give it a
+     second <h2> carrying the same sentence, and a second `id="estimare"` in the document. */
+  if (isDialog) return deck;
+
   return (
     <section id="estimare" className={styles.section}>
       <div className="container">
         <Reveal className={styles.top}>
           <div>
-            <div className={`mono ${styles.eyebrow}`}>{l(SECTION.eyebrow)}</div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
           </div>
           <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
-
-        <div
-          ref={boxRef}
-          className={styles.box}
-          data-testid="request-flow"
-          data-layout="section"
-        >
-          {/* The deck's top rail. Decorative, silent, permanently in motion — the second light
-              runs the proposal panel's own edge and needs no element of its own. */}
-          <span className={styles.railLight} aria-hidden="true" />
-
-          <div className={styles.steps}>
-            <div className={styles.bayLeft}>
-              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step1)}</div>
-              {projectChips({ "data-step": "project", "data-active": "true" })}
-
-              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.step2)}</div>
-              {optionChips({ "data-step": "options", "data-active": "true" })}
-
-              <div className={styles.chat}>{chatBody}</div>
-            </div>
-
-            {/* The label sits on the DECK, not on the panel: --red-text measures 3.51:1 on the
-                lit riser and fails, and no panel bright enough to separate from the deck can
-                carry it. Out here it is 5.11:1, and all three region labels share one ground. */}
-            <div className={styles.bayRight}>
-              <div className={`mono ${styles.stepLabel}`}>{l(SECTION.proposal)}</div>
-              <aside
-                className={styles.result}
-                data-step="contact"
-                data-active="true"
-                /* `undefined` keeps the attribute off the markup entirely until a price has
-                   actually changed, so nothing flashes on arrival. */
-                data-commit={commit ?? undefined}
-              >
-                <b className={`disp ${styles.price}`}>{price}</b>
-                <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
-                {contactForm}
-              </aside>
-            </div>
-          </div>
-        </div>
+        {deck}
       </div>
     </section>
   );

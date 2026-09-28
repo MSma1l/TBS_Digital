@@ -142,8 +142,6 @@ export type ModalProps = {
   title: MaybeLocalized;
   /** Optional supporting line under the title, wired up via `aria-describedby`. */
   description?: MaybeLocalized;
-  /** Optional mono kicker above the title (the site's usual section eyebrow). */
-  eyebrow?: MaybeLocalized;
   children: ReactNode;
   /** Pinned below the scrolling body — action row, fine print, etc. */
   footer?: ReactNode;
@@ -167,6 +165,15 @@ export type ModalProps = {
   closeOnEscape?: boolean;
   /** Extra class on the panel, for a caller that needs a different width. */
   className?: string;
+  /**
+   * What the panel is made of.
+   *
+   * `panel` (the default) is right for a body of text and fields drawn straight onto the
+   * dialog. `ink` hands the body the page's own ground instead, and is for a body that brings
+   * its OWN surfaces — the request deck, a lit console whose design depends on standing in an
+   * unlit room. The measurement is in Modal.module.css beside the rule.
+   */
+  ground?: "panel" | "ink";
 };
 
 /**
@@ -185,7 +192,6 @@ export function Modal({
   onClose,
   title,
   description,
-  eyebrow,
   children,
   footer,
   initialFocusRef,
@@ -193,6 +199,7 @@ export function Modal({
   closeOnOverlayClick = true,
   closeOnEscape = true,
   className,
+  ground = "panel",
 }: ModalProps) {
   const l = useLoc();
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -332,7 +339,6 @@ export function Modal({
 
   const titleText = l(title);
   const descriptionText = description ? l(description) : "";
-  const eyebrowText = eyebrow ? l(eyebrow) : "";
 
   return createPortal(
     <div
@@ -348,11 +354,12 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={descriptionText ? descriptionId : undefined}
         tabIndex={-1}
-        className={`${styles.panel}${className ? ` ${className}` : ""}`}
+        className={`${styles.panel}${ground === "ink" ? ` ${styles.panelInk}` : ""}${
+          className ? ` ${className}` : ""
+        }`}
       >
         <header className={styles.head}>
           <div className={styles.heading}>
-            {eyebrowText && <p className={`mono ${styles.eyebrow}`}>{eyebrowText}</p>}
             <h2 id={titleId} className={`disp ${styles.title}`}>
               {titleText}
             </h2>

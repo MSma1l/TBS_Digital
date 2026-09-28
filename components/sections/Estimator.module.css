@@ -4,6 +4,12 @@
   padding: clamp(48px, 7vw, 76px) clamp(16px, 4vw, 40px);
 }
 
+/* The gap under the page's heading block. It was on `.box` and came into the dialog with it,
+   where the Modal's own head already provides the separation. */
+.section .box {
+  margin-top: 28px;
+}
+
 .top {
   display: flex;
   justify-content: space-between;
@@ -11,15 +17,8 @@
   align-items: end;
   flex-wrap: wrap;
 }
-.eyebrow {
-  color: var(--red-text);
-  font-weight: var(--fw-bold);
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
 .title {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: clamp(28px, 3.5vw, 44px);
   letter-spacing: -0.04em;
   color: var(--txt);
@@ -59,8 +58,24 @@
  * region labels finally share one ground and one weight.
  * ============================================================================================= */
 .box {
-  margin-top: 28px;
   position: relative;
+  /*
+   * THE DECK IS ITS OWN RULER (2026-09-26).
+   *
+   * It is drawn in two places now — the page section and the request dialog — and those are
+   * not the same width at the same window size. Measured: at a 1440px window the page gives
+   * the deck 1222px and the dialog 838px; at an 821px window the page gives it 711px and the
+   * dialog 664px. Every `@media` rule below therefore answered a question nobody asked: the
+   * bays used to stack on the WINDOW crossing 820px, which inside the dialog left a band
+   * (window 821-870px) where the rules said two columns and the deck was narrower than any
+   * two-column deck the page has ever rendered. Nothing overflowed, because both bays carry
+   * `min-width: 0` and the modal clips what spills — it simply got squeezed.
+   *
+   * `inline-size` containment and not `size`: it constrains the width the deck reports to its
+   * own descendants, never the height, and it does NOT clip (that is `contain: paint`), so the
+   * shadow, the rail light and the riser's glow all still paint outside the box.
+   */
+  container: deck / inline-size;
   isolation: isolate;
   background-color: var(--deck);
   /* The bracket pair, as four background layers rather than four elements. --red-lift and not
@@ -228,7 +243,12 @@
    square node, and on screen those read as three small squares floating far out to the right of
    their own labels with no visible line reaching them — debris, not a terminated trace. The line
    is what carries the idea; the node only made it look unfinished. */
+/* An `<h3>`, not a div: in the DIALOG this is the only structure a screen reader has — the
+   modal's own `<h2>` and then these three. The wizard had a heading per step and the deck had
+   none, which is what the swap would have cost. `margin: 0` because the UA's 1em would open a
+   gap `.choices` already owns. */
 .stepLabel {
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -328,21 +348,19 @@
 }
 
 /* chat */
+/* The chat as a PART seated in the well: the same three-layer window chrome the price panel
+   gets, so the two bays match.
+   There were TWO `.chat` rules here until 2026-09-26 — a bare one and this one, scoped
+   `[data-layout="section"]`, because the dialog drew the class as `.chat.chatPanel` with a look
+   of its own. There is one look now, so they are one rule: left split, the second only ever set
+   `border-color` and the merge would have dropped the border style with the shorthand.
+   Every layer is `no-repeat` with an explicit 1px side, so none of them can ever become a fill. */
 .chat {
+  --tick: color-mix(in srgb, var(--red-lift) 40%, transparent);
   margin-top: 22px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--panel);
   color: var(--txt);
   padding: 18px;
-}
-/* The chat as a PART seated in the well: the same three-layer window chrome the price panel
-   gets, so the two bays match. Scoped to the section, because the dialog renders this same
-   class as `.chat.chatPanel` with a look of its own.
-   Every layer is `no-repeat` with an explicit 1px side, so none of them can ever become a fill. */
-[data-layout="section"] .chat {
-  --tick: color-mix(in srgb, var(--red-lift) 40%, transparent);
-  border-color: var(--line2);
+  border: 1px solid var(--line2);
   border-radius: var(--r-sm);
   /* The same recess as the chips. */
   background-color: var(--slot);
@@ -358,6 +376,19 @@
   background-size: 100% 1px, 1px 14px, 1px 14px;
   background-position: top center, top left 13px, top right 13px;
   background-repeat: no-repeat;
+}
+
+/*
+ * IT CAN BE FOCUSED, SO IT HAS TO SHOW IT.
+ *
+ * Only in the dialog, where the wrapper takes `tabIndex={-1}` and `openAssistant` moves focus
+ * into it (components/sections/Estimator.tsx) — a visitor who pressed the corner assistant
+ * lands here, and without a ring nothing says where they landed. The old `.chatPanel` had this
+ * rule; it went with the panel and had to come back on the class that replaced it.
+ */
+.chat:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--red-lift) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .chatHead {
@@ -621,7 +652,7 @@
  * It rides the panel's own top rule, which is already drawn there, so nothing new frames the hero
  * — the light simply travels the frame it already has.
  */
-[data-layout="section"] .result::after {
+.result::after {
   content: "";
   position: absolute;
   top: 0;
@@ -645,7 +676,7 @@
   background-repeat: no-repeat;
   background-position: -150px 0;
 }
-[data-layout="section"] .box[data-entered] .result::after {
+.box[data-entered] .result::after {
   animation-name: riser-run;
   animation-duration: 4.8s;
   animation-timing-function: linear;
@@ -654,6 +685,29 @@
      exactly one thing to follow. */
   animation-delay: 1.6s;
 }
+/*
+ * THE TWO LIGHTS STOP WHILE THE DECK IS NOT ON SCREEN.
+ *
+ * Both animate `background-position`, which the compositor cannot carry: every frame is a repaint
+ * of the deck's rail and of the proposal riser. And `data-entered` is a LATCH — the observer that
+ * sets it unobserves itself — so before this rule they repainted at the refresh rate for the whole
+ * rest of the visit, wherever the visitor had scrolled to. Measured in the running page: both were
+ * still listed as running with the estimator far outside the viewport.
+ *
+ * `data-offscreen` comes from components/fx/useOffscreenAttribute.ts, the hook this repo already
+ * uses for the hero and the directions ring. Pausing is pixel-identical because an element outside
+ * the viewport contributes no pixels, and `animation-play-state` changes nothing else about the
+ * animation: on return it continues from where it stopped.
+ *
+ * ONE rule for both, on purpose. The 1.6s offset above exists so the two lights never cross the
+ * panel together; pausing them under the same condition keeps their phase difference exactly,
+ * while pausing only one of them would slowly slide them into each other.
+ */
+.box[data-entered][data-offscreen] .railLight::before,
+.box[data-entered][data-offscreen] .result::after {
+  animation-play-state: paused;
+}
+
 @keyframes riser-run {
   from {
     background-position: -150px 0;
@@ -678,7 +732,7 @@
  * merely paler.
  * It sits BEHIND the panel and 2px outside it, so it never crosses a character.
  */
-[data-layout="section"] .result::before {
+.result::before {
   content: "";
   position: absolute;
   inset: -2px;
@@ -692,17 +746,17 @@
 }
 /* Fired only when the rendered price STRING actually changed — not on every click, not on a
    re-render. One 620ms pass: the panel's edge brightens and hands itself straight back. */
-[data-layout="section"] .result[data-commit] {
+.result[data-commit] {
   animation-duration: 0.62s;
   animation-timing-function: var(--motion-ease-out);
 }
 /* Two identical keyframes under two names. A CSS animation only restarts when its NAME changes,
    and the alternative — remounting the panel — would take the contact form with it and throw
    away whatever the visitor had already typed. */
-[data-layout="section"] .result[data-commit="a"] {
+.result[data-commit="a"] {
   animation-name: riser-commit-a;
 }
-[data-layout="section"] .result[data-commit="b"] {
+.result[data-commit="b"] {
   animation-name: riser-commit-b;
 }
 @keyframes riser-commit-a {
@@ -738,7 +792,13 @@
 .price {
   display: block;
   margin-top: var(--sp-1);
-  font-size: clamp(34px, 4.6vw, 52px);
+  /*
+   * Sized off the DECK, for the same reason the bays are. `4.6vw` put a 52px figure into the
+   * dialog's 273px riser at a 1440px window — and `.price` carries `overflow-wrap: anywhere`,
+   * so the owner's number would not overflow, it would break across two lines mid-figure.
+   * 4.3cqi holds 52px on the page (1222px of deck) and gives the dialog 36px in its 838px.
+   */
+  font-size: clamp(30px, 4.3cqi, 52px);
   line-height: 1;
   letter-spacing: -0.05em;
   color: var(--txt);
@@ -752,6 +812,17 @@
   color: var(--on-ink-mut);
   margin: var(--sp-2) 0 0;
 }
+/* What the calculator already chose, stated under the price it produced. Only ever rendered
+   when a caller passed an attachment, and it is a statement about the PROPOSAL, so it sits in
+   the riser with the price rather than anywhere near the form's own notes. It used to be the
+   wizard's `.stepNote`, which went with the wizard. */
+.attached {
+  margin: 10px 0 0;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--mut);
+}
+
 .form {
   display: grid;
   gap: var(--sp-3);
@@ -890,339 +961,10 @@
   font-weight: var(--fw-semi);
 }
 
-/* ============================================================================
-   Stepped layout — the same flow inside the request dialog.
-
-   The section above is a page section: two columns, everything visible at once. That
-   arrangement is right at page width and cramped inside a 960px modal, so in a dialog
-   the flow runs on ONE column, one step at a time, with the assistant behind a button.
-   Nothing here touches the section's rules.
-   ============================================================================ */
-.flow {
-  display: grid;
-  gap: var(--sp-5);
-  /* A dialog body already scrolls; nothing in here may add a second, sideways one. */
-  min-width: 0;
-}
-
-/* progress — where you are, and how much is left */
-.progressBlock {
-  display: grid;
-  gap: var(--sp-2);
-  min-width: 0;
-}
-.progress {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--sp-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.progressItem {
-  min-width: 0;
-}
-.progressStep {
-  display: grid;
-  justify-items: start;
-  gap: 6px;
-  width: 100%;
-  min-width: 0;
-  padding: 10px 12px;
-  text-align: left;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  /* The bar under the number is the "done / current" signal that survives a colour-blind
-     reading — it is a thickness change, not only a hue change. */
-  border-bottom: 3px solid var(--line);
-  border-radius: var(--r-sm);
-  color: var(--mut);
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    color 0.18s ease;
-}
-.progressStep:hover {
-  border-color: var(--line2);
-  color: var(--txt);
-}
-.progressNum {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: var(--r-pill);
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  color: var(--mut);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-extra);
-}
-.progressLabel {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  line-height: 1.25;
-}
-.progressDone {
-  border-bottom-color: var(--green);
-  color: var(--txt);
-}
-.progressDone .progressNum {
-  background: color-mix(in srgb, var(--green) 14%, var(--panel));
-  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
-  color: var(--green-text);
-}
-.progressCurrent {
-  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
-  border-bottom-color: var(--red);
-  color: var(--txt);
-  font-weight: var(--fw-semi);
-}
-.progressCurrent .progressNum {
-  background: var(--grad-red);
-  border-color: transparent;
-  color: var(--on-accent);
-}
-.progressHint {
-  margin: 0;
-  font-size: var(--fs-sm);
-  color: var(--mut);
-}
-
-/* the owner's price, on screen through every step */
-.proposal {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px var(--sp-3);
-  padding: var(--sp-4);
-  border-radius: var(--r-sm);
-  /* The same part, the same chrome, the same light as the section's `.result`. Leaving the modal
-     on the deleted blue gradient while the section was machined would put the owner's one real
-     price on two panels that do not look like the same product. */
-  --tick: color-mix(in srgb, var(--red) 34%, transparent);
-  background-color: var(--panel2);
-  background-image:
-    linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--red) 55%, transparent),
-      transparent
-    ),
-    linear-gradient(var(--tick), var(--tick)),
-    linear-gradient(var(--tick), var(--tick));
-  background-size: 100% 1px, 1px 14px, 1px 14px;
-  background-position: top center, top left 12px, top right 12px;
-  background-repeat: no-repeat;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--red) 20%, transparent),
-    0 0 20px color-mix(in srgb, var(--red) 7%, transparent);
-  min-width: 0;
-}
-.proposalLabel {
-  font-size: 12px;
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.08em;
-  color: var(--red-text);
-  flex-basis: 100%;
-}
-.proposalType {
-  font-size: var(--fs-md);
-  color: var(--mut);
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-.proposalPrice {
-  margin-left: auto;
-  font-size: clamp(22px, 5vw, 30px);
-  letter-spacing: -0.05em;
-  color: var(--txt);
-  overflow-wrap: anywhere;
-}
-
-/* one step on screen at a time */
-.step {
-  display: none;
-  min-width: 0;
-}
-/* `display: none` is the point: an inactive step is out of the tab order and out of the
-   accessibility tree, not merely invisible. */
-.step[data-active="true"] {
-  display: block;
-  animation: rise 0.28s both;
-}
-.stepTitle {
-  margin: 0;
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-extra);
-  letter-spacing: -0.02em;
-  color: var(--txt);
-}
-/* The heading takes focus when a step opens; that must be visible, never a silent jump. */
-.stepTitle:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--red) 40%, transparent);
-  outline-offset: 4px;
-  border-radius: var(--r-sm);
-}
-.stepHint {
-  margin: 6px 0 0;
-  font-size: var(--fs-md);
-  line-height: 1.45;
-  color: var(--mut);
-}
-.stepNote {
-  margin: 0;
-  font-size: var(--fs-sm);
-  line-height: 1.45;
-  color: var(--mut);
-}
-/* The chips already carry the section's own top/bottom margin. */
-.step .form {
-  margin-top: var(--sp-4);
-}
-
-.stepNav {
-  display: flex;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-.navBack,
-.navNext {
-  min-height: 44px;
-  border-radius: var(--r-sm);
-  padding: 11px 18px;
-  font: inherit;
-  font-size: var(--fs-md);
-  font-weight: var(--fw-semi);
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    opacity 0.18s ease;
-}
-.navBack {
-  background: transparent;
-  color: var(--txt);
-  border: 1px solid var(--line2);
-}
-.navBack:hover:not(:disabled) {
-  border-color: var(--red);
-}
-.navBack:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-.navNext {
-  margin-left: auto;
-  border: 0;
-  background: var(--grad-red);
-  color: var(--on-accent);
-  box-shadow: var(--sh-red);
-}
-.navNext:hover {
-  transform: translateY(-1px);
-}
-
-/* the two paths — and the only control that starts the assistant */
-.paths {
-  border-top: 1px solid var(--line);
-  padding-top: var(--sp-5);
-  min-width: 0;
-}
-.pathsTitle {
-  font-size: 12px;
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--red-text);
-}
-.pathList {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--sp-3);
-  margin-top: var(--sp-3);
-}
-.path {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-width: 0;
-  padding: var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--panel2);
-  transition: border-color 0.18s ease;
-}
-/* Which path the visitor is on right now — the fast one until the assistant is opened. */
-.pathActive {
-  border-color: color-mix(in srgb, var(--red) 40%, var(--line));
-  background: color-mix(in srgb, var(--red) 6%, var(--panel2));
-}
-.pathName {
-  font-size: var(--fs-base);
-  font-weight: var(--fw-extra);
-  color: var(--txt);
-}
-.pathCopy {
-  margin: 0;
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-  color: var(--mut);
-}
-.pathButton {
-  justify-self: start;
-  margin-top: var(--sp-2);
-  min-height: 44px;
-  padding: 10px 16px;
-  border: 1px solid var(--line2);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-  color: var(--txt);
-  font: inherit;
-  font-size: var(--fs-md);
-  font-weight: var(--fw-semi);
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    transform 0.18s ease;
-}
-.pathButton:hover {
-  border-color: var(--red);
-  transform: translateY(-1px);
-}
-.pathKept {
-  margin: var(--sp-3) 0 0;
-  font-size: var(--fs-sm);
-  line-height: 1.45;
-  color: var(--green-text);
-}
-
-/* the assistant, once it has been asked for */
-.chatPanel {
-  margin-top: 0;
-  animation: rise 0.28s both;
-}
-.chatPanel:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--red) 40%, transparent);
-  outline-offset: 2px;
-}
-
-@media (max-width: 560px) {
-  /* One step per screen, and never a sideways scroll: the two path cards stack. */
-  .pathList {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .progressStep {
-    padding: 8px 9px;
-    font-size: var(--fs-xs);
-  }
-  .proposalPrice {
-    margin-left: 0;
-  }
-}
+/* The three-step wizard the request dialog used to be — its progress bar, its one-panel-at-a-
+   time steps, its Înapoi/Continuă nav, the two "path" cards and the chat panel they opened —
+   was removed on 2026-09-26 with the layout it belonged to. Forty-four rules; `@keyframes rise`
+   below survived it because `.bubble` uses it too. */
 
 @keyframes rise {
   from {
@@ -1235,9 +977,64 @@
   }
 }
 
-@media (max-width: 820px) {
+/*
+ * THE SAME DECK, ON A HEIGHT BUDGET.
+ *
+ * The page can be as tall as it likes; a dialog cannot — it is capped by the window and its own
+ * head, and past that the visitor scrolls inside a box. Measured at 1440×900 before this block:
+ * the deck needed 747px of body and had 640, so the send button sat below the fold on the
+ * screen where the whole point is that everything is on screen at once.
+ *
+ * SPACING ONLY. Nothing here changes a colour, a border, a radius, a font or a chip's shape —
+ * the moment it did, the dialog would be a second design again, which is exactly what this
+ * whole change removed. It tightens the gaps, and the touch-target floor below 861px still
+ * wins over it (`.choice` keeps its 44px there through the existing media query).
+ */
+/* `.box[data-layout=...]` and not the bare attribute: a CSS Module selector must carry at least
+   one local class or the build refuses it ("Selector is not pure"), which is the right rule — a
+   bare attribute here would leak out of this module and style anything on the page. */
+.box[data-layout="dialog"] {
+  padding: 20px;
+}
+.box[data-layout="dialog"] .choices {
+  margin: 10px 0 var(--sp-4);
+}
+.box[data-layout="dialog"] .choice {
+  padding: 10px 14px;
+}
+.box[data-layout="dialog"] .chat {
+  margin-top: 14px;
+  padding: 14px;
+}
+.box[data-layout="dialog"] .result {
+  padding: 18px;
+}
+.box[data-layout="dialog"] .form input,
+.box[data-layout="dialog"] .form textarea {
+  padding: 9px 13px;
+}
+
+/*
+ * ONE COLUMN ONCE THE DECK ITSELF IS NARROW — a container query, not a window one.
+ *
+ * 711px is not a round number, it is the page's own floor: the narrowest two-bay deck the home
+ * page has ever drawn, at the window width (821px) where the old `@media (max-width: 820px)`
+ * used to fire. Stating it as the DECK's width reproduces the page's behaviour almost exactly
+ * and fixes the dialog at the same time, where the deck is 838px at a 1440px window and 664px
+ * at an 821px one — numbers the window query could not tell apart.
+ */
+@container deck (width < 711px) {
   .steps {
     grid-template-columns: 1fr;
+  }
+  /* The seam belongs to the gap between two bays. Stacked, it is a stray hairline sitting in
+     the deck's padding — visible on the page below 820px today, and far more of the dialog's
+     range is below that. */
+  .bayRight::before {
+    display: none;
+  }
+  .bayRight {
+    margin-top: 26px;
   }
 }
 
@@ -1266,23 +1063,14 @@
   .composeSkip,
   .composeInput,
   .summary,
-  .bubble,
-  .progressStep,
-  .navBack,
-  .navNext,
-  .pathButton,
-  .path,
-  .step[data-active="true"],
-  .chatPanel {
+  .bubble {
     transition: none;
     animation: none;
   }
-  /* A bubble must appear, not fly in — no transform, no fade. A step must swap, not slide. */
+  /* A bubble must appear, not fly in — no transform, no fade. */
   .composeSend:hover:not(:disabled),
   .chatOption:hover,
   .submit:hover,
-  .navNext:hover,
-  .pathButton:hover,
   .choice:active,
   .chatOption:active,
   .composeSend:active:not(:disabled),
@@ -1317,10 +1105,10 @@
   .box[data-entered] .railLight::before {
     animation: none;
   }
-  [data-layout="section"] .box[data-entered] .result::after {
+  .box[data-entered] .result::after {
     animation: none;
   }
-  [data-layout="section"] .result[data-commit] {
+  .result[data-commit] {
     animation: none;
   }
   /* The in-flight streak's meaning exists only while it travels; standing still it is a white
@@ -1340,8 +1128,7 @@
      does override the label colour, so both of these buttons could end up with system-coloured
      text sitting on a red gradient. A pre-existing hazard in this module; one line fixes it. */
   .submit,
-  .composeSend,
-  .navNext {
+  .composeSend {
     background-image: none;
   }
   /* The chrome is all 1px hairlines and corner marks in a tinted accent. Flattened they become
@@ -1352,16 +1139,15 @@
   .box::after,
   .railLight::before,
   .result,
-  .proposal,
-  [data-layout="section"] .chat,
+  .chat,
   .stepLabel::after {
     background-image: none;
     background-color: transparent;
   }
   /* The glow flattens to a solid system-coloured slab behind the panel and the ring flattens to
      a second hard frame around it. Both go; the panel keeps its real edge. */
-  [data-layout="section"] .result::before,
-  [data-layout="section"] .result::after {
+  .result::before,
+  .result::after {
     display: none;
   }
   /*

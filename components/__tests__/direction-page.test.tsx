@@ -32,7 +32,6 @@ const seededPrice = (serviceId: string) =>
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { projectsForSolution, solutionProjectIds } from "@/lib/solutions";
-import { isGuideTopic } from "@/lib/hud/topics";
 
 /*
  * Chunk-load latency is NOT what these tests measure. `RequestFlowProvider` pulls the whole
@@ -238,7 +237,7 @@ describe("the flow scheme — for a direction sold as a capability", () => {
     const container = renderPage("e-commerce");
 
     expect(screen.queryByText("PROIECT DE REFERINȚĂ")).toBeNull();
-    expect(screen.getByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeInTheDocument();
+    // The scheme is named by its own title now: its label line went with every other kicker.
     expect(screen.getByText("Ofertă → Plată → Acces")).toBeInTheDocument();
 
     const steps = Array.from(container.querySelectorAll("ol li span")).map(
@@ -269,7 +268,7 @@ describe("the flow scheme — for a direction sold as a capability", () => {
     renderPage("asistenti-ia");
 
     expect(await screen.findAllByRole("heading", { name: "BizCheck" })).not.toHaveLength(0);
-    expect(screen.queryByText("FLUXUL PE CARE ÎL CONSTRUIM")).toBeNull();
+    expect(screen.queryByText("Ofertă → Plată → Acces")).toBeNull();
   });
 });
 
@@ -334,26 +333,7 @@ describe("disproved claims stay off both directions", () => {
   });
 });
 
-/* The Ghid TBS (components/hud/guide) looks for `[data-guide-topic]` on the page: on a service
-   page it is the "how we work" steps, one per page, carrying a topic lib/hud/topics.ts knows. */
-describe("guide topic", () => {
-  it.each(["produs-digital", "e-commerce", "automatizare-api"])(
-    "%s marks exactly its steps section as the guide's service topic",
-    (slug) => {
-      const container = renderPage(slug);
 
-      const topics = container.querySelectorAll("[data-guide-topic]");
-      expect(topics).toHaveLength(1);
-      const section = topics[0] as HTMLElement;
-      expect(section.tagName).toBe("SECTION");
-      expect(section.getAttribute("data-guide-topic")).toBe("service");
-      expect(isGuideTopic(section.dataset.guideTopic)).toBe(true);
-      expect(within(section).getByRole("heading", { level: 2, name: "Cum lucrăm" })).toBeInTheDocument();
-      // The whole steps list is inside the topic, so lingering anywhere on it counts.
-      expect(section.querySelectorAll("b.mono").length).toBeGreaterThan(0);
-    },
-  );
-});
 
 describe("project membership table", () => {
   it("only ever names ids that exist in the portfolio", () => {

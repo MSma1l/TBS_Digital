@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { INTRO_COOKIE, INTRO_REVEAL_ATTR } from "@/lib/intro";
+import { INTRO_COOKIE, INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
 import { SCENE_SHAPES } from "@/lib/scene";
 import {
   computedTransform,
@@ -76,7 +76,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     expect(await threeLoaded(page)).toBe(false);
     expect(await gsapLoaded(page)).toBe(false);
     expect(await webglContextCount(page)).toBe(0);
-    expect(await markerState(page)).toEqual({ count: 8, styled: 0 });
+    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
     // Work is inside the stage now, and without the scene its cards are exactly as React rendered
     // them: two colours inline, no layout (the spiral is the WebGL path's), no helix mode.
     const work = await page.evaluate(() => ({
@@ -225,7 +225,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await expect(card).not.toHaveAttribute("data-tilting", /.*/);
     await expect.poll(() => card.getAttribute("style")).toBeNull();
     expect(await marker.getAttribute("style")).toBeNull();
-    expect(await markerState(page)).toEqual({ count: 8, styled: 0 });
+    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
   });
 
   test("E8 a project card tilts and keeps its --p1/--p2; its screenshot drifts on the section's view timeline", async ({

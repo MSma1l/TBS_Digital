@@ -262,6 +262,7 @@ describe("scrollProgress", () => {
       workGap: null,
       panels: null,
       panelsPitch: 0,
+      stats: [],
       projects: null,
       steps: null,
       stepsPin: { start: 0, end: 0 },

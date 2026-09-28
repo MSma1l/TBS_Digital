@@ -79,6 +79,22 @@ such at the top of the file.
 - Reuse the `.disp` (display) and `.mono` typographic classes; don't reinvent them (except in
   the Tailwind files, which use `font-disp` / `font-hud` — see below).
 - Respect `prefers-reduced-motion` for animations.
+- **An infinite decorative animation stops while its section is out of view**, through
+  `useOffscreenAttribute` (`components/fx/useOffscreenAttribute.ts`): the hook writes
+  `data-offscreen` straight onto the node — no re-render — and the module pauses under it, either
+  with `animation-play-state: paused` in a CSS module or with
+  `group-data-offscreen/<name>:[animation-play-state:paused]` in the Tailwind files. The hook
+  clears the attribute **200px before** the element reaches the viewport, because an
+  IntersectionObserver callback is delivered after the frame's rendering update: without that
+  lead, the first frame on which the element is visible would still be painted paused.
+
+  Two rules go with it. **Pause a whole group under ONE condition**, never member by member —
+  periods chosen so two loops never coincide (the estimator's 1.6s offset, the team hologram's
+  4.3/6.7/5.9s) only stay apart while they start and stop together. And **do not pause a curve
+  that HOLDS a conspicuous state**: a `steps()` hologram that sits on a deliberate glitch for
+  172ms will freeze there and hand that frozen frame to the next visitor who scrolls back, which
+  is the one case where a paused loop is visible. `components/sections/Team.module.css` records
+  that decision where the pause would have gone.
 - **A `::before` or `::after` must name itself in its own module's reduce block.** `globals.css`
   ends with `* { animation: none !important }`, and `*` matches ELEMENTS — a pseudo-element is
   not matched by it and `animation-name` is not inherited, so an animated pseudo-element runs
@@ -459,8 +475,9 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
 
 ### `data-intro-reveal` — the page entrance targets
 
-The page elements the intro animates in carry `data-intro-reveal="grid|header|eyebrow|title|
-lead|cta|stats|ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`).
+The page elements the intro animates in carry `data-intro-reveal="grid|header|title|
+lead|cta|stats|ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`; the `eyebrow` target went with the
+hero's kicker line on 2026-09-25).
 
 - **Exactly one element per target** on the home page, and **no inline `style`** on any of
   them once the intro is over.
@@ -486,8 +503,8 @@ three languages and checks one marker per target with no style attribute, and sc
 
 ## The HUD chrome (`components/hud/**`, `lib/hud/**`)
 
-The IT-OS HUD (the Ghid TBS guide since Phase 4, the fibre scroll rail since Phase 5; the OS
-layer later) is built to these rules. Wiring in
+The IT-OS HUD (the fibre scroll rail since Phase 5; the OS layer later) is built to these rules.
+The Ghid TBS guide was Phase 4 and was removed on 2026-09-25 — the rules below outlive it. Wiring in
 [03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17), the visual contract in
 [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-black).
 
@@ -504,10 +521,10 @@ layer later) is built to these rules. Wiring in
 - **CSS Modules, not Tailwind.** One `*.module.css` per part, next to it; keyframes in the same
   file; not in `@source` (so the global Tailwind chunk and the HTML do not grow — the module
   becomes a lazy CSS chunk with the part). Tokens only, as everywhere (`--neon-cyan`,
-  `--glass-bg-solid`, `--z-guide`, `--hud-*`); the placement boxes in docs/04 are the contract
+  `--glass-bg-solid`, `--z-rail`, `--hud-*`); the placement boxes in docs/04 are the contract
   and may be literals.
-- **Root attributes.** Every part's root carries `data-hud=""` plus its own name (`data-guide`,
-  `data-rail`, later `data-os-layer`, `data-hud-dock`). E2E finds the HUD by `[data-hud]`, and
+- **Root attributes.** Every part's root carries `data-hud=""` plus its own name (`data-rail`,
+  later `data-os-layer`, `data-hud-dock`). E2E finds the HUD by `[data-hud]`, and
   `decorativeDots` scans inside it.
 - **Away and yield hide by opacity only.** `opacity: 0`, `pointer-events: none` and the part's own
   buttons at `tabIndex -1` — **never** `display: none`, `visibility: hidden` or `inert`, so the
@@ -518,7 +535,7 @@ layer later) is built to these rules. Wiring in
 - **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger, the
   intro's lock) a part shows no new prompt and clears a shown one, and the rail neither measures
   nor writes (the page's positions are not real while the body is pinned; the same holds while
-  `html[data-scroll-measure]` is set); the z-order (`--z-rail` 104, `--z-guide` 112 <
+  `html[data-scroll-measure]` is set); the z-order (`--z-rail` 104, `--z-os` 108 <
   `--z-nav-overlay` 115) does the covering.
 - **No blur, no filter.** No `backdrop-filter` or `filter` on a part or any ancestor of a CSS
   `preserve-3d` element: it sits over the live WebGL canvas, and a blur flattens the 3D.

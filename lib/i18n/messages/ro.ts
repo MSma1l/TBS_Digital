@@ -190,7 +190,6 @@ export const ro = {
   "nav.team": "ECHIPĂ",
   "nav.partners": "PARTENERI",
   "nav.about": "DESPRE",
-  "dir.section.kicker": "ALEGE DIRECȚIA POTRIVITĂ",
   "dir.section.title": "Un instrument de alegere a direcției —\npentru decizii rapide și sigure.",
   "dir.section.lead": "Alege o direcție — se deschide o pagină dedicată cu detalii.",
   "dir.digital": "Produs digital",

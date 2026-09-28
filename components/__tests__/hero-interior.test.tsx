@@ -24,13 +24,14 @@ vi.mock("@/lib/api", () => ({
 
 import * as api from "@/lib/api";
 import { Hero } from "@/components/sections/Hero";
+import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
 import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
-import { PARALLAX_LAYERS, readSceneInput, resetSceneForTests } from "@/lib/scene";
+import { PARALLAX_LAYERS, STATS_GROUP_ATTR, readSceneInput, resetSceneForTests } from "@/lib/scene";
 import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
 import { REDUCED_MOTION_QUERY, TILT_MAX, TILT_QUERY } from "@/lib/tilt";
 
-const media = { fine: false, reduced: false };
+const media = { fine: false, reduced: false, desktop: false };
 const realMatchMedia = window.matchMedia;
 
 function installMatchMedia() {
@@ -38,6 +39,7 @@ function installMatchMedia() {
     get matches() {
       if (query === TILT_QUERY) return media.fine;
       if (query === REDUCED_MOTION_QUERY) return media.reduced;
+      if (query === HUD_DESKTOP_MEDIA) return media.desktop;
       return false;
     },
     media: query,
@@ -63,6 +65,7 @@ beforeEach(() => {
   resetSceneForTests();
   media.fine = false;
   media.reduced = false;
+  media.desktop = false;
   installMatchMedia();
   frames = new Map();
   nextFrame = 0;
@@ -369,6 +372,41 @@ describe("stat card tilt", () => {
   });
 });
 
+describe("the stat windows the 3D panels are drawn in", () => {
+  it("opens one per card at a desktop width, and none below it", () => {
+    media.desktop = true;
+    const { unmount } = renderHero();
+    const open = Array.from(document.querySelectorAll('[data-scene-anchor="stat"]'));
+    expect(open.map((el) => el.getAttribute("data-metric"))).toEqual(["projects", "automation"]);
+    // the group the scene reads the faces from, on the marker itself
+    expect(statsMarker().hasAttribute(STATS_GROUP_ATTR)).toBe(true);
+    unmount();
+
+    // Below 861px the attribute is not written at all: a card that is a painted card must not be
+    // measured, and the panels are not drawn there.
+    media.desktop = false;
+    renderHero();
+    expect(document.querySelector('[data-scene-anchor="stat"]')).toBeNull();
+    expect(statsMarker().hasAttribute(STATS_GROUP_ATTR)).toBe(true);
+  });
+
+  it("the card keeps its number, its copy and its place in the group", () => {
+    media.desktop = true;
+    renderHero();
+    const projects = card("projects");
+    // The window is the card itself: what the scene measures is what a screen reader reads.
+    expect(projects.getAttribute("data-scene-anchor")).toBe("stat");
+    expect(projects.querySelector("b")?.textContent).toBe(String(defaultSiteData.projects.length));
+    // `:scope >`, as the face composer selects it: the hologram is a <span> with a <span> in it.
+    expect(projects.querySelector(":scope > span:not([data-hologram])")?.textContent).toBeTruthy();
+    expect(projects.querySelector("small")?.textContent).toBeTruthy();
+    expect(projects.closest(`[${STATS_GROUP_ATTR}]`)).toBe(statsMarker());
+    // Nothing is hidden from assistive technology, at any width.
+    expect(projects.getAttribute("aria-hidden")).toBeNull();
+    expect(statsMarker().getAttribute("role")).toBe("group");
+  });
+});
+
 describe("hero hosts in the interior stage", () => {
   it("scene-hero is inside the grid marker, before the h1, and holds the core art", () => {
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
@@ -447,7 +485,7 @@ describe("hero hosts in the interior stage", () => {
     pointer("pointerMove", card("automation"), "mouse", 10, 10);
     act(() => flushFrames());
 
-    for (const name of ["grid", "eyebrow", "title", "lead", "cta", "stats"]) {
+    for (const name of ["grid", "title", "lead", "cta", "stats"]) {
       const found = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${name}"]`);
       expect(found, name).toHaveLength(1);
       expect(found[0].hasAttribute("style"), name).toBe(false);

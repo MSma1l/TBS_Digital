@@ -364,8 +364,11 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(h.probeImported).toBe(false);
   });
 
-  it("waits for the intro overlay to leave, then adds AFTER_INTRO_MS to the idle wait", () => {
+  it("under an intro that will get the art: one warm slot, which loads nothing, then the full wait", () => {
     capableBrowser();
+    /* Software: the answer is already "no WebGL", so the warm slot fires and asks for NOTHING.
+       That is what keeps this test in the first describe — a chunk imported here would break the
+       "never requested" guard above. */
     seedCache({ strict: { context: true, software: true } });
     const overlay = document.createElement("div");
     overlay.id = INTRO_OVERLAY_ID;
@@ -373,15 +376,19 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
 
     renderStage();
     expect(attr("data-renderer")).toBe("pending");
-    expect(h.idle).toEqual([]);
+    // The stage schedules its warm-up behind the film, and nothing else.
+    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
+    runIdle();
+    expect(h.importLog).toEqual([]);
 
     // Still attached: marking it gone is a no-op.
     act(() => markIntroGone());
-    expect(h.idle).toEqual([]);
+    expect(pendingIdle()).toHaveLength(0);
 
     overlay.remove();
     act(() => markIntroGone());
-    expect(h.idle.map((entry) => entry.ms)).toEqual([
+    // Nothing was warmed, so the settle is still owed.
+    expect(pendingIdle().map((entry) => entry.ms)).toEqual([
       SCENE_TIMING.IDLE_TIMEOUT_MS + SCENE_TIMING.AFTER_INTRO_MS,
     ]);
     runIdle();
@@ -553,6 +560,33 @@ describe("SceneStage — the WebGL path", () => {
     expect(attr("data-reason")).toBeNull();
     expect(attr("data-paused")).toBe("false");
     expect(attr("data-scroll-fx")).toBe("off");
+  });
+
+  /* The 5.6s the owner reported were mostly this wait. If it ever collapses back to
+     IDLE_TIMEOUT_MS + AFTER_INTRO_MS the site is slow again after every intro, silently. */
+  it("warmed behind the intro: the chunks are asked for under the film, and only the context wait is left", async () => {
+    capableBrowser();
+    seedCache({ strict: { context: true, software: false } });
+    const overlay = document.createElement("div");
+    overlay.id = INTRO_OVERLAY_ID;
+    document.body.append(overlay);
+
+    renderStage();
+    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
+
+    // Under the film: both chunks requested, and no probe and no canvas with them.
+    runIdle();
+    await waitFor(() => expect(h.importLog).toContain("director:requested"));
+    expect(h.importLog).toContain("canvas:requested");
+    expect(h.probeModes).toEqual([]);
+    expect(h.canvasMounts).toBe(0);
+    expect(attr("data-renderer")).toBe("pending");
+
+    overlay.remove();
+    act(() => markIntroGone());
+    expect(pendingIdle().map((entry) => entry.ms)).toEqual([SCENE_TIMING.AFTER_INTRO_MS]);
+    runIdle();
+    await waitFor(() => expect(h.canvasMounts).toBe(1));
   });
 
   it("a session miss probes, then loads", async () => {

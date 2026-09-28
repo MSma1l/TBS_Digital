@@ -186,7 +186,6 @@ export const en: Record<MessageKey, string> = {
   "nav.team": "TEAM",
   "nav.partners": "PARTNERS",
   "nav.about": "ABOUT",
-  "dir.section.kicker": "CHOOSE THE RIGHT DIRECTION",
   "dir.section.title": "A direction picker —\nbuilt for fast, confident decisions.",
   "dir.section.lead": "Pick a direction — a dedicated page opens with the details.",
   "dir.digital": "Digital product",

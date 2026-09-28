@@ -69,6 +69,17 @@ export type SceneFx = {
   tiltLive: boolean;
   /** Written by input.ts (fine pointer), drawn by three/trail.ts: the cursor circuit trail. */
   trail: TrailBuffer;
+  /**
+   * Written by input.ts: the fine pointer's last position in DOCUMENT px, and whether one has been
+   * seen at all. The tilt above is a -1..1 share of the viewport, which cannot say which box the
+   * pointer is over; the hero's stat panels answer the pointer (`statAt`, `statLocal` in
+   * choreography.ts) and need the page point itself. `pointerLive` goes false when the pointer
+   * leaves the window, so a panel does not stay leaning at a cursor that is gone. Unsnapped: the
+   * trail's own samples are on a 20px grid, which would step a lean.
+   */
+  pointerX: number;
+  pointerY: number;
+  pointerLive: boolean;
 
   /* Smoothed every frame by `stepSceneFx`. */
   tx: number;
@@ -98,6 +109,9 @@ export function createSceneFx(): SceneFx {
     tiltLive: false,
     // The trail's clock: event timestamps and `performance.now()` share the page's time origin.
     trail: createTrailBuffer(TRAIL.cap, typeof performance !== "undefined" ? performance.now() / 1000 : 0),
+    pointerX: 0,
+    pointerY: 0,
+    pointerLive: false,
     tx: 0,
     ty: 0,
     heroExit: 0,

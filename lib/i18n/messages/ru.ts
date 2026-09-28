@@ -183,7 +183,6 @@ export const ru: Record<MessageKey, string> = {
   "nav.team": "КОМАНДА",
   "nav.partners": "ПАРТНЁРЫ",
   "nav.about": "О НАС",
-  "dir.section.kicker": "ВЫБЕРИТЕ ПРАВИЛЬНОЕ НАПРАВЛЕНИЕ",
   "dir.section.title": "Инструмент выбора направления —\nдля быстрых и уверенных решений.",
   "dir.section.lead": "Выберите направление — откроется отдельная страница с деталями.",
   "dir.digital": "Цифровой продукт",

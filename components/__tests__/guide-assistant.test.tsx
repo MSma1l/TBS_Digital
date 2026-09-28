@@ -21,7 +21,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import type { ReactNode } from "react";
@@ -59,10 +59,9 @@ import * as api from "@/lib/api";
 import { GuideAssistant, resetGuideMemoryForTests } from "@/components/hud/guide/GuideAssistant";
 import { GUIDE_COPY, GUIDE_FAQ } from "@/components/hud/guide/copy";
 import { CONSENT_KEY, setConsent } from "@/lib/consent";
-import { resetHudBusyForTests, setHudBusy } from "@/lib/hud/busy";
+import { resetHudBusyForTests } from "@/lib/hud/busy";
 import { INTRO_OVERLAY_ID, markIntroGone, resetIntroForTests } from "@/lib/intro";
 import { RequestFlowProvider, useRequestFlow } from "@/lib/request/RequestFlowProvider";
-import { coverPage } from "@/lib/scrollLock";
 import { defaultSiteData, SiteContentProvider } from "@/lib/siteContent";
 
 const ROOT = process.cwd();
@@ -129,21 +128,6 @@ class ControlledObserver implements IntersectionObserver {
   }
 }
 
-/** Report `el` crossing (or leaving) the centre line, or the viewport for the away observer. */
-function report(kind: "centre" | "away", el: Element, isIntersecting: boolean) {
-  const watching = observers.filter((o) => o.live && o.kind === kind && o.targets.has(el));
-  expect(watching.length, `a live ${kind} observer watches ${el.id || el.tagName}`).toBeGreaterThan(0);
-  act(() => {
-    for (const o of watching) {
-      o.cb([{ isIntersecting, target: el } as IntersectionObserverEntry], o.self);
-    }
-  });
-}
-
-const byId = (id: string) => document.getElementById(id)!;
-const centre = (id: string, on = true) => report("centre", byId(id), on);
-const serviceTopic = () => document.querySelector('[data-guide-topic="service"]')!;
-
 /* ---- rendering ----------------------------------------------------------------------------- */
 
 /** Opens the request flow from outside the guide, as any other CTA would. */
@@ -198,9 +182,7 @@ function renderGuide(options: PageOptions = {}) {
 
 const guideRoot = () => document.querySelector<HTMLElement>("[data-guide]");
 const avatar = () => screen.getByTestId("guide-avatar");
-const tip = () => screen.queryByTestId("guide-tip");
 const faqPanel = () => screen.queryByTestId("guide-faq");
-const sayBubble = () => screen.queryByTestId("guide-say");
 
 /**
  * The request flow is TWO presses from the corner now, and that is the change these tests are
@@ -216,30 +198,8 @@ const fakeTimers = () =>
   vi.useFakeTimers({
     toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "performance", "Date"],
   });
-const advance = (ms: number) =>
-  act(() => {
-    vi.advanceTimersByTime(ms);
-  });
 
 const answerConsent = () => localStorage.setItem(CONSENT_KEY, "rejected");
-
-/** Covers taken by a test; `afterEach` lets go of any still held, so a failure cannot leak one. */
-const covers: Array<() => void> = [];
-function cover(): () => void {
-  let release = () => {};
-  act(() => {
-    release = coverPage();
-  });
-  covers.push(release);
-  return () => act(() => release());
-}
-
-/** Show the `servicii` tip the way a visitor gets it: 5 s on the centre line. */
-function lingerOnServicii() {
-  centre("servicii");
-  advance(5000);
-  expect(tip()).not.toBeNull();
-}
 
 function rect(left: number, top: number, width: number, height: number): DOMRect {
   return {
@@ -273,7 +233,6 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const release of covers.splice(0)) release();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   Reflect.deleteProperty(document, "visibilityState");
@@ -320,7 +279,7 @@ describe("markup", () => {
 
   it("is a real button that discloses her questions, named from its visible caption", () => {
     renderGuide();
-    const button = screen.getByRole("button", { name: /^Ghid TBS/ });
+    const button = screen.getByRole("button", { name: /^Asistent TBS/ });
 
     expect(button).toBe(avatar());
     expect(button.tagName).toBe("BUTTON");
@@ -364,24 +323,32 @@ describe("markup", () => {
     expect(avatar()).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("says one line after the greeting, and a topic tip outranks it", () => {
+  it("says NOTHING on her own, and her mouth only moves while she has an answer to read", () => {
+    /* Plain `.click()` inside `act`, not `userEvent`: this test fakes the clock, and
+       userEvent's own waiting never resolves against a clock nobody advances. A press is a
+       press either way. */
     vi.useFakeTimers({
       toFake: ["setTimeout", "clearTimeout", "performance", "Date", "requestAnimationFrame", "cancelAnimationFrame"],
     });
+    const press = (el: HTMLElement) => act(() => el.click());
     renderGuide();
-    act(() => vi.advanceTimersByTime(34));
-    act(() => vi.advanceTimersByTime(3400));
+    const root = () => document.querySelector("[data-guide]")!;
 
-    /* She greets in her own bubble, and it is her talking: the root says so, which is what the
-       mouth animation keys off. */
-    expect(sayBubble()).not.toBeNull();
-    expect(sayBubble()).toHaveTextContent(ro(GUIDE_COPY.hello));
-    expect(document.querySelector("[data-guide]")).toHaveAttribute("data-say");
+    /* Ten seconds in: no bubble, and her mouth is shut. This is the greeting the owner asked
+       to be rid of, and it is the thing that must not come back. */
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(faqPanel()).toBeNull();
+    expect(root()).not.toHaveAttribute("data-say");
 
-    /* It goes away on its own: a line she says is ambient, not a panel. */
+    /* She speaks when she is asked, and stops on her own seven seconds later — while the
+       answer she was reading stays on screen. */
+    press(avatar());
+    press(within(faqPanel()!).getByRole("button", { name: ro(GUIDE_FAQ[0].q) }));
+    expect(root()).toHaveAttribute("data-say");
+
     act(() => vi.advanceTimersByTime(7001));
-    expect(sayBubble()).toBeNull();
-    expect(document.querySelector("[data-guide]")).not.toHaveAttribute("data-say");
+    expect(root()).not.toHaveAttribute("data-say");
+    expect(faqPanel()).toHaveTextContent(ro(GUIDE_FAQ[0].a));
   });
 
   it("draws the assistant as decoration: a portrait, two eyelids, two orbits with packets, a signal", () => {
@@ -418,85 +385,26 @@ describe("markup", () => {
     expect(caption).toHaveTextContent(ro(GUIDE_COPY.label));
   });
 
-  it("greets once, only after nothing is covering her, and never leaves a second copy behind", () => {
-    /* rAF has to be faked too: the greeting waits on a frame, not on a timer. */
+  it("is the square and nothing else: no second copy of her, at any point", () => {
+    /* She used to build herself out of a projector at three times this box, hanging over the
+       corner, for 3.4s. The owner asked twice for that to go (2026-09-26), so what is pinned
+       here is the absence: ONE drawing of her, inside the button, from the first frame to well
+       past where the entrance used to end. rAF is faked too, because that is what the entrance
+       used to wait on. */
     vi.useFakeTimers({
       toFake: ["setTimeout", "clearTimeout", "performance", "Date", "requestAnimationFrame", "cancelAnimationFrame"],
     });
-    const flushFrame = () => vi.advanceTimersByTime(34);
     renderGuide();
     const root = () => document.querySelector("[data-guide]")!;
-    const greeting = () => document.querySelector('[data-testid="guide-greeting"]');
+    const portraits = () => root().querySelectorAll("img");
 
-    // Nothing at first: the greeting waits for a frame on which she can actually be seen.
-    expect(greeting()).toBeNull();
-
-    act(() => {
-      flushFrame();
-    });
-    expect(greeting()).not.toBeNull();
-    // It is decoration and takes no pointer events, so it can never swallow a click meant for
-    // the button underneath it.
-    expect(greeting()).toHaveAttribute("aria-hidden", "true");
-    expect(root()).toHaveAttribute("data-greet");
-    // The same figure, so there is one behaviour and not two.
-    expect(greeting()!.querySelector("img")).not.toBeNull();
-
-    act(() => {
-      vi.advanceTimersByTime(3400); // ENTER_MS: the projector, the slices, the lock and the settle
-    });
-    expect(greeting()).toBeNull();
-    expect(root()).not.toHaveAttribute("data-greet");
-    expect(root()).toHaveAttribute("data-state", "idle");
-  });
-
-  it("carries the HUD root attributes and no dialog, header, heading or live region", () => {
-    fakeTimers();
-    renderGuide();
-    const root = guideRoot()!;
-
-    expect(root).toHaveAttribute("data-hud", "");
-    expect(root).toHaveAttribute("data-state", "enter");
-    expect(root).not.toHaveAttribute("data-away");
-    expect(root).not.toHaveAttribute("data-yield");
-    /* The entrance now runs the greeting, and the greeting waits for a frame on which nothing is
-       covering her before its clock starts. Under these fake timers rAF never fires, so the
-       cap is what ends it — which is exactly the promise the cap exists to keep. */
-    advance(3399);
-    expect(root).toHaveAttribute("data-state", "enter");
-    advance(11000 + 3400); // GREET_WAIT_MS, then the greeting itself
-    expect(root).toHaveAttribute("data-state", "idle");
-
-    lingerOnServicii();
-    expect(root).toHaveAttribute("data-state", "prompt");
-    for (const selector of ["[role]", "header", "h1, h2, h3, h4, h5, h6", "[aria-live]"]) {
-      expect(root.querySelector(selector), selector).toBeNull();
+    for (const ms of [0, 34, 3400, 10_000]) {
+      act(() => vi.advanceTimersByTime(ms));
+      expect(portraits(), `one of her at ${ms}ms`).toHaveLength(1);
+      expect(avatar().contains(portraits()[0]!), `inside the button at ${ms}ms`).toBe(true);
     }
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
-  });
-
-  it("puts the tip after the button, and describes the button with the tip's sentence", () => {
-    fakeTimers();
-    renderGuide();
-    lingerOnServicii();
-
-    const bubble = tip()!;
-    const children = [...guideRoot()!.children];
-    expect(children).toEqual([avatar(), bubble]);
-
-    const describedBy = avatar().getAttribute("aria-describedby")!;
-    const sentence = document.getElementById(describedBy)!;
-    expect(bubble.contains(sentence)).toBe(true);
-    expect(sentence).toHaveTextContent(ro(GUIDE_COPY.prompts.servicii));
-    expect(avatar()).toHaveAccessibleDescription(ro(GUIDE_COPY.prompts.servicii));
-
-    const t = within(bubble);
-    expect(bubble.querySelector('[aria-hidden="true"]')).toHaveTextContent(ro(GUIDE_COPY.label));
-    expect(t.getByRole("button", { name: ro(GUIDE_COPY.open) })).toHaveAttribute("type", "button");
-    expect(t.getByRole("button", { name: ro(GUIDE_COPY.never) })).toHaveAttribute("type", "button");
-    const close = t.getByRole("button", { name: ro(GUIDE_COPY.dismiss) });
-    expect(close.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-    expect(close.querySelector("svg")).toHaveAttribute("stroke-width", "1.75");
+    expect(root()).not.toHaveAttribute("data-greet");
+    expect(root()).not.toHaveAttribute("data-state");
   });
 
   it("never says AI in any language", () => {
@@ -504,9 +412,8 @@ describe("markup", () => {
       GUIDE_COPY.label,
       GUIDE_COPY.aria,
       GUIDE_COPY.open,
-      GUIDE_COPY.never,
-      GUIDE_COPY.dismiss,
-      ...Object.values(GUIDE_COPY.prompts),
+      GUIDE_COPY.faqHead,
+      GUIDE_COPY.faqIntro,
     ].flatMap((text) => [text.ro, text.ru, text.en]);
     // `\b` does not see Cyrillic letters, so word edges are spelled out with \p{L}.
     for (const text of strings) expect(text).not.toMatch(/(?<!\p{L})(?:AI|IA|ИИ)(?!\p{L})/u);
@@ -515,242 +422,10 @@ describe("markup", () => {
 
 /* ---- 3. the linger engine ------------------------------------------------------------------ */
 
-describe("linger: 5 s of visible time on the centre line", () => {
-  beforeEach(() => {
-    answerConsent();
-    fakeTimers();
-  });
-
-  it("shows the tip at 5,000 ms and not a millisecond before, without moving focus", () => {
-    renderGuide();
-    centre("servicii");
-
-    advance(4999);
-    expect(tip()).toBeNull();
-    advance(1);
-    expect(tip()).not.toBeNull();
-    expect(tip()).toHaveTextContent(ro(GUIDE_COPY.prompts.servicii));
-    expect(document.activeElement).toBe(document.body);
-  });
-
-  it("restarts the count when the centre topic changes", () => {
-    renderGuide();
-    centre("servicii");
-    advance(4000);
-    centre("servicii", false);
-    centre("lucrari");
-    advance(4000);
-    expect(tip()).toBeNull();
-    advance(1000);
-    expect(tip()).toHaveTextContent(ro(GUIDE_COPY.prompts.lucrari));
-  });
-
-  it("prefers the deepest topic when two cross the centre line", () => {
-    renderGuide({ nested: true });
-    centre("servicii");
-    report("centre", serviceTopic(), true);
-    advance(5000);
-    expect(tip()).toHaveTextContent(ro(GUIDE_COPY.prompts.service));
-  });
-
-  it("a dismissed topic never comes back: dismiss, leave, re-enter, 10 s", () => {
-    renderGuide();
-    lingerOnServicii();
-    fireEvent.click(within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.dismiss) }));
-    expect(tip()).toBeNull();
-
-    centre("servicii", false);
-    advance(1000);
-    centre("servicii");
-    advance(10_000);
-    expect(tip()).toBeNull();
-  });
-
-  it("waits out the 60 s cooldown for the second topic, and never shows a third", () => {
-    renderGuide();
-    lingerOnServicii(); // shown at 5,000
-    fireEvent.click(within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.dismiss) }));
-
-    centre("servicii", false);
-    centre("lucrari");
-    advance(59_999); // 64,999: 59,999 after the first tip
-    expect(tip()).toBeNull();
-    advance(1); // 65,000: exactly 60 s after it
-    expect(tip()).toHaveTextContent(ro(GUIDE_COPY.prompts.lucrari));
-
-    fireEvent.click(within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.dismiss) }));
-    centre("lucrari", false);
-    report("centre", serviceTopic(), true);
-    advance(180_000);
-    expect(tip()).toBeNull();
-  });
-
-  it("clears the tip when its section leaves the centre line", () => {
-    renderGuide();
-    lingerOnServicii();
-    centre("servicii", false);
-    expect(tip()).toBeNull();
-    expect(guideRoot()).toHaveAttribute("data-state", "idle");
-  });
-
-  it("clears the tip on a client navigation", () => {
-    const { rerenderGuide } = renderGuide();
-    lingerOnServicii();
-    h.pathname = "/servicii/e-commerce";
-    rerenderGuide();
-    expect(tip()).toBeNull();
-  });
-
-  it("'Nu mai arăta în această vizită' ends the tips for the page's lifetime", () => {
-    renderGuide();
-    lingerOnServicii();
-    fireEvent.click(within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.never) }));
-    expect(tip()).toBeNull();
-
-    centre("servicii", false);
-    centre("lucrari");
-    advance(120_000);
-    expect(tip()).toBeNull();
-  });
-});
-
-describe("linger: blockers hold the tip back, and the wait goes on", () => {
-  beforeEach(() => {
-    answerConsent();
-    fakeTimers();
-  });
-
-  it("not while the visitor types; it comes at the next try once they stop", () => {
-    renderGuide();
-    const field = screen.getByRole("textbox", { name: "Câmp de test" });
-    act(() => field.focus());
-    centre("servicii");
-    advance(5000);
-    expect(tip()).toBeNull();
-
-    act(() => field.blur());
-    advance(5000);
-    expect(tip()).not.toBeNull();
-  });
-
-  it("not while the page is covered (coverPage)", () => {
-    renderGuide();
-    const release = cover();
-    centre("servicii");
-    advance(5000);
-    expect(tip()).toBeNull();
-
-    release();
-    advance(5000);
-    expect(tip()).not.toBeNull();
-  });
-
-  it("not while the request flow is already open", () => {
-    renderGuide();
-    fireEvent.click(screen.getByRole("button", { name: "Alt CTA" }));
-    expect(screen.getByRole("dialog", { name: DIALOG_TITLE })).toBeInTheDocument();
-
-    centre("servicii");
-    advance(5000);
-    expect(tip()).toBeNull();
-  });
-
-  it("not while the visitor is busy with the HUD (setHudBusy)", () => {
-    renderGuide();
-    act(() => setHudBusy("os-window", true));
-    centre("servicii");
-    advance(5000);
-    expect(tip()).toBeNull();
-
-    act(() => setHudBusy("os-window", false));
-    advance(5000);
-    expect(tip()).not.toBeNull();
-  });
-
-  it("not while the guide is away", () => {
-    renderGuide({ sectionFlow: true });
-    report("away", screen.getByTestId("request-flow"), true);
-    centre("servicii");
-    advance(5000);
-    expect(tip()).toBeNull();
-  });
-
-  it("clears a shown tip when the page becomes covered", () => {
-    renderGuide();
-    lingerOnServicii();
-    cover();
-    expect(tip()).toBeNull();
-  });
-});
-
-/* ---- 4. keyboard, away, yield ------------------------------------------------------------------ */
-
-describe("keyboard", () => {
-  beforeEach(() => {
-    answerConsent();
-    fakeTimers();
-  });
-
-  it("Escape inside the tip removes it and puts focus on the avatar", () => {
-    renderGuide();
-    lingerOnServicii();
-    const openButton = within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.open) });
-    act(() => openButton.focus());
-
-    fireEvent.keyDown(openButton, { key: "Escape", repeat: true });
-    expect(tip(), "a held key does not dismiss").not.toBeNull();
-
-    fireEvent.keyDown(openButton, { key: "Escape" });
-    expect(tip()).toBeNull();
-    expect(document.activeElement).toBe(avatar());
-  });
-
-  it("Escape on the avatar removes the tip and leaves focus where it is", () => {
-    renderGuide();
-    lingerOnServicii();
-    act(() => avatar().focus());
-    fireEvent.keyDown(avatar(), { key: "Escape" });
-    expect(tip()).toBeNull();
-    expect(document.activeElement).toBe(avatar());
-  });
-
-  it("the ✕ hands focus from the tip back to the avatar", () => {
-    renderGuide();
-    lingerOnServicii();
-    const close = within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.dismiss) });
-    act(() => close.focus());
-    fireEvent.click(close);
-    expect(tip()).toBeNull();
-    expect(document.activeElement).toBe(avatar());
-  });
-});
-
 describe("away and yield", () => {
   beforeEach(() => {
     answerConsent();
     fakeTimers();
-  });
-
-  it("away over the section-layout request form: every guide button leaves the tab order", () => {
-    renderGuide({ sectionFlow: true });
-    lingerOnServicii();
-    const buttons = () => [avatar(), ...within(tip()!).getAllByRole("button")];
-    for (const button of buttons()) expect(button.tabIndex).toBe(0);
-
-    report("away", screen.getByTestId("request-flow"), true);
-    expect(guideRoot()).toHaveAttribute("data-away", "");
-    expect(buttons()).toHaveLength(4);
-    for (const button of buttons()) {
-      expect(button.tabIndex).toBe(-1);
-      expect(button).toBeInTheDocument();
-    }
-    // Still focusable from script, so the dialog can hand focus back.
-    act(() => avatar().focus());
-    expect(document.activeElement).toBe(avatar());
-
-    report("away", screen.getByTestId("request-flow"), false);
-    expect(guideRoot()).not.toHaveAttribute("data-away");
-    expect(avatar().tabIndex).toBe(0);
   });
 
   it("yields while focus sits under the avatar, and comes back when it moves on", () => {
@@ -773,29 +448,13 @@ describe("away and yield", () => {
     expect(guideRoot()).not.toHaveAttribute("data-yield");
   });
 
-  it("focus landing under the tip clears it", () => {
-    renderGuide();
-    lingerOnServicii();
-    vi.spyOn(tip()!, "getBoundingClientRect").mockReturnValue(rect(900, 400, 320, 240));
-    const other = screen.getByRole("button", { name: "Alt CTA" });
-    vi.spyOn(other, "getBoundingClientRect").mockReturnValue(rect(1000, 500, 120, 44));
-
-    act(() => other.focus());
-    expect(tip()).toBeNull();
-    expect(guideRoot()).toHaveAttribute("data-yield", "");
-  });
 });
 
 /* ---- 5. opening the flow ------------------------------------------------------------------------ */
 
-async function toContactStep(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-  await user.click(
-    within(within(dialog).getByTestId("request-steps")).getByRole("button", { name: /Datele tale/ }),
-  );
-}
-
+/* The dialog is the deck now, so the contact fields are on screen from the first frame —
+   there is no step to walk to (2026-09-26). */
 async function sendFrom(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
-  await toContactStep(user, dialog);
   await user.type(within(dialog).getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(within(dialog).getByPlaceholderText(EMAIL_PH), "ion@example.com");
   await user.click(within(dialog).getByRole("button", { name: /Trimite cererea/ }));
@@ -815,83 +474,27 @@ describe("opening the request flow", () => {
 
     await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-    await within(dialog).findByTestId("chat-panel");
-    expect(within(dialog).getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
+    /* `openAssistant` no longer opens a panel — the deck's assistant is always on screen — so
+       what the guide's promise means now is that focus lands inside it.
+
+       Wait for the deck FIRST, and give it room. The dialog loads the whole estimator now,
+       which is a heavier dynamic import than the wizard it replaced, and THIS is the first spec
+       in the file to open it, so it is the one that pays for the chunk. On its own that takes
+       329ms; with the full suite running 76 files at once it goes past the default 1s and the
+       spec fails for a reason that has nothing to do with what it asserts. */
+    await within(dialog).findByTestId("request-flow", undefined, { timeout: 5000 });
+    const panel = await within(dialog).findByTestId("chat-panel");
+    await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(avatar());
   });
 
-  it("sends source `guide` and the centre section", async () => {
-    const user = userEvent.setup();
-    renderGuide({ frontCard: 1 });
-    centre("servicii");
-
-    await openRequestFromGuide(user);
-    const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-    await within(dialog).findByTestId("request-flow");
-    await sendFrom(user, dialog);
-
-    const message = sentMessage();
-    expect(message).toContain("- Secțiune: servicii");
-    expect(message).toContain("- Sursă (CTA): guide");
-    // A front card is only the visitor's context while they are on the projects.
-    expect(message).not.toContain("- Proiect:");
-    expect(message).not.toContain("- Serviciu:");
-  });
-
-  it("the tip's button sends source `guide-prompt` and the tip's topic", async () => {
-    fakeTimers();
-    renderGuide();
-    lingerOnServicii();
-    vi.useRealTimers();
-
-    const user = userEvent.setup();
-    await user.click(within(tip()!).getByRole("button", { name: ro(GUIDE_COPY.open) }));
-    expect(tip()).toBeNull();
-    const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-    await within(dialog).findByTestId("chat-panel");
-    await sendFrom(user, dialog);
-
-    const message = sentMessage();
-    expect(message).toContain("- Secțiune: servicii\n- Sursă (CTA): guide-prompt");
-  });
-
-  it("names the front project of the spiral while the visitor is on the projects", async () => {
-    const user = userEvent.setup();
-    renderGuide({ frontCard: 1 });
-    centre("lucrari");
-
-    await openRequestFromGuide(user);
-    const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-    await within(dialog).findByTestId("request-flow");
-    await sendFrom(user, dialog);
-
-    const project = defaultSiteData.projects[1];
-    const message = sentMessage();
-    expect(message).toContain(`- Proiect: ${project.name} (${project.id})`);
-    expect(message).toContain("- Secțiune: lucrari");
-  });
-
-  it("sends no project when no card is at the front", async () => {
-    const user = userEvent.setup();
-    renderGuide({ frontCard: null });
-    centre("lucrari");
-
-    await openRequestFromGuide(user);
-    const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
-    await within(dialog).findByTestId("request-flow");
-    await sendFrom(user, dialog);
-
-    expect(sentMessage()).not.toContain("- Proiect:");
-  });
-
   it("names a known service from a prefixed service-page path", async () => {
     h.pathname = "/ru/servicii/e-commerce";
     const user = userEvent.setup();
     renderGuide();
-    report("centre", serviceTopic(), true);
 
     await openRequestFromGuide(user);
     const dialog = await screen.findByRole("dialog", { name: DIALOG_TITLE });
@@ -900,7 +503,6 @@ describe("opening the request flow", () => {
 
     const message = sentMessage();
     expect(message).toContain("- Serviciu: e-commerce");
-    expect(message).toContain("- Secțiune: service");
     expect(message).toContain("- Sursă (CTA): guide");
   });
 
@@ -951,13 +553,28 @@ describe("GuideAssistant.module.css", () => {
     expect(hidden).toEqual([".caption"]);
   });
 
-  it("keyframes move only transform and opacity, and all motion is behind no-preference", () => {
-    const frames = [...css.matchAll(/@keyframes\s+[\w-]+\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)];
+  it("keyframes move only transform and opacity — except the two lips, which may not be transformed", () => {
+    /* The two PHOTOGRAPHIC patches are the exception, and it is not a concession to convenience.
+       They are windows onto her own portrait laid over the picture they came from, and a
+       `transform` puts them on their own compositing layer, which rasterises the background image
+       against the device grid about half a pixel out of step with the inline paint. Measured row
+       by row at device pixels, that is up to 47 luminance units appearing on her upper lip the
+       instant she starts to speak — the cut. So those two move by paint instead: the photograph
+       slides (`background-position-y`) and its window follows (`mask-position`). Everything else
+       here is a gradient with nothing to register against, and stays on transform. */
+    const PICTATE = new Set(["guide-jaw", "guide-upper-lip"]);
+    const PAINT = ["background-position-y", "mask-position", "-webkit-mask-position"];
+    const frames = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)];
     expect(frames.length).toBeGreaterThanOrEqual(6);
     for (const frame of frames) {
-      for (const decl of frame[1].matchAll(/([\w-]+)\s*:/g)) {
-        expect(["transform", "opacity"], frame[0].slice(0, 40)).toContain(decl[1]);
+      const allowed = PICTATE.has(frame[1]) ? PAINT : ["transform", "opacity"];
+      for (const decl of frame[2].matchAll(/([\w-]+)\s*:/g)) {
+        expect(allowed, frame[1]).toContain(decl[1]);
       }
+    }
+    // And the lips are never transformed anywhere else either, which is the whole point.
+    for (const sel of [".jaw", ".upperLip"]) {
+      expect(rule(sel), sel).not.toMatch(/(?:^|[;\s{])transform\s*:/);
     }
     const withoutMotionBlocks = css
       .replace(/@keyframes[\s\S]*?\}\s*\}/g, "")
@@ -976,8 +593,10 @@ describe("GuideAssistant.module.css", () => {
     }
   });
 
-  it("gives every tip button a 44px target, and the red CTA fill to 'Deschide ghidul' only", () => {
-    expect(rule(".tipOpen,\n.tipNever")).toMatch(/min-height:\s*44px/);
+  it("gives every bubble button a 44px target, and the red CTA fill to one control only", () => {
+    /* `.tipNever` — the tip's "Nu mai arăta" — was named here beside `.tipOpen` and outlived
+       the guide as dead CSS, so this assertion was reading a rule nothing rendered. */
+    expect(rule(".tipOpen")).toMatch(/min-height:\s*44px/);
     expect(rule(".tipClose")).toMatch(/width:\s*44px/);
     expect(rule(".tipClose")).toMatch(/height:\s*44px/);
     const red = rules.filter((r) => /--grad-red-cta/.test(r.body)).map((r) => r.selector);

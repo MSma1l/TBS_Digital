@@ -139,16 +139,25 @@
     visibility 0s linear 300ms;
 }
 
-/* Reduced motion: never shown, not even for the frame before hydration (the shell then
-   finishes the intro and unmounts). A `/#section` deep link: the visitor asked for a place
-   on the page, so the overlay stays out of the way before JS too. */
+/* Two rules that hide the overlay BEFORE the shell has decided anything — and only then.
+   Both are scoped to `[data-phase="boot"]`, the phase the server renders, because the shell
+   re-decides both of these after hydration and may legitimately play the intro anyway:
+
+     · reduced motion — the shell finishes the intro and unmounts, so the overlay normally
+       never leaves `boot` here. `tbs_intro_force` is the exception, and a forced intro that
+       ran under a `display: none !important` overlay would be nine seconds of locked, blank
+       page;
+     · a `/#section` in the address bar — the visitor asked for a place on the page, so the
+       overlay stays out of the way before JS too. But every internal link on this site writes
+       a hash into the address bar, and on a RELOAD the shell now plays the intro
+       (`hashSkipsIntro`, lib/intro.ts): the overlay must be allowed to show. */
 @media (prefers-reduced-motion: reduce) {
-  .overlay {
+  .overlay[data-phase="boot"] {
     display: none !important;
   }
 }
 
-:global(html:has(:target)) .overlay {
+:global(html:has(:target)) .overlay[data-phase="boot"] {
   display: none !important;
 }
 
@@ -437,7 +446,7 @@
    * Declared here and not on .fbDie because <Cavity/> is worn by BOTH layers — whatever the
    * slot settles at, the board inherits through the dissolve.
    */
-  --kt: clamp(0, (var(--fb-p) - 0.02) / 0.15, 1);
+  --kt: clamp(0, (var(--fb-p) - 0.02) / 0.13, 1);
   --slot: calc(var(--kt) * var(--kt) * (3 - 2 * var(--kt)));
 
   /*
@@ -450,7 +459,7 @@
    * leave, so the splash is the thing that ENDS the arrival: the fourteen heads land together,
    * the chip takes it, and the wave is the taking.
    */
-  --spt: clamp(0, (var(--fb-p) - 0.16) / 0.14, 1);
+  --spt: clamp(0, (var(--fb-p) - 0.13) / 0.16, 1);
   --spl: calc(4 * var(--spt) * (1 - var(--spt)));
 
   /*
@@ -473,7 +482,7 @@
      (1 - --dis on the die, --dis on the board), so the two can never sum to more than one
      layer's worth of drawing: the old pair fell out of step and put a 71%-opaque die on top
      of a fully opaque board for a tenth of the scrub. */
-  --dt: clamp(0, (var(--fb-p) - 0.38) / 0.12, 1);
+  --dt: clamp(0, (var(--fb-p) - 0.38) / 0.15, 1);
   --dis: calc(var(--dt) * var(--dt) * (3 - 2 * var(--dt)));
   /* board → machine. 0.66, alongside --form: the board holds full strength until the last of
      its guts has finished lighting (0.703, see IntroFallback's --a table), is down to 13% by
@@ -687,10 +696,10 @@
    * travelling head at constant speed reads as a thing being carried, and a head that eases
    * out reads as a thing running out of energy just as it gets there.
    */
-  --arr: clamp(0, (var(--fb-p) - 0.02) / 0.16, 1);
-  --it: clamp(0, (var(--fb-p) - 0.16) / 0.14, 1);
+  --arr: clamp(0, (var(--fb-p) - 0.02) / 0.14, 1);
+  --it: clamp(0, (var(--fb-p) - 0.13) / 0.17, 1);
   --ign: calc(var(--it) * var(--it) * (3 - 2 * var(--it)));
-  --ct: clamp(0, (var(--fb-p) - 0.3) / 0.09, 1);
+  --ct: clamp(0, (var(--fb-p) - 0.3) / 0.085, 1);
   --cool: calc(var(--ct) * var(--ct) * (3 - 2 * var(--ct)));
   /*
    * AND THE ROOM TAKES IT A BEAT LATER. The same envelope, 0.03 of scrub behind, because light
@@ -698,7 +707,7 @@
    * drives the canyon's own faces, floor, kerb and recession, which have been painted once and
    * frozen for the whole film.
    */
-  --rmt: clamp(0, (var(--fb-p) - 0.19) / 0.14, 1);
+  --rmt: clamp(0, (var(--fb-p) - 0.16) / 0.16, 1);
   --room: calc(4 * var(--rmt) * (1 - var(--rmt)));
   /*
    * THE HEAT ITSELF, and it is a difference rather than a window because it has to come back
@@ -729,7 +738,7 @@
    * the last core finishes. Kept as its own declaration and not folded onto --ign: the wipe is
    * a direction on the silicon and the flare is a level, and the two want to be retimed apart.
    */
-  --bt: clamp(0, (var(--fb-p) - 0.17) / 0.1, 1);
+  --bt: clamp(0, (var(--fb-p) - 0.14) / 0.1, 1);
   --blk: calc(var(--bt) * var(--bt) * (3 - 2 * var(--bt)));
   /*
    * 0.508, and it is DERIVED with the board's own constant below — the two must be solved
@@ -1199,7 +1208,7 @@
    fill and cross, because every one of them is drawn on currentColor. */
 .fbDie .fbCpu {
   color: color-mix(in srgb, var(--red-lift) calc(85% * var(--flare)), var(--dark-cyan));
-  opacity: calc(0.24 + 0.76 * clamp(0, (var(--fb-p) - (0.19 + 0.026 * var(--i))) / 0.1, 1));
+  opacity: calc(0.24 + 0.76 * clamp(0, (var(--fb-p) - (0.16 + 0.026 * var(--i))) / 0.1, 1));
 }
 
 .fbFill {
@@ -1260,7 +1269,7 @@
   stroke-width: 2.2;
   stroke-opacity: calc(0.8 + 0.2 * var(--flare, 0));
   stroke-dasharray: 1000;
-  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.16) / 0.14, 1)));
+  stroke-dashoffset: calc(1000 * (1 - clamp(0, (var(--fb-p) - 0.13) / 0.15, 1)));
 }
 
 /*

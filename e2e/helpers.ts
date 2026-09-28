@@ -150,10 +150,12 @@ export async function armHud(page: Page): Promise<void> {
 }
 
 /**
- * The Ghid TBS guide (components/hud/guide/GuideAssistant.tsx): its root box in the
- * bottom-right corner (`[data-hud][data-guide]`, carrying `data-state`, `data-away` and
- * `data-yield`), the avatar button that opens the request flow on the guided chat, and the tip
- * a linger on a topic shows. Addressed by the hooks the component declares, never by copy or
+ * The Asistent TBS assistant (components/hud/guide/GuideAssistant.tsx): her root box in the
+ * bottom-right corner (`[data-hud][data-guide]`, carrying `data-away`, `data-yield` and
+ * `data-say`) and the avatar button that opens her questions. `data-state` went with her
+ * entrance on 2026-09-26 — she has no states to be in any more, and her box is the same from
+ * the first frame. Addressed by the hooks the
+ * component declares, never by copy or
  * CSS-module class names; its copy is `GUIDE_COPY` (components/hud/guide/copy.ts), which a spec
  * imports.
  */
@@ -161,7 +163,6 @@ export const guideRoot = (page: Page): Locator => page.locator("[data-hud][data-
 
 export const guideAvatar = (page: Page): Locator => guideRoot(page).locator('[data-testid="guide-avatar"]');
 
-export const guideTip = (page: Page): Locator => guideRoot(page).locator('[data-testid="guide-tip"]');
 
 /**
  * The fibre-optic scroll rail (components/hud/rail/ScrollRail.tsx), a desktop-only HUD part
@@ -295,6 +296,8 @@ export const PRIVATE_COPY = {
   modalTitle: "Spune-ne ce vrei să construiești.",
   /** `components/sections/Estimator.tsx` → `SECTION.submit` (the real contact submit). */
   estimatorSubmit: "Trimite cererea",
+  /** `lib/request/catalog.ts` → `PROJECT_TYPES[0].label`, the first project chip. */
+  estimatorFirstType: "Site / prezentare",
   /** `Estimator.tsx` → `CHAT.send` / `CHAT.inputLabel` (the free-text composer). */
   chatSend: "Trimite răspunsul",
   chatInputLabel: "Scrie asistentului",
@@ -361,169 +364,49 @@ export async function focusIsInsideDialog(page: Page): Promise<boolean> {
   });
 }
 
-// --- the stepped request flow --------------------------------------------------------------
+// --- the request flow ------------------------------------------------------------------------
 
 /*
- * The restructured request flow: three steps on ONE column — choose the project, choose what
- * it should contain, fill in the contact details — with the conversational assistant reduced
- * to an OPTIONAL panel behind a toggle.
+ * ONE ARRANGEMENT, IN TWO PLACES: the home page's `#estimare` and the request dialog render the
+ * same deck — both bays, everything on screen at once (2026-09-26).
  *
- * Everything below addresses the flow through the contract the flow's own markup declares
- * (`data-testid` / `data-step` / `aria-current`), never through copy or CSS-module class
- * names: the copy is trilingual and the styles are being rewritten in the same change.
+ * It used to be two. The dialog ran the flow as three steps on one column, with the assistant
+ * behind a toggle, and this file carried the layer that walked them: `requestSteps`,
+ * `currentStepItem`, `expectActiveStep`, `clickStepNav`, `clickStepIndicator`, `goToStep`,
+ * `goBackOneStep`, `chatToggle`, `openChat`, and a CONTRACT-GAP note about the next/back hook
+ * nobody had named. All of it went with the wizard. A spec that wants the contact fields no
+ * longer walks anywhere — they are on screen from the first frame, so `fillContactStep` is the
+ * whole journey.
+ *
+ * Everything below still addresses the flow through the contract its markup declares
+ * (`data-testid` / `data-step`), never through copy or CSS-module class names: the copy is
+ * trilingual and the styles move.
  */
 
 /** The flow's root. `data-layout` says whether it is the dialog or the home-page section. */
 export const requestFlow = (root: Page | Locator): Locator =>
   root.locator('[data-testid="request-flow"]');
 
-/** The three steps, in the order the client asked for them. */
+/** The three regions of the deck, in the order they are read. */
 export const REQUEST_STEPS = ["project", "options", "contact"] as const;
 export type RequestStep = (typeof REQUEST_STEPS)[number];
 
 /**
- * The step PANELS — every `[data-step]` that is not an item of the step indicator.
+ * The deck's three regions. All three are on screen, and all three carry `data-active="true"`
+ * — the attribute survives as "this region is live", which is the only value it ever takes now.
  *
- * The indicator is allowed to key its own items by `data-step` too, so an unqualified
- * `[data-step="contact"]` could match two very different things: the panel holding the
- * contact fields, and the little dot that points at it. `:not(<indicator> *)` keeps
- * "which step is on screen" a question about panels only.
+ * The `:not([data-testid="request-steps"] *)` guard these two used to carry was there because
+ * the wizard's indicator keyed its own items by `data-step` as well. There is no indicator.
  */
-export const stepPanels = (flow: Locator): Locator =>
-  flow.locator('[data-step]:not([data-testid="request-steps"] *)');
+export const stepPanels = (flow: Locator): Locator => flow.locator("[data-step]");
 
-/** One step panel. */
+/** One region of the deck. */
 export const stepPanel = (flow: Locator, step: RequestStep): Locator =>
-  flow.locator(`[data-step="${step}"]:not([data-testid="request-steps"] *)`);
+  flow.locator(`[data-step="${step}"]`);
 
-/** The progress indicator above the steps. */
-export const requestSteps = (flow: Locator): Locator =>
-  flow.locator('[data-testid="request-steps"]');
-
-/** The indicator item the flow marks as current — the assistive-tech half of `data-active`. */
-export const currentStepItem = (flow: Locator): Locator =>
-  requestSteps(flow).locator('[aria-current="step"]');
-
-/** Every step panel currently marked active. Exactly one, once the flow has mounted. */
-export const activeStepPanels = (flow: Locator): Locator =>
-  stepPanels(flow).and(flow.locator('[data-active="true"]'));
-
-/** Which step is active right now, or `null` before the flow has mounted. */
-export async function activeStep(flow: Locator): Promise<string | null> {
-  const active = activeStepPanels(flow);
-  if ((await active.count()) === 0) return null;
-  return active.first().getAttribute("data-step");
-}
-
-/** Wait until `step` is the active one, failing with the step that is actually showing. */
-export async function expectActiveStep(flow: Locator, step: RequestStep): Promise<void> {
-  await expect
-    .poll(() => activeStep(flow), { message: `the "${step}" step should be active` })
-    .toBe(step);
-  // Exactly one panel at a time — "one step on screen" is the whole point of the redesign.
-  await expect(
-    activeStepPanels(flow),
-    "exactly one step may be active at a time",
-  ).toHaveCount(1);
-}
-
-/*
- * CONTRACT GAP: the brief names the container, the steps, the indicator and the chat toggle,
- * but never names the control that MOVES between steps. Rather than guess one label, the
- * helper below tries, in order:
- *   1. an explicit hook — `[data-testid="request-next"]` / `[data-nav="next"]`;
- *   2. the Romanian wording such a button plausibly carries;
- *   3. the step indicator itself, if its items are buttons.
- * Whichever the implementation picked, the specs keep working. If it picked none of them,
- * the failure message says so instead of dying on a missing locator.
- */
-const NAV_LABEL: Record<"next" | "back", RegExp> = {
-  next: /^(continu[ăa]|mai departe|urm[ăa]torul|pasul urm[ăa]tor|[îi]nainte|pas nou)/i,
-  back: /^([îi]napoi|pasul anterior|precedent)/i,
-};
-
-/** Click whatever moves the flow one step in `dir`. Returns false if nothing could be found. */
-async function clickStepNav(flow: Locator, dir: "next" | "back"): Promise<boolean> {
-  const hook = flow.locator(`[data-testid="request-${dir}"], [data-nav="${dir}"]`);
-  if (await hook.count()) {
-    await hook.first().click();
-    return true;
-  }
-  const named = flow.getByRole("button", { name: NAV_LABEL[dir] });
-  if (await named.count()) {
-    await named.first().click();
-    return true;
-  }
-  return false;
-}
-
-/** Click the indicator item for `step`, when the indicator is navigable. */
-async function clickStepIndicator(flow: Locator, step: RequestStep): Promise<boolean> {
-  const item = requestSteps(flow).locator(`[data-step="${step}"]`);
-  const button = item.locator("xpath=self::button | .//button").first();
-  const target = (await button.count()) ? button : item;
-  if (!(await target.count()) || !(await target.first().isEnabled().catch(() => false))) {
-    return false;
-  }
-  await target.first().click();
-  return true;
-}
-
-/**
- * Walk the flow to `step`, whichever direction that is from where it stands now.
- *
- * Deliberately a walk and not a jump: going "project → contact" has to pass through
- * "options", which is exactly what a visitor does, and what a test that asserted nothing
- * about the intermediate step would stop guarding.
- */
-export async function goToStep(flow: Locator, step: RequestStep): Promise<void> {
-  for (let hop = 0; hop <= REQUEST_STEPS.length; hop += 1) {
-    const current = (await activeStep(flow)) as RequestStep | null;
-    if (current === step) {
-      await expectActiveStep(flow, step);
-      return;
-    }
-    expect(current, "the flow should have an active step").not.toBeNull();
-    const dir =
-      REQUEST_STEPS.indexOf(current!) < REQUEST_STEPS.indexOf(step) ? "next" : "back";
-    const moved = (await clickStepNav(flow, dir)) || (await clickStepIndicator(flow, step));
-    expect(
-      moved,
-      `no control moves the flow ${dir} from "${current}" — the flow needs a ` +
-        `[data-testid="request-${dir}"] hook, a button named like /${NAV_LABEL[dir].source}/, ` +
-        `or a navigable step indicator`,
-    ).toBe(true);
-    await expect
-      .poll(() => activeStep(flow), { message: `the flow did not move ${dir}` })
-      .not.toBe(current);
-  }
-  throw new Error(`the flow never reached the "${step}" step`);
-}
-
-/** Take one step back, asserting the flow actually moved. */
-export async function goBackOneStep(flow: Locator): Promise<void> {
-  const before = (await activeStep(flow)) as RequestStep;
-  const moved = await clickStepNav(flow, "back");
-  expect(moved, `nothing takes the flow back from "${before}"`).toBe(true);
-  await expect.poll(() => activeStep(flow)).not.toBe(before);
-}
-
-/** The optional assistant's switch. Its `aria-expanded` is the state a screen reader hears. */
-export const chatToggle = (flow: Locator): Locator =>
-  flow.locator('[data-testid="chat-toggle"]');
-
-/** The assistant's panel. Absent from the DOM until the toggle is pressed. */
+/** The assistant's panel inside the DIALOG. The page's own assistant is part of the section. */
 export const chatPanel = (flow: Locator): Locator =>
   flow.locator('[data-testid="chat-panel"]');
-
-/** Turn the assistant on and wait for its panel. */
-export async function openChat(flow: Locator): Promise<Locator> {
-  await chatToggle(flow).click();
-  const panel = chatPanel(flow);
-  await expect(panel).toBeVisible();
-  await expect(chatToggle(flow)).toHaveAttribute("aria-expanded", "true");
-  return panel;
-}
 
 /** The contact fields, located by shape rather than by their trilingual placeholder copy. */
 export const flowFields = (flow: Locator) => ({
@@ -548,11 +431,16 @@ export async function fillContactStep(
 // --- the estimator's chat ----------------------------------------------------------------
 
 /**
- * The assistant's free-text composer. Scoped to `root` because the SAME estimator is
- * rendered inside the request dialog on a service page — an unscoped `#estimator-chat-input`
- * would be ambiguous the moment a modal is open.
+ * The assistant's free-text composer.
+ *
+ * Found by `data-dictation-target`, not by its id. The id is `estimator-chat-input` on the
+ * page and `estimator-chat-input-dialog` in the modal (2026-09-26): one document can hold both
+ * composers at once now that the dialog's assistant is always rendered, and two elements with
+ * one id is invalid HTML that a label, a `for=` and the dictation button all resolve wrongly.
+ * Still scoped to `root`, for the same reason — there can be two.
  */
-export const chatInput = (root: Locator): Locator => root.locator("#estimator-chat-input");
+export const chatInput = (root: Locator): Locator =>
+  root.locator('[data-dictation-target="estimator-chat"]');
 
 /** The composer's send button. */
 export const chatSendButton = (root: Locator): Locator =>
@@ -604,7 +492,14 @@ export async function walkChatToEnd(root: Locator, maxSteps = 12): Promise<numbe
  * The two mount points `Estimator.tsx` renders for a dictation button. They stay EMPTY in a
  * browser without speech recognition — which is exactly what one of the specs asserts.
  */
-export const dictationSlot = (page: Page, name: "estimator-chat" | "estimator-details") =>
+/* Takes a root, not only the page: since the dialog's assistant is always rendered (2026-09-26)
+   an open dialog over the home page puts TWO of each slot in the document, and
+   `data-dictation-slot` is a name rather than an id. Pass `estimatorSection(page)` or the dialog
+   when both can be on screen. */
+export const dictationSlot = (
+  page: Page | Locator,
+  name: "estimator-chat" | "estimator-details",
+) =>
   page.locator(`[data-dictation-slot="${name}"]`);
 
 /** The dictation button itself, when the browser has an API for it to drive. */

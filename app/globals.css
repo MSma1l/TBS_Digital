@@ -103,7 +103,7 @@
   --grid-cell: 64px;
 
   /* ---- Cyber Dark / Neon Cyan / Obsidian Black: the HUD chrome palette ---------------
-     For the fibre rail, the Ghid TBS avatar, the OS dock and windows and the Command Center
+     For the fibre rail, the assistant, the OS dock and windows and the Command Center
      (docs/04-design-system.md). Cyber Dark adds no token: it is the --dark-* surface scale
      below, reached through the mapped --panel / --glass-* like every other component.
      Red stays the only call-to-action fill; cyan is information (rings, threads, ticks, status).
@@ -128,7 +128,7 @@
      request dialog outranks everything interactive; only the first-visit intro is above it.
      The HUD chrome sits under the whole ladder, burger overlay included, so the overlay, the
      dialog and the intro cover it with no hide logic: the fibre rail, then the OS layer (the
-     dock and the windows order themselves inside it), then the Ghid TBS avatar and its tip. */
+     dock and the windows order themselves inside it), then the assistant and her bubble. */
   --z-rail: 104;
   --z-os: 108;
   --z-guide: 112;
@@ -145,9 +145,11 @@
   --z-intro: 400;
 
   /* ---- HUD placement ----------------------------------------------------------
-     Static insets shared by the rail, the dock, the guide and the OS windows. Stylesheets read
-     them; nothing ever writes a custom property onto <html> or <body>. --hud-bottom is where the
-     rail and a window frame end: 4px above the guide's 88px avatar box, which sits 20px up. */
+     Static insets shared by the rail, the dock, the assistant and the OS windows. Stylesheets
+     read them; nothing ever writes a custom property onto <html> or <body>. --hud-bottom is where
+     the rail and a window frame end: 4px above the assistant's box. 112 is the phone number (a
+     104px box 12px up); from 861px the media query below raises it to 208 for her 184px box,
+     which is the only width where a rail exists. */
   --hud-edge: 12px;
   --hud-rail-w: 44px;
   --hud-dock-h: 56px;
@@ -227,6 +229,20 @@
   --font-mono-stack: var(--font-mono), "JetBrains Mono", monospace;
   --font-body-stack: var(--font-body), "Manrope", system-ui, sans-serif;
 }
+
+/* The rail's stop, from 861px up — the only widths where there IS a rail. The assistant is a
+   184px box 20px up there (`--guide-box`, components/hud/guide/GuideAssistant.module.css), so the
+   bottom 204px of the right edge are hers and the rail ends 4px above them: 20 + 184 + 4 = 208.
+   At 112 the rail's last two markers sat inside her box and a click at the bottom one's centre
+   landed on HER, so it could not be pressed at all (measured at 1440×900). */
+@media (min-width: 861px) {
+  :root {
+    --hud-bottom: 208px;
+  }
+}
+
+
+
 
 /* ============================================================
    The dark scale — the site's only palette
@@ -432,7 +448,7 @@
    progress next to it). Thin, with a --neon-cyan thumb on a clear track: 12.53:1 against
    --bg. A stylesheet rule, never an inline style on <html>.
    `scrollbar-color` is inherited, so every inner scroller that sets no colour of its own (the
-   request dialog's body, the burger menu, the guide's tip) gets the same cyan thumb; the chat
+   request dialog's body, the burger menu, the assistant's bubble) gets the same cyan thumb; the chat
    log and Work's phone band keep theirs. `scrollbar-width` is not inherited. */
 html {
   scroll-behavior: smooth;
@@ -460,6 +476,37 @@ html {
     height: 0;
   }
 }
+
+/* ---------- the hero's stat windows ----------
+   The two metric cards are the site's numbers — the counted portfolio and the 24/7 automations.
+   Between 2026-09-25 and 2026-09-27 the 3D scene drew them itself: the card's paint was taken
+   away and a holographic panel was fitted into its box. That is OFF (see the block below the
+   rule); the cards paint themselves on every renderer, at every width, for every visitor.
+
+   `--stat-window` is the one switch. It is the only thing `writeStatWindows`
+   (components/scene/scrollProbe.ts) consults before measuring a card, and it measures one only
+   while the property reads exactly "1". Held at 0 here, so nothing downstream ever arms. */
+[data-scene-anchor="stat"] {
+  --stat-window: 0;
+}
+
+/*
+ * AND THE SWAP IS OFF: THE CARDS ARE THE CARDS, ALWAYS (2026-09-27).
+ *
+ * This is where the hero's two metric cards used to hand themselves over to the scene — their
+ * paint taken away and `--stat-window: 1` set, so `writeStatWindows` would measure them and the
+ * world would draw a hologram panel in each box instead. The owner compared the two side by side
+ * and chose the painted cards: *„fa sa fie mereu in starea aceasta dar nu in aceasta."*
+ *
+ * The gate above is the only thing that ever opened a window, so removing this block is the whole
+ * switch: `statWindowOpen` (components/scene/scrollProbe.ts) needs the property to read exactly
+ * "1", it now never does, `probe.stats` stays empty, and `world.ts` never builds a stat panel,
+ * never composes a face and never draws one. Nothing is left half-on.
+ *
+ * The machinery is still there and still tested (`three/models/statPanel.ts`, `three/statFace.ts`,
+ * `scene/statCards.ts`, `placeStat`): it is dormant, not deleted, because one line here turns it
+ * back on. Delete it if the decision ever settles for good.
+ */
 
 /* While the interior stage's ScrollTrigger measures (it jumps the page to 0 and back), the
    jump must be instant: a smooth one would leave its inline `scroll-behavior` on <html> and

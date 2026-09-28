@@ -10,8 +10,7 @@ const price = (serviceId: string) =>
 import {
   PRIVATE_COPY,
   chatPanel,
-  expectActiveStep,
-  goToStep,
+  stepPanels,
   requestFlow,
   expectNoHorizontalScroll,
   focusIsInsideDialog,
@@ -122,18 +121,17 @@ test.describe("request modal", () => {
 
     const dialog = await openRequestModal(page);
 
-    // It is the stepped flow, in its dialog shape, and it opens on the first step.
+    /* It is the deck, in the dialog: all three regions on screen at once, the assistant
+       among them (2026-09-26 — it used to be three steps with the assistant behind a
+       toggle). */
     const flow = requestFlow(dialog);
     await expect(flow).toBeVisible();
     await expect(flow).toHaveAttribute("data-layout", "dialog");
-    await expectActiveStep(flow, "project");
+    await expect(stepPanels(flow)).toHaveCount(3);
+    await expect(chatPanel(flow)).toBeVisible();
 
-    // The assistant is OPTIONAL: it is not merely hidden, it is not rendered until asked for.
-    await expect(chatPanel(flow)).toHaveCount(0);
-
-    // And the flow inside is the real estimator, not a copy: walking to the contact step
-    // produces its own submit button and the email field the form actually posts.
-    await goToStep(flow, "contact");
+    // And the flow inside is the real estimator, not a copy: its own submit button and the
+    // email field the form actually posts, both on screen without anything being pressed.
     await expect(
       dialog.getByRole("button", { name: PRIVATE_COPY.estimatorSubmit, exact: true }),
     ).toBeVisible();

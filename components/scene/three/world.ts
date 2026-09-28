@@ -19,6 +19,13 @@
  * per draw object, on the programs the scene already compiled), so it never delays the first
  * picture. Until it is built the work gate stays shut and the cards stay as the server rendered them.
  *
+ * The hero has two more residents of its own: the STAT PANELS, holographic faces drawn in the
+ * windows the hero leaves where its metric cards were (`[data-scene-anchor="stat"]`). They are
+ * built like the helix and the laptop — late, one slice, and only once the probe has measured a
+ * window to put them in — so a phone, a `fallback` renderer and every page without a hero never
+ * pay for them. The cards themselves stay in the page, unpainted and still spoken, and hand over
+ * their own text (`statCards.ts` → `three/statFace.ts`).
+ *
  * A service page has three more residents, and they are why this world now animates more than one
  * thing at a time: the service model itself, which travels between the hero host and the steps
  * corner (one instance, blended between two placements); the three small objects of the benefits
@@ -76,7 +83,12 @@ import {
   placeServices,
   projectsShare,
   placeSteps,
+  placeStat,
   servicesShare,
+  statAt,
+  statLocal,
+  statsShare,
+  STAT_FADE_SECONDS,
   revealOf,
   smoothstep,
   stepMorph,
@@ -84,6 +96,7 @@ import {
   worldPerPx,
   type Placement,
   type SceneLayout,
+  type StatSpot,
 } from "../choreography";
 import { damp } from "@/components/three/motion";
 import { stepSceneFx, type SceneFx } from "../fx";
@@ -91,6 +104,7 @@ import { HELIX_LAYOUT } from "../helix";
 import { HELIX, MODEL_RADIUS } from "../shapes";
 import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "../tiers";
 import type { ProjectsReel } from "../projectsReel";
+import type { StatCards } from "../statCards";
 import type { WorkHelixDriver } from "../workHelix";
 import { compileStaged, nextIdle, type StagedOptions } from "./compile";
 import { createChipCore, type ChipCore, type CoreFrame } from "./core";
@@ -115,6 +129,7 @@ import { createBrandBoardModel } from "./models/brandBoard";
 import { ASSIST_CYCLE, ASSIST_START, createAssistantLoopModel } from "./models/assistantLoop";
 import { MODEL_SWAY, type ModelFrame, type PanelModel, type SceneModel } from "./models/types";
 import { createLaptopModel, type LaptopModel } from "./models/laptop";
+import { createStatPanelModel, type StatFrame, type StatPanelModel } from "./models/statPanel";
 import { createSurveyFieldModel } from "./models/panel/surveyField";
 import { createPanelFitModel } from "./models/panel/panelFit";
 import { createLaunchRampModel } from "./models/panel/launchRamp";
@@ -174,6 +189,12 @@ export type SceneWorld = {
    * disposes the one attached (the scene is going).
    */
   attachProjects(reel: ProjectsReel | null): void;
+  /**
+   * Hand over the hero's metric cards (`statCards.ts`): from then on the stat panels compose their
+   * faces from those cards and recompose when their text changes. The world disposes it. Null
+   * disposes the one attached (the scene is going).
+   */
+  attachStats(cards: StatCards | null): void;
   setLite(lite: boolean): void;
   setPalette(palette: ScenePalette): void;
   dispose(): void;
@@ -398,6 +419,25 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
   let laptopFade = 0;
 
   const laptopSpot: Placement = { x: 0, y: 0, scale: 1 };
+
+  /**
+   * The hero's stat panels, the cards the page hands over, and what each face was composed at.
+   *
+   * One panel per measured window, built one per frame as the hero comes near — which on the home
+   * page is at once, and on every page and width without a window is never. `statFade` is the
+   * group's own dissolve: the two arrive and leave together, the way the cards did.
+   */
+  const stats: StatPanelModel[] = [];
+  const statSpots: StatSpot[] = [];
+  /* The wires out to the metric panels: one scratch point for the via, one for the pad, and the
+     eased strength the pointer gives them. Closure-level, so a frame allocates nothing. */
+  const statFaces: Array<{ card: HTMLElement | null; generation: number }> = [];
+  let statCards: StatCards | null = null;
+  let statFade = 0;
+  /** Which panel the pointer is over, eased per panel so a leave is as smooth as an arrival. */
+  const statHover: number[] = [];
+  const statLean = { x: 0, y: 0 };
+
   let reel: ProjectsReel | null = null;
   let display: HologramSource | null = null;
   /** What the display is showing, and the reel generation it was composed at. */
@@ -456,6 +496,19 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
     dim: 1,
   };
   const modelFrame: ModelFrame = { time: 0, step: 0, reveal: 0, prewarm: false, tx: 0, ty: 0, halfHeightPx: 1, dpr: 1 };
+  const statFrame: StatFrame = {
+    time: 0,
+    step: 0,
+    reveal: 0,
+    prewarm: false,
+    tx: 0,
+    ty: 0,
+    halfHeightPx: 1,
+    dpr: 1,
+    hover: 0,
+    leanX: 0,
+    leanY: 0,
+  };
   const helixFrame: HelixFrame = {
     time: 0,
     step: 0,
@@ -997,6 +1050,78 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
         }
       }
 
+      /* the hero's stat panels: the numbers the hero claims, drawn in the windows where its metric
+         cards were. Built one per frame once the probe has measured a window — which is the home
+         page at 861px and up on a renderer that draws, and nowhere else: `statsShare` returns 0
+         with no window measured, so on every other page and width this block is dead arithmetic.
+
+         They are placed rigidly on those boxes (`placeStat`), never with the world's sway: a stat
+         panel is a number a visitor reads in the place the card kept, and a panel that swung would
+         leave its window. What it answers instead is the pointer over its OWN box — the tilt the
+         card had, in the scene's perspective. */
+      if (root.visible && stats.length < probe.stats.length && statsShare(probe, scrollY, h, h * PANEL_BUILD_LEAD) > 0) {
+        const index = stats.length;
+        const stat = createStatPanelModel(tier, palette, index);
+        stat.setLite(lite);
+        stat.group.visible = false;
+        stats.push(stat);
+        statSpots.push({ x: 0, y: 0, w: 0, h: 0 });
+        statFaces.push({ card: null, generation: -1 });
+        statHover.push(0);
+        root.add(stat.group);
+        // Its own pre-warm frame, like a benefit panel's: drawn once at reveal 0 (every fragment
+        // discards), so the frame that first shows a face uploads nothing.
+        prewarmQueue.add(stat.group);
+      }
+      if (stats.length > 0) {
+        const onScreen = statsShare(probe, scrollY, h) > 0;
+        const statFaded = statFade + (onScreen ? step : -step) / STAT_FADE_SECONDS;
+        statFade = statFaded <= 0 ? 0 : statFaded >= 1 ? 1 : statFaded;
+        // One hit test for the group, from the fine pointer's own page point: -1 when it is
+        // elsewhere, over nothing, or gone from the window entirely.
+        const over = fx.pointerLive && statFade > 0 ? statAt(probe, fx.pointerX, fx.pointerY) : -1;
+        const cards = statCards?.cards() ?? [];
+        const generation = statCards?.generation() ?? 0;
+        for (let index = 0; index < stats.length; index += 1) {
+          const stat = stats[index];
+          const group = stat.group;
+          const prewarm = prewarmQueue.has(group);
+          const spot = statFade > 0 || prewarm ? placeStat(probe, scrollY, w, h, index, statSpots[index]) : null;
+          if (!spot) {
+            group.visible = false;
+            continue;
+          }
+          group.visible = true;
+          group.position.set(spot.x, spot.y, 0);
+
+          /* the face: composed from the card the page rendered, again whenever that card's own
+             text changed under it (a counted portfolio, a language switch) */
+          const card = cards[index] ?? null;
+          const face = statFaces[index];
+          if (card && (face.card !== card || face.generation !== generation)) {
+            face.card = card;
+            face.generation = generation;
+            stat.request(card, index, true);
+          }
+          statFrame.time = fx.time;
+          statFrame.step = step;
+          statFrame.reveal = statFade;
+          statFrame.prewarm = prewarm;
+          statFrame.tx = fx.tx;
+          statFrame.ty = fx.ty;
+          statFrame.halfHeightPx = halfHeightPx;
+          statFrame.dpr = dpr;
+          statFrame.hover = over === index ? 1 : 0;
+          if (over === index) {
+            statLocal(probe, index, fx.pointerX, fx.pointerY, statLean);
+            statFrame.leanX = statLean.x;
+            statFrame.leanY = statLean.y;
+          }
+          stat.update(statFrame);
+        }
+
+      }
+
       /* the projects laptop: the one machine in the world with a screen. It stands in the cell the
          "Proiecte relevante" grid gives it and plays that direction's own project screenshots —
          the same hologram pipeline Work's helix uses, at the same 384x240 cap, for the same
@@ -1196,12 +1321,24 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       screenGeneration = -1;
     },
 
+    attachStats(next) {
+      if (next === statCards) return;
+      statCards?.dispose();
+      statCards = next;
+      // Whatever is on a face was composed from cards that are gone.
+      for (const face of statFaces) {
+        face.card = null;
+        face.generation = -1;
+      }
+    },
+
     setLite(next) {
       lite = next;
       core?.setLite(lite);
       swarm?.setLite(lite);
       for (const model of models) model.setLite(lite);
       for (const panel of panels) panel.setLite(lite);
+      for (const stat of stats) stat.setLite(lite);
       laptop?.setLite(lite);
       helix?.setLite(lite);
     },
@@ -1213,6 +1350,7 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       trail?.setPalette(next);
       for (const model of models) model.setPalette(next);
       for (const panel of panels) panel.setPalette(next);
+      for (const stat of stats) stat.setPalette(next);
       laptop?.setPalette(next);
       helix?.setPalette(next);
     },
@@ -1221,11 +1359,14 @@ export function createSceneWorld(tier: SceneCanvasTier, initialPalette: ScenePal
       releaseWork();
       reel?.dispose();
       reel = null;
+      statCards?.dispose();
+      statCards = null;
       core?.dispose();
       swarm?.dispose();
       trail?.dispose();
       for (const model of models) model.dispose();
       for (const panel of panels) panel.dispose();
+      for (const stat of stats) stat.dispose();
       laptop?.dispose();
       display?.dispose();
       helix?.dispose();

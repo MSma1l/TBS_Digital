@@ -1148,7 +1148,8 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
     });
 
     expect(section.textContent).not.toBe(headingBefore);
-    expect(section.textContent).toContain("TBS portfolio");
+    // Work's own heading in the new language (its kicker line went on 2026-09-25).
+    expect(section.textContent).toContain("The projects that speak for us.");
     // The same card ELEMENTS, in the same order — React reused them rather than remounting, which
     // is what keeps the driver's inline layout alive. Filtered like the driver's own collector, so
     // the loading state's <svg> at the head of the track is not compared against a card.

@@ -17,6 +17,7 @@ import { mediaMatches } from "@/lib/device";
 import {
   PROJECTS_TRACK_ATTR,
   SCENE_LAYOUT_EVENT,
+  STATS_GROUP_ATTR,
   SCENE_STAGE_ATTR,
   WORK_ID,
   WORK_TRACK_ATTR,
@@ -31,6 +32,7 @@ import type { ScenePalette } from "./three/palette";
 import { createSceneWorld, stageHelix } from "./three/world";
 import { sceneGovernorOptions, type SceneCanvasTier } from "./tiers";
 import { createProjectsReel } from "./projectsReel";
+import { createStatCards } from "./statCards";
 import { createWorkHelixDriver } from "./workHelix";
 
 export type SceneWorldProps = {
@@ -154,6 +156,18 @@ export function SceneWorld({
     if (!grid) return;
     world.attachProjects(createProjectsReel({ grid }));
     return () => world.attachProjects(null);
+  }, [world]);
+
+  // The hero's metric cards, for the scene's whole life: the stat panels compose their faces from
+  // the cards the page rendered, so the number in the scene is the number in the DOM — counted
+  // from the real portfolio, in the visitor's language — and nothing is written twice. The cards
+  // are never laid out differently; `app/globals.css` only takes their paint away where a panel
+  // is really drawn, which is what keeps them the fallback everywhere else.
+  useEffect(() => {
+    const group = document.querySelector<HTMLElement>(`[${STATS_GROUP_ATTR}]`);
+    if (!group) return;
+    world.attachStats(createStatCards({ group }));
+    return () => world.attachStats(null);
   }, [world]);
 
   useFrame((state, dt) => {

@@ -1,65 +1,43 @@
 import type { LocalizedText } from "@/lib/i18n/content";
-import type { GuideTopic } from "@/lib/hud/topics";
 
 /**
- * The Ghid TBS copy: the avatar's name and label, the tip's buttons, and one tip per topic.
+ * The assistant's copy: her name, her button's accessible name and her questions.
  *
  * Local `{ ro, ru, en }` objects rendered through `useLoc()` (docs/16-i18n-seo.md), not catalog
  * keys: the copy belongs to this one lazy part, so it ships in the guide's chunk and nowhere else.
  * No directive and type-only imports, so the E2E specs can import it into Node and find the
  * controls by exactly these strings.
  *
- * Honest by construction: it is a guide that asks a few questions, never "AI". The reply time
- * in `prompts.lucrari` repeats the promise the estimator's own `SENT_COPY` already makes (one
- * business day), and nothing else here promises a time.
+ * Honest by construction: she answers a few written questions and never calls herself "AI".
+ * Nothing here promises a response time; the estimator's own `SENT_COPY` is the only place that
+ * does (one business day).
+ *
+ * NOTHING HERE IS SAID UNASKED, and the file is short for that reason. The linger prompts and
+ * their two buttons went with the guide on 2026-09-26; `hello`, the one sentence she spoke in a
+ * bubble the moment her entrance finished, went the same day — the owner photographed it and
+ * asked for it to go. `dismiss` ("Inchide") went with it: it was that bubble's close label, and
+ * the only bubble left is the questions, which has `faqClose`.
  */
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 export const GUIDE_COPY = {
-  /** The visible caption under the avatar and the tip's kicker. */
-  label: L("Ghid TBS", "Гид TBS", "TBS Guide"),
+  /** The visible caption under the avatar. (The bubble's kicker is `faqHead`.) */
+  label: L("Asistent TBS", "Ассистент TBS", "TBS Assistant"),
   /** The avatar button's accessible name. It starts with the visible caption (WCAG 2.5.3). */
   /* THE NAME HAS TO SAY WHAT THE BUTTON DOES. It used to promise the guided request assistant,
      and that was true while pressing her opened it. Pressing her now opens her questions, and the
      request assistant is a second press from inside them — so the name says questions. A control
      that names something it does not do is the one thing this site's own copy rules forbid. */
   aria: L(
-    "Ghid TBS: deschide întrebările frecvente",
-    "Гид TBS: открыть частые вопросы",
-    "TBS Guide: open the frequent questions",
+    "Asistent TBS: deschide întrebările frecvente",
+    "Ассистент TBS: открыть частые вопросы",
+    "TBS Assistant: open the frequent questions",
   ),
-  open: L("Deschide ghidul", "Открыть гид", "Open the guide"),
-  never: L("Nu mai arăta în această vizită", "Не показывать до конца визита", "Don't show again this visit"),
-  dismiss: L("Închide sugestia", "Закрыть подсказку", "Close the tip"),
-  /** One tip per topic (`lib/hud/topics.ts`). */
-  prompts: {
-    servicii: L(
-      "Nu ești sigur ce direcție ți se potrivește? Ghidul pune câteva întrebări scurte și trimite echipei rezumatul.",
-      "Не уверены, какое направление подходит? Гид задаст несколько коротких вопросов и отправит команде итог.",
-      "Not sure which direction fits you? The guide asks a few short questions and sends the team a summary.",
-    ),
-    lucrari: L(
-      "Ai în minte un proiect asemănător? Descrie-l pas cu pas — îți răspundem în cel mult o zi lucrătoare.",
-      "Задумали похожий проект? Опишите его по шагам — ответим в течение одного рабочего дня.",
-      "Have a similar project in mind? Describe it step by step — we reply within one business day.",
-    ),
-    service: L(
-      "Vrei să vezi dacă direcția asta se potrivește proiectului tău? Ghidul te ajută să formulezi cererea.",
-      "Хотите понять, подходит ли это направление вашему проекту? Гид поможет сформулировать заявку.",
-      "Want to check whether this direction fits your project? The guide helps you put the request into words.",
-    ),
-  } satisfies Record<GuideTopic, LocalizedText>,
-
-  /** The line she says once the greeting has finished projecting her into the corner. */
-  hello: L(
-    "Bună! Am pregătit câteva răspunsuri scrise. Deschide-mă și le vezi.",
-    "Здравствуйте! У меня готово несколько ответов. Откройте — и увидите.",
-    "Hello! I have a few written answers ready. Open me and you'll see them.",
-  ),
+  open: L("Deschide cererea", "Открыть заявку", "Open the request"),
   /** The head of the questions panel. Not "online", and no status pip: the first is forbidden
       for this component, the second would be a round element under the decorative-dots rule. */
-  faqHead: L("Ghid TBS · întrebări frecvente", "Гид TBS · частые вопросы", "TBS Guide · frequent questions"),
+  faqHead: L("Asistent TBS · întrebări frecvente", "Ассистент TBS · частые вопросы", "TBS Assistant · frequent questions"),
   faqIntro: L(
     "Alege o întrebare. Răspunsurile sunt scrise dinainte de echipă.",
     "Выберите вопрос. Ответы заранее написаны командой.",

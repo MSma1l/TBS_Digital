@@ -579,177 +579,87 @@ describe("dictation slot — mounted by another component", () => {
  * the visitor sees is now the owner's, and the built-in one is only a fallback.
  */
 /**
- * The stepped layout — the same flow, arranged for a dialog.
+ * The dialog — the same deck, in a modal.
  *
- * The section above is a page section: two columns, everything at once, the assistant
- * always on screen. Inside a 960px modal that reads as a cramped grid, so `layout="dialog"`
- * runs the flow on one column in three steps — project, contents, details — and puts the
- * assistant behind a button. These tests pin what makes that arrangement worth having:
- * the order, the fact that nothing is lost going back, that the assistant is genuinely
- * optional, and that sending is never behind it.
+ * It used to be a second arrangement: one column, three numbered steps, Înapoi/Continuă, and
+ * the assistant behind a "Ghidat" button. The owner asked for one design (2026-09-26), so what
+ * these pin now is the SAMENESS — both bays, everything on screen at once, nothing of the
+ * wizard left — and the two things the wizard did that the deck had to learn: the attachment
+ * note and `openAssistant`.
  */
-describe("stepped layout — the flow inside the dialog", () => {
-  const STEP_NAMES = ["Proiectul", "Ce conține", "Datele tale"];
-
-  /** The step buttons of the progress indicator, in order. */
-  const stepButtons = () =>
-    within(screen.getByTestId("request-steps")).getAllByRole("button");
-
-  /** Go to a step the way a visitor does — by pressing it in the progress indicator. */
-  const goTo = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) =>
-    user.click(within(screen.getByTestId("request-steps")).getByRole("button", { name }));
-
-  /** The step panel currently marked active. */
-  const activeStep = (container: HTMLElement) =>
-    container.querySelector('[data-step][data-active="true"]');
-
-  it("keeps the home-page section on the section layout by default", () => {
+describe("the dialog is the same deck", () => {
+  it("keeps the page section on the section layout, and only the page owns #estimare", () => {
     const { container } = renderForm();
 
-    const flow = screen.getByTestId("request-flow");
-    expect(flow).toHaveAttribute("data-layout", "section");
-    // No stepping, and the assistant is part of the design rather than a request.
-    expect(screen.queryByTestId("request-steps")).toBeNull();
-    expect(screen.queryByTestId("chat-toggle")).toBeNull();
+    expect(screen.getByTestId("request-flow")).toHaveAttribute("data-layout", "section");
     expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
     expect(container.querySelector("#estimare")).not.toBeNull();
   });
 
-  it("runs project → options → contact, one step at a time", () => {
+  it("renders the deck in the dialog too — both bays at once, and nothing of the wizard", () => {
     const { container } = renderForm({ layout: "dialog" });
 
     expect(screen.getByTestId("request-flow")).toHaveAttribute("data-layout", "dialog");
-    // The order the visitor was promised, in the DOM order they read.
-    expect(
-      [...container.querySelectorAll("[data-step]")].map((n) => n.getAttribute("data-step")),
-    ).toEqual(["project", "options", "contact"]);
-    expect(stepButtons().map((b) => b.textContent)).toEqual(
-      STEP_NAMES.map((n, i) => `${i + 1}${n}`),
-    );
-    expect(activeStep(container)).toHaveAttribute("data-step", "project");
-  });
-
-  it("says where you are and how much is left, and marks the current step", async () => {
-    const user = userEvent.setup();
-    renderForm({ layout: "dialog" });
-
-    expect(screen.getByText("Pasul 1 din 3 · au mai rămas 2 pași")).toBeInTheDocument();
-    expect(stepButtons()[0]).toHaveAttribute("aria-current", "step");
-    expect(stepButtons()[2]).not.toHaveAttribute("aria-current");
-
-    await user.click(screen.getByRole("button", { name: "Continuă" }));
-    expect(screen.getByText("Pasul 2 din 3 · a mai rămas 1 pas")).toBeInTheDocument();
-    expect(stepButtons()[1]).toHaveAttribute("aria-current", "step");
-
-    await user.click(screen.getByRole("button", { name: "Continuă" }));
-    expect(screen.getByText("Pasul 3 din 3 · ultimul pas")).toBeInTheDocument();
-    // The last step has no "Continuă" — the form's own submit is the action there.
-    expect(screen.queryByRole("button", { name: "Continuă" })).toBeNull();
-  });
-
-  it("keeps the owner's price on screen through every step", async () => {
-    const user = userEvent.setup();
-    renderForm({ layout: "dialog" });
-
-    await user.click(screen.getByRole("button", { name: "CRM la comandă" }));
-    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
-
-    await goTo(user, /Datele tale/);
-    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
-  });
-
-  it("does not lose what was filled in when the visitor goes back", async () => {
-    const user = userEvent.setup();
-    const { container } = renderForm({ layout: "dialog" });
-
-    await user.click(screen.getByRole("button", { name: "CRM la comandă" }));
-    await user.click(screen.getByRole("button", { name: "Continuă" }));
-    await user.click(screen.getByRole("button", { name: "+ SEO" }));
-    await user.click(screen.getByRole("button", { name: "Continuă" }));
-    await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
-
-    await user.click(screen.getByRole("button", { name: "Înapoi" }));
-    await user.click(screen.getByRole("button", { name: "Înapoi" }));
-
-    expect(activeStep(container)).toHaveAttribute("data-step", "project");
-    // Every earlier answer survived the round trip.
-    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
-    await goTo(user, /Datele tale/);
-    expect(screen.getByPlaceholderText(NAME_PH)).toHaveValue("Ion Popescu");
-    // …including the option ticked on the middle step, which the request carries.
-    await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
-    await user.click(screen.getByRole("button", { name: SUBMIT }));
-    expect(vi.mocked(api.submitContact).mock.calls[0][0].message).toContain("+ SEO");
-  });
-
-  it("does not start the assistant, and does not spend space on it, until it is asked for", async () => {
-    const user = userEvent.setup();
-    renderForm({ layout: "dialog" });
-
-    const toggle = screen.getByTestId("chat-toggle");
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByTestId("chat-panel")).toBeNull();
-    expect(screen.queryByLabelText(CHAT_LABEL)).toBeNull();
-
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("chat-panel")).toBeInTheDocument();
+    /* The three regions, in the order they are read, and ALL of them on screen: that is the
+       whole difference from the wizard, which marked exactly one active at a time. */
+    const steps = [...container.querySelectorAll("[data-step]")];
+    expect(steps.map((n) => n.getAttribute("data-step"))).toEqual([
+      "project",
+      "options",
+      "contact",
+    ]);
+    expect(steps.every((n) => n.getAttribute("data-active") === "true")).toBe(true);
     expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: SUBMIT })).toBeInTheDocument();
+    /* The dialog's fields are suffixed, because a dialog open over the home page now holds a
+       second copy of both — the deck's assistant is always rendered. Two elements with one id
+       is what a label, a `for=` and the dictation target all resolve wrongly through. */
+    expect(screen.getByLabelText(CHAT_LABEL)).toHaveAttribute("id", "estimator-chat-input-dialog");
+    expect(screen.getByPlaceholderText(DETAILS_PH)).toHaveAttribute("id", "estimator-details-dialog");
+
+    /* And the wizard itself is gone, not merely hidden. */
+    expect(screen.queryByTestId("request-steps")).toBeNull();
+    expect(screen.queryByTestId("chat-toggle")).toBeNull();
+    expect(screen.queryByText(/Pasul 1 din 3/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Continuă" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Înapoi" })).toBeNull();
+    expect(screen.queryByText("Rapid")).toBeNull();
+    expect(screen.queryByText("Ghidat")).toBeNull();
+    /* The page's own furniture stays on the page: the dialog has its own heading and the
+       anchor may exist only once in a document. */
+    expect(container.querySelector("#estimare")).toBeNull();
   });
 
-  it("explains both paths rather than leaving the choice unmotivated", () => {
-    renderForm({ layout: "dialog" });
-
-    expect(screen.getByText("Rapid")).toBeInTheDocument();
-    expect(screen.getByText(/Trei pași, nicio întrebare în plus/)).toBeInTheDocument();
-    expect(screen.getByText("Ghidat")).toBeInTheDocument();
-    expect(screen.getByText(/scrie rezumatul cererii/)).toBeInTheDocument();
-  });
-
-  it("sends without the assistant ever being opened — the fast path is actually fast", async () => {
+  it("sends straight from the deck, with the price and the ticked option in the request", async () => {
     const user = userEvent.setup();
     renderForm({ layout: "dialog" });
 
-    await goTo(user, /Datele tale/);
+    await user.click(screen.getByRole("button", { name: "CRM la comandă" }));
+    expect(screen.getByText(seededPrice("crm"))).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "+ SEO" }));
+
     await fillValid(user);
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(await screen.findByText(/Am primit cererea/)).toBeInTheDocument();
     expect(api.submitContact).toHaveBeenCalledTimes(1);
-    expect(screen.queryByTestId("chat-panel")).toBeNull();
+    expect(vi.mocked(api.submitContact).mock.calls[0][0].message).toContain("+ SEO");
   });
 
-  it("keeps the dialog's summary when the assistant is closed again", async () => {
+  it("carries what the assistant recorded, without anything having to be opened first", async () => {
     const user = userEvent.setup();
     renderForm({ layout: "dialog" });
 
-    await user.click(screen.getByTestId("chat-toggle"));
     await say(user, "Vrem un magazin online pentru piese auto.");
     await tap(user, "Pornim de la zero");
 
-    // Closing it hides the conversation…
-    await user.click(screen.getByTestId("chat-toggle"));
-    expect(screen.queryByTestId("chat-panel")).toBeNull();
-    expect(screen.queryByText("Vrem un magazin online pentru piese auto.")).toBeNull();
-    // …and says so, rather than letting it look like the work was thrown away.
-    expect(screen.getByText(/Pleacă cu cererea, chiar dacă închizi chatul/)).toBeInTheDocument();
-
-    await goTo(user, /Datele tale/);
     await fillValid(user);
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
-    // The request carries every word of it.
     const payload = vi.mocked(api.submitContact).mock.calls[0][0];
     expect(payload.message).toContain("REZUMATUL CERERII");
     expect(payload.message).toContain("Vrem un magazin online pentru piese auto.");
     expect(payload.message).toContain("Dialog");
-
-    // Reopening shows the same conversation, continued rather than restarted.
-    await user.click(screen.getByTestId("chat-toggle"));
-    expect(
-      screen.getByText("Vrem un magazin online pentru piese auto."),
-    ).toBeInTheDocument();
   });
 
   it("still preselects the service the dialog was opened from", () => {
@@ -758,37 +668,46 @@ describe("stepped layout — the flow inside the dialog", () => {
     expect(screen.getByText(seededPrice("shop"))).toBeInTheDocument();
   });
 
-  /* The guide opens the flow to talk, so it asks for the assistant up front
-     (`context.openAssistant`) — the same panel the toggle opens, focus already inside. */
-  it("opens on the assistant, focused, when the context asks for it", async () => {
+  /* The guide opens the flow to talk. There is no panel to open any more — the assistant is on
+     screen either way — so all `openAssistant` has left to do is take the visitor to it. */
+  it("takes focus to the assistant when the context asks for it", async () => {
     renderForm({ layout: "dialog", context: { openAssistant: true } });
 
     const panel = screen.getByTestId("chat-panel");
-    expect(screen.getByTestId("chat-toggle")).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("chat-toggle")).toHaveAttribute("aria-controls", panel.id);
     await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
     expect(screen.getByLabelText(CHAT_LABEL)).toBeInTheDocument();
-    // Nothing else moved: the steps still start at the first one.
-    expect(screen.getByText("Pasul 1 din 3 · au mai rămas 2 pași")).toBeInTheDocument();
   });
 
-  it("ignores openAssistant in the section, whose assistant is always on screen", async () => {
+  it("ignores openAssistant on the page, where nothing may steal focus", async () => {
     renderForm({ context: { openAssistant: true } });
 
     expect(screen.getByTestId("request-flow")).toHaveAttribute("data-layout", "section");
     expect(screen.queryByTestId("chat-panel")).toBeNull();
-    expect(screen.queryByTestId("chat-toggle")).toBeNull();
-    // No focus is taken on a page section — not even a tick later.
     await Promise.resolve();
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("keeps the submit button's accessible name", async () => {
-    const user = userEvent.setup();
-    renderForm({ layout: "dialog" });
+  /* The one line the wizard rendered and the deck did not: what the calculator already chose.
+     The block itself has always travelled inside the message; this is the visitor's half. */
+  it("says what an attachment will send, in the proposal it belongs to", () => {
+    renderForm({
+      layout: "dialog",
+      context: {
+        attachment: {
+          kind: "calculator",
+          count: 3,
+          summary: "de la 600€",
+          text: "CALCULATOR DE COST: Site / prezentare",
+        },
+      },
+    });
 
-    await goTo(user, /Datele tale/);
-    expect(screen.getByRole("button", { name: "Trimite cererea" })).toBeEnabled();
+    const note = screen.getByText(/de la 600€/);
+    expect(note).toBeInTheDocument();
+    /* In the proposal, with the price it is about — by region, not by tag: the panel stopped
+       being an `<aside>` when the deck moved into the dialog (a `complementary` landmark for
+       the request form itself). */
+    expect(note.closest('[data-step="contact"]')).not.toBeNull();
   });
 });
 

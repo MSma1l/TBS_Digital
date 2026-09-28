@@ -110,7 +110,7 @@ lockfile are unchanged. What it uses differently:
 
 ## The HUD chrome (2026-09-17) — `lucide-react`
 
-The IT-OS HUD (the Ghid TBS guide, the fibre rail, the OS dock and windows) draws its interface
+The IT-OS HUD (the fibre rail, the OS dock and windows) draws its interface
 icons with **one new runtime package**. The foundation phase installs it; no module imports it
 yet, so no chunk carries it until the first HUD part lands.
 

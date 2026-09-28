@@ -404,6 +404,58 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     }
   });
 
+  test.describe("the hero's stat panels (1280×800)", () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    /*
+     * W20: the numbers the hero claims are the PAGE'S OWN painted cards, and stay so even where
+     * the scene is drawing at full tilt. Between 2026-09-25 and 2026-09-27 this test asserted the
+     * opposite — the card's paint taken away, `--stat-window: 1`, a hologram panel drawn in its
+     * box. The owner compared the two and chose the cards (app/globals.css, "the hero's stat
+     * windows"), so what has to hold now is that the swap can never arm.
+     */
+    test("W20 the hero's numbers stay the page's own painted cards, even under WebGL", async ({ page }) => {
+      await openForced(page);
+      const cards = page.locator("#top [data-metric]");
+      await expect(cards).toHaveCount(2);
+
+      const state = await cards.evaluateAll((list) =>
+        list.map((el) => {
+          const style = getComputedStyle(el);
+          return {
+            metric: el.getAttribute("data-metric"),
+            window: style.getPropertyValue("--stat-window").trim(),
+            opacity: style.opacity,
+            hidden: el.getAttribute("aria-hidden"),
+            text: (el.textContent ?? "").replace(/\s+/g, " ").trim(),
+          };
+        }),
+      );
+      for (const card of state) {
+        // Never "1": that is the single switch the scene consults before measuring a window.
+        expect(card.window, `${card.metric}: the window never opens`).not.toBe("1");
+        expect(card.opacity, `${card.metric}: the card paints itself`).toBe("1");
+        expect(card.hidden).toBeNull();
+        expect(card.text.length).toBeGreaterThan(8);
+      }
+
+      // The number is the page's own: a counted figure in the card's <b>, not a texture.
+      const counted = await page.locator('#top [data-metric="projects"] b').textContent();
+      expect(counted?.trim()).toMatch(/^\d+$/);
+      expect(Number(counted)).toBeGreaterThan(0);
+    });
+
+    test("W21 no window, no panel: a narrow viewport keeps the painted cards", async ({ page }) => {
+      await openForced(page);
+      await page.setViewportSize({ width: 800, height: 800 });
+      await expect(page.locator('#top [data-metric][data-scene-anchor="stat"]')).toHaveCount(0);
+      const painted = await page.locator("#top [data-metric]").evaluateAll((list) =>
+        list.map((el) => getComputedStyle(el).opacity),
+      );
+      expect(painted).toEqual(["1", "1"]);
+    });
+  });
+
   test.describe("services in view (1280×1000)", () => {
     test.use({ viewport: { width: 1280, height: 1000 } });
 

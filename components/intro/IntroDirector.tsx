@@ -71,6 +71,24 @@ const SKIP_SPEED = 2.4;
  */
 const DIVE_END = 1;
 
+/**
+ * THE SHAPE OF THE FILM'S CLOCK, and it was 1.6.
+ *
+ * `p = 1 - (1 - x) ** CINEMATIC` is an ease-OUT: it moves fast through scrub early and slowly
+ * late. For this film that was backwards. Timed on a cold load at 1.6, the processor section
+ * (scrub 0 to 0.38, 38% of the film) took 1254 ms of 7.9 s — 16% of the time — while the machine
+ * (0.71 to 0.86, 15% of the scrub) took 1627 ms. The part with every new beat in it was being
+ * rushed so that four rectangles and a lid could linger.
+ *
+ * 1.35 hands 38% of the scrub 29.8% of the time instead of 25.8%. It is NOT taken to linear, and
+ * the reason is the one already written against FLIGHT_MAP below: its slopes climb across the
+ * table (0.75 -> 0.61 -> 0.72 -> 1.29) to cancel this ease-out, and a flat curve would make the
+ * last beat the fastest in the film. Checked at 1.35 — camera speed per beat, slope x dp/dt at
+ * each band's midpoint — the bands come out 0.980 / 0.714 / 0.686 / 0.862 in units of 1/T. The
+ * last is still below the first, which is the property that has to hold.
+ */
+const CINEMATIC = 1.35;
+
 /** Roughly what the burst plus the fade cost after the beats, for the origin clamp below. */
 const BURST_TAIL_MS = 2000;
 
@@ -105,23 +123,26 @@ type EntranceStep = {
  *  · title  — never opacity: the <h1> is the LCP element and must paint at full opacity
  *    under the overlay;
  *  · stats  — transform only: the cards are glass (backdrop-filter) too;
+ *
+ * The `eyebrow` step is gone with the hero's kicker line (2026-09-25). Its 0.2 slot was not left
+ * empty: a missing marker is skipped silently, so the cascade would simply have had a hole in it.
+ * Everything after it moved up by 0.06.
  *  · cta / ticker — the wrappers, never the button (hover transform) or the CSS-animated
  *    marquee track.
  */
 const ENTRANCE: readonly EntranceStep[] = [
   { target: "grid", at: 0, from: { opacity: 0, scale: 1.12 }, clear: "opacity,transform" },
   { target: "header", at: 0.1, from: { yPercent: -110 }, duration: 0.6, clear: "transform" },
-  { target: "eyebrow", at: 0.2, from: { y: 24 }, blur: 8, clear: "transform,filter" },
-  { target: "title", at: 0.26, from: { y: 56, scale: 0.96 }, blur: 14, clear: "transform,filter" },
-  { target: "lead", at: 0.36, from: { y: 28 }, blur: 8, clear: "transform,filter" },
-  { target: "cta", at: 0.44, from: { y: 24, scale: 0.96 }, clear: "transform" },
+  { target: "title", at: 0.2, from: { y: 56, scale: 0.96 }, blur: 14, clear: "transform,filter" },
+  { target: "lead", at: 0.3, from: { y: 28 }, blur: 8, clear: "transform,filter" },
+  { target: "cta", at: 0.38, from: { y: 24, scale: 0.96 }, clear: "transform" },
   {
     target: "stats",
-    at: 0.5,
+    at: 0.46,
     from: { y: 40, rotateX: -14, transformPerspective: 900 },
     clear: "transform",
   },
-  { target: "ticker", at: 0.6, from: { y: 40 }, clear: "transform" },
+  { target: "ticker", at: 0.56, from: { y: 40 }, clear: "transform" },
 ];
 
 /** Queue the entrance on `timeline`, starting at its "reveal" label. Missing markers are skipped. */
@@ -534,9 +555,36 @@ export function IntroDirector({
 
       // ---- the sync loop ---------------------------------------------------------------
       let goal = 0;
+      /*
+       * THE FILM'S CLOCK COUNTS FRAMES IT WAS DRAWN ON, not seconds that passed.
+       *
+       * It used to be `performance.now() - origin`, and that is how the opening was being lost.
+       * Measured on a cold load with the software renderer: the first frame on which `--fb-p` was
+       * anything but zero already read **0.265** — past the whole arrival and most of the
+       * ignition. Nothing had been skipped by the film being too fast; the browser simply did not
+       * paint for 1.2 s after hydration, while the wall clock ran on regardless and the beats went
+       * by in a tab that was showing the previous frame. Three frames rendered before 0.42. Zero
+       * of them in the arrival.
+       *
+       * So the clock accumulates, and each step is capped. A stall now costs the film 120 ms,
+       * not however long it lasted, and the first frame opens at MAX_PRE_SPEND at the latest
+       * whatever happened before it — the origin clamp tried to promise that and could not,
+       * because it is computed at takeover rather than at the first frame that actually paints.
+       *
+       * 150 ms and not less: a device genuinely rendering at 7 fps is then barely clamped at all,
+       * so a slow machine still finishes rather than crawling. HARD_CAP keeps its own promise on
+       * the WALL clock below, so however slowly this advances the film is still forced to its end.
+       */
+      const MAX_FRAME_MS = 150;
+      let filmMs = -1;
+      let lastTick = 0;
       const tick = () => {
         const now = performance.now();
-        const elapsed = now - origin;
+        const wall = now - origin;
+        if (filmMs < 0) filmMs = Math.min(Math.max(0, wall), T.MAX_PRE_SPEND_MS);
+        else filmMs += Math.min(now - lastTick, MAX_FRAME_MS);
+        lastTick = now;
+        const elapsed = filmMs;
         const ready =
           WEIGHT.hydrated +
           (signals.fonts ? WEIGHT.fonts : 0) +
@@ -553,9 +601,23 @@ export function IntroDirector({
          * linear and the last beat, which has the steepest slope, becomes the fastest in the
          * film instead of the most graceful.
          */
-        const x = Math.min(1, Math.max(0, elapsed / T.MIN_SYNC_MS));
-        const cinematic = 1 - (1 - x) ** 1.6;
-        let target = Math.min(cinematic, elapsed >= T.HARD_CAP_MS ? 1 : ready);
+        /*
+         * The film's own wall-clock deadline, and the one thing the frame clock above cannot do
+         * without: the shell's watchdog (`WATCHDOG_MS`, IntroPreloader.tsx) counts WALL time and
+         * takes the overlay away wherever the film happens to be. Measured on a ~3 fps renderer
+         * (SwiftShader with 3D forced): the frame clock advanced ~450 ms per wall second, so at
+         * 12 s the film was at 0.655 and the counter still read 67 when the overlay was cut.
+         *
+         * Past this deadline the curve is simply over. `goal` goes to 1, which is what the END of
+         * the film does — the burst runs and the page is revealed the way it always is, in the
+         * time `BURST_TAIL_MS` reserves, instead of the overlay being pulled off mid-flight.
+         */
+        const filmDeadline = Math.max(T.HARD_CAP_MS, T.WATCHDOG_MS - BURST_TAIL_MS - 400);
+        const x =
+          wall >= filmDeadline ? 1 : Math.min(1, Math.max(0, elapsed / T.MIN_SYNC_MS));
+        const cinematic = 1 - (1 - x) ** CINEMATIC;
+        // HARD_CAP is a promise about the VISITOR's clock, so it reads the wall, not the film.
+        let target = Math.min(cinematic, wall >= T.HARD_CAP_MS ? 1 : ready);
         if (target >= 0.999) target = 1;
         if (target > goal + 0.002 || (target === 1 && goal < 1)) {
           goal = target;

@@ -75,6 +75,9 @@ type StageState = {
 
 const SERVER_STATE: StageState = { phase: { kind: "boot" }, motion: "static", force: false };
 
+/** A rejected warm-up import is not a failure: the real `import()` below reports for itself. */
+const noop = () => {};
+
 /** The live gates' answer, as a settled phase (null when every gate is open). */
 function gatePhase(gate: MotionGate): Phase | null {
   if (gate === "ok") return null;
@@ -109,8 +112,10 @@ const serverFalse = () => false;
  *     no ResizeObserver → fallback; reduced motion / Save-Data / 2G → off; the low tier →
  *     fallback (unless forced). `data-motion` is `live` only with every gate open and a tier
  *     above low — the CSS motion (holograms) keys off it;
- *  2. once the intro overlay has left, `afterIdle` (+ the time R3F takes to release the
- *     intro's context), the GPU facts: the session's cached answer, else the probe chunk;
+ *  2. under an intro, at `WARM_MS`, the two chunks are fetched behind the film — never the
+ *     context, never a probe (see the effect). Then, once the overlay has left, `afterIdle`
+ *     (a warmed stage waits only for R3F to release the intro's context; an unwarmed one also
+ *     takes the settle) and the GPU facts: the session's cached answer, else the probe chunk;
  *  3. WebGL decided → the scene and the director mount; `data-renderer="webgl"` once the
  *     scene compiled and drew (`onReady`) and the director measured (`onLive`) — the art
  *     crossfades out over 500ms (CSS);
@@ -173,9 +178,53 @@ export function SceneStage({ children }: { children: ReactNode }) {
     };
 
     const overlay = isIntroOnScreen();
+
+    /*
+     * WHILE THE INTRO PLAYS, THE STAGE GETS READY BEHIND IT — but only as far as it safely can.
+     *
+     * Everything here is network and parse: the shared 3D runtime (already in cache if the intro
+     * took the WebGL path, since both reach three.js through the same `import()` target) and the
+     * director's own chunk, which is GSAP + ScrollTrigger and is NOT shared — Turbopack gives
+     * each `import()` target its own chunk group. On the measured load that download, the probe
+     * and the mount together cost 2.4s AFTER the overlay had already gone.
+     *
+     * What is deliberately NOT done here is the WebGL context and the shader compile. The intro
+     * is drawing its own scene until the end of the burst, and a compile stall there lands on the
+     * frames of the film the whole opening is built around. That part still waits for the overlay
+     * to leave, and for R3F to hand the context back.
+     *
+     * The GPU answer is READ, never probed: the intro's own capability probe wrote it to the
+     * tab's session cache (components/three/capability.ts). No cached answer means either a QA
+     * flag put the two on different modes or the intro never probed — and a second live context
+     * under the film to find out is exactly what this is trying to avoid, so it warms nothing and
+     * the old path runs unchanged. A device the answer sends to the static art warms nothing
+     * either: it is never going to load either chunk.
+     */
+    let warmed = false;
+    let cancelWarm = () => {};
+    if (overlay) {
+      cancelWarm = afterIdle(SCENE_TIMING.WARM_MS, () => {
+        const facts = readGpuFacts(mode);
+        if (cancelled || !facts || !decideWebGL(facts, force)) return;
+        warmed = true;
+        void import("@/components/three/runtime").catch(noop);
+        void import("./SceneDirector").catch(noop);
+      });
+    }
+
     const stopWaitingForIntro = onIntroGone(() => {
       if (cancelled) return;
-      const delay = SCENE_TIMING.IDLE_TIMEOUT_MS + (overlay ? SCENE_TIMING.AFTER_INTRO_MS : 0);
+      cancelWarm();
+      /*
+       * A WARMED STAGE HAS ONE THING LEFT TO WAIT FOR, and it is not the idle slot. The 1500ms
+       * settle is there so the chunk requests never compete with the first paint, hydration or a
+       * first tap — none of which is still happening eight seconds into a visit spent watching a
+       * film. What remains is the one real constraint: R3F releases the intro's context 500ms
+       * after its canvas unmounts, and two scenes must never hold one at the same time.
+       */
+      const delay = warmed
+        ? SCENE_TIMING.AFTER_INTRO_MS
+        : SCENE_TIMING.IDLE_TIMEOUT_MS + (overlay ? SCENE_TIMING.AFTER_INTRO_MS : 0);
       cancelIdle = afterIdle(delay, () => {
         const cached = readGpuFacts(mode);
         if (cached) {
@@ -199,6 +248,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       stopWaitingForIntro();
+      cancelWarm();
       cancelIdle();
     };
   }, []);

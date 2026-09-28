@@ -16,6 +16,2123 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-09-28 — Fixed: „taitura” de la gura asistentei era TRANSFORMAREA, nu desenul
+
+*„buza de sus deloc nu se misca dar taitura care ii la gura se observa, corecteaza te rog sa fie ca
+in realitate.”* Amandoua jumatatile erau acelasi lucru, si nu e o parere — sunt trei cadre masurate
+rand cu rand, la pixelii ecranului.
+
+**Cele trei cadre.**
+
+- tacuta, cu un strat compozitat FORTAT pe petice, e identica — la 0,1 unitati de luminanta pe
+  fiecare rand — cu ea VORBIND cu gura inchisa;
+- acelasi petic cu `transform: none` IN TIMP CE vorbeste e identic cu tacerea;
+- deci diferenta e transformarea, nu miscarea.
+
+**Ce face transformarea.** Un element transformat primeste strat propriu de compozitie, iar stratul
+aseaza fotografia din el fata de grila ecranului cu vreo jumatate de pixel mai jos decat o face
+pictura in linie. Buzele ei sunt ferestre spre propriul ei portret, puse peste poza din care vin:
+ca sa fie nevazute trebuie sa cada pe EXACT pixelii de dedesubt. Pe buza de sus, unde gradientul
+fotografiei e cel mai abrupt de pe fata — 27 de unitati pe rand de ecran — jumatatea aia de pixel
+inseamna **pana la 47 de unitati aparute intr-un singur cadru**: buza se aplatizeaza si apare o
+margine in clipa in care incepe sa vorbeasca. Aia e „taitura”. Era acolo si pe buza de jos, la 17
+unitati, dintotdeauna — de-aia tot revenea. Si tot ea a mancat si ridicarea: eroarea de asezare e in
+jos, ridicarea e in sus, asa ca 0,45px de miscare adevarata ajungeau ca nimic.
+
+**Reparatia.** Cele doua petice fotografice nu se mai transforma niciodata. Fotografia aluneca
+intr-o cutie care nu se misca (`background-position-y`, pornind de la un `--bpy` numit), iar
+fereastra prin care se vede se retrage odata cu ea (`mask-position`, care isi duce si estomparea —
+un `clip-path` ar taia o linie dreapta prin buza). Amandoua sunt proprietati de PICTURA: niciun
+strat, nicio reasezare, iar tacerea si vorbirea se randeaza la fel. Deplasarile sunt scrise ca
+fractiune din `--bust-h`, nu in px, ca sa ramana corecte si la `--bust` 38 si 60.
+
+Degradeurile — apertura, banda de deasupra cusaturii, dintii, cuta — isi pastreaza transformarile:
+n-au nicio fotografie fata de care sa se aseze, deci n-are ce scoate din pas un strat.
+
+**Masurat dupa reparatie**, la pixelii ecranului, cu leganatul anulat si decupajul ancorat pe
+cusatura: tacerea si doua inchideri diferite din timpul vorbirii sunt identice pe fiecare rand; la
+o silaba mica banda intunecata a buzei de sus urca cu 11-24 de unitati, la cea mai larga cu 16-34.
+Cel mai mare salt intre randuri vecine in repaus e 80,1, fata de 80,7 cat are tacerea — nicio
+margine noua nicaieri.
+
+**Si bucla se inchide acum.** Ciclul mergea de la `scaleY` 0 la 100% pana la 0,1692 la 0%: prima
+silaba era centrata la 0,010 cu deschiderea ei ajungand inapoi dincolo de start, deci curba era pur
+si simplu taiata acolo — iar gura SAREA la 27% din deschidere o data la fiecare 4,7 secunde.
+Generatorul masoara acum distanta unei silabe pe CERC, asa ca una care cade pe cusatura isi tine
+coada la celalalt capat, si verifica la fiecare rulare ca primul si ultimul cadru sunt acelasi
+numar.
+
+**Un test schimbat, niciunul adaugat.** `guide-assistant.test.tsx` cerea ca toate cadrele sa miste
+doar `transform` si `opacity`. Acum imparte explicit: cele doua buze au voie numai proprietatile de
+pictura, restul numai `transform` si `opacity`, si niciuna dintre buze n-are voie sa poarte
+`transform` nicaieri — cu motivul scris in test.
+
+Fisiere: `components/hud/guide/GuideAssistant.module.css`,
+`components/__tests__/guide-assistant.test.tsx`.
+Explicatia: [docs/04-design-system.md](./docs/04-design-system.md).
+
+---
+
+## 2026-09-28 — Fixed: asistenta vorbea doar din buza de jos; acum se despart amandoua
+
+*„la asistent buza de sus deloc nu se misca la vorbire, corecteaza ca nu este real”* — si avea
+dreptate: se misca doar maxilarul. O buza de sus pironita in fotografie e ultimul lucru care mai
+spunea „desenat”, fiindca pe o fata ochiul citeste DESPARTIREA celor doua margini, nu coborarea
+uneia.
+
+**Aceeasi constructie, inca o data, in oglinda.** Gura ei nu e desenata peste buze, ci descoperita:
+intunericul si dintii sunt pictati intai, iar buza ei de jos (`.jaw`, o fereastra spre propria ei
+fotografie) sta peste ei si ii acopera cat gura e inchisa. Acum exista si `.upperLip` — o fereastra
+spre buza ei de sus si santul de deasupra — care URCA, iar `.mouthTop`, o banda proprie prinsa de
+cusatura, creste in sus exact cat a plecat buza.
+
+**Amandoua merg pe aceleasi opriri ca maxilarul si sunt liniare in bataie**, deci cele doua
+polilinii sunt identice punct cu punct: intunericul nu poate fi nici mai inalt decat s-a ridicat
+buza, nici mai scund. Masurat pe tot ciclul, cea mai mare nepotrivire e **0,003px**. Daca ar fi mai
+scund, s-ar vedea o fasie de original nemiscat chiar pe cusatura — fantoma de buza dubla de care se
+fereste tot fisierul.
+
+**O treime din maxilar, si asta e anatomie, nu sfiala.** O mandibula coboara 10-15mm pe o vocala
+deschisa si buza de sus urca 1-2mm; peste o treime nu mai e vorbire, e rictus. Aici silaba cea mai
+larga misca buza de sus cu **0,453px fata de 1,511px ai maxilarului** — la dpr 2, aproape un pixel
+de ecran, cu o linie intunecata care se deschide deasupra ei unde cu o clipa inainte nu era nimic.
+
+**Doua lucruri pe care nu le face, dinadins.** Nu e inaltime in plus pe `.mouth`: dintii sunt copii
+ai acelei cutii si toata constructia coroanei rigide e derivata din inaltimea ei, deci marirea
+aperturii in sus ar fi mutat fiecare numar de acolo pentru o banda de 0,73px. Si nu are dinti in
+banda noua: ce arata o fata acolo la marimea asta e umbra de sub pragul buzei de sus, nu smalt, iar
+o a doua dunga palida de 0,73px e exact aschia palpaitoare pe care coroana de dedesubt a fost
+refacuta ca sa n-o mai fie.
+
+**Banda e cu un fir mai inalta decat cursa buzei, tot dinadins.** Browserul aseaza pe o grila de
+1/64px, iar 0,7319px se rotunjea in JOS la 0,71875 — ceea ce lasa intunericul cu 0,007px in urma
+buzei, si ce se vede intr-un rest e original nemiscat. Prea inalt nu poate face asta, fiindca ce
+trece de buza sta in spatele buzei. Numarul e ales sa cada pe grila DEASUPRA cursei, iar
+generatorul verifica perechea la fiecare rulare.
+
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `components/hud/guide/GuideAssistant.module.css`.
+Explicatia: [docs/04-design-system.md](./docs/04-design-system.md).
+
+---
+
+## 2026-09-28 — Changed: pe telefon, „Proiecte relevante” se împinge cu degetul, nu se derulează
+
+*„la versiunea mobila unde ii laptopul fa sa fie swipe dar nu in jos plasate”* — si, la intrebare:
+*„proiectele care sunt acolo sa mearga din dreapta spre stanga dar nu in jos toate sa staie”*.
+
+**Cat de mult stateau in jos.** Masurat pe /servicii/produs-digital: sectiunea `#proiecte` avea
+**1972px** pe un telefon de 390px — cinci carduri de 358x368 unul sub altul. La 360px, 1930px; la
+760px, 2035px. De la 861px in sus preia laptopul 3D si grila e ascunsa, deci problema tinea de tot
+ce e sub el.
+
+**Acum cardurile stau pe un rand si se impinge printre ele.** Sub 761px grila e o banda cu oprire
+pe card, scrisa exact ca banda pe care grila de pe prima pagina o are deja pe aceleasi latimi
+(`components/sections/Work.tsx:207-210`), pana la latimea cardului: `min(390px, max(82vw, 320px))`.
+Sectiunea a ajuns la **477px** (de la 1972), si urmatorul card se vede la marginea ecranului — nu e
+nevoie de nimic care sa scrie „trage”.
+
+**Cutia care aluneca e un invelis, niciodata grila.** Grila poarta rama raftului pe `::before` /
+`::after`, iar amandoua atarna 6px in AFARA ei: o cutie cu `overflow` chiar pe grila le-ar fi
+taiat, iar un copil pozitionat absolut intr-un derulator aluneca oricum odata cu continutul. Pe
+invelis rama ramane intreaga, iar cei 12px de padding ai lui (dati inapoi ca margine negativa, deci
+sectiunea are aceeasi inaltime) tin taietura departe si de rama, si de ridicarea de 4px a cardului.
+
+**Trei lucruri masurate pe drum, nu ghicite.**
+
+- Grila e `width: max-content` — la latimea ecranului rama s-ar fi terminat dupa primul card; la
+  latimea raftului merge pe toata banda, iar bracketul de final tot dupa ultima fereastra se
+  inchide.
+- Un card care CRESTE intr-un asemenea container ii da acestuia latimea lui naturala: prima
+  incercare a facut banda de **6171px** si descrierea o singura linie. Cardurile nu cresc — afara
+  de cazul cand e unul singur, cand n-ai ce impinge si banda se masoara obisnuit.
+- Observatorul de sosire cere 25% din suprafata tintei, iar grila e acum cat patru ecrane: partea
+  ei vazuta se opreste pe la 0,235 si rama n-ar mai fi aparut niciodata. Acum se urmareste
+  invelisul — cutia pe care omul chiar o are in fata, la orice latime — si ce deschide el e grila.
+
+**Si scara de 90ms s-a intors:** in coloana fiecare card sosea singur, asa ca `--step` era fixat pe
+0; alaturi sosesc impreuna, deci se aprind in cascada ca pe desktop.
+
+**Verificat in browser, pe toate directiile.** 5 / 3 / 3 / 2 carduri — toate pe un singur rand,
+477px inaltime, opriri din 334 in 334px, si niciun pixel de derulare orizontala a paginii la 360
+sau 390. Desktopul e neatins: la 1440px grila e tot ascunsa si scena isi face intrarea ca inainte;
+la 800px e tot doua coloane. Cu miscare redusa banda merge la fel. Cele 33 de teste din
+`e2e/responsive.spec.ts` — printre ele „a service page never scrolls sideways” la 360/390/768/1280
+— trec.
+
+Fisiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md).
+
+---
+
+## 2026-09-28 — Fixed: panourile din „Cum lucram” se aprindeau sarind, si a treia ramanea aprinsa
+
+*„Ii un bug cum se aprind casetele si la urma mereu a 3-a ramane aprinsa.”* Avea dreptate de doua
+ori, si ambele veneau din acelasi loc: aprinderea CITEA ce se nimerea sa fie in banda
+observatorului, in loc sa NUMERE ce a trecut de linia de citire.
+
+**Masurat, nu ghicit.** Reperele erau copii ai randului de panou, deci stateau toate trei la 73px
+unul de altul, intr-o banda de 72px: toate cele trei stari se predau in 177px de derulare, aproape
+deodata. Iar `data-active` primea NUMARUL pasilor, asa ca dupa ce blocul era citit ramanea `3` pana
+la capatul paginii — nu „al treilea pas se intampla acum”, ci o caseta blocata aprinsa.
+
+**Trei lucruri reparate, care erau unul singur.**
+
+- Reperele sunt acum copii directi ai sectiunii si iau portii egale din inaltimea ei
+  (`8% + --m x (92% / --n)`). La 1440x900 fiecare pas tine linia ~107px de derulare, in loc de
+  ~59px inghesuiti.
+- Starea se deduce din pozitii la fiecare apel — cate repere sunt deasupra liniei — nu din multimea
+  celor aflate in banda. Intre doua repere nu e nimic in banda, si golul acela era citit drept
+  „am trecut de tot”: aprinderea facea 1 → final → 2 → final → 3.
+- Radacina observatorului e tot ce se afla DEASUPRA liniei (`rootMargin: 0px 0px -55% 0px`), nu o
+  banda de 8% in jurul ei. O banda de 72px poate fi trecuta dintr-un cadru in altul, si atunci
+  observatorul nu spune nimic; o regiune cat 45% din fereastra nu poate fi sarita.
+
+**Si un reper in plus, la talpa blocului.** Trecerea lui e ce inseamna `data-active="done"`: blocul
+a ramas cu adevarat in urma, nu e doar intre doi dintre pasii lui. In starea asta toate trei
+panourile sunt aprinse egal si linistit (cifra .26, bordura cyan 22%), niciunul ridicat.
+
+**Masurat in browser, pe traseul intreg.** La vale: `0 → 1 → 2 → 3 → final`, monoton, cu portii de
+107/106/107px. La deal: `final → 3 → 2 → 1 → 0`, oglinda exacta — nimic nu ramane `past` in urma,
+pentru ca nimic nu se tine minte intre apeluri. (Sondele merg cu scena oprita: pagina cu WebGL
+blocheaza firul principal in headless si citirile ies vechi — artefact al masuratorii, nu al
+paginii.)
+
+Fisiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md).
+
+---
+
+## 2026-09-27 — Changed: „Cum lucram" devine trei panouri, si inchiderea paginii are un cadru
+
+*„Aici anume trebuie un design wow si ii prea sarac."* — a doua oara despre acelasi bloc. Prima
+incercare umplea jumatatea goala a cardului cu numarul pasului activ, urias si stins. N-a fost de
+ajuns, si avea dreptate: ramanea tot o coloana de text si mult aer.
+
+**Datele sunt trei propozitii scurte, si atat.** `items` (cele trei capacitati cu descriere) sunt
+deja desenate mai sus pe pagina, iar `flow` exista doar la unele directii. Deci bogatia nu putea
+veni din text — n-am inventat niciunul — ci din forma.
+
+**Acum sunt trei panouri pe latime.** Fiecare cu indexul lui mono sus, propozitia sub el, si
+ACELASI index asezat urias in coltul de jos, in degradeul site-ului (albastru → violet → cyan,
+opririle barei de progres). O coloana se intinde peste capul lor si se umple pe masura ce sunt
+cititi. Cardul nu mai e o cutie inalta pe jumatate goala.
+
+**Panoul care se citeste** se ridica 3px, ia bordura cyan, un fond abia tentat si isi aprinde
+indexul — mic si mare deodata.
+
+**Si blocul se aprinde in secventa cand ajungi la el.** Coloana se deseneaza din stanga, apoi
+panourile urca unul dupa altul la 140ms distanta, si indexul urias al fiecaruia se ridica in el
+inca o bataie mai tarziu. O data, cu acelasi zavor ca subsolul: `data-armed` la montare — deci
+cine n-are JavaScript vede blocul terminat, nu trei contururi goale — si `data-entered` prins o
+singura data, deci urcatul si coboratul inapoi nu il reiau.
+
+Intrarea panoului foloseste `transform` iar starea lui aprinsa foloseste `translate`: doua
+proprietati, deci ridicarea de 3px a pasului citit **se compune** cu intrarea in loc sa se bata cu
+umplerea ei. Indexul urca tot pe `translate`, din acelasi motiv — opacitatea lui apartine starii
+aprinse, si o animatie de intrare care ar fi atins-o ar fi tintuit-o acolo pentru totdeauna.
+
+**Si o lumina alearga pe coloana, pana la pasul pe care-l citesti.** Nu e o bucla: pozitia ei ESTE
+`--steps-progress`, acelasi numar cu care se scaleaza umplerea si pe care il scrie observatorul.
+Deci nu poate fi decat acolo unde e cititul — aluneca din panou in panou si sta pe loc cat stai si
+tu. O transformare, nimic de repictat, si nimic de pus pe pauza cand sectiunea nu e pe ecran.
+Asezata in unitati ale coloanei (`cqw`), fiindca si numarul de pasi si latimea cardului se schimba,
+iar un decalaj in pixeli ar fi gresit la fiecare dintre ele.
+
+**Si asta a cerut o mutare mai adanca decat pare.** Pasul viu e ales de un observator care tine o
+linie de citire la 45% din ecran, si asta functioneaza doar pe lucruri care o traverseaza **unul
+cate unul**. Trei panouri alaturate o traverseaza in acelasi cadru si s-ar aprinde toate odata.
+Asa ca observatorul urmareste acum trei **repere de 1px**, invizibile, imprastiate pe inaltimea
+blocului in ordinea pasilor; panourile se aprind din `data-active`, pe care tot el il scrie. Un
+singur adevar, doua desene — si andocarea modelului 3D pe momentul pasului ramane neatinsa.
+
+Unde o directie are schema de flux langa randuri, pasii primesc jumatate de card si trei panouri
+ar fi trei fasii — acolo raman stivuite. La fel sub 860px.
+
+**Si o regula ramasa din structura veche, scoasa:** un `@media` punea inca `grid-template-columns:
+44px 1fr` pe rand, asa ca pe telefon indexul sarea langa propozitie in loc sa stea deasupra ei.
+Gasit masurand stilul calculat, nu din ochi.
+
+**Inchiderea are acum un cadru.** `AI UN PROIECT IN MINTE?` statea direct pe intunericul paginii.
+E un panou cu patru coltare — limbajul HUD-ului — cu un fir colorat tras peste marginea de sus cand
+blocul intra in ecran. Coltarele iau o nuanta mai deschisa decat `--line`: linia aceea e facuta
+pentru interiorul unui panou si pe intunericul paginii dispare.
+
+**Nimic nu se repeta** in niciunul dintre blocuri: firul se deseneaza o data, legat de derularea
+proprie, iar aprinderea panoului e o tranzitie. Nu e nicio bucla de pus pe pauza.
+
+Fisiere: `components/sections/DirectionPage.tsx`, `components/sections/DirectionPage.module.css`.
+
+Niciun test nou. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**, `next build` trece la construirea imaginii. E2e: **219 trec, 18 pica** intr-o rulare
+incarcata — cinci dintre ele (`interior` 447 si 589, `interior-webgl` 462 si 1015, `keyboard`
+60) trec de doua ori la rand cand le rulez singure. Ce ramane stabil sunt cele **13 picaturi
+cunoscute de pe `main`**.
+picaturi cunoscute de pe `main`** plus `interior` 413, verificat separat: trece de doua ori
+la rand cand ruleaza singur.
+
+---
+
+## 2026-09-27 — Changed: subsolul, a doua trecere — paleta site-ului, coloanele mutate, luminile taiate scoase
+
+*„Dar fa si o animatie sa fie ceva si palitra la culorile siteului dar nu a curcubeului, si
+schimba cu locurile multe, si scoate luminile celea care stau cu albastru si rosu si se taie."*
+
+**Paleta e acum chiar a site-ului.** Prima trecere reparase griul de la capete cu rosu → ambra →
+mint → albastru, si a cumparat un curcubeu. Cele trei opriri de acum — **albastru → violet →
+cyan** — nu sunt alese de mine: sunt exact degradeul barei de progres (`[data-progress]`,
+`app/globals.css`), care se umple peste capul paginii in timp ce derulezi. Pagina se deschide pe
+degradeul acela si se inchide tot pe el. Firul de pe muchia de sus poarta aceleasi trei.
+
+**Luminile taiate au disparut.** Doua pete radiale atarnau peste colturile cardului — una albastra
+sus-dreapta, una rosie in stanga — amandoua asezate partial IN AFARA lui. Cardul e
+`overflow: hidden`, fiindca asa e decupat cuvantul urias, deci fiecare pata era retezata de
+marginea rotunjita si se citea ca o mazgalitura cu muchie, nu ca lumina. Scoase. Culoarea vine
+acum din fir si din cuvant, care sunt inauntru si nu pot fi taiate.
+
+**Si s-au schimbat locurile.** Coloanele erau patru si aveau 5, 10 si 3 randuri, iar un rand de
+grila e cat cel mai inalt element din el: pe telefon se deschidea un gol de vreo 220px sub
+NAVIGARE si o celula intreaga ramanea goala sub PARTENERI. Acum sunt **trei piste** — marca, apoi
+NAVIGARE cu PARTENERII stivuite sub ea, apoi PORTOFOLIU singur. Opt randuri contra zece in loc de
+5, 10 si 3.
+
+**Si contactele au urcat** din bara de jos in coloana marcii, unde era gol pe toata inaltimea.
+Erau trei lucruri pierdute intr-o linie gri de 12px chiar la baza paginii; adresa, telefonul si
+e-mailul sunt exact ce cauta cineva intr-un subsol. Bara de jos a ramas ce trebuia sa fie: drepturi
+de autor la stanga, cele doua linkuri legale la dreapta.
+
+**Si inca o animatie, pe fir.** O banda ingusta de lumina traverseaza muchia de sus si dispare —
+pachetul cipului, in singurul vocabular pe care il are un subsol de DOM curat. Un element, o
+transformare, zero vopsea; isi petrece 82% din ciclu in afara ecranului din dreapta, deci muchia e
+linistita mult mai des decat e aprinsa, si porneste abia dupa ce aprinderea s-a terminat, ca sa nu
+se suprapuna peste ea.
+
+**Si se opreste cand nu e nimeni acolo**, prin `useOffscreenAttribute` — subsolul sta la capatul
+unei pagini de 8900px, deci fara asta ar alerga nevazut aproape toata vizita. E exact conventia
+scrisa saptamana asta pentru asa ceva.
+
+Fisiere: `components/layout/Footer.tsx`, `components/layout/Footer.module.css`.
+
+Niciun test nou. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**, `next build` trece la construirea imaginii. E2e: **222 trec, 15 pica** — cele **13
+picaturi cunoscute de pe `main`** plus doua instabile sub incarcare (`interior-webgl` 462,
+`interior` 447), amandoua verificate ca trec de doua ori la rand cand le rulez singure.
+
+---
+
+## 2026-09-27 — Changed: subsolul se aprinde cand ajungi la el, si numele mare nu mai moare in gri
+
+*„Acum aici trebuie de facut un redesign sa fie cu animatii ceva wow, gandeste-te ce se poate de
+facut."* Din trei directii puse in fata, a ales-o pe aceasta: **cuvantul urias prinde viata**.
+
+**Intai un link pe care nu-l puteai apasa.** Masurat la 1440×900: „Cookie-uri" statea *in
+intregime* in cutia asistentei, care e fixata in coltul din dreapta-jos — iar subsolul e capatul
+paginii, deci e citit mereu cu ea deasupra. Bara de jos isi rezerva acum coloana ei, derivata din
+`--hud-bottom` (20 + 184 + 4), adica din tokenul care spune deja unde se termina ea, nu dintr-o a
+doua copie a marimii ei. Masurat dupa: **zero linkuri acoperite**.
+
+**Si numele mare nu mai moare in gri la capete.** Degradeul era `--line → --blue → --mint →
+--line`, iar `--line` e culoarea liniilor de interfata: ambele capete ale celui mai mare lucru din
+pagina se stingeau in panou. Acum e `--red → --star → --mint → --blue` — patru culori de brand,
+capetele incluse. Nu e o schimbare de gust, e un contrast prea mic reparat.
+
+**Si cuvantul era, din accident, alt obiect pe telefon decat pe desktop.** `background-clip: text`
+decupeaza degradeul dupa CUTIA elementului, nu dupa litere, iar `.word` era un bloc cat toata
+fereastra: literele centrate luau doar mijlocul degradeului, si o alta portiune din el la fiecare
+latime. Cutia s-a strans pe `max-content` intr-o stiva centrata, deci capetele degradeului cad pe
+capetele cuvantului, la orice latime.
+
+**Aprinderea.** Cand subsolul intra o treime in ecran, se aprinde o data: firul de pe muchia de
+sus se trage din mijloc spre colturi (520ms), cele trei capete de coloana urca pe rand
+(120/240/360ms), si la 520ms **culoarea urca prin numele mare de jos in sus**.
+
+Dezvaluirea aceea e trucul care merita retinut: numele e desenat de **doua ori** — o copie stinsa
+care tine inaltimea, si una colorata intr-o fereastra decupata care urca din marginea de jos in
+timp ce copia dinauntru coboara exact cu atat. Cele doua se anuleaza, deci **literele nu se misca
+niciun pixel**: ce calatoreste e dreptunghiul de decupare, si culoarea e trasa in sus prin cuvant
+in urma lui. Doua transformari pe compozitor si **zero repictare** — o lumina plimbata cu
+`background-position` peste un text de 190px ar fi fost cea mai mare repictare din pagina.
+
+Fereastra si copia impart o singura durata si o singura intarziere, scrise o data pe stiva: daca
+s-ar departa, literele ar aluneca vizibil. Verificat in pagina: amandoua 760ms cu intarziere 520.
+
+**Nimic nu se repeta.** `data-armed` se scrie la montare — deci un vizitator fara JavaScript vede
+subsolul terminat, nu unul care asteapta un semnal — si `data-entered` e un **zavor**:
+observatorul se dezaboneaza singur, asa ca urcatul si coboratul inapoi nu reaprind nimic. Si
+fiindcă nimic nu e infinit, subsolul nu are nevoie de pauza in afara ecranului: n-are ce opri.
+
+**Sub `prefers-reduced-motion` nici nu exista poza retinuta** — tot blocul e inauntrul lui
+`no-preference`, deci un vizitator care a cerut mai putina miscare vede pur si simplu subsolul
+gata aprins.
+
+Fisiere: `components/layout/Footer.tsx`, `components/layout/Footer.module.css`.
+
+Niciun test nou. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**, `next build` trece la construirea imaginii. E2e: **224 trec, 13 pica** — exact cele
+**13 picaturi cunoscute de pe `main`**, niciuna in plus.
+
+---
+
+## 2026-09-27 — Changed: cifrele din erou raman cartonasele paginii, pe orice randor
+
+*„Fa sa fie mereu in starea aceasta dar nu in aceasta."* — cu doua capturi alaturate: cartonasele
+pline, desenate de pagina, si panoul holografic al scenei. Alese primele.
+
+**Un singur comutator, si era deja acolo.** Din 2026-09-25, pe un randor `webgl`, `app/globals.css`
+lua vopseaua celor doua cartonase si punea `--stat-window: 1`, iar scena desena in locul lor cate o
+holograma potrivita pe cutia cardului. Blocul acela e scos. `--stat-window` ramane 0 mereu, si e
+singurul lucru pe care `writeStatWindows` il intreaba inainte sa masoare un card — deci `probe.stats`
+ramane gol, lumea nu mai construieste niciun panou, nu mai compune nicio fata si nu mai deseneaza
+nimic acolo. Nimic nu ramane pe jumatate pornit.
+
+**Cartonasele se deseneaza acum pe orice randor, la orice latime, pentru orice vizitator** — la
+fel ca pe calea fara WebGL, care oricum asta arata.
+
+**Ce ramane, dar dormind.** `three/models/statPanel.ts`, `three/statFace.ts`, `scene/statCards.ts`
+si `placeStat` sunt intacte si in continuare acoperite de teste. Nu le-am sters: o singura linie in
+`globals.css` le porneste inapoi. Se sterg cand decizia se aseaza de tot.
+
+**Si un test rescris, nu unul nou.** `interior-webgl.spec.ts` W20 verifica exact comportamentul
+scos — cardul fara vopsea, fereastra deschisa, pixelii aprinsi de pe panza in cutia lui. Acum
+verifica adevarul de acum: pe o pagina cu scena la lucru, fereastra **nu se deschide niciodata**,
+cardul se deseneaza singur, iar numarul e tot al paginii (o cifra numarata in `<b>`, nu o textura).
+
+**Ce s-a retras azi, pe drum spre asta:** legarea panourilor la cip prin fire din via-uri, panoul
+care primea „scrierea" cand ajungea cometa, culcarea lor in planul placii, si colorarea fetei
+holografice. Toate cerute, construite, aratate si respinse. Codul lor a fost scos in aceeasi zi —
+`models/tether.ts` sters, `anchor`/`anchorNear`/`clock` scoase din `core.ts`, `CHIP_TILT` scos din
+`shapes.ts`, cablajul scos din `world.ts`.
+
+**Ce ramane din ele, fiindca era o reparatie adevarata:** pe fata panoului, nota din subsol si
+indexul grupului impart aceeasi linie de baza fara ca nota sa rezerve loc, si „EXPERIENTA APLICATA"
+trecea peste „01". Nota se micsoreaza acum la cat ramane dupa index, masurata **in interiorul
+tracking-ului** ei. Nu se mai vede nicaieri astazi, dar e corecta pentru ziua in care panoul se
+reaprinde.
+
+Fisiere: `app/globals.css` (poarta), `e2e/interior-webgl.spec.ts` (W20),
+`components/scene/three/statFace.ts` si `components/sections/Hero.tsx` (reparatia si tonurile,
+dormante).
+
+Niciun test nou. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**, `next build` trece la construirea imaginii. E2e: **224 trec, 13 pica** — exact cele
+**13 picaturi cunoscute de pe `main`**, niciuna in plus.
+
+---
+
+## 2026-09-27 — Changed: animatiile nu mai lucreaza pentru cine nu le vede
+
+*„Acum fiecare animatie care este in proiect optimizeaza te rog frumos ca sa mearga pe orice
+dispozitiv dar cel mai principal vizual sa nu sa se schimbe nimic."*
+
+**Intai am numarat, in pagina reala, nu in fisiere.** Prin `document.getAnimations()`, la sase
+pozitii de derulare pe o pagina de 8900px:
+
+| | |
+|---|---|
+| animatii care ruleaza in orice clipa | **42–43** |
+| dintre ele, in afara ecranului | **18–30** |
+| dintre acelea, infinite | **17–22** |
+| animatii care NU stau pe compozitor (repicteaza la fiecare cadru) | **16–18** |
+
+Cele care repicteaza misca `mask-image`, `mask-size`, `clip-path`, `mask-position`,
+`background-position`, `stroke-dashoffset` — proprietati pe care compozitorul nu le poate duce,
+deci fiecare cadru e o repictare pe firul principal. **Pana la 16 dintre ele rulau fara sa fie
+vazute de nimeni.**
+
+**Ce am schimbat, si de ce fiecare e invizibil:**
+
+**1. Marcajul de incarcare al scenei iesea din vedere, dar nu din desen.**
+`SceneLoading.module.css` il stingea cu `opacity: 0` si il lasa in arborele de randare, iar
+marcajul dinauntru (un SVG cu patru coltare, o bara de scanare si un miez punctat) isi tinea
+animatiile pornite pentru tot restul vizitei. Acum primeste acelasi `visibility` intarziat pe care
+il foloseste deja acoperirea de pagina: `visibility` e o tranzitie DISCRETA, deci tine `visible`
+toata stingerea de 0,35s si se schimba exact cand opacitatea ajunge la 0, iar la aprindere e
+vizibil din primul cadru. Niciun cadru al stingerii nu difera.
+
+**2. Cele doua lumini ale estimatorului se opresc cand puntea nu e pe ecran.** Amandoua misca
+`background-position`, si `data-entered` e un **zavor** — observatorul care il pune se dezaboneaza
+— deci repictau pana la sfarsitul vizitei, oriunde ai fi derulat. O singura regula pentru
+amandoua, ca decalajul de 1,6s dintre ele sa ramana neatins.
+
+**3. Banda de sub erou se opreste cand nu se vede**, prin acelasi mecanism.
+
+**4. Bara de progres nu mai scrie acolo unde nu e desenata.** De la 861px in sus, fibra din dreapta
+deseneaza progresul si CSS-ul sterge bara cu `display: none` — dar bucla masura documentul si scria
+o latime intr-o cutie fara pixeli, la fiecare cadru de derulare al fiecarei vizite pe desktop.
+Poarta e un `IntersectionObserver` chiar pe bara: un element `display: none` nu intersecteaza
+niciodata, unul `position: fixed` la `top: 0` intersecteaza mereu cat e desenat. Asa foaia de stil
+ramane singurul adevar — nicio interogare de media dublata aici, care sa se desincronizeze de ea —
+si raspunsul vine ca eveniment, nu ca o citire pe cadru. Plus dedublarea scrierii: aceeasi valoare
+nu se mai scrie de doua ori.
+
+**5. Inclinarea cardurilor nu mai rescrie un atribut pe care il are deja** la fiecare cadru de hover.
+
+**6. Un bloc de cadre pe care nu-l foloseste nimeni** (`guide-signal`) a fost sters.
+
+**Si DOUA schimbari pe care le-am dat inapoi dupa ce o recenzie adversariala le-a spart.** Le scriu
+aici fiindca motivul e mai valoros decat schimbarea:
+
+- **Acoperirea de incarcare pe paginile fara scena.** `/cookies` si `/confidentialitate` livreaza
+  acoperirea si n-au scena, deci cele 13 animatii dinauntru rulau pentru cineva care nu le putea
+  vedea niciodata. `display: none` parea gratuit — dar aspectul e PARTAJAT: o navigare interna de
+  la `/cookies` inapoi la `/` pastreaza acelasi nod, scena se monteaza „in asteptare", si
+  acoperirea trece din `display: none` direct in starea ridicata, intr-o singura schimbare de stil.
+  O tranzitie nu porneste pentru un element care nu era randat inainte, deci acoperirea ar fi
+  **sarit** la opacitate plina in loc sa se stinga in 450ms. Doua diferente vizibile la un clic
+  obisnuit.
+- **Hologramele din sectiunea echipei** — cele mai scumpe animatii din tot proiectul. Curbele lor
+  folosesc `steps(1, end)` si **tin stari intentionat stricate**: un bloc grosier 172ms, o banda
+  rupta 67ms, cam a zecea parte din fiecare ciclu. Oprite inauntrul uneia dintre ele, exact acea
+  stare inghetata e ce vede primul cadru al intoarcerii. Astazi faza la reintrare e intamplatoare
+  si defectul e una dintre multe stari; pe pauza, daca pleci in timpul unui defect te intorci
+  garantat la el. Un defect pe care poti pune ceasul nu e un defect — unul intepenit, da.
+
+**Si o corectura in mecanism, tot de la recenzie:** `useOffscreenAttribute` sterge acum atributul cu
+**200px inainte** ca elementul sa intre in ecran. Fara asta, primul cadru in care se vede era inca
+desenat pe pauza — pe lumina estimatorului, 3,7px de pozitie pe un cadru, apoi un salt. Marja face
+bine si celor doua locuri care foloseau deja carligul (eroul si inelul de directii).
+
+**Dovada ca nu se schimba nimic vizual** nu e o comparatie de pixeli — doua capturi la faze diferite
+ale aceleiasi bucle difera oricum. E **invariantul**: *cat timp elementul se vede, animatia lui e
+pornita*. Verificat in browser la opt pozitii de derulare: **zero incalcari**. Tintit, pe estimator:
+vizibil → amandoua pornite; departe → amandoua oprite. Iar bara de progres urmareste derularea cu
+abatere **0** la cinci pozitii pe telefon.
+
+**Ce am masurat si NU am reusit sa dovedesc:** castigul in timp de procesor. Dupa cele doua
+retrageri, ce a ramas oprit e putin (doua sweep-uri si o banda), iar in headless zgomotul masinii e
+mai mare decat diferenta — trei runde alternate au dat 0,96s fata de 0,93s pe fereastra de 4s, adica
+nimic concludent. Nu pretind o cifra pe care n-o am.
+
+**Si ce nu se poate ieftini fara sa se schimbe ce se vede** — 23 de idei respinse, fiecare cu
+motivul ei. Cele mai importante: bara de progres de pe telefon nu poate deveni `transform: scaleX`,
+fiindca umbra ei de 10px s-ar ingusta odata cu cutia; `mask-size` din dezvaluirea Lucrarilor **este**
+efectul, nu un mod de a-l obtine; `grid-template-rows: 0fr → 1fr` e singura constructie care
+deschide cardul pe loc SI impinge randurile de sub el; iar promovarea firului pe un strat separat
+i-ar reaseza umbra. `content-visibility: auto` aduce cu el si containment de dimensiune, ceea ce ar
+taia umbra de 60px a puntii.
+
+Fisiere: `components/scene/art/SceneLoading.module.css`, `components/sections/Estimator.module.css`
++ `.tsx`, `components/sections/Ticker.tsx`, `components/ui/ScrollProgress.tsx`,
+`components/fx/useOffscreenAttribute.ts`, `components/fx/usePointerTilt.ts`,
+`components/hud/guide/GuideAssistant.module.css`, si notele de retragere in
+`components/ui/PageLoading.module.css` si `components/sections/Team.module.css`.
+Doc: [`docs/07-conventions.md`](./docs/07-conventions.md#the-rest).
+
+Niciun test nou. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**, `next build` trece la construirea imaginii. E2e impotriva containerului construit acum:
+**222 trec, 15 pica** — iar doua dintre ele (`responsive` 88, `interior-webgl` 506) trec de doua
+ori la rand cand le rulez singure, la toate latimile. Ce ramane stabil sunt exact cele **13
+picaturi cunoscute de pe `main`**.
+
+---
+
+## 2026-09-27 — Fixed: dintii palpaiau pentru ca erau de 0,358px, iar buzele nu erau lente ci lipite
+
+*„Aproape ii perfect dar totdeauna dintii cam nu par reali si buzele parca ii slow."*
+
+Amandoua s-au dovedit altceva decat pareau, si amandoua s-au lamurit cu aritmetica, nu cu gustul.
+
+**DINTII AVEAU 0,358px INALTIME, SI PALPAIAU.** `.teeth` e copil al lui `.mouth`, si `.mouth` e
+elementul care scaleaza — deci banda desenata era 26% × 2,4435px × scaleY-ul deschiderii. Asta
+inseamna **0,36 dintr-un pixel de ecran la 1x si 0,72 la 2x: niciodata un pixel intreg, pe niciun
+ecran**. Randorul o desena ca **un rand la 27% acoperire sau doua la 13,6%**, iar cum inaltimea si
+faza ei sub-pixel se schimba la fiecare cadru odata cu scaleY, numarul de randuri si luminozitatea
+se schimbau continuu prin fiecare silaba. Asta era „nu par reali" — si de-aia masuratorile de
+luminanta puteau fi corecte (176, sub buza 198 si obrazul 202) in timp ce dintii erau tot gresiti.
+
+**Trei din cele patru straturi au fost sterse, pentru ca aritmetica spune ca n-au ajuns niciodata
+pe ecran:** diviziunile dintre dinti, fiecare o banda de 1,6% = **0,16px** (ca una singura sa fie
+un pixel la 2x, `--bust` ar trebui sa fie ~280px, de 2,6 ori cat e desenata — deci toata povestea
+„canin · lateral · central" era de negasit la *orice* densitate); si cele trei opriri verticale ale
+smaltului, care coborau pe axa de 0,358px, unde niciun rand de ecran nu putea tine doua. Raman
+cele doua care chiar se rezolva pe latime: umbrirea colturilor (rampa de 2,6px) si reflexul de pe
+linia mediana (movila de 3,5px).
+
+**Banda e acum 72% din deschidere, nu 26%** — masurat **1,054px** la silaba cea mai larga, un rand
+intreg in loc de o treime — si un al patrulea bloc generat, `guide-teeth`, ii tine stinsi pana
+gura trece de 55% din deschiderea ei si deplini abia de la 85%. Sunt pe ecran **24% din timp,
+deplini 5%**: sub poarta nu mai exista nicio banda subtire care sa palpaie, iar peste ea e un rand
+stabil.
+
+| | inainte | acum |
+|---|---|---|
+| inaltimea benzii, la varf | 0,358px | **~1,05px** |
+| cat timp sunt pe ecran | tot timpul | **24%** |
+| varf de luminanta | 176 | **167–173** |
+
+**BUZELE NU ERAU LENTE — ERAU LIPITE.** Fiecare silaba era mai *lata* decat distanta pana la
+urmatoarea (raport 1,06–1,22), deci vecinele se contopeau intr-un singur platou: cele 22 de silabe
+dadeau doar **douasprezece deschideri vizibile, 2,55 pe secunda**, fata de 5–6 cat are vorbirea, si
+intre ele buza nu revenea, ci doar se lasa. Miscarea in sine nu era lenta deloc: urcarea ei masura
+**89ms**. Ingustand fiecare latime la 0,60 din ea, aceleasi 22 de silabe devin **22 de deschideri,
+4,68 pe secunda**.
+
+**Si bataia e acum asimetrica**, fiindca o falca **cade mai repede decat se inchide**, iar cosinusul
+ridicat e simetric — simetria era o parte din ce se citea ca lenevie. Cele doua jumatati ale fiecarei
+silabe se intind in sensuri opuse (0,75 / 1,25): **45ms in jos, 75ms inapoi**.
+
+| | inainte | acum |
+|---|---|---|
+| deschideri vizibile pe ciclu | 12 (2,55/s) | **22 (4,68/s)** |
+| cadere / inchidere | 89ms simetric | **45ms / 75ms** |
+| gura inchisa | 14% | 24% |
+| cursa buzei | 1,37px | 1,42px |
+
+**Cadrele se aseaza acum dupa curbura, nu la interval fix.** Un plic de vorbire e in cea mai mare
+parte pauza plata cu cateva urcari scurte; o grila uniforma plateste la fel peste tot — prea rara
+exact unde gura se misca, risipita in pauze. Generatorul esantioneaza fin si pastreaza doar
+opririle fara de care linia s-ar abate mai mult de **0,02px** de curba adevarata, iar eroarea e
+**verificata, nu presupusa**. Ies 228 de opriri pentru deschidere, 190 pentru buza, 136 pentru
+dinti si 74 pentru umbra, fata de o grila uniforma de 158.
+
+Saltul maxim de viteza a urcat de la 7,7 la **12,7 px/s**, si urcarea e corecta: miscarile sunt mai
+rapide, deci acceleratia lor e mai mare. Nu e un artefact de esantionare — dublarea opririlor duce
+cifra calculata doar de la 11,6 la 10,7. Niciunul peste 40.
+
+**Si am reparat doua sonde care minteau.** Prima citea ciclul randat la 31ms, adica mai rar decat
+dureaza o cadere de 45ms: aliaza miscarea si raporta 17,9 px/s. La 10ms da 12,7, care se potriveste
+cu cei 11,6 calculati din opriri. A doua isi lua inaltimea de referinta a gurii impartind
+dreptunghiul la scaleY-ul din clipa aceea — iar cand scaleY e aproape zero, impartirea amplifica
+rotunjirea; de-aia raportase o deschidere de 1,71px care nu exista. Cu inaltimea de asezare luata
+din stilul calculat, deschiderea maxima e **1,42px si cursa buzei tot 1,42px** — adica exact
+invariantul pe care se sprijine constructia: fasia pe care o elibereaza buza *este* deschiderea.
+
+**Ce am lasat deoparte, si de ce.** Banda ramane un procent dintr-un element care scaleaza, deci
+arcada tot se intinde si se strange odata cu falca — iar un dinte e os. Raspunsul anatomic corect
+e o coroana rigida in spatele unei ferestre care creste (`height: 100%` cu contra-scalare proprie);
+l-am proiectat si l-am costat, si l-am lasat pe raft: la o deschidere de 1,43px intinderea e sub ce
+poate arata un pixel, in timp ce schimbarea face smaltul **de 1,84 ori mai prezent** la varf — adica
+exact reclamatia de la care plecasem.
+
+**Si un lucru gasit pe drum, neatins:** intre 641 si 860px latime, `.scene` pune `--bust: 38px`,
+aceeasi valoare ca in blocul pentru sub 400px, desi cutia asistentei creste acolo la 136px. E
+desenata mai mica decat intre 400 si 640px, unde cutia e mai mica. Arata a copiere, dar e o
+decizie de design, nu o corectura tehnica, deci n-am atins-o.
+
+Fisiere: `components/hud/guide/GuideAssistant.module.css`. Doc:
+[`docs/04-design-system.md`](./docs/04-design-system.md#asistent-tbs--the-corner-assistant).
+
+**Niciun test nou; unul reparat.** `guide-assistant.test.tsx` — primul spec din fisier care deschide
+dialogul plateste incarcarea modulului estimatorului, iar sub suita intreaga depaseste rabdarea
+implicita de 1s si pica pentru un motiv care n-are legatura cu ce verifica. Are acum 5s.
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**, `next build`
+trece la construirea imaginii. E2e, impotriva containerului construit acum: **223 trec, 14 pica** —
+iar doua dintre ele (`preloader` 198, `interior-webgl` 506) **trec cand le rulez singure**. Ce ramane
+stabil sunt exact cele **13 picaturi cunoscute de pe `main`**.
+
+---
+
+## 2026-09-27 — Fixed: vorbitul nu mai bate ca un metronom, si dintii nu mai sar in ochi
+
+*„Dar cand se deschide gura totdeauna dintii parca sunt prea albi si miscarile gurii sunt
+robotice, fa te rog frumos sa fie mai realist."*
+
+**Dintii: intrebarea nu era cat de albi sunt, ci fata de ce.** I-am fotografiat la 4x si am citit
+luminanta in loc sa ma uit la ei: varf **189**, obraz **202**, buza **198** — deci nu erau mai
+luminosi decat pielea ei. Sclipirea venea din **contrastul local cu cavitatea intunecata de
+langa**, nu din luminozitatea absoluta, si de-aia coborarea de la 56% la 30% din pasul anterior
+nu a rezolvat nimic. Am dus smaltul la `--txt` 16 → 11 → 4%, opacitatea benzii la 0,76 si
+inaltimea ei la 26% din deschidere. Ca sa fie o comparatie si nu doua rulari diferite, am masurat
+ambele stari **in acelasi cadru si in aceiasi pixeli**, punand smaltul vechi inline peste cel nou:
+
+| | inainte | acum |
+|---|---|---|
+| varf de luminanta pe dinti | 189 | **176** |
+| buza (pentru comparatie) | 198 | 198 |
+| obraz (pentru comparatie) | 203 | 202 |
+
+Adica sub buza in spatele careia stau si sub obraz — exact unde sta smaltul pe o fata.
+
+**Robotic insemna periodic, nu abrupt.** Curba era deja neteda dupa pasul anterior; ce ramasese
+era ca **sapte silabe la distante aproape egale, intr-o bucla de 1,9s**, se invata din doua
+treceri — iar un tipar invatat e definitia lui "robotic". Ciclul e acum de **4,7s cu 22 de
+silabe** la centre neregulate, patru pauze de patru lungimi diferite, latimi intre 29ms si 51ms
+si amplitudini intre 0,16 si 0,62 — ~5,4 silabe pe secunda in vorbire, cat o voce de conversatie
+(la 3,9s, cat incercasem intai, ieseau 6,6, adica repezit). Fiindca largirea silabelor umplea pauzele la loc, se scade un
+prag din plicul insumat, ca pauzele sa se goleasca din nou: gura e inchisa **14% din ciclu**.
+
+Masurat in browser, parcurgand ciclul randat:
+
+| | inainte | acum |
+|---|---|---|
+| salt maxim de viteza intre doua esantioane | 15,0 px/s | **7,7 px/s** |
+| salturi peste 40 px/s | 0 | **0** |
+| cursa buzei | 1,49px | 1,37px |
+| esantioane pe ciclu | 81 la 23,75ms | **158 la 29,9ms** |
+| pasi cu viteza aproape zero | 11 din 151 | 20 din 151 (pauzele) |
+
+Cadrele sunt in continuare **generate, nu scrise de mana**: fasia pe care o elibereaza buza si
+inaltimea deschiderii sunt **acelasi numar**, si daca le atingi separat reapare buza-fantoma.
+
+**Si o capcana pe care o las scrisa, ca m-a pacalit o tura intreaga.** Generatorul isi actualiza
+durata cautand textul literal `1.9s` in foaia de stil. Odata ce acolo scria alta durata, cautarea
+nu mai gasea nimic — **in tacere**: cadrele se scriau pentru un ciclu si curgeau in altul, iar
+fiecare masuratoare facuta prin `currentTime` cadea pe faza gresita a curbei. Acum rescrie
+*orice* durata gaseste si **crapa daca nu gaseste exact trei** scurtaturi de animatie.
+
+Am verificat si la marimea la care o vede el, nu doar la 40x: la 1:1 diferenta inchis → deschis
+se citeste, iar dintii nu mai sunt o liniuta alba. Cadrul cu gura inchisa e identic cu fotografia
+— petele palide de pe buza de jos sunt din poza, nu fantome.
+
+Fisiere: `components/hud/guide/GuideAssistant.module.css`. Doc:
+[`docs/04-design-system.md`](./docs/04-design-system.md#asistent-tbs--the-corner-assistant), unde
+am corectat si doua lucruri ramase in urma de la pasul anterior — scria inca `2.55px` cursa si
+„`ease-in-out`, never `linear`", adica exact pe dos fata de cod.
+
+**Un test reparat, niciunul nou.** `guide-assistant.test.tsx` cerea direct `chat-panel` in dialog;
+de cand dialogul incarca toata puntea estimatorului — un import dinamic mai greu decat wizardul pe
+care l-a inlocuit — singurul buget de 1s se ducea pe chunk si testul cadea **doar** cand rula
+suita intreaga (singur trecea in 329ms). Asteapta acum intai `request-flow`, ca testele vecine.
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**, `next build`
+trece la construirea imaginii.
+
+E2e, rulat impotriva containerului construit acum: **222 trec, 15 pica**. Cele 15 nu sunt 15: trei
+dintre ele (`interior-webgl` 506 si 668, `preloader` 674) **trec toate cand le rulez singure** —
+sunt testele WebGL pe randare software, care cad sub incarcare — iar `hud-integration` 102, care
+a trecut in rulare, **pica singur**. Ce ramane stabil sunt exact cele **13 picaturi cunoscute de
+pe `main`**, niciuna langa gura asistentei.
+
+---
+
+## 2026-09-27 — Fixed: buza merge pe jumatate din drum, si miscarea e o curba, nu o lista de poze
+
+*„Buza prea jos se duce, si totdeauna ii prea brusc miscarile."*
+
+**Cursa buzei: 2,55px → 1,49px.** Cutia buzelor ei are 4,7px, deci 2,55 insemna mai mult de
+jumatate din ea — o gura deschisa cat pentru strigat, la fiecare silaba. Deschiderea a scazut
+odata cu ea, fiindca sunt acelasi numar prin constructie (fasia pe care o lasa libera buza **este**
+inaltimea deschiderii); nu se pot regla separat fara sa reapara fantoma.
+
+**Si miscarea era brusca dintr-un motiv pe care easing-ul nu-l putea atinge.** Cadrele-cheie erau
+saisprezece **poze**. Cu `linear`, o interpolare merge cu o singura viteza si intoarce instantaneu
+la fiecare oprire. Cu `ease-in-out`, intoarcerile se domolesc dar viteza ajunge la **zero de
+saisprezece ori pe ciclu** — adica o insiruire de miscari mici, care e exact ce inseamna "brusc".
+Opririle erau in lista de cadre, nu in functia de timp, deci nicio functie de timp nu le putea
+scoate.
+
+Asa ca acum **curba sta in cadre**: un plic neted — suma unor silabe in cosinus ridicat —
+esantionat in **81 de puncte**, la 23,75ms unul de altul, adica sub un cadru la 60fps. Jucat
+`linear`, linia franta *este* curba. Silabele se suprapun putin, deci gura **nu** se inchide
+complet intre ele — se inchide pentru pauza si la capete, adica acolo unde se inchide si una
+adevarata.
+
+Masurat, parcurgand ciclul in pasi de 12,5ms si calculand viteza buzei:
+
+| | inainte | acum |
+|---|---|---|
+| cursa buzei | 2,55px | **1,49px** |
+| salt maxim de viteza intre doi pasi | 15,0 px/s | **10,5 px/s** |
+| pasi cu viteza aproape zero | — | 11 din 151 (exact pauza) |
+| salturi peste 40 px/s | — | **0** |
+
+**Si o greseala a mea, pe care o scriu aici pentru ca a costat o ora.** Am rulat un
+`git checkout` pe `GuideAssistant.module.css` ca sa "nu fac nimic", si comanda a aruncat toata
+munca zilei din acel fisier — nu exista undo pentru asta. Am recuperat-o din stilul compilat aflat
+in imaginea Docker construita cu zece minute inainte (declaratiile sunt toate acolo, comentariile
+nu), impletind-o inapoi cu textul comentat din ultimul commit: 55 din 77 de comentarii s-au intors
+singure, restul le-am rescris din scripturile care le-au produs. Curbele nu le-am recuperat, ci
+**regenerat** din generatorul lor, care e determinist — de-aia au acum 81 de esantioane in loc de
+41, si de-aia miscarea a iesit mai neteda decat era inainte de accident.
+Fisier: `components/hud/guide/GuideAssistant.module.css`.
+
+Fara teste noi. `npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere
+trec**.
+
+---
+
+## 2026-09-27 — Fixed: deschiderea se DESCOPERA, nu se deseneaza — si buzele se misca lin
+
+*„Totdeauna se vede taitura, si buzele nu se misca lin dar foarte brusc, se vede foarte clar ca
+nu este real."*
+
+A cincea incercare, si prima care ataca lucrul care nu mergea. Toate cele patru dinainte au
+**desenat o forma intunecata PESTE buzele ei inchise**, in timp ce buza de jos fotografiata
+ramanea cam unde era. Aia nu e o gura care se deschide, e **o fanta taiata intr-o gura inchisa** —
+si nicio culoare, nicio masca, niciun ritm si nicio anatomie in dinti nu poate convinge ochiul de
+altceva. De-asta o vedeai de fiecare data, oricat de mult reparam in jurul ei.
+
+**O gura adevarata face invers:** buza de jos coboara, iar intunericul dinauntru era acolo tot
+timpul, in spatele ei.
+
+Deci ordinea s-a inversat. Interiorul si dintii se picteaza **primii**; `.jaw` — o fereastra catre
+propria ei buza de jos, asezata exact pe custura buzelor — se pune peste ei si ii acopera complet
+cat timp gura e inchisa; iar pe o bataie buza **coboara** si descopera exact cat s-a mutat.
+
+**Si asta scoate fantoma din calcul prin constructie, nu din noroc.** Un petic care se deplaseaza
+descopera o fasie de original neatins la marginea lui de sus — fasia aia era a doua buza. Aici
+fasia e exact cat inaltimea deschiderii (amandoua ies dintr-un singur numar pe bataie), iar miezul
+opac al peticului e mai **ingust** decat e deschiderea de lata, deci nu ramane niciodata original
+descoperit. Stingerile laterale cad inauntrul deschiderii; cea de jos merge pana la 62% din petic,
+dincolo de unde ajunge marginea buzei dupa 2,55px de drum, si se consuma pe barbie — care n-are ce
+dubla. (La 46% se oprea chiar pe marginea buzei, si o a doua muchie revenea; am prins-o la 6x.)
+
+**Si miscarea era brusca pentru doua motive, amandoua reale.** Ritmul avea **unsprezece**
+deschideri intr-un ciclu de 1,9s — adica 5,8 pe secunda, un ritm la care nicio gura nu ajunge, si
+care se citeste ca palpait. Acum sunt **sapte**, vreo 3,7 pe secunda, cat o vorbire normala. Si
+tranzitia era `linear`: o interpolare liniara merge cu o singura viteza si schimba directia
+instantaneu la fiecare oprire. Acum e `ease-in-out` — fiecare silaba porneste din repaus si se
+aseaza in forma ei, cum fac buzele.
+
+**Verificat la 6x pe toata fata de jos**, in trei stari: tacuta — curata; bataie inchisa — buzele
+ei inchise, nicio dunga, niciun contur; bataie deschisa — buza de jos vizibil coborata, dintii si
+interiorul intre buze, **o singura buza, fara muchie dubla**. Fara teste noi.
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant).
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**. Playwright:
+**223 trecute**. Au picat 14, dar a 14-a (`scroll-rail.spec.ts:319`, spirala din Lucrari, `@webgl`)
+trece cand o rulezi singura — e instabila sub incarcarea suitei intregi, din aceeasi familie cu
+celelalte trei teste ale spiralei care picau si inainte. Deci tot cele 13 pre-existente, niciuna
+noua.
+
+---
+
+## 2026-09-27 — Fixed: falca se intinde, nu se muta — si dintii nu mai sunt albi
+
+*„Deloc nu ai facut ca sa dea din gura cand vorbeste... si dintii sunt prea albi, se arunca foarte
+tare la ochi."*
+
+Ieri am scos plasturele falcii ca sa scap de fantoma, si asa i-am inghetat fata: gura se deschidea,
+dar nimic altceva nu se misca. Aveai dreptate, nu mai dadea din gura. **Si vinovatul nu era
+peticul, era o singura proprietate de pe el.**
+
+`translateY(22%) scaleY(1.2)` sunt **doua** miscari. Translatia e cea care aluneca marginea de sus
+a peticului de pe linia buzelor si descopera o fasie din originalul neatins de dedesubt — fasia
+aia era a doua buza. O scalare pura nu descopera **nimic**: randul din balama nu se misca deloc si
+e identic cu ce e sub el, iar randurile de dedesubt se departeaza de el proportional cu distanta,
+adica exact ce face o mandibula cand se deschide.
+
+Deci falca s-a intors, agatata deasupra buzei de sus, **numai cu scalare**. Masca ei e acum
+verticala, nu radiala: opaca prin buze, unde conteaza precizia, si stinsa pana ajunge la gat —
+singurul loc unde copia intinsa poate sa nu mai coincida cu originalul e mult sub balama, pe
+barbie, care e un camp neted si fara trasaturi. Fiecare bataie a ei vine dintr-un singur numar,
+deschiderea gurii: `falca = 1 + 0,26 × deschidere`, ca sa nu poata rataci una de alta.
+
+**Dintii.** Erau `--txt` la 56% — adica **cel mai luminos lucru de pe toata fata ei**, pe un
+portret in duotone cyan a carui piele cea mai luminoasa sta binisor sub alb. Ochiul se duce la cel
+mai luminos lucru, de-aia se aruncau. Nu sunt un reflex, sunt o banda palida: o treapta deasupra
+buzei in spatele careia stau si o treapta sub obrazul cel mai luminos. Acum sunt la 30%, cu
+opacitatea la 0,88, ca sa se vada putin din cavitate prin ei — smaltul adevarat nu e niciodata o
+umplutura plata.
+
+**Verificat la 6x pe toata fata de jos**, si in trei stari: tacuta — curata; bataie inchisa —
+curata, gura inchisa, nicio dunga; bataie deschisa — falca vizibil coborata, o singura buza,
+niciun contur dublu. Fara teste noi.
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant).
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**, iar
+Playwright da **224 trecute si aceleasi 13 picate** ca la ultimul commit — niciuna noua.
+
+---
+
+## 2026-09-26 — Fixed: taietura de pe barbie era o buza fantoma; plasturele falcii a plecat
+
+*„Totdeauna se vede taitura."* — a treia oara.
+
+De doua ori am reparat altceva. Prima data marginile drepte ale plasturelui (erau reale, le-am
+inlocuit cu o masca). A doua oara dunga de un sfert de pixel de la bataile inchise (era reala, am
+dus-o la `opacity: 0`). **Si de fiecare data fantoma de dedesubt a ramas**, pentru ca n-o cautasem
+unde era: m-am uitat la gura, nu la barbie.
+
+**Cauza.** `.jaw` era o fereastra catre propria ei fata de jos, decupata de la linia buzelor in
+jos, care cobora si se intindea pe ritmul vorbirii. E o idee desteapta si **nu poate functiona**.
+Un petic dintr-o fotografie, deplasat peste **aceeasi** fotografie, lasa originalul la vedere
+oriunde copia mutata nu-l acopera — deci fiecare trasatura dinauntrul peticului e desenata de doua
+ori. Fotografiat la 6x pe bataia cea mai larga: barbia ei purta **o a doua buza de jos** la 2,5px
+sub prima, si inca una mai stearsa sub ea, pe toata durata fiecarei propozitii. O masca mai moale
+nu sterge asta; transforma o muchie dubla intr-o pata, ceea ce e mai rau.
+
+Si nu se putea salva cuplandu-l cu deschiderea: peticul are 25,6px latime, deschiderea 9,7 — la
+colturile gurii fasia descoperita ramane mereu neacoperita. De-asta se vedea **totdeauna**.
+
+**Ce am facut: fata nu se mai misca deloc.** Niciun pixel din fotografie nu mai e deplasat. Vorbesc
+doua lucruri care n-au fost niciodata in poza — deschiderea si dintii — plus `.lipShade`, o umbra
+moale sub buza de jos pe aceleasi batai. O umbra e **aditiva si fara trasaturi**, deci da senzatia
+ca falca a coborat fara sa poata dubla nimic. Au plecat cu peticul: `--jx`, `--jw`, `--jh` si
+cadrele-cheie `guide-say`.
+
+**Verificat la 6x pe toata fata de jos** (nu doar pe gura — greseala pe care am facut-o de doua
+ori): barbia e curata, o singura buza, niciun contur dublu, nicio pata. Gura tace la `scaleY(0)`,
+se deschide la 2,11px, iar sub reduced-motion nu se misca nimic.
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant).
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**, iar
+Playwright da **224 trecute si aceleasi 13 picate** ca la ultimul commit — niciuna noua.
+
+---
+
+## 2026-09-26 — Changed: gura asistentei se deschide cu adevarat, si are dinti
+
+*„Fa gura asistentului cand vorbeste sa se miste mai real, nu pur si simplu o taitura, si adauga
+dinti."*
+
+Aveai dreptate pe amandoua, si a doua o explica pe prima. Ce misca gura pana acum era **un
+petic din propria ei fata de jos**, decupat eliptic si coborat pe o sinusoida — o singura forma,
+mai tare si mai incet. Fotografiat la 6x cat vorbea, se vedeau si marginile peticului: un prag
+vertical drept la fiecare colt al cutiei si arcul elipsei taind peste barbie. Aia era taietura.
+
+**Trei piese acum, in locul uneia:**
+
+1. **Falca** isi face treaba mai departe (coboara barbia si buza de jos), dar nu mai are margini.
+   `clip-path: ellipse()` a fost inlocuit cu o masca radiala moale: un decupaj schimba patru
+   muchii drepte pe una curba, si curba **se vedea**. O masca nu are nicio margine — e opaca peste
+   buze si ajunge la zero inainte sa apuce ochiul sa prinda un contur.
+
+2. **Deschiderea**, care e piesa care lipsea. Nu atarna sub linia buzelor, o **incaleca**: prima
+   versiune, asezata la `--mo` cu balamaua sus, se deschidea numai in jos si picta peste buza de
+   jos — fotografiat, arata ca o crestatura in barbie. Acum 34% din ea sta deasupra custurii si de
+   acolo se balamaleaza, ca la o gura adevarata: falca ia cea mai mare parte a cursei, buza de sus
+   se ridica putin.
+
+3. **Dintii sunt pictati**, pentru ca fotografia n-are de unde sa-i dezvaluie: ea e cu gura
+   inchisa in poza. Prima versiune era un `repeating-linear-gradient` — sase dinti identici, egal
+   de luminosi, egal distantati — si exact asa arata „nu par reali": o arcada adevarata nu e
+   niciunul dintre cele trei lucruri. Acum despartiturile sunt puse de mana, acolo unde le are o
+   arcada frontala (canin · lateral · central | central · lateral · canin, deci 16 / 32 / 50 / 68 /
+   84), **linia mediana e cea mai apasata** fiindca ea e singura pe care o arata cu adevarat o
+   fata, iar cei doi centrali sunt mai luminosi decat lateralii, care sunt mai luminosi decat
+   caninii — nu stilizare, ci arcada care se intoarce de la camera. Muchia de taiere e
+   translucida la un dinte real, deci acolo se intuneca, nu se lumineaza. Si intre buza de sus si
+   dinti a ramas o dunga de cavitate: fara ea, banda arata ca o bara infipta in fata, nu ca
+   niste dinti care stau in spatele unei buze. Doar arcada de sus: la marimea asta, cei de jos ar
+   fi inca o linie palida la un pixel sub prima.
+
+**Ce face miscarea sa fie vorbire si nu o pulsatie:** o singura animatie care poarta **ambele
+axe**. O falca doar se deschide si se inchide, deci singura da mereu aceeasi forma. O gura isi
+schimba si **latimea**, iar dezacordul dintre cele doua face silabele: lat si plat e „e/i", ingust
+si inalt e „o/u", amandoua deschise e „a", amandoua langa zero e „m/b/p" — pe care o propozitie
+reala le loveste tot timpul. Fiecare bataie deschisa are alta pereche, si nicio bataie vecina nu
+repeta o forma. Cele doua pauze sunt aceleasi pe care le ia si falca, iar in ele gura e **inchisa
+de tot**, nu aproape: un cap vorbitor care nu-si inchide niciodata buzele e a doua dovada de
+papusa, dupa cel care nu variaza.
+
+**Si asta a fost a doua taietura, gasita abia dupa ce ai spus ca se vede „totdeauna".** Bataile
+inchise tineau `scaleY(0.04)` — vreo cincime de pixel de deschidere. Atat nu dispare, ci se
+**antialiaseaza**: fotografiat la 8x, fiecare bataie inchisa lasa o dunga subtire si luminoasa
+culcata peste buzele ei, iar cum cea mai mare parte dintr-o propozitie e alcatuita din batai
+inchise, dunga era pe ecran aproape tot timpul. Acum o gura inchisa e `scaleY(0)` **si**
+`opacity: 0`, iar cadrele de consoana pe jumatate deschise se sting proportional, asa ca o gura
+abia intredeschisa se citeste ca o umbra moale, nu ca o linie trasa. In tacere n-a fost niciodata
+nimic — am fotografiat si starea aceea ca sa fiu sigur.
+
+**Culoarea a fost a doua greseala.** Prima incercare avea cavitatea la `--void` curat (#0a0b10) si
+la 8x era exact ce scrie in avertismentul mai vechi din fisier: o gaura perforata in fata ei.
+Amestecata doua treimi spre cyan-ul in care e duotonata poza, cavitatea cade fix unde sta deja
+custura buzelor ei — destul de intunecata cat sa fie o deschidere, nu atat cat sa nu mai faca parte
+din fata. Dintii, la fel: `--txt` curat la 2,6px arata ca o sclipire de crom, asa ca stau o treapta
+sub cea mai luminoasa piele din fotografie.
+
+Totul e proportional cu cutia buzelor masurata de `tools/guide/asset.mjs` (`--mx/--mw/--mh/--mo`),
+niciodata in pixeli, deci tine la fiecare treapta de `--bust`. Sta **sub** `.wash`, asa ca liniile
+de scanare si trecerea de multiply ii traverseaza si dintii: face parte din holograma, nu e o forma
+alba lipita peste ea.
+
+**Verificat in browser**, oprind animatia exact pe fiecare bataie (numele cadrelor-cheie sunt
+rescrise de modulul CSS, deci potrivite pe fragment):
+
+| stare | transform | inaltime desenata |
+|---|---|---|
+| tace | `scaleY(0)`, `opacity: 0` | **0** — invizibila |
+| bataie inchisa, in mijlocul vorbirii | `scaleY(0)`, `opacity: 0` | **0** — a fost 0,2px si se vedea |
+| vorbeste | `scale(0.72, 0.61)` | 2,24px |
+| reduced-motion, chiar si vorbind | `scaleY(0)` | **0** — nicio animatie |
+| sub 641px | — | nu se misca, ca si falca |
+
+La marimea ei reala (cutia de 184px, ecran 2x) diferenta dintre inchis si deschis se citeste
+limpede. Fisiere: `components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant) ·
+[05](./docs/05-page-sections.md#asistent-tbs-the-corner-assistant).
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec** — inclusiv cel
+care umbla prin fiecare bloc de cadre-cheie din fisier si pica daca declara altceva decat
+`transform` sau `opacity`.
+
+---
+
+## 2026-09-26 — Changed: puntea din modal incape pe un ecran, fara derulare
+
+*„Perfect, dar fa sa incapa totul fara scroll daca este posibil."*
+
+Incape. Masurat inainte, la 1440×900: panoul se oprea la **760px — chiar si pe o fereastra de
+1080px inaltime**, capul lua 118 si corpul 640, in timp ce puntea avea nevoie de 747. **Lipseau
+107px**, deci butonul de trimis statea sub falduri fix pe ecranul al carui rost e ca totul sa fie
+la vedere. Doua mutari:
+
+**1. Panoul poate folosi fereastra.** Cei 760px sunt o dimensiune semnata pentru un dialog al carui
+continut e text si campuri; acesta are inauntru o consola. Pentru varianta `ground="ink"` plafonul
+devine `100dvh` minus marginile, iar capul si corpul isi strang gutierele cu 12 si 16px — puntea
+isi aduce propria captuseala, asa ca se dublau. Panoul **nu** e intins de asta: se dimensioneaza
+dupa continut, deci creste doar cat ii cere puntea.
+
+**2. Puntea are un ritm mai strans in dialog** — si numai acolo. Pagina poate fi oricat de inalta;
+un dialog nu poate. **Numai spatiere:** nicio culoare, niciun contur, nicio raza, niciun font, nicio
+forma de pastila. In clipa in care ar atinge una, dialogul ar redeveni un al doilea design, adica
+exact ce tocmai a plecat. Captuseala punții 28→20, marginile pastilelor 12/24→10/16, pastila
+12/15→10/14, asistenta 22/18→14/14, panoul propunerii 24→18, campurile 11→9, iar campul de
+detalii 3→2 randuri (singurul a carui inaltime e o alegere, nu un rand de text).
+
+Efectul secundar placut al pastilelor mai strimte: **grupul „02" a trecut de pe doua randuri pe
+unul singur** (108 → 45px).
+
+| fereastra | panou | inainte lipseau | acum |
+|---|---|---|---|
+| 1440×900 | 720 (din 852 disponibili) | 107px | **0** |
+| 1366×768 | 720 (din 720) | — | **0** |
+| 1280×800 | 720 (din 752) | 115px | **0** |
+| 1050×870 | 720 (din 822) | 105px | **0** |
+| 1280×720 | 672 | — | mai lipsesc 48px |
+| 1024×640 | 592 | — | mai lipsesc 128px |
+
+Puntea a scazut de la 683 la **568px**. Incape pe orice fereastra de la **768px inaltime in sus**,
+ceea ce acopera laptopurile obisnuite (1366×768, 1440×900, 1536×864, 1920×1080). Sub atat tot
+deruleaza — la 1280×720 cu 48px — si n-am fortat mai mult, pentru ca de acolo incolo ar fi
+inceput sa se stranga lucruri care nu mai au de unde.
+
+**Pagina nu s-a clintit:** aceeasi punte de `1280×639` inainte si dupa, masurata la aceeasi
+fereastra. Regulile noi sunt scrise `.box[data-layout="dialog"] ...` — cu clasa locala in fata,
+pentru ca un modul CSS refuza un selector care n-are una („not pure"), si pe buna dreptate: un
+atribut gol ar fi iesit din modul si ar fi vopsit orice de pe pagina.
+Fisiere: `components/ui/Modal.module.css`, `components/sections/Estimator.module.css`,
+`components/sections/Estimator.tsx`.
+Doc: [05](./docs/05-page-sections.md#07--estimator--contact-estimează-prețul).
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**, iar
+Playwright da **224 trecute si aceleasi 13 picate** ca la ultimul commit — niciuna noua.
+
+---
+
+## 2026-09-26 — Changed: cererea din modal e aceeasi punte ca la estimator
+
+*„Acum aici fa design identic ca aici."*
+
+Dialogul de cerere avea un design al lui: trei pasi numerotati, „Pasul 1 din 3", Înapoi/Continua,
+si asistenta ascunsa in spatele unui buton „Ghidat". Acum e **exact puntea de la `#estimare`** —
+`01 · TIP PROIECT`, `02 · OPTIUNI CARE CONTEAZA`, asistenta in stanga, iar in dreapta
+`PROPUNEREA TA` cu pretul mare si formularul. Tot ce era vrajitor a plecat.
+
+**De ce exista vrajitorul, si cum am raspuns altfel.** Comentariul din cod spunea limpede:
+doua coloane sunt bune la latimea paginii si „cramped inside a 960px modal". Asa si era, dar
+raspunsul lui era un al doilea design de intretinut. Raspunsul de acum e ca **puntea se masoara
+pe sine**, nu pe fereastra: `container: deck / inline-size` pe `.box` si
+`@container deck (width < 711px)` in loc de `@media (max-width: 820px)`.
+
+711 nu e un numar rotund, e pragul paginii insasi: cea mai ingusta punte cu doua coloane pe care
+a desenat-o vreodata pagina, la fereastra de 821px unde se declansa vechea regula. Masurat inainte
+de schimbare, regula pe fereastra mintea: intr-o fereastra de 1440px pagina dadea puntii 1222px si
+dialogul 838px — aceeasi regula, doua realitati. Exista chiar o banda (fereastra 821-870px) in care
+regula spunea doua coloane iar puntea era mai ingusta decat orice punte cu doua coloane validata
+vreodata. Nu se vedea, pentru ca ambele nise au `min-width: 0` si modalul taie ce iese.
+
+**Patru lucruri care ar fi cazut in tacere**, gasite de o cartografiere in patru fire inainte de
+prima taietura:
+1. **Opt reguli erau legate de `[data-layout="section"]`** — si atributul sta chiar pe `.box`.
+   Aceeasi bucata de cod publicata ca `dialog` ar fi pierdut lumina care curge pe rama panoului,
+   haloul rosu, cele trei reguli ale bataii de pret la schimbarea cifrei, si intreaga rama de
+   fereastra a asistentei. Nimic n-ar fi dat eroare. Acum nicio regula nu mai depinde de strat;
+   `data-layout` a ramas doar **comportament** (asistenta din colt se da la o parte doar din fata
+   formularului paginii, iar specurile le deosebesc dupa el).
+2. **`ref={boxRef}` era doar pe sectiune**, iar el e cel care pune `data-entered` — fara el lumina
+   de pe sina ar fi stat parcata la `-190px` pentru totdeauna.
+3. **Pretul era dimensionat din `4.6vw`**, intr-un panou care nu creste cu fereastra: 52px intr-o
+   nisa de 273px, si cum `.price` are `overflow-wrap: anywhere`, cifra proprietarului s-ar fi rupt
+   pe doua randuri prin mijloc. Acum `4.3cqi` — tot 52px pe pagina, 36px in dialog.
+4. **Panoul modalului era `--panel`**, iar puntea e gandita ca o consola aprinsa intr-o camera
+   **neluminata**: masurat, puntea da 1,25:1 pe fundalul paginii si ~1,06:1 pe `--panel`, deci
+   consola si camera deveneau aceeasi culoare. `Modal` a primit o proprietate, `ground="ink"`,
+   pentru un continut care isi aduce propriile suprafete.
+
+**Si doua lucruri pe care vrajitorul le facea, iar puntea a trebuit sa le invete:** nota de
+atasament („Selectia din calculator ... pleaca impreuna cu cererea") — acum sub pret, in panoul
+propunerii, unde ii e locul; si `openAssistant`, care nu mai deschide nimic (asistenta e mereu pe
+ecran) ci **muta focusul** la ea — exact promisiunea din numele accesibil al asistentei din colt.
+Plus id-urile: `estimator-chat-input` si `estimator-details` primesc sufixul `-dialog`, fiindca de
+acum dialogul deschis peste pagina are intotdeauna doua compozitoare, nu doar cand cerea cineva
+asistenta.
+
+**Sters:** componenta pasilor si tot ce tinea de ei (`STEPS`, `NAV`, `PATHS`, `stepHint`,
+`stepIndex`, `chatOpen`, trei ref-uri, doua efecte de focus), 47 de blocuri de reguli din foaia de
+stil (`progress*`, `step*`, `path*`, `navBack`, `navNext`, `proposal*`, `chatPanel`), si intregul
+strat de mers prin pasi din `e2e/helpers.ts` (`goToStep`, `expectActiveStep`, `clickStepNav`,
+`clickStepIndicator`, `goBackOneStep`, `openChat`, `chatToggle`, `requestSteps`,
+`currentStepItem`) — cu tot cu nota „contract gap" despre butonul de „mai departe" pe care nimeni
+nu-l numise: nu mai exista pasi intre care sa te misti.
+Fisiere: `components/sections/Estimator.tsx`, `Estimator.module.css`, `components/ui/Modal.tsx`,
+`Modal.module.css`, `lib/request/RequestFlowProvider.tsx`, `e2e/helpers.ts`,
+`e2e/request-flow.spec.ts`, `e2e/modal.spec.ts`.
+Doc: [05](./docs/05-page-sections.md#07--estimator--contact-estimează-prețul) ·
+[14](./docs/14-testing.md) · [`e2e/README.md`](./e2e/README.md).
+
+**Masurat in browser**, dupa reconstructia imaginii, la patru latimi:
+
+| fereastra | panou | punte | nise | pret |
+|---|---|---|---|---|
+| 1440 | 960 | 894 | 484 / 322 | 36px, un rand |
+| 1024 | 960 | 894 | 485 / 324 | 36px, un rand |
+| 860 | 812 | 746 | una | 30px |
+| 390 | 370 | 336 | una | 30px |
+
+Niciun derulaj orizontal la nicio latime; `data-entered` se pune si in dialog; niciun `#estimare`
+in dialog. Fotografiile puse una langa alta (`.scenes/punte-sectiune.png` si
+`.scenes/punte-dialog-ro.png`) arata acelasi desen — singurele diferente sunt cele pe care le face
+latimea: pastilele trec pe mai multe randuri, iar cifra e mai mica.
+
+**Ce a mai gasit o recenzie adversariala** pe patru dimensiuni (regresii, CSS, accesibilitate,
+teste), rulata dupa ce schimbarea era gata — 14 constatari confirmate, dintre care acestea erau
+ale schimbarii si sunt reparate:
+- **Asistenta putea primi focusul fara sa se vada.** `openAssistant` muta focusul pe panoul ei,
+  iar eu stersesem `.chatPanel:focus-visible` odata cu clasa. Inelul e inapoi, pe `.chat`, si pe
+  tokenul pe care il folosesc celelalte inele din fisier (`--red-lift 55%`, nu `--red 40%`).
+- **Dialogul ramasese fara niciun titlu interior.** Vrajitorul avea cate un `<h3>` pe pas; puntea
+  avea trei etichete care erau `div`-uri. Pentru cineva care citeste cu un cititor de ecran,
+  dialogul nu mai avea nicio structura. Cele trei etichete sunt acum titluri adevarate.
+- **Panoul propunerii era un `<aside>`**, adica un reper de continut *tangential* — pe pagina se
+  putea trece cu vederea, in dialog anunta chiar formularul cererii ca fiind o paranteza. E `div`.
+- **Contractul din editor mintea:** JSDoc-ul lui `EstimatorProps.layout`, documentatia lui
+  `RequestSection` si doua comentarii inca descriau cei trei pasi. Un al treilea apelant le-ar fi
+  citit si ar fi primit altceva.
+- **Doua lucruri pe care suita le-ar fi rasplatit daca le stergeam:** sufixul `-dialog` de pe
+  id-uri si proprietatea `ground="ink"` n-aveau niciun test. Au cate unul acum.
+- **Un test devenise gol:** „44px pe fiecare buton" citea regula `.tipOpen, .tipNever`, iar
+  `.tipNever` era CSS mort ramas de la stergerea ghidului de azi-dimineata. CSS-ul mort a plecat,
+  testul citeste ce exista. La fel, un fir de schela moarta (`covers`) din acelasi fisier.
+- Si `dictationSlot` din helperi cauta pe toata pagina, desi de acum pot exista doua sloturi
+  simultan; primeste o radacina.
+
+Doua constatari le-am lasat, pentru ca sunt mai vechi decat schimbarea si nu tin de ea: pretul se
+schimba fara sa fie anuntat (n-are regiune live), iar jurnalul chatului e o zona derulabila la care
+tastatura nu ajunge.
+
+**Playwright: 224 trec.** Cele 13 care pica erau rosii si la ultimul commit (`6d695af`) — le-am
+masurat separat, intr-o copie curata a depozitului la HEAD, ca sa nu ghicesc: derularea nu se
+reface dupa meniul burger si dupa modal, cardurile nu se inclina sub mouse, si trei teste ale
+spiralei din Lucrari. Niciuna nu tine de schimbarea asta, si niciuna noua n-a aparut.
+
+`npx tsc --noEmit` si `npm run lint` curate, **1548 de teste in 76 de fisiere trec**
+(`contact-form` a scazut 47 → 42: blocul vrajitorului a devenit blocul puntii, cu mai putine teste
+care spun mai mult; plus cele trei asigurari de mai sus).
+
+---
+
+## 2026-09-26 — Removed: intrarea ei mare; ramane doar patratul
+
+*„Fa sa nu apara mare, scoate, lasa doar asistentul cel mic in patrat."*
+
+Asistenta se construia singura peste coltul paginii inainte sa se aseze in patrat: **3,4 secunde
+la 230px** (320 de la 861px) — de trei ori cutia ei — un con de proiector, saisprezece benzi din ea
+zburand alternativ din stanga si din dreapta, un scaner care urca pe fascicul, doua sacadari de
+fixare, o unda de soc, si abia apoi asezarea. A plecat toata.
+
+Ce ramane: **ea, la marimea patratului ei**, care apare printr-o singura stingere de 0,4 s.
+Opacitate si nu vechiul `guide-rise` (care o si scala si o ridica): o transformare schimba cutia pe
+care o masoara `getBoundingClientRect`, iar specurile HUD masoara chiar acest element fata de
+marginea din dreapta a ferestrei si fata de reperele ruletei — o intrare care depaseste o clipa
+cutia ar face ca acele masuratori sa depinda de momentul in care se intampla sa ruleze.
+
+**Ce a disparut din cod:** componenta `Projector` cu cele saisprezece felii, starile `greeting` si
+`entering`, bucla de cadre care astepta sa nu mai fie nimic peste ea (`isClear`), constantele
+`ENTER_MS` si `GREET_WAIT_MS`, atributele `data-greet` si `data-state`, carligul de test
+`guide-greeting` — si din foaia de stil sectiunea proiectorului cu tot cu `.greeting`, `.cone`,
+`.emitter`, `.slices`, `.scanner`, `.shock`, `.reveal` si **noua seturi de cadre-cheie**
+(`guide-strike`, `guide-cone`, `guide-slice`, `guide-slice-out`, `guide-handover`, `guide-scan`,
+`guide-lock`, `guide-shock`, `guide-greet`, plus `guide-rise` inlocuit de `guide-appear`).
+Foaia de stil a scazut de la 1529 de linii (ultimul commit) la 1036. Au plecat si doua reguli moarte ramase de la
+ghid: `.root[data-state="prompt"]`, care nu mai putea fi adevarata din clipa in care sfatul a fost
+sters.
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant) ·
+[05](./docs/05-page-sections.md#asistent-tbs-the-corner-assistant) · [`e2e/README.md`](./e2e/README.md).
+
+**Verificat in browser**, dupa reconstructia imaginii: 400 de cadre masurate, din prima clipa in
+care ea exista. Pe fiecare cadru exista **un singur** desen al ei, iar cel mai lat a fost de
+**110px**, inauntrul cutiei ei de 184px — inainte, proiectia era de 320. `data-state` si
+`data-greet` nu mai exista, iar `guide-greeting` nu apare in pagina.
+
+`npx tsc --noEmit` si `npm run lint` curate, **1552 de teste in 76 de fisiere trec**. Am rescris
+testul intrarii in locul stergerii lui: fixeaza acum exact ce ai cerut — un singur desen al ei,
+inauntrul butonului, la 0, 34, 3400 si 10000 ms.
+
+---
+
+## 2026-09-26 — Removed/Fixed: panoul de la inceput, si al doilea ecran de incarcare
+
+*„Scoate panoul acesta informativ de la inceput — si pana merge intro siteul poate sa faca
+rendering prin spate, ca dupa intro eu mai astept si loading."*
+
+Doua lucruri care apareau fara sa le ceara nimeni.
+
+**1. Panoul asistentei.** Bula cu „Bună! Am pregătit câteva răspunsuri scrise." se deschidea singura
+in clipa in care ea termina de intrat. A plecat, impreuna cu `GUIDE_COPY.hello`, cu `dismiss`
+(eticheta de inchidere a acelei bule) si cu modul de vorbire al bulei, cu tot cu coada lui. Ea
+ramane intreaga: intra, respira, clipeste, si **asteapta**. Bula are un singur mod acum —
+intrebarile ei — si se deschide doar cand o apesi. Gura ei tot se misca 7 secunde dupa un raspuns,
+atat mai inseamna `data-say`.
+Fisiere: `components/hud/guide/GuideAssistant.tsx`, `copy.ts`, `GuideAssistant.module.css`.
+Doc: [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant) ·
+[05](./docs/05-page-sections.md#asistent-tbs-the-corner-assistant).
+
+**2. Al doilea ecran de incarcare.** Masurat pe o incarcare rece a lui `/` la 1440×900: filmul
+descoperea pagina la **8,19 s** si capacul BootCore urca imediat, la 8,21 s, si statea pana la
+**13,80 s**. **5,6 secunde de asteptare dupa un film pe care vizitatorul tocmai il privise.**
+Am fotografiat pagina de dedesubt cu capacul fortat jos: antet, titlu, lead, ambele butoane, arta
+statica a eroului si ambele cutii cu cifre — exact ce primeste pentru totdeauna un vizitator fara
+WebGL. Capacul ascundea o pagina terminata. Acum, dupa un intro, **nu mai urca deloc**:
+`finishIntro` scrie `data-intro-played` pe `<html>` chiar pe cadrul descoperirii, iar regula din
+stylesheet il tine jos pentru tot restul documentului. Un intro ocolit (reduced-motion, `#sectiune`)
+nu scrie nimic si isi pastreaza capacul — acela chiar n-a descoperit nimic.
+Fisiere: `lib/intro.ts`, `components/ui/PageLoading.module.css`, `components/ui/PageLoading.tsx`.
+Doc: [03](./docs/03-architecture.md#the-full-window-cover-and-the-object-on-it).
+
+**3. Si scena se pregateste in spatele filmului** — partea de „rendering prin spate" care se poate
+face fara sa strice filmul. La 2,5 s de intro (`SCENE_TIMING.WARM_MS`) scena isi cere cele doua
+bucati de cod: runtime-ul 3D (de obicei deja in cache, intro-ul trece prin acelasi `import()`) si
+bucata regizorului, GSAP + ScrollTrigger, care **nu** e partajata. Raspunsul GPU e **citit** din
+cache-ul sesiunii, niciodata sondat — un al doilea context viu sub film e exact ce evitam. Contextul
+WebGL si compilarea shaderelor tot asteapta: intro-ul isi deseneaza scena pana la capatul
+exploziei, iar o blocare acolo ar cadea peste cadrele pe care e construit tot inceputul.
+O scena pregatita asteapta apoi doar cele 600 ms in care R3F elibereaza contextul intro-ului, nu si
+decantarea de 1500 ms — aceea exista ca cererile de cod sa nu concureze cu prima pictura si cu
+hidratarea, si niciuna nu mai are loc la opt secunde de la pornire.
+Fisiere: `components/scene/SceneStage.tsx`, `lib/scene.ts`.
+Doc: [03](./docs/03-architecture.md#loading-pipeline).
+
+**4. Trecerea a devenit o incrucisare adevarata.** Fara capac deasupra, schimbul se vede: cutiile cu
+cifre din erou treceau la `opacity: 0` pe un cadru, in timp ce panourile 3D de sub ele abia
+incepeau sa apara. Acum se sting pe **aceeasi** curba pe care se aprinde panza
+(`cubic-bezier(0.4, 0, 0.2, 1)`, 500 ms) — nu pe `--motion-ease-out`, care e aproape instant la
+inceput: masurat cu el, la 120 ms cutia era la 20% si panza la 20%, adica o scadere la doua cincimi
+din luminozitate fix la mijlocul schimbului. Cu aceeasi curba, suma ramane 100 pe fiecare cadru:
+97+3, 87+13, 63+37, 39+61, 22+78, 6+94, 1+99.
+Fisier: `app/globals.css`.
+
+**Verificat, in browser, dupa reconstructia imaginii (`--no-cache`):**
+
+| | inainte | dupa |
+|---|---|---|
+| capacul BootCore dupa intro | 8,21 s → 13,80 s (**5,6 s**) | `display: none` tot timpul |
+| panza scenei se monteaza | 12,11 s | **10,58 s** |
+| `data-renderer="webgl"` | 13,33 s | **11,16 s** |
+
+Fara incalzire (aceeasi imagine, cu sondele pe moduri GPU diferite, deci calea veche) panza venea
+la 11,99 s — deci incalzirea singura scuteste ~1,4 s, iar capacul scutea restul.
+Asistenta, la 4 s si la 10 s dupa intrarea ei: nicio bula, gura inchisa; apasata, se deschid cele
+**6 intrebari**.
+
+`npx tsc --noEmit` si `npm run lint` curate, imaginea se construieste, **1552 de teste in 76 de
+fisiere trec**. Teste: am rescris doua care fixau comportamentul vechi (bula salutului, si
+„intro-ul nu programeaza nimic") si am adaugat **unul singur** — cel care fixeaza ca asteptarea de
+dupa intro ramane de 600 ms cand scena s-a incalzit. Daca aceea se intoarce in liniste la 2100 ms,
+se intorc si secundele.
+
+---
+
+## 2026-09-26 — Fixed: asistenta ramane, ghidul din ea pleaca
+
+*„Tu ai scos si asistentul, dar asistentul nu trebuia, doar ghidul."*
+
+Aveam dreptate ta: erau doua lucruri in acelasi fisier, iar eu le-am scos pe amandoua. Acum sunt
+separate cum trebuia de la inceput.
+
+**Ce a ramas (asistenta):** proiectia holografica din colt, cu respiratia, clipitul si gura ei;
+salutul de la inceput; panoul cu intrebari la care raspunde cand o apesi; butonul din bula ei care
+deschide cererea. Plus tot ce o tine in viata: iesirea din cale peste formularul din `#estimare`,
+cedarea cand focusul ajunge sub ea, si stratul 112 care o tine deasupra ruletei.
+
+**Ce a plecat (ghidul):** sfatul care aparea **singur**, dupa 5 secunde de stat pe o sectiune, cu
+„Deschide ghidul" si „Nu mai arata" sub el. Cu el au plecat motorul lui (`lib/hud/linger.ts`:
+limite, memorie, `canPrompt`, `pickTopic`), observatorul liniei de mijloc si scanarea de topicuri
+(`[data-guide-topic]` nu mai e pe paginile de serviciu), textele `prompts` si sursa de CTA
+`guide-prompt`. **Ea nu mai incepe nicio conversatie** — in afara de salut, vorbeste doar cand o
+apesi.
+
+**Si numele.** O chema „Ghid TBS" pe ecran. Cum ghidul e exact ce ai vrut sa dispara, acum e
+**„Asistent TBS" / „Ассистент TBS" / „TBS Assistant"** — la fel ca asistentul din estimator. Daca
+vrei alt nume, se schimba intr-un singur fisier.
+
+**Verificat:** `npm run build`, `npx tsc --noEmit` si `npm run lint` curate; **1551 de teste in 76
+de fisiere trec**. N-am scris niciun test nou: am sters testele sfatului (fisierul ei a scazut
+44 → 19, iar `guide-linger.test.ts` a plecat cu motorul) si am corectat ce ramasese. In browser,
+dupa reconstructia containerului: e in colt la (1236, 696), 184×184, strat 112, cu cinci animatii
+care ruleaza.
+
+**Fisiere:** `components/hud/guide/{GuideAssistant.tsx,copy.ts}` · `components/hud/HudChrome.tsx` ·
+`app/globals.css` · `components/sections/DirectionPage.tsx` · `lib/hud/linger.ts` (sters) ·
+`e2e/helpers.ts` · testele de mai sus
+
+**Docs:** [04](./docs/04-design-system.md#asistent-tbs--the-corner-assistant) ·
+[05](./docs/05-page-sections.md#asistent-tbs-the-corner-assistant) · [14](./docs/14-testing.md)
+
+---
+
+## 2026-09-26 — Removed: ghidul din colt, definitiv
+
+*„Ghidul totdeauna sterge-l."*
+
+Scos din nou, si de data asta pentru totdeauna. Au plecat aceleasi 15 fisiere (componenta, CSS-ul,
+copy-ul, `lib/hud/{linger,obscure,busy}.ts`, portretul, unealta din `tools/guide/`, cele patru
+fisiere de teste si `e2e/guide.spec.ts`), plus cusaturile: montura din `HudChrome`, tokenul
+`--z-guide`, atributul `data-guide-topic` de pe paginile de serviciu, sursele `guide` /
+`guide-prompt`, localizatoarele din e2e si testele care il numeau.
+
+**Si ruleta de scroll isi primeste inapoi marginea.** Ieri ridicasem `--hud-bottom` la 208 ca sa nu
+se suprapuna peste portretul de 184px; fara ea, ruleta coboara iar pana la 112.
+
+Ce ramane in picioare, ca si data trecuta: montura HUD-ului cu poarta ei de armare (singura piesa
+care mai atarna de ea e ruleta, de la 861px in sus), fluxul de cerere pe care il deschidea
+(`openAssistant`, `guideTopic`, ids in `lib/hud/topics.ts`) si comutatorul `tbs_hud`.
+
+**Nu am scris niciun test nou pentru asta** — am sters cele patru fisiere ale lui si am corectat
+testele care il numeau. **1514 teste in 73 de fisiere trec**, `npm run build`, `npx tsc --noEmit` si
+`npm run lint` curate. E2E: **238 de teste in 15 fisiere**.
+
+**Fisiere:** `components/hud/HudChrome.tsx` · `app/globals.css` · `app/(site)/layout.tsx` ·
+`components/hud/rail/*` · `components/sections/{DirectionPage,Estimator}.tsx` ·
+`lib/request/{RequestFlowProvider.tsx,catalog.ts}` · `lib/hud/{gate,rail,topics}.ts` ·
+`e2e/{helpers.ts,hud-integration.spec.ts,scroll-rail.spec.ts}` · testele de mai sus
+
+**Docs:** [03](./docs/03-architecture.md) · [04](./docs/04-design-system.md) ·
+[05](./docs/05-page-sections.md) · [07](./docs/07-conventions.md) · [11](./docs/11-security.md) ·
+[14](./docs/14-testing.md) · [16](./docs/16-i18n-seo.md) · [02](./docs/02-tech-stack.md) ·
+[`SECURITY.md`](./SECURITY.md)
+
+---
+
+## 2026-09-26 — Added: asistenta din colt este inapoi
+
+*„Pune asistentul inapoi."*
+
+Ghidul TBS — asistenta holografica din coltul din dreapta jos — a fost scos ieri la cerere si
+**este pus la loc azi, intreg**: fisierele, cusaturile si testele lui.
+
+**Cum, ca sa nu se piarda nimic din ce s-a lucrat intre timp.** Stergerea de ieri atinsese 36 de
+fisiere, iar peste ele s-au asezat apoi alte trei lucrari (panourile 3D din hero, scoaterea
+randurilor mici de deasupra titlurilor, corectiile de la intro). Asa ca nu am dat pur si simplu
+„inapoi": am impartit fisierele in doua.
+
+- **21 de fisiere in care singura schimbare de ieri era scoaterea ghidului** — restaurate exact din
+  git, plus cele 15 fisiere sterse (componenta, CSS-ul, copy-ul, `lib/hud/{linger,obscure,busy}.ts`,
+  portretul din `public/guide/`, unealta din `tools/guide/`, si cele patru fisiere de teste).
+- **Restul, pe mana**, cusatura cu cusatura: tokenul `--z-guide: 112` din `globals.css` (fara el
+  avatarul nu are strat), atributul `data-guide-topic="service"` de pe sectiunea „Cum lucram" a
+  paginilor de serviciu si testul lui, comentariile din estimator, si documentatia din
+  `docs/03, 04, 05, 07, 11, 14, 16`. In `docs/04` am refacut fisierul din git si am repus peste el
+  sectiunea panourilor 3D, ca sa nu raman cu o taietura gresita.
+
+**Ce NU s-a atins:** panourile holografice din hero (cifrele desenate de scena 3D), scoaterea
+randurilor mici de deasupra titlurilor, si cele doua corectii de la intro (documentul pre-incarcat
+de browser si `#sectiune` ramas in bara). Toate trei sunt in continuare acolo si verificate.
+
+**Si o defectiune adevarata, gasita punand-o la loc:** asistenta a crescut pe 24 septembrie (de la
+droidul de 88px la portretul de 184px), dar `--hud-bottom` — locul unde se opreste ruleta de scroll
+— a ramas 112, numarul droidului. Masurat la 1440×900: **ultimele doua repere ale ruletei stateau
+in cutia ei, iar un clic in centrul ultimului ajungea pe GHID**, deci butonul acela nu putea fi
+apasat deloc. De la 861px in sus `--hud-bottom` e acum **208** (20 + 184 + 4), si nu se mai
+suprapun: zero repere acoperite, fiecare clic ajunge pe ruleta. Trei specuri e2e ale ghidului
+ramasesera si ele pe cifrele droidului (`aria-haspopup="dialog"` in loc de `aria-expanded`, 88×88 in
+loc de 184×184, 52×52 in loc de 68×68 pe telefon) — picau si inainte de restaurare, la HEAD; acum
+descriu ce se livreaza.
+
+**Verificat:** `npm run build`, `npx tsc --noEmit` si `npm run lint` curate; **1654 de teste in 77
+de fisiere trec** (fata de 1514 — cele patru fisiere de teste ale ghidului s-au intors:
+`guide-linger` 75, `guide-assistant` 44, `hud-busy` 9, `hud-obscure` 8, plus topicul `service` in
+`direction-page` 22 → 25 si ✕-ul in `decorative-dots` 16 → 17). E2E: **254 de teste in 16 fisiere**
+(`guide.spec.ts` inapoi cu 12, `hud-integration` 16 → 19, `scroll-rail` 8 → 9).
+
+E2E rulate pe cele trei specuri ale HUD-ului (`guide`, `scroll-rail`, `hud-integration`): **38 trec,
+0 pica**.
+
+In browser, dupa reconstructia containerului: asistenta e in colt la (1236, 696), 184×184, pe stratul
+112, cu bula ei de salut, cu numele accesibil corect si **cinci animatii care ruleaza** (respira si
+clipeste). Captura: `.scenes/asistent-revenit.png`.
+
+**Fisiere:** `components/hud/guide/**` · `lib/hud/{linger,obscure,busy,topics,gate,rail}.ts` ·
+[`components/hud/HudChrome.tsx`](./components/hud/HudChrome.tsx) ·
+[`app/globals.css`](./app/globals.css) · [`app/(site)/layout.tsx`](<./app/(site)/layout.tsx>) ·
+[`components/sections/DirectionPage.tsx`](./components/sections/DirectionPage.tsx) ·
+`components/sections/Estimator.tsx` · `lib/request/*` · `public/guide/` · `tools/guide/` ·
+`e2e/{guide,hud-integration,scroll-rail}.spec.ts` · `e2e/helpers.ts` · testele de mai sus
+
+**Docs:** [03](./docs/03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17) ·
+[04](./docs/04-design-system.md#ghid-tbs--the-guide) ·
+[05](./docs/05-page-sections.md#ghid-tbs-the-guide) ·
+[07](./docs/07-conventions.md#the-hud-chrome-componentshud-libhud) ·
+[11](./docs/11-security.md) · [14](./docs/14-testing.md) · [16](./docs/16-i18n-seo.md) ·
+[`SECURITY.md`](./SECURITY.md)
+
+---
+
+## 2026-09-25 — Fixed: intro-ul disparuse pentru exact vizitatorii care revin
+
+*„S-a sters intro si asistentul, vezi care-i problema si corecteaza."*
+
+Intro-ul nu era sters de nicaieri. Pe un profil de browser curat juca de fiecare data — asa l-am
+si masurat toata ziua — dar pe browserul cuiva care intra des pe site **nu mai juca niciodata**.
+Doua cauze, independente una de alta, si amandoua masurate pe containerul care ruleaza.
+
+**1. Documentul pre-incarcat de browser nu trecea prin proxy.** `proxy.ts` e singurul care scrie
+`x-pathname`, iar layout-ul decide din el si canonicalul, si hreflang-ul, si daca se randeaza
+intro-ul (`shouldPlayIntro`). Matcher-ul copia reteta din ghidul Next pentru CSP, care sare peste
+cererile cu `next-router-prefetch` **sau** cu vechiul antet `Purpose: prefetch`. Al doilea nu e
+trimis de routerul acestei versiuni de Next (verificat in
+`next/dist/client/components/app-router-headers.js`: trimite doar `next-router-prefetch`) — e
+trimis de **browser**, pe documentul pe care Chrome il pre-incarca atunci cand bara de adrese
+ghiceste URL-ul din propriul istoric. Adica exact pentru cineva care scrie `tbs.md` si apasa Enter
+de zeci de ori pe zi.
+
+```
+GET /                          → id="tbs-intro" apare de 1 ori,  antet CSP: DA
+GET / -H 'Purpose: prefetch'   → id="tbs-intro" apare de 0 ori,  antet CSP: NU   ← inainte
+GET / -H 'Purpose: prefetch'   → id="tbs-intro" apare de 1 ori,  antet CSP: DA   ← acum
+```
+
+Documentul acela pleca si **fara Content-Security-Policy**, si fara canonical — deci nu era doar
+o problema de intro. Matcher-ul sare acum doar peste prefetch-ul RSC al routerului, care nu e un
+document. `app/__tests__/proxy-matcher.test.ts` tine regula pe loc.
+
+**2. Un `#sectiune` ramas in bara de adrese omora intro-ul pentru totdeauna.** Regula era „orice
+hash → sari peste intro" — corecta pentru un link adanc primit de la cineva, gresita pentru
+propriul site: **fiecare link intern scrie un hash in bara** (`#servicii`, `#lucrari`, `#top` de la
+logo). Un singur clic si, de acolo incolo, fiecare F5 sarea peste intro. `hashSkipsIntro`
+(`lib/intro.ts`) citeste acum `PerformanceNavigationTiming.type`: o **sosire** pe link adanc sare
+mai departe peste intro, un **refresh** il joaca. Jumatatea CSS a aceleiasi capcane —
+`html:has(:target) .overlay { display: none !important }` — era la fel de importanta: fara ea,
+intro-ul ar fi rulat noua secunde sub un overlay invizibil, cu pagina blocata. Ambele reguli CSS
+(si cea de `prefers-reduced-motion`) sunt acum legate de faza `boot`, adica ascund overlay-ul doar
+pana cand shell-ul decide.
+
+**3. Si o a treia, gasita de audit in timp ce cautam primele doua: ceasul filmului si cronometrul
+de siguranta mergeau pe scale diferite.** Ceasul filmului numara **cadre desenate** (corectia de
+azi-dimineata, ca sa nu mai sara peste beat-uri pe o masina lenta), dar cronometrul din shell
+(`WATCHDOG_MS`, 12 s) numara **timp real**. Masurat pe un randor de ~3 cadre/secunda: filmul
+ajunsese la 0.655 cand overlay-ul a fost luat de pe ecran, cu contorul inca la 67. Acum filmul are
+propriul termen pe ceasul real — `WATCHDOG_MS - BURST_TAIL_MS - 400` — si la el curba se incheie
+singura: explozia ruleaza si pagina se dezvaluie normal, in loc ca overlay-ul sa fie smuls din
+mijlocul zborului.
+
+**Si un comutator:** `localStorage.tbs_intro_force = "force"` joaca intro-ul oricum — peste
+„miscare redusa" si peste un link adanc. Cu `tbs_intro_3d = "force"` alaturi de el, primesti si
+filmul 3D, nu varianta SVG (sub miscare redusa sonda raspundea „fara WebGL" inainte sa se uite la
+steag; acum cele doua steaguri impreuna trec de linia aceea, si numai impreuna). Site-ul nu-l scrie niciodata; exista pentru tine si
+pentru QA. Daca sistemul tau cere mai putina miscare (Windows → Accesibilitate → Efecte vizuale →
+Efecte de animatie), intro-ul **si toata scena 3D** raman oprite in mod deliberat — asta e regula
+de accesibilitate a site-ului, nu o defectiune; comutatorul e acolo ca sa poti verifica oricum.
+
+**Asistentul** din colt nu e o defectiune: l-am scos azi la cererea ta (intrarea de mai jos).
+Asistentul din estimator — conversatia ghidata din `#estimare` si din dialogul de cerere — este in
+continuare acolo si functioneaza; l-am verificat in browser: sectiunea il deseneaza mereu (715×304
+px, „Asistent TBS · online"), iar in dialog butonul il deschide cu focusul in el.
+
+**Verificat** in browser, pe cinci cai de sosire, dupa reconstructia containerului:
+
+```
+adresa scrisa direct              intro: joaca, vizibil
+link adanc /#servicii             intro: absent            (asa trebuie)
+REFRESH pe /#servicii             intro: joaca, vizibil    ← corectia
+miscare redusa                    intro: absent            (asa trebuie)
+miscare redusa + tbs_intro_force  intro: joaca, vizibil    ← comutatorul
+```
+
+`npm run build`, `npx tsc --noEmit` si `npm run lint` curate; **1514 teste in 73 de fisiere trec**
+(14 teste noi: regula hash-ului ca tabel, comutatorul, cele doua reguli CSS legate de faza,
+aritmetica termenului fata de cronometru, cele doua steaguri impreuna, si noul
+`app/__tests__/proxy-matcher.test.ts`).
+
+**Fisiere:** [`proxy.ts`](./proxy.ts) · [`lib/intro.ts`](./lib/intro.ts) ·
+[`components/intro/IntroPreloader.tsx`](./components/intro/IntroPreloader.tsx) + `.module.css` ·
+`app/__tests__/proxy-matcher.test.ts` · `lib/__tests__/intro.test.ts` ·
+`components/__tests__/intro-preloader.test.tsx`
+
+**Docs:** [03 — Architecture](./docs/03-architecture.md#the-gate--appsitelayouttsx) ·
+[05 — Page Sections](./docs/05-page-sections.md) ·
+[11 — Security](./docs/11-security.md#the-html-csp-and-the-first-visit-intro-2026-09-16) ·
+[16 — i18n/SEO](./docs/16-i18n-seo.md)
+
+---
+
+## 2026-09-25 — Removed: randurile mici rosii de deasupra titlurilor, peste tot
+
+*„Eu am spus peste tot de sters acestea."*
+
+Randul din hero plecase deja; acesta era doar unul din douasprezece. Acum **au plecat toate**:
+
+```
+Acasa      ALEGE DIRECTIA POTRIVITA     deasupra „Selectorul de servicii…"
+           PORTOFOLIU TBS               deasupra „Proiectele care ne reprezinta."
+           DE CE TBS                    deasupra „Cum lucram, pe scurt."
+           ECHIPA                       deasupra „Oamenii din spatele produsului."
+           CERERE / ESTIMARE            deasupra „Spune-ne ce vrei sa construiesti."
+           DE LA IPOTEZA LA LANSARE     deasupra numelui directiei, in cardul de previzualizare
+           PROIECT REAL DIN PORTOFOLIU  deasupra numelui proiectului, in cardul de caz
+           ECHIPA TBS                   pe fiecare cartonas de persoana (acelasi text de 3 ori)
+Serviciu   ALEGE DIRECTIA POTRIVITA     pe pagina-substitut
+           <eyebrow-ul directiei>       deasupra titlului paginii
+           BENEFICIU                    pe fiecare din cele trei panouri (acelasi text de 3 ori)
+           <cardLabel>                  deasupra schemei fluxului
+Dialog     eyebrow                      prop-ul din <Modal>, pe care nu-l trimitea nimeni
+```
+
+Nu a ramas o gaura in locul lor: fiecare titlu a preluat marginea de sus a randului scos
+(`margin: 8px 0 0` → `0`, `mt-3`/`mt-2` → `m-0`), deci blocul incepe direct cu titlul.
+
+**A plecat si textul care ii hranea**, ca sa nu ramana copie moarta: `SECTION.eyebrow` din cinci
+sectiuni, campurile `eyebrow` si `cardLabel` din `Solution` (si din cele cinci directii),
+`solUI.benefit`, campul `tag` din datele selectorului, `CASE.ref` / `CASE.none`, cheia
+`dir.section.kicker` din toate trei cataloagele si prop-ul `eyebrow` al componentei `Modal`
+impreuna cu regulile lui CSS.
+
+**Ce am pastrat, si de ce.** Ce poarta informatie, nu ceremonie: chipurile de pe cartonasul unui
+proiect (le scrie administratorul, sunt diferite de la proiect la proiect), etichetele numerotate
+ale estimatorului (`01 · TIP DE PROIECT`), `01 / PRODUS` de pe cartonasele principiilor si fiecare
+numar-fantoma din colt (`01`, `02`, `03`). Daca vrei sa plece si acelea, spune-mi — sunt cinci
+minute.
+
+**Verificat:** `npm run build` compilat, `npx tsc --noEmit` curat, `npm run lint` curat,
+**1500 de teste in 72 de fisiere trec** (sase teste isi foloseau randurile scoase ca reper si se
+uita acum la titlul sau la propriul continut al cardului). In browser, dupa reconstruirea
+containerului: pe **acasa toate cele sapte titluri** si pe **o pagina de serviciu toate cele
+patru** nu mai au nimic deasupra — masurat element cu element, nu din ochi
+(`previousElementSibling` al fiecarui `h1` / `h2`), plus capturi pentru fiecare.
+
+**Fisiere:** [`components/sections/Directions.tsx`](./components/sections/Directions.tsx) ·
+[`components/sections/Work.tsx`](./components/sections/Work.tsx) ·
+[`components/sections/Principles.tsx`](./components/sections/Principles.tsx) + `.module.css` ·
+[`components/sections/Team.tsx`](./components/sections/Team.tsx) + `.module.css` ·
+[`components/sections/Estimator.tsx`](./components/sections/Estimator.tsx) + `.module.css` ·
+[`components/sections/DirectionPage.tsx`](./components/sections/DirectionPage.tsx) + `.module.css` ·
+[`components/ui/Modal.tsx`](./components/ui/Modal.tsx) + `.module.css` ·
+[`lib/solutions.ts`](./lib/solutions.ts) · `lib/i18n/messages/{ro,ru,en}.ts` · testele de mai sus
+
+**Docs:** [05 — Page Sections](./docs/05-page-sections.md#no-kicker-lines-2026-09-25) ·
+[07 — Conventions](./docs/07-conventions.md#data-intro-reveal--the-page-entrance-targets) ·
+[03 — Architecture](./docs/03-architecture.md)
+
+---
+
+## 2026-09-25 — Added: cele doua cifre ale hero-ului sunt desenate in scena 3D
+
+*„Incorporeaza acestea 2 boxe interactiv in modelul 3d animat."*
+
+Cele doua cutii — **numarul de proiecte** si **24/7** — nu mai sunt cartonase de sticla peste scena.
+De la 861px in sus, pe un randor care chiar deseneaza, sunt **doua panouri holografice desenate de
+scena insasi**, in exact cutiile in care statea cartonasul.
+
+**Fata panoului e cartonasul.** Nu e o copie a lui: fiecare cuvant e `textContent`-ul cartonasului
+si fiecare marime, grosime, familie, margine si padding e stilul lui **calculat**, scalat cu un
+singur raport — inaltimea panzei impartita la inaltimea de asezare a cutiei. Deci panoul poarta
+numarul numarat din portofoliu, limba vizitatorului si orice schimbare de text sau de token, fara
+nimic scris de doua ori si fara o textura per limba. Desenat pe ea: un geam slab (o holograma
+aditiva nu poate intuneca ce e in spate — asa ca isi ridica propria suprafata), sarma din colt
+(octaedru la portofoliu, giroscop de inele la automatizari, pe aceeasi poza de repaus la care sta
+holograma CSS a cartonasului), cifra, o linie scurta, eticheta rupta in randuri ca in cartonas,
+nota cu majuscule pe spatierea lui, bifa de doua cifre si colturile in paranteze.
+
+**Interactiv, din geometria scenei.** Panoul se inclina spre cursorul care e peste el (0.14 rad),
+se ridica spre privitor si arde cu 22% mai tare cat timp e acolo; in rest respira pe o plutire de
+±0.02 rad, defazata intre cele doua. Testul e aritmetic pe cutiile deja masurate
+(`fx.pointerX/Y` → `statAt` / `statLocal`), deci **nicio citire din DOM pe cadru** si niciun state
+React in spatele inclinarii.
+
+**Cartonasul ramane in pagina.** Nu `display: none`, nu `visibility: hidden`, nu `inert`: isi
+pastreaza cutia (pe ea se potriveste panoul), textul (din el se compune fata), locul in arborele de
+accesibilitate — un cititor de ecran citeste cifra exact ca inainte — si evenimentele de pointer.
+Pierde doar vopseaua. Unde panoul nu se deseneaza — sub 861px, pe `fallback` / `off`, la miscare
+redusa, pe un dispozitiv slab, cu `tbs_scene_3d=off`, sau pentru un crawler care nu ruleaza WebGL —
+se vad cartonasele pe care le-am livrat dintotdeauna. Nu exista o a doua copie a cifrelor nicaieri.
+
+**Cutiile sunt masurate din ASEZARE, nu din cutia randata.** Grupul e transformat de trei lucruri
+diferite in trei momente diferite: intrarea intro-ului (`{ y: 40, rotateX: -14 }`), paralaxa de
+scroll a invelisului si inclinarea proprie a cartonasului. Un dreptunghi citit in timpul oricareia
+dintre ele ar fi lipit panoul acolo pana la urmatoarea remasurare. Cu lantul de `offsetTop` /
+`offsetLeft` iese cutia in care cartonasul **se odihneste** — acolo unde e locul cifrei.
+
+Si potrivirea e **pe fiecare axa**, nu pe o singura scara: masurat in browser, cutia are raportul
+**0.98 : 1 la 1100px** (doua coloane) si **2.20 : 1 la 1024px** (unde cartonasele se aseaza unul sub
+altul) — o singura scara ar fi pus numarul intr-o cutie cu dungi negre, mutat din locul lui.
+
+**Nou:** `components/scene/statCards.ts` (citeste cartonasele, fara React, fara nimic pe cadru),
+`components/scene/three/statFace.ts` (compune fata), `components/scene/three/models/statPanel.ts`
+(un `PlaneGeometry` pe `SURFACE_MODE.holo` — ramura hologramei din Work — deci un singur apel de
+desenare si o singura textura per panou). Sursa hologramei stie acum sa isi schimbe marimea si sa
+primeasca un plafon propriu (`statFace` in tabelul de niveluri: 512 × 288 pe high, 384 × 224 pe mid;
+mai mare decat al hologramei si din motivul opus — aceea nu trebuie sa fie lizibila, asta e o cifra
+pe care vizitatorul o citeste).
+
+**Verificat:** `npm run build` si `npx tsc --noEmit` curate, `npm run lint` curat, **1500 de teste
+in 72 de fisiere trec** (noul `scene-stat-panel.test.ts` are 20, `hero-interior` a crescut 22 → 24).
+E2E: doua teste noi in `interior-webgl.spec.ts` — **W20** (cu WebGL fortat la 1280×800: ambele
+cartonase au ancora si `--stat-window: 1`, nu picteaza nimic, nu sunt `aria-hidden`, isi pastreaza
+textul si cifra, iar panza aprinde cel putin 5% din cutia fiecaruia, citit din bufferul GL) si
+**W21** (la 800px nu exista nicio ancora si ambele cartonase sunt la opacitate 1) — trec.
+In browser, prin CDP cu WebGL fortat: la **1440 × 900** panourile cad exact pe cutiile (920, 483,
+192, 167) si (1128, 483, 192, 167), cu `--stat-window` 1 si cartonasele la opacitate 0; la
+**900 × 820** stau unul sub altul in cutiile (590, 275) si (590, 428); si la scroll 260 raman lipite
+de cutii. Capturile sunt in `.scenes/stat-*.png`.
+
+**Fisiere:** [`components/sections/Hero.tsx`](./components/sections/Hero.tsx) ·
+[`app/globals.css`](./app/globals.css) · [`lib/scene.ts`](./lib/scene.ts) ·
+[`components/scene/scrollProbe.ts`](./components/scene/scrollProbe.ts) ·
+[`components/scene/choreography.ts`](./components/scene/choreography.ts) ·
+[`components/scene/fx.ts`](./components/scene/fx.ts) ·
+[`components/scene/input.ts`](./components/scene/input.ts) ·
+[`components/scene/tiers.ts`](./components/scene/tiers.ts) ·
+[`components/scene/SceneWorld.tsx`](./components/scene/SceneWorld.tsx) ·
+[`components/scene/three/world.ts`](./components/scene/three/world.ts) ·
+[`components/scene/three/hologram.ts`](./components/scene/three/hologram.ts) · plus cele trei
+fisiere noi si testele de mai sus
+
+**Docs:** [03 — Architecture](./docs/03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17) ·
+[04 — Design System](./docs/04-design-system.md#the-hero-stat-panels-2026-09-25) ·
+[05 — Page Sections](./docs/05-page-sections.md#01--hero) ·
+[14 — Testing](./docs/14-testing.md) · [16 — i18n/SEO](./docs/16-i18n-seo.md)
+
+---
+
+## 2026-09-25 — Removed: ghidul din colt si randul „TBS DIGITAL / WEB · SOFTWARE · AI"
+
+*„Scoate ghidul si acestea."*
+
+Ghidul TBS — asistenta holografica din colțul din dreapta jos, cu portretul care respira, clipea si
+vorbea — **a fost scos de tot**, cu tot ce exista numai pentru el:
+
+```
+components/hud/guide/**        GuideAssistant.tsx, .module.css, copy.ts
+lib/hud/linger.ts              motorul de asteptare (canPrompt, pickTopic, isTypingTarget)
+lib/hud/obscure.ts             covers / overlaps, garda de focus
+lib/hud/busy.ts                magazinul „ocupat cu HUD-ul"
+public/guide/asistent-384.webp portretul
+tools/guide/**                 unealta sharp care il taia (README, asset.mjs, cutout.mjs)
+e2e/guide.spec.ts              +  guide-assistant.test.tsx, guide-linger.test.ts,
+                                  hud-obscure.test.ts, hud-busy.test.ts
+```
+
+Si randul de deasupra titlului din hero — **„TBS DIGITAL / WEB · SOFTWARE · AI"** — a plecat cu el:
+constanta `EYEBROW`, blocul lui din `Hero.tsx`, pasul `eyebrow` din `INTRO_REVEAL_ORDER` si din
+tabelul `ENTRANCE`. Cascada de dezvaluire de dupa intro s-a strans cu 0.06: grila 0, header 0.1,
+titlu 0.2, lead 0.3, CTA 0.38, cifre 0.46, ticker 0.56 — deci nu a ramas o pauza in locul lui.
+
+**Ce a rams in picioare, si de ce.** Ghidul era doar primul consumator al catorva lucruri comune, si
+acelea nu au plecat:
+
+- **Montura HUD-ului si poarta de armare** (`HudChrome.tsx`): banner raspuns → prima interactiune →
+  intro plecat → un slot de idle. Singura piesa care mai atarna de ea e **ruleta de scroll**, si
+  aceea e doar de la 861px in sus — deci **sub 861px un HUD armat nu mai deseneaza absolut nimic**.
+  Exact asta verifica acum testele, in loc de „avatarul e vizibil".
+- **Fluxul de cerere** pe care il deschidea: `RequestContext.openAssistant` (dialogul se deschide
+  direct pe asistent, cu focusul in el) si `guideTopic` (`- Secțiune: <topic>`, ids in
+  `lib/hud/topics.ts`) sunt in continuare onorate de estimator. Nimeni nu le mai trimite azi — orice
+  CTA care stie in ce secțiune sta poate.
+- Sursele de CTA `guide` si `guide-prompt` **au plecat** din `RequestSource`: nu mai exista butonul
+  care le emitea, si o lista de ids care trimit lead-uri nu are ce sa tina mort.
+
+**Verificat:** `npm run build` → compilat in 4.1s; `npx tsc --noEmit` curat; `npm run lint` curat;
+**1478 teste in 71 fisiere trec** (de la 1621 in 75 — minus cele patru fisiere ale ghidului, minus
+✕-ul lui din `decorative-dots` 17 → 16, minus topicul `service` si randul de deasupra titlului din
+`direction-page` 26 → 22 si `request-flow` 30 → 29; `hud-chrome` a ramas la 29, doar citit prin
+ruleta). E2E: **236 de teste in 15 fisiere** (`playwright test --list`), `hud-integration` 16 si
+`scroll-rail` 8 — testele care existau numai pentru ghid (HI8 „the guide is away", HI11 suprapunerea
+cu ruleta, si perechea ei din `scroll-rail.spec.ts`) au plecat.
+
+**Fisiere:** [`components/hud/HudChrome.tsx`](./components/hud/HudChrome.tsx) ·
+[`components/sections/Hero.tsx`](./components/sections/Hero.tsx) ·
+[`components/intro/IntroDirector.tsx`](./components/intro/IntroDirector.tsx) ·
+[`lib/intro.ts`](./lib/intro.ts) · [`lib/hud/topics.ts`](./lib/hud/topics.ts) ·
+[`lib/hud/gate.ts`](./lib/hud/gate.ts) · [`lib/hud/rail.ts`](./lib/hud/rail.ts) ·
+[`lib/request/RequestFlowProvider.tsx`](./lib/request/RequestFlowProvider.tsx) ·
+[`components/hud/rail/ScrollRail.tsx`](./components/hud/rail/ScrollRail.tsx) + `.module.css` ·
+[`app/globals.css`](./app/globals.css) · [`app/(site)/layout.tsx`](<./app/(site)/layout.tsx>) ·
+`components/sections/Estimator.tsx` · `lib/request/catalog.ts` · testele si specurile de mai sus
+
+**Docs:** [03 — Architecture](./docs/03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17) ·
+[04 — Design System](./docs/04-design-system.md#ghid-tbs--the-guide-removed-2026-09-25) ·
+[05 — Page Sections](./docs/05-page-sections.md#ghid-tbs-the-guide--removed-2026-09-25) ·
+[07 — Conventions](./docs/07-conventions.md#the-hud-chrome-componentshud-libhud) ·
+[11 — Security](./docs/11-security.md) · [14 — Testing](./docs/14-testing.md) ·
+[16 — i18n/SEO](./docs/16-i18n-seo.md) · [02 — Tech Stack](./docs/02-tech-stack.md) ·
+[`SECURITY.md`](./SECURITY.md)
+
+---
+
+## 2026-09-25 — Fixed: pagina nu mai clipeste intre intro si loading
+
+*„Dupa ce se incarca intro apare pagina, dupa loading, si dupa iara pagina — corecteaza sa apara
+deodata loading dupa intro."*
+
+Exact asa era, si e masurabil. Urmarit pe rAF, la fiecare schimbare a celor trei lucruri care
+decid ce vede un vizitator — daca overlay-ul de intro e in document si in ce faza, daca scena 3D
+mai spune ca se decide, si opacitatea copertei:
+
+```
+  12192 ms   intro: revealed, opacitate 0.45   coperta: display none   → pagina la vedere 55%
+  12343 ms   intro: revealed, opacitate 0.02   coperta: display none   → 98%
+  12971 ms   intro: revealed, opacitate 0      coperta: display none   → 100%
+  13428 ms   intro scos din DOM                coperta: grid, 1        → loading
+```
+
+**1236 ms in care nimic nu acoperea pagina.** Cauza: regula care face coperta sa stea deoparte sub
+intro o tinea stinsa cat timp `#tbs-intro` era in document — iar overlay-ul intra in faza
+`revealed`, se stinge 0.55 s si mai sta acolo inca 0.45 s inainte sa fie scos. Deci stingerea
+intro-ului descoperea **pagina**, si abia apoi urca coperta.
+
+Acum coperta sta deoparte doar cat timp intro-ul **joaca**, nu si cat pleaca:
+`html:has(#tbs-intro:not([data-phase="revealed"]))`. Comutarea se face din `display: none`, deci
+nu ruleaza nicio tranzitie si coperta e deja la putere maxima dedesubt — stingerea intro-ului
+descopera coperta, nu pagina. O singura predare, nu trei.
+
+Masurat dupa: **fereastra de pagina descoperita dintre cele doua acoperiri a trecut de la 1236 ms
+la zero.** Singurul moment in care pagina mai apare e dezvaluirea finala, care e si scopul ei.
+
+Pe o masina a carei scena a raspuns deja inainte sa se termine intro-ul, coperta e oricum la
+opacitate 0 si intro-ul dezvaluie pagina direct, exact ca inainte.
+
+Un test nou citeste regula din modul si verifica si ca standul-deoparte exista, si ca poarta
+`:not([data-phase="revealed"])` — nimic nu-l prindea altfel. 1621 teste si lint trec.
+
+**Fisiere:** [`components/ui/PageLoading.module.css`](./components/ui/PageLoading.module.css) ·
+[`components/__tests__/loading.test.tsx`](./components/__tests__/loading.test.tsx)
+
+---
+
+## 2026-09-25 — Fixed: procesorul nu era prea rapid, pur si simplu nu era desenat
+
+*„Vezi acum intro, cu procesorul nici nu dovedeste sa se aprinda si se taie cadrul si iese din
+laptop."*
+
+**Primul cadru pe care scria altceva decat zero era deja la 0.265.** Masurat pe o incarcare rece,
+esantionand `--fb-p` pe rAF chiar in pagina: trei cadre randate pana la 0.42, **niciunul** in
+sosirea impulsului, unul singur in aprindere. Nimic nu era sarit pentru ca bataile ar fi fost
+scurte — browserul pur si simplu nu picta 1.2 secunde dupa hidratare, in timp ce
+`performance.now() - origin` mergea inainte si filmul trecea intr-un tab care arata inca cadrul
+dinainte. `MAX_PRE_SPEND_MS` trebuia sa previna exact asta si nu putea: se aplica ORIGINII
+ceasului la preluare, nu primului cadru care chiar se picteaza.
+
+Regizorul isi acumuleaza acum ceasul din cadrele pe care a fost desenat, cu pas plafonat la
+**150 ms**. O blocare costa filmul 150 ms, nu cat a durat ea, iar primul cadru se deschide la
+`MAX_PRE_SPEND` cel tarziu, orice s-ar fi intamplat inainte. `HARD_CAP` isi tine promisiunea pe
+ceasul de **perete**, deci oricat de incet ar avansa filmul, tot e impins la final.
+
+| masurat pe randorul software | inainte | acum |
+| --- | --- | --- |
+| cadre randate pana la 0.42 | 3 | **13** |
+| primul `--fb-p` desenat vreodata | 0.265 | **0.050** |
+| cadre in sosire (≤ 0.14) | 0 | **4** |
+| cadre in aprindere (0.13–0.30) | 1 | **6** |
+| cel mai mare salt intre doua cadre | 0.095 | **0.040** |
+
+**Si filmul isi cheltuia timpul unde nu trebuia.** Procesorul — 38% din derulare, si partea cu
+toate bataile noi in ea — lua **1254 ms din 7.9 s, adica 16% din timp**. Masina, care e patru
+dreptunghiuri si un capac, lua **1627 ms**. Vinovata e curba regizorului: `1 - (1 - x) ** 1.6` e un
+ease-out, adica trece repede prin derulare la inceput si incet la sfarsit. Exponentul e **1.35**
+acum (38% din derulare primesc 29.8% din timp in loc de 25.8%) si NU e dus la liniar intentionat —
+pantele din FLIGHT_MAP urca prin tabel (0.75 → 0.61 → 0.72 → 1.29) tocmai ca sa anuleze ease-out-ul,
+iar o curba plata ar face ultima bataie cea mai rapida din film. Verificat la 1.35, viteza camerei
+pe fiecare bataie iese **0.980 / 0.714 / 0.686 / 0.862** — ultima tot sub prima, care e proprietatea
+care trebuie sa tina.
+
+Plus `MIN_SYNC_MS` 5000 → **5800** (si `HARD_CAP_MS` 6400 → 7200 ca sa-si pastreze cele 1.4 s de
+rezerva), si actele re-taiate in acelasi 0 → 0.38, luand de la sosire si dand arderii: `--ign`
+**[0.13, 0.30]** in loc de [0.16, 0.30]. Nominal, pe o masina care picteaza fiecare cadru:
+procesorul **1291 → 1730 ms (+34%)**, aprinderea **483 → 757 ms (+57%)**.
+
+**„Se taie cadrul"** era dizolvarea: `--dt` a trecut de la 0.12 la **0.15** din derulare, iar
+masurata trece de la 703 la 884 ms.
+
+**Paznicul a trebuit sa creasca odata cu ele.** Un ceas care refuza sa sara dureaza mai mult in
+timp real pe o masina destul de inceata cat sa-l blocheze: filmul ajungea la final la 10.07 s, pe
+care paznicul de 10 s l-ar fi taiat in mijlocul exploziei. E **12 s** acum — o pagina stricata tine
+overlay-ul cu doua secunde mai mult, si una inceata dar functionala apuca sa termine.
+
+1619 teste si lint trec.
+
+**Fisiere:** [`components/intro/IntroDirector.tsx`](./components/intro/IntroDirector.tsx) ·
+[`lib/intro.ts`](./lib/intro.ts) ·
+[`components/intro/IntroPreloader.module.css`](./components/intro/IntroPreloader.module.css) ·
+[`docs/05-page-sections.md`](./docs/05-page-sections.md#the-films-clock-counts-frames-not-seconds-2026-09-25)
+
+---
+
+## 2026-09-25 — Fixed: ultima muchie taioasa din gura era chiar marginea dintilor
+
+*„Ii aproape de perfect dar nu este perfect."*
+
+Fotografiata la **11x**, singura muchie care mai ramasese era marginea de JOS a randului de dinti:
+o linie dreapta si taioasa, in diagonala prin gura ei. Nu era cavitatea si nu era banda — era
+smaltul insusi, taiat de propria lui cutie.
+
+Cauza e aritmetica gradientului. Raza gradientului radial masoara 128% din inaltimea elementului,
+pornind dintr-un centru aflat cu 26% deasupra lui, deci o ultima oprire la 100% pune alfa zero la
+y = **102%** — in afara cutiei. Randul era inca la a douazecea parte din putere exact acolo unde
+cutia il taia, iar taietura aia e o linie perfect dreapta. Oprirea finala e acum la **78%** din
+raza, ceea ce pune alfa zero la y = 74%: smaltul se stinge singur inainte sa apuce ceva sa-l taie.
+
+`TOOTH` a urcat de la 0.379 la **0.47** ca sa compenseze: o sesime din inaltimea desenata se duce
+acum pe stingere, deci randul trebuie desenat mai lung ca sa ramana la fel de mult **vizibil**.
+
+Verificat la 11x, la 480px si la marimea reala a salutului (200px): deschiderea se citeste ca o
+gura intredeschisa — intuneric moale, o zona mai deschisa sus, ingustandu-se la ambele colturi,
+fara nicio muchie tare. Starea inchisa ramane curata.
+
+1619 teste si lint trec.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/say.mjs`](./tools/guide/say.mjs)
+
+---
+
+## 2026-09-25 — Fixed: pana din gura era a benzii, nu a cavitatii · si se deschide cu 40% mai putin
+
+*„Totdeauna nu arata normal, ii prea taiat se vede si prea tare se deschide, mai perfectioneaza."*
+
+**Pana a supravietuit trei runde de reparatii pentru ca reparam ce nu trebuia.** Fotografiata cu
+banda buzei stinsa, cavitatea singura e o lentila curata, simetrica, care se inchide in varf la
+ambele capete. Si fata ei e simetrica: cusatura ei masoara **53.4 la stanga fata de 53.5 la
+dreapta**, o diferenta de 0.1 niveluri. Deci pana nu era nici in cavitate, nici in fotografie.
+
+Era a **benzii**, si e un fapt despre masti: o masca poate face un element sa inceapa **mai jos**
+decat cutia lui, niciodata mai sus. Cu marginea de sus a cutiei fix pe `--mo`, taietura inclinata
+guverna jumatatea in care cusatura ei coboara sub `--mo`, iar cealalta jumatate cadea inapoi pe
+marginea **orizontala** a cutiei. O singura granita, doua unghiuri — pana prin constructie.
+Diferenta de inaltime intre capete era ~7 grade, adica exact inclinarea ei; ar fi trebuit sa-mi
+spuna asta de la inceput.
+
+Cutia benzii urca acum cu 2.2% din inaltimea ei (`--jt: 36.75` fata de `--mo: 38.95`), ceea ce
+depaseste punctul cel mai de sus al cusaturii cu 0.67% chiar si la marginea din dreapta a benzii,
+deci taietura e libera sa-i urmeze linia pe toata latimea. Oprirea mastii s-a recalculat pentru
+noua cutie: **25.96%** in loc de 12.35%. Un test nou deriva invariantul asta din
+`--jt`, `--mo`, `--mcx`, `--mww` si `--tilt` — nimic altceva din fisier nu l-ar fi prins intorcandu-se.
+
+**Si se deschide cu 40% mai putin.** Tabelul de gesturi e RITMUL — care silaba e mai grea decat
+care — si era scris cu varfuri langa 0.85, ceea ce masura o deschidere de 4.5% din inaltimea ei si
+o buza de jos care cobora 2.5%. Pe o fata de 99px in lansator aia e o gura care se deschide patru
+pixeli, si se citea ca un strigat. Un singur `OPEN_GAIN = 0.6` in loc de 44 de numere editate,
+pentru ca ritmul e bun si doar volumul era gresit — si pentru ca ambele resorturi sunt conduse de
+aceeasi valoare, deci buza si cavitatea se micsoreaza impreuna si invariantul „buza se termina
+mereu SUB intuneric" ramane neatins.
+
+**Adancimea si ingustarea sunt acum doua straturi.** Un singur gradient radial le facea pe
+amandoua si nu putea: ingustarea elipsei la 43% ca sa se inchida colturile tragea alfa si pe
+**verticala**, deci intunericul inceta sa fie opac inainte ca buza ei sa termine de coborat si
+propria ei linie a buzei reaparea in fasie — exact „linia buzei tiparita de doua ori" pe care
+comentariul din fisier o da drept cauza a doua guri moarte inainte, readusa de o schimbare facuta
+ca sa repare capetele. Acum gradientul detine doar adancimea (pe toata latimea, opac pana la 82%)
+si masca doar ingustarea (elipsa ei e inalta de 150%, deci caderea verticala cade in afara cutiei).
+
+1619 teste si lint trec.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/say.mjs`](./tools/guide/say.mjs) ·
+[`components/__tests__/guide-assistant.test.tsx`](./components/__tests__/guide-assistant.test.tsx)
+
+---
+
+## 2026-09-25 — Fixed: gura nu se mai deschide intr-o parte, si dintii nu mai sunt albi
+
+*„Dar totdeauna dintii sunt prea albi, asta se vede, si gura se deschide pe o parte parca ii
+taiata, corecteaza sa fie reala."*
+
+**Pana era geometrie, nu gust.** Banda buzei de jos are o cutie aliniata pe axe, deci marginea ei
+de sus era o linie **orizontala** la `--mo`, in timp ce buzele ei se despart pe **-8.21 grade**:
+doua margini neparalele care marginesc o singura deschidere dau o pana prin constructie. Pe
+jumatatea dreapta cusatura ei reala statea deasupra benzii si nu se misca deloc; pe stanga banda ii
+acoperea o parte din buza de sus.
+
+Unghiul era deja corect — un gradient la 171.79deg are izo-liniile fix la -8.21 grade — deci o
+singura oprire defineste toata taietura inclinata. Unde: directia gradientului e
+`(sin, -cos) = (0.1428, 0.9898)`, linia lui masoara `|w·sin| + |h·cos| = 99.9` unitati pentru o
+banda de 173 x 76, iar cusatura prin centrul de sus al cutiei se proiecteaza pe ea la **12.35%**.
+Banda e transparenta pana acolo si solida dupa, deci marginea ei de sus **este** linia buzelor ei si
+merge paralel cu cea a cavitatii. Raportul w/h e fixat de `--jw` si `--jh`, deci 12.35% nu se misca
+odata cu `--bust`.
+
+**Si cele patru constante ale gurii erau ramase in urma.** `--mo`, `--mcx`, `--mww`, `--tilt`
+inregistreaza fiecare parte a gurii pe fata ei, si fusesera masurate pe decupajul vechi (554 lat);
+portretul a fost re-decupat la 722 pentru patratul lansatorului si ele au ramas acolo. Re-masurate
+cu `tools/guide/seam.mjs` — care merge pe fiecare coloana si retine randul cel mai intunecat, cu
+**78.7 niveluri de contrast pe 46 de coloane**: inclinarea era gresita cu **1.08 grade** si gura ei
+e cu **6% mai lata** decat credea modulul. Cautarea e ancorata pe valorile deja din fisier, pentru
+ca lasata sa vaneze liber intoarce umbra de sub barbie si o gura de 35.7% din latimea ei.
+
+**Cavitatea e acum o lentila, nu o jumatate de lentilă.** Gradientul putea forma doar marginea de
+JOS a intunericului; sus era chiar marginea cutiei, o linie trasa cu rigla, iar o linie a buzelor e
+curba. Un `border-radius` de 7% pe inaltime bombeaza usor partea de sus (nu un sfert — cutia e un
+rezervor care coboara mai jos decat ajunge buza, iar la 24% nu mai ramanea decat o crapatura), si
+elipsa gradientului a coborat de la 50% la **43%** ca alfa sa ajunga la zero inainte de colt din
+**ambele** parti. Plus `overflow: hidden`, deci aceeasi curba taie si capetele randului de dinti.
+
+**Iar dintii erau chiar prea albi, si masuratoarea dinainte era gresita.** Cifra citata atunci,
+0.61, era o mediana peste toata **cutia** `.teeth`, care e mai mult transparenta — masura cavitatea,
+nu smaltul. Masurat cum trebuie, cadrul fotografiat de doua ori si diferenta fiind exact pixelii pe
+care randul ii picteaza: **mediana 182 fata de obrazul ei la 201**. Acum umbrirea e un gradient
+**radial** cu centrul deasupra cutiei, la 62% in loc de 78%: centrul la -26% arcuieste izo-liniile,
+deci muchia incizala e un **arc**, nu o lespede dreapta taiata diagonal prin gura ei.
+
+Testul care fixa unghiurile mastii pe literali le **deriva** acum din `--tilt` (180 + tilt si
+90 + tilt), ca o viitoare re-masurare sa nu le mai lase in urma. 1619 teste si lint trec.
+
+**Fisiere:** [`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/seam.mjs`](./tools/guide/seam.mjs) · [`tools/guide/README.md`](./tools/guide/README.md) ·
+[`components/__tests__/guide-assistant.test.tsx`](./components/__tests__/guide-assistant.test.tsx)
+
+---
+
+## 2026-09-25 — Changed: dintii isi tin lungimea lor, si sunt un rand, nu o pata
+
+*„Lucreaza mai departe asupra animatiei gurii si cu dintii."*
+
+**Un dinte are lungimea lui, iar mostenirea scarii cavitatii i-o lua.** `.teeth` sta in `.gap`,
+deci prelua `scaleY`-ul cavitatii — ceea ce facea randul o **fractiune fixa** din deschidere, o
+treime din ea fie ca gura era abia intredeschisa, fie larga. Un incisiv superior are vreo 10 mm,
+iar o deschidere larga de vorbire vreo 20: un dinte real ia **jumatate** dintr-o deschidere larga
+si **toata** o deschidere mica. De asta o vocala nu parea niciodata larga — nu exista intuneric
+sub dinti fata de care sa fie larga.
+
+Acum exista o a cincea pista generata, `guide-say-teeth`, care contra-scaleaza cu
+`min(1, TOOTH / cavitate)`: inaltime constanta, limitata la 1 sub care dintele e mai lung decat
+fanta si fanta e tot ce se vede. `TOOTH` 0.379 din cutia de 6% inseamna 2.27% din inaltimea ei,
+fata de o deschidere maxima de 4.05% — adica zece-la-douazeci de mai sus. Masurat pe pista emisa:
+**44 din 114 opriri contra-scaleaza, pana la 0.484** la vocala cea mai larga, iar la o deschidere
+mica dintii umplu fanta.
+
+E si singura pista care duce `opacity` pe langa `transform` (singurele doua proprietati pe care
+keyframe-urile modulului au voie sa le numeasca, si un test trece prin fiecare bloc): smaltul
+dintr-o gura in umbra e stralucitor doar dupa ce ajunge lumina la el, deci randul urca pe prima
+cincime a deschiderii in loc sa apara la putere maxima in cadrul in care buzele se despart.
+
+**Si e un rand, nu o pata.** Trei straturi pe un element: **umbrirea** — un gradient liniar, cel
+mai luminos acolo unde dintele atinge buza de sus, care cade de la 64% la zero pe ultima optime;
+caderea aia **este** muchia incizala, pentru ca fundul elementului e acum exact acolo unde se
+termina dintii. **Despartiturile** — doua gradiente repetate, la 8.4% si 22.3% din latimea gurii,
+pentru ca o singura perioada la o singura intensitate e un pieptene, iar dintii adevarati nu sunt
+uluci; a doua bate cu prima, deci fiecare a treia cusatura e mai grea si randul are centrali si
+laterali. Si **forma** — o masca a carei elipsa e inalta de 130%, deci caderea ei verticala cade in
+afara cutiei si contribuie doar ingustarea orizontala. Dinti care merg pe toata latimea deschiderii
+se citesc ca un ranjet.
+
+Masurat fata de propria ei fata, la scara salutului, pe cutiile raportate de pagina si nu pe unele
+ghicite: **dintii 33 fata de obraz 54, raport 0.61** — un interior, nu un far.
+
+1619 teste si lint trec.
+
+**Fisiere:** [`tools/guide/say.mjs`](./tools/guide/say.mjs) ·
+[`components/hud/guide/GuideAssistant.module.css`](./components/hud/guide/GuideAssistant.module.css) ·
+[`tools/guide/README.md`](./tools/guide/README.md) ·
+[`docs/04-design-system.md`](./docs/04-design-system.md#ghid-tbs--the-guide)
+
+---
+
+## 2026-09-25 — Removed: apariția mare a asistentei · Added: dinți
+
+*„Adauga dinti sa arate real ... si scoate de la inceput cum apare mare asistentul."*
+
+**Apariția mare a plecat.** Rula o dată pe vizită: o bară de emițător care pocnea, un con de lumină
+care se deschidea, **șaisprezece benzi din ea care zburau din părți alternante**, forfecate, de jos
+în sus, cu un scaner care urca pe fascicul, un tremur de fixare, o undă de șoc și abia apoi așezarea
+în lansator — aceeași figură la de trei ori dimensiunea colțului, ținând ecranul cinci secunde.
+Venind imediat după filmul de intro, erau două spectacole în primele zece secunde ale unei vizite.
+S-a șters tot: **20 de elemente, nouă blocuri de keyframes și ~300 de linii de CSS**, plus
+componenta `Projector` și jetonul `--greet-w`. E în istoric dacă se vrea înapoi.
+
+**A rămas ridicarea de 0.7s**, adică exact ce însemna numărul la început — dar pe propriul ei
+atribut, `data-arrive`, nu pe `data-state="enter"`. Nu e cosmetic: o animație CSS e identificată
+prin NUME, deci una pornită la montare rulează și se termină în spatele capacului de încărcare, iar
+o a doua regulă care o numește din nou nu o repornește, ci doar îi schimbă temporizarea unei
+animații deja trecute de durata activă, care își ține starea finală. Un atribut, o regulă, o
+pornire — iar pornirea e primul cadru în care n-o mai acoperă nimic. Măsurat pe o încărcare curată:
+**salutul 0.0s pe ecran, o singură figură în DOM**, iar ea vorbește 8.99s = exact două propoziții.
+
+**Dinții.** O gură nu e o gaură: primul lucru pe care îl dezvăluie o deschidere sunt dinții de sus,
+atârnați sub buza superioară, și sunt cel mai luminos lucru dinăuntru. Fără ei deschiderea are o
+singură luminanță peste tot și se citește ca o lipsă din desen, nu ca un interior. `.teeth` stă
+**înăuntrul lui `.gap`**, deci moștenește `scaleY`-ul cavității și trei lucruri ies gratis: în
+repaus cavitatea e zero și dinții nu pot exista, nu pot fi dezvăluiți mai jos decât întunericul în
+care stau, și sunt scurți la o deschidere mică și înalți la una largă — exact cum arată un dinte
+care se descoperă.
+
+- **34% din cavitate, nu jumătate.** Cavitatea e un rezervor care ajunge mai jos decât coboară buza
+  (6% față de 4.05%), deci doar două treimi de sus se descoperă vreodată; dinți desenați la
+  jumătate din cutie ar umple nouă zecimi din *deschidere*.
+- **Centrul gradientului e opac**, iar la prima încercare nu era. Scris cu o oprire transparentă la
+  0% e un **inel**, nu un reflex: fotografiat la de douăzeci de ori mărime, a ieșit un halou
+  luminos cu o pupilă întunecată în mijlocul gurii și se citea inconfundabil ca un **ochi**.
+- **Măsurat la lansator, complet deschisă:** dinți **76**, cavitate **44**, buza de jos **77** — 31
+  de niveluri de contrast intern, într-o deschidere care întunecă rândul cu 84 de niveluri față de
+  gura închisă.
+
+**Fișiere:** `components/hud/guide/GuideAssistant.tsx` (șters `Projector`, `SLICES` și elementul
+salutului; `greeting` → `arriving`; `ENTER_MS` 5100 → 700; `SPEAK_AT_MS` 1500 → 900; `.teeth`),
+`components/hud/guide/GuideAssistant.module.css` (35 de blocuri tăiate; `.teeth`; regula de
+ridicare pe `data-arrive`), `components/__tests__/guide-assistant.test.tsx` (două teste rescrise pe
+comportamentul nou, plus invariantul că dinții stau înăuntrul cavității).
+1619/1619, lint curat.
+
+**Doc:** [`docs/04-design-system.md` § Ghid TBS](./docs/04-design-system.md#ghid-tbs--the-guide).
+
+---
+
+## 2026-09-25 — Fixed: asistenta vorbeste acolo unde se vede, si se misca a om
+
+*„Totdeauna nu arata real, mai verifica si corecteaza."*
+
+**Prima corectura judecase pe cadre inghetate, care arata forme si nu spun nimic despre miscare.**
+De data asta am masurat miscarea: esantionat la 16ms prin tot ciclul, si inregistrat pe o
+incarcare curata, fara nimic falsificat. Patru lucruri, dintre care primul le depaseste pe toate
+celelalte la un loc.
+
+**1. Vorbea doar unde nu se vedea.** `speak()` era apelat *inauntrul* timeout-ului care sterge
+salutul, deci replica incepea exact cand figura de 320px pleca de pe ecran. Inregistrat curat:
+salutul statea 2.9s cu `data-say` setat **0.0s** din ele, iar apoi vorbea la lansator — 99px, unde
+gura ei are zece pixeli si deschiderea trei. Toata mecanica gurii functiona; rula doar acolo unde
+nu putea fi vazuta. Acum vorbeste **de la 1.5s, cat e inca mare**: `ENTER_MS` 3.4s → 5.1s, iar
+tinerea din mijloc — care era 0.85s de statut degeaba — e partea in care isi spune replica.
+Masurat dupa: **2.5s cu `data-say` in timpul salutului, 2.0s cu gura efectiv deschisa la 320px**,
+unde banda maxilarului are 80.6px in loc de 26.6.
+
+**2. Miscarea era liniara, adica mecanica.** Pistele erau tinte cu interpolare liniara intre ele:
+masurat pe pagina reala, **80% din ciclu la viteza exact constanta**, 27 de rampe drepte, cea mai
+lunga 128ms — opt cadre de gura mergand cu viteza fixa. Nu se putea nici atenua: keyframes-urile
+din modul n-au voie sa poarte decat `transform`, deci nu exista functie de timp per oprire, iar
+una singura pe scurtatura ar duce viteza la zero la *fiecare* oprire, ceea ce e mai rau. Asa ca
+acum curba se **simuleaza**: un maxilar si o pereche de buze sunt o masa pe un muschi — ordin doi,
+aproape critic amortizat, urmarind o tinta care sare intre pozitii articulatorii. Rezultat masurat:
+**0% viteza constanta, cea mai lunga rampa 0ms**. Si pe deasupra da co-articulatie gratis: cand
+doua tinte vin mai repede decat poate sistemul sa le atinga, se contopesc, exact ca in vorbirea
+reala.
+
+**3. Gura nu se inchidea.** Era inchisa 14% din ciclu si restul oscila in jurul lui jumatate-deschis,
+ceea ce se citeste a mestecat. Tabelul de gesturi are acum inchideri bilabiale si trei pauze reale
+de 380–520ms: **24%, in 4 reprize**.
+
+**4. Restul ei era mort.** Masurat cat vorbea: bustul se rotea 0.6 grade si pieptul urca 1.56px
+intr-un ciclu intreg — si ambele pe ceasuri care nu stiu daca ea vorbeste. O gura care se misca pe
+o fata altfel nemiscata e semnul papusii, si e mai mare decat orice gresea gura. A aparut un al
+patrulea strat, `.head`, cu pista generata **din aceeasi propozitie**: lovita pe silabele
+accentuate, filtrata printr-un arc destul de moale cat sa le faca unduire. Corelat cu gura, cade cu
+**96ms in urma** — capul unui vorbitor se misca *dupa* accent, nu odata cu el. Amplitudine 1.43px
+si 0.75 grade, adica o douazecime din legănarea de repaus la de douazeci de ori viteza ei. Clipeste
+si mai des cat vorbeste (61/minut fata de 27), cu acelasi obturator de 144ms — se schimba spatierea,
+nu viteza pleoapei.
+
+**5. Si bula ii statea peste gura** — defect introdus chiar de reparatia (1). Bula e ancorata de
+**lansator**, cutia de 184px din colt, ceea ce e corect tot restul vizitei; dar in primele cinci
+secunde ea e desenata la 320px si ajunge cu 192px mai sus decat cutia dupa care se masoara bula.
+Fotografiat si apoi masurat: gura ei la y 635–679, bula peste y 571–692 — isi acoperea gura exact
+cat isi spunea replica. Aceeasi greseala care se repara, cu un etaj mai sus. Cat tine `data-greet`,
+bula degaja acum inaltimea salutului in loc pe a lansatorului. Verificat pe 1400x900 (bula 383–504,
+capul ei la 496) si pe 390x844 (bula 433–554, capul la 558). Inaltimea vine dintr-un singur jeton
+nou, `--greet-w`, fiindca 230/320 era scris de mana in patru locuri.
+
+**Plus:** replica se opreste acum pe un numar intreg de propozitii (`--say` = 4.495s), deci
+animatia se ridica exact cand gura ei e deja inchisa, in loc sa pocneasca inchis din mijlocul unei
+silabe. Nu exista tranzitie pe care sa te sprijini — o proprietate animata nu poate fi tranzitionata.
+
+**Apoi o analiza pe sapte unghiuri, cu fiecare constatare verificata advers, a gasit trei
+artefacte pe care nu le vazusem — toate trei introduse chiar de mine si toate de trei ori mai mari
+la salut, adica exact acolo unde ea vorbeste acum:**
+
+**6. Buza ii depasea intunericul.** Masurat pe pistele generate: pe **94 din 96** de opriri in
+miscare buza de jos cobora mai mult decat ajungea cavitatea. Ce se vedea in fasia aceea era propria
+ei buza nedeplasata — cel mai luminos lucru de langa gura — intre intuneric si copia liniei buzelor
+din banda. Adica **linia buzelor tiparita de doua ori**, exact artefactul pe care comentariul din
+`.jaw` il consemneaza ca fiind ce-a omorat primele doua incercari de gura. Doua cauze se compuneau:
+cutia era cu 36% prea putin adanca, iar arcurile erau defazate — buzele se aseaza in 29ms, maxilarul
+in 75ms, deci la fiecare *eliberare* de silaba fanta se inchidea cu buza inca coborata. Cavitatea se
+conduce acum din `max(maxilar, buze)` si e un **rezervor** de 6% fata de cursa buzei de 4.05%; ce
+trece dincolo e acoperit de banda si nu costa nimic. Generatorul refuza sa scrie pistele daca
+raportul scade sub 1.2. Ramase: 6 opriri din 114, cea mai mare lipsa 0.037px.
+
+**7. `rotate` pe `.jaw` rotea si bitmap-ul, nu doar cutia.** Fundalul se aseaza in cutia
+*nerotita*, ca sa se suprapuna peste portret, iar rotatia ii duce apoi fiecare pixel in jurul
+balamalei: 0.124px de eroare pe fiecare pixel de distanta. La colturile gurii, 0.85px la lansator si
+~2.6px la salut — o copie a fetei ei de jos, deplasata cu sapte grade, pictata peste fata ei de jos,
+**in fiecare cadru al site-ului, si cand tace**. Afirmatia din comentariu ca „in repaus picteaza
+pixelii de dedesubt si e invizibila" n-a mai fost adevarata de cand am adaugat `rotate`. Inclinarea
+sta acum in **unghiurile gradientilor mastii** (172.87deg si 82.87deg) in loc de pe element: cutia
+ramane aliniata, bitmap-ul nu se mai roteste deloc, iar masca sta tot pe linia buzelor ei. Verificat
+fotografiind banda cu si fara ea si scazand: la salut **diferenta 0.00, maxim 0** — invizibila la
+perfectie. (La lansator ramane 1.26 mediu, dar aia e o nepotrivire de reesantionare sub-pixel intre
+`<img>` si `background-size`, nu rotatia, si e anterioara zilei de azi.)
+
+**8. Inchiderile bilabiale nu ajungeau.** Tabelul scria doisprezece inchideri, dar minimele
+generate erau 0.18–0.46: la un timp de raspuns de 42ms, o tinta de 55ms de zero pornind de la 0.78
+lasa buzele o treime deschise. Inchiderile sunt acum **tineri de 110ms la exact 0**, buzele s-au
+rigidizat (k 800 → 1400, timp de raspuns 29ms) si — fiindca acum cavitatea urmeaza maxilarul — a
+trebuit rigidizat si **maxilarul** (220 → 850): altfel buzele se lipeau iar banda era inca jos, deci
+intunericul ramanea deschis cu ele. Anatomic e aceeasi afirmatie: daca i se lipesc buzele, i s-a
+inchis maxilarul. Minimele in fraza alterneaza acum 0.06–0.13 (inchideri) cu 0.35–0.47 (vocale
+neaccentuate, care *trebuie* sa ramana intredeschise — /t d s n l r/ nu inchid buzele).
+
+**Plus doua marunte din aceeasi analiza:** replicile lungi rulau aceeasi propozitie de patru ori
+(tavanul de 14000ms se rotunjea la 17980 = patru reluari verbatim cu pauzele in aceleasi trei
+momente) — acum podeaua si tavanul sunt ele insele propozitii intregi, una si trei. Si pista capului
+se misca doar intr-o directie fata de repaus (media 0.357%, niciodata deasupra), deci ii atarna
+capul cat vorbeste si sare inapoi cand se opreste; impulsul are acum revenire, iar seria e scalata
+*in jurul lui zero* si nu la 0..1, ca `data-say` sa nu poceasca la aparitie.
+
+**Cele patru cifre, masurate inainte si dupa:** netezime **80% → 0%** (cea mai lunga rampa la
+viteza fixa 128ms → 0ms), inchidere **14% → 16%** cu patru reprize de 120–280ms si inchideri reale
+in frazã, capul **inexistent → 2.08px / 1.09 grade**, deschiderea gurii 3.96px → **5.5px** si
+coborarea buzei 2.34px → **3.71px**.
+
+**Fisiere:** `components/hud/guide/GuideAssistant.tsx` (`.head`, `speak()` mutat la `SPEAK_AT_MS`,
+`ENTER_MS`, `sayMs` cuantificat, `GUIDE_TIMING` exportat fiindca patru teste repetasera 3400 de
+mana si au crapat toate patru), `components/hud/guide/GuideAssistant.module.css` (`.head`, `--say`,
+`guide-blink-talk`, `guide-greet` la 5.1s), **`tools/guide/say.mjs`** (rescris: simulare de arc,
+patru piste dintr-un tabel), `tools/guide/README.md`,
+`components/__tests__/guide-assistant.test.tsx` (+1 test pentru stratul de cap; testul de perioade
+inversat — cele patru piste *impart* acum ceasul, fiindca sunt aceeasi propozitie).
+47/47 la ghid, 1619/1619 in total, lint curat.
+
+**Doc:** [`docs/04-design-system.md` § Ghid TBS](./docs/04-design-system.md#ghid-tbs--the-guide).
+
+---
+
+## 2026-09-24 — Fixed: gura asistentei se deschide cu adevarat cand vorbeste
+
+*„Acum fa sa fie mai real animatia cum voreste asistentul, nu arata real, corecteaza."*
+
+**Avea dreptate, si fotografiile spun de ce.** Marita de patru ori, versiunea veche nu deschidea
+gura deloc: banda maxilarului aluneca in jos cu buzele tot inchise, asa ca linia buzelor se tiparea
+de doua ori si pe barbie aparea o cusatura. Buze care aluneca arata mai putin a vorbire decat buze
+care nu se misca deloc. Cinci lucruri, impreuna:
+
+- **O deschidere, sub buza si nu peste ea.** `.mouth` e lentila intunecata dintre buze, iar `.jaw`
+  ii picteaza propria buza de jos deasupra, deci buza acopera fanta exact cum face o buza: in
+  repaus fanta e `scaleY(0)` si nu exista, iar buza descopera din ea fix cat a coborat. Culoarea e
+  a ei — cel mai intunecat pixel de pe linia buzelor e `rgb(0 37 50)` — si e un **radial-gradient**,
+  nu un `clip-path`, fiindca o margine dura ar fi iar gaura si in modulul asta nu exista filtre.
+- **Linia buzelor ei e inclinata 7.13°, si nimic nu o urma.** Masurat pe fisierul livrat, coloana
+  cu coloana: randul cel mai intunecat e la 39.60% in coltul stang si la 38.27% in dreapta. Un
+  maxilar agatat de o linie orizontala taia oblic prin gura si cobora un capat al buzei **de sus**
+  odata cu barbia. `--tilt` se aplica prin proprietatea separata `rotate`, care se compune inaintea
+  lui `transform`, deci acum coboara pe verticala fetei ei, nu a ecranului.
+- **Doua axe, doua ceasuri.** O gura nu doar se deschide, ci se si rotunjeste — o singura axa era
+  ce o facea sa para o balama. Inaltimea pe **3.05s**, latimea pe **4s**; nu au multiplu comun
+  scurt, deci nicio silaba nu repeta forma alteia. Saisprezece deschideri in 3.05s = **5.2 pe
+  secunda**, cat se vorbeste romaneste; pista veche mergea la 7.4, adica palavrageala.
+- **Intinderea a disparut.** Maxilarul vechi ajungea la `scaleY(1.2)` — barbia se lungea cu o
+  cincime, exact „topirea" reclamata. Si masca era pe dos: `closest-side` ii pusese marginea proprie
+  chiar pe muchia de sus a benzii, adica fix acolo unde e buza de jos.
+- **Replica isi stabileste singura durata.** Cele 7s fixe insemnau ca raspunsul cel mai scurt si cel
+  mai lung stateau la fel de mult. `sayMs()` = 14 caractere pe secunda, plus o secunda la fiecare
+  capat, intre 4.2s si 12s.
+
+**Masurat la lansator** (banda maxilarului: 26.6 x 13.9px): deschiderea parcurge **3.20px**, buza
+de jos coboara **2.22px**, latimea gurii variaza **3.67px** pe o gura de 10px. Varianta dinainte se
+misca 2.43px pe o singura axa si nu se deschidea niciodata. In tacere: `scaleY` exact **0** —
+fotografiat, fiindca acolo au cazut ambele incercari anterioare, iar ea tace aproape tot timpul.
+
+**Fisiere:** `components/hud/guide/GuideAssistant.tsx` (`.mouth`/`.gap` inaintea lui `.jaw`,
+`sayMs()`), `components/hud/guide/GuideAssistant.module.css` (`.mouth`, `.gap`, masca si `rotate`
+pe `.jaw`, `--mcx`/`--mww`/`--tilt`, cele trei piste), **`tools/guide/say.mjs`** (nou — genereaza
+cele trei blocuri dintr-un singur tabel, fiindca sunt aceeasi propozitie citita in trei feluri),
+`tools/guide/README.md`, `components/__tests__/guide-assistant.test.tsx` (+2 teste: fara urma pe
+fata in tacere, si doua axe pe linia ei). 46/46 la ghid, 1616/1616 in total, lint curat.
+
+**Doc:** [`docs/04-design-system.md` § Ghid TBS](./docs/04-design-system.md#ghid-tbs--the-guide).
+
+---
+
 ## 2026-09-24 — Added: asistenta vorbeste, da din gura si raspunde la intrebari frecvente
 
 *„Fa patratul inca mai mare si fa ca sa apara un mesaj mai sus si sa dea din gura de parca ar

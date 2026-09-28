@@ -1,6 +1,8 @@
 "use client";
 
-import { Fragment, type CSSProperties } from "react";
+import { Fragment, useRef, type CSSProperties } from "react";
+
+import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
@@ -48,8 +50,17 @@ const SEP_CLASSES =
 export function Ticker() {
   const l = useLoc();
 
+  /* The marquee is a transform, so it never repaints — but it is infinite, and an infinite
+     transform keeps the compositor awake for the whole visit even with the hero long scrolled
+     past. It stops while the strip is out of view, the same way the hero and the directions
+     ring already do. The five copies all live on ONE track with ONE animation, so there is no
+     seam to desynchronise. */
+  const stripRef = useRef<HTMLDivElement>(null);
+  useOffscreenAttribute(stripRef);
+
   return (
     <div
+      ref={stripRef}
       data-ticker
       data-intro-reveal="ticker"
       aria-hidden="true"
@@ -63,7 +74,7 @@ export function Ticker() {
       <div className="edge-fade-x flex min-w-0 flex-1 items-center overflow-hidden motion-reduce:[mask-image:none]">
         <div
           style={{ "--marquee-copies": TICKER_COPIES } as CSSProperties}
-          className="flex w-max animate-marquee will-change-transform group-hover/ticker:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none motion-reduce:justify-center"
+          className="flex w-max animate-marquee will-change-transform group-hover/ticker:[animation-play-state:paused] group-data-offscreen/ticker:[animation-play-state:paused] motion-reduce:w-full motion-reduce:animate-none motion-reduce:justify-center"
         >
           {Array.from({ length: TICKER_COPIES }, (_, copy) => (
             <div

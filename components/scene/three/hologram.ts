@@ -48,11 +48,19 @@ export const HOLOGRAM = {
   bracket: { arm: 14, inset: 4, width: 2 },
 } as const;
 
+/** `size` in whole px, at least 16 × 10, never above `max`. */
+export function clampCanvasSize(
+  size: readonly [number, number],
+  max: readonly [number, number],
+): [number, number] {
+  const fit = (value: number, cap: number, min: number) =>
+    Number.isFinite(value) ? Math.min(cap, Math.max(min, Math.round(value))) : cap;
+  return [fit(size[0], max[0], 16), fit(size[1], max[1], 10)];
+}
+
 /** `size` in whole px, at least 16 × 10, never above `HOLOGRAM_MAX`. */
 export function clampHologramSize(size: readonly [number, number]): [number, number] {
-  const fit = (value: number, max: number, min: number) =>
-    Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value))) : max;
-  return [fit(size[0], HOLOGRAM_MAX[0], 16), fit(size[1], HOLOGRAM_MAX[1], 10)];
+  return clampCanvasSize(size, HOLOGRAM_MAX);
 }
 
 /** Whitespace collapsed, trimmed. */
@@ -639,6 +647,8 @@ export type HologramComposer = (
 
 export type HologramSource = {
   texture: CanvasTexture;
+  /** The canvas's size in px, as the last `resize` left it (the composer is handed the same pair). */
+  size(): readonly [number, number];
   /**
    * Draw `card` (the `index`-th) in the next idle slot, replacing any pending request; null does
    * nothing. The same card at the same index is skipped once its screenshot is on the texture —
@@ -654,6 +664,14 @@ export type HologramSource = {
    * `request` always composes again).
    */
   paint(draw: (ctx: CanvasRenderingContext2D, size: readonly [number, number]) => void): void;
+  /**
+   * Re-size the canvas (clamped to the source's cap) and compose the current request onto it
+   * again. For a face that fills a BOX OF THE PAGE rather than a fixed screen: the hero's stat
+   * windows change aspect between the two-column and the stacked layout — 0.98 : 1 to 2.2 : 1 — and
+   * a texture drawn at one and stretched to the other would lean every letter. A size that is
+   * already the canvas's does nothing, so this is safe to call on every measurement.
+   */
+  resize(size: readonly [number, number]): void;
   dispose(): void;
 };
 
@@ -663,16 +681,18 @@ type IdleWindow = Window & {
 };
 
 /**
- * One canvas of `size` (clamped to `HOLOGRAM_MAX`) and its texture. A request composes in an idle
- * slot (one compose at a time; a newer request wins), then flags the texture and calls `onSwap`
- * (the model glitches over the swap). A change of `<html lang>` composes the current card again.
+ * One canvas of `size` (clamped to `max`, the high tier's hologram by default) and its texture. A
+ * request composes in an idle slot (one compose at a time; a newer request wins), then flags the
+ * texture and calls `onSwap` (the model glitches over the swap). A change of `<html lang>` composes
+ * the current card again.
  */
 export function createHologramSource(
   size: readonly [number, number],
   onSwap: () => void,
   compose: HologramComposer = composeHologram,
+  max: readonly [number, number] = HOLOGRAM_MAX,
 ): HologramSource {
-  const [w, h] = clampHologramSize(size);
+  let [w, h] = clampCanvasSize(size, max);
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
@@ -768,8 +788,24 @@ export function createHologramSource(
 
   return {
     texture,
+    size() {
+      return [w, h] as const;
+    },
     request(card, index, force = false) {
       request(card, index, force);
+    },
+    resize(next) {
+      if (disposed) return;
+      const [nw, nh] = clampCanvasSize(next, max);
+      if (nw === w && nh === h) return;
+      w = nw;
+      h = nh;
+      canvas.width = w;
+      canvas.height = h;
+      // The canvas is blank again, so whatever was on it is gone: nothing may be skipped as
+      // "already shown", and the pending or last request has to be composed onto the new size.
+      shown = null;
+      if (wanted) request(wanted.card, wanted.index, true);
     },
     paint(draw) {
       if (disposed || !ctx) return;

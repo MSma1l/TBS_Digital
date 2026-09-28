@@ -25,6 +25,8 @@ type Active = {
   x: number;
   y: number;
   frame: number;
+  /** Whether `data-tilting` is already on the element, so it is written once and not per frame. */
+  tilting: boolean;
   onScroll: () => void;
 };
 
@@ -50,6 +52,9 @@ function settle(active: Active): void {
   if (active.frame) cancelAnimationFrame(active.frame);
   window.removeEventListener("scroll", active.onScroll);
   active.el.removeAttribute("data-tilting");
+  /* And the flag goes with it: the same Active can be handed back by `start()` when the pointer
+     is still over the card, and a stale `true` would mean the attribute is never written again. */
+  active.tilting = false;
   active.el.style.removeProperty("--tilt-rx");
   active.el.style.removeProperty("--tilt-ry");
   if (active.el.getAttribute("style")?.trim() === "") active.el.removeAttribute("style");
@@ -82,6 +87,10 @@ export function usePointerTilt(maxDeg: number): {
 
   const start = useCallback(
     (event: ReactPointerEvent<HTMLElement>): Active | null => {
+      /* NOT cached in a module-level MediaQueryList, though it would save two parses per
+         pointer event: the cache outlives a test's `matchMedia` stub, and more to the point it
+         outlives any future code that replaces `matchMedia`, which is a real bug traded for a
+         very small saving. `mediaMatches` asks the live engine every time. */
       const tilts = shouldTilt({
         reducedMotion: mediaMatches(REDUCED_MOTION_QUERY),
         finePointer: mediaMatches(TILT_QUERY),
@@ -97,6 +106,7 @@ export function usePointerTilt(maxDeg: number): {
         x: event.clientX,
         y: event.clientY,
         frame: 0,
+        tilting: false,
         onScroll: () => {
           next.rect = measure(el);
         },
@@ -125,7 +135,12 @@ export function usePointerTilt(maxDeg: number): {
           const { rx, ry } = tiltFor(current.x, current.y, current.rect, maxDeg);
           current.el.style.setProperty("--tilt-rx", `${rx}deg`);
           current.el.style.setProperty("--tilt-ry", `${ry}deg`);
-          current.el.setAttribute("data-tilting", "");
+          /* Only on the way in. Re-setting an attribute to the value it already has still
+             invalidates the element's style, once per frame of every hover, for nothing. */
+          if (!current.tilting) {
+            current.tilting = true;
+            current.el.setAttribute("data-tilting", "");
+          }
         });
       },
       onPointerLeave: () => stop(),

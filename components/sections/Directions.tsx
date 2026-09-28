@@ -41,7 +41,6 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 type Service = {
   slug: SceneShape;
   tab: LocalizedText;
-  tag: LocalizedText;
   title: LocalizedText;
   text: LocalizedText;
   list: LocalizedText[];
@@ -51,7 +50,6 @@ const SERVICES: Service[] = [
   {
     slug: "produs-digital",
     tab: L("Produs digital", "Цифровой продукт", "Digital product"),
-    tag: L("DE LA IPOTEZĂ LA LANSARE", "ОТ ГИПОТЕЗЫ ДО ЗАПУСКА", "FROM HYPOTHESIS TO LAUNCH"),
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
     text: L(
       "Clarificăm problema, proiectăm experiența și livrăm un produs ușor de evoluat.",
@@ -69,11 +67,6 @@ const SERVICES: Service[] = [
     /* The pill keeps the short label — it is a navigation item; the panel carries the full
        title. Nothing here is written in the past tense: we have not shipped a shop. */
     tab: L("E-commerce", "E-commerce", "E-commerce"),
-    tag: L(
-      "PRODUSE DIGITALE CARE SE VÂND CLAR",
-      "ЦИФРОВЫЕ ПРОДУКТЫ, КОТОРЫЕ ПРОДАЮТСЯ ПОНЯТНО",
-      "DIGITAL PRODUCTS THAT SELL CLEARLY",
-    ),
     title: L(
       "E-commerce pentru produse, rapoarte și acces digital",
       "E-commerce для продуктов, отчётов и цифрового доступа",
@@ -93,7 +86,6 @@ const SERVICES: Service[] = [
   {
     slug: "automatizare-api",
     tab: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
-    tag: L("CONECTEAZĂ CE CONTEAZĂ", "СОЕДИНЯЕМ ВАЖНОЕ", "CONNECT WHAT MATTERS"),
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
     text: L(
       "Eliminăm munca repetitivă și conectăm sistemele care trebuie să comunice.",
@@ -111,7 +103,6 @@ const SERVICES: Service[] = [
     /* The pill label and the route stay as the client signed them off; only the panel copy
        changed, so that what is described as delivered is what actually runs. */
     tab: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
-    tag: L("IA CARE LUCREAZĂ CU ECHIPA", "ИИ, КОТОРЫЙ РАБОТАЕТ С КОМАНДОЙ", "AI THAT WORKS WITH YOUR TEAM"),
     title: L(
       "Asistenți și boți conectați la conversații reale",
       "Ассистенты и боты, подключённые к реальным разговорам",
@@ -131,7 +122,6 @@ const SERVICES: Service[] = [
   {
     slug: "brand-ui",
     tab: L("Brand & UI", "Бренд и UI", "Brand & UI"),
-    tag: L("O IDENTITATE CARE SE ȚINE MINTE", "ЗАПОМИНАЮЩАЯСЯ ИДЕНТИЧНОСТЬ", "AN IDENTITY THAT STICKS"),
     title: L("Brand & UI", "Бренд и UI", "Brand & UI"),
     text: L(
       "Dăm produsului un sistem vizual coerent, clar și ușor de folosit.",
@@ -147,7 +137,6 @@ const SERVICES: Service[] = [
 ];
 
 const SECTION = {
-  eyebrow: L("Alege direcția potrivită", "Выберите направление", "Choose your direction"),
   title: L(
     "Un selector de servicii făcut pentru decizie rapidă.",
     "Селектор услуг, сделанный для быстрого решения.",
@@ -163,11 +152,8 @@ const SECTION = {
 };
 
 const CASE = {
-  /** Label above the real reference project of the selected direction. */
-  ref: L("PROIECT REAL DIN PORTOFOLIU", "РЕАЛЬНЫЙ ПРОЕКТ ИЗ ПОРТФОЛИО", "REAL PROJECT FROM THE PORTFOLIO"),
-  /** Last-resort label: a direction with neither a project nor a flow to show. Kept because
-   *  the portfolio is editable — an admin can remove the projects a direction points at. */
-  none: L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO"),
+  /** A direction with neither a project nor a flow to show. Kept because the portfolio is
+   *  editable — an admin can remove the projects a direction points at. */
   noneText: L(
     "Pe această direcție nu avem încă un proiect public în portofoliu.",
     "По этому направлению у нас пока нет публичного проекта в портфолио.",
@@ -351,11 +337,7 @@ export function Directions({ initialArt }: DirectionsProps) {
       <div className="mx-auto max-w-(--maxw)">
         <Reveal className="flex flex-wrap items-end justify-between gap-5">
           <div className="min-w-0">
-            <p className="m-0 flex items-center gap-2.5 font-hud text-xs font-bold uppercase leading-[1.4] tracking-[.1em] text-red-text sm:text-sm">
-              {l(SECTION.eyebrow)}
-              <span aria-hidden="true" className="h-px w-12 shrink-0 bg-linear-to-r from-red/70 to-transparent" />
-            </p>
-            <h2 className="mt-3 mb-0 text-balance font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
+            <h2 className="m-0 text-balance font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
               {l(SECTION.title)}
             </h2>
           </div>
@@ -428,10 +410,7 @@ export function Directions({ initialArt }: DirectionsProps) {
             {/* Keyed, so a new direction's copy plays its entrance. The link below is NOT
                 inside: it stays the same element, only its href follows the selection. */}
             <div key={svc.slug} className="animate-swap-in motion-reduce:animate-none">
-              <div className="font-hud text-xs font-bold uppercase leading-[1.4] tracking-[.08em] text-red-text">
-                {l(svc.tag)}
-              </div>
-              <h3 className="mt-2 mb-3.5 font-disp text-[clamp(26px,3vw,34px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
+              <h3 className="mt-0 mb-3.5 font-disp text-[clamp(26px,3vw,34px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
                 {l(svc.title)}
               </h3>
               <p className="m-0 mb-4 max-w-[430px] font-copy text-base leading-[1.6] text-mut">{l(svc.text)}</p>
@@ -496,10 +475,13 @@ export function Directions({ initialArt }: DirectionsProps) {
             </div>
 
             <article className="relative w-full shrink-0 rounded-lg border border-(--ink-line) bg-ink p-4 text-on-ink shadow-lg before:pointer-events-none before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] sm:p-5 lg:w-[290px] xl:w-[320px]">
-              <div className="flex items-center justify-between gap-3 font-hud text-xs font-bold uppercase leading-[1.4] tracking-[.08em] text-(--on-ink-mut)">
-                <span>{reference ? l(CASE.ref) : flow ? l(flow.cardLabel) : l(CASE.none)}</span>
-                {reference && <b className="text-[22px] leading-none text-on-ink">{refNumber}</b>}
-              </div>
+              {/* The card's index, and nothing else above the name: the label line that used to
+                  sit here went with every other kicker on the site (2026-09-25). */}
+              {reference && (
+                <div className="flex justify-end font-hud text-[22px] font-bold leading-none text-on-ink">
+                  {refNumber}
+                </div>
+              )}
               {reference ? (
                 <>
                   <h4 className="mt-4 mb-2 font-disp text-[clamp(26px,3.2vw,34px)] font-black uppercase leading-[1.02] tracking-[-0.045em] text-on-ink [overflow-wrap:anywhere]">

@@ -84,12 +84,18 @@ so the data source can change without touching markup.
 │  │  │                    #   helixLayout, focusFromProgress, scrollForCard, nearestCard) and the
 │  │  │                    #   framework-free DOM driver that lays the project cards out round the
 │  │  │                    #   helix (createWorkHelixDriver) — see "The project DNA helix" below
+│  │  ├─ projectsReel.ts · statCards.ts   # framework-free DOM readers: which project card the
+│  │  │                    #   laptop's display shows, and the hero's metric cards the stat
+│  │  │                    #   panels compose their faces from (no React, nothing per frame)
 │  │  ├─ three/            # imperative three.js: world (+ stageHelix) · core (the hero
 │  │  │                    #   microprocessor) · swarm · trail (the cursor trail's ribbon) ·
 │  │  │                    #   materials (five programs, P2–P6) · glsl · palette · samples (slot 0:
 │  │  │                    #   helixSamples) · compile (staged build, frame-counted ready) ·
-│  │  │                    #   hologram (Work's Canvas2D hologram texture) ·
-│  │  │                    #   models/{cubes,commerceLoop,integrationHub,neural,meshWave,helix}
+│  │  │                    #   hologram (Work's Canvas2D hologram texture, the laptop's screen and
+│  │  │                    #   the source every canvas face is uploaded through) · statFace (the
+│  │  │                    #   hero stat panels' faces, composed from the metric cards' own DOM) ·
+│  │  │                    #   models/{cubes,commerceLoop,integrationHub,neural,meshWave,helix,
+│  │  │                    #   laptop,statPanel,panel/*}
 │  │  └─ art/              # static SVG art, CSS Modules, no "use client": HeroCoreArt (+ heroArt.ts)
 │  │                       #   and ServiceArt (+ serviceArtPaths.ts)
 │  ├─ fx/                  # DOM hooks: useOffscreenAttribute (data-offscreen) · usePointerTilt
@@ -97,9 +103,6 @@ so the data source can change without touching markup.
 │  │  │                    #   layout since Phase 4) — gate (tbs_hud ≠ off → consent → first
 │  │  │                    #   interaction → intro gone → idle), then its lazy parts in one commit.
 │  │  │                    #   CSS Modules only; lucide-react may be imported only here
-│  │  ├─ guide/            # Ghid TBS (Phase 4, a next/dynamic part): GuideAssistant.tsx (avatar,
-│  │  │                    #   tip, centre-line observer, away/yield) + .module.css, copy.ts
-│  │  │                    #   (GUIDE_COPY as { ro, ru, en } objects; no directive, e2e imports it)
 │  │  └─ rail/             # the fibre scroll rail (Phase 5, a desktop-only next/dynamic part):
 │  │                       #   ScrollRail.tsx (fibre, section markers, jumps) + .module.css, copy.ts
 │  │                       #   (RAIL_COPY, RAIL_HOME_SECTIONS; no directive, e2e imports it)
@@ -147,8 +150,7 @@ so the data source can change without touching markup.
 │  │                       #   gate.ts (tbs_hud QA key, arming events, desktop media; import-free,
 │  │                       #   playwright.config.ts imports it) · busy.ts (the "busy with the HUD"
 │  │                       #   store) · obscure.ts (covers / overlaps, focus-not-obscured guards) ·
-│  │                       #   topics.ts (the guide's topic ids) · linger.ts (Phase 4: the guide's
-│  │                       #   limits, memory store, canPrompt / pickTopic / isTypingTarget; pure) ·
+│  │                       #   topics.ts (the section topic ids a request can carry) ·
 │  │                       #   rail.ts (Phase 5: the rail's maths — progress, section targets,
 │  │                       #   marker layout, current / crossed sections, heading discovery; pure)
 │  ├─ request/             # RequestFlowProvider.tsx (the one request dialog; RequestContext,
@@ -201,6 +203,15 @@ shouldPlayIntro(requestHeaders.get("x-pathname"), (await cookies()).get(INTRO_CO
 > browser session, which reads as broken on a reload. It is only *honoured*, so the E2E suite
 > (and QA) can seed it and skip the overlay; `finishIntro` clears the old `tbs_intro` name a
 > browser may still be carrying.
+
+> **`x-pathname` is what makes the gate work, so every document request must reach the proxy**
+> (2026-09-25). `proxy.ts`'s matcher used to copy Next's CSP recipe verbatim and skip any request
+> carrying the legacy `Purpose: prefetch` header. That header is a BROWSER's, not this Next
+> version's router (which sends `next-router-prefetch` alone), and Chrome sends it when it
+> preloads a URL it predicted from its own history — so the visitor who comes back most often was
+> served a document with no `x-pathname`: no intro, no self-canonical, and no CSP header. The
+> matcher now skips the router's RSC prefetch and nothing else
+> (`app/__tests__/proxy-matcher.test.ts` pins it).
 
 When it is true the layout renders, as its **first children**, a `<noscript><style>` that
 hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
@@ -306,7 +317,8 @@ rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage
 SceneStage (client, in the page bundle — no three.js, no GSAP)
   mount ─ readSceneFlag · detectSceneTier(readDeviceProfile()) · readMotionGate()
   │         off (flag, reduced-motion, save-data, network) │ fallback (unsupported, low-tier) │ wait
-  └─ onIntroGone ─► afterIdle(1500ms of visible time [+600ms after an intro] + an idle slot)
+  ├─ under an intro ─► afterIdle(2500ms) ─► warm: readGpuFacts → both import()s, behind the film
+  └─ onIntroGone ─► afterIdle(warmed ? 600ms : 1500ms of visible time [+600ms] + an idle slot)
         └─ readGpuFacts(mode)  ← sessionStorage.tbs_gpu_probe
              └─ none cached ─► import("@/components/three/capability") → probeGpu(mode)
         └─ decideWebGL(facts, force) ─► fallback(reasonFor) │ loading, in ONE commit:
@@ -326,6 +338,16 @@ SceneStage (client, in the page bundle — no three.js, no GSAP)
   visitor who downloaded it for the intro now gets it from cache for the stage.
 - The delay after an intro is the time R3F takes to release the intro's context: the two scenes
   never hold a WebGL context at once.
+- **The stage gets ready behind the film** (`SCENE_TIMING.WARM_MS`, 2500 ms into an intro). It
+  fetches its two chunks there — the shared runtime, usually already in cache because the intro
+  took the same `import()` target, and the director's own GSAP + ScrollTrigger group, which is
+  not shared. It reads the GPU answer out of the session cache and **never probes**: a second
+  live context under the film is the thing this avoids. No cached answer, or an answer that ends
+  on the static art, and it warms nothing.
+  A warmed stage then waits only for the context (600 ms) instead of the 1500 ms settle as well
+  — that settle exists so chunk requests never compete with the first paint, hydration or a first
+  tap, and none of those is still happening eight seconds into a film. Measured on a cold load at
+  1440×900: the canvas mounted at 12.11 s before this, 10.2 s after.
 - **Runtime transitions** (all for the mounted attempt only): reduced motion switched on → `off`
   for the visit; a context lost while visible, or a governor bail → `fallback` for the rest of
   the session (`markGpu("lost" | "slow")` in the probe cache); a context lost while the tab is
@@ -363,7 +385,7 @@ mode, the card nearest the band's middle).
 | `lib/scene.ts` (+ `lib/gpuProbe.ts`) | The contract: `SCENE_3D_KEY`, the live gates (`readMotionGate`), the probe cache and `decideWebGL` / `reasonFor`, the `data-*` names and test ids, `SCENE_SHAPES` → `SERVICE_MODEL`, the input store, the `ScrollProbe` type, `SCENE_TIMING`, `PARALLAX_MEDIA` / `PARALLAX_LAYERS`, `WORK_TRACK_ATTR`, `SceneHelixMode` / `SceneHelix`, `SCENE_LAYOUT_EVENT`. No `"use client"`, no DOM at import (server components and `e2e/helpers.ts` import it) |
 | `SceneStage` | The pipeline and its state, pausing, the React-written attributes and the DOM-written reports (`data-helix` included), the error boundary, the session marks |
 | `SceneDirector` + `scrollGuard.ts` / `scrollProbe.ts` | ScrollTrigger: the four measuring triggers (`heroExit`, `entry`, `workSpan`, `helix`), when to refresh, re-reading the boxes on `SCENE_LAYOUT_EVENT`, no measurement under a cover, the smooth-scroll guard, quiet/wake, the desktop hero parallax |
-| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate and the Work gate, Work's helix (built after ready) and its hologram. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` / `onHelix`. It touches the page in **one** place only: in spiral mode the scene chunk's driver (`workHelix.ts`, created by `SceneWorld`, called by the world every frame, disposed with it) writes Work's cards' inline layout, and puts every card back when it leaves |
+| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate and the Work gate, Work's helix (built after ready) and its hologram. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` / `onHelix`. It touches the page in **one** place only: in spiral mode the scene chunk's driver (`workHelix.ts`, created by `SceneWorld`, called by the world every frame, disposed with it) writes Work's cards' inline layout, and puts every card back when it leaves. It READS the page in two more (`projectsReel.ts`, `statCards.ts`): which project card the laptop shows, and the hero's metric cards the stat panels' faces are composed from — both framework-free, both through a MutationObserver, neither per frame |
 | `helix.ts` / `workHelix.ts` | The spiral's pure layout; the DOM driver: which mode, when it may switch, the cards' inline poses, focus, the restore contract |
 | `Hero`, `Directions` | The anchors the scene fits its models into, the art slots, and the inputs: `setSceneBoost` (CTA hover / keyboard focus), `selectSceneShape` (the selected pill) |
 | `Work` | The cards as React renders them (`--p1` / `--p2` inline, nothing else) and the track attribute (`data-work-track`); it knows nothing of the spiral, and React re-renders never undo it (they diff only React's own style keys) |
@@ -376,7 +398,7 @@ mode, the card nearest the band's middle).
   `window.scrollY`, once per frame. No React state, no events. Its shape (`ScrollProbe`,
   `lib/scene.ts`): `live`, `version`, `headerH`, `layerH` (the sticky layer's height),
   `stage: { top, bottom }`, `hero` and `services` (document boxes, null while the anchor is not in
-  the page), `work` (Work's card track), `workHead` (its heading block, eyebrow to lead, the
+  the page), `work` (Work's card track), `workHead` (its heading block, title to lead, the
   scroll reveal's `translateY` taken out) and `workGap` (the free band above that heading: from the
   previous section's content end — its bottom less its bottom padding — to the heading's top, as
   wide as Work's section), and four scroll spans — `heroExit` (`#top` "top top" →
@@ -403,6 +425,19 @@ mode, the card nearest the band's middle).
   and marks the slots it wrote; `three/trail.ts` uploads just those slots and draws.
 
 ### The hero chip and the cursor trail (IT-OS Phase 1, 2026-09-17)
+
+- **The hero's stat panels are OFF** (2026-09-27), and the two metric cards are the page's own
+  painted cards on every renderer, at every width. Between 2026-09-25 and 2026-09-27 the world
+  drew them itself — `app/globals.css` took the card's paint away on a `data-renderer="webgl"`
+  stage and set `--stat-window: 1`, `writeStatWindows` measured the cards carrying it, `placeStat`
+  fitted a panel to each box and `three/models/statPanel.ts` drew it with a face composed from the
+  card's own text. That block is gone. `--stat-window` is the only thing `writeStatWindows`
+  consults, it is now permanently 0, so `probe.stats` stays empty and the world never builds a
+  panel, never composes a texture and never disposes one.
+
+  The machinery is dormant, not deleted (`statPanel.ts`, `statFace.ts`, `statCards.ts`,
+  `placeStat`, `statAt`/`statLocal`), and still unit-tested: one rule in `globals.css` turns it
+  back on. `e2e/interior-webgl.spec.ts` W20 asserts the switch cannot arm.
 
 - **The chip is built from the programs the scene already had** (`three/core.ts`,
   `createChipCore`): instanced box edges (P3) for the substrate, heat spreader, die frame and pins;
@@ -469,9 +504,10 @@ page that is still assembling itself, so a page with a scene is covered outright
 `components/ui/PageLoading.tsx`, the site's background and its perspective grid over the whole
 viewport.
 
-**When it is up.** Only while `data-renderer` is `pending`. That is the server's value too, so the
-cover is painted on the very first frame and nobody watches the page build itself; `webgl`,
-`fallback` and `off` are all answers and any of them takes it down. It is matched from the root
+**When it is up.** Only while `data-renderer` is `pending`, **and only on a load with no intro**.
+`pending` is the server's value too, so the cover is painted on the very first frame and nobody
+watches the page build itself; `webgl`, `fallback` and `off` are all answers and any of them takes
+it down. It is matched from the root
 with `html:has([data-scene-stage][data-renderer="pending"])` rather than as an ancestor, because
 `SceneStage` is `isolate`: anything rendered inside it is z-scoped to the stage, and the header
 (120) and the cookie banner (280) would paint straight over a cover that lived there. It is
@@ -483,10 +519,18 @@ whatever the stage is doing. Every one of the stage's own paths is far shorter, 
 on a genuine fault — a chunk that never arrived, a probe that threw where no boundary caught it —
 and without it that fault would leave a visitor on a blank screen with no way past. The
 `<noscript>` rule beside the drawings' one removes the cover outright, because with no JavaScript
-no answer ever comes. An intro is already a full-window cover with its own clock and its own skip,
-so `html:has(#tbs-intro)` stands this one down rather than letting two of them fight. The trade is
-LCP: an opaque cover over the hero means the largest contentful paint is not counted until it
-lifts, and that is accepted in exchange for never showing a half-rendered page.
+no answer ever comes. **Never after an intro** (2026-09-26). An intro is already a full-window cover with its own clock
+and its own skip, so `html:has(#tbs-intro)` stands this one down while it plays — and
+`html[data-intro-played]`, written on `<html>` by `finishIntro` on the frame of the reveal, keeps
+it down for the rest of the document. The owner reported the alternative: measured on a cold load,
+the film revealed the page at 8.19 s and this cover was up from 8.21 s to 13.80 s — 5.6 seconds of
+BootCore over a page photographed, with the cover forced down, as finished (header, title, lead,
+both CTAs, the static hero art, both stat cards). It used to stand down only until the reveal
+BEGAN, to close a 1236 ms window in which the page showed between the two covers; with no second
+cover there is no second handover to flicker between. A bypassed intro sets nothing and keeps the
+cover it always had. The trade is LCP: an opaque cover over the hero means the largest contentful
+paint is not counted until it lifts, and that is accepted in exchange for never showing a
+half-rendered page.
 
 **What is on it is `components/ui/BootCore.tsx` — the site's own processor, in exploded view,
 turning.** Not a spinner and not an invented shape: every measurement is `CHIP` from
@@ -740,7 +784,7 @@ is superseded by the client's decisions 10 and 12.
   (`helixZoneTop`: under the header, never above the track's top nor below its bottom);
   `HELIX_ZONE_FILL` (0.9) of the zone tall; a rigid follow, since the zone is stuck while the
   cards turn. Ambient: `placeHelixAmbient` — lying down (`HELIX_AMBIENT_ROLL`) in
-  `probe.workGap`, the free band between the Directions panel and Work's eyebrow (Directions' 36px
+  `probe.workGap`, the free band between the Directions panel and Work's heading (Directions' 36px
   bottom padding plus Work's 48px top padding on a phone), centred on it, `HELIX_AMBIENT.length`
   (0.6) of the canvas's width long and at most `HELIX_AMBIENT.maxPx` (120px) — or the band less
   `HELIX_AMBIENT.clear` (10px) above and below — tall, measured with `HELIX_REACH` (1.26: the bits
@@ -785,13 +829,17 @@ A bare render without the slot (unit tests) draws no illustration at all.
 
 ## The HUD chrome (IT-OS Phase 4, 2026-09-17)
 
-The IT-OS HUD — the Ghid TBS guide (Phase 4) and the fibre scroll rail (Phase 5) now; the OS layer
-in a later phase — has **one mount**, `components/hud/HudChrome.tsx`, rendered by
-`app/(site)/layout.tsx` between `<Footer />` and `<CookieConsent />`. After the footer in the DOM,
-so the header's tab budget and "the intro's skip is the first Tab stop" both hold. Behaviour and
-limits are in [05 — Page Sections](./05-page-sections.md#ghid-tbs-the-guide) and
+The IT-OS HUD — the fibre scroll rail (Phase 5) now; the OS layer in a later phase — has **one
+mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />`
+and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget and "the intro's
+skip is the first Tab stop" both hold. Behaviour and limits are in
 [05 — the fibre rail](./05-page-sections.md#the-fibre-rail); the visual contract in
-[04](./04-design-system.md#ghid-tbs--the-guide) and [04](./04-design-system.md#the-fibre-rail).
+[04](./04-design-system.md#the-fibre-rail).
+
+The Ghid TBS guide was Phase 4's part and was **removed on 2026-09-25, briefly restored on the 26th at the owner's request and removed again the same day, for good**
+(`components/hud/guide/**`, `lib/hud/linger.ts`, `lib/hud/obscure.ts`, `lib/hud/busy.ts`,
+`public/guide/`, `tools/guide/`). The mount, the gate below and `lib/hud/topics.ts` are what it
+shared and what outlives it.
 
 ### Arming order
 
@@ -807,41 +855,26 @@ limits are in [05 — Page Sections](./05-page-sections.md#ghid-tbs-the-guide) a
 4. the intro overlay is gone (`onIntroGone`);
 5. an idle slot (`afterIdle(0)`).
 
-Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk, in
-this DOM order: `GuideAssistant` (`components/hud/guide/GuideAssistant.tsx`), then `ScrollRail`
-(`components/hud/rail/ScrollRail.tsx`, Phase 5). The rail is flagged `desktopOnly`: HudChrome
-renders it through `DesktopOnly`, a `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`
-(`(min-width: 861px)`), mounted only once the gate is open — so nothing reads the query before
-arming, a phone never requests the rail's chunk, and crossing 861px mounts or unmounts the rail
-alone (the guide is not even re-rendered). A visitor who
-never interacts, never answers the banner, or carries `tbs_hud=off` downloads no part: the page
+Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk. One
+part is left: `ScrollRail` (`components/hud/rail/ScrollRail.tsx`, Phase 5), flagged `desktopOnly`.
+HudChrome renders it through `DesktopOnly`, a `useSyncExternalStore` over
+`matchMedia(HUD_DESKTOP_MEDIA)` (`(min-width: 861px)`), mounted only once the gate is open — so
+nothing reads the query before arming, a phone never requests the rail's chunk, and crossing 861px
+mounts or unmounts the rail alone, without re-rendering the mount or any other part. **Under 861px
+an armed HUD therefore renders nothing at all** — the guide was what a phone used to get. A visitor
+who never interacts, never answers the banner, or carries `tbs_hud=off` downloads no part: the page
 bundle carries only `HudChrome` itself (+473 B gzip on `/` in Phase 4, +166 B more for the rail's
 reference and `DesktopOnly` in Phase 5; a service page paid +675 B, which did not already load
-`lib/idle` and `lib/intro`), and the parts arrive as late chunks after arming (the B1h / B5h / B6h
-rows in `CHANGELOG.md`): the guide's JS 5.9 KB gzip (its copy, the linger engine, lucide's `X` and a
-copy of `lib/directions.ts`) with a 2.3 KB CSS Module, and — on a viewport of 861px or more only —
-the rail's JS 3.4 KB with a 1.4 KB CSS Module.
+`lib/idle` and `lib/intro`), and the part arrives as a late chunk after arming (the B1h / B5h / B6h
+rows in `CHANGELOG.md`): on a viewport of 861px or more, the rail's JS 3.4 KB gzip with a 1.4 KB CSS
+Module. The guide's own chunk (5.9 KB JS, 2.3 KB CSS) went with it on 2026-09-25.
 
-### The guide's wiring
+### What the guide left behind
 
-`GuideAssistant` renders nothing while the banner is unanswered or `isIntroOnScreen()`
-(`useSyncExternalStore` over `CONSENT_EVENT` and `INTRO_GONE_EVENT`), so it is correct on its own
-too. Inside it:
-
-| Piece | What it does |
-|-------|--------------|
-| Centre-line observer | One `IntersectionObserver` with `rootMargin: "-50% 0px -50% 0px"` (a zero-height root on the viewport's middle) over `#servicii`, `#lucrari` and every `[data-guide-topic]` whose value `isGuideTopic` accepts. `pickTopic` (`lib/hud/linger.ts`) resolves nested hits to the deepest element, ties to the first in collection order. Re-created on every pathname. |
-| Linger timer | `visibleTimeout(GUIDE_LIMITS.lingerMs)` re-armed whenever the centre topic changes. When it fires, `canPrompt(memory, topic, performance.now(), blockers)` decides; blocked for now → it waits again, until `isFinal`. |
-| Blockers | `covered` (`isPageCovered()`), `intro` (`isIntroOnScreen()`), `banner` (`getConsent() === null`), `typing` (`isTypingTarget(document.activeElement)`), `requestOpen` (`useRequestFlow().isOpen`), `away`, `busy` (`isHudBusy()`). |
-| Memory | ONE module-level `createGuideMemoryStore()`: survives client navigation (the chunk stays loaded, the layout is not re-rendered), resets on reload. No storage, no cookie. |
-| Away observer | A second observer (threshold 0) on `[data-testid="request-flow"][data-layout="section"]` (the home page's `#estimare`): while it intersects, `data-away` on the root and `tabIndex -1` on the guide's buttons. |
-| Cover | `subscribePageCover`: the dialog or the burger covering the page clears a shown tip; nothing is hidden (the z-order covers the guide). |
-| Yield | A document `focusin` listener: focus on an element the avatar or tip overlaps (`overlaps`, `lib/hud/obscure.ts`) and not inside the guide sets `data-yield`; focus under the tip also clears the tip. |
-| Opening | `openRequest({ source: "guide" \| "guide-prompt", openAssistant: true, guideTopic?, serviceSlug?, projectId?, projectName?, returnFocusTo: avatar })`. `serviceSlug` from `usePathname()` (`/servicii/<slug>`, with or without `/ru` · `/en`) only when `lib/directions.ts` knows it; the project only for the `lucrari` topic, from `#lucrari [data-helix-front]`'s index among `#lucrari a, #lucrari article` into `useSiteContent().projects`. |
-
-The tip and the away state are tied to the pathname they were set on, so a client navigation
-clears them without an effect. The estimator (`Estimator.tsx`) honours `openAssistant` (the
-dialog opens on the chat, focus inside it) and writes the origin block the lead carries.
+The request flow it opened outlives it. `RequestContext` still carries `openAssistant` (the dialog
+opens on the chat, focus inside it) and `guideTopic` (`- Secțiune: <topic>` in the origin block,
+validated against `lib/hud/topics.ts`); the estimator honours both. No CTA passes either today, so
+neither reaches a lead — any future CTA that knows which section it sits in can pass one.
 
 ### The rail's wiring (IT-OS Phase 5, 2026-09-17)
 
@@ -851,7 +884,7 @@ Compiler rule): React re-renders only when the markers or the current section ch
 
 | Piece | What it does |
 |-------|--------------|
-| Sections | `discoverSections()`: the home page's curated list (`RAIL_HOME_SECTIONS` in `components/hud/rail/copy.ts`) when every id is on the page (`#top #servicii #lucrari #despre #echipa #estimare #contact`); otherwise one marker per `section` in `main`, named by its first `h1`/`h2` (`pickRailSections`: not inside `header`, `footer`, a dialog, an `aria-hidden` subtree, the guide or the rail; not a section holding more than one `h2`; the label whitespace-collapsed and clipped to 60 characters). More than 8 → the fibre only, no `<nav>` (`railHasNav`). |
+| Sections | `discoverSections()`: the home page's curated list (`RAIL_HOME_SECTIONS` in `components/hud/rail/copy.ts`) when every id is on the page (`#top #servicii #lucrari #despre #echipa #estimare #contact`); otherwise one marker per `section` in `main`, named by its first `h1`/`h2` (`pickRailSections`: not inside `header`, `footer`, a dialog, an `aria-hidden` subtree or the rail itself; not a section holding more than one `h2`; the label whitespace-collapsed and clipped to 60 characters). More than 8 → the fibre only, no `<nav>` (`railHasNav`). |
 | Measure | Each section's target is `sectionTarget(docTop, --header-h, max)` (its top right under the header, clamped to `[0, scrollHeight − innerHeight]`); `railLayout(targets, max, fibre.clientHeight)` places the markers proportionally, at least 44px apart, inside the fibre. Re-measured on mount, one `requestAnimationFrame` per burst of: a `ResizeObserver` on `<html>` (the page grows as content loads; Work's spiral lengthens its track), `resize`, `tbs:scene-layout` (`SCENE_LAYOUT_EVENT`, heard in the capture phase on `document`, since the stage dispatches it without bubbling), the page cover lifting (`subscribePageCover`), `document.fonts.ready`, and a pathname change. |
 | Scroll frame | One passive `scroll` listener on `window`, one frame per burst: `--rail-p` (`progressOf`, 4 decimals) written on the rail's own root with `style.setProperty` only when it changes; the current section (`activeIndex`, within 1px); the ticks a downward scroll crossed (`crossedDown`) get `data-pulse` swapped `a` ↔ `b` to restart their one-shot animation (not under reduced motion); `data-flowing` on the root until 180ms after the last scroll. |
 | Held | While `isPageCovered()` (the dialog pins the body, the burger locks `<html>`) or `html[data-scroll-measure]` (ScrollTrigger measuring), the positions are not the page's: nothing is measured or written, and the cover lifting measures again. |

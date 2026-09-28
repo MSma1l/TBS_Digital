@@ -1,10 +1,19 @@
-/* Footer — light "card" that matches the conversion concept: rounded top corners,
-   a soft radial glow, a four-column top row, a meta line, and a giant gradient
-   "TBS DIGITAL" wordmark cropped at the bottom edge. It runs on the site's own light
-   theme and takes its surface, ink and radii from the design tokens in globals.css.
-   Every colour here is a token: the card follows --panel/--txt so the whole footer
-   inverts with the dark theme, and the giant wordmark fades from --line into --blue and
-   --mint, which keeps it readable on a light and a dark surface alike. No literals. */
+/* Footer — the card the page ends on: rounded top corners, two soft radial glows, a
+   four-column top row, a meta readout, and a giant "TBS DIGITAL" wordmark cropped by the
+   bottom edge. Every colour is a token; there are no literals.
+
+   IT LIGHTS ONCE, WHEN THE VISITOR REACHES IT. `Footer.tsx` puts `data-armed` on the root at
+   mount — which is what holds the animated parts in their withheld pose — and a one-shot
+   observer latches `data-entered` when the footer is a third on screen. Everything below is
+   gated on both, so a visitor with no JavaScript, or with the bundle still in flight, gets the
+   finished footer rather than one waiting for a signal. Nothing here loops: the footer sits at
+   the bottom of an 8900px page and an infinite animation down here would run unseen for the
+   whole visit, which is exactly what `useOffscreenAttribute` exists to stop. There is nothing
+   to pause, because nothing repeats.
+
+   (The old header described a "light card" that "inverts with the dark theme". There has been no
+   light palette since globals.css moved to one dark surface; it was describing a footer that no
+   longer existed.) */
 .footer {
   position: relative;
   overflow: hidden;
@@ -17,32 +26,58 @@
 }
 
 /* soft glow bleeding in from the top-right, like the reference */
-.footer::before {
-  content: "";
+/*
+ * THE TWO RADIAL GLOWS ARE GONE (2026-09-27).
+ *
+ * A blue one hung off the top-right corner and a red one off the left, both positioned partly
+ * OUTSIDE the card — and the card is `overflow: hidden`, which is what crops the wordmark. So
+ * each glow was sliced off by the rounded edge and read as a hard-edged blue and red smear
+ * rather than as light. The owner's words: scoate luminile celea care stau cu albastru si rosu
+ * si se taie. The card's colour now comes from the edge thread and the wordmark, which are
+ * inside it and cannot be cut.
+ */
+
+
+/* The thread along the card's top edge. Its own element and not a border, because a border
+   cannot be drawn out from the middle — this one scales from its centre on arrival. */
+.edge {
   position: absolute;
-  width: 520px;
-  height: 270px;
-  right: -170px;
-  top: -160px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--blue) 16%, transparent),
-    transparent 67%
-  );
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--blue), var(--violet2), var(--cyan), transparent);
+  opacity: 0.85;
+  transform-origin: 50% 50%;
   pointer-events: none;
+  overflow: clip;
 }
-.footer::after {
-  content: "";
+
+/*
+ * THE LIGHT THAT RUNS THE EDGE — the one thing in the footer that repeats.
+ *
+ * It is the chip's packet, in the only vocabulary a plain DOM footer has: a narrow bright band
+ * that crosses the thread and is gone. One element, one transform, no paint; it spends most of
+ * its cycle off the left end, so the edge is quiet far more often than it is lit.
+ *
+ * AND IT STOPS WHEN NOBODY IS THERE. The footer sits at the bottom of an 8900px page, so a loop
+ * down here would run unseen for almost the whole visit — which is exactly what `data-offscreen`
+ * exists to prevent (components/fx/useOffscreenAttribute.ts, docs/07). It is paused under it.
+ */
+.spark {
   position: absolute;
-  width: 460px;
-  height: 240px;
-  left: -150px;
-  top: 40px;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--red) 10%, transparent),
-    transparent 66%
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 180px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--cyan) 70%, #fff),
+    transparent
   );
+  transform: translateX(-200px);
   pointer-events: none;
 }
 
@@ -67,10 +102,26 @@
 
    `minmax(0, …)` lets the tracks take their fr share and the long links wrap instead.
    Above ~1100px nothing changes: the fr shares were already larger than every floor. */
+/*
+ * THREE TRACKS, NOT FOUR. The brand, then NAVIGARE and PARTENERII stacked in one, then the
+ * portfolio on its own — 8 rows against 10 instead of 5, 10 and 3, which is what used to leave
+ * a hole in the two-column phone reflow. `minmax(0, …)` on every track and `min-width: 0` on the
+ * children stay: a bare `fr` cannot shrink below min-content, and a link's min-content is its
+ * whole text, so "Crowe Turcan Mikhailenko ↗" once became the column floor and pushed a whole
+ * column out of the card.
+ */
 .top {
   display: grid;
-  grid-template-columns: 1.3fr repeat(3, minmax(0, 0.8fr));
+  grid-template-columns: 1.15fr minmax(0, 0.95fr) minmax(0, 1fr);
   gap: 36px;
+}
+
+/* The two short columns, one above the other. */
+.colStack {
+  display: grid;
+  gap: 30px;
+  align-content: start;
+  min-width: 0;
 }
 
 /* Second half of the same fix: `minmax(0, …)` frees the TRACK, this frees the ITEM.
@@ -147,6 +198,29 @@
 }
 
 /* ---------- nav columns ---------- */
+/* The contacts, under the brand. Their own list rather than a line of the meta row: at 12px in
+   the bottom bar the address and the phone were the least legible things in the footer, and the
+   column they now sit in was empty. */
+.contacts {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.contact {
+  color: var(--mut);
+  text-decoration: none;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+  transition: color 0.15s;
+}
+
+a.contact:hover {
+  color: var(--txt);
+}
+
 .colLabel {
   margin: 5px 0 14px;
   font-size: 12px;
@@ -215,27 +289,219 @@ a.colLink:hover {
   color: var(--red-text);
 }
 
+/*
+ * THE ASSISTANT'S CORNER IS HERS, AND THE META ROW HAS TO KNOW IT.
+ *
+ * She is fixed to the bottom right — a 184px box 20px in, from 861px up — and the footer is the
+ * end of the page, so it is ALWAYS read with her on top of it. Measured at 1440x900: the row's
+ * last link, "Cookie-uri", sat entirely inside her box and could not be clicked at all.
+ *
+ * The reserve is derived from the token that already states where she ends rather than from a
+ * second copy of her size: `--hud-bottom` is 20 + 184 + 4 (app/globals.css), so her column is
+ * `--hud-bottom - 4px` wide, and that is what the row keeps clear. Only from 861px, because below
+ * it she is a smaller box and the row has already wrapped to its own line.
+ */
+@media (min-width: 861px) {
+  .metaLinks {
+    padding-right: calc(var(--hud-bottom) - 4px);
+  }
+}
+
 /* ---------- giant wordmark ---------- */
-.word {
+/*
+ * THE WORDMARK, AND WHY IT IS THREE ELEMENTS INSTEAD OF ONE.
+ *
+ * `.wordStack` centres a max-content run. That matters more than it looks: `background-clip: text`
+ * clips the gradient to the element's BOX, not to the glyphs, and the old `.word` was a
+ * full-viewport-width block. The centred letters therefore only ever sampled the middle of the
+ * gradient, and sampled a DIFFERENT part of it at every viewport width — the mark was quietly a
+ * different colour object on a phone than on a desktop. Shrinking the box to the glyph run makes
+ * the gradient's ends land on the word's ends, at every width.
+ *
+ * `.wordGhost` is the mark at rest and the one that sets the block's height. `.wordWin` lies
+ * exactly over it carrying the full-colour copy, clipped to a window that climbs out of the
+ * bottom edge on arrival while the copy inside climbs the exact opposite amount. The two cancel,
+ * so the letters never move: what travels is the clip rectangle, and colour is dragged up through
+ * the word behind it. Two composited transforms and no repaint — running a light across a 190px
+ * `background-clip: text` mark with `background-position` would be the largest repaint on the
+ * page, and the estimator's two rail lights already spend that budget.
+ */
+.wordStack {
   position: relative;
   z-index: 1;
+  display: flex;
+  justify-content: center;
   margin: 22px -15px -14px;
-  text-align: center;
+  user-select: none;
+  /* ONE duration and ONE delay for both halves of the reveal. They must match exactly: the window
+     climbs up and the copy inside climbs down by the same amount, and any difference between the
+     two shows as the letters sliding. Written once so they cannot drift apart. */
+  --word-run: 760ms;
+  --word-delay: 520ms;
+}
+
+.word {
   white-space: nowrap;
+  width: max-content;
+  max-width: 100%;
   font-weight: var(--fw-black);
   font-size: clamp(64px, 15vw, 190px);
   line-height: 0.7;
   letter-spacing: -0.1em;
   color: transparent;
+  /*
+   * THE SITE'S OWN GRADIENT, NOT A NEW ONE AND NOT A RAINBOW.
+   *
+   * These three stops are `[data-progress]`'s (app/globals.css) — the bar that fills across the
+   * top of the page as you scroll. The page opens on that gradient and now closes on it, which
+   * is a different thing from picking three colours that go together.
+   *
+   * It used to run `--line → --blue → --mint → --line`: `--line` is the interface hairline
+   * colour, so both ends of the biggest thing on the page faded into the panel and read as grey.
+   * The first fix ran red → amber → mint → blue, which fixed the grey and bought a rainbow.
+   */
   background: linear-gradient(
     90deg,
-    var(--line),
     var(--blue),
-    var(--mint),
-    var(--line)
+    var(--violet2),
+    var(--cyan)
   );
   background-clip: text;
   -webkit-background-clip: text;
+}
+
+/* The resting mark: the same letters, held back, so the card never has a hole where the word is
+   while the coloured copy is still withheld. */
+.wordGhost {
+  opacity: 0.22;
+}
+
+/* The window. `clip`, not `hidden`: the same visual crop without making a scroll container, and
+   the rectangle is composited. */
+.wordWin {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  overflow: clip;
+  pointer-events: none;
+}
+
+/* No `will-change`: the animation promotes it for its own 760ms and lets the layer go again.
+   A permanent layer for a 190px-tall glyph raster is memory a phone keeps for the whole visit. */
+.wordLit {
+  transform: none;
+}
+
+/* ---------- the arrival ---------- */
+/*
+ * Gated on BOTH attributes. `data-armed` is written at mount, so nothing is withheld from a
+ * visitor whose JavaScript never arrives; `data-entered` is latched once, so the sequence plays
+ * on the way in and never again. Everything is inside `no-preference`, which means a
+ * reduced-motion visitor never even meets the withheld pose — the footer is simply finished.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .footer[data-armed]:not([data-entered]) .edge {
+    transform: scaleX(0.001);
+    opacity: 0;
+  }
+  .footer[data-armed]:not([data-entered]) .colLabel {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  .footer[data-armed]:not([data-entered]) .wordWin {
+    transform: translateY(100%);
+  }
+  .footer[data-armed]:not([data-entered]) .wordLit {
+    transform: translateY(-100%);
+  }
+
+  .footer[data-armed][data-entered] .edge {
+    animation: footer-edge 520ms var(--motion-ease-out) both;
+  }
+  .footer[data-armed][data-entered] .colLabel {
+    animation: footer-lift 480ms var(--motion-ease-out) both;
+    animation-delay: calc(var(--i, 1) * 120ms);
+  }
+  .footer[data-armed][data-entered] .wordWin {
+    animation: footer-window var(--word-run) var(--motion-ease-out) both;
+    animation-delay: var(--word-delay);
+  }
+  .footer[data-armed][data-entered] .wordLit {
+    animation: footer-lit var(--word-run) var(--motion-ease-out) both;
+    animation-delay: var(--word-delay);
+  }
+
+  /* The running light: it starts only after the arrival has finished, so the two never overlap. */
+  .footer[data-armed][data-entered] .spark {
+    animation: footer-spark 7s linear 1.6s infinite;
+  }
+  .footer[data-offscreen] .spark {
+    animation-play-state: paused;
+  }
+}
+
+/* The thread drawn out from the middle. */
+@keyframes footer-edge {
+  from {
+    transform: scaleX(0.001);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 0.85;
+  }
+}
+
+/* A column head coming up under the thread. */
+@keyframes footer-lift {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* The clip window climbing out of the bottom edge... */
+@keyframes footer-window {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ...and the coloured copy inside it climbing the exact opposite amount, so the letters stand
+   still and only the colour travels. Same duration, same delay, same easing as the window — they
+   are one movement expressed twice. */
+@keyframes footer-lit {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/*
+ * One crossing, then a long dark stretch. The travel is spent in the first fifth of the cycle and
+ * the band sits off the right end for the rest, so the edge reads as something passing through
+ * now and then rather than as a strip light.
+ */
+@keyframes footer-spark {
+  0% {
+    transform: translateX(-200px);
+  }
+  18% {
+    transform: translateX(calc(100vw + 200px));
+  }
+  100% {
+    transform: translateX(calc(100vw + 200px));
+  }
 }
 
 /* ---------- responsive ---------- */
@@ -246,6 +512,10 @@ a.colLink:hover {
   .top {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 26px;
+  }
+  /* Eight rows beside ten, which is the point of the stack. */
+  .colStack {
+    gap: 24px;
   }
   .brandCol {
     grid-column: 1 / -1;
@@ -342,7 +612,8 @@ a.colLink:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .social,
-  .colLink {
+  .colLink,
+  .contact {
     transition: none;
   }
 }
