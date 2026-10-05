@@ -34,7 +34,7 @@ so the data source can change without touching markup.
 │  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
 │  │  │                    #   (with the server-rendered art slots), then Principles, Team,
 │  │  │                    #   RequestSection, BottomCTA
-│  │  ├─ portofoliu/       # The portfolio: every project as one pixel (components/sections/Portfolio)
+│  │  ├─ portofoliu/       # The portfolio: one project on a screen, one pixel per project (components/sections/Portfolio)
 │  │  ├─ confidentialitate/ # Privacy policy (content.ts + LegalDoc)
 │  │  └─ cookies/          # Cookie policy (content.ts, reuses LegalDoc)
 │  └─ admin-tbs-digital/   # Admin panel route (outside the (site) chrome)
@@ -177,7 +177,7 @@ defaults, `siteContent` for anything the admin edits, `i18n` for anything the vi
 | Route | What |
 |-------|------|
 | `/` · `/ru` · `/en` | The landing page in Romanian / Russian / English. `/ru` and `/en` are rewrites onto the same route; the language comes from the `x-locale` header ([16](./16-i18n-seo.md)). |
-| `/portofoliu` | The portfolio — every project in the store as one real-looking pixel, scattered over a bare field, with a service filter, a legend of the projects, a request on every card and the service pages' close ([05](./05-page-sections.md#portfolio--portofoliu)). Prefixable with `/ru`, `/en`; its title and description follow the language (`generateMetadata`, `lib/i18n/requestLocale.ts`). |
+| `/portofoliu` | The portfolio — one project at a time on a big screen, and under it one labelled pixel per project as the navigation (arrows, keys, swipe), a service filter, "Vreau un proiect similar" for the project on the screen and the service pages' close ([05](./05-page-sections.md#portfolio--portofoliu)). Prefixable with `/ru`, `/en`; its title and description follow the language (`generateMetadata`, `lib/i18n/requestLocale.ts`). |
 | `/confidentialitate`, `/cookies` | Legal pages (also prefixable with `/ru`, `/en`). |
 | `/admin-tbs-digital` | The login-gated admin panel. `noindex, nofollow`, outside the `(site)` chrome. |
 | `/robots.txt`, `/sitemap.xml`, `/opengraph-image`, `/twitter-image` | Generated metadata routes. |

@@ -115,6 +115,14 @@ such at the top of the file.
   convention, not a token. Older modules still carry a few other thresholds — leave them;
   changing a breakpoint changes a layout that was signed off. Tailwind's `xs/sm/md/lg/xl` are
   their exact `min-width` complements (401 / 641 / 861 / 1025, plus 1180).
+  One deliberate exception: `/portofoliu` (`Portfolio.module.css`) puts its words beside the
+  screen from **1000px** in a window not taller than 5:4, and folds them by window HEIGHT (820px,
+  969px). Measured against the corner assistant's 204 × 204px on every project: with the words
+  under the screen, a laptop-height window from about 1000px wide (1024×768, an iPad held
+  sideways, among them) has the end of the pixels' row under her corner — the 1025px desktop
+  threshold would have left those windows there
+  ([05](./05-page-sections.md#portfolio--portofoliu)). Where a rule depends on how wide a column
+  is rather than the window (its pixels' rows), it is a `@container` rule instead.
 
 ### Tailwind (first-screen and interior-stage files only)
 

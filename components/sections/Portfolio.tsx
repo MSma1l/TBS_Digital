@@ -2,24 +2,20 @@
 
 import Link from "next/link";
 import {
-  Fragment,
   useEffect,
-  useId,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
-  type FocusEvent as ReactFocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
 } from "react";
-import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
+import { Modal } from "@/components/ui/Modal";
 import { directionHref, directions } from "@/lib/directions";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
-import { PORTFOLIO_FIELDS, narrowField, scatterPixels } from "@/lib/portfolioScatter";
+import { format } from "@/lib/i18n/format";
 import { projectGradient } from "@/lib/projectAccent";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
@@ -32,32 +28,46 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 const COPY = {
   title: L("Portofoliu", "Портфолио", "Portfolio"),
   count: L("Proiecte", "Проекты", "Projects"),
-  field: L(
-    "Proiectele noastre, câte un pixel",
-    "Наши проекты — по пикселю на каждый",
-    "Our projects, one pixel each",
-  ),
+  stage: L("Proiectele noastre", "Наши проекты", "Our projects"),
   open: L("Deschide site-ul ↗", "Открыть сайт ↗", "Open the site ↗"),
   private: L("nu are pagină publică", "нет публичной страницы", "no public page"),
-  /* how to read the field — an instruction, the one line above it ({list} is the link) */
-  howTo: L(
-    "Fiecare punct luminos e un proiect. Apasă pe unul sau alege din {list}",
-    "Каждая светящаяся точка — это проект. Нажмите на любую или выберите из {list}",
-    "Each point of light is a project. Open one, or pick from {list}",
-  ),
-  howToList: L("lista de mai jos ↓", "списка ниже ↓", "the list below ↓"),
   /* the service filter */
   channels: L("Proiecte după serviciu", "Проекты по услугам", "Projects by service"),
   all: L("Toate", "Все", "All"),
-  /* the legend under the field (its accessible name; nothing visible) */
-  index: L("Lista proiectelor", "Список проектов", "Project list"),
-  /* the card's × */
-  closeCard: L("Închide", "Закрыть", "Close"),
-  /* the card's request */
+  /* the screen and the pixels */
+  prev: L("Proiectul anterior", "Предыдущий проект", "Previous project"),
+  next: L("Proiectul următor", "Следующий проект", "Next project"),
+  pick: L("Alege proiectul", "Выберите проект", "Choose a project"),
+  zoom: L("Vezi mai mare", "Увеличить", "View larger"),
+  /* the picture's name starts with the chip's own words, so a voice saying them finds it */
+  zoomOf: L(
+    "Vezi mai mare captura de ecran: {name}",
+    "Увеличить снимок экрана: {name}",
+    "View larger: the screenshot of {name}",
+  ),
+  shotOf: L("Captură de ecran: {name}", "Снимок экрана: {name}", "Screenshot: {name}"),
+  more: L("Citește tot ↓", "Читать полностью ↓", "Read more ↓"),
+  less: L("Mai puțin ↑", "Свернуть ↑", "Show less ↑"),
+  /* said to a screen reader as the screen changes, and as a channel narrows the pixels */
+  onScreen: L("{name}, proiectul {n} din {total}", "{name}, проект {n} из {total}", "{name}, project {n} of {total}"),
+  filtered: L("{label}: {count}.", "{label}: {count}.", "{label}: {count}."),
+  /* the project's request */
   similar: L("Vreau un proiect similar", "Хочу похожий проект", "I want a similar project"),
   /* the close, while a service is chosen */
   openService: L("Deschide serviciul", "Открыть услугу", "Open the service"),
 };
+
+/* "{n} proiecte" in the visitor's language — Romanian says "20 de proiecte", Russian has three forms. */
+function projectCount(n: number, l: (v: LocalizedText) => string): string {
+  const ru =
+    n % 10 === 1 && n % 100 !== 11
+      ? "проект"
+      : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)
+        ? "проекта"
+        : "проектов";
+  const ro = n === 1 ? "1 proiect" : n % 100 >= 20 || n % 100 === 0 ? `${n} de proiecte` : `${n} proiecte`;
+  return l(L(ro, `${n} ${ru}`, n === 1 ? "1 project" : `${n} projects`));
+}
 
 /* The filter's channels in plain words, for a visitor who never heard of an API or a UI. Only
    here: Home's pills, the menu and the service pages keep the official names (`directionTab`),
@@ -70,52 +80,45 @@ const CHANNEL_LABEL: Record<string, LocalizedText> = {
   "brand-ui": L("Site-uri și design", "Сайты и дизайн", "Sites & design"),
 };
 
-/* A card opened by pointing closes this long after the pointer leaves both its pixel and the card:
-   enough to cross an edge, not a pause. */
-const CLOSE_DELAY_MS = 200;
+/** The pixel transition on the screen: a grid of this many blocks (columns × rows). */
+const FX_COLS = 16;
+const FX_ROWS = 10;
+/** A swipe across the screen: this far sideways, and mostly sideways. */
+const SWIPE_PX = 40;
+/** The click a browser may send after a swipe arrives within this long of it. */
+const SWIPE_CLICK_MS = 400;
+/** The page's ease-out (`--motion-ease-out`), for the animations started from script. */
+const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 
-/* Where a card sits against its pixel (Popover): the pixel just under the card's window bar when
-   there is room; never closer than this to a screen edge or the fixed header; and the pixel kept
-   at least this far inside the card's height, so the card always overlaps its target. */
-const PIXEL_IN_CARD = 56;
-const SCREEN_MARGIN = 12;
-const REACH_INSET = 24;
+const pad = (n: number) => String(n).padStart(2, "0");
 
-/* A press outside a card closes it — but not one that lands this soon after the card opened:
-   the second half of a double-click, or a shaky hand's second tap. */
-const OPEN_GRACE_MS = 600;
+const reducedMotion = () =>
+  typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION_QUERY).matches;
 
-/** At and below this width the field is a picker: no popover, the card sits under the field. */
-const PICKER_QUERY = "(max-width: 640px)";
+/** Whether `el`'s focus is one the browser shows — the keyboard's, not a tap's or a click's. */
+function focusVisible(el: Element): boolean {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return true; // an engine that cannot tell: treat it as the keyboard's
+  }
+}
 
-/** A position, in %, at two decimals: the same short string on the server and the client. */
-const pct = (value: number) => Math.round(value * 100) / 100;
-
-/** The card materialises out of the pixel as a mosaic of this many blocks (columns × rows). */
-const MOSAIC_COLS = 8;
-const MOSAIC_ROWS = 10;
-
-/* `(max-width: 640px)` as a store. The server — and hydration — answer "popover", the wider
-   layout; a phone switches to the picker right after it hydrates, which only changes ARIA. */
-const subscribePicker = (onChange: () => void) => {
-  if (typeof window.matchMedia !== "function") return () => {};
-  const query = window.matchMedia(PICKER_QUERY);
-  query.addEventListener?.("change", onChange);
-  return () => query.removeEventListener?.("change", onChange);
-};
-const readPicker = () => typeof window.matchMedia === "function" && window.matchMedia(PICKER_QUERY).matches;
-const serverPicker = () => false;
+/** A project colour (`lib/projectAccent.ts` keeps them as `#rrggbb`) as its three channels. */
+function rgbOf(hex: string): [number, number, number] {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex);
+  const value = match ? parseInt(match[1], 16) : 0x808080;
+  return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+}
 
 /**
  * How brightly each of a pixel's three subpixels burns to make `hex`: its red, green and blue
  * shares, never quite off — a real pixel's dark subpixel still shows as a dim bar.
  */
 function subpixels(hex: string): [number, number, number] {
-  const match = /^#([0-9a-f]{6})$/i.exec(hex);
-  if (!match) return [1, 1, 1];
-  const value = parseInt(match[1], 16);
-  const channel = (shift: number) => 0.14 + 0.86 * (((value >> shift) & 0xff) / 255);
-  return [channel(16), channel(8), channel(0)].map((c) => Math.round(c * 100) / 100) as [number, number, number];
+  const level = (c: number) => Math.round((0.14 + 0.86 * (c / 255)) * 100) / 100;
+  const [r, g, b] = rgbOf(hex);
+  return [level(r), level(g), level(b)];
 }
 
 /** A project's two colours as `--p1` / `--p2`, and its pixel's subpixel levels as `--sr/--sg/--sb`. */
@@ -125,289 +128,59 @@ function accentStyle(project: ProjectItem, position: number): CSSProperties {
   return { "--p1": p1, "--p2": p2, "--sr": sr, "--sg": sg, "--sb": sb } as CSSProperties;
 }
 
-/** A small deterministic noise in [0, 1) for (seed, i): the same "random" on the server and the client. */
-function noise(seed: number, i: number): number {
-  let h = Math.imul(seed ^ (i + 0x9e3779b9), 0x85ebca6b);
-  h ^= h >>> 13;
-  h = Math.imul(h, 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 0x100000000;
-}
-
-/** FNV-1a of a project id, the seed of its pixel's and its mosaic's noise. */
-function seedOf(id: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < id.length; i += 1) {
-    h ^= id.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-/** "CRM PRIVAT · FĂRĂ LINK" → ["CRM PRIVAT", "FĂRĂ LINK"] — the tag is free admin text. */
-function tagChips(tag: string): string[] {
-  return tag
-    .split("·")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
 /**
- * The blocks a card is built from as it opens: each one a shade of the project's colour, gone at
- * its own moment after its column has appeared. aria-hidden, nothing to read.
- */
-function Mosaic({ seed }: { seed: number }) {
-  return (
-    <span className={s.mosaic} aria-hidden="true">
-      {Array.from({ length: MOSAIC_COLS * MOSAIC_ROWS }, (_, i) => (
-        <i
-          key={i}
-          style={
-            {
-              "--c": i % MOSAIC_COLS,
-              "--j": Math.round(noise(seed, i) * 110),
-              "--k": `${Math.round(30 + noise(seed, i + 977) * 70)}%`,
-            } as CSSProperties
-          }
-        />
-      ))}
-    </span>
-  );
-}
-
-/**
- * The project a pixel opens into: its window bar, its screenshot, its name, its links — and the
- * request for one like it, which opens the site's request dialog with this project attached.
- */
-function ProjectCard({
-  project,
-  id,
-  className,
-  onAsk,
-  onClose,
-}: {
-  project: ProjectItem;
-  id?: string;
-  className: string;
-  onAsk: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-  /* the card beside a pixel closes; the phone's card under the field never does */
-  onClose?: () => void;
-}) {
-  const l = useLoc();
-  const image = project.images?.[0];
-  const stores = [
-    { href: project.appStore, label: "App Store ↗" },
-    { href: project.playStore, label: "Google Play ↗" },
-  ].filter((store) => store.href);
-  return (
-    <div id={id} role="group" aria-label={project.name} className={className}>
-      <Mosaic seed={seedOf(project.id)} />
-      <div className={s.bar}>
-        <span className={s.chips}>
-          {tagChips(l(project.tag)).map((chip) => (
-            <small key={chip} className={`mono ${s.chip}`}>
-              {chip}
-            </small>
-          ))}
-        </span>
-        {/* The window's lights. Where a window's close button sits, a real one: the third light
-            looked like a Windows ×, and pressing it did nothing. */}
-        {onClose ? (
-          <span className={s.barEnd}>
-            <span className={`${s.lights} ${s.lightsTwo}`} aria-hidden="true" />
-            <button type="button" className={s.shut} aria-label={l(COPY.closeCard)} onClick={onClose}>
-              <span aria-hidden="true">×</span>
-            </button>
-          </span>
-        ) : (
-          <span className={s.lights} aria-hidden="true" />
-        )}
-      </div>
-      {/* With a public site, the screenshot opens it too — the biggest thing on the card is the
-          easiest to hit. A second way to the same link: out of Tab and of the accessibility tree,
-          where "Deschide site-ul" already is. */}
-      {project.url ? (
-        <a href={project.url} className={s.shot} tabIndex={-1} aria-hidden="true">
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" loading="lazy" decoding="async" className={s.shotImg} />
-          ) : null}
-        </a>
-      ) : (
-        <div className={s.shot}>
-          {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt="" loading="lazy" decoding="async" className={s.shotImg} />
-          ) : null}
-        </div>
-      )}
-      <div className={s.body}>
-        {/* A heading to assistive tech, under the page's h1 — but not an <h2> tag: the scroll
-            rail reads the page's sections from `section h1, section h2`, and the cards (the one
-            beside a pixel and the phone's, both in the DOM) are not sections of the page. */}
-        <p role="heading" aria-level={2} className={`disp ${s.name}`}>
-          {project.name}
-        </p>
-        <p className={s.desc}>{l(project.desc)}</p>
-        {/* In the same tab: a new tab greys out Back, and a visitor who closes it to return
-            closes the whole window, this page with it. */}
-        <div className={s.links}>
-          {project.url ? (
-            <a href={project.url} className={s.link}>
-              {l(COPY.open)}
-            </a>
-          ) : (
-            <span className={s.private}>{l(COPY.private)}</span>
-          )}
-          {stores.map((store) => (
-            <a key={store.label} href={store.href} className={s.link}>
-              {store.label}
-            </a>
-          ))}
-        </div>
-        <button type="button" className={s.ask} onClick={onAsk}>
-          {l(COPY.similar)}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The card's box, grown out of its pixel (2026-10-04, "la hover … sa dispara boxul … gandeste-te
- * unde se poate de plasat ca sa putem deschide"): a card that closes when the pointer leaves must
- * be one the pointer can reach. So it lies over the pixel's whole 40px target (the CSS's
- * `--reach`): the pointer that opened it is already on it, and goes on to its link or its button in
- * any direction without crossing empty space.
+ * /portofoliu — one project at a time on a big screen, and under it one pixel per project with
+ * its name under it: the pixels are the navigation (2026-10-05: of four prototypes, the owner
+ * chose this one over the field of 3px points, which "nu este intuitiv").
  *
- * Its top is worked out from where it is ON SCREEN, before the first paint and whenever its height
- * changes: level with its pixel (just under the window bar) where there is room, risen when there
- * is no room below, never under the fixed header — the whole card in view, its link and its
- * button included, so nothing has to be scrolled to while the pointer holds it open.
- */
-function Popover({
-  style,
-  onPointerEnter,
-  onPointerLeave,
-  children,
-}: {
-  style: CSSProperties;
-  onPointerEnter: (event: ReactPointerEvent) => void;
-  onPointerLeave: (event: ReactPointerEvent) => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const field = el?.parentElement;
-    const pixel = el?.previousElementSibling;
-    if (!el || !field || !pixel) return;
-    const place = () => {
-      const height = el.offsetHeight;
-      el.style.setProperty("--card-h", `${height}px`);
-      const dot = pixel.getBoundingClientRect();
-      const y = dot.top + dot.height / 2;
-      const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
-      let top = y - PIXEL_IN_CARD;
-      top = Math.min(top, window.innerHeight - SCREEN_MARGIN - height);
-      top = Math.max(top, header + SCREEN_MARGIN);
-      /* and, however short the screen, still level with its pixel: the reach must hold */
-      top = Math.min(top, y - REACH_INSET);
-      top = Math.max(top, y + REACH_INSET - height);
-      el.style.setProperty("--top", `${Math.round(top - field.getBoundingClientRect().top)}px`);
-    };
-    place();
-    if (typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver(place);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-  return (
-    <div ref={ref} className={s.pop} style={style} onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
-      {children}
-    </div>
-  );
-}
-
-/**
- * /portofoliu — every project in the store as one real pixel, scattered across an empty field:
- * no grid, no matrix behind them, nothing lined up (lib/portfolioScatter.ts).
- *
- * Above 640px the field is a POPOVER field. A card is open for `preview ?? pinned`:
- *  · pointing at a pixel with a mouse, or focusing it from the keyboard, previews it — a HOVER
- *    card: it closes 200ms after the pointer leaves both the pixel and the card (the owner's call,
- *    2026-10-04: "cand iau mouse-ul sa dispara boxul"). The card grows out of the pixel, its near
- *    corner over the pixel's target and its whole height on screen (Popover), so the pointer can
- *    always go on into it and reach its link and its button;
- *  · a click or a tap PINS it: it stays until its ×, Escape, or a press on empty space — for a
- *    finger a TAP (a click), so starting a scroll never closes it. A second click keeps it (a
- *    double-click is one click); Enter from the keyboard opens and closes it;
- *  · focus leaving the field ends a preview, and a pinned card, if any, comes back: pointing at
- *    other pixels on the way never throws a pinned card away.
- * The card sits right after its pixel in the DOM, so Tab goes pixel → its card → the next pixel.
- *
- * At 640px and below it is a PICKER: no hover, the selected project's card always shown under the
- * field (the first one to begin with — server-rendered), a tap selects another and brings its card
- * into view. ARIA follows the mode: expanded/controls on the popover, pressed + a live card here.
- *
- * Around the field:
- *  · one line saying how to read it — "Fiecare punct luminos e un proiect…";
- *  · a SERVICE FILTER: one channel per direction with live projects (lib/solutions.ts
- *    solutionProjectIds — curated, never guessed from the free-text tag), named in plain words.
- *    A channel switches off every pixel outside it, and shows the ones it keeps under the loupe
- *    for a second; positions never move;
- *  · the LEGEND under the field: every project's light, name and tag. Pointing at a row locates
- *    its pixel (it goes under the loupe, nothing opens); a click is the pixel's own click;
- *  · on every card, "Vreau un proiect similar": the request dialog, with the project attached;
+ *  · the SCREEN shows the current project's screenshot; ‹ › beside it (on it, on a phone), ← →
+ *    from the keyboard, a swipe on a phone. Switching plays a short pixel transition: the old
+ *    picture breaks into blocks of the new project's colours and the new one comes through.
+ *    Pressing the picture shows it larger;
+ *  · the PIXELS: one labelled button per project, in its colour; the current one is lit and
+ *    opened into its red, green and blue subpixels — "one pixel = one project", made literal;
+ *  · beside the screen, the project's words: "01 / 09", its name, its tag, its description (a
+ *    long one folds, "Citește tot"), "Vreau un proiect similar" (the request dialog, with the
+ *    project attached) and its site;
+ *  · the SERVICE FILTER narrows the pixels and the count, in plain words;
  *  · the CLOSE after the section: the service pages' closing panel.
+ * The first project is on the screen from the server on, so nothing waits for the script.
  */
 export function Portfolio() {
   const { projects } = useSiteContent();
   const l = useLoc();
-  const { isOpen: requestOpen, openRequest } = useRequestFlow();
-  const sectionRef = useRef<HTMLElement>(null);
-  const fieldRef = useRef<HTMLDivElement>(null);
-  const belowRef = useRef<HTMLDivElement>(null);
-  const closeTimer = useRef<number | undefined>(undefined);
-  /* Focus this component moves itself (back to a pixel on Escape) must not reopen that pixel. */
-  const restoringFocus = useRef(false);
-  /* A press that started inside the field: the blur it causes is not focus leaving the field. */
-  const pressingInside = useRef(false);
-  /* A tap just picked a project: bring its card into view once it has rendered. */
-  const revealPick = useRef(false);
-  /* The pixel a mouse has entered and not yet moved over (see onPixelEnter). */
-  const entered = useRef<number | null>(null);
-  /* The kind of pointer behind the last press — a finger closes a card by a tap, not a press. */
-  const lastPointer = useRef("");
-  /* When a click or a tap last opened a card (see OPEN_GRACE_MS). */
-  const openedAt = useRef(0);
-  const cardId = useId();
-  const belowId = useId();
-  const picker = useSyncExternalStore(subscribePicker, readPicker, serverPicker);
-  const [selected, setSelected] = useState(0);
-  const [pinned, setPinned] = useState<number | null>(null);
-  const [preview, setPreview] = useState<number | null>(null);
-  /* The service filter's channel (a direction slug), `null` for all. Never on the URL: the
-     estimator reads `?serviciu=` on every page and would preselect a type for every CTA here. */
+  const { openRequest } = useRequestFlow();
+  const screenRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const fxRef = useRef<HTMLCanvasElement>(null);
+  const shotBtnRef = useRef<HTMLButtonElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const infoRef = useRef<HTMLDivElement>(null);
+  const descRef = useRef<HTMLParagraphElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const askRef = useRef<HTMLButtonElement>(null);
+  const ghostsRef = useRef<HTMLDivElement>(null);
+  const pixelRefs = useRef(new Map<string, HTMLButtonElement>());
+  /* The pixel transition in flight: its run number, and how it learns the new picture is ready. */
+  const fxRun = useRef(0);
+  const fxReveal = useRef<(() => void) | null>(null);
+  /* The project's words rise in when another project comes on (not on the first paint). */
+  const riseInfo = useRef(false);
+  /* The control of the stage that had the focus as the project changed, where it was, and whether
+     the keyboard had put it there. When the change takes it away — a site link the next project
+     has not, a "Citește tot" it does not need, the picture of a project without one — the focus
+     goes on (to the red button, or to the project's pixel) rather than to the top of the page. */
+  const keepFocus = useRef<{ el: HTMLElement; inInfo: boolean; keyboard: boolean } | null>(null);
+  /* Where each pixel stood before a channel was pressed, to glide them to their new places. */
+  const flipFrom = useRef<Map<string, DOMRect> | null>(null);
+  /* A sideways swipe on the screen, and when it ended: the click it may turn into is dropped. */
+  const swipe = useRef<{ id: number; x: number; y: number } | null>(null);
+  const swipedAt = useRef(-Infinity);
   const [channel, setChannel] = useState<string | null>(null);
-  /* For a second after a channel is pressed, its pixels show under the loupe: what it kept. */
-  const [flashing, setFlashing] = useState(false);
-  /* The pixel a legend row points at — a look only, it never opens a card. */
-  const [located, setLocated] = useState<number | null>(null);
-  /* Bumped when a card should be brought into view (a legend row, a tap): the effect runs on it,
-     so the card already open is seen too. */
-  const [revealTick, setRevealTick] = useState(0);
-
-  useOffscreenAttribute(sectionRef);
-
-  const layouts = useMemo(() => {
-    const ids = projects.map((p) => p.id);
-    return {
-      wide: scatterPixels(ids, PORTFOLIO_FIELDS.wide),
-      mid: scatterPixels(ids, PORTFOLIO_FIELDS.mid),
-      narrow: scatterPixels(ids, narrowField(ids.length)),
-    };
-  }, [projects]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
 
   /* Every direction with at least one live project, in the menu's order, with its projects in the
      curated order — the first is the direction's reference project. A direction with none gets
@@ -421,275 +194,332 @@ export function Portfolio() {
   );
   /* A channel whose projects all left (new content arrived) falls back to all of them. */
   const tuned = channels.find((c) => c.slug === channel) ?? null;
-  const lit = tuned ? new Set(tuned.members.map((p) => p.id)) : null;
-  const isLit = (i: number) => lit === null || lit.has(projects[i]?.id);
-
-  const last = Math.max(0, projects.length - 1);
-  const picked = Math.min(selected, last);
-  /* The phone's card always belongs to a lit pixel: a channel that switches the picked one off
-     hands its card to the channel's reference project. */
-  const reference = tuned ? projects.indexOf(tuned.members[0]) : 0;
-  const current = isLit(picked) ? picked : Math.max(0, reference);
-  const active = picker ? null : (preview ?? pinned);
-  const open = active !== null && active <= last && isLit(active) ? active : null;
-
-  const cancelClose = () => window.clearTimeout(closeTimer.current);
-  const closeAll = () => {
-    cancelClose();
-    entered.current = null;
-    setPreview(null);
-    setPinned(null);
+  /* A channel's projects in the page's own order, so the pixels never reshuffle. */
+  const listFor = (slug: string | null) => {
+    const members = channels.find((c) => c.slug === slug)?.members;
+    return members ? projects.filter((p) => members.includes(p)) : projects;
   };
-  const endPreviewSoon = () => {
-    cancelClose();
-    closeTimer.current = window.setTimeout(() => setPreview(null), CLOSE_DELAY_MS);
-  };
+  const list = listFor(tuned?.slug ?? null);
+  const current = list.find((p) => p.id === selectedId) ?? list[0] ?? null;
+  const pos = current ? list.indexOf(current) : -1;
+  /* The description as it reads now: a change of language changes it with the project unchanged. */
+  const descText = current ? l(current.desc) : "";
 
-  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
-
-  /* The channel's flash ends after a second — a new channel starts it again. */
-  useEffect(() => {
-    if (!flashing) return;
-    const timer = window.setTimeout(() => setFlashing(false), 1100);
-    return () => window.clearTimeout(timer);
-  }, [flashing, channel]);
-
-  /* While a card is open: Escape closes it (focus back on its pixel if it was in the card), and so
-     does a press on anything that is not a pixel, a legend row or the card — the empty field
-     included. A finger's press is not yet a tap — it may be the start of a scroll — so for touch
-     it is the click that closes. A press within OPEN_GRACE_MS of the card opening is the rest of
-     the click that opened it. A press inside the card is remembered so the blur it causes is not
-     taken for focus leaving. All of it stands down while the request dialog is up: a press inside
-     the dialog is not a press beside the card, and the card behind it must still be there when it
-     closes — the dialog hands focus back to its button. */
-  useEffect(() => {
-    if (open === null || requestOpen) return;
-    const field = fieldRef.current;
-    const shut = () => {
-      window.clearTimeout(closeTimer.current);
-      entered.current = null;
-      setPreview(null);
-      setPinned(null);
-    };
-    const outside = (target: EventTarget | null) => {
-      const el = target instanceof Element ? target : null;
-      const inCard = !!el?.closest(`.${s.pop}`) && !!field?.contains(el);
-      return { inCard, away: !inCard && !el?.closest("[data-pixel], [data-row]") };
-    };
-    const settled = (event: Event) => event.timeStamp - openedAt.current > OPEN_GRACE_MS;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      const inCard = document.getElementById(cardId)?.contains(document.activeElement) ?? false;
-      if (inCard) {
-        restoringFocus.current = true;
-        field?.querySelector<HTMLButtonElement>(`[data-pixel="${open}"]`)?.focus();
-        restoringFocus.current = false;
-      }
-      shut();
-    };
-    const onPress = (event: PointerEvent) => {
-      lastPointer.current = event.pointerType;
-      const { inCard, away } = outside(event.target);
-      pressingInside.current = inCard;
-      if (event.pointerType !== "touch" && away && settled(event)) shut();
-    };
-    const onTap = (event: MouseEvent) => {
-      if (lastPointer.current !== "touch") return;
-      if (outside(event.target).away && settled(event)) shut();
-    };
-    const onRelease = () => {
-      pressingInside.current = false;
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("pointerdown", onPress, true);
-    document.addEventListener("click", onTap, true);
-    document.addEventListener("pointerup", onRelease, true);
-    document.addEventListener("pointercancel", onRelease, true);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("pointerdown", onPress, true);
-      document.removeEventListener("click", onTap, true);
-      document.removeEventListener("pointerup", onRelease, true);
-      document.removeEventListener("pointercancel", onRelease, true);
-      /* a press still held when these go (the card closed under it) never reports its release */
-      pressingInside.current = false;
-    };
-  }, [open, cardId, requestOpen]);
-
-  /* A tap in the picker: the card under the field changed — bring it into view if it is not. */
-  useEffect(() => {
-    if (!revealPick.current) return;
-    revealPick.current = false;
-    belowRef.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+  /* Another project is on: the transition's blocks go out once its picture has decoded, and its
+     words rise in. */
+  useLayoutEffect(() => {
+    const reveal = fxReveal.current;
+    const img = imgRef.current;
+    if (reveal) {
+      if (img && typeof img.decode === "function") img.decode().then(reveal, reveal);
+      else reveal();
+    }
+    const info = infoRef.current;
+    if (!riseInfo.current) return;
+    riseInfo.current = false;
+    if (!info || typeof info.animate !== "function" || reducedMotion()) return;
+    info.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], {
+      duration: 260,
+      easing: EASE_OUT,
+    });
   }, [current]);
 
-  /* A legend row or a finger opened a card: bring it into view, but only if it is not. A mouse's
-     own pixel is not scrolled — that would slide the field under a cursor that has not moved. */
+  /* A long description folds to its first lines; "Citește tot" shows only when something is
+     folded away — measured again for another project, another language, another width, and once
+     the web font is in. Written straight on the button: it is a measurement, not state. Then the
+     focus the change took away goes on: from the words to the red button, from the picture to the
+     project's pixel; without scrolling the page when it was not the keyboard's (a tap leaves the
+     focus on a phone's button). */
+  useLayoutEffect(() => {
+    const desc = descRef.current;
+    const more = moreRef.current;
+    if (!desc || !more) return;
+    const check = () => {
+      more.hidden = !expanded && desc.scrollHeight <= desc.clientHeight + 2;
+    };
+    check();
+    const had = keepFocus.current;
+    keepFocus.current = null;
+    if (had && (!had.el.isConnected || had.el.hidden)) {
+      const to = had.inInfo ? askRef.current : current ? pixelRefs.current.get(current.id) : null;
+      to?.focus({ preventScroll: !had.keyboard });
+    }
+    let live = true;
+    /* the web font can still change where the lines break */
+    document.fonts?.ready.then(() => {
+      if (live) check();
+    });
+    if (typeof ResizeObserver !== "function") {
+      return () => {
+        live = false;
+      };
+    }
+    const observer = new ResizeObserver(check);
+    observer.observe(desc);
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
+  }, [current, expanded, descText]);
+
+  /* A pressed channel: the pixels that stay glide from where they stood to their new places; the
+     ones that come back switch on (their CSS); the ones that leave fade as copies (chooseChannel). */
+  useLayoutEffect(() => {
+    const from = flipFrom.current;
+    flipFrom.current = null;
+    if (!from || reducedMotion()) return;
+    pixelRefs.current.forEach((el, id) => {
+      const before = from.get(id);
+      if (!before || typeof el.animate !== "function") return;
+      const after = el.getBoundingClientRect();
+      const dx = before.left - after.left;
+      const dy = before.top - after.top;
+      if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], {
+        duration: 280,
+        easing: EASE_OUT,
+      });
+    });
+  }, [channel]);
+
+  /* The other screenshots, warmed up once the page is idle, so every switch is instant. */
   useEffect(() => {
-    if (revealTick === 0) return;
-    const card = document.getElementById(cardId);
-    if (!card) return;
-    const box = card.getBoundingClientRect();
-    /* in view = below the fixed header (the card's scroll-margin-top) and above the bottom */
-    const clear = parseFloat(getComputedStyle(card).scrollMarginTop) || 0;
-    if (box.top >= clear && box.bottom <= window.innerHeight) return;
-    card.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
-  }, [revealTick, cardId]);
+    const warm = () =>
+      projects.forEach((p) => {
+        const src = p.images?.[0];
+        if (!src) return;
+        const img = new Image();
+        img.decoding = "async";
+        img.src = src;
+      });
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(warm, { timeout: 1500 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(warm, 600);
+    return () => window.clearTimeout(timer);
+  }, [projects]);
 
-  /* A mouse previews a pixel on its first MOVE after entering it. Not on the entry alone: a pixel
-     that scrolls under a STATIONARY cursor gets the boundary events anyway, and previewing on
-     those would open a card for a visitor who pointed at nothing (the rule of Home's pills,
-     Directions.tsx). A scroll sends no move — measured in Edge, by script, smoothly and with the
-     wheel: only pointerover/pointerenter — so the first real move of the hand opens the card at
-     once. And only once per entry: a card closed with the mouse still on its pixel stays closed
-     until the mouse leaves and comes back. The pending close is cancelled by the move, so coming
-     back within 200ms keeps the card. */
-  const onPixelEnter = (i: number) => (event: ReactPointerEvent) => {
-    if (picker || event.pointerType !== "mouse") return;
-    entered.current = i;
-  };
-  const onPixelMove = (i: number) => () => {
-    if (entered.current !== i) return;
-    entered.current = null;
-    cancelClose();
-    setPreview(i);
-  };
-  /* Leaving the pixel or its card: the hover card goes, unless the pointer is on its way from one
-     to the other — the two overlap, so that takes no time at all. */
-  const onPointerLeave = (event: ReactPointerEvent) => {
-    if (event.pointerType !== "mouse") return;
-    entered.current = null;
-    endPreviewSoon();
-  };
-  const onCardEnter = (event: ReactPointerEvent) => {
-    if (event.pointerType === "mouse") cancelClose();
-  };
-  const notePointer = (event: ReactPointerEvent) => {
-    lastPointer.current = event.pointerType;
-  };
-  /* Keyboard focus previews a pixel; a mouse's focus (it comes with the click) and focus this
-     component restores itself do not — the click and the pin decide those. */
-  const onPixelFocus = (i: number) => (event: ReactFocusEvent<HTMLButtonElement>) => {
-    if (picker || restoringFocus.current || !event.currentTarget.matches(":focus-visible")) return;
-    cancelClose();
-    setPreview(i);
-  };
-  /* A pixel's click: it opens the card and keeps it open — a second click, the other half of a
-     double-click, changes nothing. Only Enter (a click with no pointer) closes the open one. A
-     finger's tap also brings the card into view: there is no hover to have shown it already. */
-  const pixelClick = (i: number, event: ReactMouseEvent<HTMLButtonElement>) => {
-    const fromKeyboard = event.detail === 0;
-    if (picker) {
-      revealPick.current = i !== current;
-      setSelected(i);
+  /* The pixel transition (~350ms): the picture on the screen now is painted on the canvas over
+     it, the <img> changes underneath, and the canvas breaks into blocks of the new project's
+     colours — then, once the new picture has decoded, the blocks go out, from the side the new
+     one comes in. Nothing of it under reduced motion, or with no picture to break up. */
+  const breakScreen = (to: ProjectItem, dir: number) => {
+    const img = imgRef.current;
+    const canvas = fxRef.current;
+    const screen = screenRef.current;
+    const ctx = canvas?.getContext("2d");
+    fxReveal.current = null;
+    const run = ++fxRun.current;
+    if (!img || !canvas || !screen || !ctx || reducedMotion() || !img.complete || img.naturalWidth === 0) {
+      canvas?.removeAttribute("data-on");
       return;
     }
-    cancelClose();
-    /* a click decides; an entry the mouse has not moved on since must not reopen it after */
-    entered.current = null;
-    setSelected(i);
-    if (fromKeyboard && pinned === i) {
-      closeAll();
+    const box = screen.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = Math.max(1, Math.round(box.width * dpr));
+    const H = Math.max(1, Math.round(box.height * dpr));
+    canvas.width = W;
+    canvas.height = H;
+    /* the picture as the <img> shows it: covering the screen, from its top */
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    try {
+      ctx.drawImage(img, (W - img.naturalWidth * scale) / 2, 0, img.naturalWidth * scale, img.naturalHeight * scale);
+    } catch {
+      canvas.removeAttribute("data-on");
       return;
     }
-    if (pinned !== i) openedAt.current = event.timeStamp;
-    setPinned(i);
-    setPreview(null);
-    if (!fromKeyboard && lastPointer.current === "touch") setRevealTick((tick) => tick + 1);
-  };
-  /* The card's ×: it closes, and focus goes back to its pixel. */
-  const closeCard = (i: number) => {
-    closeAll();
-    restoringFocus.current = true;
-    fieldRef.current?.querySelector<HTMLButtonElement>(`[data-pixel="${i}"]`)?.focus({ preventScroll: true });
-    restoringFocus.current = false;
-  };
-  /* Focus leaving the field (the card is inside it) ends a preview; a pinned card stays. A blur
-     caused by a press inside the card is not focus leaving. */
-  const onFieldBlur = (event: ReactFocusEvent<HTMLDivElement>) => {
-    const next = event.relatedTarget;
-    if (next instanceof Node && event.currentTarget.contains(next)) return;
-    if (pressingInside.current) return;
-    setPreview(null);
+    canvas.setAttribute("data-on", "");
+
+    /* Each block: when it breaks, when it goes, and its shade — the new project's two colours,
+       mixed, laid at some strength over the black matrix (the page's --void). */
+    const n = FX_COLS * FX_ROWS;
+    const breakAt = new Float32Array(n);
+    const goAt = new Float32Array(n);
+    const shade: string[] = [];
+    const strength = new Float32Array(n);
+    const [p1, p2] = projectGradient(to, projects.indexOf(to));
+    const c1 = rgbOf(p1);
+    const c2 = rgbOf(p2);
+    const matrix = getComputedStyle(canvas).getPropertyValue("--void").trim() || "black";
+    for (let k = 0; k < n; k++) {
+      const c = k % FX_COLS;
+      const sweep = dir > 0 ? (FX_COLS - 1 - c) / (FX_COLS - 1) : c / (FX_COLS - 1);
+      breakAt[k] = sweep * 100 + Math.random() * 60; // 0–160ms: the old picture breaks up
+      goAt[k] = sweep * 90 + Math.random() * 90; // 0–180ms after the reveal: the blocks go out
+      const t = 0.3 + Math.random() * 0.7;
+      shade.push(`rgb(${c1.map((v, i) => Math.round(v + (c2[i] - v) * t)).join(",")})`);
+      strength[k] = 0.55 + Math.random() * 0.45;
+    }
+    const t0 = performance.now();
+    let revealAt = Infinity;
+    const reveal = () => {
+      if (run === fxRun.current && revealAt === Infinity) revealAt = Math.max(performance.now() - t0, 170);
+    };
+    fxReveal.current = reveal;
+    window.setTimeout(reveal, 1500); // a slow picture never holds the blocks longer than this
+
+    const state = new Uint8Array(n); // 0 whole, 1 broken into its block, 2 gone
+    const bw = W / FX_COLS;
+    const bh = H / FX_ROWS;
+    const gap = Math.max(1, Math.round(dpr));
+    const frame = (now: number) => {
+      if (run !== fxRun.current) return;
+      const t = now - t0;
+      let alive = 0;
+      for (let k = 0; k < n; k++) {
+        if (state[k] === 2) continue;
+        const c = k % FX_COLS;
+        const r = (k / FX_COLS) | 0;
+        const x = Math.round(c * bw);
+        const y = Math.round(r * bh);
+        const w = Math.round((c + 1) * bw) - x;
+        const h = Math.round((r + 1) * bh) - y;
+        if (state[k] === 0 && t >= breakAt[k]) {
+          ctx.fillStyle = matrix;
+          ctx.fillRect(x, y, w, h);
+          ctx.globalAlpha = strength[k];
+          ctx.fillStyle = shade[k];
+          ctx.fillRect(x + gap, y + gap, w - gap, h - gap);
+          ctx.globalAlpha = 1;
+          state[k] = 1;
+        }
+        if (state[k] === 1 && t >= revealAt + goAt[k]) {
+          ctx.clearRect(x, y, w, h);
+          state[k] = 2;
+          continue;
+        }
+        alive++;
+      }
+      if (alive) window.requestAnimationFrame(frame);
+      else canvas.removeAttribute("data-on");
+    };
+    window.requestAnimationFrame(frame);
   };
 
-  /* A channel switches off every pixel outside it, and shows the ones it keeps under the loupe for
-     a second — the press has a visible answer. Whatever card is open closes: a pointer's press
-     already does that (a channel is not a pixel or the card), this makes Enter and Space agree. A
-     picked project the channel switches off hands the phone's card to the channel's reference
-     project — without scrolling: the visitor is up at the channels. */
+  /* Put `to` on the screen, coming in from the right (dir 1) or the left (-1). */
+  const goTo = (to: ProjectItem, dir: number, inList = list) => {
+    if (current && to.id === current.id) return;
+    const active = document.activeElement;
+    keepFocus.current =
+      active instanceof HTMLElement && stageRef.current?.contains(active)
+        ? { el: active, inInfo: !!infoRef.current?.contains(active), keyboard: focusVisible(active) }
+        : null;
+    breakScreen(to, dir);
+    riseInfo.current = true;
+    setSelectedId(to.id);
+    setExpanded(false);
+    setZoomOpen(false);
+    setAnnouncement(format(l(COPY.onScreen), { name: to.name, n: inList.indexOf(to) + 1, total: inList.length }));
+  };
+  /* The neighbour `d` steps from `from` — the project on the screen, or the pixel with the focus —
+     round the list. From the screen's project the new one comes in from the side it was asked
+     from; from another pixel, from the side it stands on. */
+  const step = (d: number, from: ProjectItem | null = current) => {
+    if (!from || list.length < 2) return null;
+    const to = list[(list.indexOf(from) + d + list.length) % list.length];
+    goTo(to, from === current ? d : list.indexOf(to) >= pos ? 1 : -1);
+    return to;
+  };
+
+  /* A channel narrows the pixels to its projects. The project on the screen stays if it is one of
+     them; otherwise the channel's first project comes on. The pixels that leave fade where they
+     stood, as copies in `.ghosts`, while the row closes up. */
   const chooseChannel = (slug: string | null) => {
-    closeAll();
+    if (slug === (tuned?.slug ?? null)) return;
+    const next = listFor(slug);
+    const stays = new Set(next.map((p) => p.id));
+    const ghosts = ghostsRef.current;
+    const origin = ghosts?.getBoundingClientRect();
+    const fade = !reducedMotion();
+    const rects = new Map<string, DOMRect>();
+    pixelRefs.current.forEach((el, id) => {
+      const box = el.getBoundingClientRect();
+      rects.set(id, box);
+      if (stays.has(id) || !fade || !ghosts || !origin || typeof el.animate !== "function") return;
+      const ghost = el.cloneNode(true) as HTMLElement;
+      ghost.removeAttribute("data-project");
+      ghost.style.left = `${box.left - origin.left}px`;
+      ghost.style.top = `${box.top - origin.top}px`;
+      ghost.style.width = `${box.width}px`;
+      ghosts.append(ghost);
+      ghost.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(0.6)" }], {
+        duration: 180,
+        easing: "ease-in",
+        fill: "forwards",
+      }).onfinish = () => ghost.remove();
+    });
+    flipFrom.current = rects;
     setChannel(slug);
-    setFlashing(true);
-    const next = channels.find((c) => c.slug === slug);
-    if (next && !next.members.some((p) => p.id === projects[current]?.id)) {
-      setSelected(Math.max(0, projects.indexOf(next.members[0])));
+    const label = slug ? l(CHANNEL_LABEL[slug] ?? directionTab[slug]) : l(COPY.all);
+    const said = format(l(COPY.filtered), { label, count: projectCount(next.length, l) });
+    if (current && !next.includes(current) && next[0]) {
+      goTo(next[0], 1, next);
+      setAnnouncement(`${said} ${format(l(COPY.onScreen), { name: next[0].name, n: 1, total: next.length })}`);
+    } else {
+      setAnnouncement(said);
     }
   };
 
-  /* The legend. A row a mouse MOVES over — not one scrolled under a still cursor — or one focused
-     from the keyboard locates its pixel. */
-  const onRowMove = (i: number) => (event: ReactPointerEvent) => {
-    if (event.pointerType === "mouse" && located !== i) setLocated(i);
+  /* ← → anywhere on the stage. A pixel with the focus hands it on to its neighbour, so the keys
+     walk the row. */
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    const d = event.key === "ArrowRight" ? 1 : -1;
+    const focusedId = event.target instanceof HTMLElement ? event.target.dataset.project : undefined;
+    const fromPixel = list.find((p) => p.id === focusedId) ?? null;
+    const to = step(d, fromPixel ?? current);
+    if (fromPixel && to) pixelRefs.current.get(to.id)?.focus();
   };
-  const onRowFocus = (i: number) => (event: ReactFocusEvent<HTMLButtonElement>) => {
-    if (event.currentTarget.matches(":focus-visible")) setLocated(i);
+
+  /* A sideways swipe on the screen: a finger's or a pen's, never the mouse's. */
+  const onScreenDown = (event: ReactPointerEvent) => {
+    if (event.pointerType === "mouse") return;
+    swipe.current = { id: event.pointerId, x: event.clientX, y: event.clientY };
   };
-  const unlocate = () => setLocated(null);
-  /* A row's click is its pixel's click, and its card is brought into view if it is not — the one
-     already open too. From the keyboard, focus moves onto the pixel, so Tab goes on into the card
-     and Escape comes back to the pixel — as if the pixel itself had been pressed. On a phone the
-     legend sits under the card, so a row brings its card into view even when it is the one
-     already shown (a pixel's tap only scrolls when the card changes). */
-  const onRowClick = (i: number) => (event: ReactMouseEvent<HTMLButtonElement>) => {
-    const fromKeyboard = event.detail === 0;
-    if (picker) {
-      if (i === current) belowRef.current?.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
-      else pixelClick(i, event);
-      return;
-    }
-    const closing = fromKeyboard && pinned === i;
-    pixelClick(i, event);
-    if (closing) return;
-    setRevealTick((tick) => tick + 1);
-    if (!fromKeyboard) return;
-    restoringFocus.current = true;
-    fieldRef.current?.querySelector<HTMLButtonElement>(`[data-pixel="${i}"]`)?.focus({ preventScroll: true });
-    restoringFocus.current = false;
+  const onScreenUp = (event: ReactPointerEvent) => {
+    const start = swipe.current;
+    if (!start || start.id !== event.pointerId) return;
+    swipe.current = null;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    swipedAt.current = event.timeStamp;
+    step(dx < 0 ? 1 : -1);
+  };
+  const onShotClick = (event: ReactMouseEvent) => {
+    if (event.timeStamp - swipedAt.current < SWIPE_CLICK_MS) return; // the swipe's own click
+    setZoomOpen(true);
   };
 
   /* "Vreau un proiect similar": the request dialog, carrying the project and — when the visitor
-     chose one — the service. Beside a pixel the card is pinned FIRST: focus leaving for the dialog
-     ends a preview, and a preview's card would unmount with the button the dialog hands focus
-     back to. */
-  const ask = (i: number, event: ReactMouseEvent<HTMLButtonElement>) => {
-    const p = projects[i];
-    if (!p) return;
-    if (!picker) {
-      cancelClose();
-      setSelected(i);
-      setPinned(i);
-      setPreview(null);
-    }
+     chose one — the service. */
+  const ask = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!current) return;
     openRequest({
       source: "project-card",
-      projectId: p.id,
-      projectName: p.name,
-      projectType: projectRequestType[p.id],
+      projectId: current.id,
+      projectName: current.name,
+      projectType: projectRequestType[current.id],
       serviceSlug: tuned?.slug,
       returnFocusTo: event.currentTarget,
     });
   };
 
-  /* The instruction line, its "{list}" made a link to the legend. */
-  const [howToBefore, howToAfter = ""] = l(COPY.howTo).split("{list}");
-
-  const project = projects[current];
+  const image = current?.images?.[0];
+  const stores = current
+    ? [
+        { href: current.appStore, label: "App Store ↗" },
+        { href: current.playStore, label: "Google Play ↗" },
+      ].filter((store) => store.href)
+    : [];
 
   return (
     <>
-      <section ref={sectionRef} id="portofoliu" className={s.page}>
+      <section id="portofoliu" className={s.page}>
         <div className="container">
           {/* A <div>, not a <header>: the scroll rail skips every heading inside a header, and the
               h1 is what names this section's marker. */}
@@ -724,166 +554,195 @@ export function Portfolio() {
                 {l(COPY.count)} · <b>{projects.length}</b>
               </p>
             )}
-            {/* How to read the field, in one line — an instruction, not a lead: the field alone
-                read as dust on the screen to a visitor who does not explore. It starts with the
-                legend's own point of light, as a map key would. */}
-            {projects.length > 0 ? (
-              <p className={s.howTo}>
-                <span className={s.howToDot} aria-hidden="true" />
-                <span>
-                  {howToBefore}
-                  <a href="#lista-proiectelor" className={s.howToLink}>
-                    {l(COPY.howToList)}
-                  </a>
-                  {howToAfter}
-                </span>
-              </p>
-            ) : null}
           </div>
 
-          <div
-            ref={fieldRef}
-            role="group"
-            aria-label={l(COPY.field)}
-            className={s.field}
-            style={{ "--n": projects.length } as CSSProperties}
-            onBlur={onFieldBlur}
-          >
-            {projects.map((p, i) => {
-              const seed = seedOf(p.id);
-              const w = layouts.wide[i];
-              const t = layouts.mid[i];
-              const m = layouts.narrow[i];
-              const style = {
-                ...accentStyle(p, i),
-                // Its own flicker rhythm: periods that never line up, so the field never blinks as one.
-                "--flicker": `${(5.3 + ((i * 7) % 11) * 0.61).toFixed(2)}s`,
-                // When it switches on as the page arrives: scattered over 1.4s, in no order.
-                "--on": `${Math.round(120 + noise(seed, 1) * 1300)}ms`,
-                "--px-w": pct(w.x),
-                "--py-w": pct(w.y),
-                "--flip-w": w.x > 50 ? 1 : 0,
-                "--px-t": pct(t.x),
-                "--py-t": pct(t.y),
-                "--flip-t": t.x > 50 ? 1 : 0,
-                "--px-m": pct(m.x),
-                "--py-m": pct(m.y),
-              } as CSSProperties;
-              const on = isLit(i);
-              const isOpen = open === i;
-              return (
-                <Fragment key={p.id}>
-                  {/* A pixel outside the chosen channel is switched off: dimmed, and `inert` —
-                      out of Tab, of pointing and of the accessibility tree. */}
+          {current ? (
+            <div
+              ref={stageRef}
+              role="region"
+              aria-label={l(COPY.stage)}
+              className={s.stage}
+              style={accentStyle(current, projects.indexOf(current))}
+              onKeyDown={onKeyDown}
+            >
+              <div className={s.left}>
+                <div className={s.viewer}>
                   <button
                     type="button"
-                    data-pixel={i}
-                    data-selected={i === current ? "" : undefined}
-                    data-open={isOpen ? "" : undefined}
-                    data-located={located === i && on ? "" : undefined}
-                    data-flash={flashing && on ? "" : undefined}
-                    data-off={on ? undefined : ""}
-                    inert={!on}
-                    aria-label={p.name}
-                    aria-expanded={picker ? undefined : isOpen}
-                    aria-pressed={picker ? i === current : undefined}
-                    aria-controls={picker ? belowId : isOpen ? cardId : undefined}
-                    className={s.px}
-                    style={style}
-                    onPointerDown={notePointer}
-                    onPointerEnter={onPixelEnter(i)}
-                    onPointerMove={onPixelMove(i)}
-                    onPointerLeave={onPointerLeave}
-                    onFocus={onPixelFocus(i)}
-                    onClick={(event) => pixelClick(i, event)}
+                    className={`${s.nav} ${s.navPrev}`}
+                    aria-label={l(COPY.prev)}
+                    disabled={list.length < 2}
+                    onClick={() => step(-1)}
                   >
-                    {/* the pixel itself: a point of light about the size of a real one, and the
-                        loupe's view of it — its three subpixels on the black matrix */}
-                    <span className={s.light} aria-hidden="true" />
-                    <span className={s.tri} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M14.5 5.5 8 12l6.5 6.5" />
+                    </svg>
+                  </button>
+                  {/* The monitor: a thin bezel, a chin with the brand's three subpixels, a glow in
+                      the current project's colour. */}
+                  <div className={s.monitor}>
+                    <div
+                      ref={screenRef}
+                      className={s.screen}
+                      onPointerDown={onScreenDown}
+                      onPointerUp={onScreenUp}
+                      onPointerCancel={() => {
+                        swipe.current = null;
+                      }}
+                    >
+                      {image ? (
+                        <button
+                          ref={shotBtnRef}
+                          type="button"
+                          className={s.shotBtn}
+                          aria-label={format(l(COPY.zoomOf), { name: current.name })}
+                          onClick={onShotClick}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img ref={imgRef} src={image} alt="" decoding="async" fetchPriority="high" className={s.shot} />
+                        </button>
+                      ) : (
+                        <span className={s.blank} aria-hidden="true">
+                          {current.name}
+                        </span>
+                      )}
+                      <canvas ref={fxRef} className={s.fx} aria-hidden="true" />
+                      {image ? (
+                        <span className={s.zoomChip} aria-hidden="true">
+                          <svg viewBox="0 0 24 24">
+                            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+                          </svg>
+                          {l(COPY.zoom)}
+                        </span>
+                      ) : null}
+                      <span className={s.screenRing} aria-hidden="true" />
+                    </div>
+                    <span className={s.rgb} aria-hidden="true">
                       <i />
                       <i />
                       <i />
                     </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${s.nav} ${s.navNext}`}
+                    aria-label={l(COPY.next)}
+                    disabled={list.length < 2}
+                    onClick={() => step(1)}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M9.5 5.5 16 12l-6.5 6.5" />
+                    </svg>
                   </button>
-                  {isOpen ? (
-                    <Popover style={style} onPointerEnter={onCardEnter} onPointerLeave={onPointerLeave}>
-                      <ProjectCard
-                        project={p}
-                        id={cardId}
-                        className={s.card}
-                        onAsk={(event) => ask(i, event)}
-                        onClose={() => closeCard(i)}
-                      />
-                    </Popover>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </div>
+                </div>
 
-          {/* ≤640px: the picker's card, always shown, under the field. The live region is the
-              persistent wrapper, so a picked project's card is announced as it replaces the last. */}
-          {project ? (
-            <div
-              ref={belowRef}
-              id={belowId}
-              aria-live="polite"
-              className={s.belowWrap}
-              style={accentStyle(project, current)}
-            >
-              <ProjectCard
-                key={project.id}
-                project={project}
-                className={`${s.card} ${s.below}`}
-                onAsk={(event) => ask(current, event)}
-              />
-            </div>
-          ) : null}
-
-          {/* The legend: every project's light, name and tag, in the store's order — row i is
-              pixel i. No visible heading; the list is named for assistive tech. A row switched
-              off by the filter leaves the list the way its pixel leaves the field: the whole item
-              is inert, not just its button (an empty list item would stay behind). */}
-          {projects.length > 0 ? (
-            <ul id="lista-proiectelor" className={s.index} aria-label={l(COPY.index)}>
-              {projects.map((p, i) => {
-                const on = isLit(i);
-                const isOpen = open === i;
-                return (
-                  <li key={p.id} inert={!on}>
+                {/* The pixels: one labelled button per project. At rest a flat square of its
+                    colour; the current one is seen up close — opened into its red, green and blue
+                    subpixels, each lit to its share of the colour. */}
+                <div className={s.pixels} role="group" aria-label={l(COPY.pick)}>
+                  {list.map((p, k) => (
                     <button
+                      key={p.id}
+                      ref={(el) => {
+                        if (el) pixelRefs.current.set(p.id, el);
+                        else pixelRefs.current.delete(p.id);
+                      }}
                       type="button"
-                      data-row={i}
-                      data-lit={isOpen || (picker && i === current) || (located === i && on) ? "" : undefined}
-                      data-off={on ? undefined : ""}
-                      aria-expanded={picker ? undefined : isOpen}
-                      aria-pressed={picker ? i === current : undefined}
-                      aria-controls={picker ? belowId : isOpen ? cardId : undefined}
-                      className={s.row}
-                      style={accentStyle(p, i)}
-                      onPointerDown={notePointer}
-                      onPointerMove={onRowMove(i)}
-                      onPointerLeave={unlocate}
-                      onFocus={onRowFocus(i)}
-                      onBlur={unlocate}
-                      onClick={onRowClick(i)}
+                      data-project={p.id}
+                      aria-current={p.id === current.id ? "true" : undefined}
+                      className={s.px}
+                      style={{ ...accentStyle(p, projects.indexOf(p)), "--k": k } as CSSProperties}
+                      onClick={() => goTo(p, k >= pos ? 1 : -1)}
                     >
-                      <span className={s.swatch} aria-hidden="true" />
-                      <span className={s.rowName}>{p.name}</span>
-                      <span className={`mono ${s.rowTag}`}>{tagChips(l(p.tag)).join(" · ")}</span>
-                      {/* a row opens something: said by its arrow, not by a word */}
-                      <span className={s.rowGo} aria-hidden="true">
-                        ›
+                      <span className={s.pxDot} aria-hidden="true">
+                        <i />
+                        <i />
+                        <i />
                       </span>
+                      <span className={`mono ${s.pxName}`}>{p.name}</span>
                     </button>
-                  </li>
-                );
-              })}
-            </ul>
+                  ))}
+                  <div ref={ghostsRef} className={s.ghosts} aria-hidden="true" inert />
+                </div>
+              </div>
+
+              {/* The project's words. */}
+              <div ref={infoRef} className={s.info}>
+                <p className={`mono ${s.counter}`}>
+                  <span>
+                    <b>{pad(pos + 1)}</b> / {pad(list.length)}
+                  </span>
+                </p>
+                <h2 className={s.name}>{current.name}</h2>
+                <p className={`mono ${s.tag}`}>
+                  <span className={s.tagPx} aria-hidden="true" />
+                  <span>{l(current.tag)}</span>
+                </p>
+                <p ref={descRef} id="portofoliu-descriere" className={`${s.desc} ${expanded ? "" : s.folded}`}>
+                  {l(current.desc)}
+                </p>
+                {/* Hidden from the server on, and shown by the measurement above when something is
+                    folded away. Hidden, it keeps its row (the CSS), so neither the page waking nor
+                    a change of project moves the buttons under it. React never writes `hidden`
+                    again (the prop never changes). */}
+                <button
+                  ref={moreRef}
+                  type="button"
+                  hidden
+                  className={s.more}
+                  aria-expanded={expanded}
+                  aria-controls="portofoliu-descriere"
+                  onClick={() => setExpanded((v) => !v)}
+                >
+                  {l(expanded ? COPY.less : COPY.more)}
+                </button>
+                <div className={s.actions}>
+                  <button ref={askRef} type="button" className={s.ask} onClick={ask}>
+                    {l(COPY.similar)}
+                  </button>
+                  {/* In the same tab: a new tab greys out Back, and a visitor who closes it to
+                      return closes the whole window, this page with it. */}
+                  <span className={s.links}>
+                    {current.url ? (
+                      <a href={current.url} className={s.link}>
+                        {l(COPY.open)}
+                      </a>
+                    ) : (
+                      <span className={s.private}>{l(COPY.private)}</span>
+                    )}
+                    {stores.map((store) => (
+                      <a key={store.label} href={store.href} className={s.link}>
+                        {store.label}
+                      </a>
+                    ))}
+                  </span>
+                </div>
+              </div>
+              <p className={s.srOnly} aria-live="polite">
+                {announcement}
+              </p>
+            </div>
           ) : null}
         </div>
       </section>
+
+      {/* The screenshot, larger, in the site's dialog. Open only while there is a picture: new
+          content that takes it away closes the dialog instead of unmounting it open. */}
+      {current ? (
+        <Modal
+          open={zoomOpen && Boolean(image)}
+          onClose={() => setZoomOpen(false)}
+          title={current.name}
+          ground="ink"
+          className={s.zoomPanel}
+          restoreFocusRef={shotBtnRef}
+        >
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image} alt={format(l(COPY.shotOf), { name: current.name })} className={s.zoomImg} />
+          ) : null}
+        </Modal>
+      ) : null}
 
       {/* The close: the service pages' closing panel, with their own approved words. Its own
           section, with its own heading — the scroll rail gives it a second marker. */}
@@ -915,10 +774,4 @@ export function Portfolio() {
       </section>
     </>
   );
-}
-
-/** Smooth, unless the visitor asked for less motion. */
-function scrollBehavior(): ScrollBehavior {
-  const reduced = typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION_QUERY).matches;
-  return reduced ? "instant" : "smooth";
 }

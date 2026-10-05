@@ -122,7 +122,7 @@ const ORIGIN = {
 /* The note under the proposal when a HUD tool handed something over with the request
    (`context.attachment`): what travels, and how much of it, so the visitor knows what the
    team will read. `{total}` is " · de la 600€", or nothing when the tool had no total. */
-/* The project the visitor asked for "one like" (a portfolio card's "Vreau un proiect similar"),
+/* The project the visitor asked for "one like" ("Vreau un proiect similar" on /portofoliu),
    said back to them at the top of the form: until 2026-10-04 its name travelled only in the
    message to the team, and the visitor could not see what they had sent. */
 const EXAMPLE = L("Proiect ales ca exemplu: {name}", "Проект-пример: {name}", "Example project: {name}");

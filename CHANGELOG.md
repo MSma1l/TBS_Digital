@@ -16,6 +16,98 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-05 — Changed: `/portofoliu` devine un ecran, cu cate un pixel pentru fiecare proiect
+
+*„mie imi pare parca nu este intuitiv, hai poate sa schimbam formatul”* — din patru prototipuri
+(placi, ecran, lista langa ecran, carduri), proprietarul l-a ales pe **„Ecran”**.
+
+**Ce s-a schimbat.** Campul cu puncte de 3px care se deschideau in carduri la hover a disparut. In
+locul lui:
+
+- **Un ecran mare** cu proiectul curent: un monitor cu rama subtire, cu cei trei subpixeli pe
+  „barbie” si cu o lumina in culoarea proiectului, care trece lin in culoarea urmatorului. Toata
+  captura e un buton: „Vezi mai mare” o deschide marita in dialogul site-ului.
+- **Sub ecran, cate un pixel pentru fiecare proiect, cu numele scris sub el.** Pixelii sunt
+  navigarea. Pixelul proiectului curent se vede de aproape, desfacut in subpixelii lui rosu, verde
+  si albastru. Ideea „un pixel = un proiect” a ramas, acum la vedere.
+- **Alaturi de ecran** (sub el, sub 1000px): „01 / 09”, numele, eticheta, descrierea (una lunga se
+  strange, cu „Citeste tot ↓”), apoi „Vreau un proiect similar” si „Deschide site-ul ↗”. Totul e pe
+  primul ecran, fara hover.
+- **Schimbi proiectul** din ‹ ›, cu ← → de la tastatura, glisand pe ecran pe telefon sau apasand un
+  pixel. Trecerea e o tranzitie de pixeli: poza veche se sparge in blocuri in culorile proiectului
+  nou, iar cea noua apare. Sub „reduced motion” nu se anima nimic.
+- **Filtrul pe servicii** a ramas, cu aceleasi cuvinte simple. Strange pixelii si contorul.
+  Pixelii care raman aluneca la locul nou, cei scosi se sting pe loc.
+- **Formularul** primeste in continuare proiectul („Proiect ales ca exemplu: …”) si tipul potrivit
+  de lucrare. Panoul de final a ramas neschimbat.
+- **Asistenta din colt** nu mai acopera nimic. De la 1000px, coloana cu textul are cel putin 400px.
+  Butonul rosu si linkurile, aliniate la stanga in ea, raman astfel mereu in afara celor 204 × 204px
+  din coltul ei. Cand fereastra e mai joasa de 970px, linkul trece sub buton.
+- **Intr-o fereastra inalta** (mai inalta decat cam 5:4, de exemplu un iPad Pro tinut vertical,
+  1024×1366), textul sta sub ecran, nu langa el. Alaturi, ecranul ocupa doar o treime din latime;
+  sub text, ocupa toata latimea.
+
+**De ce.** Cine nu exploreaza nu stia ce sunt punctele, iar proiectul se vedea doar dupa hover.
+Acum proiectul e mereu pe ecran, iar pixelii au nume.
+
+**Ce a gasit recenzia de cod** (un recenzent independent a citit codul; toate cele de mai jos sunt
+corectate si verificate in Edge):
+
+- **Schimbarea limbii.** Dupa ea, „Citeste tot” nu se recalcula. O descriere care incape in romana
+  se poate strange in rusa, si atunci ramanea taiata, fara buton. Acum se masoara din nou: pe
+  telefon, in rusa se strang 4 descrieri, in romana una.
+- **Randul lui „Citeste tot”.** Butonul aparea dupa pornirea paginii si muta butoanele de sub el.
+  Acum randul ramane rezervat si cand e ascuns, deci butoanele nu se mai misca nici la incarcare,
+  nici cand schimbi proiectul.
+- **Focusul pe poza.** Daca era pe poza si urmatorul proiect nu are poza, focusul se pierdea. Acum
+  trece pe pixelul proiectului, iar ← → merg mai departe.
+- **Focusul dupa o atingere.** Cand focusul nu venea de la tastatura, de exemplu dupa o atingere pe
+  telefon, mutarea lui nu mai deruleaza pagina.
+- **Contrastul fortat.** Poza nu avea inel de focus vizibil; acum are.
+- **Eticheta in engleza.** Numele butonului pozei incepe acum cu cuvintele de pe eticheta lui
+  („View larger: …”), ca sa-l gaseasca si comanda vocala.
+- **Imaginea marita** se deschide doar cand exista o poza. Orice schimbare de proiect o inchide.
+- **Pixelii** trec la cate cinci pe rand dupa latimea coloanei lor, nu a ferestrei (`@container`).
+  Pe 1000px, docs/07 noteaza exceptia de la pragul de 1024px si motivul.
+
+**Verificat** in Edge headless, pe build-ul nou:
+
+- **Primul ecran** la 1366×768, 1720×1300, 1024×768, 1280×720, 1440×900, 800×1100 si 390×844. Nu
+  apare scroll lateral, numele pixelilor nu ies din buton si nu sunt erori in consola.
+- **Asistenta** nu acopera butonul, linkurile sau „Citeste tot” la niciunul din cele 9 proiecte, la
+  1000×700, 1024×768, 1100×768, 1200×800, 1280×720, 1366×768, 1440×900, 1536×864, 1920×1080 si
+  1720×1300. Nici pe tablete, cu textul sub ecran, nu acopera pixelii sau butoanele: 768×1024,
+  820×1180, 834×1194, 912×1368, 1024×1366 si 1200×1600. Inainte de corectura, le acoperea la
+  1366×768, 1280×720 si 1024×768.
+- **Navigarea**: sagetile, pixelii, ← → (focusul trece pe pixelul vecin) si filtrul (copiile pixelilor
+  scosi dispar).
+- **Dialogurile**: imaginea marita (Escape, focusul revine pe poza) si formularul cu „Proiect ales ca
+  exemplu: BizCheck” (focusul revine pe buton).
+- **Focusul pierdut**: cand linkul sau „Citeste tot” dispare odata cu proiectul, focusul trece pe
+  butonul rosu.
+- **Telefonul**: atingerea sagetii, glisarea (fara sa se deschida imaginea marita), atingerea pozei
+  si a unui pixel.
+- **Restul**: reduced motion fara nicio animatie; ru/en (si ce se anunta cititorului de ecran);
+  ordinea la Tab; markerii benzii de derulare („Портфолио”, „Есть проект на примете?”); 0 si 1
+  proiect; contrast fortat, unde butoanele rosii au primit chenar.
+
+tsc, lint si vitest (1549) trec. Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}` (rescrise); `lib/portfolioScatter.ts`
+(**Removed**, era doar pentru campul de puncte). Comentarii in `lib/solutions.ts`,
+`lib/request/RequestFlowProvider.tsx` si `components/sections/Estimator.{tsx,module.css}`.
+
+Explicatia:
+
+- [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu) (sectiunea rescrisa);
+- [docs/04-design-system.md](./docs/04-design-system.md#the-portfolios-controls) (monitorul,
+  pixelii, cuvintele, contrastul fortat) si
+  [Subpixels](./docs/04-design-system.md#subpixels);
+- [docs/03-architecture.md](./docs/03-architecture.md) (randul rutei);
+- [docs/07-conventions.md](./docs/07-conventions.md) (exceptia de la pragurile obisnuite).
+
+---
+
 ## 2026-10-04 — Changed: cardul din `/portofoliu` iar la hover, dar unul la care ajungi
 
 *„fa sa fie la hover si cand iau mouse-ul sa dispara boxul … si gandeste-te unde se poate de plasat

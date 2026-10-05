@@ -63,7 +63,7 @@ export type RequestSource =
   | "bottom-cta"
   | "service-page"
   | "service-page-bottom"
-  /** "Vreau un proiect similar" on a /portofoliu card; the project travels with it. */
+  /** "Vreau un proiect similar" beside the /portofoliu screen; the project travels with it. */
   | "project-card"
   /** The close of /portofoliu. */
   | "portfolio-bottom"

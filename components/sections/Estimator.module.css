@@ -817,7 +817,7 @@
   color: var(--mut);
 }
 
-/* "Proiect ales ca exemplu: CGAM" — the project a portfolio card's request carries, said back to
+/* "Proiect ales ca exemplu: CGAM" — the project a /portofoliu request carries, said back to
    the visitor first thing in the form, at reading size. */
 .example {
   margin: 0 0 var(--sp-3);

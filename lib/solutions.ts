@@ -357,7 +357,7 @@ export const solutionProjectIds: Record<string, string[]> = {
 /* ---------------------------------------------------------------------------
    Which kind of request a project starts
    ---------------------------------------------------------------------------
-   "Vreau un proiect similar" on a portfolio card opens the request dialog on the estimator
+   "Vreau un proiect similar" on /portofoliu opens the request dialog on the estimator
    type of THAT kind of work — an app like IQ Arena starts on "Aplicație mobilă", not on the
    estimator's first type and its price. Stated by id, like the table above, never parsed
    from the tag. A project not listed here starts where the dialog always starts. */

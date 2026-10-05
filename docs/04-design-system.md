@@ -577,12 +577,13 @@ dark wash → the glass edge and corner brackets → the copy.
 ```
 
 The three primaries a real screen pixel is made of, for `/portofoliu`, where every project is
-drawn as one pixel ([05](./05-page-sections.md#portfolio--portofoliu)). They show only up close.
-From where the visitor sits, a pixel is a point of light about the size of a real one (3px): its
-colour `--p2` mixed toward `--on-accent` at the centre, inside a soft disc of `--p2`. Under the
-loupe the point opens out into a 42px macro: these three bars on a `--void` matrix. Each bar is
-lit (`opacity`) to its share of the colour, is brightest along its middle and is screen-blended,
-as in a macro photo of a display.
+one pixel ([05](./05-page-sections.md#portfolio--portofoliu)). They show only up close. A pixel
+at rest is a flat square of its project's colour (`--p2`, ≈18px, a soft glow of the same); the
+current project's pixel is seen up close — 26px, ringed in `--txt` — and opens into these three
+bars on a `--void` matrix. Each bar is lit (`opacity`) to its share of the colour (never under
+0.14: a dark channel still shows as a dim bar), is brightest along its middle and is
+screen-blended, as in a macro photo of a display. The monitor's chin carries the same three, small,
+as its maker's mark.
 
 The primaries are deliberate: a triad tinted toward the brand palette stops reading as a pixel.
 They are softened just enough not to vibrate on `--void`. Never remapped, graphic only, never
@@ -591,44 +592,55 @@ they reach the page as inline `--p1` / `--p2`.
 
 ### The portfolio's controls
 
-What `/portofoliu` added around its field on 2026-10-04
+What `/portofoliu` is built from since 2026-10-05, the screen and its pixels
 ([05](./05-page-sections.md#portfolio--portofoliu)). All of it is in `Portfolio.module.css`, from
 existing tokens:
 
-- **The how-to line.** Body type at `--fs-base`, `--mut`, sentence case — not the HUD's small
-  capitals — led by a still 3px point of light, its link in `--txt` with a cyan underline. The
-  one instruction on the page; everything else stays a label.
+- **The monitor.** A `--deck → --slot` frame, 1px edge of 26% project colour in `--line2`, a
+  `--r-lg` radius (the screen's is that less the bezel, so the corners stay concentric), an 8px
+  bezel and a 14px chin (6px / 11px on phones) with the three subpixels in it. Its glow is
+  `--pf-glow`, set from the project's `--p2` and **registered** (`@property`, `<color>`) so it glides
+  in 0.35s from one project's colour to the next; `--p1` / `--p2` themselves stay unregistered —
+  Home's cards share them. The glass: an 8% `--on-accent` sheen from the top-left and a 35% `--void`
+  inner shade.
+- **"Vezi mai mare".** A pill in 78% `--void` with a 20% `--on-accent` edge (cyan under the
+  pointer), `--fs-sm` bold, bottom-right on the screen. Not a button of its own — the picture is;
+  its focus ring is a 3px cyan ring drawn inside the screen, over the glass (outside, the bezel
+  hid it).
+- **The arrows.** 48px circles (44px in a column too narrow for nine names, and on phones), a
+  `--line2` edge, washed in the project's colour under the pointer. On phones they sit on the
+  screen's edges, in 74% `--void` with a blur.
+- **The pixels.** A pixel is a column: its square, its name in mono `--fs-sm` (10.5–12px on phones)
+  in `--mut`. The current one: `--txt` bold name, a 13% wash of its `--p2` and a 1px inside ring of
+  50%. Hover (only where there is hover): `--txt`, a 4.5% `--on-accent` wash, the square a little
+  larger.
+- **The words.** The counter in mono `--fs-sm` at 0.14em with a hairline running out of it; the
+  name in the display face at 32–48px (30–36px on phones), **as it writes itself** — not the
+  `.disp` capitals, a brand name in capitals is another word; the tag in mono `--fs-sm`, tinted
+  42% toward the project's colour, led by a 10px square of it; the description at `--fs-base`,
+  1.6, in `--mut`; "Citește tot ↓" in `--cyan-text` bold `--fs-md` with a cyan underline.
+- **The request.** "Vreau un proiect similar" on the label-safe red (`--grad-red-cta`), 44px,
+  `--fs-base` extra-bold, lifting 1px into `--sh-red` under the pointer; the site link at
+  `--fs-base` bold with a cyan underline; "nu are pagină publică" at `--fs-md` in plain case.
 - **Service filter.** Mono, uppercase, `--fs-sm` labels at 0.06em (11px at 0.1em lost the shape
   of a word for older eyes) in a 36px box (44px on phones) with a `--line2` edge and `--mut`
   text, the count in `--txt` bold. Pressed: `--neon-cyan` edge, `--cyan-text` and a 10%
   `--neon-cyan` fill — cyan marks the selected state, as everywhere. Hover only where there is
   hover.
-- **A switched-off pixel.** The button drops to 16% opacity in three hard steps (`steps(3)`) and
-  its flicker pauses. Nothing else changes, and nothing moves.
-- **Legend rows.** A still copy of the project's light (3px point, 22px disc), the name in
-  `--fs-base` bold and the tag in mono `--fs-sm` `--mut`, over a `--line` hairline, and a `›` at
-  the end (`--fs-lg`, `--mut`; `--txt` under the pointer or the keyboard, which also underline
-  the name; the project's `--p2` while its card is open). A row whose pixel is pointed at, open or
-  picked takes a 9% wash of the project's own `--p2`.
-- **The card's ×.** A real button where a window's close sits, after two of the three lights: an
-  `--fs-lg` × in `--on-accent`, 32px (44px on a coarse pointer), a 16% `--on-accent` wash on hover,
-  a cyan ring inside on focus.
-- **The card's request.** The red CTA fill on the label-safe twin (`--grad-red-cta`), full width,
-  40px (44px on phones), its label at `--fs-md`. No outer glow or lift — the card clips at its
-  rounded edge — so hover rings it from inside. "nu are pagină publică" sits beside it at
-  `--fs-md` in plain case.
 - **The close.** The service pages' closing panel, restated (corner brackets in 38% `--cyan`, the
   `--blue → --violet2 → --cyan` thread drawn out as the PANEL enters the view — a named
   `view-timeline` on the panel; with `view()` the 2px thread was its own subject and finished
   within a pixel of scroll, here and on the service pages alike), its button on
   `--grad-red-cta`. Change both together.
-- **Forced colours.** The pressed channel shows by a 2px `Highlight` border, leaving the outline to
-  the focus ring. The pixels and the legend's swatches keep their own paint
-  (`forced-color-adjust: none`): they are pictures of light, made of backgrounds, gradients and
-  glows a contrast theme would erase to an empty field.
-- **Hover** (the loupe, a legend row's wash, a channel's edge) only under `(hover: hover)`: touch
-  keeps `:hover` on the last thing tapped, and a tablet's second tap would leave a closed pixel
-  magnified. The keyboard focus ring sits above the card it opens (`z-index: 4`).
+- **Forced colours.** The pressed channel shows by a 2px `Highlight` border and the current pixel
+  by a 2px `Highlight` ring inside it, leaving the outline to the focus ring (which replaces the
+  ring while the current pixel has the focus). The two red buttons get a `ButtonText` border — the
+  fill is erased and they read as loose text without one. The picture's focus ring, a shadow
+  elsewhere, is a 3px `Highlight` outline inside the screen (a contrast theme drops shadows). The
+  pixels, the tag's square and the chin's subpixels keep their own paint
+  (`forced-color-adjust: none`): they are pictures of light
+  a contrast theme would erase to empty squares.
+- **Hover** only under `(hover: hover)`: touch keeps `:hover` on the last thing tapped.
 
 ## Cyber Dark / Neon Cyan / Obsidian Black
 

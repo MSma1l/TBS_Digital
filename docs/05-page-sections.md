@@ -1841,196 +1841,128 @@ What was kept is what carries information rather than ceremony: a project card's
 ## Portfolio — `/portofoliu`
 
 `app/(site)/portofoliu/page.tsx` → `components/sections/Portfolio.tsx` + `Portfolio.module.css`
-(2026-10-03). The whole portfolio on its own page, so the footer could stop listing it; the
-owner's idea: small pixels, and pointing at one shows a project — **one pixel is one project**.
+(2026-10-03; its present form 2026-10-05). The whole portfolio on its own page, so the footer
+could stop listing it; the owner's idea: **one pixel is one project**.
 
-- **The heading row:** the `<h1>` "Portofoliu" (a direction page's h1 type), where the count used
-  to be the **service filter** (below), and under both, the full width of the row, **one line
-  saying how to read the field**: "Fiecare punct luminos e un proiect. Apasă pe unul sau alege din
-  lista de mai jos ↓" (ru/en in `COPY.howTo`), led by the legend's own point of light, in the body
-  type at 16px — "lista de mai jos ↓" is a link to the legend (`#lista-proiectelor`, which lands
-  below the header). It is an instruction, not a lead: on a 1366×768 laptop the field alone read as
-  dust on the screen, and the legend starts below the first screen. The row's top padding gave the
-  line its room (`clamp(20px, 3.5vw, 36px)`), so the field did not move.
-- **For a visitor who does not explore** (2026-10-04, "mai intuitiv pentru un om simplu sau în
-  vârstă"). A persona audit (a 68-year-old on a laptop, a 72-year-old on a tablet at 200% zoom, a
-  hurried owner on a phone, and a WCAG reviewer) found where they stopped: the field said nothing,
-  a card vanished when the hand drifted or the page scrolled, a second click closed it, the three
-  window lights looked like a Windows × that did nothing, the labels were 11px small capitals full
-  of API/UI/SaaS, and a press had no visible answer. Hence the line above, a card the pointer can
-  reach (see "Pinned and previewed"), a real × on it, larger type, plain words on the filter, an
-  arrow on the legend rows, the filter's flash, the chosen project said back in the request form,
-  and the project's site opened in the same tab.
-- **The page around the field** (2026-10-04, "adaugă ceva util, pagina arată prea sărac"): a
-  filter, a legend and a close. All of it comes from data that exists; nothing is drawn on the
-  field.
-  - **Service filter** — a `role="group"` of mono channels (12.5px) in the heading row:
-    `TOATE · 9`, then one per direction with live projects, in the menu's order, **named in plain
-    words** for a visitor who never heard of an API or a UI — "Aplicații și platforme", "Programe
-    interne", "Boturi și chat", "Site-uri și design" (`CHANNEL_LABEL` in `Portfolio.tsx`, ru/en
-    too). Only here: Home's pills, the menu and the service pages keep the official names
-    (`directionTab` in `lib/solutions.ts`, which Home's pills read too), and the close's
-    "Deschide serviciul: …" link joins the two. Counts come from `projectsForSolution()` — the
-    curated `solutionProjectIds`, never the free-text tag. E-commerce has no project, so no
-    channel. A channel (`aria-pressed`, cyan when pressed) **switches off every pixel outside
-    it**: the button drops to 16% in three hard steps and back the same way, its flicker paused,
-    `inert` (out of Tab, pointing and the accessibility tree). The dim is the button's, not the
-    light's: the light's opacity belongs to its switch-on, which would override it and freeze a
-    pixel switched off in its first second on its white flash. Positions never move. For a second
-    after the press the pixels it kept show **under the loupe** (`data-flash`) — the press has a
-    visible answer, and on "Toate" every project shows where it is.
-    Pressing a channel closes any open card (Enter and Space too). On a phone, a picked project
-    the channel switches off hands its card to the channel's reference project (the first id),
-    without scrolling. The channel starts as "all" on the server and the client and is **never
-    on the URL**: the estimator reads `?serviciu=` on every page and would preselect a type for
-    every CTA. In the heading row rather than above the field, so the field stays where the
-    assistant's empty corner was measured wherever the row fits (it does from 1366; at 1280 the
-    plain-language row wraps under the title and the field sits 48px lower, which the corner's 50%
-    allows — every pixel stays reachable there). At 640px and below the channels are one 44px band
-    that scrolls inside itself, bleeding by exactly `--gutter`.
-  - **Legend** — under the field, every project's own point of light (a still copy of its
-    pixel), its name (16px) and its tag (12.5px), and an arrow, `›`, that says a row opens
-    something (grey; white under the pointer or the keyboard, which also underline the name; the
-    project's colour while its card is open): three columns, two at 641–860px, one on phones;
-    rows of 56px.
-    Text a visitor reads without hunting for 3px points, and a search engine can read too. No
-    visible heading; the list is named for assistive tech. A row a mouse **moves** over, or one
-    focused from the keyboard, **locates** its pixel: the pixel goes under the loupe
-    (`data-located`) and nothing opens. A click is the pixel's own click — it pins the card, which
-    is brought into view if it is not; from the keyboard, focus moves onto the pixel, so Tab goes
-    into the card and Escape comes back to it. On a phone a tap picks the project and brings its
-    card into view — the one already shown too, since the legend sits under it. The open, located
-    or picked pixel lights its row; a row switched off by the filter dims, and its whole list item
-    is `inert` (an inert button alone would leave an empty item for a screen reader).
-  - **The scroll rail** names the section by its h1, "Portofoliu". The heading row is therefore a
-    `<div>` (the rail skips every heading inside a `<header>`), and the cards' names are
-    `role="heading" aria-level="2"` rather than `<h2>` tags: both cards — beside a pixel and the
-    phone's — are in the DOM, and the rail skips a section holding more than one `<h2>`. The close
-    gets the second marker, "Ai un proiect în minte?".
-  - **"Vreau un proiect similar"** — the last row of every card (popover and phone card): the
-    site's red CTA. It opens the request dialog with the project attached (`source:
-    "project-card"`, `projectId`, `projectName`), the chosen channel as `serviceSlug`, and the
-    estimator type of that kind of work (`projectRequestType` in `lib/solutions.ts`: the apps
-    start on "Aplicație mobilă", the private systems on "CRM la comandă"; a project not listed
-    starts where the dialog always does). Beside a pixel the card is pinned first, and the
-    card's Escape / press-outside listener stands down while the dialog is up — so the card is
-    still there when the dialog closes, and focus returns to the button. The form says the
-    project back to the visitor first thing: "Proiect ales ca exemplu: CGAM"
-    (`Estimator.tsx`, shown whenever a request carries a `projectName`) — until then its name
-    travelled only in the message to the team.
-  - **The close** — after the section, the service pages' closing panel (corner brackets, the
-    three-stop thread) with their approved words: "Ai un proiect în minte?" and "Începe cererea"
-    (`source: "portfolio-bottom"`, carrying the chosen channel). While a channel is chosen it
-    also links to that service's page ("Deschide serviciul: Produs digital →").
-- **The field:** nothing drawn on it — no grid, no dots, no frame; the owner's call after the first
-  version, which showed a dot matrix ("haotic … ca pixeli adevărați, pe fundal să nu se vadă
-  matricea"). That includes the site's own faint 56px body grid: while the page is mounted the body
-  keeps its wash and drops the grid layers (`:global(body):has(.page)`), and any other page gets
-  them back.
-- **A pixel looks like a real one** ("mai reali", then "nu arată real", then "la mărimea de
-  pixeli aproximativ — se vede că sunt pătrate", 2026-10-04): flat squares, flat RGB bars and a
-  13px square of light all read as drawn shapes.
-  - **At rest** it is a **point of light about the size of a real pixel** — 3px on every screen
-    — in the project's colour (`lib/projectAccent.ts`, the pair its /04 card on Home is drawn
-    in), hot at the centre, inside a soft 34px disc of the same colour. The disc is what makes a
-    3px point findable and tells two projects apart.
-  - **Under the loupe** the point opens out (scale 0.07 → 1) into a 42px macro of the pixel: its
-    three **subpixels**, red, green and blue bars (`--subpixel-r/g/b`,
-    [04](./04-design-system.md#subpixels)) on a black matrix. Each bar is lit to its share of the
-    colour (a dark channel still shows as a dim bar) and glows along its middle, as in a macro
-    photo of a screen. A 3px frame and 3px gaps leave three whole 10px bars; fractional sizes
-    snapped unevenly and showed.
-  - Two elements in the button: `.light` (the point, `::after`, and its disc, `::before`) and
-    `.tri` (the macro). The target stays 40px (44px at 640px and below).
-  - The keyboard focus ring is drawn round the magnified pixel, not inside the button.
-- **Pixel motion:**
-  - Each pixel **switches on** as the page arrives, at its own moment over 1.4 s: dark, a white
-    flash, a stutter, then its colour, in hard steps.
-  - Now and then its **light drops out** for a beat, like a live pixel's flicker. Core, rim and
-    bloom dim together. Each pixel runs on its own 5.3–11.4 s clock, so the field never blinks
-    as one.
-- **Where a pixel goes** (`lib/portfolioScatter.ts`): scattered, nothing lined up — a point
-  anywhere in the field, as % of its width and height. Deterministic all the same: a hash of the
-  project id picks it, so a project lights the same spot on every load and on the server, and one
-  the admin adds takes a free spot without moving anyone. One layout per band, each worked out on
-  the band's SMALLEST real field (945×440 from 1025px, 590×440 from 641px, 288×300 on a 320px
-  phone), so a wider screen only spreads the pixels further: two pixels stay 96 / 84 / 56 px apart,
-  and their hit squares (40 / 40 / 44px) never overlap — checked per axis, because a distance alone
-  let two squares touch along the diagonal. The phone field grows 34px per project (the CSS sizes
-  it by the same rule from `--n`), so that guarantee holds as the portfolio grows; with no free spot
-  left the gaps shrink 10% and the search goes on. From 641px the bottom-right corner (right of 78%,
-  below 50%) stays empty: the corner assistant's fixed card covers it at scroll 0 on common laptop
-  and tablet windows, where a pixel there could be neither seen nor pointed at. It was "below 62%"
-  until the service filter: where the filter's row does not fit beside the title (below ~1240px)
-  the field sits ~48px lower and the card reaches higher up it. No live pixel moved — the nine ids
-  scatter identically for any value from 62 down to 30.
-- **Above 640px the pixel opens into the card.** Pointing at it (a mouse) or focusing it from the
-  keyboard **builds the card out of the pixel**, toward the open half of the field: the card is
-  uncovered column by column from the pixel's side in eight hard steps, as a mosaic of 8×10 blocks
-  in shades of the project's colour, and the blocks go out one by one — each after its column,
-  plus its own jitter — until only the card is left (~0.4 s). **Where it sits** (2026-10-04, "la
-  hover … să dispară boxul … gândește-te unde se poate de plasat ca să putem deschide"): a card
-  that closes when the pointer leaves must be one the pointer can reach. So it lies **over the
-  pixel's whole 40px target** (`--reach: -21px`, its near edge behind the pixel's centre): the
-  pointer that opened it is already on it, and however it moves on — even down a steep path to the
-  card's link — it never crosses empty space (with the edge beside the target, a slow hand left it
-  below, over empty field, and lost the card). The pixel stays under its card — on top, its 40px
-  target covered the edge of the card's text, link and button wherever the card had to rise; only
-  a keyboard-focused pixel comes up, for its ring. And it sits **whole on
-  screen**: `Popover` measures it before the first paint and writes its top — the pixel just under
-  the window bar where there is room, the card risen when there is none below, never under the
-  fixed header, and always level with its pixel — so its link and its button never wait below
-  the screen's edge for a scroll that would carry the card away from the pointer. With a public
-  site, the card's screenshot opens it too (a second, larger target; out of Tab and of the
-  accessibility tree, where "Deschide site-ul" already is). The card: a window bar with the project's tag
-  and, where a window's close button sits, a real **×** ("Închide", 32px, 44px on a coarse
-  pointer — it closes the card and puts focus back on its pixel; the phone's card, which never
-  closes, keeps three lights), the screenshot tinted into its colours, the name, three lines of the
-  description, and "Deschide site-ul ↗" (or "nu are pagină publică", in plain case), plus App
-  Store / Google Play when it has them, and "Vreau un proiect similar". The links open **in the
-  same tab**: a new tab greyed out Back, and a visitor who closed it to return closed the whole
-  window. With the request button the cards measure 422–437px, inside the 440px field floor.
-- **Pinned and previewed.** What is on screen is the PREVIEW (the pixel pointed at, or
-  keyboard-focused) if there is one, else the PINNED card (a click or a tap). Pointing means the
-  mouse's **first move after entering** the pixel: a pixel scrolled under a still cursor gets the
-  boundary events anyway and must not open a card (the rule of Home's pills; a scroll sends no
-  move — measured in Edge, by script, smoothly and with the wheel — so the hand's first real move
-  opens the card at once) — and once per entry, so a card closed with the mouse still on its pixel
-  stays closed until the mouse leaves and comes back. **A pointed-at card is a hover card**: it closes 200 ms after the pointer leaves
-  both its pixel and the card (the owner's call: "când iau mouse-ul să dispară boxul"; for a day
-  it stayed open, which he did not want) — and because the card lies under the pixel's target
-  and sits whole on screen, the pointer reaches its link and its button on the way. Pointing at
-  other pixels shows theirs. A **pinned** card (a click or a tap) stays until its ×, Escape (from
-  inside the card focus goes back to its pixel), or a press on anything that is neither a pixel, a
-  legend row nor the card — the empty field included; focus leaving the field ends a preview, and
-  a pinned card comes back. A second mouse click keeps it pinned (a double-click is one click; a
-  press outside within 600 ms of a card opening is the rest of that click); Enter from the
-  keyboard opens and closes it. For a finger a press is not yet a tap — it may start a
-  scroll — so a touch closes the card on its click, never on the swipe; and a tap on a pixel
-  brings its card into view, there being no hover to have shown it. A press inside the card never
-  closes it, whatever holds focus. The card sits right after its pixel in the DOM, so Tab runs
-  pixel → its × → its links and request → the next pixel. A card brought into view lands below the
-  fixed header (`scroll-margin-top`).
-- **At 640px and below the field is a picker.** No hover (a mouse in a narrow window included), so
-  the selected project's card is always shown under the field — the first one to begin with,
-  server-rendered — and a tap selects another: its card builds the same way, from the left, and is
-  scrolled into view if it is not (block `nearest`). The field there is shorter
-  (`clamp(300px, 48svh, 420px)`, grown by the count) so the card starts on the first screen of most
-  phones. The card there has the room for the **whole description**, at 16px (the card beside a
-  pixel keeps three lines, or it would outgrow the field). The selected pixel is a brighter point
-  (1.6×) in a ring, and `aria-pressed`. It stays a
-  point of light: the loupe is for a pointer, and a tap leaves the pixel `:hover` on a phone. The card's
-  wrapper is the `aria-live="polite"` region the pixels point at — the popover's
-  `aria-expanded`/`aria-controls` are used only above 640px.
-- The flicker pauses off screen (`useOffscreenAttribute`; it holds "lit" for 96% of its cycle,
-  so a paused pixel is a lit one). Under reduced motion every pixel is simply on: no
-  switch-on, no flicker, no loupe glide, a filter that switches pixels at once, no thread drawn
-  across the close, and the card is shown whole — no wipe, no mosaic. The mosaic's "random"
-  (block shades, jitter, switch-on moments) is a hash of the project id, so the server and the
-  client render the same thing.
-- **A project the admin adds** gets a pixel, a legend row and a card at once, but belongs to no
+**The format (2026-10-05).** The first form scattered every project over a bare field as a 3px
+point of light that opened into a card under the pointer. The owner found it unintuitive ("mie
+îmi pare parcă nu este intuitiv, hai să schimbăm formatul"). Of four working prototypes — tiles, a
+screen, a list beside a screen, cards — he chose **the screen**: one project at a time on a big
+monitor, and under it **one pixel per project with its name written under it**; the pixels are
+the navigation. Nothing waits behind a hover any more: the picture, the name, the words and both
+actions are on the first screen, and the first project is there from the server on.
+
+- **The heading:** the `<h1>` "Portofoliu" (a direction page's h1 type) and the **service filter**
+  under it. A `<div>`, not a `<header>`: the scroll rail skips every heading inside a header, and
+  the h1 is what names this section's marker.
+- **Service filter** — a `role="group"` of mono channels (12.5px): `TOATE · 9`, then one per
+  direction with live projects, in the menu's order, **named in plain words** for a visitor who
+  never heard of an API or a UI — "Aplicații și platforme", "Programe interne", "Boturi și chat",
+  "Site-uri și design" (`CHANNEL_LABEL` in `Portfolio.tsx`, ru/en too). Only here: Home's pills,
+  the menu and the service pages keep the official names (`directionTab` in `lib/solutions.ts`),
+  and the close's "Deschide serviciul: …" link joins the two. Counts come from
+  `projectsForSolution()` — the curated `solutionProjectIds`, never the free-text tag. E-commerce
+  has no project, so no channel. A channel (`aria-pressed`, cyan when pressed) **narrows the
+  pixels and the counter** to its projects: the pixels that stay glide to their new places
+  (280ms), the ones that leave fade where they stood (copies in `.ghosts`, `inert` and
+  `aria-hidden`, gone in 180ms), the ones that come back switch on. The project on the screen
+  stays when it is one of the channel's; otherwise the channel's first (reference) project comes
+  on. A screen reader hears "Boturi și chat: 2 proiecte. BizCheck, proiectul 1 din 2". The channel
+  starts as "all" on the server and the client and is **never on the URL**: the estimator reads
+  `?serviciu=` on every page and would preselect a type for every CTA. At 640px and below the
+  channels are one 44px band that scrolls inside itself, bleeding by exactly `--gutter`.
+- **The screen** — a monitor ([04](./04-design-system.md#the-portfolios-controls)): a thin bezel,
+  a chin with the brand's three subpixels, and a glow in the current project's colour that glides
+  to the next one's. The screenshot (`images[0]`, `fetchpriority="high"`) covers the 16:10 screen
+  from its top. **The whole picture is a button**, "Vezi mai mare captura de ecran: BizCheck": it
+  opens the picture larger in the site's dialog (`Modal`, `ground="ink"`, as wide as the window
+  allows, the whole picture in it, `restoreFocusRef` back to the picture; open only while there
+  is a picture, and closed by any change of project). The name starts with the chip's own words in
+  every language ("View larger: the screenshot of BizCheck"), so a voice saying them finds it. A
+  project with no screenshot yet shows its name on the screen in its colours, and nothing opens.
+- **Changing project:** ‹ › beside the screen (on its edges at 640px and below); ← → anywhere on
+  the stage (repeats ignored, modified keys left to the browser; a pixel with the focus hands it
+  to its neighbour, so the keys walk the row); a sideways **swipe** on the screen, by a finger or a
+  pen — 40px, and 1.3× more sideways than down; the click a browser may send after it (within
+  400ms) is dropped, and `touch-action: pan-y pinch-zoom` keeps scrolling and zoom the browser's;
+  or a press on a pixel. Round the list both ways. The live region (`aria-live="polite"`) says
+  "Itara Global, proiectul 2 din 9".
+- **The pixel transition** (~350ms, `breakScreen`): the picture on the screen now is painted on a
+  canvas over it, the `<img>` changes underneath, and the canvas breaks into a 16 × 10 grid of
+  blocks in shades of the NEW project's two colours over the black matrix (`--void`), sweeping from
+  the side it comes in; once the new picture has decoded (no sooner than 170ms, no later than
+  1.5s) the blocks go out the same way. The project's words rise in (6px, 260ms). None of it under
+  reduced motion, nor without a loaded picture to break up. The other screenshots are fetched when
+  the page goes idle, so a switch never waits.
+- **The pixels** — one labelled button per project, in the page's own order (a channel never
+  reshuffles them): at rest a flat square of the project's colour, its name under it; the current
+  one (`aria-current="true"`) is seen up close — larger, ringed, opened into its red, green and
+  blue **subpixels**, each lit to its share of the colour
+  ([04](./04-design-system.md#subpixels)) — and its button tinted. They switch on as the page
+  arrives, one after another along the row (dark, a white flash, a stutter, the colour, in hard
+  steps). One row as wide as the monitor and its arrows, never under 640px so a name never breaks
+  inside a word. Five to a row, with 44px arrows, wherever the column is too narrow for nine names
+  (600px or less: side by side up to ~1120px, a narrow tablet, a phone) — a lone pixel on a second
+  row looked lost; four to a row in a column under 299px (a phone up to 330px). The column decides,
+  not the window: `.left` is a size container and these are `@container` rules.
+- **The project's words** — beside the screen from 1000px, under it below and in a window taller
+  than about 5:4 (`min-aspect-ratio: 4/5`: an iPad Pro held upright, 1024×1366, had a screen a
+  third of its width beside them; under them it fills the width): "01 / 09", the name as
+  it writes itself ("BizCheck", not the display face's capitals), the tag led by a square of its
+  colour, the description and the actions. The description is 16px; a long one folds to 8 lines
+  (4 on a phone and in a window under 821px tall) and **"Citește tot ↓"** unfolds it — the button
+  shows only when something is folded away — measured, not guessed: again for another project,
+  another language (a description that fits in Romanian can fold in Russian), another width (a
+  `ResizeObserver`) and once the web font is in. Hidden, it keeps its row (`visibility`, and
+  hidden in the server's HTML), and the description is at least four lines tall: neither the page
+  waking nor a change of project moves the buttons under them. Then **"Vreau un proiect similar"** and "Deschide site-ul ↗" (or "nu are
+  pagină publică", in plain case), plus App Store / Google Play when the project has them. The
+  links open **in the same tab**: a new tab greyed out Back, and a visitor who closed it to return
+  closed the whole window. When the project changes, a control that had the focus and is gone
+  hands it on rather than dropping it to the top of the page: a link the next project has not, or
+  a "Citește tot" it does not need, to the red button; the picture of a project without one, to
+  the project's pixel (so ← → go on working). Without scrolling the page when that focus was not
+  the keyboard's — a tap leaves the focus on a phone's button, and a swipe must not jump the page
+  down to the red one.
+- **"Vreau un proiect similar"** opens the request dialog with the project attached (`source:
+  "project-card"`, `projectId`, `projectName`), the chosen channel as `serviceSlug`, and the
+  estimator type of that kind of work (`projectRequestType` in `lib/solutions.ts`: the apps start
+  on "Aplicație mobilă", the private systems on "CRM la comandă"; a project not listed starts where
+  the dialog always does). The form says the project back to the visitor first thing: "Proiect
+  ales ca exemplu: CGAM" (`Estimator.tsx`, shown whenever a request carries a `projectName`).
+  Closing it puts the focus back on the button.
+- **The first screen.** `--mon-w`, the monitor's widest, is worked out from the window's height —
+  `(100svh − 426px) × 1.6 + 16px` with the words beside the screen, `− 440px` with them under it,
+  never under 400 / 380px; 426 / 440px are everything else on that screen: the header, the title and the filter,
+  the bezel and the chin, the pixels — so the screen, the pixels and the words fit the first
+  screen of a laptop. At 1720×1300 the close is on it too.
+- **The assistant's corner.** The corner assistant (184px from 861px, 20px from the edges) takes
+  the window's bottom-right 204 × 204px. From 1000px the words' column is never narrower than
+  400px, so the red button (227px) and the links, left-aligned in it, start at least 431px from the
+  window's right edge and never reach her, at any height — checked on all nine projects at
+  1000×700, 1024×768, 1100×768, 1200×800, 1280×720, 1366×768, 1440×900, 1536×864, 1920×1080 and
+  1720×1300, and with the words under the screen at 768×1024, 820×1180, 834×1194, 912×1368,
+  1024×1366 and 1200×1600. Where the words beside the screen can reach down to her (a window under
+  970px tall) the link goes under the red button rather than beside it, where she stands.
+- **Accessibility.** The stage is a region, "Proiectele noastre"; the pixels a group, "Alege
+  proiectul"; the arrows "Proiectul anterior" / "Proiectul următor" (disabled with fewer than two
+  projects). The project's name is the section's one `<h2>`, so the scroll rail still names the
+  section by its h1, "Portofoliu", and the close gets the second marker, "Ai un proiect în minte?".
+  Tab runs: the channels, ‹, the picture, ›, the pixels, "Citește tot", the request, the links.
+- **The close** — after the section, the service pages' closing panel (corner brackets, the
+  three-stop thread) with their approved words: "Ai un proiect în minte?" and "Începe cererea"
+  (`source: "portfolio-bottom"`, carrying the chosen channel). While a channel is chosen it also
+  links to that service's page ("Deschide serviciul: Produs digital →").
+- **No grid behind it.** Every page sits on the body's faint 56px grid (`app/globals.css`); behind a
+  page made of pixels it read as a matrix of its own ("pe fundal să nu se vadă matricea"). While the
+  page is mounted the body keeps its wash and drops the grid layers (`:global(body):has(.page)`),
+  and any other page gets them back.
+- **Reduced motion:** no transition on the screen, no rise of the words, no switch-on, no glide or
+  fade in the filter, the glow changes at once, and no thread is drawn across the close.
+- **A project the admin adds** gets a pixel and its place on the screen at once, but belongs to no
   service until a developer writes its id into `solutionProjectIds` (and, if it is an app or a
-  private system, `projectRequestType`): until then it shows under "Toate" only.
+  private system, `projectRequestType`): until then it shows under "Toate" only. With no project
+  at all, the page shows the title and "Proiecte · 0".
 
 ## Legal pages
 

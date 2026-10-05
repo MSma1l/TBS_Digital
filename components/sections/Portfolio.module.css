@@ -1,78 +1,31 @@
-/* /portofoliu — components/sections/Portfolio.tsx: every project as one real pixel, scattered.
-   Tokens only, per docs/07; the per-project colours arrive inline as --p1 / --p2
-   (lib/projectAccent.ts), the same pair the /04 cards on Home are drawn in, and the pixel's
-   subpixel levels as --sr / --sg / --sb (worked out from --p2). */
+/* /portofoliu — components/sections/Portfolio.tsx: one project at a time on a big screen, and under
+   it one pixel per project. Tokens only, per docs/07; the per-project colours arrive inline as
+   --p1 / --p2 (lib/projectAccent.ts), the same pair the /04 cards on Home are drawn in, and a
+   pixel's subpixel levels as --sr / --sg / --sb (worked out from --p2). */
+
+/* The screen's glow, registered as a colour so it glides from one project's colour to the next.
+   Its own name: --p1 / --p2 stay unregistered, Home's cards share them. */
+@property --pf-glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
 
 .page {
-  /* The same page padding as a direction page (DirectionPage.module.css .page); the close below
+  /* A direction page's side padding (DirectionPage.module.css .page); a shorter top, so the
+     screen, the pixels and the project's words fit the first screen of a laptop. The close below
      carries the page's bottom space. */
   position: relative;
-  padding: clamp(28px, 4vw, 52px) clamp(16px, 4vw, 40px) clamp(40px, 5vw, 64px);
+  padding: clamp(20px, 2.6vw, 36px) clamp(16px, 4vw, 40px) clamp(40px, 5vw, 64px);
 }
 
-/* The top space is the instruction line's: the line came in under the title, and the field did not
-   move (the assistant's empty corner is measured against where it sits). */
+/* The title, the service filter under it. */
 .head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--sp-3) var(--sp-5);
-  padding: clamp(20px, 3.5vw, 36px) 0 clamp(20px, 3vw, 36px);
-}
-
-/* How to read the field: one line, the full width of the heading row, in the body's own type —
-   not the HUD's small capitals — led by the legend's point of light, as a map key would be. */
-.howTo {
-  --p2: var(--txt);
-  flex: 1 1 100%;
-  display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--sp-3);
-  margin: 0;
-  font-size: var(--fs-base);
-  line-height: 1.5;
-  color: var(--mut);
-}
-.howToDot {
-  position: relative;
-  flex: none;
-  width: 3px;
-  height: 3px;
-  translate: 0 -0.25em;
-  background: color-mix(in srgb, var(--p2) 50%, var(--on-accent));
-  box-shadow:
-    0 0 1px var(--p2),
-    0 0 3px color-mix(in srgb, var(--p2) 80%, transparent);
-}
-.howToDot::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 20px;
-  height: 20px;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--p2) 30%, transparent),
-    color-mix(in srgb, var(--p2) 8%, transparent) 45%,
-    transparent
-  );
-}
-.howToLink {
-  color: var(--txt);
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--cyan) 60%, transparent);
-  text-underline-offset: 3px;
-}
-.howToLink:hover {
-  text-decoration-color: var(--cyan);
-}
-.howToLink:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 3px;
+  margin-bottom: clamp(16px, 1.6vw, 22px);
 }
 
 /* A direction page's h1, so the two kinds of page read as one site. */
@@ -88,10 +41,8 @@
 }
 
 /* ---------- the service filter ----------
-   In the heading row, where the count was — the count lives on in "Toate · 9". One channel per
-   direction with live projects. Mono labels, as the count was; the pressed one cyan (docs/04:
-   cyan marks the selected state). In the heading row rather than above the field, so the field
-   stays where the assistant's empty corner was measured, wherever the row fits. */
+   The count lives on in "Toate · 9". One channel per direction with live projects. Mono labels;
+   the pressed one cyan (docs/04: cyan marks the selected state). */
 .channels {
   display: flex;
   flex-wrap: wrap;
@@ -142,19 +93,6 @@
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
-/* Forced colours (a contrast theme): the pressed channel by its border, so the outline stays the
-   focus ring's; and the pixels keep their own paint — they are pictures of light, made of
-   backgrounds, gradients and glows that a contrast theme would erase to an empty field. */
-@media (forced-colors: active) {
-  .channel[aria-pressed="true"] {
-    border: 2px solid Highlight;
-  }
-  .light,
-  .tri,
-  .swatch {
-    forced-color-adjust: none;
-  }
-}
 
 /* The plain count, when no service has a project to filter by. */
 .count {
@@ -169,11 +107,11 @@
   font-weight: var(--fw-bold);
 }
 
-/* No grid behind the pixels — not even the site's own. Every page sits on the body's faint 56px
-   grid (app/globals.css), and behind scattered pixels it read as exactly the matrix this page
-   was asked not to show ("pe fundal sa nu se vada matricea"). While this page is mounted the
-   body keeps its wash and its colour and drops the two grid layers; leaving the page puts them
-   back. `.page` is the local class that keeps the selector a pure CSS-module one. */
+/* No grid behind the screen. Every page sits on the body's faint 56px grid (app/globals.css);
+   behind a page made of pixels it reads as a matrix of its own, competing with the real ones
+   ("pe fundal sa nu se vada matricea"). While this page is mounted the body keeps its wash and its
+   colour and drops the two grid layers; leaving the page puts them back. `.page` is the local
+   class that keeps the selector a pure CSS-module one. */
 :global(body):has(.page) {
   background:
     radial-gradient(1100px 700px at 82% 4%, var(--wash), transparent 62%),
@@ -181,131 +119,331 @@
   background-attachment: fixed;
 }
 
-/* ---------- the field ----------
-   Nothing is drawn on it: no grid, no dots, no frame — just the page, with the pixels scattered
-   over it (lib/portfolioScatter.ts places them, as % of the field, one layout per width band).
-   Its height is named, because the card's position is worked out from it. */
-.field {
-  --field-h: clamp(440px, 60vh, 620px);
+/* ---------- the stage: the screen and the pixels (left), the project's words (right) ---------- */
+.stage {
+  --pf-glow: var(--p2);
   position: relative;
-  height: var(--field-h);
+  display: grid;
+  gap: var(--sp-5);
+  transition: --pf-glow 0.35s var(--motion-ease-out);
+}
+.left {
+  /* the arrows, the gap beside them, the monitor's bezel and its chin */
+  --nav: 48px;
+  --nav-gap: 14px;
+  --bezel: 8px;
+  --chin: 14px;
+  min-width: 0;
+  /* the pixels' row asks its own column how wide it is, not the window (the @container rules) */
+  container-type: inline-size;
+}
+.viewer {
+  position: relative;
 }
 
-/* ---------- a pixel: one project ----------
-   Drawn at about the size of a real screen pixel (2026-10-04, "la marimea de pixeli aproximativ —
-   se vede ca sunt patrate"): a point of light in the project's colour. Pointing at it puts it
-   under a loupe, and the point opens into its three subpixels — red, green and blue bars on a
-   black matrix, each lit to its share of the colour. The button around it is a generous,
-   invisible target. */
-.px,
-.pop {
-  --x: var(--px-w);
-  --y: var(--py-w);
-  --flip: var(--flip-w);
+/* ---------- the monitor ----------
+   A thin bezel, a chin with the brand's three subpixels, and a glow in the current project's
+   colour. The screen's corners follow the bezel's: its radius is the frame's, less the bezel. */
+.monitor {
+  position: relative;
+  padding: var(--bezel) var(--bezel) var(--chin);
+  border: 1px solid color-mix(in srgb, var(--pf-glow) 26%, var(--line2));
+  border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--deck), var(--slot) 70%);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--on-accent) 7%, transparent),
+    0 0 42px -10px color-mix(in srgb, var(--pf-glow) 55%, transparent),
+    0 0 120px -34px color-mix(in srgb, var(--pf-glow) 45%, transparent),
+    0 34px 60px -30px color-mix(in srgb, var(--void) 90%, transparent);
 }
-
-.px {
-  /* The point: 3px, about a real pixel. At 13px it read as a drawn square. */
-  --size: 3px;
-  /* The soft disc of light around it — what makes a 3px point findable and tells its colour. */
-  --halo: 34px;
-  /* The pixel under the loupe: 3px frame, 3px gaps, three whole 10px bars. A size that splits
-     into fractions snaps unevenly, and the gaps showed it. */
-  --loupe: 42px;
-  /* How small the loupe's pixel starts as it opens out of the point (--size / --loupe). */
-  --from: 0.07;
-  --hit: 40px;
+.rgb {
   position: absolute;
-  z-index: 1;
-  left: calc(var(--x) * 1%);
-  top: calc(var(--y) * 1%);
-  width: var(--hit);
-  height: var(--hit);
-  translate: -50% -50%;
+  left: 50%;
+  bottom: calc((var(--chin) - 6px) / 2);
+  display: flex;
+  gap: 1.5px;
+  translate: -50% 0;
+  opacity: 0.85;
+}
+.rgb i {
+  width: 2px;
+  height: 6px;
+  border-radius: 0.5px;
+}
+.rgb i:nth-child(1) {
+  background: var(--subpixel-r);
+  box-shadow: 0 0 4px var(--subpixel-r);
+}
+.rgb i:nth-child(2) {
+  background: var(--subpixel-g);
+  box-shadow: 0 0 4px var(--subpixel-g);
+}
+.rgb i:nth-child(3) {
+  background: var(--subpixel-b);
+  box-shadow: 0 0 4px var(--subpixel-b);
+}
+
+.screen {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: calc(var(--r-lg) - var(--bezel) - 1px);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--p1) 70%, var(--ink)), var(--ink));
+  /* a sideways swipe is ours; scrolling and pinch-to-zoom stay the browser's */
+  touch-action: pan-y pinch-zoom;
+}
+/* The whole picture is the button that shows it larger. */
+.shotBtn {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
   padding: 0;
   border: 0;
+  border-radius: inherit;
   background: none;
-  cursor: pointer;
-  touch-action: manipulation;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
 }
-
-/* The pixel as seen from where the visitor sits: a point of light (::after) — hot at the centre
-   of its colour, with a hairline of glow — inside a soft disc of the same colour (::before). */
-.light {
+.shotBtn:focus-visible {
+  outline: none;
+}
+.shot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
+}
+/* A project with no screenshot yet: its name on the screen, in its colours. */
+.blank {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: var(--size);
-  height: var(--size);
-  translate: -50% -50%;
-  /* Now and then the light drops out for a beat, on its own clock — a live pixel's flicker —
-     and it is switched on as the page arrives, each at its own moment (--on). Listed last, the
-     switch-on wins the shared `filter` while it runs; `backwards`, so once it is over, the
-     loupe's opacity applies again. */
-  animation:
-    pfFlicker var(--flicker) steps(1, end) infinite,
-    pfPowerOn 0.7s steps(7, end) var(--on, 0ms) backwards;
-  transition:
-    opacity 0.18s var(--motion-ease-out),
-    scale 0.28s var(--motion-ease-out);
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  font-family: var(--font-display-stack);
+  font-weight: var(--fw-black);
+  font-size: clamp(28px, 4vw, 48px);
+  letter-spacing: -0.04em;
+  text-align: center;
+  color: color-mix(in srgb, var(--p2) 45%, var(--txt));
+  overflow-wrap: anywhere;
 }
-.light::before {
-  content: "";
+/* The pixel transition is drawn here (Portfolio.tsx breakScreen): the old picture breaks into
+   blocks, the blocks go out over the new one. Shown only while it runs. */
+.fx {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: var(--halo);
-  height: var(--halo);
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--p2) 34%, transparent),
-    color-mix(in srgb, var(--p2) 10%, transparent) 45%,
-    transparent
-  );
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  visibility: hidden;
 }
-.light::after {
+.fx[data-on] {
+  visibility: visible;
+}
+/* the glass */
+.screen::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: color-mix(in srgb, var(--p2) 50%, var(--on-accent));
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(158deg, color-mix(in srgb, var(--on-accent) 8%, transparent), transparent 32%);
   box-shadow:
-    0 0 1px var(--p2),
-    0 0 3px color-mix(in srgb, var(--p2) 80%, transparent);
+    inset 0 0 0 1px color-mix(in srgb, var(--on-accent) 7%, transparent),
+    inset 0 0 36px color-mix(in srgb, var(--void) 35%, transparent);
+}
+/* "Vezi mai mare": says the picture opens larger. Not a button of its own — the picture is. */
+.zoomChip {
+  position: absolute;
+  right: var(--sp-3);
+  bottom: var(--sp-3);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--on-accent) 20%, transparent);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--void) 78%, transparent);
+  color: var(--txt);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  pointer-events: none;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.zoomChip svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (hover: hover) {
+  .shotBtn:hover ~ .zoomChip {
+    border-color: var(--cyan);
+    background: color-mix(in srgb, var(--void) 92%, transparent);
+  }
+}
+/* The picture's focus ring, drawn inside the screen over the glass: outside it, the bezel would
+   hide it. */
+.screenRing {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--cyan);
+  opacity: 0;
+  pointer-events: none;
+}
+.shotBtn:focus-visible ~ .screenRing {
+  opacity: 1;
 }
 
-/* The pixel under the loupe — a macro photograph of it: the black matrix, and in it the three
-   subpixels, glowing brightest along their middle like lit tubes, screen-blended. Hidden at rest,
-   shrunk to the point it opens out of. */
-.tri {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 1;
-  isolation: isolate;
+/* ---------- previous / next ---------- */
+.nav {
+  display: inline-grid;
+  place-items: center;
+  width: var(--nav);
+  height: var(--nav);
+  padding: 0;
+  border: 1px solid var(--line2);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--on-accent) 3%, transparent);
+  color: var(--txt);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    scale 0.12s;
+}
+.nav svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (hover: hover) {
+  .nav:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--p2) 70%, var(--line2));
+    background: color-mix(in srgb, var(--p2) 16%, transparent);
+  }
+}
+.nav:active:not(:disabled) {
+  scale: 0.94;
+}
+.nav:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+.nav:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+
+/* ---------- the pixels: one per project, its name under it ----------
+   At rest a pixel seen from afar: a flat square of the project's colour. The current one is seen
+   up close: bigger, ringed, opened into its red, green and blue subpixels, each lit to its share
+   of the colour. As wide as the monitor and its arrows, and never so narrow that a name breaks
+   inside a word. */
+.pixels {
+  position: relative;
   display: flex;
-  gap: 3px;
-  box-sizing: border-box;
-  width: var(--loupe);
-  height: var(--loupe);
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  max-width: max(calc(var(--mon-w, 100%) + 2 * (var(--nav) + var(--nav-gap))), 640px);
+  margin: var(--sp-3) auto 0;
+}
+.px {
+  position: relative;
+  flex: 1 1 0;
+  max-width: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 3px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--mut);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+/* The pixels a pressed channel switched off, fading where they stood while the row closes up
+   (Portfolio.tsx chooseChannel): copies, out of the tree and of reach. */
+.ghosts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ghosts .px {
+  position: absolute;
+  margin: 0;
+}
+/* a copy is the pixel as it was: it does not switch on again */
+.ghosts .pxDot {
+  animation: none;
+}
+.pxDot {
+  position: relative;
+  isolation: isolate;
+  flex: none;
+  display: flex;
+  gap: 2px;
+  width: 26px;
+  height: 26px;
   padding: 3px;
-  translate: -50% -50%;
   background: var(--void);
-  box-shadow:
-    0 0 6px color-mix(in srgb, var(--p2) 45%, transparent),
-    0 0 16px color-mix(in srgb, var(--p2) 22%, transparent);
-  opacity: 0;
-  scale: var(--from);
+  /* ≈18px at rest; the current one opens to the whole 26px */
+  scale: 0.7;
+  outline: 1.5px solid transparent;
+  outline-offset: 3px;
   transition:
     scale 0.28s var(--motion-ease-out),
-    opacity 0.18s var(--motion-ease-out);
+    outline-color 0.2s,
+    box-shadow 0.28s;
 }
-.tri i {
+.pxDot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--p2);
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--p2) 70%, transparent),
+    0 0 16px color-mix(in srgb, var(--p2) 35%, transparent);
+  transition: opacity 0.2s;
+}
+/* A subpixel: a lit tube, brightest along its middle, screen-blended on the black matrix. */
+.pxDot i {
   flex: 1;
   border-radius: 1px;
   mix-blend-mode: screen;
-  opacity: var(--level);
+  opacity: 0;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--sub) 75%, var(--void)) 0%,
@@ -315,472 +453,477 @@
   box-shadow:
     0 0 1.5px var(--sub),
     0 0 4px color-mix(in srgb, var(--sub) 70%, transparent);
+  transition: opacity 0.2s;
 }
-.tri i:nth-child(1) {
+.pxDot i:nth-child(1) {
   --sub: var(--subpixel-r);
   --level: var(--sr);
 }
-.tri i:nth-child(2) {
+.pxDot i:nth-child(2) {
   --sub: var(--subpixel-g);
   --level: var(--sg);
 }
-.tri i:nth-child(3) {
+.pxDot i:nth-child(3) {
   --sub: var(--subpixel-b);
   --level: var(--sb);
 }
-
-/* Under the loupe: the point opens out into its subpixels — open, located from its legend row,
-   kept by a channel just pressed (for a second: the press shows what it lit), and pointed at
-   where there is a pointer that hovers (a tablet's tap would leave a closed pixel magnified:
-   touch keeps :hover on the last thing tapped). */
-.px[data-open] .tri,
-.px[data-located] .tri,
-.px[data-flash] .tri {
-  opacity: 1;
-  scale: 1;
+.pxName {
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  text-align: center;
 }
-.px[data-open] .light,
-.px[data-located] .light,
-.px[data-flash] .light {
+.px[aria-current="true"] {
+  color: var(--txt);
+  background: color-mix(in srgb, var(--p2) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--p2) 50%, transparent);
+}
+.px[aria-current="true"] .pxName {
+  font-weight: var(--fw-bold);
+}
+.px[aria-current="true"] .pxDot {
+  scale: 1;
+  outline-color: var(--txt);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--p2) 55%, transparent);
+}
+.px[aria-current="true"] .pxDot::before {
   opacity: 0;
 }
+.px[aria-current="true"] .pxDot i {
+  opacity: var(--level);
+}
 @media (hover: hover) {
-  .px:hover .tri {
-    opacity: 1;
-    scale: 1;
+  .px:hover {
+    color: var(--txt);
+    background: color-mix(in srgb, var(--on-accent) 4.5%, transparent);
   }
-  .px:hover .light {
-    opacity: 0;
+  .px[aria-current="true"]:hover {
+    background: color-mix(in srgb, var(--p2) 16%, transparent);
+  }
+  .px:not([aria-current="true"]):hover .pxDot {
+    scale: 0.82;
   }
 }
-/* Switched off by the service filter: a dead pixel — a faint point, its glow with it — cut from
-   the signal in hard steps, and lit again the same way. The dim is the BUTTON's: `.light`'s own
-   opacity belongs to its switch-on, which would override it (and a pixel switched off mid
-   switch-on would freeze on its white flash). Only its flicker (the first animation) stops; a
-   switch-on still running finishes. Declared before `.page[data-offscreen] .light`, which pauses
-   both. It never moves: a position is a project's identity. */
-.px {
-  transition: opacity 0.24s steps(3, end);
-}
-.px[data-off] {
-  opacity: 0.16;
-}
-.px[data-off] .light {
-  animation-play-state: paused, running;
-}
-/* The focus ring goes round the pixel UNDER the loupe: keyboard focus opens the card, and the
-   magnified pixel (42px) is wider than the 40px button — a ring drawn inside it was covered. */
-/* The focused pixel sits above the card it opens (z-index 3): its ring reaches past the card's
-   near edge. A pointed-at one stays under its card, which lies over its whole target: the pointer
-   on it is on the card, and nothing of the card — its text, its link, its button — is covered. */
 .px:focus-visible {
-  z-index: 4;
-  outline: none;
-}
-.px:focus-visible::after {
-  content: "";
-  position: absolute;
-  inset: -9px;
   outline: 2px solid var(--cyan);
-  pointer-events: none;
+  outline-offset: 2px;
+}
+/* A pixel switches on as it arrives — with the page, or with the channel that brought it back:
+   dark, a white flash, a stutter, its colour, in hard steps; one after another along the row. */
+@media (prefers-reduced-motion: no-preference) {
+  .pxDot {
+    animation: pfPxOn 0.3s steps(4, end) calc(var(--k, 0) * 22ms) backwards;
+  }
 }
 
-/* ---------- the card a pixel opens into (above 640px) ----------
-   It comes out of the pixel's side, toward the open half of the field (--flip: the pixel is in
-   the right half), its near corner over the pixel, its top where the whole card is on screen
-   (worked out by Popover in Portfolio.tsx). It is BUILT out of
-   the pixel: the card is uncovered column by column from the pixel's side in hard steps, as a
-   mosaic of blocks in the project's colour, and the blocks then go out one by one, each at its
-   own moment, until only the card is left. */
-.pop {
-  --card-w: min(320px, 46%);
-  /* An upper bound of the card's height, for keeping it inside the field until its real height
-     is measured (Popover writes it): a shorter card is simply further from the bottom edge. With
-     the request button the cards measure 422–437px, inside the field's 440px floor. */
-  --card-h: 440px;
-  /* The card's near edge, this far BEHIND its pixel's centre: the card lies over the pixel's whole
-     40px target, so the pointer that opened it is already on it, and however it moves on — down a
-     steep path to the card's link, say — it never crosses empty space: a card that closes when the
-     pointer leaves has to be reachable. With the edge beside the target instead, a slow hand
-     heading for the link left it below, over empty field, and lost the card. */
-  --reach: -21px;
-  /* Only until Popover has measured where the card fits ON SCREEN and written its own --top. */
-  --top: clamp(
-    0px,
-    calc(var(--y) * var(--field-h) / 100 - var(--sp-7)),
-    calc(var(--field-h) - var(--card-h))
-  );
-  position: absolute;
-  z-index: 3;
-  width: var(--card-w);
-  left: calc(var(--x) * 1% + var(--reach) - var(--flip) * (var(--card-w) + 2 * var(--reach)));
-  top: var(--top);
-  /* `backwards`, not `both`: once uncovered, the clip goes away and the card's shadow is whole */
-  animation: pfWipe 0.24s steps(8, end) backwards;
-}
-
-.card {
-  position: relative;
+/* ---------- the project's words ---------- */
+.info {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border-radius: var(--r-md);
-  border: 1px solid color-mix(in srgb, var(--p2) 55%, var(--glass-line));
-  background: linear-gradient(145deg, var(--p1), var(--p2));
-  box-shadow:
-    var(--sh-lg),
-    0 18px 48px color-mix(in srgb, var(--p2) 28%, transparent);
-  color: var(--on-accent);
-}
-
-/* The mosaic the card is built from: 8 × 10 blocks over the whole card, each a shade of the
-   project's colour (--k), each gone after its column has been uncovered plus its own jitter
-   (--j ms). Columns count from the pixel's side, so the build spreads away from the pixel. */
-.mosaic {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  grid-template-rows: repeat(10, 1fr);
-  pointer-events: none;
-}
-.mosaic i {
-  --col: calc(var(--c) + var(--flip, 0) * (7 - 2 * var(--c)));
-  background: color-mix(in srgb, var(--p2) var(--k), var(--void));
-  animation: pfBlockOut 1ms steps(1, end) calc((var(--col) + 1) * 30ms + 60ms + var(--j) * 1ms) both;
-}
-
-/* The window bar: the project's own tag as its title, and three window lights. */
-.bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-2);
-  min-height: 30px;
-  padding: var(--sp-1) var(--sp-3);
-  background: color-mix(in srgb, var(--ink) 72%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--on-accent) 14%, transparent);
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-2);
+  align-items: flex-start;
   min-width: 0;
 }
-.chip {
-  font-size: var(--fs-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--on-accent);
-}
-.lights {
-  flex: none;
-  width: 6px;
-  height: 6px;
-  margin-right: 20px;
-  background: color-mix(in srgb, var(--on-accent) 55%, transparent);
-  box-shadow:
-    10px 0 0 color-mix(in srgb, var(--on-accent) 35%, transparent),
-    20px 0 0 var(--p2);
-}
-/* The card beside a pixel: two lights, and where the third was, its ×. */
-.barEnd {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  margin-right: calc(-1 * var(--sp-2));
-}
-.lightsTwo {
-  margin-right: var(--sp-1);
-  box-shadow: 10px 0 0 color-mix(in srgb, var(--on-accent) 35%, transparent);
-}
-.shut {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  margin: -4px 0;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: none;
-  color: var(--on-accent);
-  font-size: var(--fs-lg);
-  line-height: 1;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-@media (hover: hover) {
-  .shut:hover {
-    background: color-mix(in srgb, var(--on-accent) 16%, transparent);
-  }
-}
-.shut:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: -2px;
-}
-@media (pointer: coarse) {
-  .shut {
-    width: 44px;
-    height: 44px;
-    margin: -7px 0;
-  }
-}
-
-/* The screenshot, tinted into the project's colours the way the /04 cards are. */
-.shot {
-  position: relative;
-  display: block;
-  aspect-ratio: 16 / 9;
-  overflow: hidden;
-  background: linear-gradient(145deg, var(--p1), var(--p2));
-}
-.shotImg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top;
-  mix-blend-mode: luminosity;
-  opacity: 0.8;
-}
-.shot::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--ink) 75%, transparent));
-}
-
-.body {
+.counter {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-  padding: var(--sp-4);
-  background: color-mix(in srgb, var(--ink) 84%, transparent);
-}
-.name {
+  align-items: center;
+  gap: var(--sp-3);
+  align-self: stretch;
   margin: 0;
-  font-size: var(--fs-xl);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
-  color: var(--on-accent);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.14em;
+  color: var(--mut);
+}
+.counter b {
+  color: var(--txt);
+  font-weight: var(--fw-bold);
+}
+.counter::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line2), transparent);
+}
+/* The project's name as it writes itself — "BizCheck", "IQ Arena" — not in the display face's
+   capitals (the shared `.disp`): a brand name read in capitals is a different word. */
+.name {
+  margin: 14px 0 0;
+  font-family: var(--font-display-stack);
+  font-weight: var(--fw-black);
+  font-size: clamp(32px, 3.3vw, 48px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: var(--txt);
   overflow-wrap: anywhere;
 }
+.tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--p2) 42%, var(--txt));
+}
+.tagPx {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--p2);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--p2) 70%, transparent);
+}
+/* The description in the body's own size. A long one folds to its first lines (--lines) and
+   "Citește tot" unfolds it; at least four lines tall, so a short one does not pull the buttons up
+   and down as the projects change. */
 .desc {
-  margin: 0;
-  font-size: var(--fs-md);
-  line-height: 1.5;
-  color: color-mix(in srgb, var(--on-accent) 84%, transparent);
+  --lines: 8;
+  margin: 18px 0 0;
+  max-width: 56ch;
+  min-height: calc(4 * 1.6em);
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  color: var(--mut);
+}
+.folded {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--lines);
+  line-clamp: var(--lines);
   overflow: hidden;
+}
+.more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: none;
+  color: var(--cyan-text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+/* Hidden, it keeps its row: shown only after the page wakes (it is measured), and only for some
+   projects, it would otherwise move the buttons under it each time. */
+.more[hidden] {
+  visibility: hidden;
+}
+@media (hover: hover) {
+  .more:hover {
+    border-bottom-color: var(--cyan);
+  }
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3) var(--sp-5);
+  margin-top: var(--sp-5);
+}
+/* "Vreau un proiect similar": the project's one action — the site's red CTA fill (red is the only
+   action fill, docs/04). */
+.ask {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--grad-red-cta);
+  color: var(--on-accent);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-extra);
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s,
+    translate 0.15s;
+}
+@media (hover: hover) {
+  .ask:hover {
+    box-shadow: var(--sh-red);
+    translate: 0 -1px;
+  }
 }
 .links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-1) var(--sp-4);
-  margin-top: var(--sp-1);
+  gap: var(--sp-1) var(--sp-5);
 }
 .link {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
   font-weight: var(--fw-bold);
-  color: var(--on-accent);
+  color: var(--txt);
   text-decoration: none;
-  border-bottom: 1px solid color-mix(in srgb, var(--p2) 75%, var(--on-accent));
-  transition: border-color 0.15s;
+  border-bottom: 1px solid color-mix(in srgb, var(--cyan) 55%, transparent);
 }
 .link:hover {
-  border-bottom-color: var(--on-accent);
-}
-.link:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 3px;
+  border-bottom-color: var(--cyan);
 }
 /* "nu are pagină publică" — said in plain words and plain case: in small capitals "FĂRĂ LINK"
    read as "no proof". */
 .private {
   font-size: var(--fs-md);
-  color: color-mix(in srgb, var(--on-accent) 78%, transparent);
+  color: var(--mut);
 }
-
-/* "Vreau un proiect similar": the card's one action, the full width of its dark lower part. The
-   site's red CTA fill — red is the only action fill (docs/04) — with its label on the deeper
-   twin, which keeps small bold text at AA along the whole gradient. No outer glow and no lift:
-   the card clips at its rounded edge and would cut them off; hover rings it from inside. */
-.ask {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  min-height: 40px;
-  margin-top: var(--sp-1);
-  padding: 0 var(--sp-4);
-  border: 0;
-  border-radius: var(--r-sm);
-  background: var(--grad-red-cta);
-  color: var(--on-accent);
-  font-size: var(--fs-md);
-  font-weight: var(--fw-extra);
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition: box-shadow 0.15s;
-}
-@media (hover: hover) {
-  .ask:hover {
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--on-accent) 45%, transparent);
-  }
-}
-.ask:focus-visible {
+.ask:focus-visible,
+.link:focus-visible,
+.more:focus-visible {
   outline: 2px solid var(--cyan);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
-/* The picker's card (≤640px) — not shown above it. Declared after `.card`, which sets flex. */
-.below {
-  display: none;
-}
-/* A card brought into view (a tap in the picker, a click in the legend) lands below the fixed
-   header, not under it. */
-.card,
-.belowWrap {
-  scroll-margin-top: calc(var(--header-h) + var(--sp-3));
-  scroll-margin-bottom: var(--sp-3);
-}
-
-/* ---------- the legend ----------
-   Under the field, the screen's legend: each project's own point of light, its name and its tag
-   — real text a visitor can read without hunting for 3px points, and a search engine can too.
-   Quiet on purpose: no thumbnails, no descriptions, no heading; the field stays the picture.
-   Three columns, two, then one. */
-.index {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 var(--sp-6);
-  margin: var(--sp-6) 0 0;
-  padding: 0;
-  list-style: none;
-  /* the instruction line's link lands here, below the fixed header */
-  scroll-margin-top: calc(var(--header-h) + var(--sp-5));
-}
-.row {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: var(--sp-3);
-  width: 100%;
-  min-height: 56px;
-  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-1);
-  border: 0;
-  border-top: 1px solid var(--line);
-  background: none;
-  color: var(--txt);
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 0.15s,
-    opacity 0.32s steps(4, end);
-}
-/* The project's light, as its pixel shows it — still, though: the flicker is the field's. */
-.swatch {
-  position: relative;
-  grid-row: 1 / span 2;
-  justify-self: center;
-  width: 3px;
-  height: 3px;
-  background: color-mix(in srgb, var(--p2) 50%, var(--on-accent));
-  box-shadow:
-    0 0 1px var(--p2),
-    0 0 3px color-mix(in srgb, var(--p2) 80%, transparent);
-  transition: scale 0.2s var(--motion-ease-out);
-}
-.swatch::before {
-  content: "";
+/* For a screen reader only: which project the screen now shows. */
+.srOnly {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 22px;
-  height: 22px;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--p2) 34%, transparent),
-    color-mix(in srgb, var(--p2) 10%, transparent) 45%,
-    transparent
-  );
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
-.rowName {
-  grid-column: 2;
-  font-size: var(--fs-base);
-  font-weight: var(--fw-bold);
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-.rowTag {
-  grid-column: 2;
-  font-size: var(--fs-sm);
-  letter-spacing: 0.06em;
-  line-height: 1.5;
-  text-transform: uppercase;
-  color: var(--mut);
-}
-/* The row's arrow: it says the row opens something. Grey; white under the pointer or the
-   keyboard; the project's own colour while its card is open. */
-.rowGo {
-  grid-column: 3;
-  grid-row: 1 / span 2;
-  font-size: var(--fs-lg);
-  line-height: 1;
-  color: var(--mut);
-  transition: color 0.15s;
-}
-.row[data-lit] .rowGo {
-  color: var(--p2);
-}
-.row:focus-visible .rowName {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.row:focus-visible .rowGo {
-  color: var(--txt);
-}
-@media (hover: hover) {
-  .row:hover .rowName {
-    text-decoration: underline;
-    text-underline-offset: 3px;
+
+/* ---------- the screenshot, larger ----------
+   The site's dialog (components/ui/Modal.tsx), as wide as the window allows and the picture
+   whole in it. `[role]` outweighs the dialog's own width, whatever order the two sheets load in. */
+@media (min-width: 641px) {
+  .zoomPanel[role="dialog"] {
+    max-width: min(1440px, calc(100vw - 2 * var(--sp-5)));
   }
-  .row:hover .rowGo {
-    color: var(--txt);
+}
+.zoomImg {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: calc(100dvh - 190px);
+  margin: 0 auto;
+  border-radius: var(--r-sm);
+}
+
+/* ---------- width bands ---------- */
+/* From a tablet up the arrows stand beside the screen, and the words come under the pixels, in a
+   centred column. --mon-w is the monitor's widest, worked out from the window's height, so the
+   screen and the pixels (and, side by side, the words) fit the first screen; 440px / 426px are
+   everything else on that screen — the header, the title and the filter, the bezel and the chin,
+   the pixels. */
+@media (min-width: 641px) {
+  .viewer {
+    display: grid;
+    grid-template-columns: var(--nav) minmax(0, var(--mon-w)) var(--nav);
+    justify-content: center;
+    align-items: center;
+    column-gap: var(--nav-gap);
+  }
+  .left {
+    --mon-w: max(380px, calc((100vh - 440px) * 1.6 + 16px));
+  }
+  .info {
+    width: 100%;
+    max-width: 720px;
+    margin: var(--sp-2) auto 0;
+  }
+}
+/* From 1000px the words stand beside the screen — in a window not taller than about 5:4 (a
+   portrait one, an iPad Pro's 1024×1366, keeps them under it: beside, its screen was a third of
+   its width). In a column never narrower than 400px: the assistant (components/hud/guide) takes
+   the window's bottom-right 204 × 204px, and a 400px column keeps the red button and the links —
+   left-aligned in it — clear of her at any width and any height (the column starts at least
+   431px from the window's right edge: 227px of button, the assistant's 204px). */
+@media (min-width: 1000px) and (min-aspect-ratio: 4/5) {
+  .stage {
+    grid-template-columns: minmax(0, 1.85fr) minmax(400px, 1fr);
+    column-gap: clamp(28px, 3.4vw, 52px);
+    align-items: start;
+  }
+  .left {
+    --mon-w: max(400px, calc((100vh - 426px) * 1.6 + 16px));
+  }
+  .info {
+    width: auto;
+    max-width: none;
+    margin: 0;
+  }
+}
+/* The small viewport height where there is one: a phone's or a tablet's toolbars come and go, and
+   the screen must not grow under them. In an @supports, not as a second declaration: a custom
+   property takes any value, so an engine without `svh` would keep the second one and lose the
+   grid it feeds. */
+@supports (height: 100svh) {
+  @media (min-width: 641px) {
+    .left {
+      --mon-w: max(380px, calc((100svh - 440px) * 1.6 + 16px));
+    }
+  }
+  @media (min-width: 1000px) and (min-aspect-ratio: 4/5) {
+    .left {
+      --mon-w: max(400px, calc((100svh - 426px) * 1.6 + 16px));
+    }
+  }
+}
+/* A column too narrow for nine names in a row (the screen's, side by side up to ~1100px; a narrow
+   tablet's): the pixels go five to a row, as on a phone, rather than leaving one alone on a second
+   row, and the arrows close in a little. The column's own width decides, not the window's. (On a
+   phone the rules further down take over.) */
+@container (max-width: 600px) {
+  .viewer,
+  .pixels {
+    --nav: 44px;
+    --nav-gap: 10px;
+  }
+  .px {
+    flex: 0 0 calc((100% - 4 * var(--sp-1)) / 5);
+    max-width: none;
+  }
+}
+/* A laptop's window (1366×768 shows ~650px of page): a long description gives way to "Citește
+   tot", so the words end above the assistant and the two actions stay on the first screen. (From
+   1000px wide and under 821px tall, a window is always a side-by-side one.) */
+@media (min-width: 1000px) and (max-height: 820px) {
+  .desc {
+    --lines: 4;
+  }
+}
+/* Where the words beside the screen can reach down to the assistant (a window under 970px tall),
+   the link goes under the red button rather than beside it, where she stands. */
+@media (min-width: 1000px) and (max-height: 969px) {
+  .actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-3);
   }
 }
 
-/* Its pixel pointed at, open or picked: the row lights in the project's colour. Hover only where
-   there is hover — a tapped row must not stay lit after its card closed. */
-.row[data-lit] {
-  background: color-mix(in srgb, var(--p2) 9%, transparent);
-}
-@media (hover: hover) {
-  .row:hover {
-    background: color-mix(in srgb, var(--p2) 9%, transparent);
+/* Phone: the screen takes the whole width, the arrows sit on its edges, the pixels wrap into rows
+   of five (four on the narrowest), the words follow. */
+@media (max-width: 640px) {
+  .stage {
+    gap: 0;
+  }
+  .left {
+    --nav: 44px;
+    --bezel: 6px;
+    --chin: 11px;
+  }
+  .monitor {
+    border-radius: 13px;
+  }
+  .screen {
+    border-radius: 6px;
+  }
+  .nav {
+    position: absolute;
+    top: 50%;
+    z-index: 6;
+    translate: 0 -50%;
+    border-color: color-mix(in srgb, var(--on-accent) 24%, transparent);
+    background: color-mix(in srgb, var(--void) 74%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .navPrev {
+    left: var(--sp-3);
+  }
+  .navNext {
+    right: var(--sp-3);
+  }
+  .zoomChip {
+    right: var(--sp-2);
+    bottom: var(--sp-2);
+    padding: 5px 9px 5px 8px;
+  }
+  .pixels {
+    gap: 2px;
+    max-width: none;
+    margin-top: 10px;
+  }
+  .px {
+    flex: 0 0 calc((100% - 8px) / 5);
+    max-width: none;
+    min-width: 0;
+    padding: 6px 0 7px;
+    gap: 5px;
+  }
+  .pxName {
+    font-size: clamp(10.5px, 3.1vw, 12px);
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .info {
+    margin-top: 20px;
+  }
+  .name {
+    margin-top: var(--sp-3);
+    font-size: clamp(30px, 8.6vw, 36px);
+  }
+  .desc {
+    --lines: 4;
+    margin-top: 14px;
+  }
+  .actions {
+    align-self: stretch;
+    margin-top: 20px;
+    gap: var(--sp-3) 20px;
+  }
+  .ask {
+    flex: 1 1 100%;
+  }
+  /* The channels: one fingertip-tall band under the title that scrolls inside itself, bleeding to
+     the screen's edges by exactly the page's own side padding — the page never scrolls sideways,
+     at 320px either. */
+  .head {
+    align-items: stretch;
+  }
+  .channels {
+    flex-wrap: nowrap;
+    margin-inline: calc(-1 * var(--gutter));
+    padding-inline: var(--gutter);
+    scroll-padding-inline: var(--gutter);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .channels::-webkit-scrollbar {
+    display: none;
+  }
+  .channel {
+    flex: none;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+  /* the band clips an outer ring */
+  .channel:focus-visible {
+    outline-offset: -3px;
+  }
+  .zoomImg {
+    max-height: calc(88dvh - 130px);
   }
 }
-.row[data-lit] .swatch {
-  scale: 1.6;
+/* Five names do not fit a column under 299px (a phone up to 330px wide): four to a row leaves room
+   for them at their full 12px. */
+@container (max-width: 298px) {
+  .px {
+    flex-basis: calc((100% - 6px) / 4);
+  }
+  .pxName {
+    font-size: clamp(10.5px, 3.75vw, 12px);
+  }
 }
-.row:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: -2px;
-}
-/* Its pixel switched off by the filter. */
-.row[data-off] {
-  opacity: 0.3;
+/* Fingertip-sized targets wherever the pointer is a finger. */
+@media (pointer: coarse) {
+  .more,
+  .link {
+    min-height: 44px;
+  }
 }
 
 /* ---------- the close ----------
@@ -893,174 +1036,27 @@
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
 }
-
-/* ---------- width bands ---------- */
-@media (max-width: 1024px) {
-  .px,
-  .pop {
-    --x: var(--px-t);
-    --y: var(--py-t);
-    --flip: var(--flip-t);
-  }
-}
-
 @media (max-width: 640px) {
-  /* Shorter than the popover field, so the picked project's card starts on the first screen of
-     most phones — and taller with every project (--n, the count; lib/portfolioScatter.ts
-     narrowField grows its layout by the same 34px), so each pixel keeps its room. */
-  .field {
-    --field-h: max(clamp(300px, 48svh, 420px), calc(var(--n, 0) * 34px));
-  }
-  /* A fingertip-sized target around the same point. The scatter keeps every two 44px targets
-     apart on either axis, measured on a 320px phone's field. */
-  .px {
-    --x: var(--px-m);
-    --y: var(--py-m);
-    --hit: 44px;
-  }
-  /* The picked pixel: a brighter point in a ring. It stays a point of light — the loupe is for a
-     pointer — spelled out, because a tap leaves the pixel :hover on a phone. The ring is the
-     button's own, so the pixel's flicker never dims it. */
-  .px[data-selected]::before {
-    content: "";
-    position: absolute;
-    inset: 13px;
-    outline: 1.5px solid var(--txt);
-    pointer-events: none;
-  }
-  .px[data-selected] .light {
-    opacity: 1;
-    scale: 1.6;
-  }
-  .px[data-selected] .tri {
-    opacity: 0;
-    scale: var(--from);
-  }
-  .pop {
-    display: none;
-  }
-  /* Built the same way every time a tap picks another — from the left, as nothing here says
-     which side its pixel is on. */
-  .below {
-    display: flex;
-    margin-top: var(--sp-5);
-    animation: pfWipe 0.24s steps(8, end) backwards;
-  }
-  /* The phone's card has the room: the whole description, in the body's own size. */
-  .below .desc {
-    display: block;
-    overflow: visible;
-    font-size: var(--fs-base);
-  }
-  .ask {
-    min-height: 44px;
-  }
-  /* The channels: one fingertip-tall band under the title that scrolls inside itself, bleeding
-     to the screen's edges by exactly the page's own side padding — the page never scrolls
-     sideways, at 320px either. */
-  .channels {
-    flex: 1 1 100%;
-    flex-wrap: nowrap;
-    margin-inline: calc(-1 * var(--gutter));
-    padding-inline: var(--gutter);
-    scroll-padding-inline: var(--gutter);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x proximity;
-    scrollbar-width: none;
-  }
-  .channels::-webkit-scrollbar {
-    display: none;
-  }
-  .channel {
-    flex: none;
-    min-height: 44px;
-    scroll-snap-align: start;
-  }
-  /* the band clips an outer ring */
-  .channel:focus-visible {
-    outline-offset: -3px;
-  }
   .cta {
     width: 100%;
-  }
-  /* Under the picked project's card, one column of fingertip-sized rows. */
-  .index {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 641px) and (max-width: 860px) {
-  .index {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 /* ---------- motion ---------- */
-/* A pixel switching on: dark, a white flash, a stutter, then its colour — in hard steps. */
-@keyframes pfPowerOn {
+@keyframes pfPxOn {
   0% {
     opacity: 0;
-    filter: none;
   }
-  14% {
+  35% {
     opacity: 1;
-    filter: brightness(2.8) saturate(0.15);
+    filter: brightness(2.2) saturate(0.3);
   }
-  34% {
-    opacity: 0.3;
+  60% {
+    opacity: 0.35;
     filter: none;
-  }
-  56% {
-    opacity: 1;
-    filter: brightness(1.6);
   }
   100% {
     opacity: 1;
-    filter: none;
-  }
-}
-
-/* Lit for nearly the whole period, out for one short beat — a real pixel's flicker, not a pulse.
-   A filter, so the core, the rim and the bloom dim together. */
-@keyframes pfFlicker {
-  0%,
-  96.5% {
-    filter: none;
-  }
-  97% {
-    filter: brightness(0.25);
-  }
-  98% {
-    filter: none;
-  }
-  98.5% {
-    filter: brightness(0.45);
-  }
-  99.2%,
-  100% {
-    filter: none;
-  }
-}
-
-/* The card uncovered from the pixel's side, in hard steps. */
-@keyframes pfWipe {
-  from {
-    clip-path: inset(0 calc((1 - var(--flip, 0)) * 100%) 0 calc(var(--flip, 0) * 100%));
-  }
-  to {
-    clip-path: inset(0);
-  }
-}
-
-/* One block of the mosaic going out: there, then not — no fade, a pixel has no in-between. */
-@keyframes pfBlockOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-    visibility: hidden;
   }
 }
 
@@ -1076,37 +1072,55 @@
   }
 }
 
-/* The flicker stops while the page is scrolled out of view (useOffscreenAttribute). It holds
-   "lit" for 96% of its cycle, so a paused pixel is almost always a lit one. */
-.page[data-offscreen] .light {
-  animation-play-state: paused;
-}
-
-/* Reduced motion: every pixel simply on, no flicker, no loupe glide, a filter that switches
-   pixels at once, and the card shown whole — no wipe, no mosaic. */
+/* Reduced motion: the glow changes at once, nothing glides or presses in. (The pixel transition,
+   the switch-on, the row's glide and the words' rise are not started at all.) */
 @media (prefers-reduced-motion: reduce) {
-  .light,
-  .pop,
-  .below,
-  .mosaic i {
-    animation: none;
-  }
-  .light,
-  .px,
-  .tri,
+  .stage,
   .channel,
-  .row,
-  .rowGo,
-  .swatch,
+  .nav,
+  .px,
+  .pxDot,
+  .pxDot::before,
+  .pxDot i,
+  .zoomChip,
   .ask,
   .cta {
     transition: none;
+  }
+  .nav:active:not(:disabled) {
+    scale: none;
   }
   .ask:hover,
   .cta:hover {
     translate: none;
   }
-  .mosaic {
-    display: none;
+}
+
+/* A contrast theme (forced colours): the pressed channel by a system-coloured border, so the
+   outline stays the focus ring's; the current pixel by a system-coloured ring inside it, which the
+   focus ring replaces while it has the focus. The pixels and the chin's subpixels keep their own
+   paint — they are pictures of light, and a contrast theme would erase them to empty squares. */
+@media (forced-colors: active) {
+  .channel[aria-pressed="true"] {
+    border: 2px solid Highlight;
+  }
+  .px[aria-current="true"]:not(:focus-visible) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  /* the red fill is erased: without a border the two red buttons read as loose text */
+  .ask,
+  .cta {
+    border: 1px solid ButtonText;
+  }
+  /* the picture's focus ring is a shadow, and a contrast theme drops shadows */
+  .shotBtn:focus-visible ~ .screenRing {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+  .pxDot,
+  .tagPx,
+  .rgb {
+    forced-color-adjust: none;
   }
 }
