@@ -477,7 +477,7 @@ describe("hero hosts in the interior stage", () => {
     expect(scrim.getAttribute("class")).toContain("md:hidden");
   });
 
-  it("keeps the eight-marker contract: the hero's six markers once each, none styled, one h1", async () => {
+  it("keeps the marker contract: the hero's markers once each, none styled, one h1", async () => {
     media.fine = true;
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
     await screen.findByLabelText("Indicatori");
@@ -485,7 +485,7 @@ describe("hero hosts in the interior stage", () => {
     pointer("pointerMove", card("automation"), "mouse", 10, 10);
     act(() => flushFrames());
 
-    for (const name of ["grid", "title", "lead", "cta", "stats"]) {
+    for (const name of ["grid", "title", "cta", "stats"]) {
       const found = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${name}"]`);
       expect(found, name).toHaveLength(1);
       expect(found[0].hasAttribute("style"), name).toBe(false);

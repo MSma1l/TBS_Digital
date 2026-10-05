@@ -93,6 +93,30 @@ const subscribeVisibility = (onChange: () => void) => {
 const readTabHidden = () => document.visibilityState === "hidden";
 const serverFalse = () => false;
 
+/* "Is this render on the client, outside hydration?" — a store that never changes, read only to
+   tell the two apart: React answers from the server snapshot while it hydrates server HTML and
+   from the client one for a fresh client mount (a navigation from another page, a Back). */
+const subscribeNothing = () => () => {};
+const clientTrue = () => true;
+
+/**
+ * Everything the stage can know synchronously on the client: the QA flag, the device tier and
+ * the live gates. `waiting` when none of them settles it — the GPU answer is still to come.
+ */
+function readEntry(): StageState {
+  const flag = readSceneFlag();
+  const tier = detectSceneTier(readDeviceProfile());
+  const gate = readMotionGate();
+  const force = flag === "force";
+  const motion: SceneMotion = gate === "ok" && tier !== "low" ? "live" : "static";
+  const settled: Phase | null =
+    flag === "off"
+      ? { kind: "off", reason: "flag" }
+      : (gatePhase(gate) ??
+        (tier === "low" && !force ? { kind: "fallback", reason: "low-tier" } : null));
+  return { phase: settled ?? { kind: "waiting" }, tier, motion, force };
+}
+
 /**
  * The interior stage: one wrapper around Hero → Ticker → Directions → Work whose first child is
  * an absolutely positioned track holding a sticky layer. The layer is where the one WebGL
@@ -135,32 +159,53 @@ const serverFalse = () => false;
 export function SceneStage({ children }: { children: ReactNode }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [probe] = useState(createScrollProbe);
-  const [state, setState] = useState<StageState>(SERVER_STATE);
+  /*
+   * A stage that hydrates starts where the server left it, `boot` (`pending`), and decides in
+   * the effect below. A stage that MOUNTS on the client — a navigation from another page — starts
+   * from the gates' answer instead. `pending` is what raises the full-window loading cover
+   * (components/ui/PageLoading.module.css), and the cover now comes up in one frame: a stage the
+   * gates settle (the off flag, reduced motion, Save-Data, a low-tier phone) would otherwise
+   * raise it for the one frame before its effect, then fade it out — a loading flash on every
+   * click for exactly the devices that have nothing to load.
+   *
+   * The gates are read ONCE per mount: here for a client mount (`mountEntry`), in the effect for
+   * a hydrated one. Read in both places, a gate that closed between the render and the effect
+   * (reduced motion switched on, a connection dropping to 2G) left the state at the render's
+   * `waiting` while the effect, reading it settled, skipped the pipeline — `pending`, and the
+   * cover, for good. A gate that closes after the one read is still caught: `decide()` reads it
+   * again when its idle slot fires.
+   */
+  const clientMount = useSyncExternalStore(subscribeNothing, clientTrue, serverFalse);
+  const [mountEntry] = useState(() => (clientMount ? readEntry() : null));
+  const [state, setState] = useState<StageState>(() => mountEntry ?? SERVER_STATE);
   /* The attempt whose scene reported ready / whose director measured. */
   const [readyAttempt, setReadyAttempt] = useState(-1);
   const [liveAttempt, setLiveAttempt] = useState(-1);
   const [onscreen, setOnscreen] = useState(true);
+  /*
+   * Has the stage left the window since it mounted? The full-window loading cover
+   * (components/ui/PageLoading.module.css) hides a stage that is still deciding — and one the
+   * visitor has scrolled away from, or been sent away from (a `/#echipa` link from a service
+   * page lands BELOW the stage), is in front of nobody. Worse, an off-screen stage is paused, so
+   * it never draws its first frame and never answers: the cover stayed up until its 6s failsafe.
+   * So `data-cover` holds the cover only until the first time the stage is off screen, and never
+   * again in this mount — scrolling back into a stage that is still deciding shows it as a late
+   * arrival, the way every visit after an intro already does.
+   */
+  const [leftScreen, setLeftScreen] = useState(false);
   const tabHidden = useSyncExternalStore(subscribeVisibility, readTabHidden, serverFalse);
   const covered = useSyncExternalStore(subscribePageCover, isPageCovered, serverFalse);
 
   // ---- the pipeline ------------------------------------------------------------------
   useEffect(() => {
-    const flag = readSceneFlag();
-    const tier = detectSceneTier(readDeviceProfile());
-    const gate = readMotionGate();
-    const force = flag === "force";
-    const motion: SceneMotion = gate === "ok" && tier !== "low" ? "live" : "static";
-
-    const settled: Phase | null =
-      flag === "off"
-        ? { kind: "off", reason: "flag" }
-        : (gatePhase(gate) ??
-          (tier === "low" && !force ? { kind: "fallback", reason: "low-tier" } : null));
+    const entry = mountEntry ?? readEntry();
+    const { force } = entry;
     // Intentional post-mount setState: the server knows neither the device nor the visitor's
-    // settings, so the stage renders "pending" there and decides here, once.
+    // settings, so a hydrated stage renders "pending" there and decides here, once. A stage
+    // that mounted on the client already holds this answer (`mountEntry`).
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState({ phase: settled ?? { kind: "waiting" }, tier, motion, force });
-    if (settled) return;
+    if (!mountEntry) setState(entry);
+    if (entry.phase.kind !== "waiting") return;
 
     const mode: GpuMode = force ? "forced" : "strict";
     let cancelled = false;
@@ -251,7 +296,8 @@ export function SceneStage({ children }: { children: ReactNode }) {
       cancelWarm();
       cancelIdle();
     };
-  }, []);
+    // `mountEntry` is state without a setter: it never changes, so this still runs once.
+  }, [mountEntry]);
 
   // Reduced motion switched on mid-visit: everything stops, for good (a reload re-decides).
   useEffect(() => {
@@ -300,7 +346,9 @@ export function SceneStage({ children }: { children: ReactNode }) {
     if (!el || typeof window.IntersectionObserver !== "function") return;
     const observer = new IntersectionObserver((entries) => {
       const newest = entries[entries.length - 1];
-      if (newest) setOnscreen(newest.isIntersecting);
+      if (!newest) return;
+      setOnscreen(newest.isIntersecting);
+      if (!newest.isIntersecting) setLeftScreen(true);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -401,6 +449,7 @@ export function SceneStage({ children }: { children: ReactNode }) {
       data-scene-stage=""
       data-testid={SCENE_TESTID.stage}
       data-renderer={renderer}
+      data-cover={renderer === "pending" && !leftScreen ? "" : undefined}
       data-reason={reason}
       data-tier={tier}
       data-paused={renderer === "webgl" ? String(paused) : undefined}

@@ -126,7 +126,8 @@ type EntranceStep = {
  *
  * The `eyebrow` step is gone with the hero's kicker line (2026-09-25). Its 0.2 slot was not left
  * empty: a missing marker is skipped silently, so the cascade would simply have had a hole in it.
- * Everything after it moved up by 0.06.
+ * Everything after it moved up by 0.06. The `lead` step went the same way with the hero's lead
+ * line (2026-10-02): everything after it moved up by 0.08.
  *  · cta / ticker — the wrappers, never the button (hover transform) or the CSS-animated
  *    marquee track.
  */
@@ -134,15 +135,14 @@ const ENTRANCE: readonly EntranceStep[] = [
   { target: "grid", at: 0, from: { opacity: 0, scale: 1.12 }, clear: "opacity,transform" },
   { target: "header", at: 0.1, from: { yPercent: -110 }, duration: 0.6, clear: "transform" },
   { target: "title", at: 0.2, from: { y: 56, scale: 0.96 }, blur: 14, clear: "transform,filter" },
-  { target: "lead", at: 0.3, from: { y: 28 }, blur: 8, clear: "transform,filter" },
-  { target: "cta", at: 0.38, from: { y: 24, scale: 0.96 }, clear: "transform" },
+  { target: "cta", at: 0.3, from: { y: 24, scale: 0.96 }, clear: "transform" },
   {
     target: "stats",
-    at: 0.46,
+    at: 0.38,
     from: { y: 40, rotateX: -14, transformPerspective: 900 },
     clear: "transform",
   },
-  { target: "ticker", at: 0.56, from: { y: 40 }, clear: "transform" },
+  { target: "ticker", at: 0.48, from: { y: 40 }, clear: "transform" },
 ];
 
 /** Queue the entrance on `timeline`, starting at its "reveal" label. Missing markers are skipped. */

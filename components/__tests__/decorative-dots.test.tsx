@@ -305,7 +305,7 @@ describe("decorative dots — rendered", () => {
 
   it("the logo reads TBS. with a plain red full stop: no halo, no glow, no animation", () => {
     renderHome("ro");
-    const logo = document.querySelector<HTMLAnchorElement>('header a[href="#top"]');
+    const logo = document.querySelector<HTMLAnchorElement>('header a[href="/"]');
     expect(logo?.textContent).toBe("TBS.");
     const stop = logo?.querySelector("span");
     expect(stop?.textContent).toBe(".");

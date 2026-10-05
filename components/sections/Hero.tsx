@@ -26,11 +26,6 @@ const TITLE = L(
   "Строим digital, который двигает бизнес.",
   "We build digital that moves business.",
 );
-const LEAD = L(
-  "De la consultanță la produs funcțional.",
-  "От консалтинга до рабочего продукта.",
-  "From consulting to a working product.",
-);
 const CTA_PRIMARY = L("Începe proiectul", "Начать проект", "Start a project");
 const CTA_SECONDARY = L(
   "Explorăm serviciile ↓",
@@ -357,13 +352,6 @@ export function Hero({ coreArt }: HeroProps) {
               title
             )}
           </h1>
-
-          <p
-            data-intro-reveal="lead"
-            className="m-0 mt-5 max-w-[34rem] font-copy text-[clamp(16px,2vw,19px)] leading-[1.6] text-mut md:mt-6"
-          >
-            {l(LEAD)}
-          </p>
 
           {/* The entrance targets this wrapper, never the button: the button's hover lift is
               a `translate` transition that a GSAP `transform` would fight. */}

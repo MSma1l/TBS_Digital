@@ -20,7 +20,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Locale } from "@/lib/i18n/locales";
 import { directionHref } from "@/lib/directions";
 import { SCENE_SHAPES, SCENE_TESTID, selectSceneShape, type SceneShape } from "@/lib/scene";
-import { projectsForSolution, solutions } from "@/lib/solutions";
+import { directionTab, projectsForSolution, solutions } from "@/lib/solutions";
 import { useSiteContent } from "@/lib/siteContent";
 import { shouldInterceptTap } from "@/lib/tapIntent";
 
@@ -49,7 +49,7 @@ type Service = {
 const SERVICES: Service[] = [
   {
     slug: "produs-digital",
-    tab: L("Produs digital", "Цифровой продукт", "Digital product"),
+    tab: directionTab["produs-digital"],
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
     text: L(
       "Clarificăm problema, proiectăm experiența și livrăm un produs ușor de evoluat.",
@@ -66,7 +66,7 @@ const SERVICES: Service[] = [
     slug: "e-commerce",
     /* The pill keeps the short label — it is a navigation item; the panel carries the full
        title. Nothing here is written in the past tense: we have not shipped a shop. */
-    tab: L("E-commerce", "E-commerce", "E-commerce"),
+    tab: directionTab["e-commerce"],
     title: L(
       "E-commerce pentru produse, rapoarte și acces digital",
       "E-commerce для продуктов, отчётов и цифрового доступа",
@@ -85,7 +85,7 @@ const SERVICES: Service[] = [
   },
   {
     slug: "automatizare-api",
-    tab: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
+    tab: directionTab["automatizare-api"],
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
     text: L(
       "Eliminăm munca repetitivă și conectăm sistemele care trebuie să comunice.",
@@ -102,7 +102,7 @@ const SERVICES: Service[] = [
     slug: "asistenti-ia",
     /* The pill label and the route stay as the client signed them off; only the panel copy
        changed, so that what is described as delivered is what actually runs. */
-    tab: L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
+    tab: directionTab["asistenti-ia"],
     title: L(
       "Asistenți și boți conectați la conversații reale",
       "Ассистенты и боты, подключённые к реальным разговорам",
@@ -121,7 +121,7 @@ const SERVICES: Service[] = [
   },
   {
     slug: "brand-ui",
-    tab: L("Brand & UI", "Бренд и UI", "Brand & UI"),
+    tab: directionTab["brand-ui"],
     title: L("Brand & UI", "Бренд и UI", "Brand & UI"),
     text: L(
       "Dăm produsului un sistem vizual coerent, clar și ușor de folosit.",
@@ -141,11 +141,6 @@ const SECTION = {
     "Un selector de servicii făcut pentru decizie rapidă.",
     "Селектор услуг, сделанный для быстрого решения.",
     "A service selector built for a fast decision.",
-  ),
-  lead: L(
-    "Selectează o direcție. Conținutul se schimbă instant, iar pagina serviciului e la un click.",
-    "Выберите направление. Контент меняется мгновенно, а страница услуги — в одном клике.",
-    "Pick a direction. The content changes instantly and the service page is one click away.",
   ),
   tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
   more: L("Deschide serviciul", "Открыть услугу", "Open the service"),
@@ -341,7 +336,6 @@ export function Directions({ initialArt }: DirectionsProps) {
               {l(SECTION.title)}
             </h2>
           </div>
-          <p className="m-0 max-w-[400px] font-copy text-base leading-normal text-mut">{l(SECTION.lead)}</p>
         </Reveal>
 
         {/* Links, not tabs: each one navigates to its service page. Hover, focus and a first

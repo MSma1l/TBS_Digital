@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, type ReactNode } from "react";
 
 vi.mock("@/lib/api", () => ({
   fetchContent: vi.fn(),
@@ -291,6 +291,25 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(attr("data-tier")).toBe("high");
     expect(h.idle).toEqual([]);
     expect(h.probeImported).toBe(false);
+  });
+
+  it("a stage MOUNTED on the client answers the gates in its first commit — never pending", () => {
+    /* A client navigation mounts the stage instead of hydrating it, and `pending` raises the
+       full-window cover in one frame (PageLoading.module.css): a stage that settled only in its
+       effect would flash that cover on every click, for exactly the visitors with nothing to load.
+       A child's layout effect runs in the commit, before the stage's own effect: what it reads is
+       what that first frame painted. */
+    capableBrowser();
+    localStorage.setItem(SCENE_3D_KEY, "off");
+    const firstCommit: Array<string | null> = [];
+    function ReadFirstCommit() {
+      useLayoutEffect(() => {
+        firstCommit.push(stage().getAttribute("data-renderer"));
+      }, []);
+      return null;
+    }
+    renderStage(<ReadFirstCommit />);
+    expect(firstCommit).toEqual(["off"]);
   });
 
   it("reduced motion, Save-Data and a 2G connection turn it off before anything else", () => {

@@ -33,22 +33,37 @@
 }
 
 /*
- * UP ONLY WHILE THE STAGE IS DECIDING.
+ * UP ONLY WHILE THE STAGE IS DECIDING — `data-cover` on the stage (components/scene/SceneStage.tsx).
  *
- * `pending` is the server's value too, so the cover is painted on the very first frame and the
- * visitor never sees a half-built page assemble itself. `webgl`, `fallback` and `off` are all
- * answers, and any of them takes it down.
+ * The stage writes it while `data-renderer` is `pending`, which is the server's value too, so the
+ * cover is painted on the very first frame and the visitor never sees a half-built page assemble
+ * itself. `webgl`, `fallback` and `off` are all answers, and any of them takes it down. So does
+ * the stage leaving the window while it is still deciding (2026-10-03): from a service page,
+ * "Companie" lands on `/#echipa`, below the stage — a paused stage that never draws, so it never
+ * answered and the cover sat over the Team section until its 6s failsafe. Once off screen the
+ * stage releases the cover for good.
  *
  * Matched with `:has()` from the root rather than as an ancestor, because the cover is rendered in
  * the layout: `SceneStage` is `isolate`, so anything inside it is z-scoped to the stage and the
  * header and the cookie banner would paint over a cover that lived there. A page with no stage
  * never matches, and so never raises it.
+ *
+ * IT COMES UP IN ONE FRAME, and goes down with a fade (in one frame too under reduced motion,
+ * at the end of this file). On a hard load that changes nothing —
+ * there is no previous style to transition from, so the server's `pending` paints it opaque on
+ * the first frame. It matters on a CLIENT navigation (a service page → Home), where the layout and
+ * this node survive and the new page's stage mounts at `pending`: the cover used to fade IN over
+ * 450ms, and the page it was meant to hide showed through it for the first part of that — "pe
+ * 0,2 s imi apare home, dupa loadingul" (2026-10-02; measured, the cover sat at 0 on the frame
+ * Home was committed). Now the new page and the raised cover are the same style change.
+ * The devices whose stage never waits (off, reduced motion, low tier) never reach `pending` on a
+ * client mount (components/scene/SceneStage.tsx `mountEntry`), so a snap cannot flash for them.
  */
-:global(html:has([data-scene-stage][data-renderer="pending"])) .cover {
+:global(html:has([data-scene-stage][data-cover])) .cover {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transition: opacity 0.45s var(--motion-ease-out);
+  transition: none;
   /*
    * THE FAILSAFE, and it is not optional.
    *
@@ -57,7 +72,8 @@
    * blank screen with no way past it. `forwards` means the animation's end state beats the
    * declarations above, so at 6s the cover comes down whatever the stage is doing. The stage's own
    * paths are all much shorter than that (`afterIdle` 1500 + 600ms, then the probe and the first
-   * frame), so this only ever fires on a genuine fault.
+   * frame), so this only ever fires on a genuine fault. Under reduced motion too: the global
+   * `animation: none !important` would cancel this one, so the block at the end re-asserts it.
    */
   animation: pageLoadingFailsafe 0.45s var(--motion-ease-out) 6000ms forwards;
 }
@@ -109,16 +125,23 @@
  * animations nobody can see. It was written, and then backed out, because the layout is SHARED:
  * a Next.js client navigation from `/cookies` back to `/` keeps the SAME `.cover` node, the stage
  * mounts at `pending`, and the cover goes from `display: none` straight to raised in ONE style
- * change. A transition does not start for an element that was not rendered in the previous style
- * change, so the cover would SNAP to full opacity where today it fades in over 450ms, and the
- * boot core would restart from phase 0 instead of continuing. Two visible differences on an
- * ordinary click.
- *
- * `@starting-style` or `transition-behavior: allow-discrete` would each fix the snap, and neither
- * is in this file today — that is a design decision, not a performance one, so it is left alone.
+ * change — so the boot core inside would restart from phase 0 instead of continuing. (The other
+ * difference this note used to list, the cover SNAPPING up instead of fading in, is now what the
+ * raise rule above does on purpose.)
  */
 @media (prefers-reduced-motion: reduce) {
   .cover {
     transition: none;
+  }
+
+  /*
+   * THE FAILSAFE SURVIVES REDUCED MOTION. app/globals.css ends every animation under it with
+   * `* { animation: none !important }`, and an `!important` beats the raise rule's plain
+   * `animation` whatever the specificity — measured, with the page's chunks blocked the cover sat
+   * opaque, over a page nobody could reach, for as long as the tab stayed open. This is not motion:
+   * one 1ms step at 6s. `!important` against `!important`, the more specific selector wins.
+   */
+  :global(html:has([data-scene-stage][data-cover])) .cover {
+    animation: pageLoadingFailsafe 1ms linear 6000ms forwards !important;
   }
 }

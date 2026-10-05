@@ -23,12 +23,6 @@
   letter-spacing: -0.04em;
   color: var(--txt);
 }
-.lead {
-  margin: 0;
-  color: var(--mut);
-  max-width: 400px;
-  line-height: 1.5;
-}
 
 /* ================================================================================================
  * THE DECK
@@ -821,6 +815,18 @@
   font-size: var(--fs-sm);
   line-height: 1.45;
   color: var(--mut);
+}
+
+/* "Proiect ales ca exemplu: CGAM" — the project a portfolio card's request carries, said back to
+   the visitor first thing in the form, at reading size. */
+.example {
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  color: var(--txt);
 }
 
 .form {

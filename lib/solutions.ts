@@ -1,4 +1,5 @@
 import type { LocalizedText } from "@/lib/i18n/content";
+import type { EstimatorTypeId } from "@/lib/request/catalog";
 
 /** Rich content for a single "direction" page. Kept out of the message catalog as
  *  self-contained trilingual objects (rendered with useLoc). Only filled directions
@@ -21,7 +22,6 @@ export type SolutionCase = {
 
 export type Solution = {
   title: LocalizedText;
-  intro: LocalizedText;
   cardTitle: LocalizedText;
   cardText: LocalizedText;
   items: SolutionItem[];
@@ -40,11 +40,6 @@ export const solutions: Record<string, Solution> = {
   "produs-digital": {
     accent: "#3970ff",
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
-    intro: L(
-      "Transformăm o problemă bună într-un produs clar, ușor de folosit și pregătit să crească.",
-      "Превращаем хорошую задачу в понятный продукт — удобный и готовый расти.",
-      "We turn a good problem into a clear product — easy to use and ready to grow.",
-    ),
     cardTitle: L("Strategie + UX + dezvoltare", "Стратегия + UX + разработка", "Strategy + UX + development"),
     cardText: L(
       "Un drum simplu de la primul workshop la produs funcțional.",
@@ -72,11 +67,6 @@ export const solutions: Record<string, Solution> = {
       "E-commerce pentru produse, rapoarte și acces digital",
       "E-commerce для продуктов, отчётов и цифрового доступа",
       "E-commerce for products, reports and digital access",
-    ),
-    intro: L(
-      "Construim fluxul întreg: oferta, plata și accesul la produs sau la raport.",
-      "Строим весь поток: предложение, оплата и доступ к продукту или отчёту.",
-      "We build the whole flow: the offer, the payment and the access to the product or report.",
     ),
     cardTitle: L("Ofertă → Plată → Acces", "Предложение → Оплата → Доступ", "Offer → Payment → Access"),
     cardText: L(
@@ -148,11 +138,6 @@ export const solutions: Record<string, Solution> = {
   "automatizare-api": {
     accent: "#12ae9e",
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
-    intro: L(
-      "Eliminăm pașii manuali și conectăm sistemele care trebuie să lucreze împreună.",
-      "Убираем ручные шаги и соединяем системы, которые должны работать вместе.",
-      "We remove manual steps and connect the systems that should work together.",
-    ),
     cardTitle: L("Procese care se mișcă singure", "Процессы, которые движутся сами", "Processes that move on their own"),
     cardText: L(
       "Mai puține copii, erori și rapoarte făcute manual.",
@@ -179,11 +164,6 @@ export const solutions: Record<string, Solution> = {
       "Asistenți și boți conectați la conversații reale",
       "Ассистенты и боты, подключённые к реальным разговорам",
       "Assistants and bots connected to real conversations",
-    ),
-    intro: L(
-      "Răspuns, calificare și automatizare prin web, Telegram și sistemele interne.",
-      "Ответ, квалификация и автоматизация через веб, Telegram и внутренние системы.",
-      "Answering, qualification and automation across web, Telegram and internal systems.",
     ),
     cardTitle: L(
       "Chat + asistent de calificare + bot Telegram",
@@ -283,11 +263,6 @@ export const solutions: Record<string, Solution> = {
   "brand-ui": {
     accent: "#3970ff",
     title: L("Brand & UI", "Бренд и интерфейс", "Brand & UI"),
-    intro: L(
-      "Un sistem vizual care arată premium, explică limpede și face produsul mai ușor de folosit.",
-      "Визуальная система, которая выглядит премиально, понятно объясняет и делает продукт удобнее.",
-      "A visual system that looks premium, explains clearly and makes the product easier to use.",
-    ),
     cardTitle: L("Brand cu logică de produs", "Бренд с продуктовой логикой", "A brand with product logic"),
     cardText: L(
       "Identitate, interfață și reguli ușor de aplicat.",
@@ -329,6 +304,21 @@ export const solutionPalette: Record<string, SolutionPalette> = {
 };
 
 /* ---------------------------------------------------------------------------
+   The short name of each direction
+   ---------------------------------------------------------------------------
+   The /02 pills' own labels, as the client signed them off — one table for the home-page
+   selector (`components/sections/Directions.tsx`) and the portfolio's service filter
+   (`components/sections/Portfolio.tsx`), so the two never drift apart. The menu's longer
+   names (`dir.*` in the message catalog) are for the header, where there is room. */
+export const directionTab: Record<string, LocalizedText> = {
+  "produs-digital": L("Produs digital", "Цифровой продукт", "Digital product"),
+  "e-commerce": L("E-commerce", "E-commerce", "E-commerce"),
+  "automatizare-api": L("Automatizare & API", "Автоматизация и API", "Automation & API"),
+  "asistenti-ia": L("Asistenți IA & boturi", "ИИ-ассистенты и боты", "AI assistants & bots"),
+  "brand-ui": L("Brand & UI", "Бренд и UI", "Brand & UI"),
+};
+
+/* ---------------------------------------------------------------------------
    Which real projects belong to which direction
    ---------------------------------------------------------------------------
    The portfolio has no structured category: `ProjectItem.tag` is free localized text
@@ -360,6 +350,23 @@ export const solutionProjectIds: Record<string, string[]> = {
   "asistenti-ia": ["bizcheck", "balloons-breeze"],
   // Brand-led sites and interfaces.
   "brand-ui": ["itara-global", "cgam", "balloons-breeze"],
+};
+/* A project the admin adds is in no direction until its id is written above: /portofoliu then
+   shows it under "Toate" only, and no service page lists it. */
+
+/* ---------------------------------------------------------------------------
+   Which kind of request a project starts
+   ---------------------------------------------------------------------------
+   "Vreau un proiect similar" on a portfolio card opens the request dialog on the estimator
+   type of THAT kind of work — an app like IQ Arena starts on "Aplicație mobilă", not on the
+   estimator's first type and its price. Stated by id, like the table above, never parsed
+   from the tag. A project not listed here starts where the dialog always starts. */
+export const projectRequestType: Record<string, EstimatorTypeId> = {
+  "iq-arena": "mobile",
+  flirt: "mobile",
+  docusafe: "crm",
+  "crowe-portal": "crm",
+  statistic: "crm",
 };
 
 /**
@@ -407,11 +414,6 @@ export const solUI = {
   /* --- labelled cases (only where a direction has them) --- */
   caseLink: L("Deschide site-ul ↗", "Открыть сайт ↗", "Open the site ↗"),
   projectsTitle: L("Proiecte relevante", "Релевантные проекты", "Relevant projects"),
-  projectsLead: L(
-    "Lucrări reale livrate pe această direcție.",
-    "Реальные работы, выполненные по этому направлению.",
-    "Real work delivered on this direction.",
-  ),
   bottomTitle: L("Ai un proiect în minte?", "Есть проект на примете?", "Got a project in mind?"),
   bottomLead: L(
     "Spune-ne ce vrei să obții. Revenim cu următorul pas potrivit.",

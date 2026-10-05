@@ -34,6 +34,7 @@ so the data source can change without touching markup.
 │  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
 │  │  │                    #   (with the server-rendered art slots), then Principles, Team,
 │  │  │                    #   RequestSection, BottomCTA
+│  │  ├─ portofoliu/       # The portfolio: every project as one pixel (components/sections/Portfolio)
 │  │  ├─ confidentialitate/ # Privacy policy (content.ts + LegalDoc)
 │  │  └─ cookies/          # Cookie policy (content.ts, reuses LegalDoc)
 │  └─ admin-tbs-digital/   # Admin panel route (outside the (site) chrome)
@@ -176,6 +177,7 @@ defaults, `siteContent` for anything the admin edits, `i18n` for anything the vi
 | Route | What |
 |-------|------|
 | `/` · `/ru` · `/en` | The landing page in Romanian / Russian / English. `/ru` and `/en` are rewrites onto the same route; the language comes from the `x-locale` header ([16](./16-i18n-seo.md)). |
+| `/portofoliu` | The portfolio — every project in the store as one real-looking pixel, scattered over a bare field, with a service filter, a legend of the projects, a request on every card and the service pages' close ([05](./05-page-sections.md#portfolio--portofoliu)). Prefixable with `/ru`, `/en`; its title and description follow the language (`generateMetadata`, `lib/i18n/requestLocale.ts`). |
 | `/confidentialitate`, `/cookies` | Legal pages (also prefixable with `/ru`, `/en`). |
 | `/admin-tbs-digital` | The login-gated admin panel. `noindex, nofollow`, outside the `(site)` chrome. |
 | `/robots.txt`, `/sitemap.xml`, `/opengraph-image`, `/twitter-image` | Generated metadata routes. |
@@ -328,6 +330,16 @@ SceneStage (client, in the page bundle — no three.js, no GSAP)
     ∧ SceneDirector onLive (first measurement) ─► data-renderer="webgl", the art crossfades out
 ```
 
+- **Hydration decides in the effect; a client mount decides in its first render** (2026-10-02).
+  A stage that hydrates server HTML starts at the server's `pending` and runs the `mount` line in
+  its effect. A stage that MOUNTS on the client — a navigation from another page, a Back — reads
+  the same line (`readEntry()`) in its first render instead, told apart by a
+  `useSyncExternalStore` that answers from its server snapshot only while React hydrates. A device
+  the gates settle (off, fallback) therefore never renders `pending` on a client navigation, so
+  the loading cover, which now comes up in one frame (below), cannot flash for it. The line is
+  read ONCE per mount (`mountEntry`, reused by the effect): read in the render and again in the
+  effect, a gate closing in between left the state at `waiting` with the pipeline skipped —
+  `pending` for good. A gate that closes after the read is still caught when `decide()` re-reads it.
 - `mode` is `forced` when `localStorage.tbs_scene_3d = "force"` (QA and E2E: software renderers,
   the low tier and a slow device are all accepted, and the governor never bails), else `strict`
   (`failIfMajorPerformanceCaveat`, software renderers refused).
@@ -504,15 +516,29 @@ page that is still assembling itself, so a page with a scene is covered outright
 `components/ui/PageLoading.tsx`, the site's background and its perspective grid over the whole
 viewport.
 
-**When it is up.** Only while `data-renderer` is `pending`, **and only on a load with no intro**.
+**When it is up.** Only while the stage carries `data-cover` — while `data-renderer` is `pending`
+and the stage has not left the window since it mounted — **and only on a load with no intro**.
 `pending` is the server's value too, so the cover is painted on the very first frame and nobody
 watches the page build itself; `webgl`, `fallback` and `off` are all answers and any of them takes
-it down. It is matched from the root
-with `html:has([data-scene-stage][data-renderer="pending"])` rather than as an ancestor, because
+it down. So does the stage leaving the window while it is still deciding, for the rest of that
+mount (2026-10-03): a `/#echipa` link from a service page lands below the stage, which is paused
+there, never draws, and so never answered — the cover sat over the Team section until its 6 s
+failsafe. It is matched from the root
+with `html:has([data-scene-stage][data-cover])` rather than as an ancestor, because
 `SceneStage` is `isolate`: anything rendered inside it is z-scoped to the stage, and the header
 (120) and the cookie banner (280) would paint straight over a cover that lived there. It is
 mounted in `app/(site)/layout.tsx` instead, at `--z-page-loading: 350`. A page with no stage never
 matches and never raises it.
+
+**It comes up in one frame and goes down with a fade** (2026-10-02). On a hard load nothing
+changes: there is no earlier style to transition from. On a CLIENT navigation (a service page →
+Home) the layout and the cover survive and the new page's stage mounts at `pending`; the cover
+used to fade IN over 450 ms, and the page it exists to hide showed through it first — the owner's
+"pe 0,2 s imi apare home, dupa loadingul", measured as Home committed with the cover still at
+opacity 0. The raise rule now has `transition: none`, so the new page and the raised cover are the
+same style change; the base rule keeps the 450 ms fade out. Devices whose stage never waits do not
+reach `pending` on a client mount at all (loading pipeline, above), so the snap cannot flash for
+them.
 
 **It blocks the page, so it carries a failsafe.** A `forwards` animation at 6 s takes it down
 whatever the stage is doing. Every one of the stage's own paths is far shorter, so that only fires

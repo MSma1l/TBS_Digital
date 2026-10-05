@@ -568,6 +568,68 @@ dark wash → the glass edge and corner brackets → the copy.
   snap band that bleeds to the screen edges (`scroll-padding: var(--gutter)`); the focus ring
   moves inside the card there, and the lift is off (it would clip).
 
+### Subpixels
+
+```css
+--subpixel-r: #ff3b3b;
+--subpixel-g: #3bff6e;
+--subpixel-b: #3b6bff;
+```
+
+The three primaries a real screen pixel is made of, for `/portofoliu`, where every project is
+drawn as one pixel ([05](./05-page-sections.md#portfolio--portofoliu)). They show only up close.
+From where the visitor sits, a pixel is a point of light about the size of a real one (3px): its
+colour `--p2` mixed toward `--on-accent` at the centre, inside a soft disc of `--p2`. Under the
+loupe the point opens out into a 42px macro: these three bars on a `--void` matrix. Each bar is
+lit (`opacity`) to its share of the colour, is brightest along its middle and is screen-blended,
+as in a macro photo of a display.
+
+The primaries are deliberate: a triad tinted toward the brand palette stops reading as a pixel.
+They are softened just enough not to vibrate on `--void`. Never remapped, graphic only, never
+text. The project colours themselves (`lib/projectAccent.ts`) stay per-project data, not tokens:
+they reach the page as inline `--p1` / `--p2`.
+
+### The portfolio's controls
+
+What `/portofoliu` added around its field on 2026-10-04
+([05](./05-page-sections.md#portfolio--portofoliu)). All of it is in `Portfolio.module.css`, from
+existing tokens:
+
+- **The how-to line.** Body type at `--fs-base`, `--mut`, sentence case — not the HUD's small
+  capitals — led by a still 3px point of light, its link in `--txt` with a cyan underline. The
+  one instruction on the page; everything else stays a label.
+- **Service filter.** Mono, uppercase, `--fs-sm` labels at 0.06em (11px at 0.1em lost the shape
+  of a word for older eyes) in a 36px box (44px on phones) with a `--line2` edge and `--mut`
+  text, the count in `--txt` bold. Pressed: `--neon-cyan` edge, `--cyan-text` and a 10%
+  `--neon-cyan` fill — cyan marks the selected state, as everywhere. Hover only where there is
+  hover.
+- **A switched-off pixel.** The button drops to 16% opacity in three hard steps (`steps(3)`) and
+  its flicker pauses. Nothing else changes, and nothing moves.
+- **Legend rows.** A still copy of the project's light (3px point, 22px disc), the name in
+  `--fs-base` bold and the tag in mono `--fs-sm` `--mut`, over a `--line` hairline, and a `›` at
+  the end (`--fs-lg`, `--mut`; `--txt` under the pointer or the keyboard, which also underline
+  the name; the project's `--p2` while its card is open). A row whose pixel is pointed at, open or
+  picked takes a 9% wash of the project's own `--p2`.
+- **The card's ×.** A real button where a window's close sits, after two of the three lights: an
+  `--fs-lg` × in `--on-accent`, 32px (44px on a coarse pointer), a 16% `--on-accent` wash on hover,
+  a cyan ring inside on focus.
+- **The card's request.** The red CTA fill on the label-safe twin (`--grad-red-cta`), full width,
+  40px (44px on phones), its label at `--fs-md`. No outer glow or lift — the card clips at its
+  rounded edge — so hover rings it from inside. "nu are pagină publică" sits beside it at
+  `--fs-md` in plain case.
+- **The close.** The service pages' closing panel, restated (corner brackets in 38% `--cyan`, the
+  `--blue → --violet2 → --cyan` thread drawn out as the PANEL enters the view — a named
+  `view-timeline` on the panel; with `view()` the 2px thread was its own subject and finished
+  within a pixel of scroll, here and on the service pages alike), its button on
+  `--grad-red-cta`. Change both together.
+- **Forced colours.** The pressed channel shows by a 2px `Highlight` border, leaving the outline to
+  the focus ring. The pixels and the legend's swatches keep their own paint
+  (`forced-color-adjust: none`): they are pictures of light, made of backgrounds, gradients and
+  glows a contrast theme would erase to an empty field.
+- **Hover** (the loupe, a legend row's wash, a channel's edge) only under `(hover: hover)`: touch
+  keeps `:hover` on the last thing tapped, and a tablet's second tap would leave a closed pixel
+  magnified. The keyboard focus ring sits above the card it opens (`z-index: 4`).
+
 ## Cyber Dark / Neon Cyan / Obsidian Black
 
 The palette of the HUD chrome: the fibre scroll rail, the OS dock and windows, and the Command

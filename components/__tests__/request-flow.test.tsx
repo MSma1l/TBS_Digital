@@ -24,6 +24,8 @@ import type { ReactNode } from "react";
 // providing. The dialog carries the service as context instead — which is the point here.
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
+  // The header's menu links ask which page they are on (components/layout/SiteLink).
+  usePathname: () => "/",
 }));
 
 vi.mock("@/lib/api", () => ({

@@ -71,12 +71,11 @@ describe("Services section", () => {
 describe("Team section", () => {
   // The section was redesigned twice: the old "ECHIPA" + "SYSTEM_STATUS" HUD framing went, then
   // the "ECHIPA TBS" card label went with every other kicker on the site (2026-09-25). What is
-  // left is what the section is: a heading, a lead, and the people.
-  it("renders its heading, lead copy and a card per member", async () => {
+  // left is what the section is: a heading and the people (its lead line went 2026-10-02).
+  it("renders its heading and no kicker", async () => {
     withProvider(<Team />);
 
     expect(await screen.findByText("Oamenii din spatele produsului.")).toBeInTheDocument();
-    expect(screen.getByText(/O echipă mică și implicată/)).toBeInTheDocument();
     expect(screen.queryByText("ECHIPA TBS")).toBeNull();
   });
 

@@ -289,7 +289,6 @@ describe("intro timings and entrance order", () => {
       "grid",
       "header",
       "title",
-      "lead",
       "cta",
       "stats",
       "ticker",

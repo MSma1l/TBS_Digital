@@ -222,7 +222,6 @@ export const INTRO_REVEAL_ORDER = [
   "grid",
   "header",
   "title",
-  "lead",
   "cta",
   "stats",
   "ticker",

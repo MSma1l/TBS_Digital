@@ -105,8 +105,13 @@ describe("PageLoading — the handover out of the intro", () => {
 
   it("is up only while the stage has not answered, and always comes down at 6s", () => {
     // The cover blocks the page, so its failsafe is not optional.
-    expect(css).toContain('[data-scene-stage][data-renderer="pending"]');
+    expect(css).toContain("[data-scene-stage][data-cover]");
     expect(css).toContain("pageLoadingFailsafe");
     expect(css).toContain("6000ms forwards");
+    // …under reduced motion too, where app/globals.css ends every animation with
+    // `* { animation: none !important }`: only an !important of its own survives that.
+    const reduced = css.slice(css.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toContain("pageLoadingFailsafe");
+    expect(reduced).toContain("6000ms forwards !important");
   });
 });

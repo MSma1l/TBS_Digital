@@ -16,6 +16,457 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-04 — Changed: cardul din `/portofoliu` iar la hover, dar unul la care ajungi
+
+*„fa sa fie la hover si cand iau mouse-ul sa dispara boxul … si gandeste-te unde se poate de plasat
+ca sa putem deschide”*
+
+**Ce s-a schimbat.** Cardul deschis cu mouse-ul se inchide din nou singur, la 0,2 s dupa ce mouse-ul
+pleaca si de pe punct, si de pe card. Asa a vrut proprietarul; o zi a ramas deschis. Un card care
+dispare cand pleci trebuie insa sa poata fi atins, asa ca s-a schimbat si locul lui:
+
+- **Cardul acopera punctul.** Sta peste toata zona de 40px a punctului (`--reach: -21px`), deci
+  mouse-ul care l-a deschis e deja pe el. Oricum pleaca de acolo, chiar si pe un drum abrupt in jos
+  spre link, nu trece prin gol. Inainte, cardul incepea la 12px de centrul punctului, iar o mana
+  lenta care cobora spre „Deschide site-ul” iesea prin gol si pierdea cardul. Punctul ramane sub
+  card. Cu punctul deasupra, zona lui acoperea marginea textului, a linkului si a butonului ori de
+  cate ori cardul trebuia sa se ridice.
+- **Cardul sta intreg pe ecran.** `Popover` il masoara inainte sa-l arate si ii scrie pozitia:
+  punctul chiar sub bara cardului cand e loc, cardul ridicat cand jos nu e loc, niciodata sub bara de
+  sus a site-ului si mereu la nivelul punctului. Linkul si butonul nu mai raman sub marginea
+  ecranului, unde ar fi trebuit derulat, iar derularea ar fi luat cardul de sub mouse.
+- **Captura de ecran a proiectului deschide si ea site-ul**, cand proiectul are unul: e cea mai mare
+  tinta din card.
+- **Dupa o derulare**, cardul se deschide la prima miscare a mouse-ului, fara asteptare. S-a masurat
+  in Edge ca o derulare (din script, lina sau cu rotita) trimite doar evenimente de intrare, niciodata
+  de miscare. Regula „cardul se deschide la prima miscare” ajunge, asa ca fereastra de 400ms de dupa
+  derulare a fost scoasa. Ignora intrarea pe punct si te obliga sa iesi si sa revii.
+
+**Ce a ramas.**
+
+- Un clic sau o atingere fixeaza cardul, care sta pana la ×, Escape sau o apasare in gol. Al doilea
+  clic nu-l inchide.
+- Pe tableta, glisarea nu inchide cardul.
+- Restul de azi (instructiunea, filtrele pe intelesul oricui, textul mai mare, sageata din lista,
+  sclipirea filtrului, formularul care arata proiectul) e neschimbat.
+
+**Verificat** in Edge headless, pe build-ul nou, la 1366×768, 1280×720, 1024×768 si 1720×1300.
+Pentru fiecare din cele 9 proiecte:
+
+- cardul e intreg pe ecran si acopera zona punctului;
+- o mana lenta ajunge pana la „Deschide site-ul” si pana la butonul rosu fara sa-l piarda;
+- cardul dispare cand mouse-ul pleaca in alta parte.
+
+Mai e verificat:
+
+- un card fixat ramane cand pleci, iar × il inchide;
+- daca pui mouse-ul pe un punct imediat dupa o derulare, cardul se deschide la urmatoarea miscare.
+
+tsc si lint trec. Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}`.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu).
+
+---
+
+## 2026-10-04 — Changed: `/portofoliu` pe intelesul unui om simplu sau in varsta
+
+*„ce se poate de facut ca sa fie mai intuitiv pentru un om simplu sau in varsta”* — trei pachete,
+alese toate: Esential, Citire usoara, Fara surprize.
+
+**Cum s-a gasit ce incurca.** Un audit cu persoane-tip: o doamna de 68 de ani pe laptop 1366×768,
+un domn de 72 de ani pe tableta cu zoom 200%, un patron grabit pe telefon si un verificator WCAG.
+Toti s-au oprit in aceleasi locuri:
+
+- campul negru cu puncte nu spunea ce este, iar lista era sub primul ecran („praf pe ecran”);
+- cardul disparea cand mana se misca incet sau cand pagina se derula;
+- al doilea clic il inchidea;
+- cele trei patratele din colt aratau ca un × de Windows care nu facea nimic;
+- etichetele aveau 11px, cu majuscule rarite, si cuvinte ca API, UI, SaaS;
+- o apasare nu arata ce a facut.
+
+**Esential.**
+
+- O linie deasupra campului: „Fiecare punct luminos e un proiect. Apasa pe unul sau alege din lista
+  de mai jos ↓”, cu linkul catre lista. Golul de deasupra titlului s-a micsorat cat linia, deci
+  campul nu s-a mutat.
+- Cardul nu se mai inchide singur. Se inchide pe ×, cu Escape, la o apasare in gol sau cand arati
+  alt punct. Dublu-clicul il lasa deschis; Enter de la tastatura il deschide si il inchide.
+- Pe tableta, glisarea nu-l mai inchide, doar o atingere in gol. Atingerea unui punct aduce cardul
+  in ecran.
+- Un punct adus sub cursorul nemiscat de o derulare nu mai deschide nimic.
+- Un × adevarat pe card, „Inchide”, care pune focusul inapoi pe punct.
+
+**Citire usoara.**
+
+- Text mai mare: numele din lista au 16px, etichetele 12,5px, filtrele 12,5px cu litere mai putin
+  rarite, iar butonul din card 14px.
+- Filtrele pe intelesul oricui, doar pe aceasta pagina: „Aplicatii si platforme”, „Programe
+  interne”, „Boturi si chat”, „Site-uri si design”.
+- Randurile din lista au o sageata › si numele se subliniaza, ca sa se vada ca se pot apasa.
+- „fara link public” devine „nu are pagina publica”, cu litere normale.
+- Pe telefon, cardul arata toata descrierea, la 16px.
+- Etichetele si descrierile proiectelor pe intelesul oricui sunt pregatite, dar nu sunt aplicate:
+  sunt textele proprietarului din admin si le aproba el.
+
+**Fara surprize.**
+
+- Cand apesi un filtru, punctele ramase aprinse se arata o secunda sub lupa.
+- Formularul de cerere spune „Proiect ales ca exemplu: CGAM” (`Estimator.tsx`).
+- Site-ul proiectului se deschide in aceeasi fila, ca butonul Inapoi sa mearga.
+
+**Verificat** in Edge headless, pe build-ul nou:
+
+- La 1366×768 se vede instructiunea, iar campul a ramas la y 293.
+- Dupa ce mouse-ul pleaca, cardul ramane deschis. Dublu-clicul il lasa deschis, iar × il inchide
+  si pune focusul pe punct.
+- Apasarea in gol il inchide. Enter il deschide si il inchide.
+- Pe tableta, atingerea il deschide si il aduce in ecran, glisarea nu-l inchide, iar atingerea in
+  gol il inchide.
+- Un punct adus sub cursor de o derulare nu schimba cardul.
+- Filtrul „Site-uri si design” arata exact cele trei proiecte, o secunda.
+- Formularul arata proiectul.
+- Linkul „lista de mai jos” coboara pana la lista, sub bara.
+- La 1280 randul de filtre trece sub titlu (are nevoie de 926px si are 884px), dar asistenta nu
+  acopera niciun punct la 1280×800, 1280×720, 1366×768, 1440×900 si 1024×768.
+
+tsc, lint si vitest trec (76 de fisiere, 1549 de teste). Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}`,
+`components/sections/Estimator.{tsx,module.css}`.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu),
+[docs/04-design-system.md](./docs/04-design-system.md#the-portfolios-controls).
+
+---
+
+## 2026-10-04 — Added: `/portofoliu` capata filtru pe servicii, legenda, cerere din card si final
+
+*„… si mai adauga ceva util ca pagina arata prea sarac”*
+
+**De ce.** Pagina era un titlu, un contor si un camp gol cu noua puncte de lumina. Cu pixelii de
+3px (intrarea de mai jos), proiectele se gaseau si mai greu. Tot ce s-a adaugat vine din date care
+exista deja si nimic nu e desenat pe camp.
+
+**Ce s-a adaugat.**
+
+- **Filtru pe servicii**, in randul titlului, acolo unde era contorul: `TOATE · 9`,
+  `PRODUS DIGITAL · 5`, `AUTOMATIZARE & API · 3`, `ASISTENTI IA & BOTURI · 2`, `BRAND & UI · 3`.
+  Etichetele sunt cele scurte de pe Home, mutate intr-un singur tabel (`directionTab` in
+  `lib/solutions.ts`), pe care il citesc acum si pastilele de pe Home. Apartenenta vine din
+  `solutionProjectIds`, nu din eticheta libera a proiectului. E-commerce nu are proiecte, deci
+  nu are buton. Un serviciu ales stinge pixelii din afara lui: butonul pixelului scade la 16% in
+  trei trepte, palpairea se opreste si pixelul nu mai poate fi atins (`inert`). Pozitiile nu se
+  misca. Filtrul nu e in URL: estimatorul citeste `?serviciu=` pe orice pagina.
+- **Legenda**, sub camp: fiecare proiect cu lumina lui, numele si eticheta, pe trei coloane. Un rand
+  peste care treci cu mouse-ul aprinde pixelul lui sub lupa, fara sa deschida nimic. Clicul pe rand
+  e clicul pe pixel: fixeaza cardul si il aduce in ecran, sub bara de sus. De la tastatura, focusul
+  trece pe pixel. Pe telefon, atingerea alege proiectul.
+- **„Vreau un proiect similar”**, ultimul rand din fiecare card: deschide formularul de cerere cu
+  proiectul atasat (`project-card`), cu serviciul ales si cu tipul potrivit deja selectat
+  (`projectRequestType`: aplicatiile pe „Aplicatie mobila”, sistemele private pe „CRM la comanda”).
+  Cardul e fixat inainte, iar ascultatorul lui de Escape si de clic in afara sta pe loc cat timp
+  formularul e deschis. Cand se inchide formularul, cardul e tot acolo si focusul revine pe buton.
+- **Finalul**: panoul de inchidere al paginilor de servicii, cu textele lor aprobate („Ai un proiect
+  in minte?”, „Incepe cererea”, sursa noua `portfolio-bottom`). Cand e ales un serviciu, panoul duce
+  si la pagina lui („Deschide serviciul: Produs digital →”).
+
+**Ce s-a reparat pe drum.** Previzualizarea unui pixel porneste acum la prima miscare a mouse-ului
+dupa ce intra pe el, nu doar la intrare. Un pixel ajuns sub cursorul nemiscat dupa o derulare nu
+mai deschide un card. Un card inchis cu al doilea clic sau cu Escape ramane inchis pana iesi si
+revii. Coltul gol pentru asistenta a coborat de la 62% la 50%, pentru cazul in care filtrul trece
+pe randul urmator. Niciun pixel de acum nu s-a mutat (verificat cu algoritmul real, pentru orice
+valoare intre 62 si 30).
+
+**Gasit la revizuire si reparat** (patru revizori pe cod, fiecare constatare verificata de doi
+sceptici care au incercat s-o infirme):
+
+- Bara de sectiuni din dreapta numea sectiunea dupa proiectul din cardul de telefon („BizCheck”), nu
+  „Portofoliu”, si o pierdea cu totul cat timp un card era deschis. Cauza: titlul statea intr-un
+  `<header>`, pe care bara il sare, iar cardurile aveau `<h2>`. Acum randul de titlu e un `<div>`,
+  iar numele din card e `role="heading" aria-level="2"`. Cititorul de ecran aude tot un titlu de
+  nivel 2, dar bara nu-l mai numara ca sectiune.
+- In modul de contrast al Windows (forced colors), pixelii nu se mai desenau deloc si campul era
+  gol. Acum isi pastreaza culorile (`forced-color-adjust: none`). Butonul de filtru apasat se vede
+  prin chenar, iar conturul ramane pentru focus.
+- Inelul de focus al pixelului era acoperit de card pe latura dinspre card. Acum sta deasupra.
+- Pe tableta, dupa a doua atingere, pixelul ramanea marit (`:hover` ramane lipit la touch).
+  Lupa si fundalul randului la hover sunt acum doar unde exista hover.
+- Linia de sus a panoului de final se „desena” intr-un pixel de derulare, deci nu se vedea niciodata
+  desenandu-se. Era acelasi defect si pe paginile de servicii, de unde e copiata. Acum o deseneaza
+  intrarea panoului in ecran, pe ambele (`components/sections/DirectionPage.module.css`).
+- Pe telefon, atingerea randului proiectului deja ales nu aducea cardul in ecran. Acum il aduce.
+- Randurile stinse de filtru lasau elemente de lista goale pentru cititorul de ecran: acum tot
+  elementul e `inert`.
+- Doua stari interne puteau ramane agatate: o intrare a mouse-ului pe pixel dupa un clic si o
+  apasare tinuta cand cardul se inchidea. Si aducerea in ecran a cardului e acum un eveniment, nu
+  un steag care putea porni mai tarziu la un hover.
+
+**Cum s-a ales.** Prin workflow: trei propuneri independente (vizitator, informatie, tema), doi
+judecatori si o sinteza. Toti au fost de acord pe filtru si pe butonul din card. Legenda a ramas,
+desi un judecator si sinteza voiau s-o taie, pentru ca e singura adaugire care se vede in repaus si
+ajuta la gasirea pixelilor de 3px. Sagetile ‹ › prin proiecte, pe telefon, n-au intrat: legenda
+acopera nevoia.
+
+**Verificat** in Edge headless, pe build-ul nou:
+
+- La 1720×1300 in ro, ru si en: filtrul sta pe randul titlului, iar campul a ramas la aceeasi
+  inaltime (y 293).
+- Filtrul „Produs digital” lasa aprinsi exact BizCheck, DocuSafe, IQ Arena, Statistic si FLIRT.
+  Pixelii stinsi sunt `inert`, iar randurile lor se estompeaza.
+- Daca apesi un serviciu in timpul aprinderii pixelilor, niciunul nu ramane inghetat luminos.
+- Cererea din card: formularul se deschide, iar o apasare in el nu inchide cardul. Escape revine pe
+  buton, al doilea Escape inchide cardul si focusul revine pe pixel. Tipul e preselectat corect
+  (IQ Arena → Aplicatie mobila, DocuSafe → CRM la comanda, CGAM → implicit).
+- Tastatura: Enter pe un rand muta focusul pe pixel si deschide cardul. Tab intra in card, Escape
+  revine pe pixel.
+- Asistenta nu acopera niciun pixel la 1280×800, 1366×768, 1440×900, 1024×900 si 1024×768.
+- Cardurile au 422–437px si incap in campul minim de 440px.
+- Pe telefon (390 si 320) nu exista derulare orizontala. Banda de filtre se deruleaza in ea. Un
+  serviciu care stinge proiectul ales trece cardul pe proiectul de referinta, fara derulare. Un rand
+  atins alege proiectul, iar cardul ajunge sub bara.
+- Cu reduced motion totul se schimba instant.
+- Cu 0 proiecte se afiseaza „Proiecte · 0”. Cu 1 proiect, contoarele sunt corecte. Un id
+  necunoscut apare doar la „Toate”.
+
+Consola e curata. tsc, lint si vitest trec (76 de fisiere, 1549 de teste). Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}`, `lib/solutions.ts` (`directionTab`,
+`projectRequestType`), `components/sections/Directions.tsx` (doar datele etichetelor),
+`lib/request/RequestFlowProvider.tsx` (`portfolio-bottom`), `lib/portfolioScatter.ts` (`avoid.y`),
+`components/sections/DirectionPage.module.css` (linia panoului de final).
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu),
+[docs/04-design-system.md](./docs/04-design-system.md#the-portfolios-controls),
+[docs/03-architecture.md](./docs/03-architecture.md) (ruta).
+
+---
+
+## 2026-10-04 — Changed: pixelii din `/portofoliu` arata ca lumina reala, cat un pixel adevarat
+
+*„nu arata real pixelii, fa sa arate mai real”*, apoi *„poti sa faci la marimea de pixeli
+aproximativ ca se vede parca ca sunt patrate”*
+
+**Ce era.** Pixelul era desenat la orice distanta ca triada RGB vazuta de aproape: trei bare
+plate dupa o matrice neagra, de 13px. Un pixel real nu arata asa. De unde stai in fata ecranului,
+ochiul nu desparte subpixelii si vede un punct de lumina. Barele plate se citeau ca un grafic. Si un
+patrat de lumina de 13px (primul pas de azi) se vedea tot ca un patrat desenat.
+
+**Ce e acum.** Doua scari, ca la un ecran adevarat:
+
+- **In repaus**, pixelul e un punct de lumina de 3px, cam cat un pixel adevarat, in culoarea
+  proiectului si mai alb spre centru. Il inconjoara un disc moale de 34px din aceeasi culoare, care
+  il face usor de gasit si deosebeste doua proiecte.
+- **Sub lupa** (cursorul sau focusul), punctul se deschide intr-un pixel marit de 42px: bare rosii,
+  verzi si albastre care lumineaza pe matricea neagra. Fiecare bara e mai aprinsa pe mijloc si e
+  aprinsa cat ii revine din culoare, ca intr-o fotografie macro a unui ecran. Cadrul si spatiile de
+  3px lasa trei bare intregi de 10px.
+
+Sunt doua elemente in buton: `.light` (punctul si discul) si `.tri` (pixelul marit, care creste din
+punct). Palpairea e pe lumina: din cand in cand se stinge o clipa tot pixelul. Zona de atingere a
+ramas de 40px (44px pe telefon). Pe telefon, pixelul ales e un punct mai luminos intr-o rama si
+ramane lumina: lupa e pentru cursor, iar o atingere lasa pixelul `:hover`.
+
+**Verificat** in Edge headless, pe build-ul nou, la 1720×1300 si la 390×844 tactil:
+
+- In repaus punctul are 3×3px, iar pixelul marit e ascuns.
+- Sub lupa pixelul marit are 42×42px, cu barele la nivelurile culorii (Itara: 0,19 / 0,71 / 0,66).
+  Cand cursorul pleaca, revine punctul.
+- Pe telefon, pixelul atins ramane punct (1,6×, cu rama), desi e `:hover`.
+- Cu reduced motion nu exista animatii si nici tranzitii.
+
+Consola e curata. Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.module.css` (punctul, discul, pixelul marit, lupa,
+telefonul, pauza si reduced motion), `components/sections/Portfolio.tsx` (elementul `.light`).
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu),
+[docs/04-design-system.md](./docs/04-design-system.md#subpixels).
+
+---
+
+## 2026-10-03 — Added: pagina `/portofoliu` — un pixel pentru fiecare proiect
+
+*„acum pentru portofolio trebuie sa facem o pagina aparte ca a sa se mai adauge si a sa nu fie
+list prea mare si am o idee ca in ui sa fie pixeli mici si cand pui cursorul pe pixeli mici sa
+apara proiectele noastre, adica un pixel ii un proiect”* — apoi: *„sa fie haotic … ca pixeli
+adevarati si pe fundal sa nu se vada matricea”* si *„sa arate cu pixeli mai reali si adauga o
+animatie … asemanator cu pixeli”*. Pixelul se deschide in card.
+
+**Pagina.** `app/(site)/portofoliu/page.tsx` → `components/sections/Portfolio.tsx` +
+`Portfolio.module.css`. Titlul „Portofoliu” si contorul `PROIECTE · N`, apoi pagina goala — fara
+grila, fara puncte, fara rama, si fara grila fina a fundalului site-ului, scoasa doar aici — pe
+care fiecare proiect din magazin (adica din admin) e un pixel ca unul real vazut de aproape: trei
+subpixeli, rosu, verde, albastru, dupa o matrice neagra, fiecare aprins cat ii revine din culoarea
+proiectului, cu o lumina mica in culoarea lui. Cand pagina apare, pixelii se aprind fiecare in
+alta clipa (intuneric, un blitz alb, o sacadare, apoi culoarea); din cand in cand cate un subpixel
+cade o clipa. Peste 640px, cursorul sau focusul pune pixelul sub lupa (i se vad subpixelii) si
+cardul se construieste din el: descoperit pe coloane, in trepte, ca un mozaic de blocuri in
+nuantele proiectului, care se sting unul cate unul pana ramane cardul — bara cu eticheta, captura,
+numele, descrierea, „Deschide site-ul ↗” (sau „fără link public”), App Store / Google Play. Click
+il fixeaza; trecand peste alti pixeli ii previzualizezi, iar cand pleci revine cel fixat; un
+Escape, o apasare pe orice nu e pixel sau card (si golul campului) sau inca un click pe pixel il
+inchide. Pe telefon campul e un selector: cardul proiectului ales sta sub el (primul, din server),
+se construieste la fel la fiecare atingere si e adus in ecran daca nu se vede. Cu reduced motion:
+pixelii doar aprinsi, cardul intreg, nimic nu se misca.
+
+**Pozitiile** (`lib/portfolioScatter.ts`): haotice — un punct oriunde in camp, nimic aliniat — dar
+deterministe, din id-ul proiectului: acelasi loc la fiecare incarcare, iar un proiect nou ia un loc
+liber fara sa-i mute pe ceilalti. Calculate pe cel mai mic camp real al fiecarei latimi (pana la un
+telefon de 320px), cu zonele de hover / atingere care nu se pot suprapune; pe telefon campul creste
+cu fiecare proiect. Coltul din dreapta-jos ramane gol de la 641px in sus: acolo sta asistenta, care
+la ferestre obisnuite de laptop acoperea un pixel. **Culorile** proiectelor s-au mutat din Work in
+`lib/projectAccent.ts`, ca un proiect sa aiba aceeasi culoare si pe Home, si in portofoliu.
+
+**Subsolul**: coloana PORTOFOLIU e acum un singur link, „Proiectele TBS →” spre `/portofoliu` (lista
+crestea cu fiecare proiect), care aterizeaza sus de tot (`lib/landAtTop.ts`, mutat din Navbar si
+folosit acum si de logo). **SEO**: pagina e in `app/sitemap.ts`; `/ru/portofoliu` si
+`/en/portofoliu` sunt aceeasi ruta, cu titlul, descrierea si Open Graph in limba lor
+(`generateMetadata`; regula de limba a layoutului e acum in `lib/i18n/requestLocale.ts`).
+
+**Verificat** de doua ori cu agenti in Edge headless (16 agenti, toti pixelii la 1720 / 1024 /
+800, tastatura, tableta, telefoane de 320 si 390, 0 si 50 de proiecte, ro/ru/en, reduced motion,
+consola) si apoi, dupa reparatii, punct cu punct: un singur Escape inchide cardul si intoarce
+focusul pe pixel; o apasare in golul campului inchide cardul fixat; o apasare in card nu-l mai
+inchide; cardul fixat revine dupa o previzualizare; carduri cu nume pe doua randuri si linkuri de
+magazin raman in camp (0,2px); toti pixelii accesibili cu asistenta pornita la 1280×800, 1024×900,
+1440×900; 0 suprapuneri pe telefon cu 12 si 20 de proiecte la 320px; subsolul aterizeaza la y 0;
+inelul de focus se vede in jurul pixelului marit. Consola curata. Niciun test nou.
+
+Fisiere: `app/(site)/portofoliu/page.tsx`, `components/sections/Portfolio.{tsx,module.css}`,
+`lib/portfolioScatter.ts`, `lib/projectAccent.ts`, `lib/landAtTop.ts`, `lib/i18n/requestLocale.ts`,
+`components/sections/Work.tsx`, `components/layout/{Footer,Navbar}.tsx`, `app/layout.tsx`,
+`app/sitemap.ts`, `app/globals.css` (tokenurile `--subpixel-r/g/b`).
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu),
+[docs/04-design-system.md](./docs/04-design-system.md#subpixels) (subpixelii),
+[docs/03-architecture.md](./docs/03-architecture.md) (rutele),
+[docs/16-i18n-seo.md](./docs/16-i18n-seo.md) (sitemap, titlul tradus).
+
+---
+
+## 2026-10-03 — Fixed: COMPANIE și DESPRE (și restul meniului) merg și de pe paginile de servicii
+
+*„cand sunt la servicii aceste 2 butoane nu lucreaza, corecteaza cu cat mai putine teste inutile”*
+
+**Cauza.** Meniul (si coloana NAVIGARE din subsol) e pe fiecare pagina, dar linkurile erau ancore
+goale — `#echipa`, `#despre`, `#servicii`, `#lucrari` — catre sectiuni care exista doar pe Home. Pe
+o pagina de serviciu duceau la id-uri inexistente si nu faceau nimic.
+
+**Ce s-a schimbat.**
+
+- `lib/content.ts` — sectiunile Home se scriu `/#sectiune` (`navMenu`, `navLinks`). `#parteneri`
+  ramane asa: e coloana din subsol, prezenta pe orice pagina.
+- `components/layout/SiteLink.tsx` (nou) — pe Home, `/#sectiune` ramane ancora obisnuita
+  `#sectiune` (aceeasi derulare lina ca pana acum); pe orice alta pagina e o navigare spre Home care
+  aterizeaza pe sectiune. Folosit de meniul de sus, meniul de pe telefon si subsol (si „Proiectele
+  TBS” → `/#lucrari`).
+- Ecranul de incarcare se lasa jos cand scena iese din fereastra (`data-cover`, `SceneStage.tsx`,
+  `PageLoading.module.css`): `/#echipa` aterizeaza SUB scena, care acolo sta pe pauza si nu raspunde
+  niciodata — ecranul statea peste sectiunea Echipa pana la failsafe-ul de 6 s. Acum coboara la ~2 s.
+- Spirala Lucrari (`workHelix.ts` `apply`) nu mai trage vizitatorul in proiecte cand se aseaza:
+  „proiectul la care te uiti” se pastreaza doar daca pista e chiar la mijlocul ferestrei. Ajuns la
+  `#servicii` (Work doar se ivea jos, la 1720×1300) sareai in Lucrari la ~1 s dupa ce pornea scena;
+  ajuns sub Work, ce urmeaza dupa pista e pus inapoi unde era.
+
+**Verificat** in Edge headless la 1720×1300 (si 390×844 pentru meniul de pe telefon), de pe
+`/servicii/produs-digital`: COMPANIE → `/#echipa` (ecranul de incarcare in cadrul in care apare
+Home, jos la 2,3 s, sectiunea in capul ferestrei, nicio miscare in 13 s), DESPRE → `/#despre` (la
+fel), SERVICII → `/#servicii` (ramane la Directions si dupa ce scena devine WebGL), Cazuri →
+`/#lucrari`, subsolul „Echipă” → `/#echipa`, meniul de pe telefon → `/#echipa`. Pe Home, ancorele
+raman cele native. Niciun test nou: s-a schimbat doar un mock (`request-flow.test.tsx`, `usePathname`)
+si selectorul din `loading.test.tsx`.
+
+Ramas, mai vechi: pe Home, un click in meniu in jumatatea de secunda in care se aseaza spirala e
+oprit din derulare de reimprospatarea ScrollTrigger (sare la 0 si inapoi).
+
+Fisiere: `lib/content.ts`, `components/layout/{SiteLink,Navbar,Footer}.tsx`,
+`components/scene/{SceneStage,workHelix}.ts(x)`, `components/ui/PageLoading.{tsx,module.css}`,
+`components/__tests__/{request-flow,loading}.test.tsx`.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md) (meniul, subsolul, spirala),
+[docs/03-architecture.md](./docs/03-architecture.md) (ecranul de incarcare).
+
+---
+
+## 2026-10-02 — Fixed: la navigare, pagina nouă nu se mai vede înainte de ecranul de încărcare
+
+*„loadingul nu lucreaza cum vreau, cand apas spre exemplu de la servicii sa ma duc la home pe 0,2 s
+imi apare home dupa loadingul, corecteaza te rog asta”*
+
+**Cauza, masurata.** Ecranul de incarcare (`components/ui/PageLoading`) e ridicat de scena care
+inca n-a raspuns (`data-renderer="pending"`). La o navigare fara reincarcare (o pagina de serviciu →
+Home, sau invers) layoutul si ecranul raman, iar scena paginii noi porneste in `pending` — si
+ecranul URCA cu o tranzitie de 0,45 s. Pagina pe care trebuia s-o ascunda se vedea prin el:
+masurat, Home pus in pagina la 701 ms dupa click cu ecranul la opacitate 0.
+
+**Ce s-a schimbat.**
+
+- `PageLoading.module.css` — ecranul urca intr-un singur cadru (`transition: none` pe regula care il
+  ridica) si coboara in continuare lin, 0,45 s. La o incarcare completa nu se schimba nimic.
+- `components/scene/SceneStage.tsx` — o scena MONTATA pe client (navigare, Back) isi da raspunsul din
+  prima randare (`readEntry()`; un `useSyncExternalStore` deosebeste hidratarea, care ramane ca
+  inainte). Altfel, la dispozitivele care n-au nimic de incarcat — scena oprita, reduced motion,
+  Save-Data/2G, telefon slab — ecranul ar fi clipit un cadru la fiecare click. Conditiile se citesc
+  O SINGURA DATA pe montare: citite si in randare si in efect, o conditie schimbata intre ele lasa
+  scena in `pending` pentru totdeauna (gasit la verificare, reprodus, reparat).
+- Logo-ul (`components/layout/Navbar.tsx`) — `landAtTop` nu mai sare pagina parasita la 0 inainte de
+  navigare (se vedea asa tot fetch-ul); pune Home la y 0 in primul lui cadru, doar daca adresa noua
+  chiar e Home fara `#`; un Back in timpul asteptarii il opreste; asteapta 15 s masurate in timp, nu
+  in cadre; `/ru` si `/en` sunt Home (logo-ul urca si pastreaza prefixul).
+- Failsafe-ul de 6 s al ecranului merge si cu reduced motion: regula globala
+  `* { animation: none !important }` il anula, iar daca JS-ul paginii nu ajungea, ecranul ramanea
+  peste pagina pentru totdeauna (masurat cu chunk-urile blocate).
+
+**Verificat** in Edge headless la 1720x1300, cadru cu cadru si cu inregistrare video: in fiecare
+navigare spre o pagina cu scena (logo, pastile, meniul Servicii, „Înapoi la direcții”, Back,
+`/cookies` → Home) cadrul in care apare pagina noua are deja ecranul la 1.00 — pagina veche,
+incarcarea, pagina noua, 0 cadre cu pagina noua inainte. Scena oprita, reduced motion, telefon slab
+si dupa intro: ecranul nu urca deloc (max 0.00). Testul nou (`scene-stage.test.tsx`) prinde o scena
+montata pe client care ar trece prin `pending`.
+
+Fisiere: `components/ui/PageLoading.module.css`, `components/scene/SceneStage.tsx`,
+`components/layout/Navbar.tsx`, `components/__tests__/{scene-stage,loading}.test.tsx`.
+Explicatia: [docs/03-architecture.md](./docs/03-architecture.md) (pipeline-ul scenei, ecranul de
+incarcare), [docs/05-page-sections.md](./docs/05-page-sections.md) (logo-ul).
+
+---
+
+## 2026-10-02 — Fixed + Removed: logo-ul „TBS.” duce acasă; subtitlurile de sub titluri, scoase
+
+*„fa-mi sa lucreze butonul home, aceste sterge-le.”*
+
+**Fixed — logo-ul.** Era `href="#top"`. Pe o pagina de serviciu `#top` nu exista, asa ca browserul
+doar urca pagina aceea si nu pleca nicaieri (masurat: `/servicii/produs-digital#top`, y 0). Acum e
+un `Link` spre `/`: de pe orice alta pagina te duce pe prima pagina, la y 0 — cu `scroll={false}`
+si `landAtTop` (pune y 0 in cadrul in care adresa s-a schimbat, inainte de prima pictare a paginii
+noi; pagina parasita nu se misca), fiindca derularea proprie a lui Next aseza inceputul paginii
+sub bara lipicioasa (masurat: y 71). Pe prima pagina urca lin pana
+SUS DE TOT (inainte se oprea la y 71, sub bara) si scoate `#sectiunea` din adresa, ca un F5 dupa
+el sa ramana sus. Clicul cu Ctrl/Cmd/Shift ramane al browserului.
+
+*Nota pentru verificare:* Edge headless anima DOAR prima derulare lina dintr-o sesiune; de la a
+doua, un `window.scrollTo({ top: 0 })` gol nu misca pagina deloc. Fiecare masuratoare de derulare
+se face deci intr-un browser proaspat — altfel pare ca vina e a codului.
+
+**Removed — cele opt randuri de sub titluri**, in toate trei limbile:
+
+- erou: *„De la consultanță la produs funcțional.”* — si pasul `lead` din intrarea paginii dupa
+  intro (`INTRO_REVEAL_ORDER`, `IntroDirector`); pasii de dupa el au urcat cu 0,08s;
+- Servicii: *„Selectează o direcție. Conținutul se schimbă instant…”*;
+- Lucrari: *„De la platforme web la aplicații mobile…”*;
+- Echipa: *„O echipă mică și implicată…”*;
+- Estimare: *„Un dialog scurt clarifică cererea…”* — doar pe pagina; dialogul de cerere isi
+  pastreaza propriul rand;
+- paginile de serviciu: paragraful de sub `<h1>` (campul `intro` a iesit din `lib/solutions.ts`,
+  pe toate cinci directiile) si *„Lucrări reale livrate pe această direcție.”* sub „Proiecte
+  relevante”.
+
+CSS-ul ramas fara folosinta (`.lead` in Team/Estimator, `.intro` si `.projectsTop p` in
+DirectionPage) a iesit; titlul „Proiecte relevante” isi ia distanta de dedesubt (`--sp-5`).
+
+Fisiere: `components/layout/Navbar.tsx`, `components/sections/{Hero,Directions,Work,Team,Estimator,DirectionPage}.tsx`,
+`components/sections/{Team,Estimator,DirectionPage}.module.css`, `components/intro/IntroDirector.tsx`,
+`lib/intro.ts`, `lib/solutions.ts`; testele care numeau randurile scoase.
+Explicatia: [docs/05-page-sections.md](./docs/05-page-sections.md).
+
+---
+
 ## 2026-09-28 — Fixed: „taitura” de la gura asistentei era TRANSFORMAREA, nu desenul
 
 *„buza de sus deloc nu se misca dar taitura care ii la gura se observa, corecteaza te rog sa fie ca

@@ -37,11 +37,6 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 
 const SECTION = {
   title: L("Spune-ne ce vrei să construiești.", "Расскажите, что хотите построить.", "Tell us what you want to build."),
-  lead: L(
-    "Un dialog scurt clarifică cererea, iar rezumatul se atașează automat propunerii.",
-    "Короткий диалог уточняет запрос, а его résumé автоматически прикрепляется к предложению.",
-    "A short dialog clarifies the request, and its summary is attached to the proposal automatically.",
-  ),
   step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
   step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),
   proposal: L("PROPUNEREA TA", "ВАШЕ ПРЕДЛОЖЕНИЕ", "YOUR PROPOSAL"),
@@ -127,6 +122,11 @@ const ORIGIN = {
 /* The note under the proposal when a HUD tool handed something over with the request
    (`context.attachment`): what travels, and how much of it, so the visitor knows what the
    team will read. `{total}` is " · de la 600€", or nothing when the tool had no total. */
+/* The project the visitor asked for "one like" (a portfolio card's "Vreau un proiect similar"),
+   said back to them at the top of the form: until 2026-10-04 its name travelled only in the
+   message to the team, and the visitor could not see what they had sent. */
+const EXAMPLE = L("Proiect ales ca exemplu: {name}", "Проект-пример: {name}", "Example project: {name}");
+
 const ATTACHED = {
   calculator: L(
     "Selecția din calculator (servicii: {n}{total}) pleacă împreună cu cererea.",
@@ -1210,6 +1210,9 @@ export function Estimator({
 
       <div className={styles.steps}>
         <div className={styles.bayLeft}>
+          {projectName ? (
+            <p className={styles.example}>{format(l(EXAMPLE), { name: projectName })}</p>
+          ) : null}
           {/* Real headings. On the page they sit under the section's own <h2>; in the dialog
               under the modal's, where they are the ONLY structure a screen reader gets — the
               wizard had a heading per step and the deck had none. */}
@@ -1279,7 +1282,6 @@ export function Estimator({
           <div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
           </div>
-          <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
         {deck}
       </div>

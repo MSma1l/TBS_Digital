@@ -20,6 +20,7 @@ const PATHS: { path: string; changeFrequency: MetadataRoute.Sitemap[number]["cha
     changeFrequency: "monthly" as const,
     priority: 0.8,
   })),
+  { path: "/portofoliu", changeFrequency: "monthly", priority: 0.7 },
   { path: "/confidentialitate", changeFrequency: "yearly", priority: 0.4 },
   { path: "/cookies", changeFrequency: "yearly", priority: 0.4 },
 ];

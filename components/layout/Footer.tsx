@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEvent } from "react";
 
 import Link from "next/link";
 
@@ -10,26 +10,48 @@ import type { SocialNetwork } from "@/lib/content";
 import { useSiteContent } from "@/lib/siteContent";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { splitLocalePath } from "@/lib/i18n/locales";
+import { landAtTop } from "@/lib/landAtTop";
 import { format } from "@/lib/i18n/format";
 import type { MessageKey } from "@/lib/i18n/messages";
 import { socialIcons, socialNames } from "@/components/ui/SocialIcons";
+import { SiteLink } from "./SiteLink";
 import styles from "./Footer.module.css";
 
 /** Inline trilingual literal for the portfolio column (kept out of the catalog). */
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const PORTFOLIO_LABEL = L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO");
-/** The first entry — everything under it is the real portfolio, read from the store. */
+/** The column's one link: the whole portfolio lives on /portofoliu. */
 const ALL_PROJECTS = L("Proiectele TBS", "Проекты TBS", "TBS projects");
+
+/** Where the portfolio link goes — the path, language prefix aside. */
+const PORTFOLIO_PATH = "/portofoliu";
+
+/**
+ * The portfolio link lands at the top of /portofoliu (`landAtTop` — Next's own scroll stops at
+ * y 71, animated, on this site), and on /portofoliu itself it scrolls up to it. A modified click
+ * (new tab, new window) is left to the browser.
+ */
+function onPortfolioClick(event: ReactMouseEvent<HTMLAnchorElement>) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const { pathname } = window.location;
+  if (splitLocalePath(pathname).rest !== PORTFOLIO_PATH) {
+    landAtTop(pathname, PORTFOLIO_PATH);
+    return;
+  }
+  event.preventDefault();
+  window.scrollTo({ top: 0 });
+}
 
 /* Map each footer nav anchor to its catalog key — same hrefs the Navbar uses, so the
    two menus stay in lockstep. */
 const NAV_KEY: Record<string, MessageKey> = {
-  "#servicii": "nav.services",
-  "#lucrari": "nav.work",
-  "#echipa": "nav.team",
+  "/#servicii": "nav.services",
+  "/#lucrari": "nav.work",
+  "/#echipa": "nav.team",
   "#parteneri": "nav.partners",
-  "#despre": "nav.about",
+  "/#despre": "nav.about",
 };
 
 /* Title-case a SHOUTED catalog label (SERVICII → Servicii) so the footer columns read
@@ -90,7 +112,7 @@ export function Footer() {
       ? t("footer.social.websiteAria")
       : format(t("footer.social.networkAria"), { network: socialNames[type] });
   const l = useLoc();
-  const { partners, contacts, socials, projects } = useSiteContent();
+  const { partners, contacts, socials } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
 
   /* A social only exists once the owner pastes its URL in the admin. Until then the
@@ -194,9 +216,9 @@ export function Footer() {
                     ? t(NAV_KEY[link.href])
                     : link.label;
                   return (
-                    <a key={link.href} href={link.href} className={styles.colLink}>
+                    <SiteLink key={link.href} href={link.href} className={styles.colLink}>
                       {titleCase(label)}
-                    </a>
+                    </SiteLink>
                   );
                 })}
               </nav>
@@ -234,32 +256,13 @@ export function Footer() {
             <h4 className={`mono ${styles.colLabel}`} style={{ "--i": 3 } as CSSProperties}>
               {l(PORTFOLIO_LABEL)}
             </h4>
-            {/* The whole real portfolio, not a hand-written pair. It used to list exactly
-                two projects as literals, so anything added in the admin never appeared here.
-                A project with a public URL opens it; one without (a private CRM, an
-                unreleased app) links to the /04 grid, which is where it can actually be
-                seen — never a link with nowhere to go. */}
+            {/* One link, not a row per project (2026-10-03): the column listed the whole
+                portfolio and grew with every project the admin added, so the list moved to
+                its own page, /portofoliu, and the column points there. */}
             <nav className={styles.colNav}>
-              <a href="#lucrari" className={styles.colLink}>
-                {l(ALL_PROJECTS)}
-              </a>
-              {projects.map((p) =>
-                p.url ? (
-                  <a
-                    key={p.id}
-                    href={p.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.colLink}
-                  >
-                    {p.name} ↗
-                  </a>
-                ) : (
-                  <a key={p.id} href="#lucrari" className={styles.colLink}>
-                    {p.name}
-                  </a>
-                ),
-              )}
+              <Link href={PORTFOLIO_PATH} scroll={false} onClick={onPortfolioClick} className={styles.colLink}>
+                {l(ALL_PROJECTS)} →
+              </Link>
             </nav>
           </div>
         </div>

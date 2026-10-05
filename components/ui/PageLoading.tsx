@@ -5,9 +5,11 @@ import s from "./PageLoading.module.css";
  * The full-window loading cover: what a visitor looks at until the stage has rendered.
  *
  * Rendered once by `SceneStage`, so every page that has a scene gets it and a page that does not
- * never pays for it. It is up only while `data-renderer` is `pending` — the server's own value,
- * so it is painted on the first frame and nobody watches the page assemble itself — and comes
- * down on ANY answer: `webgl`, `fallback` or `off`.
+ * never pays for it. It is up only while the stage carries `data-cover`: while `data-renderer` is
+ * `pending` — the server's own value, so it is painted on the first frame and nobody watches the
+ * page assemble itself — and the stage has not yet left the window. It comes down on ANY answer
+ * (`webgl`, `fallback` or `off`), or as soon as the stage is off screen: a `/#echipa` link lands
+ * below it, where nothing it hides is in view.
  *
  * **Never after an intro.** A load where the film played has already had its cover, and the page
  * it reveals is finished: header, title, lead, both CTAs, the static hero art, both stat cards.

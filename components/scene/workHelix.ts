@@ -549,15 +549,32 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
      * above Work again, which many never are. So instead of refusing, note the project they are
      * looking at and land them back on it once the spiral has been laid out and measured. They
      * keep their place; only the form around it changes.
+     *
+     * Only someone whose window has the track across its middle is looking at a project
+     * (2026-10-03). Every other "not safe" visitor used to be handed the nearest card too, and
+     * jumped into Work about a second after the scene went live:
+     *  · the track only peeking in below the middle — they are reading Directions (a `/#servicii`
+     *    link at 1720×1300). The spiral grows the track below its own top, under everything they
+     *    see, so nothing needs keeping;
+     *  · the track ending above the middle — they are past Work (a `/#despre` or `/#echipa` link,
+     *    a click before the scene had arrived). The spiral grows the track ABOVE them, so what
+     *    follows it is put back where it was, the way `leave` does on the way out.
      */
-    const keep = want === "spiral" && !isSafe() ? cardOnScreen() : -1;
+    const box = want === "spiral" && !isSafe() ? track.getBoundingClientRect() : null;
+    const mid = window.innerHeight / 2;
+    const keep = box && box.top <= mid && box.bottom >= mid ? cardOnScreen() : -1;
+    const pastBottom = box && box.bottom < mid ? box.bottom : null;
     leave(true);
     if (want === "spiral") enterSpiral();
     else if (want === "ambient") attachAmbient();
     version = probe.version;
     setMode(want);
-    if (keep >= 0 && mode === "spiral") {
+    if (mode !== "spiral") return;
+    if (keep >= 0) {
       window.scrollTo({ top: scrollForCard(keep, cards.length, span), behavior: "instant" });
+    } else if (pastBottom !== null) {
+      const delta = track.getBoundingClientRect().bottom - pastBottom;
+      if (Math.abs(delta) >= 1) window.scrollTo({ top: window.scrollY + delta, behavior: "instant" });
     }
   }
 

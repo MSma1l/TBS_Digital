@@ -374,13 +374,16 @@ export const features: Feature[] = [
   { id: "support", label: "+ Mentenanță 6 luni" },
 ];
 
-/* ---------- Navigation / footer ---------- */
+/* ---------- Navigation / footer ----------
+   `/#section` is a section of Home (rendered by components/layout/SiteLink: an in-page anchor
+   on Home, a navigation to Home anywhere else); `#parteneri` is the footer's own column, so it
+   is on every page and stays a plain anchor. */
 export const navLinks: FooterLink[] = [
-  { label: "SERVICII", href: "#servicii" },
-  { label: "LUCRĂRI", href: "#lucrari" },
-  { label: "ECHIPĂ", href: "#echipa" },
+  { label: "SERVICII", href: "/#servicii" },
+  { label: "LUCRĂRI", href: "/#lucrari" },
+  { label: "ECHIPĂ", href: "/#echipa" },
   { label: "PARTENERI", href: "#parteneri" },
-  { label: "DESPRE", href: "#despre" },
+  { label: "DESPRE", href: "/#despre" },
 ];
 
 /* ---------- /06 Partners ----------
@@ -439,21 +442,26 @@ export type NavItem = { key: MessageKey; href: string; children?: NavChild[] };
  * all four items did nothing when clicked. They now point at the five real direction pages —
  * the same ones the /02 selector links to — and reuse the `dir.*` labels, so the menu and the
  * selector can never disagree about what a direction is called.
+ *
+ * The menu is on every page, so a section of Home is written `/#section`: written `#section`,
+ * "Companie" and "Despre" pointed at ids a service page does not have and did nothing there
+ * (2026-10-03). `components/layout/SiteLink` keeps them plain in-page anchors on Home itself.
+ * `#parteneri` is the footer's column, which every page has.
  */
 export const navMenu: NavItem[] = [
-  { key: "nav.services", href: "#servicii", children: [
+  { key: "nav.services", href: "/#servicii", children: [
     { key: "dir.digital", href: "/servicii/produs-digital" },
     { key: "dir.ecommerce", href: "/servicii/e-commerce" },
     { key: "dir.automation", href: "/servicii/automatizare-api" },
     { key: "dir.ai", href: "/servicii/asistenti-ia" },
     { key: "dir.brand", href: "/servicii/brand-ui" },
   ] },
-  { key: "nav.company", href: "#echipa", children: [
-    { key: "nav.company.team", href: "#echipa" },
+  { key: "nav.company", href: "/#echipa", children: [
+    { key: "nav.company.team", href: "/#echipa" },
     // Partners render in the footer, not as a homepage section — so the link goes there
     // rather than to a `#parteneri` section that isn't on the page.
     { key: "nav.company.partners", href: "#parteneri" },
-    { key: "nav.company.cases", href: "#lucrari" },
+    { key: "nav.company.cases", href: "/#lucrari" },
   ] },
-  { key: "nav.about", href: "#despre" },
+  { key: "nav.about", href: "/#despre" },
 ];

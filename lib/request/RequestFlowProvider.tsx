@@ -63,7 +63,10 @@ export type RequestSource =
   | "bottom-cta"
   | "service-page"
   | "service-page-bottom"
+  /** "Vreau un proiect similar" on a /portofoliu card; the project travels with it. */
   | "project-card"
+  /** The close of /portofoliu. */
+  | "portfolio-bottom"
   /** The Ghid TBS avatar itself. */
   | "guide"
   /** The tip the guide shows next to a section. */

@@ -8,16 +8,18 @@ import {
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
 } from "react";
 import Link from "next/link";
 import { navMenu, type NavItem } from "@/lib/content";
 import { useT } from "@/lib/i18n/LanguageProvider";
+import { splitLocalePath } from "@/lib/i18n/locales";
+import { landAtTop } from "@/lib/landAtTop";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { lockRootScroll } from "@/lib/scrollLock";
 import { shouldInterceptTap } from "@/lib/tapIntent";
 import { PreferencesGroup } from "@/components/ui/PreferencesGroup";
 import { HeaderClock } from "./HeaderClock";
+import { SiteLink } from "./SiteLink";
 import { useHeaderCondensed } from "./useHeaderCondensed";
 
 /** Sentence-cases a catalog label ("SERVICII" → "Servicii") for the overlay's large links. */
@@ -34,33 +36,6 @@ const DESKTOP_QUERY = "(min-width: 861px)";
 const FOCUS_RING_CLASSES =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan";
 
-/**
- * A submenu entry. Since the Services submenu started pointing at the real
- * `/servicii/<slug>` pages, half these hrefs are routes and half are still same-page
- * anchors — so the element is chosen per href: `Link` for a route (client-side navigation
- * and prefetch), a plain anchor for a hash, which `Link` would only complicate.
- */
-function NavChildLink({
-  href,
-  className,
-  onClick,
-  children,
-}: {
-  href: string;
-  className: string;
-  onClick?: () => void;
-  children: ReactNode;
-}) {
-  return href.startsWith("/") ? (
-    <Link href={href} className={className} onClick={onClick}>
-      {children}
-    </Link>
-  ) : (
-    <a href={href} className={className} onClick={onClick}>
-      {children}
-    </a>
-  );
-}
 
 /**
  * Public navigation. It deliberately carries **no link to the admin panel**: the admin
@@ -242,6 +217,31 @@ export function Navbar() {
     openRequest({ source: "navbar-menu", returnFocusTo: burgerRef.current });
   };
 
+  /**
+   * The wordmark is the way home, and home means the very top of it — never the hero, which
+   * sits under the sticky bar. A modified click (new tab, new window) is left to the browser.
+   *  · From any other page the `Link` navigates (`scroll={false}`) and `landAtTop` puts Home at
+   *    y 0 from its first frame.
+   *  · On Home itself — `/`, or `/ru` and `/en`, the same page under a language prefix — there is
+   *    nowhere to go but up: it scrolls through the page's own `scroll-behavior` (smooth, instant
+   *    under reduced motion: globals.css) and drops whatever `#section` the address carried, so
+   *    a reload stays at the top. The address keeps its language prefix.
+   */
+  const onLogoClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    close();
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+      return;
+    }
+    const { pathname, hash } = window.location;
+    if (splitLocalePath(pathname).rest !== "/") {
+      landAtTop(pathname, "/");
+      return;
+    }
+    event.preventDefault();
+    if (hash) window.history.replaceState(null, "", pathname);
+    window.scrollTo({ top: 0 });
+  };
+
   /** The visible "×": close, and give focus back to the control that opened the menu. */
   const closeAndReturn = () => {
     close();
@@ -336,16 +336,18 @@ export function Navbar() {
               condensed ? "[translate:var(--island-pull)]" : "[translate:0]"
             }`}
           >
-            {/* The wordmark. A 44px box at every width (the tap target on phones, and the
-                row's height on desktop), glyphs centred in it. */}
-            <a
-              href="#top"
+            {/* The wordmark, and the home link (`onLogoClick`). A 44px box at every width (the
+                tap target on phones, and the row's height on desktop), glyphs centred in it. */}
+            <Link
+              href="/"
+              scroll={false}
+              onClick={onLogoClick}
               className={`inline-flex min-h-11 shrink-0 items-center font-disp text-xl leading-none font-extrabold tracking-[-0.04em] text-txt uppercase no-underline max-[381px]:text-lg ${FOCUS_RING_CLASSES}`}
             >
               TBS
               {/* The red full stop: a glyph, no glow and no halo. */}
               <span className="text-red">.</span>
-            </a>
+            </Link>
             <HeaderClock variant="bar" />
           </div>
 
@@ -366,7 +368,7 @@ export function Navbar() {
                 className="relative inline-flex items-center"
                 {...itemHandlers(item)}
               >
-                <a
+                <SiteLink
                   href={item.href}
                   aria-haspopup={item.children ? "true" : undefined}
                   aria-expanded={item.children ? expanded(item.key) : undefined}
@@ -385,7 +387,7 @@ export function Navbar() {
                       +
                     </span>
                   )}
-                </a>
+                </SiteLink>
 
                 {/* The glass panel, text-bearing glass like the bar: it opens over the hero
                     headline. Opening drops `visibility` from the transition, so the children
@@ -394,14 +396,14 @@ export function Navbar() {
                 {item.children && (
                   <div className="glass-text pointer-events-none invisible absolute top-[calc(100%+var(--sp-3))] left-0 z-(--z-dropdown) flex min-w-58 -translate-y-1.5 flex-col rounded-md border border-glass-line p-2 opacity-0 shadow-lg transition-[opacity,translate,visibility] duration-150 menu-open:transition-[opacity,translate] before:absolute before:inset-x-0 before:-top-3 before:h-3 after:pointer-events-none after:absolute after:inset-x-3 after:top-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-red after:to-transparent menu-open:pointer-events-auto menu-open:visible menu-open:translate-y-0 menu-open:opacity-100 motion-reduce:transition-none">
                     {item.children.map((child) => (
-                      <NavChildLink
+                      <SiteLink
                         key={child.href}
                         href={child.href}
                         onClick={() => dismiss(item.key)}
                         className="flex min-h-11 items-center rounded-sm border-l-2 border-transparent px-3 tracking-[.03em] whitespace-nowrap text-mut no-underline transition-[color,background-color,border-color,translate] duration-150 hover:translate-x-0.5 hover:border-red hover:bg-panel2 hover:text-txt focus-visible:border-red focus-visible:bg-panel2 focus-visible:text-txt focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none motion-reduce:hover:translate-x-0"
                       >
                         {t(child.key)}
-                      </NavChildLink>
+                      </SiteLink>
                     ))}
                   </div>
                 )}
@@ -486,7 +488,7 @@ export function Navbar() {
 
             {navMenu.map((item, i) => (
               <div key={item.href} className="flex flex-col">
-                <a
+                <SiteLink
                   href={item.href}
                   onClick={close}
                   className={`flex min-h-11 items-baseline gap-3 border-b border-glass-line py-3 font-disp text-[clamp(26px,8vw,34px)] leading-[1.1] font-black tracking-[-0.02em] text-txt uppercase no-underline transition-colors hover:text-red-text motion-reduce:transition-none ${FOCUS_RING_CLASSES}`}
@@ -498,18 +500,18 @@ export function Navbar() {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   {cap(t(item.key))}
-                </a>
+                </SiteLink>
                 {item.children && (
                   <div className="flex flex-col gap-0.5 pt-0.5 pb-2.5">
                     {item.children.map((child) => (
-                      <NavChildLink
+                      <SiteLink
                         key={child.href}
                         href={child.href}
                         onClick={close}
                         className="flex min-h-11 items-center border-l-2 border-line py-2 pl-4 font-hud text-[15px] tracking-[.03em] text-mut no-underline transition-colors hover:border-red hover:text-red-text focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
                       >
                         {t(child.key)}
-                      </NavChildLink>
+                      </SiteLink>
                     ))}
                   </div>
                 )}

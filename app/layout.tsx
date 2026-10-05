@@ -1,22 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { Archivo, JetBrains_Mono, Manrope, Montserrat } from "next/font/google";
 import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
-import {
-  DEFAULT_LOCALE,
-  LOCALE_COOKIE,
-  OG_LOCALE,
-  SITE_URL,
-  detectLocale,
-  hreflangAlternates,
-  isLocale,
-  localeUrl,
-  type Locale,
-} from "@/lib/i18n/locales";
+import { OG_LOCALE, SITE_URL, hreflangAlternates, localeUrl } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
+import { resolveContentLocale, resolveUrlLocale } from "@/lib/i18n/requestLocale";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
 // brand fonts. Latin-ext covers Romanian diacritics (ă, î, ș, ț).
@@ -49,25 +40,8 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-// The CONTENT locale — what the visitor actually sees, so it drives <html lang>, <title>,
-// <meta description> and og:locale. On a crawlable /ru or /en URL the `x-locale` header
-// (set by proxy.ts from the path) wins; otherwise it's the cookie, then Accept-Language.
-// Matches how <html lang> and the LanguageProvider are resolved so SSR/first-paint agree.
-async function resolveContentLocale(): Promise<Locale> {
-  const headerList = await headers();
-  const urlLocale = headerList.get("x-locale");
-  if (isLocale(urlLocale)) return urlLocale;
-  const cookieLocale = (await cookies()).get(LOCALE_COOKIE)?.value;
-  if (isLocale(cookieLocale)) return cookieLocale;
-  return detectLocale(headerList.get("accept-language"));
-}
-
-// The URL's own locale — independent of any cookie — so canonical/og:url reflect the actual
-// address being served (`/` → ro, `/ru` → ru). Only an explicit path prefix sets x-locale.
-async function resolveUrlLocale(): Promise<Locale> {
-  const urlLocale = (await headers()).get("x-locale");
-  return isLocale(urlLocale) ? urlLocale : DEFAULT_LOCALE;
-}
+// The content and URL locales of the request: lib/i18n/requestLocale.ts (shared with pages
+// that localize their own metadata, such as /portofoliu).
 
 // Locale-aware, per-URL SEO metadata. `metadataBase` lets the file-based OG/Twitter images
 // (app/opengraph-image.tsx, app/twitter-image.tsx) resolve to absolute URLs. Canonical +

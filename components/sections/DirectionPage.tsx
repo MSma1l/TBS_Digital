@@ -502,7 +502,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
         <section className={styles.hero}>
           <div>
             <h1 className={styles.title}>{l(sol.title)}</h1>
-            <p className={styles.intro}>{l(sol.intro)}</p>
           </div>
 
           {/* The model's host, and the whole of the hero's right column since the reference
@@ -675,7 +674,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
           <section id="proiecte" className={styles.projects}>
             <div className={styles.projectsTop}>
               <h2 className="disp">{l(solUI.projectsTitle)}</h2>
-              <p>{l(solUI.projectsLead)}</p>
             </div>
 
             {/* ---- the shape this section takes where the 3D laptop is live ----

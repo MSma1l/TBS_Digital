@@ -10,11 +10,6 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 
 const SECTION = {
   title: L("Oamenii din spatele produsului.", "Люди за продуктом.", "The people behind the product."),
-  lead: L(
-    "O echipă mică și implicată, cu roluri reale — de la strategie la cod și testare.",
-    "Небольшая вовлечённая команда с реальными ролями — от стратегии до кода и тестирования.",
-    "A small, hands-on team with real roles — from strategy to code and testing.",
-  ),
 };
 
 /*
@@ -85,7 +80,6 @@ export function Team() {
           <div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
           </div>
-          <p className={styles.lead}>{l(SECTION.lead)}</p>
         </Reveal>
 
         <div className={styles.grid}>

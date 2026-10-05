@@ -122,6 +122,16 @@
   --obsidian-neon: #38e1ff;
   --obsidian-line: rgba(56, 225, 255, 0.22);
 
+  /* ---- subpixels ---------------------------------------------------------------
+     The three primaries a real screen pixel is made of, for /portofoliu, where every project
+     is drawn as one pixel seen up close: three bars, each lit to its share of the project's
+     colour (components/sections/Portfolio.module.css). Primaries on purpose — a brand-tinted
+     triad stops reading as a pixel — softened just enough not to vibrate on --void. Never
+     remapped: a pixel is the same light in any theme. Graphic only, never text. */
+  --subpixel-r: #ff3b3b;
+  --subpixel-g: #3bff6e;
+  --subpixel-b: #3b6bff;
+
   /* ---- stacking order -------------------------------------------------------
      One ladder for every fixed/sticky layer, low → high. The header sits ABOVE the burger
      overlay on purpose: the overlay slides in under it, so the burger stays usable. The

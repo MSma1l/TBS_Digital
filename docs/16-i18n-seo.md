@@ -157,8 +157,9 @@ The mechanism, end to end:
 | Output | File | What it does |
 |--------|------|--------------|
 | `robots.txt` | `app/robots.ts` | Allows everything except `/admin-tbs-digital` and `/api/`; advertises the sitemap and host |
-| `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
+| `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/portofoliu`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
+| A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title` |
 | Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated images; `og:locale` follows the served language |
 | Site icon | `app/icon.svg` | The TBS wordmark. App Router picks the file up by name — no `icons` entry in `generateMetadata()` — and emits `<link rel="icon" type="image/svg+xml" sizes="any">`. Its colours are a **copy** of the `globals.css` tokens (a static file cannot read `var()`), so a palette change has to be mirrored by hand |
 | JSON-LD | `app/layout.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph — **only verifiable facts** (brand, URL, contact email, Chișinău/MD, languages). `sameAs` is omitted rather than invented |

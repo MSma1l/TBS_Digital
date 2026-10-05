@@ -60,13 +60,6 @@
   overflow-wrap: break-word;
 }
 
-.intro {
-  font-size: var(--fs-lg);
-  line-height: 1.55;
-  color: var(--mut);
-  max-width: 620px;
-  margin: 0;
-}
 
 /* Same <button>-not-<a> treatment as `Hero .primary`: explicit `border: 0` and
    `cursor: pointer`, and the 56.8px shared by every content CTA. */
@@ -792,12 +785,8 @@
 .projectsTop h2 {
   font-size: clamp(26px, 3.4vw, 34px);
   letter-spacing: -0.04em;
-  margin: 0 0 var(--sp-2);
-  color: var(--txt);
-}
-.projectsTop p {
-  color: var(--mut);
   margin: 0 0 var(--sp-5);
+  color: var(--txt);
 }
 /* The reel's scroll box. A plain block that changes nothing about the shelf inside it — until the
    phone breakpoint turns it into a scroller (see the max-width: 760px block). It is also the box
@@ -1781,10 +1770,16 @@ span.projHit:focus-visible {
   transform-origin: 50% 50%;
 }
 
+/* Drawn by the PANEL's entry into view (2026-10-04): with `view()` the 2px thread was its own
+   subject, its whole entry lasted a pixel of scroll, and it was already drawn by the time it could
+   be seen. /portofoliu's close (Portfolio.module.css) is the same panel — change both together. */
 @media (prefers-reduced-motion: no-preference) {
+  .bottom {
+    view-timeline: --dp-close block;
+  }
   .bottomThread {
     animation: bottom-thread 700ms var(--motion-ease-out) both;
-    animation-timeline: view();
+    animation-timeline: --dp-close;
     animation-range: entry 10% entry 70%;
   }
 }
