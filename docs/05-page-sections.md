@@ -953,10 +953,11 @@ reduced motion.
   central promise is a focused first version, real-user learning, then an evidence-led next
   iteration; it does not invent a delivery deadline or call the work “cheap”.
   - **The headline:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px),
-    **"Testează ideea. Construiește doar ce funcționează."**, whose closing full stop is a plain
+    **"Testează ideea. Investește după dovezi."**, whose closing full stop is a plain
     red glyph.
-  - **The subtitle:** *"Pornim cu un MVP concentrat, ca să pui ipoteza în fața utilizatorilor
-    reali fără să construiești totul din prima. După semnale clare, îl dezvoltăm etapizat."*
+  - **The subtitle:** *"Pornim cu un MVP concentrat pentru utilizatori reali. După feedback,
+    dezvoltăm doar pasul următor care merită investiția."* It is deliberately compact so the
+    primary action remains visible in the first phone viewport.
     It sits where the old lead line sat and is set like it (`--mut`, 16→19px). It stops at 40ch
     from 861 to 1024px, clear of the chip on the columns' seam.
   - **The entrance:** the `title` marker wraps the headline and the subtitle, so they come in as
@@ -966,7 +967,7 @@ reduced motion.
     of 2026-10-09. The kicker above the headline (`TBS DIGITAL / WEB · SOFTWARE · AI`) went on
     2026-09-25, with every other kicker on the site — see
     [No kicker lines](#no-kicker-lines-2026-09-25).
-- **CTAs:** the primary `cta-neon` button **"Începe cu un MVP"** with an `aria-hidden` ↗ SVG
+- **CTAs:** the primary `cta-neon` button **"Testează ideea"** with an `aria-hidden` ↗ SVG
   opens the request dialog (`source: "hero"`); the secondary ghost link **"Vezi serviciile ↓"**
   goes to `#servicii`. Under them, in the same `cta` entrance group, one small muted line says
   that the starting price is clear, the first version is intentionally scoped, and the reply is
@@ -1662,11 +1663,14 @@ see [09 — Admin](./09-admin.md).
   keeps its heading and `#estimare`; the dialog has its own head and must not carry a second copy
   of either.
 - **The close of the page (2026-10-09).** The heading, shared by the page and the dialog, is
-  **"Află de la ce preț pornește proiectul tău."** (it was "Spune-ne ce vrei să construiești.").
-  On the page only, a lead line under it: *"Alegi tipul de proiect, vezi prețul de pornire și
-  trimiți cererea. Îți răspundem în cel mult o zi lucrătoare."* (`.lead`, `--mut`,
-  `--fs-base`; an older lead went on 2026-10-02). The dialog keeps its own lead. This is the
-  page's last call to action: BottomCTA (*"Ai un proiect care merită construit corect?"* /
+  **"Spune ce vrei să testezi. Stabilim primul pas."** It makes the decision before the price:
+  the page lead explains that a few questions define the first version, what must be validated
+  and the starting investment, then promises a reply within one business day. The dialog's lead
+  explains that its summary is attached to the request. The assistant is labelled **"Ghid pentru
+  prima versiune"**, not “online”: it is a guided decision flow, not a live-availability claim.
+  Its first question asks what the visitor wants to test; the product branch asks what the first
+  version must teach, who should test it and what can be invested in it. This is the page's last
+  call to action: BottomCTA (*"Ai un proiect care merită construit corect?"* /
   "Programează consultarea") went the same day. It repeated the form right above it, and its
   button promised a booking that did not exist, since it opened this same form. Its `#contact`
   moved to the footer.
@@ -2015,6 +2019,9 @@ starts with the visible caption, WCAG 2.5.3), 184×184 from 861px and 136 / 104 
 is drawn inside each, at 106 / 78 / 60 / 38px (two of those fixed 2026-10-07: see 04) — at
 `--z-guide` (112), with away (over `#estimare`'s request form) and yield (focus under her) both by
 opacity, never `display: none`. She is the reason the rail stops at `--hud-bottom` 208 from 861px.
+Her prewritten answers use the same MVP-first language as the page: an idea, bottleneck or
+opportunity becomes a testable first version; real signals decide what is developed next. They
+still show only the admin-controlled starting price, never a hard-coded figure or a delivery date.
 
 ## The fibre rail
 

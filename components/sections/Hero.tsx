@@ -22,17 +22,17 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const TITLE = L(
-  "Testează ideea. Construiește doar ce funcționează.",
-  "Проверьте идею. Создавайте только то, что работает.",
-  "Test the idea. Build only what works.",
+  "Testează ideea. Investește după dovezi.",
+  "Проверьте идею. Вкладывайте после подтверждения.",
+  "Test the idea. Invest when the evidence is clear.",
 );
 /** What we build and for whom, right under the headline. */
 const SUBTITLE = L(
-  "Pornim cu un MVP concentrat, ca să pui ipoteza în fața utilizatorilor reali fără să construiești totul din prima. După semnale clare, îl dezvoltăm etapizat.",
-  "Начинаем со сфокусированного MVP, чтобы проверить гипотезу на реальных пользователях и не строить всё сразу. После первых сигналов развиваем продукт поэтапно.",
-  "We start with a focused MVP, so you can test the hypothesis with real users without building everything first. Once the signals are clear, we develop it in stages.",
+  "Pornim cu un MVP concentrat pentru utilizatori reali. După feedback, dezvoltăm doar pasul următor care merită investiția.",
+  "Начинаем со сфокусированного MVP для реальных пользователей. После обратной связи развиваем только следующий шаг, в который стоит вкладываться.",
+  "We start with a focused MVP for real users. After feedback, we develop only the next step worth investing in.",
 );
-const CTA_PRIMARY = L("Începe cu un MVP", "Начать с MVP", "Start with an MVP");
+const CTA_PRIMARY = L("Testează ideea", "Проверить идею", "Test the idea");
 const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
 /** The line under the CTAs: one phrase per promise, so a narrow screen breaks the line between
  *  them rather than inside one. The "·" between them is drawn where they are rendered. */
@@ -43,9 +43,9 @@ const REASSURANCE: LocalizedText[] = [
     "A clear starting price",
   ),
   L(
-    "Nu construim totul din prima",
-    "Не строим всё сразу",
-    "We do not build everything first",
+    "Începi cu ce trebuie validat",
+    "Начинаем с того, что нужно проверить",
+    "Start with what needs testing",
   ),
   L(
     "Răspuns în cel mult o zi lucrătoare",

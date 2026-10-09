@@ -76,14 +76,14 @@ const ro = messages.ro;
 
 /** The CTAs, by the label a visitor actually reads. */
 const CTA = {
-  hero: "Începe cu un MVP",
+  hero: "Testează ideea",
   navbar: ro["nav.cta"],
   servicePage: "Cere ofertă",
   servicePageBottom: "Începe cererea",
 };
 
 /** The shared dialog's accessible name (`RequestFlowProvider` → `COPY.title`). */
-const DIALOG_TITLE = "Află de la ce preț pornește proiectul tău.";
+const DIALOG_TITLE = "Spune ce vrei să testezi. Stabilim primul pas.";
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";

@@ -293,7 +293,7 @@ export const PRIVATE_COPY = {
   /** `components/ui/Modal.tsx` → `COPY.close` (the ✕ button's aria-label). */
   modalClose: "Închide",
   /** `lib/request/RequestFlowProvider.tsx` → `COPY.title` (the dialog's accessible name). */
-  modalTitle: "Află de la ce preț pornește proiectul tău.",
+  modalTitle: "Spune ce vrei să testezi. Stabilim primul pas.",
   /** `components/sections/Estimator.tsx` → `SECTION.submit` (the real contact submit). */
   estimatorSubmit: "Trimite cererea",
   /** `lib/request/catalog.ts` → `PROJECT_TYPES[0].label`, the first project chip. */

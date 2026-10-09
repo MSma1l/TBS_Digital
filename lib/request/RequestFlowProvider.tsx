@@ -41,14 +41,14 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
    the dialog's own. */
 const COPY = {
   title: L(
-    "Află de la ce preț pornește proiectul tău.",
-    "Узнайте, с какой цены начинается ваш проект.",
-    "See the starting price for your project.",
+    "Spune ce vrei să testezi. Stabilim primul pas.",
+    "Расскажите, что хотите проверить. Определим первый шаг.",
+    "Tell us what you want to test. We'll define the first step.",
   ),
   lead: L(
-    "Un dialog scurt clarifică cererea, iar rezumatul se atașează automat propunerii.",
-    "Короткий диалог уточняет запрос, а его résumé автоматически прикрепляется к предложению.",
-    "A short dialog clarifies the request, and its summary is attached to the proposal automatically.",
+    "Câteva întrebări ne ajută să înțelegem ce merită testat mai întâi. Rezumatul se atașează automat cererii.",
+    "Несколько вопросов помогут понять, что стоит проверить в первую очередь. Итог автоматически прикрепляется к заявке.",
+    "A few questions help us understand what is worth testing first. The summary is attached to your request automatically.",
   ),
 };
 

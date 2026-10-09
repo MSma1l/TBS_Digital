@@ -70,7 +70,7 @@ const read = (repoPath: string) => readFileSync(resolve(ROOT, repoPath), "utf8")
 const ro = <T extends { ro: string }>(text: T) => text.ro;
 
 /** The shared dialog's accessible name (`RequestFlowProvider` → `COPY.title`). */
-const DIALOG_TITLE = "Află de la ce preț pornește proiectul tău.";
+const DIALOG_TITLE = "Spune ce vrei să testezi. Stabilim primul pas.";
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
 

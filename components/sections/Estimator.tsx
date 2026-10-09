@@ -41,22 +41,22 @@ const SECTION = {
      lib/request/RequestFlowProvider.tsx, written out there so the provider never imports this
      module): change the two together. */
   title: L(
-    "Află de la ce preț pornește proiectul tău.",
-    "Узнайте, с какой цены начинается ваш проект.",
-    "See the starting price for your project.",
+    "Spune ce vrei să testezi. Stabilim primul pas.",
+    "Расскажите, что хотите проверить. Определим первый шаг.",
+    "Tell us what you want to test. We'll define the first step.",
   ),
   /* The page's line under the heading. The dialog keeps its own lead (RequestFlowProvider). The
      reply time is `SENT_COPY`'s, said before the visitor sends rather than only after. */
   lead: L(
-    "Alegi tipul de proiect, vezi prețul de pornire și trimiți cererea. Îți răspundem în cel mult o zi lucrătoare.",
-    "Выберите тип проекта, посмотрите стартовую цену и отправьте заявку. Ответим не позже чем через рабочий день.",
-    "Pick the type of project, see the starting price and send your request. We reply within one business day.",
+    "În câteva întrebări definim prima versiune, ce trebuie validat și investiția de pornire. Îți răspundem în cel mult o zi lucrătoare.",
+    "За несколько вопросов определим первую версию, что нужно проверить и стартовые вложения. Ответим не позже чем через рабочий день.",
+    "In a few questions, we define the first version, what needs testing and the starting investment. We reply within one business day.",
   ),
   step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
   step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),
   proposal: L("PROPUNEREA TA", "ВАШЕ ПРЕДЛОЖЕНИЕ", "YOUR PROPOSAL"),
   from: L("de la", "от", "from"),
-  assistant: L("Asistent TBS · online", "Ассистент TBS · онлайн", "TBS assistant · online"),
+  assistant: L("Ghid pentru prima versiune", "Гид по первой версии", "Guide to your first version"),
   submit: L("Trimite cererea", "Отправить заявку", "Send the request"),
   sending: L("Se trimite…", "Отправляется…", "Sending…"),
   // Was "Cerere pregătită ✓" / "Request ready ✓" while the form sent nothing at all —
@@ -220,22 +220,22 @@ type Node = {
 const TREE: Record<string, Node> = {
   start: {
     q: L(
-      "Bună! Care este obiectivul principal al proiectului tău?",
-      "Привет! Какая главная цель вашего проекта?",
-      "Hi! What is the main goal of your project?",
+      "Ce vrei să verifici mai întâi?",
+      "Что вы хотите проверить сначала?",
+      "What do you want to test first?",
     ),
     options: [
-      { label: L("Mai mulți clienți", "Больше клиентов", "More clients"), next: "growth" },
-      { label: L("Mai puțină rutină", "Меньше рутины", "Less routine"), next: "automation" },
-      { label: L("Un produs nou", "Новый продукт", "A new product"), next: "product" },
+      { label: L("Unde pierdem clienți", "Где мы теряем клиентов", "Where customers drop off"), next: "growth" },
+      { label: L("Ce proces merită automatizat", "Какой процесс стоит автоматизировать", "Which process is worth automating"), next: "automation" },
+      { label: L("Dacă există cerere", "Есть ли спрос", "Whether there is demand"), next: "product" },
     ],
     /* A visitor who describes the goal in their own words has already answered the
        branch questions below, so their free answer skips straight to the planning half. */
     freeNext: "timeline",
     hint: L(
-      "Ex.: vrem un site nou, cu formular și blog.",
-      "Напр.: нужен новый сайт с формой и блогом.",
-      "E.g.: we want a new site with a form and a blog.",
+      "Ex.: vrem să vedem dacă oamenii cer serviciul online.",
+      "Напр.: хотим понять, будут ли люди заказывать услугу онлайн.",
+      "E.g. we want to learn whether people will request the service online.",
     ),
   },
   growth: {
@@ -293,35 +293,35 @@ const TREE: Record<string, Node> = {
   },
   product: {
     q: L(
-      "Cine va folosi cel mai des produsul?",
-      "Кто будет чаще всего пользоваться продуктом?",
-      "Who will use the product most often?",
+      "Ce vrei să afli din prima versiune?",
+      "Что вы хотите понять с помощью первой версии?",
+      "What do you want the first version to teach you?",
     ),
     options: [
-      { label: L("Clienții noștri", "Наши клиенты", "Our clients"), next: "shape" },
-      { label: L("Echipa internă", "Внутренняя команда", "The internal team"), next: "shape" },
-      { label: L("O piață nouă", "Новый рынок", "A new market"), next: "shape" },
+      { label: L("Există cerere pentru idee", "Есть ли спрос на идею", "Whether there is demand for the idea"), next: "shape" },
+      { label: L("Oamenii folosesc fluxul propus", "Будут ли люди пользоваться предложенным сценарием", "Whether people use the proposed flow"), next: "shape" },
+      { label: L("Ce funcții contează cu adevărat", "Какие функции действительно важны", "Which features truly matter"), next: "shape" },
     ],
     freeNext: "shape",
   },
   shape: {
     q: L(
-      "Ce formă ți se potrivește mai bine?",
-      "Какая форма подходит лучше?",
-      "Which shape fits you best?",
+      "Cine trebuie să poată testa primul?",
+      "Кто должен протестировать первым?",
+      "Who should be able to test first?",
     ),
     options: [
-      { label: L("Platformă web", "Веб-платформа", "Web platform"), next: "timeline" },
-      { label: L("Aplicație mobilă", "Мобильное приложение", "Mobile app"), next: "timeline" },
-      { label: L("SaaS cu abonament", "SaaS по подписке", "Subscription SaaS"), next: "timeline" },
+      { label: L("Clienți potențiali", "Потенциальные клиенты", "Potential customers"), next: "timeline" },
+      { label: L("Echipa internă", "Внутренняя команда", "Internal team"), next: "timeline" },
+      { label: L("Un grup restrâns de utilizatori", "Небольшая группа пользователей", "A small group of users"), next: "timeline" },
     ],
     freeNext: "timeline",
   },
   timeline: {
     q: L(
-      "Când vrei să înceapă proiectul?",
-      "Когда хотите начать проект?",
-      "When do you want the project to start?",
+      "Când vrei să ai prima versiune gata de test?",
+      "Когда вы хотите иметь первую версию для теста?",
+      "When do you want the first version ready to test?",
     ),
     options: [
       { label: L("În următoarele 3 săptămâni", "В ближайшие 3 недели", "In the next 3 weeks"), next: "budget" },
@@ -332,9 +332,9 @@ const TREE: Record<string, Node> = {
   },
   budget: {
     q: L(
-      "Ce nivel de investiție ai în vedere?",
-      "Какой уровень инвестиций рассматриваете?",
-      "What investment level do you have in mind?",
+      "Ce investiție poți aloca pentru prima versiune?",
+      "Какую инвестицию вы можете выделить на первую версию?",
+      "What investment can you allocate to the first version?",
     ),
     options: [
       { label: L("Sub €5.000", "До €5.000", "Under €5.000"), next: "brief" },
@@ -348,9 +348,9 @@ const TREE: Record<string, Node> = {
      composer under it — the visitor tells us the project in their own words. */
   brief: {
     q: L(
-      "Descrie în cuvintele tale ce vrei să construim. Poți scrie liber sau alege o variantă rapidă.",
-      "Опишите своими словами, что хотите построить. Можно написать свободно или выбрать быстрый вариант.",
-      "Describe in your own words what you want us to build. Write freely, or pick a quick reply.",
+      "Spune-ne pe scurt ce vrei să verifici. Poți scrie liber sau alege o variantă rapidă.",
+      "Коротко опишите, что хотите проверить. Можно написать свободно или выбрать быстрый вариант.",
+      "Briefly tell us what you want to test. Write freely or choose a quick option.",
     ),
     options: [
       { label: L("Am deja un caiet de sarcini", "У нас уже есть ТЗ", "We already have a brief"), next: "clarify" },
@@ -359,9 +359,9 @@ const TREE: Record<string, Node> = {
     ],
     freeNext: "clarify",
     hint: L(
-      "Scrie liber: ce faci, cine sunt clienții, ce te blochează acum.",
-      "Пишите свободно: чем занимаетесь, кто клиенты, что мешает сейчас.",
-      "Write freely: what you do, who your clients are, what blocks you now.",
+      "Ce problemă ai, pentru cine și ce ai vrea să afli după primele utilizări.",
+      "Какая проблема, для кого и что вы хотите узнать после первых использований.",
+      "The problem, who it is for and what you want to learn from first use.",
     ),
   },
   /* The clarification round. Its question is chosen by project type (see CLARIFY_Q), so

@@ -68,9 +68,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     /* The direction names are the site's own tabs (lib/directions.ts, Directions.tsx), with the
        fourth described by what it DOES — its label is a word this component may not print. */
     a: L(
-      "Produs digital, e-commerce, automatizare și integrări, asistenți care răspund și califică cererile, Brand & UI. Le găsești pe toate în Servicii, fiecare cu pașii ei.",
-      "Цифровой продукт, e-commerce, автоматизация и интеграции, ассистенты, которые отвечают и квалифицируют заявки, Brand & UI. Все они — в разделе «Услуги», у каждого свои шаги.",
-      "Digital product, e-commerce, automation and integrations, assistants that answer and qualify requests, Brand & UI. They are all under Services, each with its own steps.",
+      "Transformăm o idee, un blocaj sau o oportunitate într-o primă versiune pe care o poți testa. Construim MVP-uri, site-uri, e-commerce, automatizări, asistenți și Brand & UI; după semnalele reale, dezvoltăm ce merită.",
+      "Превращаем идею, узкое место или возможность в первую версию, которую можно проверить. Создаём MVP, сайты, e-commerce, автоматизацию, ассистентов и Brand & UI; после реальных сигналов развиваем то, что действительно нужно.",
+      "We turn an idea, bottleneck or opportunity into a first version you can test. We build MVPs, websites, e-commerce, automations, assistants and Brand & UI; after real signals, we develop what is worth building.",
     ),
   },
   {
@@ -96,9 +96,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     id: "nevoie",
     q: L("De ce aveți nevoie de la mine?", "Что вам нужно от меня?", "What do you need from me?"),
     a: L(
-      "Nume, email și două rânduri despre ce vrei. Un caiet de sarcini nu e obligatoriu: dacă ai doar o idee, ghidul pune câteva întrebări scurte și scrie el rezumatul.",
-      "Имя, email и пара строк о том, чего вы хотите. Техническое задание не обязательно: если есть только идея, гид задаст несколько коротких вопросов и сам составит итог.",
-      "Your name, an email and two lines about what you want. A written brief is not required: if you only have an idea, the guide asks a few short questions and writes the summary for you.",
+      "Nume, email și câteva rânduri despre problemă, public și ce vrei să afli. Nu ai nevoie de un caiet de sarcini: dacă ai doar o idee, asistentul din cerere pune întrebări scurte și pregătește rezumatul.",
+      "Имя, email и несколько строк о проблеме, аудитории и о том, что хотите понять. ТЗ не нужно: если есть только идея, ассистент в заявке задаст короткие вопросы и подготовит итог.",
+      "Your name, email and a few lines about the problem, audience and what you want to learn. You do not need a brief: if you only have an idea, the request assistant asks short questions and prepares the summary.",
     ),
   },
   {
@@ -107,9 +107,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     /* Conditional, because the site states it conditionally: the summary travels only once the
        assistant has recorded something (Estimator's PATHS.kept). */
     a: L(
-      "Dacă ai vorbit cu ghidul, rezumatul pleacă împreună cu cererea. Îți răspundem în cel mult o zi lucrătoare.",
-      "Если вы говорили с гидом, итог уходит вместе с заявкой. Мы отвечаем в течение одного рабочего дня.",
-      "If you talked to the guide, the summary is sent with the request. We reply within one business day.",
+      "Dacă parcurgi ghidul din cerere, rezumatul dialogului pleacă împreună cu ea. Îl citim ca să vedem ce merită testat mai întâi și revenim în cel mult o zi lucrătoare.",
+      "Если вы пройдёте гид в заявке, итог диалога уйдёт вместе с ней. Мы читаем его, чтобы понять, что стоит проверить в первую очередь, и отвечаем в течение одного рабочего дня.",
+      "If you complete the request guide, its dialogue summary goes with the request. We read it to see what is worth testing first and reply within one business day.",
     ),
   },
   {

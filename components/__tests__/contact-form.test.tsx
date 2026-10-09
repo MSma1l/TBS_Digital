@@ -273,14 +273,14 @@ describe("submit — the request actually leaves", () => {
 
     // Answer the assistant's first question for real — an earlier version of this test
     // looked for a button that never existed, so it asserted nothing.
-    await tap(user, "Mai mulți clienți");
+    await tap(user, "Unde pierdem clienți");
 
     await fillValid(user);
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     const payload = vi.mocked(api.submitContact).mock.calls[0][0];
     expect(payload.message).toContain("Dialog");
-    expect(payload.message).toContain("Mai mulți clienți");
+    expect(payload.message).toContain("Unde pierdem clienți");
   });
 
   it("cannot be double-submitted", async () => {
@@ -387,7 +387,7 @@ describe("dialog — the visitor can answer in their own words", () => {
     await say(user, "Vrem un site nou.");
     await tap(user, "Pornim de la zero");
 
-    expect(screen.getByText("Când vrei să înceapă proiectul?")).toBeInTheDocument();
+    expect(screen.getByText("Când vrei să ai prima versiune gata de test?")).toBeInTheDocument();
   });
 
   it("offers an optional extra-details step that can be skipped", async () => {
@@ -417,7 +417,7 @@ describe("dialog — the visitor can answer in their own words", () => {
       screen.getByText("Mesajul conține caractere sau cod nepermis."),
     ).toBeInTheDocument();
     // The dialog did not move on, so nothing was added to the log…
-    expect(screen.getByRole("button", { name: "Mai mulți clienți" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unde pierdem clienți" })).toBeInTheDocument();
     // …and the visitor's text is still there to be fixed, not silently discarded.
     expect(screen.getByLabelText(CHAT_LABEL)).toHaveValue("<script>alert(1)</script>");
     // Nothing about the dialog talks to the network.
@@ -430,9 +430,9 @@ describe("dialog — the visitor can answer in their own words", () => {
 
     expect(screen.getByRole("button", { name: CHAT_SEND })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: CHAT_SEND }));
-    expect(screen.getByText("Bună! Care este obiectivul principal al proiectului tău?"))
+    expect(screen.getByText("Ce vrei să verifici mai întâi?"))
       .toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Mai mulți clienți" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unde pierdem clienți" })).toBeInTheDocument();
   });
 });
 
@@ -453,7 +453,7 @@ describe("summary — visible, then sent", () => {
     expect(described).toHaveTextContent("Vrem un magazin online pentru piese auto.");
     const clarifications = within(summary).getByText("Clarificări").parentElement;
     expect(clarifications).toHaveTextContent("Pornim de la zero");
-    expect(clarifications).toHaveTextContent("Când vrei să înceapă proiectul?");
+    expect(clarifications).toHaveTextContent("Când vrei să ai prima versiune gata de test?");
   });
 
   it("travels with the request rather than staying on screen", async () => {

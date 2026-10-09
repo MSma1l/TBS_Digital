@@ -16,6 +16,17 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Changed: Hero și ghidul cererii explică decizia MVP
+
+- **Changed:** Hero-ul reduce lead-ul pentru telefon și folosește mesajul de risc redus
+  „Testează ideea. Investește după dovezi.”; CTA-ul deschide aceeași cerere cu o acțiune scurtă.
+  Cererea și asistentul explică acum ce se validează în prima versiune, iar ghidul nu mai sugerează
+  în mod fals disponibilitate „online”.
+- **Docs:** [05 — Page sections](./docs/05-page-sections.md) descrie ierarhia de copy, dimensiunile
+  Hero și traseul ghidat.
+- **Files:** `Hero.tsx`, `Estimator.tsx`, `RequestFlowProvider.tsx`, `hud/guide/copy.ts`,
+  testele de cerere/Hero/ghid, `e2e/helpers.ts`, `docs/05-page-sections.md`.
+
 ## 2026-10-09 — Changed: poziționare MVP, validare și dezvoltare etapizată
 
 - **Changed:** textele RO/RU/EN din Hero, ticker, selectorul de servicii, argumentele de alegere,
