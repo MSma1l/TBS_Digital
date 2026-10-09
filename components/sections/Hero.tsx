@@ -28,9 +28,9 @@ const TITLE = L(
 );
 /** What we build and for whom, right under the headline. */
 const SUBTITLE = L(
-  "Pornim cu un MVP concentrat pentru utilizatori reali. După feedback, dezvoltăm doar pasul următor care merită investiția.",
-  "Начинаем со сфокусированного MVP для реальных пользователей. После обратной связи развиваем только следующий шаг, в который стоит вкладываться.",
-  "We start with a focused MVP for real users. After feedback, we develop only the next step worth investing in.",
+  "MVP concentrat, cu buget de pornire mic și clar. Testezi cu utilizatori reali, apoi investești doar în ce confirmă valoare.",
+  "Сфокусированный MVP с небольшим и понятным стартовым бюджетом. Проверяйте его на реальных пользователях, затем вкладывайтесь только в подтверждённую ценность.",
+  "A focused MVP with a small, clear starting budget. Test it with real users, then invest only in what proves valuable.",
 );
 const CTA_PRIMARY = L("Testează ideea", "Проверить идею", "Test the idea");
 const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
@@ -38,9 +38,9 @@ const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги �
  *  them rather than inside one. The "·" between them is drawn where they are rendered. */
 const REASSURANCE: LocalizedText[] = [
   L(
-    "Preț de pornire clar",
-    "Понятная стартовая цена",
-    "A clear starting price",
+    "MVP cu buget de pornire mic",
+    "MVP с небольшим стартовым бюджетом",
+    "MVP with a small starting budget",
   ),
   L(
     "Începi cu ce trebuie validat",

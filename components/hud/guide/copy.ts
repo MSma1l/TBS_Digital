@@ -78,9 +78,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     q: L("Cât costă?", "Сколько это стоит?", "How much does it cost?"),
     /* No figure: lib/request/catalog.ts records what happened last time one was hard-coded. */
     a: L(
-      "Fiecare tip de proiect are un preț de pornire, și îl vezi chiar în panoul de cerere în clipa în care alegi tipul. Cifra finală vine după ce discutăm.",
-      "У каждого типа проекта есть стартовая цена — вы видите её прямо в панели заявки, как только выбираете тип. Итоговая сумма — после разговора.",
-      "Every project type has a starting price, and you see it in the request panel the moment you pick the type. The final figure comes after we talk.",
+      "Începem cu un MVP cu buget mic, nu cu tot produsul. Vezi prețul de pornire pentru fiecare tip direct în cerere; cifra finală vine după ce stabilim ce merită testat.",
+      "Начинаем с MVP с небольшим бюджетом, а не со всего продукта. Стартовую цену для каждого типа вы видите прямо в заявке; итоговая сумма — после того, как определим, что стоит проверить.",
+      "We start with a small-budget MVP, not the whole product. See each type’s starting price in the request; the final figure follows once we define what is worth testing.",
     ),
   },
   {

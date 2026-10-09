@@ -16,6 +16,16 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Changed: MVP cu buget de pornire mic și clar
+
+- **Changed:** Hero-ul, cererea și răspunsul de preț al Asistentului TBS spun explicit că pornim
+  cu un MVP cu buget mic, nu cu tot produsul. Prețul concret rămâne cel administrat și vizibil în
+  cerere înainte de decizie.
+- **Docs:** [05 — Page sections](./docs/05-page-sections.md) și [16 — i18n & SEO](./docs/16-i18n-seo.md)
+  fixează regula: buget mic doar pentru un scop MVP controlat, fără afirmații „cel mai ieftin”.
+- **Files:** `Hero.tsx`, `Estimator.tsx`, `hud/guide/copy.ts`, `docs/05-page-sections.md`,
+  `docs/16-i18n-seo.md`.
+
 ## 2026-10-09 — Changed: Hero și ghidul cererii explică decizia MVP
 
 - **Changed:** Hero-ul reduce lead-ul pentru telefon și folosește mesajul de risc redus

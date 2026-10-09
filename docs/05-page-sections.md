@@ -955,8 +955,8 @@ reduced motion.
   - **The headline:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px),
     **"Testează ideea. Investește după dovezi."**, whose closing full stop is a plain
     red glyph.
-  - **The subtitle:** *"Pornim cu un MVP concentrat pentru utilizatori reali. După feedback,
-    dezvoltăm doar pasul următor care merită investiția."* It is deliberately compact so the
+  - **The subtitle:** *"MVP concentrat, cu buget de pornire mic și clar. Testezi cu utilizatori
+    reali, apoi investești doar în ce confirmă valoare."* It is deliberately compact so the
     primary action remains visible in the first phone viewport.
     It sits where the old lead line sat and is set like it (`--mut`, 16→19px). It stops at 40ch
     from 861 to 1024px, clear of the chip on the columns' seam.
@@ -970,8 +970,8 @@ reduced motion.
 - **CTAs:** the primary `cta-neon` button **"Testează ideea"** with an `aria-hidden` ↗ SVG
   opens the request dialog (`source: "hero"`); the secondary ghost link **"Vezi serviciile ↓"**
   goes to `#servicii`. Under them, in the same `cta` entrance group, one small muted line says
-  that the starting price is clear, the first version is intentionally scoped, and the reply is
-  within one business day. Each phrase is its own nowrap span, so a phone breaks the line between
+  that the MVP starts with a small budget, the first version is intentionally scoped, and the reply
+  is within one business day. Each phrase is its own nowrap span, so a phone breaks the line between
   promises, never inside one. Both CTAs **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
   has no hover to end it) or focused **visibly** from the keyboard. Hover and focus are separate
   reasons, so moving the mouse off a keyboard-focused CTA keeps the boost, and the focus the dialog
@@ -1665,7 +1665,7 @@ see [09 — Admin](./09-admin.md).
 - **The close of the page (2026-10-09).** The heading, shared by the page and the dialog, is
   **"Spune ce vrei să testezi. Stabilim primul pas."** It makes the decision before the price:
   the page lead explains that a few questions define the first version, what must be validated
-  and the starting investment, then promises a reply within one business day. The dialog's lead
+  and a small initial budget, then promises a reply within one business day. The dialog's lead
   explains that its summary is attached to the request. The assistant is labelled **"Ghid pentru
   prima versiune"**, not “online”: it is a guided decision flow, not a live-availability claim.
   Its first question asks what the visitor wants to test; the product branch asks what the first

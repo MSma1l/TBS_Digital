@@ -197,8 +197,9 @@ The page titles, descriptions and on-page service copy describe the offers visit
 deliver. Since 2026-10-09, the home and service language also describes the operating model:
 a focused MVP tests a stated hypothesis with real users, then the same team develops only the
 next validated stage. “Fast” means a deliberately scoped first decision and the stated one-business-day
-reply; copy must not invent a build deadline. “Affordable” is expressed through a visible starting
-price and controlled first scope, never an unsubstantiated “cheap” or “cheapest” claim.
+reply; copy must not invent a build deadline. The owner positions the MVP offer as a small, clear
+starting budget: this wording is allowed only beside the deliberately controlled first scope and
+the admin-controlled starting price, never as an unsubstantiated “cheap” or “cheapest” claim.
 request. The target clusters are mapped to existing pages, rather than duplicated across new thin
 pages:
 
@@ -210,10 +211,10 @@ pages:
 | SaaS, aplicație mobilă, produs digital | Home + `/servicii/produs-digital` and portfolio |
 | Asistenți IA, boți și automatizare | `/servicii/asistenti-ia` — chat, calificare și bot Telegram |
 
-"Ieftin" / "cheap" is not asserted as a ranking claim or a promise: pricing remains the actual
-starting price shown by the request flow. If the business later adopts a defined low-budget offer,
-document its scope and price first, then create one useful price page instead of repeating the
-claim across the site.
+"Ieftin" / "cheap" is not asserted as a ranking superlative. The authorized promise is a
+small-budget MVP with a controlled scope; pricing remains the actual starting price shown by the
+request flow. If the business adopts a separate low-budget offer, document its scope and price
+first, then create one useful price page instead of repeating the claim across the site.
 
 Because the nonce is minted per request, **every page renders dynamically** (`await
 headers()` in the root layout). That is a deliberate trade: a nonce'd CSP over a statically
