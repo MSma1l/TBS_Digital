@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
-import { hreflangAlternates, localeUrl } from "@/lib/i18n/locales";
+import { hreflangAlternates, localeUrl, LOCALES } from "@/lib/i18n/locales";
 import { directionPaths } from "@/lib/directions";
 
 /**
- * /sitemap.xml — every public page, each listed at its Romanian (default) URL with full
- * ro/ru/en + x-default hreflang alternates, so Google discovers every language of every
- * page and treats them as one localized cluster.
+ * /sitemap.xml — every public URL in each shipped language, with its complete ro/ru/en +
+ * x-default hreflang cluster. Listing every localized URL makes discovery explicit for
+ * crawlers while the alternate links establish that the URLs are equivalents, not duplicates.
  *
  * The five direction pages (`/servicii/<slug>`) come from lib/directions.ts, so adding a
  * direction adds it to the sitemap automatically. Their slugs are identical in all three
@@ -26,12 +26,14 @@ const PATHS: { path: string; changeFrequency: MetadataRoute.Sitemap[number]["cha
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date();
-  return PATHS.map(({ path, changeFrequency, priority }) => ({
-    url: localeUrl("ro", path),
-    lastModified,
-    changeFrequency,
-    priority,
-    alternates: { languages: hreflangAlternates(path) },
-  }));
+  return PATHS.flatMap(({ path, changeFrequency, priority }) =>
+    LOCALES.map((locale) => ({
+      url: localeUrl(locale, path),
+      // Omit lastModified rather than emit the generation time: a sitemap's lastmod must be
+      // the page's real significant update, not a value that falsely says every page changed.
+      changeFrequency,
+      priority,
+      alternates: { languages: hreflangAlternates(path) },
+    })),
+  );
 }

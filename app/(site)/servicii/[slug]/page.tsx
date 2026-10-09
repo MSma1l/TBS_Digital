@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { directionHref, directions } from "@/lib/directions";
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { SceneStage } from "@/components/scene/SceneStage";
 import { ServiceArt } from "@/components/scene/art/ServiceArt";
-import { OG_LOCALE, localeUrl } from "@/lib/i18n/locales";
+import { OG_LOCALE, localeUrl, SITE_URL } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 import { resolveContentLocale, resolveUrlLocale } from "@/lib/i18n/requestLocale";
 import { SCENE_SHAPES, type SceneShape } from "@/lib/scene";
@@ -81,8 +82,35 @@ export default async function SolutionPage({
   const dir = directions.find((d) => d.slug === slug);
   if (!dir) notFound();
   const shape = (SCENE_SHAPES as readonly string[]).includes(slug) ? (slug as SceneShape) : null;
+  const locale = await resolveContentLocale();
+  const urlLocale = await resolveUrlLocale();
+  const name = messages[locale][dir.labelKey] || messages.ro[dir.labelKey];
+  const pitch = solutions[slug]?.pitch.text;
+  const description = pitch ? pitch[locale] || pitch.ro : messages[locale]["meta.description"];
+  const url = localeUrl(urlLocale, directionHref(slug));
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
+  // This schema describes the same offer the visitor reads on this page. It does not claim
+  // pricing, reviews, locations or results that the site cannot prove; it simply connects a
+  // focused service page to the Organization graph in the root layout.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "@id": `${url}#service`,
+    name,
+    description,
+    url,
+    provider: { "@id": `${SITE_URL}/#organization` },
+    areaServed: { "@type": "Country", name: "Moldova" },
+    availableLanguage: ["ro", "ru", "en"],
+  };
   return (
     <main>
+      <script
+        type="application/ld+json"
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <SceneStage>
         <DirectionPage slug={slug} modelArt={shape ? <ServiceArt shape={shape} /> : null} />
       </SceneStage>

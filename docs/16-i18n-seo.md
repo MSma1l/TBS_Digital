@@ -161,17 +161,54 @@ The mechanism, end to end:
 | Output | File | What it does |
 |--------|------|--------------|
 | `robots.txt` | `app/robots.ts` | Allows everything except `/admin-tbs-digital` and `/api/`; advertises the sitemap and host |
-| `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/portofoliu`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
+| `sitemap.xml` | `app/sitemap.ts` | Every public URL — `/`, `/portofoliu`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — in **each** `ro`/`ru`/`en` version, each with its complete reciprocal cluster + `x-default` hreflang alternates. It omits `lastmod` until a truthful per-page/content timestamp exists. |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
 | A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title`. The service pages do the same since 2026-10-09 (`app/(site)/servicii/[slug]/page.tsx`): *"TBS Digital — <the direction's menu name, `dir.*`>"* and the direction's pitch text as the description (`lib/solutions.ts`), where they used to ship the raw slug and no description |
 | Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated images; `og:locale` follows the served language |
 | Site icon | `app/icon.svg` | The TBS wordmark. App Router picks the file up by name — no `icons` entry in `generateMetadata()` — and emits `<link rel="icon" type="image/svg+xml" sizes="any">`. Its colours are a **copy** of the `globals.css` tokens (a static file cannot read `var()`), so a palette change has to be mirrored by hand |
-| JSON-LD | `app/layout.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph — **only verifiable facts** (brand, URL, contact email, Chișinău/MD, languages). `sameAs` is omitted rather than invented |
+| JSON-LD | `app/layout.tsx` + `app/(site)/servicii/[slug]/page.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph globally and one truthful `Service` entity on each direction page — only verifiable facts (brand, URL, contact email, Chișinău/MD, languages and the offer visible on that page). `sameAs`, prices, reviews and foreign locations are omitted rather than invented |
 | `noindex` on admin | `next.config.ts` headers | `X-Robots-Tag: noindex, nofollow` on `/admin-tbs-digital*` |
 
 The JSON-LD block carries the per-request **CSP nonce** — the policy is nonce-based with
 `strict-dynamic`, so an un-nonced data block would be blocked. See
 [11 — Security](./11-security.md).
+
+Every JSON-LD serialization escapes `<` to `\\u003c`, following Next's current guidance. That
+keeps a future catalog value from ever closing the data block early.
+
+### Sitemap format and submission
+
+The crawler-facing map is **`/sitemap.xml`**, not YAML: XML is the interoperable sitemap format
+understood by Google and Bing, and its root URL covers the full site. `robots.txt` advertises it,
+so crawlers can discover it without an account. After a deploy, a verified owner should also
+submit `https://tbs.md/sitemap.xml` in Google Search Console and inspect its processing report.
+That is a discovery signal, not a guarantee that a URL will be indexed or ranked.
+
+Do not create an `sitemap.yaml`, `llms.txt`, country-by-country doorway pages or blocks of repeated
+keywords. They do not improve eligibility for Google AI features. Search and AI visibility comes
+from crawlable pages with precise titles, a real service offer, case studies and useful original
+content. The English URLs are generic `en`, not artificial `en-GB` / `en-US` copies: UK and US
+visitors receive the same English offer unless the business creates genuinely different regional
+content.
+
+### Search intent coverage
+
+The page titles, descriptions and on-page service copy describe the offers visitors can actually
+request. The target clusters are mapped to existing pages, rather than duplicated across new thin
+pages:
+
+| Intent | Existing page / evidence |
+|---|---|
+| Creare site, dezvoltare web, website design/development | Home + `/servicii/produs-digital` — site, platformă web, aplicație mobilă |
+| Magazin online / e-commerce | `/servicii/e-commerce` — checkout, plăți, livrare digitală |
+| Software personalizat, CRM, integrare API | Home + `/servicii/automatizare-api` — CRM, ERP, plăți și date conectate |
+| SaaS, aplicație mobilă, produs digital | Home + `/servicii/produs-digital` and portfolio |
+| Asistenți IA, boți și automatizare | `/servicii/asistenti-ia` — chat, calificare și bot Telegram |
+
+"Ieftin" / "cheap" is not asserted as a ranking claim or a promise: pricing remains the actual
+starting price shown by the request flow. If the business later adopts a defined low-budget offer,
+document its scope and price first, then create one useful price page instead of repeating the
+claim across the site.
 
 Because the nonce is minted per request, **every page renders dynamically** (`await
 headers()` in the root layout). That is a deliberate trade: a nonce'd CSP over a statically
@@ -340,6 +377,7 @@ identical, and fails if either drifts.
   `locFromCatalog()` (translated) or `locRo()` (Romanian only), and rendered through
   `useLoc()`.
 - **Adding a public page** means adding it to `app/sitemap.ts`, or it will not be
-  discovered in any language.
+  discovered in every language. The sitemap test requires all three locale URLs and their
+  reciprocal hreflang cluster.
 - **Adding a third-party script** means it needs the CSP nonce *and*, if it tracks anything,
   a consent gate.

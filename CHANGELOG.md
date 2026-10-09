@@ -16,6 +16,22 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Changed: sitemap XML complet și SEO localizat pentru servicii
+
+- **Changed:** `/sitemap.xml` listează fiecare URL public RO/RU/EN cu alternatele hreflang
+  reciproce și nu mai declară în mod fals că toate paginile s-au modificat la fiecare generare.
+  Metadatele pentru politicile legale urmează limba URL-ului, iar titlurile/descriptions de pe
+  homepage descriu explicit serviciile reale: site-uri web, e-commerce, CRM, SaaS, software
+  personalizat și aplicații mobile.
+- **Added:** fiecare pagină de serviciu publică un `Service` JSON-LD legat de organizația TBS;
+  serializarea JSON-LD este protejată contra închiderii premature a blocului de date.
+- **Docs:** [16 — i18n & SEO](./docs/16-i18n-seo.md) explică formatul XML (nu YAML), harta
+  intențiilor, limitele pentru „ieftin” și pasul de trimitere în Search Console; [14 — Testing](./docs/14-testing.md)
+  documentează testul contractului pentru sitemap/robots.
+- **Files:** `app/sitemap.ts`, metadata root/legal/service, cataloagele RO/RU/EN,
+  `app/__tests__/seo-routes.test.ts`, `docs/16-i18n-seo.md`, `docs/14-testing.md`.
+
+
 ## 2026-10-09 — Fixed: dupa spirala proiectelor nu mai ramane jumatate de pagina goala
 
 *„uitete ca spirala se termina prea devreme si jumatate de pagina ramane goala, corecteaza te rog

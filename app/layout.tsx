@@ -172,9 +172,9 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           nonce={nonce}
-          // JSON-LD is a non-executable data block; JSON.stringify output contains no
-          // HTML-significant sequences that could break out of the script element.
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          // JSON-LD is a non-executable data block, but `<` is escaped defensively so a
+          // future catalog value can never terminate this script element.
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
         />
         <LanguageProvider initialLocale={locale}>
           <SiteContentProvider>

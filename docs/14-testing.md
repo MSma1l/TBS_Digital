@@ -28,6 +28,11 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$(pwd -W):/app" \
 `next build` comes before `tsc` (it generates `next-env.d.ts` and the route types).
 `--tmpfs /app/.claude` hides agent worktrees from `tsc`, ESLint and Vitest.
 
+`app/__tests__/seo-routes.test.ts` keeps the crawler contract pinned: every public page has one
+canonical URL per shipped locale in `/sitemap.xml`, every entry has its complete reciprocal
+hreflang cluster, no false generated `lastmod` is emitted, and `robots.txt` still advertises the
+canonical sitemap while blocking only the private admin/API paths.
+
 **1,548 tests across 76 files** (measured 2026-09-26; the result of each full run is recorded in
 [`CHANGELOG.md`](../CHANGELOG.md), and the per-file counts below are from that run). The assistant
 in the corner stayed and **the guide inside her went**: `lib/__tests__/guide-linger.test.ts` (75)
