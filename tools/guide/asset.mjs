@@ -109,9 +109,9 @@ const EYE_W = 51.5, EYE_H = 30;
  * the box then extracted on its own to check it lands on the lip line and nothing else. In
  * cutout pixels the lips occupy (354, 314) to (454, 346).
  *
- * `--mo` is where the lips PART — not the middle of the box. The dark line between them sits at
- * about 55% of the box's height, and an opening anchored anywhere else drops the jaw from the
- * wrong place.
+ * `part` is where the lips PART — not the middle of the box: the dark line between them sits at
+ * about 55% of its height. Printed below in the 384px portrait's own pixels, which is where
+ * mouth.mjs looks for the seam (its BOX is this box, widened a little).
  */
 const MOUTH = { x: 354, y: 314, w: 99.6, h: 32, part: 0.55 };
 
@@ -133,14 +133,14 @@ for (const e of EYES) {
 }
 
 console.log('');
-console.log('gura — liniile astea intra in .mouth / .jaw din CSS:');
+console.log('gura — cutia buzelor in portretul de 384px (BOX din mouth.mjs o cuprinde, largita putin):');
 {
-  const mx = (100 * (MOUTH.x - crop.left)) / crop.width;
-  const my = (100 * (MOUTH.y - crop.top)) / crop.height;
-  const mw = (100 * MOUTH.w) / crop.width;
-  const mh = (100 * MOUTH.h) / crop.height;
-  console.log(`  --mx: ${mx.toFixed(2)};  --my: ${my.toFixed(2)};  --mw: ${mw.toFixed(2)};  --mh: ${mh.toFixed(2)};`);
-  console.log(`  --mo: ${(my + mh * MOUTH.part).toFixed(2)};   (unde se despart buzele)`);
+  const k = 384 / crop.width;
+  const x0 = (MOUTH.x - crop.left) * k;
+  const y0 = (MOUTH.y - crop.top) * k;
+  const x1 = x0 + MOUTH.w * k;
+  const y1 = y0 + MOUTH.h * k;
+  console.log(`  x ${x0.toFixed(1)}..${x1.toFixed(1)},  y ${y0.toFixed(1)}..${y1.toFixed(1)}   (buzele se despart la y ${(y0 + (y1 - y0) * MOUTH.part).toFixed(1)})`);
 }
 
 /*
@@ -148,7 +148,7 @@ console.log('gura — liniile astea intra in .mouth / .jaw din CSS:');
  *
  * There were two widths and an AVIF for each. All of that is gone, and the reason is the same
  * reason the <picture> is gone from the component: every CSS window onto this portrait — the two
- * eyelids, the jaw, the rim's mask, the scanline mask — loads it by URL, at ONE url, while the
+ * eyelids, the rim's mask, the scanline mask — loads it by URL, at ONE url, while the
  * <img> would be free to pick a different candidate. Two encodings, or two scalings, of the same
  * bitmap differ by a value or two on smooth skin, and a patch that has to colour-match the pixels
  * underneath it draws a hard edge wherever they do.

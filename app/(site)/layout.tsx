@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 // Tailwind utilities for the first-screen components. Imported here rather than in the root
 // layout so the admin route never loads them (see the header of app/tailwind.css).
 import "../tailwind.css";
-import { INTRO_COOKIE, INTRO_OVERLAY_ID, shouldPlayIntro } from "@/lib/intro";
+import { INTRO_COOKIE, INTRO_HEADER, INTRO_OVERLAY_ID, shouldPlayIntro } from "@/lib/intro";
 import { IntroPreloader } from "@/components/intro/IntroPreloader";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -27,10 +27,13 @@ export default async function SiteLayout({
   // a layout is not re-rendered on client navigation, so the overlay only ever comes from a
   // hard load of the home page (x-pathname is proxy.ts's locale-stripped path, so /ru and
   // /en qualify) — never after /servicii/x → Home, never on a Back into the router cache.
+  // And never for a visitor who arrived on an ad's link: proxy.ts reads the query string this
+  // layout cannot see, and says so with `x-intro` (lib/intro.ts `fromAd`).
   // Being the FIRST child also makes its skip button the first Tab stop.
   const playIntro = shouldPlayIntro(
     requestHeaders.get("x-pathname"),
     (await cookies()).get(INTRO_COOKIE)?.value,
+    requestHeaders.get(INTRO_HEADER),
   );
 
   return (

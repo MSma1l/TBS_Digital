@@ -57,6 +57,13 @@ export type Project = {
   appStore: string;
   playStore: string;
   images: string[];
+  /** A capture of the whole site, top to bottom (1080px wide): /portofoliu's screen scrolls
+   *  through it. Empty or missing for a project without one — the screen then shows
+   *  `images[0]`. */
+  fullPage?: string;
+  /** The project’s interactive demo: a manifest (`/projects/demo/<id>/demo.json`, lib/siteDemo.ts)
+   *  of a few pages with their links and buttons. Optional at runtime, like `fullPage`. */
+  demo?: string;
 };
 
 /**
@@ -192,6 +199,8 @@ export const projects: Project[] = [
       "/projects/bizcheck-3.png",
       "/projects/bizcheck-4.png",
     ],
+    fullPage: "/projects/bizcheck-site.webp",
+    demo: "/projects/demo/bizcheck/demo.json",
   },
   {
     id: "itara-global",
@@ -207,6 +216,8 @@ export const projects: Project[] = [
       "/projects/itara-3.png",
       "/projects/itara-4.png",
     ],
+    fullPage: "/projects/itara-site.webp",
+    demo: "/projects/demo/itara-global/demo.json",
   },
   {
     id: "docusafe",
@@ -218,6 +229,7 @@ export const projects: Project[] = [
     appStore: "",
     playStore: "",
     images: ["/projects/docusafe-1.png"],
+    demo: "/projects/demo/docusafe/demo.json",
   },
   {
     id: "crowe-portal",
@@ -233,6 +245,7 @@ export const projects: Project[] = [
     appStore: "",
     playStore: "",
     images: ["/projects/crowe-portal-1.png"],
+    demo: "/projects/demo/crowe-portal/demo.json",
   },
   {
     id: "cgam",
@@ -248,6 +261,8 @@ export const projects: Project[] = [
       "/projects/cgam-3.jpg",
       "/projects/cgam-4.png",
     ],
+    fullPage: "/projects/cgam-site.webp",
+    demo: "/projects/demo/cgam/demo.json",
   },
   {
     id: "iq-arena",
@@ -263,6 +278,7 @@ export const projects: Project[] = [
       "/projects/iq-arena-3.png",
       "/projects/iq-arena-4.png",
     ],
+    demo: "/projects/demo/iq-arena/demo.json",
   },
   {
     id: "balloons-breeze",
@@ -277,6 +293,8 @@ export const projects: Project[] = [
     appStore: "",
     playStore: "",
     images: ["/projects/balloons-breeze-1.png"],
+    fullPage: "/projects/balloons-breeze-site.webp",
+    demo: "/projects/demo/balloons-breeze/demo.json",
   },
   {
     id: "statistic",
@@ -287,6 +305,7 @@ export const projects: Project[] = [
     appStore: "",
     playStore: "",
     images: ["/projects/statistic-1.png"],
+    demo: "/projects/demo/statistic/demo.json",
   },
   {
     id: "flirt",
@@ -297,6 +316,7 @@ export const projects: Project[] = [
     appStore: "",
     playStore: "",
     images: ["/projects/flirt-1.png"],
+    demo: "/projects/demo/flirt/demo.json",
   },
 ];
 

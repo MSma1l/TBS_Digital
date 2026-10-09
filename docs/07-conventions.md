@@ -89,12 +89,27 @@ such at the top of the file.
   lead, the first frame on which the element is visible would still be painted paused.
 
   Two rules go with it. **Pause a whole group under ONE condition**, never member by member —
-  periods chosen so two loops never coincide (the estimator's 1.6s offset, the team hologram's
-  4.3/6.7/5.9s) only stay apart while they start and stop together. And **do not pause a curve
-  that HOLDS a conspicuous state**: a `steps()` hologram that sits on a deliberate glitch for
-  172ms will freeze there and hand that frozen frame to the next visitor who scrolls back, which
-  is the one case where a paused loop is visible. `components/sections/Team.module.css` records
-  that decision where the pause would have gone.
+  periods chosen so two loops never coincide (the estimator's 1.6s offset) only stay apart while
+  they start and stop together. And **do not pause a curve that HOLDS a conspicuous state**: a
+  `steps()` hologram that sits on a deliberate glitch for 172ms will freeze there and hand that
+  frozen frame to the next visitor who scrolls back, which is the one case where a paused loop is
+  visible. `components/sections/Team.module.css` records that decision where the pause would have
+  gone — and the one exception there (2026-10-07): the team hologram's BEAM (5.9s) pauses off
+  screen on its own, because it is a linear sweep with no held state and its 5.9s was chosen only
+  to be incommensurate with the 4.3/6.7s of the two `steps()` loops, which keep running; its
+  `mask-position` sweep repainted the portrait every frame the section sat in the page's cull
+  rect, the whole Work spiral above it.
+- **An invisible loop is still a running loop.** `opacity: 0` and `visibility: hidden` stop the
+  paint, not the animation: the browser restyles it every frame (and an SVG child's `transform`
+  costs a layout too). A loop inside something that FADES OUT (the page cover's BootCore, a scene
+  host's loading mark) rests once the fade has ended, never before: a custom property read into
+  `animation-play-state: var(--x, running)` flips to `paused` by a **discrete transition** delayed
+  by the fade's own duration (`transition: …, --x 0s linear <fade>; transition-behavior:
+  allow-discrete`, inside `@supports (transition-behavior: allow-discrete)`), and the raised rule
+  sets it back to `running` in the same style change that shows the thing, so it moves from the
+  first frame and continues from the phase it held. **Not** a 1ms `@keyframes` that sets the
+  property: a custom property set from @keyframes is animation-tainted, and Blink ignores it in an
+  `animation-*` property (measured: the loop stays `running`).
 - **A `::before` or `::after` must name itself in its own module's reduce block.** `globals.css`
   ends with `* { animation: none !important }`, and `*` matches ELEMENTS — a pseudo-element is
   not matched by it and `animation-name` is not inherited, so an animated pseudo-element runs
@@ -422,7 +437,10 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
     by thousands of px, so doing it on screen would jump the page. It leaves the spiral at once,
     and then puts the scroll back under the visitor;
   - **the restore contract**: every property it writes is inline and listed (`CARD_PROPS`,
-    `TRACK_PROPS`); the original `style` attribute comes back byte for byte when nobody else
+    `TRACK_PROPS`, and `READER_PROPS` for `--helix-wipe` on each card's two readers); a custom
+    property written every frame goes on the elements that read it, never on the card (inherited,
+    it restyles the card's whole subtree), while one written once per layout may go on the card
+    (`--helix-parallax`, read by the screenshot's wrapper); the original `style` attribute comes back byte for byte when nobody else
     touched the style meanwhile, otherwise only its own properties are removed. Read the `style`
     attribute before removing it (Blink serializes a CSSOM-written style lazily and would leave
     `style=""`). The E2E checks the round trip (W15);
@@ -447,6 +465,15 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   compiled scene, counted from `useFrame` — never from a timer, which also ticks while the canvas
   is paused. A part that is not needed for the first picture is built **after ready**, the same
   way (Work's helix: `stageHelix`, one build slice, one compile slice per draw object).
+- **A program three would link inside `render()` is linked first, in parallel.** three reads a
+  program's link status back on its first use, so a program met for the first time inside a
+  render or a `PMREMGenerator.fromScene` holds the main thread for its whole link. Compile it
+  beforehand through `compileAsync` (`compileScene` / `compileObject` in
+  `components/three/renderer.ts`), with the same key: the same geometry, the same lights, a
+  render target bound when the real draw has one (colour space and tone mapping are in the key).
+  `createStripEnvironment` does this for the PMREM pre-filter's four programs, and a development
+  build warns if `fromScene` still linked one. Nothing is drawn before then either: the intro's
+  canvas stays `frameloop="never"` until its compile has been issued.
 - **The transmission clear is compensated in one place** — the intro's glass only: since the hero
   became a chip (2026-09-17) the interior has no transmission pass. `installTransmissionClear`
   (`components/three/environment.ts`) pre-compensates three's output-space conversion of the clear
@@ -483,9 +510,11 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
 
 ### `data-intro-reveal` — the page entrance targets
 
-The page elements the intro animates in carry `data-intro-reveal="grid|header|title|
-lead|cta|stats|ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`; the `eyebrow` target went with the
-hero's kicker line on 2026-09-25).
+The page elements the intro animates in carry `data-intro-reveal="grid|header|title|cta|stats|
+ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`; the `eyebrow` target went with the hero's kicker
+line on 2026-09-25, the `lead` target with its lead line on 2026-10-02). Since 2026-10-09 `title`
+marks a wrapper round the `<h1>` and its subtitle, and `cta` holds the CTA row and the line of
+promises under it, so each enters with its group.
 
 - **Exactly one element per target** on the home page, and **no inline `style`** on any of
   them once the intro is over.
@@ -496,8 +525,8 @@ hero's kicker line on 2026-09-25).
   element** — GSAP writes those.
 - **`header` and `stats`: transform only.** An opacity or filter on `<header>` (or on the glass
   cards) makes it the backdrop root of its own glass and switches the blur off mid-entrance.
-- **`title`: never opacity.** The `<h1>` is the LCP element and must paint at full opacity
-  under the overlay.
+- **`title`: never opacity.** It holds the `<h1>`, the LCP element, which must paint at full
+  opacity under the overlay.
 - **`cta` and `ticker` mark the wrapper**, never the button (its hover lift) or the ticker's
   CSS-animated track.
 - **No parallax, tilt or other inline style on a marker** (2026-09-17). The hero's parallax
@@ -511,8 +540,9 @@ three languages and checks one marker per target with no style attribute, and sc
 
 ## The HUD chrome (`components/hud/**`, `lib/hud/**`)
 
-The IT-OS HUD (the fibre scroll rail since Phase 5; the OS layer later) is built to these rules.
-The Ghid TBS guide was Phase 4 and was removed on 2026-09-25 — the rules below outlive it. Wiring in
+The IT-OS HUD (the corner assistant from Phase 4, the fibre scroll rail since Phase 5; the OS
+layer later) is built to these rules. The Ghid TBS guide's linger tip was removed on 2026-09-26;
+the assistant herself stays, and the rules below are hers and the rail's. Wiring in
 [03](./03-architecture.md#the-hud-chrome-it-os-phase-4-2026-09-17), the visual contract in
 [04](./04-design-system.md#cyber-dark--neon-cyan--obsidian-black).
 
@@ -559,7 +589,10 @@ The Ghid TBS guide was Phase 4 and was removed on 2026-09-25 — the rules below
   scroll position itself (the rail's thread and head) is the visitor's own movement, not an
   animation.
 - **No writes to `<html>` / `<body>`.** A part's live values go on its own root — the rail's
-  `--rail-p` through `style.setProperty` on `[data-rail]`, only when the 4-decimal value changes —
+  `--rail-p` through `style.setProperty` on the rail's `aria-hidden` fibre (the closest common
+  ancestor of its only readers; on `[data-rail]` the inherited property restyled the nav every
+  frame), only when the
+  4-decimal value changes —
   and every placement token is a static stylesheet value. `expectRootUntouched` checks it after
   the rail's jumps and a full scroll.
 - **Listen passively, never take the scroll.** Window `scroll` and `resize` listeners are

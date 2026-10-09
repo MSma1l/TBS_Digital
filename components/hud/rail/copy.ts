@@ -23,7 +23,8 @@ export const RAIL_COPY = {
   top: L("Început", "Начало", "Start"),
   /** Home `#estimare` (the request section). */
   estimare: L("Cerere", "Заявка", "Request"),
-  /** Home `#contact` (the closing call to action). */
+  /** Home `#contact`: the footer, where the page ends and the contacts are. It named the closing
+      call to action until that went (2026-10-09); the id moved to the footer, the label stayed. */
   contact: L("Contact", "Контакт", "Contact"),
 };
 

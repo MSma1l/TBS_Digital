@@ -16,6 +16,7 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
+import type { Camera, Scene, WebGLRenderer } from "three";
 import { useRendererFactory, useRetainedRenderer, useSceneReady } from "@/components/three/hooks";
 import { setRendererLite } from "@/components/three/renderer";
 import { clampDpr } from "./capability";
@@ -79,6 +80,15 @@ export function IntroScene({
   const [step, setStep] = useState<GovernorStep>("full");
   const antialias = TIER_CONFIG[tier].antialias;
 
+  // The glass's environment links its programs in parallel while the film plays (IntroWorld), and
+  // R3F draws nothing until the scene's own compile has been issued after it. The canvas is not
+  // shown before sceneReady anyway; a frame drawn earlier would link the glass without its
+  // environment (a program it never draws with again) and every other program one after another
+  // on the main thread, which the compile links in parallel. So the first frame still comes after
+  // the compile has started, as it did when the environment was built inside the effect.
+  const [compiling, setCompiling] = useState(false);
+  const waiting = TIER_CONFIG[tier].glass === "physical" && !compiling;
+
   // A refused context or a context lost while mounted → `onLost` (once); the director
   // unmounts the scene and keeps the SVG. Once unmounted, a loss is R3F's own teardown.
   const renderer = useRendererFactory({ antialias, force3d, onLost });
@@ -92,7 +102,7 @@ export function IntroScene({
     <Canvas
       flat
       dpr={dpr}
-      frameloop={paused ? "never" : "always"}
+      frameloop={paused || waiting ? "never" : "always"}
       resize={RESIZE}
       gl={renderer.gl}
       camera={CAMERA}
@@ -112,6 +122,7 @@ export function IntroScene({
         skipDpr={baseDpr[1] <= 1}
         onReady={onReady}
         onStep={setStep}
+        onCompiling={setCompiling}
       />
     </Canvas>
   );
@@ -126,6 +137,8 @@ type IntroWorldProps = {
   skipDpr: boolean;
   onReady: () => void;
   onStep: (step: GovernorStep) => void;
+  /** The scene's compile has been issued (true), or its issuer unmounted (false). */
+  onCompiling: (started: boolean) => void;
 };
 
 function IntroWorld({
@@ -137,6 +150,7 @@ function IntroWorld({
   skipDpr,
   onReady,
   onStep,
+  onCompiling,
 }: IntroWorldProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
@@ -145,14 +159,41 @@ function IntroWorld({
   const [motion] = useState(createRigState);
   const [governor] = useState(() => createFpsGovernor({ minFps: MIN_FPS[tier], skipDpr }));
   const physical = TIER_CONFIG[tier].glass === "physical";
+  // Nothing compiles before the environment exists — it changes the glass's shader defines — and
+  // without the glass there is no environment to wait for.
+  const [lit, setLit] = useState(!physical);
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  // Effects run in order, after the children's: the core and particles are in the scene, the
-  // environment exists (it changes the glass's shader defines), and only then do we compile.
-  useEffect(
-    () => (physical ? installNeonEnvironment(gl, scene, palette) : undefined),
-    [physical, gl, scene, palette],
-  );
-  useSceneReady(gl, scene, camera, onReady);
+  // The environment, built without freezing the film. Its pre-filter used to link four programs
+  // one after another inside this effect, the main thread waiting on each — 597ms measured, the
+  // counter and the drawing stopped dead in beat 1 or 2. Now they link in parallel first
+  // (`createStripEnvironment`) and the same `fromScene` runs once they have. The undo is kept
+  // for unmount; an unmount while they link disposes everything and installs nothing.
+  useEffect(() => {
+    if (!physical) return;
+    let cancelled = false;
+    let undo: (() => void) | null = null;
+    void installNeonEnvironment(gl, scene, palette, () => cancelled).then(
+      (installed) => {
+        if (!installed) return;
+        if (cancelled) {
+          installed();
+          return;
+        }
+        undo = installed;
+        setLit(true);
+      },
+      // A throw here used to reach the director's error boundary straight from the effect; it
+      // still does, from the render below.
+      (error: unknown) => {
+        if (!cancelled) setFailure({ error });
+      },
+    );
+    return () => {
+      cancelled = true;
+      undo?.();
+    };
+  }, [physical, gl, scene, palette]);
   useRetainedRenderer(gl);
   useEffect(() => setRendererLite(gl, lite), [gl, lite]);
 
@@ -165,6 +206,8 @@ function IntroWorld({
     if (next) onStep(next);
   });
 
+  if (failure) throw failure.error;
+
   /* No fit group and no rig group: the machine sits at the origin at its modelled size and the
      camera does the travelling. `createParticleMaterial` reads `length(modelViewMatrix[0].xyz)`
      as its `modelScale`, which is why it is calibrated for 1 (see `uSize` in `materials.ts`). */
@@ -172,6 +215,44 @@ function IntroWorld({
     <>
       <IntroLaptop fx={fx} tier={tier} palette={palette} lite={lite} />
       <OrbitParticles fx={fx} tier={tier} palette={palette} lite={lite} />
+      {lit && (
+        <SceneReady
+          gl={gl}
+          scene={scene}
+          camera={camera}
+          onReady={onReady}
+          onCompiling={onCompiling}
+        />
+      )}
     </>
   );
+}
+
+/**
+ * `useSceneReady` — compile, two frames, `onReady` — once the scene is complete and lit. The last
+ * child, so its effects run after the laptop's and the particles' (their objects are in the
+ * scene); mounted only once the environment is installed, so the glass compiles with its CUBEUV
+ * defines — the very program it draws with — and sceneReady still waits for that compile. Then
+ * `onCompiling`: R3F's frames start (see `waiting` in IntroScene).
+ */
+function SceneReady({
+  gl,
+  scene,
+  camera,
+  onReady,
+  onCompiling,
+}: {
+  gl: WebGLRenderer;
+  scene: Scene;
+  camera: Camera;
+  onReady: () => void;
+  onCompiling: (started: boolean) => void;
+}) {
+  useSceneReady(gl, scene, camera, onReady);
+  // After the hook's own effect, which has issued the compile by now.
+  useEffect(() => {
+    onCompiling(true);
+    return () => onCompiling(false);
+  }, [onCompiling]);
+  return null;
 }

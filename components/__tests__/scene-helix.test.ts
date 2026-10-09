@@ -487,6 +487,18 @@ const STYLES = [
   "--p1:#734328; --p2:#e38a4f",
 ];
 
+/** The fixture's one project with no screenshot (a new one from the admin): only its scan layer reads the wipe. */
+const NO_SCREENSHOT = 4;
+
+/** Work's screenshot as it renders it: the picture that reads the wipe, in its parallax wrapper. */
+function screenshot(): HTMLElement {
+  const media = document.createElement("div");
+  const img = document.createElement("img");
+  img.className = "work-media-reveal";
+  media.append(img);
+  return media;
+}
+
 function fixture(n: number) {
   document.body.innerHTML = "";
   const section = document.createElement("section");
@@ -499,6 +511,10 @@ function fixture(n: number) {
     card.textContent = `Project ${i}`;
     const style = STYLES[i % STYLES.length];
     if (style !== null) card.setAttribute("style", style);
+    if (i !== NO_SCREENSHOT) card.prepend(screenshot());
+    const scan = document.createElement("span");
+    scan.className = "work-scan";
+    card.append(scan);
     track.append(card);
   }
   section.append(track);
@@ -800,27 +816,46 @@ describe("workHelix — the spiral per frame", () => {
     driver.dispose();
   });
 
-  it("draws the screenshot on from the card's own place on the strand, and takes it off on exit", () => {
-    const { driver, cards } = spiral(9);
-    const wipes = () => cards.map((c) => c.style.getPropertyValue(HELIX_WIPE_PROP));
+  it("draws the screenshot on from the card's own place on the strand, on what reads it, and takes it off on exit", async () => {
+    const { driver, cards, track } = spiral(9);
+    const shot = (card: HTMLElement) => card.querySelector<HTMLElement>(".work-media-reveal");
+    const scan = (card: HTMLElement) => card.querySelector<HTMLElement>(".work-scan")!;
+    const wipeOf = (el: HTMLElement | null) => el?.style.getPropertyValue(HELIX_WIPE_PROP);
+    const wipes = () => cards.map((c) => wipeOf(scan(c)));
+    const bare = cards[NO_SCREENSHOT];
     driver.write({ focus: 0, built: true });
     // Card 0 is the front: whole. The ones below it are still being drawn on, then nothing.
     expect(wipes()[0]).toBe("1");
     expect(cards.map((_, i) => Number(wipes()[i]))).toEqual(cards.map((_, i) => r2(helixWipe(i, 0))));
     expect(Number(wipes()[8])).toBe(0);
+    // On the screenshot and the scan layer, never on the card, whose whole subtree would restyle
+    // for every write; a project with no screenshot has the scan layer only.
+    for (const card of cards) {
+      expect(card.style.getPropertyValue(HELIX_WIPE_PROP)).toBe("");
+      if (card !== bare) expect(wipeOf(shot(card))).toBe(wipeOf(scan(card)));
+    }
+    expect(shot(bare)).toBeNull();
     // A card part way up the zone is part way drawn on — the whole point: it is mid-reveal at a
     // scroll position the visitor is resting at, not at one they passed through seconds ago.
     const half = HELIX_LAYOUT.wipe[0] + (HELIX_LAYOUT.wipe[1] - HELIX_LAYOUT.wipe[0]) / 2;
-    driver.write({ focus: 4 - half, built: true });
-    expect(Number(cards[4].style.getPropertyValue(HELIX_WIPE_PROP))).toBeCloseTo(0.5, 2);
+    driver.write({ focus: NO_SCREENSHOT - half, built: true });
+    expect(Number(wipeOf(scan(bare)))).toBeCloseTo(0.5, 2);
+    // Its project gains a screenshot right then: new content, the same card. The picture arrives
+    // part drawn, before any frame, not whole in the middle of the reveal.
+    bare.prepend(screenshot());
+    await Promise.resolve();
+    expect(wipeOf(shot(bare))).toBe(wipeOf(scan(bare)));
     // Scrolling back down un-draws it again: the reveal plays on every pass, both ways.
-    driver.write({ focus: 4 - HELIX_LAYOUT.wipe[1], built: true });
-    expect(cards[4].style.getPropertyValue(HELIX_WIPE_PROP)).toBe("0");
-    driver.write({ focus: 4, built: true });
-    expect(cards[4].style.getPropertyValue(HELIX_WIPE_PROP)).toBe("1");
-    // And it is one of the driver's own properties: the restore takes it off with the rest.
+    driver.write({ focus: NO_SCREENSHOT - HELIX_LAYOUT.wipe[1], built: true });
+    expect([wipeOf(shot(bare)), wipeOf(scan(bare))]).toEqual(["0", "0"]);
+    driver.write({ focus: NO_SCREENSHOT, built: true });
+    expect([wipeOf(shot(bare)), wipeOf(scan(bare))]).toEqual(["1", "1"]);
+    // And it is one of the driver's own properties: the restore takes it off every reader, the new
+    // picture too, leaving each as React rendered it, with no style at all.
     driver.dispose();
-    expect(cards.some((c) => c.style.getPropertyValue(HELIX_WIPE_PROP) !== "")).toBe(false);
+    const readers = Array.from(track.querySelectorAll(".work-media-reveal, .work-scan"));
+    expect(readers).toHaveLength(18);
+    expect(readers.filter((el) => el.hasAttribute("style"))).toEqual([]);
     expect(cards.some((c) => c.hasAttribute(HELIX_FRONT_ATTR))).toBe(false);
   });
 
@@ -1149,7 +1184,7 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
 
     expect(section.textContent).not.toBe(headingBefore);
     // Work's own heading in the new language (its kicker line went on 2026-09-25).
-    expect(section.textContent).toContain("The projects that speak for us.");
+    expect(section.textContent).toContain("What we've already built.");
     // The same card ELEMENTS, in the same order — React reused them rather than remounting, which
     // is what keeps the driver's inline layout alive. Filtered like the driver's own collector, so
     // the loading state's <svg> at the head of the track is not compared against a card.
@@ -1160,6 +1195,14 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
     expect(cards[0].style.getPropertyValue("--p1")).toBe(p1);
     expect(cards[1].style.position).toBe("sticky");
     expect(cards[1].style.transform).toMatch(/^perspective\(1200px\) translate3d\(/);
+    // What Work's CSS reads the wipe on (app/tailwind.css) still carries it: each card's scan layer
+    // and screenshot, which the driver finds by class, so renaming either utility fails here
+    // instead of silently ending the reveal.
+    for (const card of cards) {
+      const wipe = card.querySelector<HTMLElement>(".work-scan")!.style.getPropertyValue(HELIX_WIPE_PROP);
+      expect(wipe).toMatch(/^\d/);
+      for (const img of card.querySelectorAll("img")) expect(img.style.getPropertyValue(HELIX_WIPE_PROP)).toBe(wipe);
+    }
 
     driver.dispose();
     expect(styleOf(cards)).toEqual(rendered);

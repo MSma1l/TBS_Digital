@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { Reveal } from "@/components/ui/Reveal";
 import { mediaUrl } from "@/lib/api";
 import { useSiteContent } from "@/lib/siteContent";
@@ -38,10 +40,12 @@ export function Team() {
      render as an empty box. */
   const shownStats = stats.filter((s) => s.value.trim() !== "");
   const l = useLoc();
-
+  /* the hologram's beam rests while the section is well out of view (Team.module.css) */
+  const sectionRef = useRef<HTMLElement>(null);
+  useOffscreenAttribute(sectionRef);
 
   return (
-    <section id="echipa" className={styles.section}>
+    <section ref={sectionRef} id="echipa" className={styles.section}>
       {/*
        * The key and the tint, once for the whole section rather than once per card.
        *

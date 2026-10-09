@@ -77,12 +77,13 @@ describe("intro reveal targets — markup", () => {
     expect([...names].sort()).toEqual([...INTRO_REVEAL_ORDER].sort());
   });
 
-  it("puts the header target on the <header> and the title target on the page's only <h1>", () => {
+  it("puts the header target on the <header> and the title target round the page's only <h1>", () => {
     renderFirstScreen();
 
     expect(document.querySelector(`[${INTRO_REVEAL_ATTR}="header"]`)?.tagName).toBe("HEADER");
     expect(document.querySelectorAll("h1")).toHaveLength(1);
-    expect(document.querySelector(`[${INTRO_REVEAL_ATTR}="title"]`)?.tagName).toBe("H1");
+    // The title enters with its subtitle (2026-10-09): the target wraps the <h1> and the line under it.
+    expect(document.querySelector(`[${INTRO_REVEAL_ATTR}="title"] h1`)).toBe(document.querySelector("h1"));
   });
 });
 

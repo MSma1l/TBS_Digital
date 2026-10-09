@@ -167,6 +167,13 @@
   opacity: 0.85;
   animation: holoBeam 5.9s linear infinite;
 }
+/* ...and rests while the section is well out of view (data-offscreen, Team.tsx): the one loop here
+   with no held state — a linear sweep, like the estimator's lights — so the phase it comes back at is
+   never conspicuous. Its mask-position sweep could not be composited: off screen it still repainted
+   the portrait every frame the section sat inside the page's cull rect (the whole Work spiral above). */
+.section[data-offscreen] .beam {
+  animation-play-state: paused;
+}
 
 /* He is a bust, so the crop cuts him off at the waist. This fades that cut into the card instead
    of leaving a straight edge, which is the one thing a projection never has. */
@@ -197,7 +204,9 @@
  * A fault you can set your watch by is not a fault — a stuck one is.
  *
  * The estimator's two lights ARE paused off screen (Estimator.module.css): they are linear sweeps
- * with no held states, so no frame of them is conspicuous.
+ * with no held states, so no frame of them is conspicuous. So is the BEAM, since 2026-10-07, for the
+ * same reason (`.section[data-offscreen] .beam` above): it has no steps() and holds nothing. holoLive
+ * and holoTear keep running.
  */
 
 @keyframes holoLive {

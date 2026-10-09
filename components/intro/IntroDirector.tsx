@@ -120,8 +120,8 @@ type EntranceStep = {
  * without an intro (returning visitor, reduced motion, tests) the page is simply there.
  *  · header — transform only: opacity or a filter on <header> would make it the backdrop
  *    root of its own glass and kill the blur mid-entrance;
- *  · title  — never opacity: the <h1> is the LCP element and must paint at full opacity
- *    under the overlay;
+ *  · title  — never opacity: it wraps the <h1> (and, since 2026-10-09, the subtitle under it),
+ *    the LCP element, which must paint at full opacity under the overlay;
  *  · stats  — transform only: the cards are glass (backdrop-filter) too;
  *
  * The `eyebrow` step is gone with the hero's kicker line (2026-09-25). Its 0.2 slot was not left

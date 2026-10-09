@@ -2,9 +2,10 @@
  * The /02 block is the direction CHOOSER.
  *
  * Two things it must never go back to being: pills that look clickable and do nothing
- * (they are links to `/servicii/<slug>` now), and a preview with two competing CTAs.
- * Everything commercial belongs on the service page, so the only interactive element left
- * in the preview is the single "open the service" link.
+ * (they are links to `/servicii/<slug>` now), and a preview with competing ways out. Since
+ * 2026-10-09 the preview sells: one request button ("Cere ofertă", the shared dialog with the
+ * direction preselected — a button, never an anchor to the estimator) and one link, "Detalii",
+ * into the service page.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, createEvent, render, screen, waitFor, within, fireEvent } from "@testing-library/react";
@@ -16,6 +17,7 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { Directions, pillIndexForKey } from "@/components/sections/Directions";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { ServiceArt } from "@/components/scene/art/ServiceArt";
 import { directions } from "@/lib/directions";
 import { SCENE_SHAPES, readSceneInput, resetSceneForTests, selectSceneShape } from "@/lib/scene";
@@ -30,7 +32,9 @@ beforeEach(() => {
 function renderSection(): HTMLElement {
   const { container } = render(
     <SiteContentProvider>
-      <Directions />
+      <RequestFlowProvider>
+        <Directions />
+      </RequestFlowProvider>
     </SiteContentProvider>,
   );
   return container;
@@ -120,12 +124,12 @@ describe("direction selector — the preview follows the selection", () => {
     const links = pills();
 
     // first direction
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Produs digital");
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Ideea ta, transformată într-un produs folosit");
     expect(screen.getByText("Workshop de strategie")).toBeInTheDocument();
 
     fireEvent.click(links[4]); // Brand & UI
 
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Brand & UI");
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Un brand pe care îl recunoști și o interfață ușor de folosit");
     expect(screen.getByText("Design system")).toBeInTheDocument();
     expect(screen.queryByText("Workshop de strategie")).not.toBeInTheDocument();
   });
@@ -211,7 +215,7 @@ describe("direction selector — the preview follows the selection", () => {
   });
 });
 
-describe("direction selector — one action, not two", () => {
+describe("direction selector — one link out, one request", () => {
   it("offers exactly one link out of the preview, into the selected service page", () => {
     const container = renderSection();
     const panelLinks = Array.from(
@@ -219,7 +223,7 @@ describe("direction selector — one action, not two", () => {
     );
 
     expect(panelLinks).toHaveLength(1);
-    expect(panelLinks[0].textContent).toContain("Deschide serviciul");
+    expect(panelLinks[0].textContent).toContain("Detalii");
     expect(panelLinks[0].getAttribute("href")).toBe("/servicii/produs-digital");
 
     fireEvent.pointerMove(pills()[2]);
@@ -244,7 +248,7 @@ describe("direction selector — one action, not two", () => {
     }
   });
 
-  it("no longer duplicates the commercial CTA — nothing here jumps to the estimator", () => {
+  it("asks through the dialog, never by jumping to the estimator", () => {
     const container = renderSection();
     const hrefs = Array.from(
       container.querySelectorAll<HTMLAnchorElement>("a"),
@@ -493,7 +497,9 @@ describe("direction selector — the HUD screen and the scene", () => {
   it("the art slot renders only the selected illustration, aria-hidden, adding no link, heading or step", async () => {
     const { container } = render(
       <SiteContentProvider>
-        <Directions initialArt={<ServiceArt shape={SCENE_SHAPES[0]} />} />
+        <RequestFlowProvider>
+          <Directions initialArt={<ServiceArt shape={SCENE_SHAPES[0]} />} />
+        </RequestFlowProvider>
       </SiteContentProvider>,
     );
     const anchor = container.querySelector<HTMLElement>('[data-scene-anchor="services"]');
@@ -522,7 +528,9 @@ describe("direction selector — the HUD screen and the scene", () => {
   it("the first direction's drawing is the server slot, there from the first render; switching back reuses it", async () => {
     const { container } = render(
       <SiteContentProvider>
-        <Directions initialArt={<svg data-shape-art={SCENE_SHAPES[0]} data-slot="" aria-hidden="true" />} />
+        <RequestFlowProvider>
+          <Directions initialArt={<svg data-shape-art={SCENE_SHAPES[0]} data-slot="" aria-hidden="true" />} />
+        </RequestFlowProvider>
       </SiteContentProvider>,
     );
     const anchor = container.querySelector<HTMLElement>('[data-scene-anchor="services"]')!;

@@ -45,6 +45,7 @@
   stroke-opacity: 0.85;
   animation: bracket 1.8s var(--motion-ease-out) infinite;
   animation-delay: calc(var(--i) * 0.12s);
+  animation-play-state: var(--loading-play, running); /* resting on a scene host that is down: SceneLoading.module.css */
 }
 
 /* The bar that sweeps between them — a scan, the same gesture the intro and the cards use. */
@@ -53,6 +54,7 @@
   stroke-width: 2;
   stroke-opacity: 0.55;
   animation: scan 1.8s var(--motion-ease-out) infinite;
+  animation-play-state: var(--loading-play, running);
 }
 
 /* The core: what is being waited for. Red, because on this site red is the live thing. */
@@ -61,6 +63,7 @@
   stroke-width: 3;
   stroke-dasharray: 5 7;
   animation: core 1.8s linear infinite;
+  animation-play-state: var(--loading-play, running);
 }
 
 @keyframes bracket {

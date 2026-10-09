@@ -24,9 +24,11 @@ import styles from "./ScrollRail.module.css";
  *
  * Two parts under one `[data-hud][data-rail]` root that takes no pointer events:
  *   - the FIBRE (`aria-hidden`): a faint core line, the lit thread filling with scroll progress
- *     (`--rail-p`, written on the rail's own root, never on <html> or <body>), its glowing head,
- *     a streak that travels along the thread only while the visitor scrolls, and one diamond
- *     tick per section — lit once passed, pulsing once when a downward scroll passes it;
+ *     (`--rail-p`, written on the fibre itself, never on the root, <html> or <body>), its glowing
+ *     head, a streak that travels along the thread only while the visitor scrolls, and one
+ *     diamond tick per section — lit once passed, pulsing once when a downward scroll passes it.
+ *     The thread and the head each sit in a still layer of their own (`styles.layer`): they change
+ *     on every scrolled frame, and only those two small layers repaint, not the whole rail;
  *   - a real `<nav>` of 44×44 `<button>`s at the ticks (no `href`: nothing to follow, no
  *     `#estimare` link on the page), each named by a label that shows on hover and focus. A
  *     button scrolls its section to just under the header — smoothly, or instantly under reduced
@@ -174,11 +176,16 @@ function createRail() {
   /** Covered, or ScrollTrigger mid-measure: what the page reports now is not where it is. */
   const held = () => isPageCovered() || document.documentElement.hasAttribute(RAIL_MEASURE_ATTR);
 
-  const writeProgress = (root: HTMLElement, y: number) => {
+  /**
+   * `--rail-p` goes on the fibre, the closest common ancestor of its only readers (the thread and
+   * the head, each inside its `styles.layer`, and the flow). A custom property is inherited:
+   * written on the root, every scroll frame would restyle the nav.
+   */
+  const writeProgress = (fibre: HTMLElement, y: number) => {
     const value = progressOf(y, max).toFixed(4);
     if (value === written) return;
     written = value;
-    root.style.setProperty("--rail-p", value);
+    fibre.style.setProperty("--rail-p", value);
   };
 
   function measure(): void {
@@ -196,7 +203,7 @@ function createRail() {
     known = sections;
     targets = placed.length > 0 ? measured : [];
 
-    writeProgress(parts.root, y);
+    writeProgress(parts.fibre, y);
     const active = activeIndex(y, targets);
     const unchanged =
       active === view.active &&
@@ -208,9 +215,9 @@ function createRail() {
   function onScrollFrame(): void {
     scrollFrame = 0;
     if (parts === null || held()) return;
-    const { root } = parts;
+    const { root, fibre } = parts;
     const y = window.scrollY;
-    writeProgress(root, y);
+    writeProgress(fibre, y);
 
     if (reducedQuery?.matches !== true) {
       const crossed = crossedDown(lastY, y, targets);
@@ -244,6 +251,9 @@ function createRail() {
     parts = { root, fibre };
     reducedQuery = typeof window.matchMedia === "function" ? window.matchMedia(REDUCED_MOTION) : null;
     lastY = window.scrollY;
+    // The detach below takes --rail-p off the fibre. A re-attach of this same rail (StrictMode's
+    // replay) has to write it again even if the progress has not moved, or the thread stays empty.
+    written = "";
 
     const onScroll = () => {
       if (scrollFrame === 0) scrollFrame = requestAnimationFrame(onScrollFrame);
@@ -282,6 +292,7 @@ function createRail() {
       measureFrame = 0;
       clearTimeout(flowTimer);
       root.removeAttribute("data-flowing");
+      fibre.style.removeProperty("--rail-p");
       parts = null;
     };
   }
@@ -341,9 +352,13 @@ export function ScrollRail() {
     <div ref={rootRef} className={styles.root} data-hud="" data-rail="">
       <div ref={fibreRef} className={styles.fibre} aria-hidden="true">
         <span className={styles.core} />
-        <span className={styles.thread} />
+        <span className={styles.layer}>
+          <span className={styles.thread} />
+        </span>
         <span className={styles.flow} />
-        <span className={styles.head} />
+        <span className={styles.layer}>
+          <span className={styles.head} />
+        </span>
         {placed.map((marker, i) => (
           <span
             key={i}

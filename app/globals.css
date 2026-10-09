@@ -487,8 +487,19 @@ html {
   }
 }
 
+/* ---------- the end of the Work spiral ----------
+   While the spiral runs, the next section rides up over its finish (components/scene/helix.ts
+   `helixOverlap`, written by the driver as --helix-overlap): a negative bottom margin, so the stage
+   keeps its full height — its sticky canvas and the pinned deck finish exactly as before — while
+   what follows comes up right under the last card instead of half a page below it. Only in the
+   spiral; without it the property is absent and nothing moves. */
+[data-scene-stage][data-helix="spiral"] {
+  margin-bottom: calc(var(--helix-overlap, 0px) * -1);
+}
+
 /* ---------- the hero's stat windows ----------
-   The two metric cards are the site's numbers — the counted portfolio and the 24/7 automations.
+   The two metric cards are the site's numbers — the counted portfolio and the one working day a
+   reply takes at most (the 24/7 automations until 2026-10-09).
    Between 2026-09-25 and 2026-09-27 the 3D scene drew them itself: the card's paint was taken
    away and a holographic panel was fitted into its box. That is OFF (see the block below the
    rule); the cards paint themselves on every renderer, at every width, for every visitor.

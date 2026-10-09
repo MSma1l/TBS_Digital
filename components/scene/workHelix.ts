@@ -18,15 +18,18 @@
  *   put back under the visitor: inside the spiral, to the focused card's grid position
  *   (`top − headerH − 24`, instant); past its end, keeping whatever follows the track still.
  * - **Every property is inline and every original `style` attribute comes back byte for byte**
- *   (`--p1/--p2` exactly as React rendered them). Should someone else have changed the style
- *   meanwhile (a tilt in progress, new admin colours), only the driver's own longhands go.
+ *   (`--p1/--p2` exactly as React rendered them), on the track, the cards and the two elements
+ *   inside each card that the screenshot's wipe is written on. Should someone else have changed the
+ *   style meanwhile (a tilt in progress, new admin colours), only the driver's own longhands go.
  * - **A card is never capped below its content**: the spiral writes `min-height`, never `height`
  *   (the cards clip with `overflow: hidden`, and a touch screen always shows the description), and
  *   centres each card's measured box under the header — a card taller than the layer starts right
  *   under it. A ResizeObserver on the cards centres them again when their content changes.
  * - React re-renders (a locale switch) diff only React's own style keys, so the inline layout
  *   survives them; a re-keyed card list (`/api/content`) is re-collected through a
- *   MutationObserver on the track's children and laid out again.
+ *   MutationObserver on the track and laid out again. The observer also sees inside the cards: a
+ *   project that gains a screenshot keeps its card, and the new picture is given the card's wipe
+ *   before it is ever painted.
  * - Focus: tabbing to a card scrolls to where it is the focus (the page's own smooth scrolling
  *   applies). Tab order, `inert` and `aria-hidden` are never touched; a card that holds focus is
  *   fully opaque. A focus a pointer press caused scrolls nothing (the press would land elsewhere).
@@ -43,9 +46,12 @@ import {
   focusFromProgress,
   helixCardHeight,
   helixCardWidth,
+  HELIX_OVERLAP_PROP,
+  HELIX_PARALLAX_PROP,
   HELIX_WIPE_PROP,
   helixExitAt,
   helixExitLength,
+  helixOverlap,
   helixFocusAt,
   helixLayout,
   helixLead,
@@ -54,6 +60,7 @@ import {
   helixWipe,
   nearestCard,
   scrollForCard,
+  viewProgress,
   wantedHelixMode,
   type CardRect,
 } from "./helix";
@@ -121,9 +128,21 @@ const CARD_PROPS = [
   "transform",
   "z-index",
   "opacity",
-  // Work's CSS reads it for the screenshot's reveal; the restore must take it off again.
-  HELIX_WIPE_PROP,
+  // Written once per layout, not per frame, so its inheritance costs nothing (`holdParallax`).
+  HELIX_PARALLAX_PROP,
 ] as const;
+
+/**
+ * What Work's CSS reads `--helix-wipe` on (app/tailwind.css): the screenshot (`work-media-reveal`,
+ * which a project may not have) and the scan layer (`work-scan`, whose `::before` inherits it).
+ * The wipe is written on these, never on the card: a custom property set on the card is inherited
+ * by everything inside it, so each write restyled the card's whole subtree, some twenty elements
+ * and their pseudo-elements, for the two that read it.
+ */
+const WIPE_READERS = ".work-media-reveal, .work-scan";
+
+/** Everything the spiral writes on those. */
+const READER_PROPS = [HELIX_WIPE_PROP] as const;
 
 /** Everything the spiral writes on the track. */
 const TRACK_PROPS = ["display", "grid-template-columns", "grid-template-rows"] as const;
@@ -247,6 +266,18 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   let stepPx = 0;
   /** How far below the front card 0 starts, in cards: the lead-in (helix.ts `helixLead`). */
   let lead = 0;
+  /**
+   * The curtain: what follows Work rides up over the finish (`helixOverlap`), and the stage's sticky
+   * layer — the strand and the hologram — is clipped at that section's top edge, so the section
+   * covers the scene as it comes up instead of being drawn over by it. `overlapPx` and the stage's
+   * bottom (document px) come from the layout; the clip is plain arithmetic on the scroll, written
+   * on the layer itself (not inherited from the stage: a property there would restyle every card
+   * under it each frame) and only when it moves.
+   */
+  let overlapPx = 0;
+  let stageBottom = Number.NaN;
+  let curtainLayer: HTMLElement | null = null;
+  let curtain = Number.NaN;
   /** The probe version the layout (spiral) or the index (ambient) was made for. */
   let version = -1;
   let lastFocus = Number.NaN;
@@ -255,6 +286,12 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   let clickable: boolean[] = [];
   /** The `--helix-wipe` last written per card: a card whose picture is whole rewrites nothing. */
   let wipes: number[] = [];
+  /**
+   * Per card, the elements that wipe is written on (`WIPE_READERS`), each saved as React rendered
+   * it. Every one of them always carries its card's `wipes[i]`, so the per-card dedupe holds for
+   * each element too.
+   */
+  let readers: Saved[][] = [];
   let focused = -1;
   let focusDirty = true;
   /** A card's content box changed (a locale switch, a hover revealing its description): centre them again. */
@@ -287,6 +324,11 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   }
 
 
+  /** The 3D stage Work closes, whose bottom margin lets the next section in (`helixOverlap`). */
+  function stageOf(): HTMLElement | null {
+    return section.closest<HTMLElement>("[data-scene-stage]");
+  }
+
   function layerHeight(): number {
     return probe.layerH > 0 ? probe.layerH : Math.max(0, window.innerHeight - probe.headerH);
   }
@@ -308,6 +350,7 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   function enterSpiral(): void {
     trackSaved = save(track);
     cardSaved = cards.map(save);
+    readers = cards.map((card) => findReaders(card).map(save));
     track.style.setProperty("display", "grid");
     track.style.setProperty("grid-template-columns", "100%");
     for (const el of cards) {
@@ -326,6 +369,31 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
       });
       for (const el of cards) resizing.observe(el);
     }
+  }
+
+  function findReaders(card: HTMLElement): HTMLElement[] {
+    return Array.from(card.querySelectorAll<HTMLElement>(WIPE_READERS));
+  }
+
+  /**
+   * Card `i`'s readers again, when what is inside it changed but the card itself did not: a project
+   * that gains or loses its screenshot keeps its card (the same key), so nothing re-collects the
+   * list. A reader that left is restored; a new one is saved and given the card's current wipe at
+   * once, before its first paint. Inherited from the card it had that for free; without it the
+   * picture would show whole in the middle of its reveal.
+   */
+  function resolveReaders(i: number): void {
+    const known = readers[i];
+    const found = findReaders(cards[i]);
+    if (found.length === known.length && found.every((el, k) => el === known[k].el)) return;
+    for (const saved of known) if (!found.includes(saved.el)) restore(saved, READER_PROPS);
+    readers[i] = found.map((el) => {
+      const kept = known.find((saved) => saved.el === el);
+      if (kept) return kept;
+      const saved = save(el);
+      if (Number.isFinite(wipes[i])) el.style.setProperty(HELIX_WIPE_PROP, String(wipes[i]));
+      return saved;
+    });
   }
 
   /**
@@ -351,10 +419,43 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
       el.style.setProperty("width", cardW);
       el.style.setProperty("min-height", cardH);
     }
+    // What follows Work rides up over the finish (`helixOverlap`): measured against the stage's
+    // padding under the track now that the track has its height.
+    const stage = stageOf();
+    if (stage) {
+      const stageBox = stage.getBoundingClientRect();
+      overlapPx = round2(helixOverlap(exitLength, sceneH, stageBox.bottom - track.getBoundingClientRect().bottom));
+      stageBottom = stageBox.bottom + window.scrollY;
+      curtainLayer = stage.querySelector<HTMLElement>("[data-scene-layer]");
+      curtain = Number.NaN;
+      stage.style.setProperty(HELIX_OVERLAP_PROP, `${overlapPx}px`);
+    }
     placeTops();
     measure();
+    holdParallax();
     version = probe.version;
     lastFocus = Number.NaN;
+  }
+
+  /**
+   * Each card's screenshot parallax, held (`HELIX_PARALLAX_PROP`): Work's view timeline as it
+   * stands at the scroll that makes that card the front one. Played, the animation put a
+   * compositor layer in every card, and with it the card's rounded clip, the luminosity blend and
+   * the scan above it became layers and offscreen passes of their own — 16 passes a frame with
+   * five cards on screen, 6 held (1280×800 at 1.5×). Held, a card is one layer again. The card
+   * being read shows its picture exactly where the animation had it; what is given up is the
+   * drift around that moment, 10% of the card over the whole section: `stepPx / (section +
+   * viewport) × 10%` of the card a step — about 1.7px with the nine projects at 1280×800, more
+   * with fewer projects or taller cards (about 2.9px at the three-card minimum).
+   */
+  function holdParallax(): void {
+    const box = section.getBoundingClientRect();
+    const top = box.top + window.scrollY;
+    const viewport = document.documentElement.clientHeight;
+    for (let i = 0; i < cards.length; i += 1) {
+      const at = viewProgress(scrollForCard(i, cards.length, span), top, box.height, viewport);
+      cards[i].style.setProperty(HELIX_PARALLAX_PROP, String(round4(at)));
+    }
   }
 
   /**
@@ -388,9 +489,27 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     return -1;
   }
 
+  /**
+   * The curtain at the current scroll. The next section's top is the stage's bottom less the
+   * overlap; the sticky layer's bottom is the layer's own (header + sceneH) while it is stuck, and
+   * the stage's bottom once the stage is leaving. Clipped by however much of the layer lies below
+   * that top — nothing until the section reaches the layer, the whole overlap at the end.
+   */
+  function frameCurtain(): void {
+    if (!curtainLayer || !(overlapPx > 0) || !Number.isFinite(stageBottom)) return;
+    const bottom = stageBottom - window.scrollY;
+    const below = Math.min(probe.headerH + sceneH, bottom) - (bottom - overlapPx);
+    const next = round2(Math.max(0, Math.min(sceneH, below)));
+    if (Math.abs(next - curtain) < 0.5) return;
+    curtain = next;
+    if (next > 0) curtainLayer.style.setProperty("clip-path", `inset(0 0 ${next}px 0)`);
+    else curtainLayer.style.removeProperty("clip-path");
+  }
+
   function frameSpiral(focus: number): void {
     if (probe.version !== version) layout();
     else if (topsDirty) placeTops();
+    frameCurtain();
     if (focusDirty) {
       focusDirty = false;
       const next = focusedCard();
@@ -404,7 +523,8 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     lastFocus = f;
     const n = cards.length;
     for (let i = 0; i < n; i += 1) {
-      const style = cards[i].style;
+      const card = cards[i];
+      const style = card.style;
       helixLayout(i, f, zoneW, sceneH, pose);
       style.transform =
         `perspective(${HELIX_LAYOUT.camera.depth}px) ` +
@@ -424,8 +544,12 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
       // decimals, and only while it is changing, so a settled deck writes nothing at all.
       const wipe = round2(helixWipe(i, f));
       if (wipe !== wipes[i]) {
+        // On the card's readers, not the card (`WIPE_READERS`). One that React has since taken
+        // out of the card means its content changed: look them up again first.
+        if (readers[i].some(({ el }) => !el.isConnected || !card.contains(el))) resolveReaders(i);
         wipes[i] = wipe;
-        style.setProperty(HELIX_WIPE_PROP, String(wipe));
+        const value = String(wipe);
+        for (const { el } of readers[i]) el.style.setProperty(HELIX_WIPE_PROP, value);
       }
       const click = pose.face === "front" && opacity >= CLICK_MIN_OPACITY;
       if (click !== clickable[i]) {
@@ -465,13 +589,28 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     resizing?.disconnect();
     resizing = null;
     topsDirty = false;
+    // No spiral, no finish to ride over: the next section goes back under the track.
+    stageOf()?.style.removeProperty(HELIX_OVERLAP_PROP);
+    curtainLayer?.style.removeProperty("clip-path");
+    curtainLayer = null;
+    curtain = Number.NaN;
+    overlapPx = 0;
     const savedCards = cardSaved;
+    const savedReaders = readers.flat();
     const savedTrack = trackSaved;
     cardSaved = [];
+    readers = [];
     trackSaved = null;
     for (const saved of savedCards) {
       try {
         restore(saved, CARD_PROPS);
+      } catch {
+        // keep restoring the others
+      }
+    }
+    for (const saved of savedReaders) {
+      try {
+        restore(saved, READER_PROPS);
       } catch {
         // keep restoring the others
       }
@@ -632,7 +771,11 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
   const onChildren = () =>
     guard(() => {
       const next = collectCards();
-      if (next.length === cards.length && next.every((el, i) => el === cards[i])) return;
+      if (next.length === cards.length && next.every((el, i) => el === cards[i])) {
+        // The same cards, with something inside one of them changed: only the readers can differ.
+        if (mode === "spiral") for (let i = 0; i < cards.length; i += 1) resolveReaders(i);
+        return;
+      }
       if (mode === "spiral" && next.length >= HELIX_MIN_CARDS) {
         leave(false, next);
         enterSpiral();
@@ -660,7 +803,9 @@ export function createWorkHelixDriver(o: WorkHelixOptions): WorkHelixDriver {
     io.observe(section);
     if (typeof window.MutationObserver === "function") {
       mo = new window.MutationObserver(onChildren);
-      mo.observe(track, { childList: true });
+      // `subtree` as well: a screenshot that arrives inside a card it keeps is reported only from
+      // in there, and its callback runs before the next paint whether or not the scene is drawing.
+      mo.observe(track, { childList: true, subtree: true });
     }
     track.addEventListener("focusin", onFocusIn);
     track.addEventListener("focusout", onFocusOut);

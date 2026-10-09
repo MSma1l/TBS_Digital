@@ -1,0 +1,734 @@
+{
+ "about": "How real mouths move in speech: MediaPipe Face Mesh on public-domain talking-head video (analyze.py). Distances in mm, scaled by an inter-pupil distance of 63 mm; durations in s; percentiles keyed 5/25/50/75/95. Lip and chin slopes are fitted within each stretch of speech. Read by track.mjs and quoted in docs/04 (\"The mouth\").",
+ "clips": [
+  {
+   "title": "File:Weekly Address- Merry Christmas from the President and the First Lady.webm",
+   "duration": 244.463,
+   "license": "Public domain",
+   "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8c/Weekly_Address-_Merry_Christmas_from_the_President_and_the_First_Lady.webm/Weekly_Address-_Merry_Christmas_from_the_President_and_the_First_Lady.webm.480p.vp9.webm",
+   "h": 480
+  },
+  {
+   "title": "File:Weekly Address- The President and First Lady Thank our Troops for their Service this Holiday Season - 2011.webm",
+   "duration": 179.818,
+   "license": "Public domain",
+   "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1d/Weekly_Address-_The_President_and_First_Lady_Thank_our_Troops_for_their_Service_this_Holiday_Season_-_2011.webm/Weekly_Address-_The_President_and_First_Lady_Thank_our_Troops_for_their_Service_this_Holiday_Season_-_2011.webm.480p.vp9.webm",
+   "h": 480
+  },
+  {
+   "title": "File:Weekly Address - President Obama's Supreme Court Nomination.webm",
+   "duration": 252.357,
+   "license": "Public domain",
+   "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/1/1f/Weekly_Address_-_President_Obama%27s_Supreme_Court_Nomination.webm/Weekly_Address_-_President_Obama%27s_Supreme_Court_Nomination.webm.480p.vp9.webm",
+   "h": 480
+  },
+  {
+   "title": "File:2016-03-12 President Obama's Weekly Address.webm",
+   "duration": 189.476,
+   "license": "Public domain",
+   "src": "https://upload.wikimedia.org/wikipedia/commons/transcoded/c/ce/2016-03-12_President_Obama%27s_Weekly_Address.webm/2016-03-12_President_Obama%27s_Weekly_Address.webm.480p.vp9.webm",
+   "h": 480
+  }
+ ],
+ "pooled": {
+  "clips": 4,
+  "faces": 6,
+  "seconds": 352,
+  "aperture_mm": {
+   "5": 0.187,
+   "25": 4.227,
+   "50": 8.442,
+   "75": 11.237,
+   "95": 17.864
+  },
+  "closed_fraction": {
+   "<1mm": 0.153,
+   "<2mm": 0.186,
+   "<3mm": 0.215,
+   "<4mm": 0.243
+  },
+  "opening_peaks_per_s": 2.76,
+  "peak_amplitude_mm": {
+   "5": 2.465,
+   "25": 6.298,
+   "50": 9.784,
+   "75": 13.204,
+   "95": 19.52
+  },
+  "peak_height_vs_neighbours": {
+   "5": 0.394,
+   "25": 0.748,
+   "50": 0.977,
+   "75": 1.277,
+   "95": 1.867
+  },
+  "opening_s": {
+   "5": 0.033,
+   "25": 0.067,
+   "50": 0.133,
+   "75": 0.167,
+   "95": 0.334
+  },
+  "closing_s": {
+   "5": 0.033,
+   "25": 0.067,
+   "50": 0.133,
+   "75": 0.167,
+   "95": 0.334
+  },
+  "open_over_close_median": 1,
+  "peak_velocity_open_mm_s": {
+   "5": 10.403,
+   "25": 37.114,
+   "50": 80.573,
+   "75": 132.302,
+   "95": 209.927
+  },
+  "peak_velocity_close_mm_s": {
+   "5": 10.343,
+   "25": 39.4,
+   "50": 82.05,
+   "75": 129.448,
+   "95": 216.051
+  },
+  "short_closures_per_s": 1.25,
+  "short_closure_s": {
+   "5": 0.033,
+   "25": 0.067,
+   "50": 0.067,
+   "75": 0.133,
+   "95": 0.2
+  },
+  "pauses_per_s": 0.17,
+  "pause_s": {
+   "5": 0.267,
+   "25": 0.334,
+   "50": 0.434,
+   "75": 0.467,
+   "95": 0.669
+  },
+  "width_mm": {
+   "5": 45.449,
+   "25": 51.65,
+   "50": 54.505,
+   "75": 56.816,
+   "95": 62.85
+  },
+  "width_range_p5_p95_mm": 17.4,
+  "corr_width_aperture": 0.407,
+  "chin_drop_per_mm_aperture": 0.485,
+  "upper_lip_per_mm_aperture": -0.085,
+  "lower_lip_per_mm_aperture": 0.758,
+  "psd_peak_hz": 0.47,
+  "psd_share_2_7hz": 0.35,
+  "width_by_aperture": {
+   "1-3": 0.945,
+   "3-5": 0.954,
+   "5-7": 0.991,
+   "7-9": 1.034,
+   "9-11": 1.032
+  }
+ },
+ "faces": [
+  {
+   "clip": "File:Weekly Address- Merry Christmas from the President and the First Lady.webm",
+   "face": "L",
+   "segments": 33,
+   "seconds": 84.2,
+   "aperture_mm": {
+    "5": 0.133,
+    "25": 4.428,
+    "50": 8.94,
+    "75": 13.411,
+    "95": 20.729
+   },
+   "closed_fraction": {
+    "<1mm": 0.158,
+    "<2mm": 0.18,
+    "<3mm": 0.207,
+    "<4mm": 0.235
+   },
+   "opening_peaks_per_s": 2.55,
+   "peak_amplitude_mm": {
+    "5": 3.029,
+    "25": 6.727,
+    "50": 10.215,
+    "75": 14.566,
+    "95": 22.497
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.33,
+    "25": 0.678,
+    "50": 0.991,
+    "75": 1.308,
+    "95": 2.123
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.1,
+    "50": 0.133,
+    "75": 0.2,
+    "95": 0.334
+   },
+   "closing_s": {
+    "5": 0.033,
+    "25": 0.075,
+    "50": 0.133,
+    "75": 0.2,
+    "95": 0.334
+   },
+   "open_over_close_median": 1,
+   "peak_velocity_open_mm_s": {
+    "5": 5.666,
+    "25": 43.785,
+    "50": 87.757,
+    "75": 137.338,
+    "95": 216.519
+   },
+   "peak_velocity_close_mm_s": {
+    "5": 12.293,
+    "25": 34.713,
+    "50": 76.762,
+    "75": 128.836,
+    "95": 229.569
+   },
+   "short_closures_per_s": 1.22,
+   "short_closure_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.133,
+    "95": 0.197
+   },
+   "pauses_per_s": 0.154,
+   "pause_s": {
+    "5": 0.267,
+    "25": 0.3,
+    "50": 0.434,
+    "75": 0.467,
+    "95": 0.467
+   },
+   "width_mm": {
+    "5": 45.234,
+    "25": 50.751,
+    "50": 54.345,
+    "75": 58.708,
+    "95": 66.128
+   },
+   "width_range_p5_p95_mm": 20.89,
+   "corr_width_aperture": 0.503,
+   "chin_drop_per_mm_aperture": 0.469,
+   "upper_lip_per_mm_aperture": -0.059,
+   "lower_lip_per_mm_aperture": 0.72,
+   "psd_peak_hz": 0.7,
+   "psd_share_2_7hz": 0.277,
+   "width_by_aperture": {
+    "1-3": 0.962,
+    "3-5": 0.953,
+    "5-7": 0.986,
+    "7-9": 1.042,
+    "9-11": 1.052
+   }
+  },
+  {
+   "clip": "File:Weekly Address- Merry Christmas from the President and the First Lady.webm",
+   "face": "R",
+   "segments": 24,
+   "seconds": 54.7,
+   "aperture_mm": {
+    "5": 0.211,
+    "25": 1.195,
+    "50": 7.818,
+    "75": 11.031,
+    "95": 16.406
+   },
+   "closed_fraction": {
+    "<1mm": 0.239,
+    "<2mm": 0.276,
+    "<3mm": 0.299,
+    "<4mm": 0.317
+   },
+   "opening_peaks_per_s": 2.36,
+   "peak_amplitude_mm": {
+    "5": 3.148,
+    "25": 8.054,
+    "50": 11.666,
+    "75": 14.463,
+    "95": 18.554
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.502,
+    "25": 0.777,
+    "50": 0.955,
+    "75": 1.274,
+    "95": 1.989
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.133,
+    "75": 0.2,
+    "95": 0.32
+   },
+   "closing_s": {
+    "5": 0.047,
+    "25": 0.1,
+    "50": 0.133,
+    "75": 0.234,
+    "95": 0.534
+   },
+   "open_over_close_median": 0.89,
+   "peak_velocity_open_mm_s": {
+    "5": 16.224,
+    "25": 37.286,
+    "50": 89.997,
+    "75": 162.603,
+    "95": 229.312
+   },
+   "peak_velocity_close_mm_s": {
+    "5": 18.094,
+    "25": 50.58,
+    "50": 98.244,
+    "75": 145.894,
+    "95": 196.54
+   },
+   "short_closures_per_s": 1.23,
+   "short_closure_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.133,
+    "95": 0.2
+   },
+   "pauses_per_s": 0.311,
+   "pause_s": {
+    "5": 0.347,
+    "25": 0.434,
+    "50": 0.467,
+    "75": 0.601,
+    "95": 0.707
+   },
+   "width_mm": {
+    "5": 44.845,
+    "25": 52.233,
+    "50": 54.762,
+    "75": 56.638,
+    "95": 60.841
+   },
+   "width_range_p5_p95_mm": 16,
+   "corr_width_aperture": 0.27,
+   "chin_drop_per_mm_aperture": 0.583,
+   "upper_lip_per_mm_aperture": -0.119,
+   "lower_lip_per_mm_aperture": 0.915,
+   "psd_peak_hz": 0.7,
+   "psd_share_2_7hz": 0.381,
+   "width_by_aperture": {
+    "1-3": 0.915,
+    "3-5": 0.934,
+    "5-7": 0.979,
+    "7-9": 0.986,
+    "9-11": 0.989
+   }
+  },
+  {
+   "clip": "File:Weekly Address- The President and First Lady Thank our Troops for their Service this Holiday Season - 2011.webm",
+   "face": "L",
+   "segments": 19,
+   "seconds": 43,
+   "aperture_mm": {
+    "5": 0.374,
+    "25": 5.46,
+    "50": 10.022,
+    "75": 13.676,
+    "95": 21.553
+   },
+   "closed_fraction": {
+    "<1mm": 0.103,
+    "<2mm": 0.153,
+    "<3mm": 0.189,
+    "<4mm": 0.21
+   },
+   "opening_peaks_per_s": 3.02,
+   "peak_amplitude_mm": {
+    "5": 2.117,
+    "25": 6.207,
+    "50": 11.43,
+    "75": 16.374,
+    "95": 22.078
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.256,
+    "25": 0.643,
+    "50": 1.026,
+    "75": 1.4,
+    "95": 2.305
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.133,
+    "75": 0.167,
+    "95": 0.267
+   },
+   "closing_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.167,
+    "95": 0.3
+   },
+   "open_over_close_median": 1,
+   "peak_velocity_open_mm_s": {
+    "5": 1.593,
+    "25": 44.528,
+    "50": 86.341,
+    "75": 149.263,
+    "95": 220.733
+   },
+   "peak_velocity_close_mm_s": {
+    "5": 3.258,
+    "25": 35.513,
+    "50": 83.525,
+    "75": 150.976,
+    "95": 254.593
+   },
+   "short_closures_per_s": 1.35,
+   "short_closure_s": {
+    "5": 0.033,
+    "25": 0.033,
+    "50": 0.067,
+    "75": 0.133,
+    "95": 0.2
+   },
+   "pauses_per_s": 0.093,
+   "pause_s": {
+    "5": 0.272,
+    "25": 0.292,
+    "50": 0.367,
+    "75": 0.434,
+    "95": 0.434
+   },
+   "width_mm": {
+    "5": 45.327,
+    "25": 51.778,
+    "50": 55.564,
+    "75": 59.933,
+    "95": 67.568
+   },
+   "width_range_p5_p95_mm": 22.24,
+   "corr_width_aperture": 0.422,
+   "chin_drop_per_mm_aperture": 0.308,
+   "upper_lip_per_mm_aperture": -0.074,
+   "lower_lip_per_mm_aperture": 0.566,
+   "psd_peak_hz": 0.47,
+   "psd_share_2_7hz": 0.347,
+   "width_by_aperture": {
+    "1-3": 0.969,
+    "3-5": 0.996,
+    "5-7": 1.047,
+    "7-9": 1.066,
+    "9-11": 1.08
+   }
+  },
+  {
+   "clip": "File:Weekly Address- The President and First Lady Thank our Troops for their Service this Holiday Season - 2011.webm",
+   "face": "R",
+   "segments": 15,
+   "seconds": 56.6,
+   "aperture_mm": {
+    "5": 0.142,
+    "25": 3.428,
+    "50": 8.261,
+    "75": 10.625,
+    "95": 15.103
+   },
+   "closed_fraction": {
+    "<1mm": 0.193,
+    "<2mm": 0.219,
+    "<3mm": 0.239,
+    "<4mm": 0.263
+   },
+   "opening_peaks_per_s": 2.93,
+   "peak_amplitude_mm": {
+    "5": 3.015,
+    "25": 7.077,
+    "50": 10.31,
+    "75": 13.279,
+    "95": 18.044
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.541,
+    "25": 0.791,
+    "50": 0.95,
+    "75": 1.215,
+    "95": 1.603
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.1,
+    "50": 0.1,
+    "75": 0.167,
+    "95": 0.334
+   },
+   "closing_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.133,
+    "75": 0.167,
+    "95": 0.314
+   },
+   "open_over_close_median": 1,
+   "peak_velocity_open_mm_s": {
+    "5": 16.458,
+    "25": 47.817,
+    "50": 97.878,
+    "75": 138.655,
+    "95": 201.399
+   },
+   "peak_velocity_close_mm_s": {
+    "5": 22.072,
+    "25": 54.497,
+    "50": 94.27,
+    "75": 147.621,
+    "95": 222.448
+   },
+   "short_closures_per_s": 1.11,
+   "short_closure_s": {
+    "5": 0.037,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.1,
+    "95": 0.197
+   },
+   "pauses_per_s": 0.247,
+   "pause_s": {
+    "5": 0.289,
+    "25": 0.342,
+    "50": 0.467,
+    "75": 0.492,
+    "95": 0.667
+   },
+   "width_mm": {
+    "5": 46.479,
+    "25": 52.575,
+    "50": 55.081,
+    "75": 56.629,
+    "95": 58.658
+   },
+   "width_range_p5_p95_mm": 12.18,
+   "corr_width_aperture": 0.11,
+   "chin_drop_per_mm_aperture": 0.579,
+   "upper_lip_per_mm_aperture": -0.09,
+   "lower_lip_per_mm_aperture": 0.858,
+   "psd_peak_hz": 0.47,
+   "psd_share_2_7hz": 0.435,
+   "width_by_aperture": {
+    "1-3": 0.928,
+    "3-5": 0.968,
+    "5-7": 0.973,
+    "7-9": 1.002,
+    "9-11": 1.01
+   }
+  },
+  {
+   "clip": "File:Weekly Address - President Obama's Supreme Court Nomination.webm",
+   "face": "C",
+   "segments": 21,
+   "seconds": 39.8,
+   "aperture_mm": {
+    "5": 0.165,
+    "25": 3.917,
+    "50": 7.645,
+    "75": 9.965,
+    "95": 14.16
+   },
+   "closed_fraction": {
+    "<1mm": 0.144,
+    "<2mm": 0.182,
+    "<3mm": 0.216,
+    "<4mm": 0.253
+   },
+   "opening_peaks_per_s": 2.94,
+   "peak_amplitude_mm": {
+    "5": 2.342,
+    "25": 5.823,
+    "50": 8.609,
+    "75": 11.428,
+    "95": 16.957
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.354,
+    "25": 0.761,
+    "50": 1.016,
+    "75": 1.265,
+    "95": 1.686
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.167,
+    "95": 0.267
+   },
+   "closing_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.167,
+    "95": 0.359
+   },
+   "open_over_close_median": 1,
+   "peak_velocity_open_mm_s": {
+    "5": 8.876,
+    "25": 32.8,
+    "50": 65.1,
+    "75": 123.65,
+    "95": 192.262
+   },
+   "peak_velocity_close_mm_s": {
+    "5": -0.842,
+    "25": 42.415,
+    "50": 77.844,
+    "75": 115.033,
+    "95": 165.495
+   },
+   "short_closures_per_s": 1.48,
+   "short_closure_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.133,
+    "95": 0.2
+   },
+   "pauses_per_s": 0.101,
+   "pause_s": {
+    "5": 0.334,
+    "25": 0.334,
+    "50": 0.334,
+    "75": 0.384,
+    "95": 0.504
+   },
+   "width_mm": {
+    "5": 44.267,
+    "25": 51.284,
+    "50": 53.587,
+    "75": 55.613,
+    "95": 57.844
+   },
+   "width_range_p5_p95_mm": 13.58,
+   "corr_width_aperture": 0.404,
+   "chin_drop_per_mm_aperture": 0.565,
+   "upper_lip_per_mm_aperture": -0.097,
+   "lower_lip_per_mm_aperture": 0.818,
+   "psd_peak_hz": 0.23,
+   "psd_share_2_7hz": 0.407,
+   "width_by_aperture": {
+    "1-3": 0.876,
+    "3-5": 0.954,
+    "5-7": 1.013,
+    "7-9": 1.033,
+    "9-11": 1.032
+   }
+  },
+  {
+   "clip": "File:2016-03-12 President Obama's Weekly Address.webm",
+   "face": "C",
+   "segments": 38,
+   "seconds": 73.7,
+   "aperture_mm": {
+    "5": 0.486,
+    "25": 5.078,
+    "50": 8.424,
+    "75": 10.118,
+    "95": 13.875
+   },
+   "closed_fraction": {
+    "<1mm": 0.086,
+    "<2mm": 0.124,
+    "<3mm": 0.156,
+    "<4mm": 0.197
+   },
+   "opening_peaks_per_s": 2.92,
+   "peak_amplitude_mm": {
+    "5": 2.137,
+    "25": 5.354,
+    "50": 8.285,
+    "75": 10.463,
+    "95": 13.489
+   },
+   "peak_height_vs_neighbours": {
+    "5": 0.465,
+    "25": 0.736,
+    "50": 0.926,
+    "75": 1.241,
+    "95": 1.762
+   },
+   "opening_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.133,
+    "95": 0.3
+   },
+   "closing_s": {
+    "5": 0.033,
+    "25": 0.067,
+    "50": 0.1,
+    "75": 0.167,
+    "95": 0.3
+   },
+   "open_over_close_median": 1,
+   "peak_velocity_open_mm_s": {
+    "5": 11.384,
+    "25": 28.07,
+    "50": 65.451,
+    "75": 106.13,
+    "95": 155.034
+   },
+   "peak_velocity_close_mm_s": {
+    "5": 6.224,
+    "25": 29.622,
+    "50": 69.928,
+    "75": 110.881,
+    "95": 163.244
+   },
+   "short_closures_per_s": 1.21,
+   "short_closure_s": {
+    "5": 0.033,
+    "25": 0.033,
+    "50": 0.067,
+    "75": 0.1,
+    "95": 0.133
+   },
+   "pauses_per_s": 0.109,
+   "pause_s": {
+    "5": 0.279,
+    "25": 0.3,
+    "50": 0.334,
+    "75": 0.4,
+    "95": 0.609
+   },
+   "width_mm": {
+    "5": 45.995,
+    "25": 51.779,
+    "50": 54.157,
+    "75": 55.931,
+    "95": 58.682
+   },
+   "width_range_p5_p95_mm": 12.69,
+   "corr_width_aperture": 0.409,
+   "chin_drop_per_mm_aperture": 0.494,
+   "upper_lip_per_mm_aperture": -0.119,
+   "lower_lip_per_mm_aperture": 0.779,
+   "psd_peak_hz": 0.23,
+   "psd_share_2_7hz": 0.41,
+   "width_by_aperture": {
+    "1-3": 0.976,
+    "3-5": 0.944,
+    "5-7": 0.996,
+    "7-9": 1.034,
+    "9-11": 1.033
+   }
+  }
+ ]
+}

@@ -30,13 +30,28 @@ import {
   type EstimatorTypeId,
 } from "@/lib/request/catalog";
 import type { RequestContext } from "@/lib/request/RequestFlowProvider";
+import { mediaMatches, PREFERS_REDUCED_MOTION } from "@/lib/device";
 import styles from "./Estimator.module.css";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  title: L("Spune-ne ce vrei să construiești.", "Расскажите, что хотите построить.", "Tell us what you want to build."),
+  /* The request dialog carries the same sentence as its title (`COPY.title` in
+     lib/request/RequestFlowProvider.tsx, written out there so the provider never imports this
+     module): change the two together. */
+  title: L(
+    "Află de la ce preț pornește proiectul tău.",
+    "Узнайте, с какой цены начинается ваш проект.",
+    "See the starting price for your project.",
+  ),
+  /* The page's line under the heading. The dialog keeps its own lead (RequestFlowProvider). The
+     reply time is `SENT_COPY`'s, said before the visitor sends rather than only after. */
+  lead: L(
+    "Alegi tipul de proiect, vezi prețul de pornire și trimiți cererea. Îți răspundem în cel mult o zi lucrătoare.",
+    "Выберите тип проекта, посмотрите стартовую цену и отправьте заявку. Ответим не позже чем через рабочий день.",
+    "Pick the type of project, see the starting price and send your request. We reply within one business day.",
+  ),
   step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
   step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),
   proposal: L("PROPUNEREA TA", "ВАШЕ ПРЕДЛОЖЕНИЕ", "YOUR PROPOSAL"),
@@ -143,6 +158,8 @@ const ATTACHED = {
 /* Copy for the free-text composer in the chat — the visitor can always answer in their
    own words instead of picking one of the quick replies. */
 const CHAT = {
+  /* The conversation's scrolling window, named for the keyboard stop it is (see `.chatLog`). */
+  history: L("Conversația cu asistentul", "Переписка с ассистентом", "Conversation with the assistant"),
   inputLabel: L("Scrie asistentului", "Напишите ассистенту", "Write to the assistant"),
   placeholder: L(
     "Scrie în cuvintele tale…",
@@ -691,6 +708,70 @@ export function Estimator({
   const done = node === "finish";
   const current = done ? null : TREE[node];
 
+  /*
+   * The chat keeps one size (Estimator.module.css, `.chat`), so a conversation longer than its
+   * window scrolls inside it, and every answer brings the window to the newest message: the
+   * question just asked, right above the replies that answer it. At the end the window stops at
+   * the closing message instead of the very bottom, so the summary under it is read from its
+   * title. Only on a new message — the window is never moved while the visitor reads back.
+   * `offsetTop` (`.chatLog` is the offset parent), not a client rect: a new bubble is still
+   * rising 8px into place when this runs.
+   */
+  const logRef = useRef<HTMLDivElement>(null);
+  /* Whether the window holds the newest message: set by the scroll to each new one, cleared at the
+     end (the window stops at the closing message) and by the visitor scrolling away from it. */
+  const pinnedRef = useRef(true);
+  useEffect(() => {
+    const scroller = logRef.current;
+    if (!scroller || log.length === 0) return;
+    let top = scroller.scrollHeight;
+    const closing = done ? scroller.firstElementChild?.lastElementChild : null;
+    if (closing instanceof HTMLElement) {
+      top = closing.offsetTop - (Number.parseFloat(getComputedStyle(closing).marginTop) || 0);
+    }
+    pinnedRef.current = !done;
+    const behavior = mediaMatches(PREFERS_REDUCED_MOTION) ? "auto" : "smooth";
+    if (typeof scroller.scrollTo === "function") scroller.scrollTo({ top, behavior });
+    else scroller.scrollTop = top;
+  }, [log.length, done]);
+
+  /*
+   * And the window stays on the newest message when it changes size under it — an error line
+   * under the composer, the dictation's status or review, the replies wrapping to another row —
+   * as long as it held it: it shrinks from the bottom edge, which would cut the question being
+   * answered. A window the visitor has scrolled back in is left where they put it.
+   *
+   * Only the VISITOR's scrolling can unpin it — a wheel, a touch, a key, a press on the scrollbar,
+   * then the scroll it causes. Our own scrolls fire scroll events too: the smooth one passes
+   * through every position on its way, and the echo of a re-pin can arrive after the NEXT layout
+   * change (measured: the microphone refused at once — "Se cere permisiunea" then the notice, one
+   * frame apart), where it reads as "not at the end" and would have left the question cut.
+   */
+  useEffect(() => {
+    const scroller = logRef.current;
+    if (!scroller || typeof ResizeObserver === "undefined") return;
+    let byVisitor = -Infinity;
+    const intent = () => {
+      byVisitor = performance.now();
+    };
+    const onScroll = () => {
+      if (performance.now() - byVisitor > 1000) return;
+      pinnedRef.current = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop <= 2;
+    };
+    const observer = new ResizeObserver(() => {
+      if (pinnedRef.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    const INTENT = ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"] as const;
+    for (const type of INTENT) scroller.addEventListener(type, intent, { passive: true });
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    observer.observe(scroller);
+    return () => {
+      observer.disconnect();
+      for (const type of INTENT) scroller.removeEventListener(type, intent);
+      scroller.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
   /** The question a step asks. Clarification adapts to the selected project type. */
   const questionOf = (id: string): LocalizedText =>
     id === "clarify" ? (CLARIFY_Q[PROJECT_TYPES[typeIndex].id] ?? TREE.clarify.q) : TREE[id].q;
@@ -995,13 +1076,41 @@ export function Estimator({
       <div className={`mono ${styles.chatHead}`}>
         {l(SECTION.assistant)}
       </div>
-      <div className={styles.chatLog} aria-live="polite">
-        <div className={styles.bubble}>{l(TREE.start.q)}</div>
-        {log.map((b) => (
-          <div key={b.id} className={`${styles.bubble} ${b.user ? styles.bubbleUser : ""}`}>
-            {b.text}
+      {/* The conversation's window: the panel keeps one size, so this is what scrolls — the
+          thread and, at the end, the summary under it. A tab stop of its own, because a window
+          that scrolls has to be scrollable from the keyboard too, and nothing in it is
+          focusable. The live region is the thread inside it, as it always was the bubbles. */}
+      <div
+        ref={logRef}
+        className={styles.chatLog}
+        tabIndex={0}
+        role="region"
+        aria-label={l(CHAT.history)}
+      >
+        <div className={styles.chatThread} aria-live="polite">
+          <div className={styles.bubble}>{l(TREE.start.q)}</div>
+          {log.map((b) => (
+            <div key={b.id} className={`${styles.bubble} ${b.user ? styles.bubbleUser : ""}`}>
+              {b.text}
+            </div>
+          ))}
+        </div>
+        {/* What the assistant understood — visible proof of the text that will be attached
+            to the request, not a promise that it was. */}
+        {done && (
+          <div className={styles.summary} data-testid="estimator-summary" role="status">
+            <div className={`mono ${styles.summaryHead}`}>{l(SUMMARY.title)}</div>
+            <p className={styles.summaryIntro}>{l(SUMMARY.intro)}</p>
+            <dl className={styles.summaryList}>
+              {summaryRows().map((r) => (
+                <div key={r.label} className={styles.summaryRow}>
+                  <dt className={styles.summaryLabel}>{r.label}</dt>
+                  <dd className={styles.summaryValue}>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-        ))}
+        )}
       </div>
       {current && (
         <div className={styles.chatOptions}>
@@ -1063,22 +1172,6 @@ export function Estimator({
             </p>
           )}
         </form>
-      )}
-      {/* What the assistant understood — visible proof of the text that will be attached
-          to the request, not a promise that it was. */}
-      {done && (
-        <div className={styles.summary} data-testid="estimator-summary" role="status">
-          <div className={`mono ${styles.summaryHead}`}>{l(SUMMARY.title)}</div>
-          <p className={styles.summaryIntro}>{l(SUMMARY.intro)}</p>
-          <dl className={styles.summaryList}>
-            {summaryRows().map((r) => (
-              <div key={r.label} className={styles.summaryRow}>
-                <dt className={styles.summaryLabel}>{r.label}</dt>
-                <dd className={styles.summaryValue}>{r.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
       )}
     </>
   );
@@ -1281,6 +1374,7 @@ export function Estimator({
         <Reveal className={styles.top}>
           <div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
+            <p className={styles.lead}>{l(SECTION.lead)}</p>
           </div>
         </Reveal>
         {deck}

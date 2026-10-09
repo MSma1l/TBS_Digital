@@ -117,8 +117,8 @@ function pointer(
   fireEvent(el, event);
 }
 
-const PRIMARY = "Începe proiectul";
-const SECONDARY = "Explorăm serviciile ↓";
+const PRIMARY = "Cere o ofertă";
+const SECONDARY = "Vezi serviciile ↓";
 
 const statsMarker = () =>
   document.querySelector<HTMLElement>(`[${INTRO_REVEAL_ATTR}="stats"]`)!;
@@ -282,7 +282,7 @@ describe("stat holograms", () => {
   it("leaves the metric texts exact (no digits hide in the hologram)", async () => {
     renderHero();
     const metrics = await screen.findByLabelText("Indicatori");
-    expect(screen.getByText("24/7")).toBeInTheDocument();
+    expect(screen.getByText("1 zi")).toBeInTheDocument();
     for (const hologram of metrics.querySelectorAll("[data-hologram]")) {
       expect(hologram.textContent).not.toMatch(/\d/);
     }
@@ -291,7 +291,7 @@ describe("stat holograms", () => {
   it("an empty portfolio shows one card and one hologram", async () => {
     vi.mocked(api.fetchContent).mockResolvedValue({ ...defaultSiteData, projects: [] });
     renderHero();
-    await screen.findByText("24/7");
+    await screen.findByText("1 zi");
     await vi.waitFor(() => expect(document.querySelectorAll("[data-metric]")).toHaveLength(1));
     expect(document.querySelectorAll("[data-hologram]")).toHaveLength(1);
   });

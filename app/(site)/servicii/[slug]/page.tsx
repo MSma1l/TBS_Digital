@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { directions } from "@/lib/directions";
+import { directionHref, directions } from "@/lib/directions";
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { SceneStage } from "@/components/scene/SceneStage";
 import { ServiceArt } from "@/components/scene/art/ServiceArt";
+import { OG_LOCALE, localeUrl } from "@/lib/i18n/locales";
+import { messages } from "@/lib/i18n/messages";
+import { resolveContentLocale, resolveUrlLocale } from "@/lib/i18n/requestLocale";
 import { SCENE_SHAPES, type SceneShape } from "@/lib/scene";
+import { solutions } from "@/lib/solutions";
 
 export function generateStaticParams() {
   return directions.map((d) => ({ slug: d.slug }));
@@ -12,13 +16,44 @@ export function generateStaticParams() {
 
 export const dynamicParams = false;
 
+/**
+ * The direction's own title and description, in the language the visitor reads (the root
+ * layout's rule: the URL's /ru or /en, then the cookie, then Accept-Language). The title is the
+ * direction's name from the header menu (`dir.*`), the description its pitch — the words the
+ * page itself opens with (lib/solutions.ts). Open Graph and Twitter are restated whole, because
+ * a page's `openGraph` replaces the layout's rather than merging into it; canonical and hreflang
+ * still come from the layout.
+ *
+ * The pitch is indexed by hand rather than through `loc()`: lib/i18n/content.tsx is a client
+ * module, and this runs on the server.
+ */
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `TBS Digital \u2014 ${slug}` };
+  const dir = directions.find((d) => d.slug === slug);
+  // `dynamicParams = false` already 404s anything else; this only narrows the type.
+  if (!dir) return {};
+  const locale = await resolveContentLocale();
+  const urlLocale = await resolveUrlLocale();
+  const title = `TBS Digital \u2014 ${messages[locale][dir.labelKey] || messages.ro[dir.labelKey]}`;
+  const pitch = solutions[slug]?.pitch.text;
+  const description = pitch ? pitch[locale] || pitch.ro : messages[locale]["meta.description"];
+  return {
+    title,
+    description,
+    openGraph: {
+      type: "website",
+      siteName: "TBS Digital",
+      title,
+      description,
+      url: localeUrl(urlLocale, directionHref(slug)),
+      locale: OG_LOCALE[locale],
+    },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 /**

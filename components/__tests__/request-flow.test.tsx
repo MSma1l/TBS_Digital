@@ -53,7 +53,6 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
 import { Hero } from "@/components/sections/Hero";
-import { BottomCTA } from "@/components/sections/BottomCTA";
 import { DirectionPage } from "@/components/sections/DirectionPage";
 import { RequestSection } from "@/components/sections/RequestSection";
 import {
@@ -77,15 +76,14 @@ const ro = messages.ro;
 
 /** The CTAs, by the label a visitor actually reads. */
 const CTA = {
-  hero: "Începe proiectul",
+  hero: "Cere o ofertă",
   navbar: ro["nav.cta"],
-  bottom: "Programează consultarea",
-  servicePage: "Vorbește cu echipa",
+  servicePage: "Cere ofertă",
   servicePageBottom: "Începe cererea",
 };
 
 /** The shared dialog's accessible name (`RequestFlowProvider` → `COPY.title`). */
-const DIALOG_TITLE = "Spune-ne ce vrei să construiești.";
+const DIALOG_TITLE = "Află de la ce preț pornește proiectul tău.";
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
@@ -103,14 +101,13 @@ function renderSite(node: ReactNode) {
   );
 }
 
-/** The home page's commercial chrome: navbar, hero, the estimator section, the bottom CTA. */
+/** The home page's commercial chrome: navbar, hero, the estimator section. */
 function renderHome() {
   return renderSite(
     <>
       <Navbar />
       <Hero />
       <RequestSection />
-      <BottomCTA />
     </>,
   );
 }
@@ -168,14 +165,6 @@ describe("every commercial CTA opens the one request flow", () => {
     expect(within(dialog).getByText(seededPrice("site"))).toBeInTheDocument();
   });
 
-  it("opens it from the bottom CTA", async () => {
-    const user = userEvent.setup();
-    renderHome();
-
-    const dialog = await openFrom(user, CTA.bottom);
-    expect(dialog).toHaveAttribute("aria-modal", "true");
-  });
-
   it("opens it from the navbar's red CTA", async () => {
     const user = userEvent.setup();
     renderHome();
@@ -224,7 +213,7 @@ describe("a CTA that opens a dialog is a button, and keeps no anchor", () => {
   it("leaves no #contact / #estimare href on any commercial CTA", async () => {
     renderHome();
 
-    for (const label of [CTA.hero, CTA.navbar, CTA.bottom]) {
+    for (const label of [CTA.hero, CTA.navbar]) {
       const cta = screen.getAllByRole("button", { name: label })[0];
       expect(cta.tagName).toBe("BUTTON");
       expect(cta).toHaveAttribute("type", "button");
@@ -235,8 +224,7 @@ describe("a CTA that opens a dialog is a button, and keeps no anchor", () => {
     const hrefs = Array.from(document.querySelectorAll("a")).map((a) => a.getAttribute("href"));
     expect(hrefs).not.toContain("#contact");
     expect(hrefs).not.toContain("#estimare");
-    // …and the sections those anchors named are still there, still reachable by URL.
-    expect(document.querySelector("#contact")).not.toBeNull();
+    // …and the section `#estimare` named is still there, still reachable by URL.
     expect(document.querySelector("#estimare")).not.toBeNull();
   });
 
@@ -268,25 +256,24 @@ describe("a CTA that opens a dialog is a button, and keeps no anchor", () => {
 });
 
 describe("exactly one dialog, however many CTAs the page has", () => {
-  it("keeps a single dialog in the DOM with five CTAs on screen", async () => {
+  it("keeps a single dialog in the DOM with four CTAs on screen", async () => {
     const user = userEvent.setup();
     renderSite(
       <>
         <Navbar />
         <Hero />
         <RequestSection />
-        <BottomCTA />
         <DirectionPage slug="produs-digital" />
       </>,
     );
 
-    // Five commercial CTAs really are on screen — otherwise this passes vacuously.
+    // Four commercial CTAs really are on screen — otherwise this passes vacuously.
     for (const label of Object.values(CTA)) {
       expect(screen.getAllByRole("button", { name: label }).length).toBeGreaterThan(0);
     }
 
     expect(dialogs()).toHaveLength(0);
-    await openFrom(user, CTA.bottom);
+    await openFrom(user, CTA.servicePageBottom);
     expect(dialogs()).toHaveLength(1);
   });
 });

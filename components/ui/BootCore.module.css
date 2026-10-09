@@ -41,6 +41,7 @@
   inset: 0;
   transform-style: preserve-3d;
   animation: spin 8s linear infinite;
+  animation-play-state: var(--boot-play, running); /* paused under the cover at rest: PageLoading.module.css */
 }
 
 /* ---- a box ------------------------------------------------------------------------------- */
@@ -87,6 +88,7 @@
 /* Carried by whatever fans: the layers themselves, and the one group that rides with them. */
 .fan {
   animation: breathe 3.4s var(--motion-ease-out) infinite;
+  animation-play-state: var(--boot-play, running);
 }
 
 /* The lid of the box. */
@@ -220,6 +222,7 @@
     0 0 calc(var(--u) * 0.3) color-mix(in srgb, var(--red-text) 70%, transparent),
     0 0 calc(var(--u) * 1.1) color-mix(in srgb, var(--red) 60%, transparent);
   animation: ignite 1.7s ease-in-out infinite;
+  animation-play-state: var(--boot-play, running);
 }
 
 /* ---- the dressing ------------------------------------------------------------------------ */
@@ -261,6 +264,7 @@
   stroke-width: 2.5;
   stroke-dasharray: 14 86;
   animation: run 2.1s linear infinite;
+  animation-play-state: var(--boot-play, running);
 }
 .pads {
   stroke: color-mix(in srgb, var(--cyan) 62%, transparent);
@@ -296,6 +300,7 @@
   );
   transform-origin: 50% 100%;
   animation: axis 3.4s var(--motion-ease-out) infinite;
+  animation-play-state: var(--boot-play, running);
 }
 
 /* The frame, in SCREEN space: it does not turn with the object, so the object turns inside it.
@@ -312,6 +317,7 @@
   border: 2px solid var(--cyan);
   opacity: 0.85;
   animation: bracket 3.4s var(--motion-ease-out) infinite;
+  animation-play-state: var(--boot-play, running);
 }
 .tl {
   top: 0;

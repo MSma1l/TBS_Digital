@@ -425,7 +425,7 @@ describe("Hero metrics", () => {
 
     const metrics = await screen.findByLabelText("Indicatori");
     // The non-portfolio metric stays; the counter disappears.
-    expect(await within(metrics).findByText("24/7")).toBeInTheDocument();
+    expect(await within(metrics).findByText("1 zi")).toBeInTheDocument();
     expect(within(metrics).queryByText("0")).not.toBeInTheDocument();
     expect(
       within(metrics).queryByText("proiecte în portofoliu"),

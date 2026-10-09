@@ -108,6 +108,9 @@ export function SceneWorld({
       .then((compiled) => {
         if (!compiled || cancelled) return false;
         armReady(ready);
+        // no Work track on this page (a service page): no driver will ever show a helix, so it is
+        // neither built, compiled nor pre-warmed (the same query as the driver effect below)
+        if (!document.querySelector(`[${WORK_TRACK_ATTR}]`)) return false;
         return stageHelix(world, gl, scene, camera, options);
       })
       .then(

@@ -1,13 +1,14 @@
 /* /portofoliu — components/sections/Portfolio.tsx: one project at a time on a big screen, and under
    it one pixel per project. Tokens only, per docs/07; the per-project colours arrive inline as
-   --p1 / --p2 (lib/projectAccent.ts), the same pair the /04 cards on Home are drawn in, and a
-   pixel's subpixel levels as --sr / --sg / --sb (worked out from --p2). */
+   --p1 / --p2 (lib/projectAccent.ts), the same pair the /04 cards on Home are drawn in. */
 
 /* The screen's glow, registered as a colour so it glides from one project's colour to the next.
-   Its own name: --p1 / --p2 stay unregistered, Home's cards share them. */
+   Its own name: --p1 / --p2 stay unregistered, Home's cards share them. Set and glided on .monitor,
+   its only reader, and not inherited (2026-10-07): set on the stage, every frame of the 0.35s glide
+   restyled the ~200 elements under it after each switch. Read it only on .monitor. */
 @property --pf-glow {
   syntax: "<color>";
-  inherits: true;
+  inherits: false;
   initial-value: transparent;
 }
 
@@ -121,11 +122,9 @@
 
 /* ---------- the stage: the screen and the pixels (left), the project's words (right) ---------- */
 .stage {
-  --pf-glow: var(--p2);
   position: relative;
   display: grid;
   gap: var(--sp-5);
-  transition: --pf-glow 0.35s var(--motion-ease-out);
 }
 .left {
   /* the arrows, the gap beside them, the monitor's bezel and its chin */
@@ -145,8 +144,10 @@
    A thin bezel, a chin with the brand's three subpixels, and a glow in the current project's
    colour. The screen's corners follow the bezel's: its radius is the frame's, less the bezel. */
 .monitor {
+  --pf-glow: var(--p2);
   position: relative;
   padding: var(--bezel) var(--bezel) var(--chin);
+  transition: --pf-glow 0.35s var(--motion-ease-out);
   border: 1px solid color-mix(in srgb, var(--pf-glow) 26%, var(--line2));
   border-radius: var(--r-lg);
   background: linear-gradient(180deg, var(--deck), var(--slot) 70%);
@@ -193,7 +194,22 @@
   /* a sideways swipe is ours; scrolling and pinch-to-zoom stay the browser's */
   touch-action: pan-y pinch-zoom;
 }
-/* The whole picture is the button that shows it larger. */
+/* The window the picture sits in. A project's whole site (data-site on the screen) scrolls inside
+   it, and the page takes over at either end; a screenshot fills it and nothing scrolls. Its own
+   touch-action is the one that counts inside it, so the swipe's is repeated. A thin scrollbar
+   in the project's colour, like a browser window's. */
+.scroller {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: inherit;
+  touch-action: pan-y pinch-zoom;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--p2) 55%, var(--on-accent)) transparent;
+}
+/* The whole picture is the button that shows it larger: it fills the window, or — a site — it is
+   as tall as the site and scrolls with it. */
 .shotBtn {
   position: absolute;
   inset: 0;
@@ -207,8 +223,23 @@
   cursor: zoom-in;
   -webkit-tap-highlight-color: transparent;
 }
-.shotBtn:focus-visible {
-  outline: none;
+.screen[data-site] .shotBtn {
+  position: relative;
+  inset: auto;
+  height: auto;
+}
+/* Its focus is the ring drawn over the glass (.screenRing, through :has()); where :has() is
+   unknown the browser's own outline stays, drawn inside the picture so the window keeps it. */
+@supports selector(:has(*)) {
+  .shotBtn:focus-visible {
+    outline: none;
+  }
+}
+@supports not selector(:has(*)) {
+  .shotBtn:focus-visible {
+    outline: 3px solid var(--cyan);
+    outline-offset: -3px;
+  }
 }
 .shot {
   display: block;
@@ -216,6 +247,12 @@
   height: 100%;
   object-fit: cover;
   object-position: 50% 0;
+}
+/* a site: at the window's width, as tall as it is */
+.site {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 /* A project with no screenshot yet: its name on the screen, in its colours. */
 .blank {
@@ -291,10 +328,477 @@
   stroke-linejoin: round;
 }
 @media (hover: hover) {
-  .shotBtn:hover ~ .zoomChip {
+  .screen:has(.shotBtn:hover) .zoomChip {
     border-color: var(--cyan);
     background: color-mix(in srgb, var(--void) 92%, transparent);
   }
+}
+/* "Derulează site-ul": says a whole site scrolls, at the screen's bottom left, the zoom chip's
+   twin. It goes once the site is scrolled (data-scrolled, Portfolio.tsx) and comes back at its
+   top. Not a control either. */
+.scrollHint {
+  position: absolute;
+  left: var(--sp-3);
+  bottom: var(--sp-3);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--on-accent) 20%, transparent);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--void) 78%, transparent);
+  color: var(--txt);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    translate 0.2s ease;
+}
+.scrollHint svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.screen[data-scrolled] .scrollHint {
+  opacity: 0;
+  translate: 0 4px;
+}
+/* a capture no taller than the screen: nothing to scroll, nothing to say — a demo's hint keeps
+   its "press" half */
+.screen[data-short]:not([data-demo]) .scrollHint,
+.screen[data-short] .hintArrow,
+.screen[data-short] .hintScroll,
+.screen:not([data-short]) .hintPress {
+  display: none;
+}
+
+/* ---------- a project's demo (SiteDemo.tsx, lib/siteDemo.ts) ----------
+   The screen as a small browser over a few pages of the project's site (2026-10-06, "să putem
+   apăsa butoane dar să nu putem folosi pe deplin"): a thin bar at the top — Back, the page's
+   address on the real site (the pages listed under it), a light along its foot while the next
+   page comes in — and over each page's picture its real links and buttons, lit under the
+   pointer. What needs the real site opens a sheet that points there. */
+.screen {
+  --demo-bar: 28px;
+}
+.screen[data-demo] .scroller {
+  top: var(--demo-bar);
+  border-radius: 0 0 inherit inherit;
+}
+.demoBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 1; /* under the transition's canvas: another project covers it too */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--demo-bar);
+  padding: 0 8px;
+  background: var(--deck);
+  border-bottom: 1px solid color-mix(in srgb, var(--on-accent) 9%, transparent);
+}
+.demoBack {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--txt);
+  cursor: pointer;
+}
+.demoBack[aria-disabled="true"] {
+  opacity: 0.3;
+  cursor: default;
+}
+.demoBack svg,
+.demoAddr svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.demoAddr {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--on-accent) 7%, transparent);
+  color: var(--mut);
+  font-family: var(--font-mono-stack);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+button.demoAddr {
+  cursor: pointer;
+}
+.demoAddrText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (hover: hover) {
+  .demoBack:not([aria-disabled="true"]):hover,
+  button.demoAddr:hover {
+    color: var(--txt);
+    background: color-mix(in srgb, var(--p2) 18%, transparent);
+  }
+}
+.demoBack:focus-visible,
+.demoAddr:focus-visible,
+.demoListItem:focus-visible,
+.demoSheetGo:focus-visible,
+.demoSheetStay:focus-visible,
+.demoCut:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+/* drawn inside: at the screen's edge (the bar on a phone, a cut page's foot) the screen clips
+   whatever goes past it */
+.demoBack:focus-visible,
+.demoAddr:focus-visible,
+.demoCut:focus-visible {
+  outline-offset: -2px;
+}
+/* the light along the bar's foot while the next page comes in */
+.demoProgress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: color-mix(in srgb, var(--p2) 70%, var(--on-accent));
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.screen[data-loading] .demoProgress {
+  opacity: 1;
+  transform: scaleX(0.75);
+}
+/* a press beside the open list closes it — it never presses what is under it */
+.demoListBack {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+/* the site's pages, under the address */
+.demoList {
+  position: absolute;
+  top: calc(var(--demo-bar) + 4px);
+  left: 50%;
+  z-index: 6;
+  width: min(300px, calc(100% - 16px));
+  max-height: calc(100% - var(--demo-bar) - 12px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  translate: -50% 0;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--sh-lg);
+}
+.demoListItem {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--txt);
+  font-size: var(--fs-sm);
+  text-align: start;
+  cursor: pointer;
+}
+.demoListItem[aria-current="page"] {
+  background: color-mix(in srgb, var(--p2) 16%, transparent);
+  font-weight: var(--fw-bold);
+}
+@media (hover: hover) {
+  .demoListItem:hover {
+    background: color-mix(in srgb, var(--p2) 22%, transparent);
+  }
+}
+.demoListPath {
+  color: var(--mut);
+  font-size: var(--fs-xs);
+}
+/* A page: its picture, the button that shows it larger, its links and buttons, the pinned
+   header — all in one cell, the box keeping the shot's shape before its picture is in. */
+.demoPage {
+  position: relative;
+  display: grid;
+  width: 100%;
+  /* its width is the unit of --band (the pinned header's height, as a share of the width) */
+  container-type: inline-size;
+}
+.demoPage > * {
+  grid-area: 1 / 1;
+}
+.demoImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 0;
+}
+.demoZoom {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  -webkit-tap-highlight-color: transparent;
+}
+.demoZoom:focus-visible {
+  outline: none; /* the screen's ring shows it */
+}
+.screen:has(.demoZoom:focus-visible) .screenRing {
+  opacity: 1;
+}
+.hots {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.hot {
+  position: absolute;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* the keyboard's link over the pinned band (a header's own links sit under it), and brought into
+   view below it, never under it */
+.hot:focus-visible {
+  z-index: 3;
+}
+.hot {
+  scroll-margin-top: calc(var(--band, 0) * 100cqw + var(--sp-2));
+}
+/* a page on its way in: its links wait for its picture */
+.screen[data-loading] .hot,
+.zoomDemo[data-loading] .hot {
+  pointer-events: none;
+}
+/* where a jump in the larger view landed: the focus waits there — a line across the page while it
+   does — and Tab goes on from it to the section's links */
+.hotMark {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 0;
+  outline: none;
+  scroll-margin-top: calc(var(--band, 0) * 100cqw + var(--sp-2));
+}
+.hotMark:focus-visible::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  background: var(--cyan);
+}
+/* a small target gets room round it to be hit — 24px at least — never drawn */
+.hot::before {
+  content: "";
+  position: absolute;
+  inset: min(0px, calc((100% - 24px) / 2));
+}
+/* lit under the pointer, ringed for the keyboard (in the larger view) */
+.hot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--p2) 12%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p2) 70%, var(--on-accent));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .hot:hover::after {
+    opacity: 1;
+  }
+}
+.hot:focus-visible::after {
+  opacity: 1;
+  background: none;
+  box-shadow:
+    0 0 0 2px var(--cyan),
+    0 0 0 4px var(--void);
+}
+/* a fixed header stays at the top while the page scrolls, as on the real site */
+.demoFixed {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  align-self: start;
+  width: 100%;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+  background-position: 0 0;
+}
+/* between its links, the screen's band opens the larger view, as the picture does */
+.screen .demoFixed {
+  cursor: zoom-in;
+}
+/* a long page cut short: its end goes on on the real site */
+.demoCut {
+  z-index: 3;
+  align-self: end;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 56px 12px 14px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--void) 88%, transparent) 60%);
+  color: var(--txt);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  text-decoration: none;
+}
+/* in the screen it ends above the "Vezi mai mare" chip, which a phone's width would put over it */
+.screen .demoCut {
+  padding-bottom: calc(var(--sp-3) + 34px);
+}
+@media (hover: hover) {
+  .demoCut:hover {
+    text-decoration: underline;
+  }
+}
+/* "this works on the real site": a sheet at the screen's foot, over a dimmed page */
+.demoSheetBack {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--void) 50%, transparent);
+}
+.demoSheet {
+  position: absolute;
+  left: var(--sp-2);
+  right: var(--sp-2);
+  bottom: var(--sp-2);
+  z-index: 6;
+  max-height: calc(100% - 2 * var(--sp-2));
+  overflow-y: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--sh-lg);
+}
+.demoSheetTitle {
+  margin: 0;
+  color: var(--txt);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-extra);
+  line-height: 1.3;
+}
+.demoSheetText {
+  margin: 6px 0 0;
+  color: var(--mut);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+}
+.demoSheetActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 12px;
+}
+.demoSheetGo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--grad-red-cta);
+  color: var(--on-accent);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-extra);
+  text-decoration: none;
+  cursor: pointer;
+}
+.demoSheetStay {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: none;
+  color: var(--cyan-text);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+/* the sheet open: the chips step aside */
+.screen:has(.demoSheet) .scrollHint,
+.screen:has(.demoSheet) .zoomChip {
+  display: none;
+}
+/* The same demo, larger: the bar above its own scrolling window, as tall as the dialog allows. */
+.zoomDemo {
+  --demo-bar: 34px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 190px);
+}
+.zoomDemo .demoBar {
+  position: relative;
+  flex: none;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.zoomScroller {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+.zoomDemo .demoPage {
+  max-width: 1080px;
+  margin: 0 auto;
 }
 /* The picture's focus ring, drawn inside the screen over the glass: outside it, the bezel would
    hide it. */
@@ -307,7 +811,7 @@
   opacity: 0;
   pointer-events: none;
 }
-.shotBtn:focus-visible ~ .screenRing {
+.screen:has(.shotBtn:focus-visible) .screenRing {
   opacity: 1;
 }
 
@@ -358,29 +862,63 @@
 }
 
 /* ---------- the pixels: one per project, its name under it ----------
-   At rest a pixel seen from afar: a flat square of the project's colour. The current one is seen
-   up close: bigger, ringed, opened into its red, green and blue subpixels, each lit to its share
-   of the colour. As wide as the monitor and its arrows, and never so narrow that a name breaks
-   inside a word. */
+   The row under the monitor is a piece of its circuit board (2026-10-05, "Circuitul", the owner's
+   pick of seven designs). Each project is a small square showing it — what the screen shows for it,
+   framed in its true colour (2026-10-08: "in loc de pastile pune niste patrate mici unde se vede
+   fiecare proiect", for the round pads they replace) — with its name under it. The board's traces
+   (one SVG, portfolioCircuit.ts) leave every pad from under it, go up, bend 45° onto a bus and turn
+   up into the monitor's chin. The project on the screen is the pad switched on — larger, lit,
+   glowing — its route lit in its colour into the chin; the others are screens a little dimmed. No
+   box and no ring around the button. The row is as wide as the monitor and its arrows, and never
+   so narrow that a name breaks inside a word. */
+/* Under the screen: one page of pixels, the pages, the search (a portfolio bigger than one page).
+   Above the screen in the stacking order: the board's trunk and the chin's flash are drawn over
+   the chin, and the search's list can open over the screen. */
+.pxnav {
+  position: relative;
+  z-index: 7;
+  max-width: max(calc(var(--mon-w, 100%) + 2 * (var(--nav) + var(--nav-gap))), 640px);
+  margin: var(--sp-3) auto 0;
+}
+/* The row's window: a page slides inside it without spilling over the page's edges; its side
+   padding is room for the end pads' glow, and its margins give that room back. Clipped sideways
+   only — the board's trunk above the row and a channel's fading copies below a row that just got
+   shorter stay seen — so it needs no room above or below: a box reaching under the row would lie
+   over the top of the page buttons and take their clicks. */
+.pxWindow {
+  position: relative;
+  overflow-x: clip;
+  overflow-y: visible;
+  padding: 0 10px;
+  margin: 0 -10px;
+}
+/* align-content: a page as tall as two rows keeps its rows together at the top */
 .pixels {
   position: relative;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-start;
+  align-content: flex-start;
   gap: var(--sp-1);
-  max-width: max(calc(var(--mon-w, 100%) + 2 * (var(--nav) + var(--nav-gap))), 640px);
-  margin: var(--sp-3) auto 0;
 }
+/* A big portfolio's pages stand as tall as a page of two-line names, so the pages under them do
+   not jump from one page to the next. */
+.paged .pixels {
+  min-height: 90px;
+}
+/* 89px tall with a two-line name (12 + 32 + 6 + 31 + 8): the 12px over the pad hold its trace's
+   neck, its bend and the bus. Over the board (z-index): the traces run under the buttons. */
 .px {
   position: relative;
+  z-index: 1;
   flex: 1 1 0;
   max-width: 104px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 7px 3px 8px;
+  padding: 12px 3px 8px;
   border: 0;
   border-radius: 10px;
   background: none;
@@ -388,131 +926,611 @@
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition:
-    background-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s;
+  transition: color 0.2s ease;
 }
 /* The pixels a pressed channel switched off, fading where they stood while the row closes up
-   (Portfolio.tsx chooseChannel): copies, out of the tree and of reach. */
+   (Portfolio.tsx chooseChannel): copies, out of the tree and of reach, never the lit one. */
 .ghosts {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
-.ghosts .px {
+.ghosts > .px {
   position: absolute;
   margin: 0;
 }
-/* a copy is the pixel as it was: it does not switch on again */
-.ghosts .pxDot {
+/* The page that leaves on a page turn: one sheet of copies, laid out as the row was. */
+.sheet {
+  position: absolute;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: var(--sp-1);
+}
+/* a copy is the pixel as it was: it does not switch on again; nor does a pixel that came in with
+   a page turn (data-quiet, for as long as it is on show) */
+.ghosts .pxDot,
+.px[data-quiet] .pxDot {
   animation: none;
 }
+/* The pad's place: 32px for every pixel (26px on a phone, further down; the lit pad fills it), so
+   the row never moves as one switches on. Its middle is where the pad's trace starts, under it;
+   portfolioCircuit.ts measures it, and the board keeps its runs off the lit square. */
 .pxDot {
   position: relative;
-  isolation: isolate;
   flex: none;
-  display: flex;
-  gap: 2px;
-  width: 26px;
-  height: 26px;
-  padding: 3px;
-  background: var(--void);
-  /* ≈18px at rest; the current one opens to the whole 26px */
-  scale: 0.7;
-  outline: 1.5px solid transparent;
-  outline-offset: 3px;
-  transition:
-    scale 0.28s var(--motion-ease-out),
-    outline-color 0.2s,
-    box-shadow 0.28s;
+  width: 32px;
+  height: 32px;
 }
+/* The pad, off: a 26px square showing the project — the top left of what the screen shows for it,
+   where a site keeps its logo (from the middle, Crowe Portal's was an empty grey tile) — 3px in
+   from its place on every side, in a 1px frame of its own colour; its colour is the square's
+   ground until the picture is in, and the whole square for a project with no picture. */
+.pxPad {
+  position: absolute;
+  inset: 3px;
+  border-radius: 4px;
+  background: var(--p2);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p2) 80%, transparent);
+}
+.pxShot {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  object-position: 0 0;
+}
+/* A picture that failed, and had nothing to fall back on: the square of its colour. */
+.pxShot[data-failed] {
+  display: none;
+}
+/* A screen not on show: the picture a quarter dimmed, so the one switched on stands out and the
+   nine still tell apart. It lifts as a pad is pointed at, or switches on. */
+.pxPad::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--void) 26%, transparent);
+}
+/* Its glow, switched on: a bright rim and a bloom of its colour. */
+.pxPad::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--p2) 55%, var(--on-accent)),
+    0 0 8px 1px color-mix(in srgb, var(--p2) 78%, transparent),
+    0 0 22px 4px color-mix(in srgb, var(--p2) 30%, transparent);
+  opacity: 0;
+}
+/* The light the lit pad throws on the board round it. */
 .pxDot::before {
   content: "";
   position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: var(--p2);
-  box-shadow:
-    0 0 6px color-mix(in srgb, var(--p2) 70%, transparent),
-    0 0 16px color-mix(in srgb, var(--p2) 35%, transparent);
-  transition: opacity 0.2s;
-}
-/* A subpixel: a lit tube, brightest along its middle, screen-blended on the black matrix. */
-.pxDot i {
-  flex: 1;
-  border-radius: 1px;
-  mix-blend-mode: screen;
+  inset: -12px;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--p2) 24%, transparent), transparent);
   opacity: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--sub) 75%, var(--void)) 0%,
-    color-mix(in srgb, var(--sub) 70%, var(--on-accent)) 50%,
-    color-mix(in srgb, var(--sub) 75%, var(--void)) 100%
-  );
-  box-shadow:
-    0 0 1.5px var(--sub),
-    0 0 4px color-mix(in srgb, var(--sub) 70%, transparent);
-  transition: opacity 0.2s;
-}
-.pxDot i:nth-child(1) {
-  --sub: var(--subpixel-r);
-  --level: var(--sr);
-}
-.pxDot i:nth-child(2) {
-  --sub: var(--subpixel-g);
-  --level: var(--sg);
-}
-.pxDot i:nth-child(3) {
-  --sub: var(--subpixel-b);
-  --level: var(--sb);
+  pointer-events: none;
 }
 .pxName {
   font-size: var(--fs-sm);
   line-height: 1.25;
   text-align: center;
 }
+/* The project on the screen: its pad switched on (a quarter larger, undimmed, glowing, lighting the
+   board), its route lit into the chin (portfolioCircuit.ts), its name white and bold. Only one is
+   ever on. */
 .px[aria-current="true"] {
   color: var(--txt);
-  background: color-mix(in srgb, var(--p2) 13%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--p2) 50%, transparent);
 }
 .px[aria-current="true"] .pxName {
   font-weight: var(--fw-bold);
 }
-.px[aria-current="true"] .pxDot {
-  scale: 1;
-  outline-color: var(--txt);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--p2) 55%, transparent);
+.px[aria-current="true"] .pxPad {
+  inset: 0;
 }
-.px[aria-current="true"] .pxDot::before {
+.px[aria-current="true"] .pxPad::before {
   opacity: 0;
 }
-.px[aria-current="true"] .pxDot i {
-  opacity: var(--level);
+.px[aria-current="true"] .pxPad::after,
+.px[aria-current="true"] .pxDot::before {
+  opacity: 1;
 }
+/* Pointed at, or reached by the keyboard: the name turns white, the pad steps up 1px on every side,
+   its picture undimmed and its frame firmer — but it stays off (no glow, no lit trace), so only the
+   project on the screen ever looks on. The keyboard's focus is the cyan ring round the whole
+   button, never the project's colour. */
 @media (hover: hover) {
   .px:hover {
     color: var(--txt);
-    background: color-mix(in srgb, var(--on-accent) 4.5%, transparent);
   }
-  .px[aria-current="true"]:hover {
-    background: color-mix(in srgb, var(--p2) 16%, transparent);
+  .px:not([aria-current="true"]):hover .pxPad {
+    inset: 2px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--p2) 55%, var(--txt));
   }
-  .px:not([aria-current="true"]):hover .pxDot {
-    scale: 0.82;
+  .px:hover .pxPad::before {
+    opacity: 0;
   }
 }
 .px:focus-visible {
+  color: var(--txt);
   outline: 2px solid var(--cyan);
   outline-offset: 2px;
 }
-/* A pixel switches on as it arrives — with the page, or with the channel that brought it back:
-   dark, a white flash, a stutter, its colour, in hard steps; one after another along the row. */
+.px:not([aria-current="true"]):focus-visible .pxPad {
+  inset: 2px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p2) 55%, var(--txt));
+}
+.px:focus-visible .pxPad::before {
+  opacity: 0;
+}
+
+/* ---------- the board (portfolioCircuit.ts draws it; lib/portfolioBoard.ts routes it) ----------
+   One SVG laid over the row with nothing clipped, so its trunk reaches up into the chin: under the
+   buttons, over the monitor. Every run is horizontal, vertical or exactly 45°, with butt ends and
+   mitred corners — never a dot. Drawn only under the monitor: a row with nothing above it is pads
+   alone, with no line into nothing. */
+.board {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.board path {
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+/* At rest: the board in the page's dim line colour, 1px on whole pixels; a lower line's vias are
+   5px squares of it (the processor's square vias on Home). */
+.board .tracks {
+  stroke: var(--line2);
+  stroke-width: 1px;
+}
+.board .vias {
+  fill: var(--line2);
+  stroke: none;
+}
+/* The route of the project on the screen: a 2px line of its colour taken a third of the way to
+   white, so it stands out from the board in every colour (3.4:1 against it for Crowe Portal, the
+   darkest; 7.2:1 against the page), over a 6px glow of its true colour. Still. */
+.board .litHalo,
+.board .runHalo {
+  stroke: var(--p2);
+  stroke-width: 6px;
+  stroke-opacity: 0.22;
+}
+.board .litLine,
+.board .runLine {
+  stroke: color-mix(in srgb, var(--p2) 65%, var(--on-accent));
+  stroke-width: 2px;
+}
+.board .litVia {
+  fill: color-mix(in srgb, var(--p2) 65%, var(--on-accent));
+  stroke: none;
+}
+.board .litViaHalo {
+  fill: var(--p2);
+  fill-opacity: 0.3;
+  stroke: none;
+}
+/* The pulse that runs the route when a project is picked: a streak of light — a faint wide halo,
+   a body of its colour, a short white-hot core — all ending square at its head (a bar, like the
+   processor's packets, never a dot). */
+.board .headHalo {
+  stroke: var(--p2);
+  stroke-width: 9px;
+  stroke-opacity: 0.42;
+}
+.board .headBody {
+  stroke: color-mix(in srgb, var(--p2) 45%, var(--on-accent));
+  stroke-width: 3px;
+}
+.board .headCore {
+  stroke: color-mix(in srgb, var(--p2) 12%, var(--on-accent));
+  stroke-width: 3px;
+}
+/* A lower line's via taking the light: a square spark, once. */
+.board .viaSpark {
+  fill: color-mix(in srgb, var(--p2) 30%, var(--on-accent));
+  stroke: none;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+/* Until it is first drawn, and while the row glides (a channel) or slides (a page): unseen. It
+   comes back drawn where the pads stopped. */
+.board[data-wait] {
+  opacity: 0;
+}
+/* The chin as the pulse arrives: red, green and blue at full make white, so a white light with a
+   halo of the project's colour blooms along the chin over its three subpixels, once. Centred on
+   the point portfolioCircuit.ts places it at; invisible at rest. */
+.flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 112px;
+  height: 34px;
+  margin: -17px 0 0 -56px;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--on-accent) 92%, var(--p2)),
+    color-mix(in srgb, var(--p2) 72%, transparent) 30%,
+    color-mix(in srgb, var(--p2) 16%, transparent) 66%,
+    transparent
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: no-preference) {
+  /* Switching: the new pad comes on in a third of a second as its pulse leaves it; the old one goes
+     out at once (0.12s). (A state's transition is the one of the state it goes TO.) */
+  .pxPad {
+    transition:
+      inset 0.14s var(--motion-ease-out),
+      box-shadow 0.14s ease;
+  }
+  .pxPad::before,
+  .pxPad::after,
+  .pxDot::before {
+    transition: opacity 0.12s ease;
+  }
+  .px[aria-current="true"] .pxPad {
+    transition:
+      inset 0.3s var(--motion-ease-out),
+      box-shadow 0.2s ease;
+  }
+  .px[aria-current="true"] .pxPad::before,
+  .px[aria-current="true"] .pxPad::after {
+    transition-duration: 0.2s;
+  }
+  .px[aria-current="true"] .pxDot::before {
+    transition-duration: 0.36s;
+  }
+  /* The board fades in as it is drawn, and back once a glide has ended; it goes at once, so a page
+     sliding in never carries the old board with it. */
+  .board {
+    transition: opacity 0.16s ease;
+  }
+  .board[data-wait] {
+    transition: none;
+  }
+  /* A pixel switches on as it arrives — with the page, or with the channel that brought it back:
+     dark, a white flash, a stutter, its square, in hard steps; one after another along the row. */
   .pxDot {
     animation: pfPxOn 0.3s steps(4, end) calc(var(--k, 0) * 22ms) backwards;
   }
+}
+
+/* ---------- "Caută un proiect după nume" (PortfolioSearch.tsx) ----------
+   A field with a list of the names found; only in a portfolio bigger than one page, under the row
+   and its pages (between the screen and the row it would cut the board's traces). 44px tall, 16px
+   text (a phone does not zoom into it). */
+.find {
+  position: relative;
+  width: min(100%, 420px);
+  margin: var(--sp-3) auto 0;
+}
+.findIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  translate: 0 -50%;
+  fill: none;
+  stroke: var(--mut);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke 0.15s;
+}
+.find:focus-within .findIcon {
+  stroke: var(--cyan-text);
+}
+.findInput {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 0 44px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--on-accent) 3.5%, transparent);
+  color: var(--txt);
+  font: inherit;
+  font-size: var(--fs-base);
+  text-overflow: ellipsis;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+}
+.findInput::placeholder {
+  color: var(--mut);
+  opacity: 1;
+}
+.findInput::-webkit-search-cancel-button,
+.findInput::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+@media (hover: hover) {
+  .findInput:hover {
+    border-color: color-mix(in srgb, var(--on-accent) 26%, var(--line2));
+  }
+}
+.findInput:focus {
+  border-color: var(--cyan);
+  background: color-mix(in srgb, var(--neon-cyan) 5%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon-cyan) 18%, transparent);
+}
+.findClear {
+  position: absolute;
+  right: var(--sp-1);
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  translate: 0 -50%;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--mut);
+  cursor: pointer;
+}
+.findClear svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+@media (hover: hover) {
+  .findClear:hover {
+    color: var(--txt);
+    background: color-mix(in srgb, var(--on-accent) 7%, transparent);
+  }
+}
+.findClear:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -2px;
+}
+/* The names found: under the field, or over it where the window has more room (data-up). */
+.findPop {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--sh-lg);
+}
+.findPop[data-up] {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+.findPop[hidden],
+.findList[hidden] {
+  display: none;
+}
+.findList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.findOption {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 44px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-sm);
+  color: var(--txt);
+  cursor: pointer;
+}
+.findOption[aria-selected="true"] {
+  background: color-mix(in srgb, var(--neon-cyan) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--neon-cyan) 40%, transparent);
+}
+/* each name led by its pad, lit while it is the one chosen */
+.findLed {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--p2);
+}
+.findOption[aria-selected="true"] .findLed {
+  background: color-mix(in srgb, var(--p2) 86%, var(--on-accent));
+  box-shadow:
+    0 0 6px color-mix(in srgb, var(--p2) 85%, transparent),
+    0 0 14px 1px color-mix(in srgb, var(--p2) 40%, transparent);
+}
+.findName {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.findName mark {
+  background: none;
+  color: var(--cyan-text);
+  font-weight: var(--fw-extra);
+}
+.findTag {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 48%;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--mut);
+}
+.findTag[data-on] {
+  color: var(--cyan-text);
+}
+.findNote {
+  margin: 0;
+  padding: 9px 12px 7px;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+  color: var(--mut);
+}
+.findList:not([hidden]) + .findNote {
+  margin-top: var(--sp-1);
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- the pages ----------
+   "‹ Pagina anterioară · Pagina 2 din 12 · Pagina următoare ›" in words, without boxes (the screen's
+   arrows are the boxed ones), and a small pixel for each page, the page on show lit in the colour of
+   the project on the screen. */
+.pager {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas:
+    "prev label next"
+    "prev dots next";
+  align-items: center;
+  column-gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.pageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--txt);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s;
+}
+.pagePrev {
+  grid-area: prev;
+  justify-self: start;
+  text-align: start;
+}
+.pageNext {
+  grid-area: next;
+  justify-self: end;
+  text-align: end;
+}
+.pageBtn svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (hover: hover) {
+  .pageBtn:hover:not([aria-disabled="true"]) {
+    background: color-mix(in srgb, var(--p2) 14%, transparent);
+  }
+}
+.pageBtn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.pageBtn[aria-disabled="true"] {
+  opacity: 0.36;
+  cursor: default;
+}
+.pageLabel {
+  grid-area: label;
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: 1.3;
+  color: var(--mut);
+  text-align: center;
+  white-space: nowrap;
+}
+.pageLabel b {
+  color: var(--txt);
+  font-weight: var(--fw-extra);
+}
+.pageDots {
+  grid-area: dots;
+  display: flex;
+  justify-content: center;
+}
+.pageDot {
+  flex: 0 1 22px;
+  min-width: 14px;
+  display: grid;
+  place-items: center;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.pageDot i {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1.5px;
+  background: color-mix(in srgb, var(--on-accent) 24%, transparent);
+  transition:
+    background-color 0.15s,
+    box-shadow 0.25s,
+    scale 0.25s var(--motion-ease-out);
+}
+@media (hover: hover) {
+  .pageDot:hover i {
+    background: color-mix(in srgb, var(--on-accent) 62%, transparent);
+  }
+}
+.pageDot[data-on] i {
+  scale: 1.3;
+  background: color-mix(in srgb, var(--p2) 86%, var(--on-accent));
+  box-shadow:
+    0 0 5px color-mix(in srgb, var(--p2) 85%, transparent),
+    0 0 12px 1px color-mix(in srgb, var(--p2) 45%, transparent);
 }
 
 /* ---------- the project's words ---------- */
@@ -692,12 +1710,18 @@
   border: 0;
 }
 
-/* ---------- the screenshot, larger ----------
-   The site's dialog (components/ui/Modal.tsx), as wide as the window allows and the picture
-   whole in it. `[role]` outweighs the dialog's own width, whatever order the two sheets load in. */
+/* ---------- the picture, larger ----------
+   The site's dialog (components/ui/Modal.tsx), as wide as the window allows and a screenshot
+   whole in it. `[role]` outweighs the dialog's own width, whatever order the two sheets load in.
+   A whole site comes at its own width (1080px, a desktop site at three quarters) and scrolls in
+   the dialog's body — where its words can be read. */
 @media (min-width: 641px) {
   .zoomPanel[role="dialog"] {
     max-width: min(1440px, calc(100vw - 2 * var(--sp-5)));
+  }
+  /* 1080px of site + the panel's padding and edge + a classic scrollbar in its body */
+  .zoomPanelSite[role="dialog"] {
+    max-width: min(1152px, calc(100vw - 2 * var(--sp-5)));
   }
 }
 .zoomImg {
@@ -709,11 +1733,19 @@
   margin: 0 auto;
   border-radius: var(--r-sm);
 }
+.zoomSite {
+  display: block;
+  width: 100%;
+  max-width: 1080px;
+  height: auto;
+  margin: 0 auto;
+  border-radius: var(--r-sm);
+}
 
 /* ---------- width bands ---------- */
 /* From a tablet up the arrows stand beside the screen, and the words come under the pixels, in a
    centred column. --mon-w is the monitor's widest, worked out from the window's height, so the
-   screen and the pixels (and, side by side, the words) fit the first screen; 440px / 426px are
+   screen and the pixels (and, side by side, the words) fit the first screen; 443px / 429px are
    everything else on that screen — the header, the title and the filter, the bezel and the chin,
    the pixels. */
 @media (min-width: 641px) {
@@ -725,7 +1757,7 @@
     column-gap: var(--nav-gap);
   }
   .left {
-    --mon-w: max(380px, calc((100vh - 440px) * 1.6 + 16px));
+    --mon-w: max(380px, calc((100vh - 443px) * 1.6 + 16px));
   }
   .info {
     width: 100%;
@@ -746,12 +1778,25 @@
     align-items: start;
   }
   .left {
-    --mon-w: max(400px, calc((100vh - 426px) * 1.6 + 16px));
+    --mon-w: max(400px, calc((100vh - 429px) * 1.6 + 16px));
   }
   .info {
     width: auto;
     max-width: none;
     margin: 0;
+  }
+}
+/* A portfolio bigger than one page (.paged) has the pages and the search under the row: about
+   110px more under the screen, which the screen gives up — the pages stay on a laptop's first
+   screen. */
+@media (min-width: 641px) {
+  .left.paged {
+    --mon-w: max(380px, calc((100vh - 553px) * 1.6 + 16px));
+  }
+}
+@media (min-width: 1000px) and (min-aspect-ratio: 4/5) {
+  .left.paged {
+    --mon-w: max(400px, calc((100vh - 539px) * 1.6 + 16px));
   }
 }
 /* The small viewport height where there is one: a phone's or a tablet's toolbars come and go, and
@@ -761,12 +1806,18 @@
 @supports (height: 100svh) {
   @media (min-width: 641px) {
     .left {
-      --mon-w: max(380px, calc((100svh - 440px) * 1.6 + 16px));
+      --mon-w: max(380px, calc((100svh - 443px) * 1.6 + 16px));
+    }
+    .left.paged {
+      --mon-w: max(380px, calc((100svh - 553px) * 1.6 + 16px));
     }
   }
   @media (min-width: 1000px) and (min-aspect-ratio: 4/5) {
     .left {
-      --mon-w: max(400px, calc((100svh - 426px) * 1.6 + 16px));
+      --mon-w: max(400px, calc((100svh - 429px) * 1.6 + 16px));
+    }
+    .left.paged {
+      --mon-w: max(400px, calc((100svh - 539px) * 1.6 + 16px));
     }
   }
 }
@@ -776,13 +1827,24 @@
    phone the rules further down take over.) */
 @container (max-width: 600px) {
   .viewer,
-  .pixels {
+  .pxnav {
     --nav: 44px;
     --nav-gap: 10px;
   }
   .px {
     flex: 0 0 calc((100% - 4 * var(--sp-1)) / 5);
     max-width: none;
+  }
+  .paged .pixels {
+    min-height: 183px;
+  }
+  .pager {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "label label"
+      "dots dots"
+      "prev next";
+    row-gap: var(--sp-1);
   }
 }
 /* A laptop's window (1366×768 shows ~650px of page): a long description gives way to "Citește
@@ -840,17 +1902,71 @@
     bottom: var(--sp-2);
     padding: 5px 9px 5px 8px;
   }
-  .pixels {
-    gap: 2px;
+  .scrollHint {
+    left: var(--sp-2);
+    bottom: var(--sp-2);
+    padding: 5px 9px 5px 7px;
+  }
+  /* a phone's demo: a shorter bar; the sheet takes the screen's width */
+  .screen {
+    --demo-bar: 24px;
+  }
+  .demoSheet {
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    padding: 10px 12px;
+  }
+  .demoSheetText {
+    font-size: var(--fs-sm);
+  }
+  /* the sheet or the page list open: the arrows on the screen's edges step aside, off its text */
+  .viewer:has(.demoSheet, .demoList) .nav {
+    visibility: hidden;
+  }
+  .pxnav {
     max-width: none;
     margin-top: 10px;
   }
+  .pageBtn {
+    min-height: 44px;
+  }
+  /* 4px between lines: room for a knot over a lower pad to rise high enough for its arms to clear
+     the lit square's corners under two-line names (lib/portfolioBoard.ts, `hang`) */
+  .pixels,
+  .sheet {
+    gap: 4px 2px;
+  }
+  .paged .pixels {
+    min-height: 160px;
+  }
+  /* 77.8px with a two-line name (12 + 26 + 5 + 28.8 + 6) */
   .px {
     flex: 0 0 calc((100% - 8px) / 5);
     max-width: none;
     min-width: 0;
-    padding: 6px 0 7px;
+    padding: 12px 0 6px;
     gap: 5px;
+  }
+  /* A pad's place is 26px on a phone: the lit square fills it, the one at rest is 24px, 26px pointed
+     at or focused. Five or four to a row, the lower lines hang from knots right over their pads, and
+     a 32px lit square left the knots' arms no room to clear its corners (lib/portfolioBoard.ts
+     measures the place, and keeps every run 3px off it). */
+  .pxDot {
+    width: 26px;
+    height: 26px;
+  }
+  .pxPad {
+    inset: 1px;
+  }
+  .px:not([aria-current="true"]):focus-visible .pxPad {
+    inset: 0;
+  }
+  /* (a finger keeps :hover on the last thing it tapped) */
+  @media (hover: hover) {
+    .px:not([aria-current="true"]):hover .pxPad {
+      inset: 0;
+    }
   }
   .pxName {
     font-size: clamp(10.5px, 3.1vw, 12px);
@@ -907,12 +2023,29 @@
   .zoomImg {
     max-height: calc(88dvh - 130px);
   }
+  .zoomDemo {
+    height: calc(88dvh - 130px);
+  }
+}
+/* The narrowest phones: "Derulează site-ul" keeps only its arrow, so it never meets "Vezi mai
+   mare" across a screen under ~300px. */
+@media (max-width: 339px) {
+  .scrollHint {
+    gap: 0;
+    padding: 5px 7px;
+  }
+  .scrollHintText {
+    display: none;
+  }
 }
 /* Five names do not fit a column under 299px (a phone up to 330px wide): four to a row leaves room
    for them at their full 12px. */
 @container (max-width: 298px) {
   .px {
     flex-basis: calc((100% - 6px) / 4);
+  }
+  .paged .pixels {
+    min-height: 242px;
   }
   .pxName {
     font-size: clamp(10.5px, 3.75vw, 12px);
@@ -921,8 +2054,21 @@
 /* Fingertip-sized targets wherever the pointer is a finger. */
 @media (pointer: coarse) {
   .more,
-  .link {
+  .link,
+  .pageBtn,
+  .demoListItem,
+  .demoSheetGo,
+  .demoSheetStay {
     min-height: 44px;
+  }
+  /* the bar's Back: room round it to be hit (the bar is 24px tall on a phone) */
+  .demoBack {
+    position: relative;
+  }
+  .demoBack::before {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--sp-2)) calc(-1 * var(--sp-2) + 2px);
   }
 }
 
@@ -1043,6 +2189,28 @@
 }
 
 /* ---------- motion ---------- */
+/* A demo: a link lights under the pointer, the bar's light runs while a page comes in, the
+   sheet rises. None of it under reduced motion (they simply show). */
+@media (prefers-reduced-motion: no-preference) {
+  .hot::after {
+    transition: opacity 0.12s ease;
+  }
+  .screen[data-loading] .demoProgress {
+    transition:
+      transform 0.8s var(--motion-ease-out),
+      opacity 0.1s linear;
+  }
+  .demoSheet {
+    animation: pfSheetIn 0.22s var(--motion-ease-out) both;
+  }
+}
+@keyframes pfSheetIn {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+
 @keyframes pfPxOn {
   0% {
     opacity: 0;
@@ -1072,17 +2240,27 @@
   }
 }
 
-/* Reduced motion: the glow changes at once, nothing glides or presses in. (The pixel transition,
-   the switch-on, the row's glide and the words' rise are not started at all.) */
+/* Reduced motion: the glow changes at once, nothing glides or presses in; a pad is simply on or
+   off, its route simply lit or dim. (The pixel transition, the switch-on, the pulse and the chin's
+   flash, the row's glide, the words' rise and the site's one glide down and back are not started
+   at all.) */
 @media (prefers-reduced-motion: reduce) {
   .stage,
+  .monitor,
   .channel,
   .nav,
   .px,
-  .pxDot,
+  .pxPad,
+  .pxPad::before,
+  .pxPad::after,
   .pxDot::before,
-  .pxDot i,
+  .board,
+  .findIcon,
+  .findInput,
+  .pageBtn,
+  .pageDot i,
   .zoomChip,
+  .scrollHint,
   .ask,
   .cta {
     transition: none;
@@ -1098,8 +2276,10 @@
 
 /* A contrast theme (forced colours): the pressed channel by a system-coloured border, so the
    outline stays the focus ring's; the current pixel by a system-coloured ring inside it, which the
-   focus ring replaces while it has the focus. The pixels and the chin's subpixels keep their own
-   paint — they are pictures of light, and a contrast theme would erase them to empty squares. */
+   focus ring replaces while it has the focus, and its route in the same system colour over a grey
+   board, without its glow. The pads and the chin's subpixels keep their own paint: a contrast theme
+   would drop the pads' frames and glow and repaint their ground and veil (their pictures it never
+   touches), and erase the subpixels to empty bars. */
 @media (forced-colors: active) {
   .channel[aria-pressed="true"] {
     border: 2px solid Highlight;
@@ -1114,13 +2294,79 @@
     border: 1px solid ButtonText;
   }
   /* the picture's focus ring is a shadow, and a contrast theme drops shadows */
-  .shotBtn:focus-visible ~ .screenRing {
+  .screen:has(.shotBtn:focus-visible) .screenRing,
+  .screen:has(.demoZoom:focus-visible) .screenRing {
     outline: 3px solid Highlight;
     outline-offset: -3px;
   }
+  /* a demo's lit links and its controls, drawn in the system's colours */
+  .hot:hover::after,
+  .hot:focus-visible::after {
+    box-shadow: none;
+    outline: 2px solid Highlight;
+  }
+  .demoSheet,
+  .demoList {
+    border-color: CanvasText;
+  }
+  .demoBack,
+  button.demoAddr,
+  .demoSheetGo {
+    border: 1px solid ButtonText;
+  }
+  .demoBack[aria-disabled="true"] {
+    border-color: GrayText;
+    color: GrayText;
+  }
+  /* the list's page on show, and the light of a page coming in: not a tint, a mark */
+  .demoListItem[aria-current="page"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .demoProgress,
+  .hotMark:focus-visible::after {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
   .pxDot,
   .tagPx,
-  .rgb {
+  .rgb,
+  .board {
+    forced-color-adjust: none;
+  }
+  .board .tracks {
+    stroke: GrayText;
+  }
+  .board .vias {
+    fill: GrayText;
+  }
+  .board .litLine,
+  .board .runLine,
+  .board .headBody,
+  .board .headCore {
+    stroke: Highlight;
+  }
+  .board .litVia {
+    fill: Highlight;
+  }
+  .board .litHalo,
+  .board .runHalo,
+  .board .headHalo,
+  .board .litViaHalo,
+  .board .viaSpark,
+  .flash {
+    display: none;
+  }
+  /* the field's focus and the chosen name are shadows elsewhere */
+  .findInput:focus {
+    outline: 2px solid Highlight;
+  }
+  .findOption[aria-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+  .findLed,
+  .pageDot i {
     forced-color-adjust: none;
   }
 }

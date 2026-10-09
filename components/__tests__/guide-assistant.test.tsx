@@ -70,7 +70,7 @@ const read = (repoPath: string) => readFileSync(resolve(ROOT, repoPath), "utf8")
 const ro = <T extends { ro: string }>(text: T) => text.ro;
 
 /** The shared dialog's accessible name (`RequestFlowProvider` → `COPY.title`). */
-const DIALOG_TITLE = "Spune-ne ce vrei să construiești.";
+const DIALOG_TITLE = "Află de la ce preț pornește proiectul tău.";
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
 
@@ -340,8 +340,8 @@ describe("markup", () => {
     expect(faqPanel()).toBeNull();
     expect(root()).not.toHaveAttribute("data-say");
 
-    /* She speaks when she is asked, and stops on her own seven seconds later — while the
-       answer she was reading stays on screen. */
+    /* She speaks when she is asked, and stops on her own when the answer's text runs out —
+       never later than seven seconds — while the answer she was reading stays on screen. */
     press(avatar());
     press(within(faqPanel()!).getByRole("button", { name: ro(GUIDE_FAQ[0].q) }));
     expect(root()).toHaveAttribute("data-say");
@@ -365,9 +365,9 @@ describe("markup", () => {
     expect(portrait).toHaveAttribute("width");
     expect(portrait).toHaveAttribute("height");
     /* ONE ENCODING, and the test guards it. There was an AVIF <source> ahead of the WebP and it
-       had to go: every CSS window onto this portrait — the eyelids, the jaw, the rim's mask, the
-       scanline mask — loads the WebP by URL, and a patch that must colour-match the pixels under
-       it draws a hard edge wherever two lossy encodings of the same bitmap disagree. */
+       had to go: every CSS window onto this portrait — the eyelids, the rim's mask, the scanline
+       mask — loads the WebP by URL, and a patch that must colour-match the pixels under it draws
+       a hard edge wherever two lossy encodings of the same bitmap disagree. */
     expect(scene.querySelector("picture")).toBeNull();
     expect(portrait.getAttribute("srcset") ?? "").not.toMatch(/\.avif/);
 
@@ -553,29 +553,36 @@ describe("GuideAssistant.module.css", () => {
     expect(hidden).toEqual([".caption"]);
   });
 
-  it("keyframes move only transform and opacity — except the two lips, which may not be transformed", () => {
-    /* The two PHOTOGRAPHIC patches are the exception, and it is not a concession to convenience.
-       They are windows onto her own portrait laid over the picture they came from, and a
-       `transform` puts them on their own compositing layer, which rasterises the background image
-       against the device grid about half a pixel out of step with the inline paint. Measured row
-       by row at device pixels, that is up to 47 luminance units appearing on her upper lip the
-       instant she starts to speak — the cut. So those two move by paint instead: the photograph
-       slides (`background-position-y`) and its window follows (`mask-position`). Everything else
-       here is a gradient with nothing to register against, and stays on transform. */
-    const PICTATE = new Set(["guide-jaw", "guide-upper-lip"]);
-    const PAINT = ["background-position-y", "mask-position", "-webkit-mask-position"];
+  it("keyframes move only transform and opacity, and her mouth is never transformed", () => {
+    /* Her mouth does not move by keyframes at all, and that is not a concession to convenience.
+       It is frames of her own face (tools/guide/mouth.mjs) laid over the picture they came from;
+       the script picks one file per layer (`--f`) and blends them by `opacity` (paintMouth). Each
+       layer is the portrait's own rectangle with its frame filling it, because a background that
+       fills its box exactly is drawn as the <img> is, pixel for pixel; an offset one was measured
+       up to 1.5 device px off it on a phone. A `transform` would rasterise the frame against the
+       device grid about half a pixel out of step with the portrait under it — measured on the old
+       lip windows as up to 47 luminance units appearing on her upper lip the instant she spoke:
+       the cut. */
     const frames = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)];
     expect(frames.length).toBeGreaterThanOrEqual(6);
     for (const frame of frames) {
-      const allowed = PICTATE.has(frame[1]) ? PAINT : ["transform", "opacity"];
       for (const decl of frame[2].matchAll(/([\w-]+)\s*:/g)) {
-        expect(allowed, frame[1]).toContain(decl[1]);
+        expect(["transform", "opacity"], frame[1]).toContain(decl[1]);
       }
     }
-    // And the lips are never transformed anywhere else either, which is the whole point.
-    for (const sel of [".jaw", ".upperLip"]) {
-      expect(rule(sel), sel).not.toMatch(/(?:^|[;\s{])transform\s*:/);
+    for (const sel of [".mouth", ".mouthFrame"]) {
+      expect(rule(sel), sel).not.toMatch(/(?:^|[;\s{])(?:transform|translate|scale|rotate)\s*:/);
     }
+    /* Composited for its opacity only: the blend's weights then reach the compositor as values.
+       Opacity keeps a layer's sub-pixel place; a transform hint would not. */
+    expect(rule(".mouth")).not.toMatch(/will-change/);
+    expect(rule(".mouthFrame")).toMatch(/will-change:\s*opacity;/);
+    expect(rule(".mouth")).toMatch(/width:\s*calc\(384 \* var\(--s\)\)/);
+    expect(rule(".mouth")).toMatch(/height:\s*calc\(452 \* var\(--s\)\)/);
+    expect(rule(".mouthFrame")).toMatch(/background-image:\s*var\(--f,/);
+    expect(rule(".mouthFrame")).toMatch(/background-position:\s*0 0;/);
+    expect(rule(".mouthFrame")).toMatch(/background-size:\s*100% 100%;/);
+    expect(rule(".mouthFrame")).toMatch(/opacity:\s*var\(--o,\s*0\)/);
     const withoutMotionBlocks = css
       .replace(/@keyframes[\s\S]*?\}\s*\}/g, "")
       .replace(/@media \(prefers-reduced-motion: no-preference\)[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, "");

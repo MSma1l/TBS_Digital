@@ -92,6 +92,15 @@ export function isLink(value: string): boolean {
 }
 
 /**
+ * A path on the site itself — `/…`, never `//…`, never a whole URL: what a page fetches from its
+ * own origin (a project's demo manifest). Empty passes, like any optional link.
+ */
+export function isSitePath(value: string): boolean {
+  const v = value.trim();
+  return !v || (v.startsWith("/") && !v.startsWith("//") && isLink(v));
+}
+
+/**
  * Trim a link, dropping it entirely if it is not one we would render. A link is
  * never patched up the way `sanitizeText` rewrites prose: stripping `javascript:`
  * out of `javascript:alert(1)` would leave a live `alert(1)`, so an unacceptable
@@ -138,6 +147,8 @@ export type TextRules = {
   phone?: boolean;
   /** Also require a renderable link (see `isLink`), e.g. a partner site or logo. */
   link?: boolean;
+  /** Also require a path on the site itself (see `isSitePath`): a file the page fetches. */
+  path?: boolean;
 };
 
 /**
@@ -190,6 +201,9 @@ export function validateText(
   if (rules.link && !isLink(trimmed)) {
     // No dedicated catalog key for the link message — keep the Romanian fallback.
     return "Introdu un link valid (https://… sau o cale care începe cu /).";
+  }
+  if (rules.path && !isSitePath(trimmed)) {
+    return "Introdu o cale de pe site, care începe cu / (de exemplu /projects/demo/bizcheck/demo.json).";
   }
   return null;
 }

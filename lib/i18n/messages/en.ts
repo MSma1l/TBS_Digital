@@ -203,7 +203,7 @@ export const en: Record<MessageKey, string> = {
   "nav.company.team": "Team",
   "nav.company.partners": "Partners",
   "nav.company.cases": "Cases",
-  "nav.cta": "START A PROJECT ↗",
+  "nav.cta": "GET A QUOTE ↗",
   "nav.burgerAria": "Menu",
   "nav.closeAria": "Close",
   "nav.primaryAria": "Main",

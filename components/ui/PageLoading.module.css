@@ -19,6 +19,31 @@
     visibility 0s linear 0.45s;
 }
 
+/*
+ * DOWN, THE CORE RESTS — once the fade has ended, never before (2026-10-07). `visibility: hidden`
+ * stops the paint but not the animations: BootCore's thirteen loops kept running under a cover
+ * nobody could see, one style recalc a frame on every page for the whole visit (965 in 4s on
+ * /portofoliu at rest). `--boot-play` pauses them (BootCore.module.css reads it into
+ * animation-play-state), and it flips to `paused` by a DISCRETE TRANSITION delayed by the fade's
+ * own 0.45s — on the frame `visibility` flips, so every frame of the fade still moves. Raised, the
+ * rule below sets it back to `running` in the same style change that shows the cover, so the core
+ * turns from the first raised frame and continues from the phase it held: never restarted from 0
+ * (the promise the note further down keeps for a client navigation). A transition, not a 1ms
+ * @keyframes: a custom property set from @keyframes is animation-tainted, and Blink refuses it in
+ * animation-play-state (measured: it stays `running`). Where discrete transitions are not
+ * supported the property is never set, and the core runs as before.
+ */
+@supports (transition-behavior: allow-discrete) {
+  .cover {
+    --boot-play: paused;
+    transition:
+      opacity 0.45s var(--motion-ease-out),
+      visibility 0s linear 0.45s,
+      --boot-play 0s linear 0.45s;
+    transition-behavior: allow-discrete;
+  }
+}
+
 /* The perspective grid the whole site is drawn on, so the wait belongs to this site and not to a
    generic loading screen. */
 .grid {
@@ -64,6 +89,7 @@
   visibility: visible;
   pointer-events: auto;
   transition: none;
+  --boot-play: running;
   /*
    * THE FAILSAFE, and it is not optional.
    *
@@ -121,8 +147,8 @@
  * AND A PAGE WITH NO STAGE KEEPS ITS COVER, THOUGH IT CAN NEVER SHOW IT.
  *
  * `display: none` here looked free — `/cookies` and `/confidentialitate` ship the cover and no
- * `[data-scene-stage]`, so the raise rule can never match and the boot core inside runs thirteen
- * animations nobody can see. It was written, and then backed out, because the layout is SHARED:
+ * `[data-scene-stage]`, so the raise rule can never match (the core inside rests paused there now,
+ * `--boot-play` above). It was written, and then backed out, because the layout is SHARED:
  * a Next.js client navigation from `/cookies` back to `/` keeps the SAME `.cover` node, the stage
  * mounts at `pending`, and the cover goes from `display: none` straight to raised in ONE style
  * change — so the boot core inside would restart from phase 0 instead of continuing. (The other

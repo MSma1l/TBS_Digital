@@ -57,6 +57,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [14 — Testing](./docs/14-testing.md) | Vitest unit tests and Playwright E2E (in Docker, incl. the forced-WebGL `@webgl` specs), backend pytest, live API verification script |
 | [15 — Security Skills](./docs/15-security-skills.md) | Per-topic security skills (validation, XSS, SQLi, auth, rate-limit, pentest) |
 | [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, the intro and the 3D stage and SEO, cookie consent + analytics |
+| [tools/site-demo](./tools/site-demo/README.md) | How the portfolio screen's interactive demos are captured from the live sites: the pages, the hotspots, writes blocked, the alignment proof |
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for the running record of every change, and
 [`SECURITY.md`](./SECURITY.md) for the pentest findings, fixes, and production checklist.

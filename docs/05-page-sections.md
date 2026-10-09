@@ -3,17 +3,22 @@
 The landing page is a single scroll, top to bottom. Sections carry a mono index label
 (`/01`, `/02`, …). Below is each section, its purpose, and where its content comes from.
 
-> Order in `app/(site)/page.tsx` today: Hero · Ticker · Directions · Work · Principles · Team ·
-> RequestSection · BottomCTA. All visitor-facing copy is localized —
+> Order in `app/(site)/page.tsx` today: Hero · Ticker · Directions · Work · WorkProof · Principles
+> ("De ce TBS") · Team · Process ("Cum începem") · RequestSection. Since 2026-10-09 the page sells
+> first (the owner's brief: the services and how to ask for them): what we do and for whom, the
+> services with their starting prices and a request each, the projects and the partners, why us,
+> how starting works, and the request with its price as the close. BottomCTA went that day: it
+> repeated the form right above it, and its "Programează consultarea" promised a booking that
+> did not exist. All visitor-facing copy is localized —
 > see [16 — i18n & SEO](./16-i18n-seo.md). For what is still a stub, see
 > [06 — Placeholder Rules](./06-placeholder-rules.md).
 >
 > The first screen — intro, header, hero, ticker, cookie banner — was redesigned as a HUD on
 > 2026-09-16, and the interior on 2026-09-17: the 3D stage behind Hero → Ticker → Directions,
 > the holographic stat cards, and Directions and Work rebuilt as HUD sections. Both are
-> described below as built. Principles, Team, the request section and BottomCTA predate them
-> and are due their own pass; `Services` and `Partners` below are not rendered by any page
-> today.
+> described below as built. Principles ("De ce TBS"), Team and the request section predate them;
+> WorkProof and Process came with the selling pass of 2026-10-09. `Services` and `Partners`
+> below are not rendered by any page today.
 
 ## First-visit intro (preloader)
 
@@ -540,6 +545,7 @@ the readout sits near the bottom edge.
 |------|--------------|
 | A document request that never reached `proxy.ts` | Until 2026-09-25 the proxy skipped any request carrying the legacy `Purpose: prefetch` header — a **browser's** header, sent on the document Chrome preloads when its omnibox predicts a URL from history. Without the proxy there is no `x-pathname`, so the gate said no: **the visitor who returns most often never saw the intro**, and that response also had no CSP and no canonical. The matcher now skips only the router's own RSC prefetch |
 | A `tbs_intro_skip=seen` cookie | The server renders no overlay; no intro JS, no GSAP, no three.js. **The site never writes this cookie** — the E2E suite and QA seed it. It used to play once per session and a reload never replayed it, which reads as the intro being broken |
+| A link from an ad: any `utm_*` parameter, or `gclid`, `gbraid`, `wbraid`, `dclid`, `fbclid`, `msclkid`, `ttclid`, `twclid`, `yclid`, `li_fat_id`, `epik`, `rdt_cid` (2026-10-09) | Never. Someone who clicked an ad came for the offer, so they land on it at once. `proxy.ts` reads the query string the layout cannot see, and forwards `x-intro: skip` (`fromAd`, `lib/intro.ts`); the server then renders no overlay, and nothing is written. The client bypass agrees (`fromAd(location.search)`), and `tbs_intro_force` does not override it: the server never sees localStorage. Everyone else still gets the intro on every hard load, as the owner asked |
 | Any page but the home page (`/servicii/*`, legal pages) | Never — the gate is `x-pathname === "/"` |
 | Client-side navigation inside the site (a service page → Home, Back) | Never — the layout that holds the gate is not re-rendered |
 | Client-side navigation **into** the site (the admin's "view site" link) | The shell renders nothing and sets no cookie; the next hard load of `/` plays it |
@@ -571,6 +577,13 @@ context again.
   including a DOM-only burst (transform and opacity only, no filters).
 - **Usable WebGL** → the three.js chunk is requested and the scene cross-fades in once its
   shaders have compiled and two frames have drawn; the drawing's CSS animations pause behind it.
+  On high, the glass's PMREM environment comes first, and **without stopping the film**: its four
+  programs (the room's and the strips' MeshBasic, the blur, the GGX filter) link in parallel
+  through `compileAsync` while the drawing plays on, and the same `fromScene` then runs once
+  they have (2026-10-07: it used to link them one after another inside an effect — one 637ms task,
+  597ms of it waiting on the links, the counter and the drawing frozen). R3F draws nothing until
+  the scene's own compile has been issued after it (`frameloop="never"`, invisible: the canvas is
+  not shown before `sceneReady`), so the glass never links a program without its environment.
   A lost context, an error, the 5s cutoff or a scene ready past `LATE_SCENE_GOAL` hands the
   stage back to the drawing.
 - **The machine is 29 boxes in one `InstancedMesh`**, over one `BoxGeometry`, sized by their own
@@ -765,7 +778,8 @@ the CTA as its very next sibling, the burger.
   overlay renders the same links.
 - **Preferences** (language · theme · sound) are unchanged in size and behaviour; they take the
   glass and a blue neon hover.
-- **CTA** `START PROIECT ↗` (`cta-neon`) opens the request dialog.
+- **CTA** `CERE OFERTĂ ↗` (`cta-neon`; `START PROIECT ↗` until 2026-10-09) opens the request
+  dialog.
 - **Glass:** the text-bearing glass on `::before` (never on `<header>` itself, or the dropdowns
   would have nothing to blur), a near-opaque sheet without blur below 861px.
 
@@ -897,7 +911,8 @@ and `aria-hidden`: the page reads, works and navigates the same without it.
 - On a capable desktop (from 861px, a hovering fine pointer, motion allowed) the hero's backdrop
   drifts down (+12%) and its stat cards up (−8%) as the hero scrolls away — measured by GSAP
   ScrollTrigger, and the identity at the top of the page.
-- The project screenshots' parallax in [Work](#work) is CSS only.
+- The project screenshots' parallax in [Work](#work) is CSS only (held, not played, inside the
+  spiral).
 
 **Static art.** Where the scene does not draw, SVG illustrations in the same places and
 proportions stand in: the microprocessor in the hero (the same silhouette as the WebGL chip,
@@ -933,22 +948,40 @@ reduced motion.
     (min 1.22:1 at 1024×768); at 6vw the hero text is 100% ≥ 4.5:1 at 900 and 1024.
   - From 1025px: the right-hand column, centred, at full strength.
 - **Phone scrim** (`data-scene-scrim`, below 861px): a radial pool of the page colour over the
-  core and under the headline and lead, at `--hero-scrim`.
-- **Copy:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px) whose closing full stop
-  is a plain red glyph, then the CTAs — the lead line under it (*"De la consultanță la produs
-  funcțional."*) was removed on 2026-10-02, and its `lead` entrance step with it. The kicker line above it (`TBS DIGITAL / WEB · SOFTWARE · AI`)
-  was removed on 2026-09-25, with every other kicker on the site — see
-  [No kicker lines](#no-kicker-lines-2026-09-25). Trilingual literals (`L()` in the component), not catalog keys.
-- **CTAs:** the primary `cta-neon` button **"Începe proiectul"** with an `aria-hidden` ↗ SVG opens
-  the request dialog (`source: "hero"`); the secondary ghost link **"Explorăm serviciile ↓"** goes
-  to `#servicii`. Both **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
+  core and under the headline and its subtitle, at `--hero-scrim`.
+- **Copy** (2026-10-09, the page turned to selling: the client's gain first, then what we do and
+  for whom). Trilingual literals (`L()` in the component), not catalog keys.
+  - **The headline:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px),
+    **"Mai mulți clienți, mai puțină muncă manuală."**, whose closing full stop is a plain red
+    glyph. It was "Construim digital ce mișcă businessul.", which spoke about us.
+  - **The subtitle:** *"Construim site-uri, magazine online, aplicații, CRM-uri și automatizări
+    pentru afaceri care vor să crească — de la idee până la lansare."* It sits where the old lead
+    line sat and is set like it (`--mut`, 16→19px), since the copy's contrast over the core was
+    measured on that line. It stops at 40ch from 861 to 1024px, clear of the chip on the
+    columns' seam.
+  - **The entrance:** the `title` marker wraps the headline and the subtitle, so they come in as
+    one.
+  - **History:** the old lead line (*"De la consultanță la produs funcțional."*) was removed at
+    the owner's request on 2026-10-02 and this subtitle brings the place back, with the brief
+    of 2026-10-09. The kicker above the headline (`TBS DIGITAL / WEB · SOFTWARE · AI`) went on
+    2026-09-25, with every other kicker on the site — see
+    [No kicker lines](#no-kicker-lines-2026-09-25).
+- **CTAs:** the primary `cta-neon` button **"Cere o ofertă"** with an `aria-hidden` ↗ SVG opens
+  the request dialog (`source: "hero"`); the secondary ghost link **"Vezi serviciile ↓"** goes
+  to `#servicii`. Under them, in the same `cta` entrance group, one small muted line of three
+  promises the site keeps: *"Prețul de pornire îl vezi pe loc · Fără obligații · Răspuns în cel
+  mult o zi lucrătoare"*. Each phrase is its own nowrap span, so a phone breaks the line between
+  promises, never inside one. Both CTAs **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
   has no hover to end it) or focused **visibly** from the keyboard. Hover and focus are separate
   reasons, so moving the mouse off a keyboard-focused CTA keeps the boost, and the focus the dialog
   hands back after a mouse close (not `:focus-visible`) does not start one.
 - **Metrics** (`role="group"`, `aria-label` "Indicatori", in `[data-parallax="hero-stats"]`):
   glass cards (`data-metric="projects|automation"`) with a red / blue accent and an accent
   hairline along the top. The portfolio count is `projects.length` in its own `<b>` (no count-up,
-  no card when it is 0); `24/7` is a fixed claim. Solid glass instead of blur below 861px.
+  no card when it is 0). The second card is the reply time, a promise the site makes on every
+  request: **"1 zi"** — *"răspuns la orice cerere"*, *"în cel mult o zi lucrătoare"*. It was
+  `24/7` *"automatizări active"* until 2026-10-09, too close to the claims removed from the team
+  card as not measurable; it keeps the `automation` id. Solid glass instead of blur below 861px.
   - **Drawn by the 3D scene from 2026-09-25 (`[data-scene-anchor="stat"]`).** At 861px and up, on
     a renderer that really draws (`[data-scene-stage][data-renderer="webgl"]`), the card keeps its
     box and loses its paint (`app/globals.css`), and the scene draws a **holographic panel** in
@@ -976,9 +1009,9 @@ From 861px the hero is two columns and fills the first screen together with the 
 ## Ticker
 
 `components/sections/Ticker.tsx`, directly under the hero. A glass band with a red neon top
-line and the words *Strategie → design → livrare · Design premium · Integrări & API ·
-Multilingv · AI & automatizare*. Decorative (every word is said elsewhere), so the whole strip
-is `aria-hidden`.
+line and what we sell, in plain words (2026-10-09; it listed techniques before): *Site-uri care
+aduc clienți · Magazine online · CRM la comandă · Automatizări · Boți Telegram · Aplicații
+mobile*. Decorative (every word is said elsewhere), so the whole strip is `aria-hidden`.
 
 The track renders **five identical groups, each ending in its own separator** — a slanted red
 neon hairline, 1px wide in the layout (it was a round dot until 2026-09-17) — and the same gap,
@@ -989,13 +1022,17 @@ shown, wrapped and centred, without the seam separator.
 
 ## Directions
 
-`components/sections/Directions.tsx`, in Tailwind (`section#servicii`, 2026-09-17) — a
-**direction chooser**, not a second sales pitch: five pills, a read-only preview, and the HUD
-screen the 3D model draws behind. Its copy is trilingual `L()` literals in the component; each
-direction's accent and reference project come from `lib/solutions.ts` and the live portfolio.
+`components/sections/Directions.tsx`, in Tailwind (`section#servicii`, 2026-09-17) — the
+**services, sold**: five pills, a preview that pitches the selected direction with its starting
+price and a request, and the HUD screen the 3D model draws behind. (It was a chooser with a
+read-only preview until 2026-10-09, when the owner turned the page to selling.) The section's own
+copy is trilingual `L()` literals in the component; each direction's pitch, accent and reference
+project come from `lib/solutions.ts` and the live portfolio.
 
-- **Heading row:** the `<h2>` alone. (Its kicker, **"Alege direcția potrivită"** with a red
-  hairline, went on 2026-09-25; its lead line on 2026-10-02.)
+- **Heading row:** the `<h2>` **"Ce vrei să rezolvi?"** (it was "Un selector de servicii făcut
+  pentru decizie rapidă.", which described the interface) and a lead: *"Alege direcția: vezi ce
+  primești, de la ce preț pornim, și cere oferta direct de aici."* (Its kicker, **"Alege direcția
+  potrivită"**, went on 2026-09-25; an older lead line on 2026-10-02.)
 - **Pills** (`<nav aria-label="Direcțiile de servicii">`): five **real links** to
   `/servicii/<slug>`, in the scene's order (Produs digital · E-commerce · Automatizare & API ·
   Asistenți IA & boturi · Brand & UI). The selected one carries `aria-current="true"`, its
@@ -1015,9 +1052,27 @@ direction's accent and reference project come from `lib/solutions.ts` and the li
   rule is `shouldInterceptTap` (`lib/tapIntent.ts`), shared with the header's dropdowns.
 - **Selecting** swaps the preview (a short entrance, none under reduced motion), sets
   `data-shape` on the screen, and tells the 3D scene which model to show.
-- **Preview:** the direction's tag, `<h3>`, text and "✓" list, and **one** link,
-  **"Deschide serviciul →"**, which always navigates on the first tap — the commercial actions
-  live on the service page.
+- **Preview:** the direction's **pitch** (`pitch` in `lib/solutions.ts`, the same text the
+  service page leads with): an outcome as the `<h3>`, what we do as the text, three ✓
+  deliverables. Then the **starting price** and **two actions**.
+  - **The price** comes from the admin's services, verbatim (it already says "de la"). It is
+    found through the same direction → estimator type → service mapping the request dialog uses
+    (`directionPrice`), so the card always shows the figure the dialog will. Brand & UI has no
+    service of its own and shows none, and an empty price shows nothing.
+  - **"Cere ofertă"** (red CTA) opens the request dialog with the direction preselected
+    (`source: "home-services"`).
+  - **"Detalii →"** (it was "Deschide serviciul →") is the one link out, into the service page,
+    and always navigates on the first tap. Below 641px both stack full width, 48px tall.
+
+  The pitches:
+
+  | Direction | Outcome (`<h3>`) | Price |
+  |---|---|---|
+  | Produs digital | „Ideea ta, transformată într-un produs folosit” | site's |
+  | E-commerce | „Vinde online, fără pași în plus” | shop's |
+  | Automatizare & API | „Mai puțină muncă manuală, mai puține erori” | automation's |
+  | Asistenți IA & boturi | „Răspunzi mai repede, fără să pierzi nicio cerere” | automation's |
+  | Brand & UI | „Un brand pe care îl recunoști și o interfață ușor de folosit” | none |
 - **HUD screen** (`data-testid="scene-services"`, `data-shape="<slug>"`): see-through, so the
   canvas shows behind it; a decorative layer (HUD grid with a radial fade, an accent glow, a scan
   line that pauses under the intro and while the section is off screen, four corner brackets);
@@ -1033,16 +1088,20 @@ direction's accent and reference project come from `lib/solutions.ts` and the li
   stands beside the case card.
 - **Nothing moves when the selection changes.** The copy, the screen and the panel have per-locale
   minimum heights, measured as the tallest direction in each width band, so a tap never shifts
-  what is under the section (or the stage's scroll measurements).
+  what is under the section (or the stage's scroll measurements). Raised for the longer pitches
+  on 2026-10-09 and checked in Edge: `#lucrari` stayed put across all five directions at
+  1366×768 (RO, RU) and on a 390px phone.
 - Only the first direction's drawing is in the HTML; the others load the first time another
   direction is selected.
 
 ## Work
 
 `components/sections/Work.tsx`, in Tailwind (`section#lucrari`, 2026-09-17). The `<h2>`
-**"Proiectele care ne reprezintă."** (its **"Portofoliu TBS"** kicker went on 2026-09-25, its
-lead line on 2026-10-02), then one HUD card per project from the store — fully editable from the admin's **Proiecte** tab
-([09 — Admin](./09-admin.md)).
+**"Ce am construit deja."** ("Proiectele care ne reprezintă." until 2026-10-09; its **"Portofoliu
+TBS"** kicker went on 2026-09-25, its lead line on 2026-10-02), then one HUD card per project from
+the store — fully editable from the admin's **Proiecte** tab ([09 — Admin](./09-admin.md)). What
+to do after the cards — ask for a project like them, see them all, the partners — is
+[WorkProof](#workproof--after-the-projects), right under the stage.
 
 - **The card** is a link (`<a target="_blank" rel="noopener noreferrer">`) when the project has a
   URL, an `<article>` otherwise — never a link to nowhere. It shows the project's **first
@@ -1108,7 +1167,9 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   rises — a column that has not arrived yet shows as a stripe in the project's accent, not as a
   hole — and the picture settles out of a 6% lift at the same time. It is driven by `--helix-wipe`,
   written per card from that card's own place on the strand — so it happens where the visitor is
-  looking, on every pass, and runs backwards if they scroll back. A card is whole well before it
+  looking, on every pass, and runs backwards if they scroll back. The driver writes it on the two
+  elements that read it, the screenshot and its scan layer, never on the card itself: an inherited
+  property there restyled the card's whole subtree on every write. A card is whole well before it
   reaches the front, so the project being read, and every card above it, always show their
   picture complete; the card one step below the front sitting part-drawn is the effect, not a
   defect. **This replaced a timed animation that nobody could see:** armed off the section's
@@ -1119,15 +1180,50 @@ interior stage. Once the scene has drawn and built its DNA helix (after its firs
   The scan sheet is painted on the screenshot and **under** the card's washes, so it is
   attenuated exactly as the picture is wherever copy sits over it. Under reduced motion, on the
   phone band and on the static art the picture is simply there, as before.
+- **The screenshot's parallax is held in the spiral, not played** (2026-10-08). A hard scroll
+  through the spiral braked hard on the owner's laptop (an RTX 4070 whose driver keeps it at
+  225–855 MHz while a page scrolls): the grid's parallax, a scroll-driven animation, made the
+  screenshot of every card a compositor layer of its own, and with it the card's rounded clip, the
+  luminosity blend and the scan above it became layers and offscreen passes too — 16 passes a frame
+  with five cards on screen. Now the driver writes each card, once per layout, where Work's view
+  timeline stands at the scroll that makes it the front card (`--helix-parallax`), and the
+  picture is held there as a plain 2D transform, painted with its card: 6 passes a frame and one
+  layer per card. The card being read shows its picture exactly where the animation had it
+  (within 0.003px at every card); the others give up the drift around that moment — about 1.7px a
+  card step with the nine projects at 1280×800 (3.45px two steps out, where a card is small,
+  turned and at half opacity), more with fewer projects or taller cards (about 2.9px a step at the
+  three-card minimum; 2.4px for the 360px IQ Arena card on a 768×1024 touch tablet). In the grid,
+  the band and the ambient helix the parallax plays as before.
 - **The finish.** The run used to end on a freeze: the front card reached the last project about
   234px (346px on a tablet) before its sticky slot released it, so every card held one identical
   pose while the helix — clamped differently — slid out of the top of the screen without them.
   Now the track carries **1.35 card-steps more**, the focus runs on past the last card at exactly
   the same rate (no change of pace at the hand-over), and over that stretch the cards fold onto
   the strand's axis and fade while the helix winds up, draws its strands into a beam and
-  dissolves. The hologram goes with it. It is timed to land as the cards come unstuck and the
-  next section arrives, so there is no dead screen between them, and the scene stops drawing
-  entirely once the section is behind the visitor.
+  dissolves. The hologram goes with it. The scene stops drawing entirely once the section is
+  behind the visitor.
+- **What follows rides up over the finish (2026-10-09).** The finish is scroll the deck spends
+  pinned, and what followed the track could only come in after all of it had passed. At the
+  owner's 1700×1300 window the last card was gone a whole screen before the next section reached
+  the middle: *"spirala se termina prea devreme si jumatate de pagina ramane goala"*.
+  - **The overlap.** Now the stage carries a negative bottom margin, `--helix-overlap`
+    (`helixOverlap` in `components/scene/helix.ts`, written by the driver, applied by
+    `app/globals.css` only while `data-helix="spiral"`). It equals the finish's length plus the
+    stage's padding, less one gap: the gap between two cards on the strand, never under 64px. The
+    stage keeps its full height, so the deck and the strand finish exactly as before, while the
+    next section comes up right under the last card.
+  - **Measured.** At 1702×1287 there are 132–240px between the last card and the next section,
+    which used to be half a page. At 1366×768 there are 35–50px, never touching.
+  - **The curtain.** The stage's sticky layer (`[data-scene-layer]`: the strand and the hologram)
+    is clipped (`clip-path: inset`) at that section's top edge, so the section covers the scene as
+    it comes up instead of being drawn over by it, with no background of its own: the page's grid
+    shows through. The clip is plain arithmetic on the scroll (the stage's bottom and the overlap,
+    measured at layout). It is written on the layer itself, not inherited from the stage, which
+    would restyle every card each frame, and only when it moves by half a pixel.
+  - **Painting order.** WorkProof and "De ce TBS" are positioned, so they paint above the stage
+    they overlap.
+  - **Off by default.** Without the spiral (a phone, the static art, reduced motion), nothing
+    overlaps.
 - **The helix answers the visitor.** Scrolling faster speeds up the packets, the 0/1 bits and the
   comet running the rungs, and lifts the glow; a new project arriving at the front, or the
   hologram swapping, flares the strands for about half a second. This is all done by changing
@@ -1167,6 +1263,27 @@ CGAM, IQ Arena, Balloons Breeze, Statistic, FLIRT. Note that **CGAM and IQ Arena
 the academy's web platform (cgam.md); IQ Arena is the mobile negotiation game. Screenshots live in
 `public/projects/`.
 
+## WorkProof — after the projects
+
+`components/sections/WorkProof.tsx` (2026-10-09), right after the stage, before "De ce TBS": the
+projects have just been shown, so this is where to act on them. A compact centred column, no
+heading of its own and no id:
+
+- one line — *"Platforme, aplicații și sisteme interne — de la portaluri pentru o firmă de audit
+  la aplicații pentru evenimente."*;
+- **"Vreau un proiect similar"** (red CTA, the request dialog, `source: "home-work"`) and **"Vezi
+  toate proiectele →"** (`/portofoliu`, built like the footer's link; the arrow is `aria-hidden`).
+  Stacked full width on a phone, one row from 641px;
+- **"Lucrăm alături de"** and the partners' logos, from the store (`partners`: Crowe Turcan
+  Mikhailenko, CGAM Business Academy, Ivan Turcan), each linking to its site in a new tab like
+  the footer's partner links. The logo files were on disk but shown nowhere before. They are
+  white on transparent (the admin asks for exactly that), so each sits on a dark `--panel` tile
+  of one height. Forced colours keep the tiles dark, or the white logos would vanish. A partner
+  without a logo shows its name.
+
+No testimonials: none exist, and the page invents none. When the owner has real ones (a name, a
+role, their consent), this is where they go.
+
 ## Service pages — "Proiecte relevante"
 
 `components/sections/DirectionPage.tsx` (`<section id="proiecte">`), styled by `.projects` /
@@ -1175,6 +1292,17 @@ the academy's web platform (cgam.md); IQ Arena is the mobile negotiation game. S
 The heading stands alone (2026-10-02): its lead line (*"Lucrări reale livrate pe această
 direcție."*) went, and so did the intro paragraph under every service page's `<h1>` — the
 `intro` field is gone from `lib/solutions.ts`.
+
+**The top of a service page sells (2026-10-09)** — the page an ad lands on.
+- **Under the `<h1>`:** the direction's pitch, as on the home page — the outcome in bold
+  (`.leadTitle`), what we do (`.lead`) — and its starting price (`.price`, the admin's, verbatim;
+  none for Brand & UI).
+- **The action bar:** its primary button is **"Cere ofertă"** (it was "Vorbește cu echipa"), the
+  same dialog with the service preselected.
+- **Its own metadata:** the title was the raw slug (*"TBS Digital — produs-digital"*), with no
+  description. It is now *"TBS Digital — <the menu's name of the direction>"*, and the
+  description is the pitch's text, in the request's language. Open Graph and Twitter are
+  restated ([16](./16-i18n-seo.md)).
 
 **Two shapes, and CSS chooses.** From 861px up on a renderer that really draws, the 3D laptop
 stage is laid out and the grid below it is `display: none` — the projects run on the machine's
@@ -1299,10 +1427,44 @@ is made for the inside of a panel and disappears on the page's own dark.
 Nothing in either block repeats, so neither needs the off-screen pause —
 see [07](./07-conventions.md#the-rest).
 
-## /02 — Principles ("Cum lucrăm, pe scurt.")
+## /02 — Principles: "De ce TBS." (`#despre`)
 
-Three numbered rationale cards — `01 / PRODUS`, `02 / PROCES`, `03 / REZULTAT` — each with its
-own accent, three columns above 900px and stacked below. The copy lives in the component as
+Since 2026-10-09 the section answers *why choose us* — it was "Cum lucrăm, pe scurt.", three
+principles. Four numbered cards, each with its own accent:
+
+| Card | Title | Text | Mark |
+|---|---|---|---|
+| `01 / REZULTAT` (blue) | „Gândim în rezultate, nu în pagini” | „Pornim de la ce ai nevoie: mai multe cereri, mai puțină rutină sau un produs nou.” | a bracketed sight |
+| `02 / PREȚ` (amber) | „Știi prețul de la început” | „Prețul de pornire îl vezi din primul minut; oferta exactă vine după o scurtă discuție.” | a price tag (no figure) |
+| `03 / PROCES` (green) | „Vezi tot ce se întâmplă” | „Etape clare, demo-uri regulate și decizii luate împreună.” | three listed stages |
+| `04 / ECHIPĂ` (red) | „Totul de la aceeași echipă” | „Site, aplicație, CRM și automatizări care comunică între ele — și vorbești direct cu cei care le construiesc.” | layers |
+
+**A bento with proofs (2026-10-09, the owner's pick).** As a row of four even cards it looked
+exactly like "Cum începem" under it ("arată una ca alta"). Now each reason carries its evidence
+at the card's foot, and the cards are not the same size:
+
+- **The grid:** one column on a phone. From 641px, two columns, with REZULTAT and ECHIPĂ across
+  both. From 1025px, three columns: REZULTAT spanning two beside PREȚ, then PROCES beside ECHIPĂ
+  spanning two. There the wide cards put the sentence left and the proof right, centred in the
+  card's height.
+- **REZULTAT:** the three goals a client brings — the request assistant's own answers, „Mai mulți
+  clienți” · „Mai puțină rutină” · „Un produs nou” — as outlined chips. As the card is revealed
+  they light one after another and stay lit: an entrance, not a loop, since nothing on the page
+  moves on its own for more than five seconds (WCAG 2.2.2).
+- **PREȚ:** the real price list. The request form's five project types, each with its starting
+  price read from the admin exactly as the dialog's "PROPUNEREA TA" reads it, a dotted leader
+  between them. Every row is a button that opens the request with that type preselected
+  (`source: "home-why"`); its accessible name adds "Cere ofertă". These are the only digits the
+  section shows, and they are the owner's.
+- **PROCES:** a project as the client sees it: „Strategie” · „Design” · „Dezvoltare” · „Lansare”,
+  each with a „demo” tag, the first three done, the last still to come. No numbers.
+- **ECHIPĂ:** the team from the store, up to four, each name and role. No faces: the photos and
+  initials were taken out at the owner's request the same day, since the team section right
+  under it shows them. With an empty team, no proof.
+- **No lift on hover** (it got in the way of aiming at a price row); an accent edge fades in
+  instead.
+
+The mark sits in the card's top row beside the number. The copy lives in the component as
 `{ ro, ru, en }` literals, not in the catalog. The original five-cell grid and the four-box stats
 row are both gone; the stats row's `50+ / 8+ / 30+ / 24/7` were never measurable from anything the
 project holds.
@@ -1313,10 +1475,11 @@ and owes 4.5:1. All three brand fills fail as small text.
 
 ### The card marks (2026-09-24)
 
-One small line drawing per card, the SAME size in the SAME corner on all three: 38×38 in the
-card's top right, opposite the number. Layers for `01` (a page is one plane, a product is a stack
-of them), three listed stages for `02`, a bracketed sight for `03`. They fade in once on the
-reveal the section already has, 140ms apart, and never move again.
+One small line drawing per card, the SAME size in the SAME place on every card: the card's top
+row, opposite the number. Since 2026-10-09: the sight for `01`, a price tag for `02` (straight
+edges, a square hole, no number), the listed stages for `03`, the layers for `04` (it was three
+cards: layers, stages, sight). They fade in once on the reveal the section already has, 140ms
+apart, and never move again.
 
 **The sameness is the design, and it is the correction.** The first attempt gave each card a
 different instrument: a CSS 3D model of the site's own processor in `01`, a linked list of the
@@ -1333,8 +1496,8 @@ is set in CSS with `vector-effect: non-scaling-stroke`, so the same drawing keep
 whatever the box is scaled to instead of going hairline on one card and slab on another.
 
 **Nothing in a mark may ever show a value** — no numeral, no percentage, no axis label, no needle,
-no bar. Card 03's sentence is "Legăm fiecare livrare de un indicator real", and the only
-indicator a component could put in that mark is one it invented. The site has already paid for
+no bar, and no price on the tag. The sight once stood beside "Legăm fiecare livrare de un
+indicator real", and the only indicator a component could put in that mark is one it invented. The site has already paid for
 that once: the team card carried "50+ proiecte", "98% clienți mulțumiți" and "24/7" until the
 first was caught contradicting the hero's real portfolio count, and all three were deleted rather
 than re-guessed. The `statusBars` export that still held those literals in `lib/content.ts` was
@@ -1347,6 +1510,39 @@ the base declaration is already the finished pose, because `globals.css` kills e
 with `!important`; under forced colours the drawings stay (a line drawing survives flattening to
 one system colour — it is still a legible outline) and only the held-back opacity is released,
 which there would read as a faded glyph.
+
+## Process — "Cum începem." (`#proces`)
+
+`components/sections/Process.tsx` (2026-10-09), between Team and the request: how easy starting
+is, right before the form. An ordered list of four steps:
+
+1. **„Trimiți cererea”** — „Alegi tipul de proiect și vezi pe loc prețul de pornire.”
+2. **„Îți răspundem în cel mult o zi lucrătoare”** — „Clarificăm ce ai nevoie, cu întrebări
+   concrete.”
+3. **„Primești oferta”** — „Ce construim, în cât timp și cu ce buget.”
+4. **„Construim și lansăm”** — „Pe etape, cu demo-uri regulate, până la lansare.”
+
+**A circuit trace, not cards** (the owner's pick, the same day: as four cards it looked exactly
+like "De ce TBS"). The steps hang on one luminous trace, in the grammar of the portfolio's circuit
+board: straight runs, exact 45° bends, square caps, no circles.
+- **From 1025px:** the trace runs across four square nodes (the step's number inside), each
+  step's words under its node. After 04 it bends down at 45° and ends in an arrowhead pointing at
+  the request form right below.
+- **Under 1025px:** the trace runs down the left, each step's words beside its node, and ends in
+  the same arrowhead.
+- **The chip on node 02:** a mono *„≤ 1 zi lucrătoare”*, the promise made visible. It is
+  `aria-hidden`, since it repeats the step's title.
+- **Light:** the trace is drawn dim (`--line2`) with a lit copy over it (cyan → blue). The first
+  time the section comes into view, the light grows from 01 to the arrow in about 1.4s, each node
+  and its words switching on as it passes. Then one short pulse runs the trace — once, never a
+  loop (WCAG 2.2.2).
+- **Reduced motion:** lit at once, no pulse. **Forced colours:** `GrayText` and `Highlight`, no
+  glow.
+- **The DOM** is a plain `<ol>`; the trace, the bend, the arrow and the pulse are `aria-hidden`
+  CSS.
+
+Every promise in it is one the site already makes (the one working day, the demos), and nothing
+names a duration or a price.
 
 ## /03 — Services ("Servicii de digitalizare")
 
@@ -1461,17 +1657,63 @@ see [09 — Admin](./09-admin.md).
   them, everything on screen. The cramping is answered by the deck measuring ITSELF
   (`@container deck (width < 711px)`) rather than the window, so it stacks its bays on its own
   width — 910px and two bays at a 1440px window, one bay inside the dialog on a phone. The page
-  keeps its heading and `#estimare` (its lead line went on 2026-10-02 — the dialog keeps its own);
-  the dialog has its own head and must not carry a second copy of either.
-- **It fits on one screen, without scrolling, from 768px of window height up.** A dialog has a
-  height budget the page does not, so two things answer it: the `ground="ink"` panel drops the
-  760px cap and uses the window (measured, it was stopping at 760 even on a 1080px-tall screen,
-  leaving the deck 107px short), and the deck takes a tighter vertical rhythm under
-  `.box[data-layout="dialog"]` — **spacing only**, never a colour, a border, a radius or a chip's
-  shape, because the moment it were any of those the dialog would be a second design again. The
-  deck is 568px there against 683 before. Below 768px of height it scrolls (48px short at
-  1280×720), which is what a dialog does. `data-layout` survives as BEHAVIOUR only (the corner assistant steps out
-  of the way of the `section` one); nothing in the stylesheet keys off it any more.
+  keeps its heading and `#estimare`; the dialog has its own head and must not carry a second copy
+  of either.
+- **The close of the page (2026-10-09).** The heading, shared by the page and the dialog, is
+  **"Află de la ce preț pornește proiectul tău."** (it was "Spune-ne ce vrei să construiești.").
+  On the page only, a lead line under it: *"Alegi tipul de proiect, vezi prețul de pornire și
+  trimiți cererea. Îți răspundem în cel mult o zi lucrătoare."* (`.lead`, `--mut`,
+  `--fs-base`; an older lead went on 2026-10-02). The dialog keeps its own lead. This is the
+  page's last call to action: BottomCTA (*"Ai un proiect care merită construit corect?"* /
+  "Programează consultarea") went the same day. It repeated the form right above it, and its
+  button promised a booking that did not exist, since it opened this same form. Its `#contact`
+  moved to the footer.
+- **It fits on one screen, without scrolling, from about 865px of window height up (Romanian) —
+  for the whole conversation.** A dialog has a height budget the page does not, so two things
+  answer it: the `ground="ink"` panel drops the 760px cap and uses the window (measured, it was
+  stopping at 760 even on a 1080px-tall screen, leaving the deck 107px short), and the deck takes a
+  tighter vertical rhythm under `.box[data-layout="dialog"]` — **spacing only**, never a colour, a
+  border, a radius or a chip's shape, because the moment it were any of those the dialog would be a
+  second design again. Until 2026-10-07 the deck was 568px at the first question and fitted from
+  768px of height — but only until the first answer: every answer added a bubble and the deck
+  outgrew the window. The chat keeps one size now (next point), the least at which the newest
+  question is always whole, and the deck stays at it: 664px in Romanian, 718 in English and
+  Russian (longer chip labels), measured 2026-10-07 — fitting from about 865 and 920px of height.
+  Below that it scrolls (a 1440×900 laptop: 18px in English), which is what a dialog does.
+  `data-layout` survives as BEHAVIOUR only (the corner assistant steps out of the way of the
+  `section` one); the stylesheet keys only the tighter rhythm and the chat's size off it.
+- **The chat has one size, from the first question to the summary (2026-10-07).** It used to be as
+  tall as its contents — 303px with the first question, 416 with the second, 529, 599 once the log
+  hit its 360px cap, 835 with the summary — so the deck and the page under it moved at every
+  answer. The owner sent the panel as it stands at the second question with "fă dimensiunea să fie
+  așa și să nu se mai schimbe", and that is its size on the page now: 419px tall on a wide screen
+  (the screenshot's 416.1, plus 3px so a zoomed-out border cannot tip it into a scrollbar), the
+  head, the quick replies and the composer in fixed places, and the conversation scrolling in the
+  window between them. Details:
+  - `--chat-h` is the panel's inside (`box-sizing: content-box`) and a FLOOR (`min-height`): the
+    window has a zero flex basis, so no question, reply set or summary makes the panel taller.
+    Only the dictation's review or notice can — the composer itself outgrowing the panel — while
+    it is open; under a fixed height they spilled out of the panel, under the proposal bay, where
+    "Adaugă în câmp" could not be pressed.
+  - It steps with the chat's OWN width (`container: bay` on `.bayLeft`; in two columns the bay is
+    60% of the deck, so the deck's width was the wrong ruler): page 381px (390 at 860px and under,
+    the 44px touch rows), dialog 361 (370), from a 500px chat; then, for both, 442 under 500px,
+    537 under 345 and 599 under 275. Each value was checked at the edges of its range over all 12
+    steps of the tree in Romanian, English and Russian: the panel never changes size and the newest
+    question is always whole (tightest: 3.3px to spare, Russian, a 346px chat).
+  - The dialog's value is the least that keeps the newest question whole, no more, for its height
+    budget. The owner first chose its size at the FIRST question (296px), but measured over the
+    tree that left half the steps a 13px window — the replies take two rows there — and the new
+    question out of sight however the window scrolled.
+  - The messages sit at the BOTTOM of the window, the newest question right above its replies
+    (the owner's choice); the window's edges fade over a bubble's own margin (14px above, 8px
+    below), so a resting window covers no message and a scrolled one leaves no sliver.
+  - After each answer the window scrolls to the newest message (instantly under reduced motion),
+    and it stays there when the window changes size under it — an error line, the dictation, the
+    replies re-wrapping — if that is where it was; a visitor reading back is not moved. At the end
+    it stops at the closing message, and the summary is read on below it, in the same window.
+  - The window is a tab stop ("Conversația cu asistentul"): it scrolls, and nothing in it is
+    focusable. The live region is the thread inside it. The composer no longer resizes.
 - **Request context (2026-09-17, plumbing for the IT-OS HUD).** Every CTA opens the one request dialog
   (`lib/request/RequestFlowProvider.tsx`) with a `RequestContext`. Besides `serviceSlug`,
   `projectId` / `projectName` and `source`, it now takes:
@@ -1633,9 +1875,13 @@ paints a `Canvas` backplate behind text and `HighlightText` is black in the dark
 
 ## Footer
 
-The card the page ends on, in **three tracks**: the brand (the mark, one line of copy, the social
-buttons — note that all three seeded socials ship with an empty url, so until the owner pastes them
-in the admin that row is the one hardcoded email button — and the contacts), then **NAVIGARE**
+The card the page ends on (`<footer id="contact">` since 2026-10-09: `/#contact` and the rail's
+"Contact" land here now that BottomCTA, which held the id, is gone; `scroll-margin-top` keeps the
+jump clear of the sticky header), in **three tracks**: the brand (the mark, one line of copy,
+**"Calculează prețul ↗"** — the catalog's `footer.cta`, an outline button 44px tall that opens the
+request dialog, `source: "footer"`, 2026-10-09 — the social buttons — note that all three seeded
+socials ship with an empty url, so until the owner pastes them in the admin that row is the one
+hardcoded email button — and the contacts), then **NAVIGARE**
 (5 links relabelled through the catalog: four sections of Home as `/#section` through
 `SiteLink`, so they work from a service page too, and `#parteneri`) with **PARTENERII NOȘTRI DE
 AFACERI** stacked under it (`#parteneri` is the header menu's jump target — there is no homepage
@@ -1735,10 +1981,22 @@ service page's steps), with "Deschide ghidul" and "Nu mai arăta" under it. Gone
 scrise." — one sentence in a bubble the moment her entrance finished, which is the panel the owner
 photographed and asked to be rid of. Gone with it: `GUIDE_COPY.hello`, `GUIDE_COPY.dismiss` (that
 bubble's close label) and the bubble's speech mode with its tail. **Nothing here opens a panel the
-visitor did not ask for.** Her mouth still moves for 7 s after an answer comes up, which is all
-`data-say` means now; the answer itself stays until it is closed. That mouth was rebuilt the
-same day: an aperture that parts at the lip seam with painted teeth, varying its width and its
-height together so the shapes read as syllables instead of one pulse (look:
+visitor did not ask for.** Her mouth moves while she says an answer, which is all `data-say` means
+now — on every screen since 2026-10-07 (until then only from 641px) — and the answer itself stays
+until it is closed.
+
+Since 2026-10-08 the mouth says the answer's own text:
+- it opens on its vowels, shuts the lips on its *p*, *b* and *m*, and rests at its commas;
+- it stops when the text does, never later than 7 s. A longer answer stops at a comma or full
+  stop in its last stretch before that, or else after its last whole word;
+- then it settles shut. The one-line answer takes about 3 s instead of 7;
+- **interrupted** — another question, ✕, Escape, a language switch — it closes from wherever it
+  is over 0.15 s instead of in one frame, and a new answer starts from there.
+
+Under reduced motion it does not move, and `data-say` still lasts as long as the text. The frames
+are her own face, warped, not windows over it. Her face shows once the portrait and her shut frame
+have both decoded, fading in over 0.25 s; her beam and rings show meanwhile. An answer that starts
+before all her other frames are in is said with her mouth at rest (look:
 [04](./04-design-system.md#asistent-tbs--the-corner-assistant)).
 
 **And the ENTRANCE went on the third look** — *"fa sa nu apara mare, scoate, lasa doar asistentul
@@ -1751,7 +2009,8 @@ state, the frame loop that waited for nothing to be covering her, `data-greet`, 
 [04](./04-design-system.md#asistent-tbs--the-corner-assistant).
 
 What she still is: a real button named "Asistent TBS: deschide întrebările frecvente" (the name
-starts with the visible caption, WCAG 2.5.3), 184×184 from 861px and 104 / 68 below it, at
+starts with the visible caption, WCAG 2.5.3), 184×184 from 861px and 136 / 104 / 68 below it — she
+is drawn inside each, at 106 / 78 / 60 / 38px (two of those fixed 2026-10-07: see 04) — at
 `--z-guide` (112), with away (over `#estimare`'s request form) and yield (focus under her) both by
 opacity, never `display: none`. She is the reason the rail stops at `--hud-bottom` 208 from 861px.
 
@@ -1782,7 +2041,7 @@ sections"**, one 44×44 button per tick; the label shows beside it on hover and 
 
 | Page | Markers |
 |------|---------|
-| Home (`/`, `/ru`, `/en`) | **Început** (`#top`) · **Servicii** (`#servicii`, `nav.services`) · **Lucrări** (`#lucrari`, `nav.work`) · **Despre** (`#despre`, `nav.about`) · **Echipă** (`#echipa`, `nav.team`) · **Cerere** (`#estimare`) · **Contact** (`#contact`) — the header's own catalog words where the menu has them, `RAIL_COPY` for the other three |
+| Home (`/`, `/ru`, `/en`) | **Început** (`#top`) · **Servicii** (`#servicii`, `nav.services`) · **Lucrări** (`#lucrari`, `nav.work`) · **Despre** (`#despre`, `nav.about`) · **Echipă** (`#echipa`, `nav.team`) · **Cerere** (`#estimare`) · **Contact** (`#contact`, the footer since 2026-10-09) — the header's own catalog words where the menu has them, `RAIL_COPY` for the other three |
 | A service page | one per `section` named by its first `h1`/`h2`: 3 to 5 today (e.g. `/servicii/produs-digital`: "Produs digital", "Proiecte relevante", "Cum lucrăm", "Ai un proiect în minte?"; `/servicii/e-commerce` has 3) |
 | `/cookies` | its 7 numbered headings ("01 Ce sunt cookie-urile" …) |
 | `/confidentialitate` | 14 sections: **more than 8, so the fibre and ticks only, no `<nav>`** (a list of buttons that long is not a shortcut) |
@@ -1873,38 +2132,249 @@ actions are on the first screen, and the first project is there from the server 
   channels are one 44px band that scrolls inside itself, bleeding by exactly `--gutter`.
 - **The screen** — a monitor ([04](./04-design-system.md#the-portfolios-controls)): a thin bezel,
   a chin with the brand's three subpixels, and a glow in the current project's colour that glides
-  to the next one's. The screenshot (`images[0]`, `fetchpriority="high"`) covers the 16:10 screen
-  from its top. **The whole picture is a button**, "Vezi mai mare captura de ecran: BizCheck": it
-  opens the picture larger in the site's dialog (`Modal`, `ground="ink"`, as wide as the window
-  allows, the whole picture in it, `restoreFocusRef` back to the picture; open only while there
-  is a picture, and closed by any change of project). The name starts with the chip's own words in
-  every language ("View larger: the screenshot of BizCheck"), so a voice saying them finds it. A
-  project with no screenshot yet shows its name on the screen in its colours, and nothing opens.
+  to the next one's. **It shows the project's whole site, and the site scrolls inside it**
+  (2026-10-06: "fă ca în fereastra aceasta să fie site-ul și se poate da scroll la fiecare
+  proiect"): `fullPage`, a capture of the site from top to bottom, 1080px wide, at the screen's
+  width — the wheel or a trackpad over it, a finger dragging up and down, or ↑ ↓ / Page Up / Page
+  Down / Home / End while the picture has the focus scroll it, and the page takes over at either
+  end; a thin scrollbar in the project's colour says how far down it is. "Derulează site-ul",
+  bottom left, says it scrolls and goes once it has been scrolled (it comes back at the top).
+  Once a page load (remembered in memory — nothing is stored for it) the first site shown glides
+  down half a screen and back, ~1.4s after it comes on, to show it scrolls; a wheel, a press or a
+  key on the screen stops it at once. A capture with nothing to scroll gets neither the glide nor
+  the hint. Another project starts at its own top — only another project or picture: the same
+  project arriving again as a new object (the content store re-reading its cache, the API or
+  another tab) leaves a visitor where they scrolled. A project without a capture shows its
+  screenshot (`images[0]`) covering the 16:10 screen from its top, and nothing scrolls; a capture
+  that fails to load — even before the page woke up — gives way to that screenshot, and the page
+  remembers every one that failed. Both are resolved with `mediaUrl()`, so an uploaded capture
+  (`/api/uploads/…`) shows in development too, where the API has its own port.
+  `fetchpriority="high"` either way.
+  - **Why a capture, not the live site.** An `<iframe>` of the project's own site was measured
+    first and turned down: three of the four public sites refuse to be framed by another site
+    (bizcheck.md and cgam.md send `frame-ancestors 'self' https://*.facebook.com …`,
+    balloonsbreeze.md `X-Frame-Options: SAMEORIGIN`), and the refusal cannot even be detected from
+    script; five projects have no public page; bizcheck.md and cgam.md contact Meta and Google as
+    soon as they load, before our cookie banner is answered (against docs/16 §4); in a 540px
+    screen a live site renders its phone layout; and on a phone the frame would take over every
+    vertical swipe. A capture is ours, light (170–500 KB), private, and the same on every device —
+    but it is a snapshot: a site that changes needs a new one (the admin uploads it, [09](./09-admin.md)).
+  - **Where the captures come from.** The four public sites were captured on 2026-10-06 in their
+    Romanian version (1440×900 desktop, cookie banners dismissed, floating buttons hidden,
+    slideshows at rest, the fixed backgrounds of cgam and balloonsbreeze laid under the whole
+    page), as `public/projects/{bizcheck,itara,cgam,balloons-breeze}-site.webp`, seeded in
+    `lib/content.ts` / `defaults.py` and written once into an existing database by the boot that
+    adds the column ([10](./10-backend.md)). DocuSafe, Crowe Portal, IQ Arena, Statistic and FLIRT
+    have no public page: they keep their screenshot until a capture made with demo data is
+    uploaded — never one showing a real person's e-mail.
+  - **Every window answers: an interactive demo** (2026-10-06, the owner: "la toate ferestrele să
+    fie posibilitatea de interacțiune … să putem apăsa butoane dar să nu putem folosi pe deplin,
+    să se ceară să trecem deja după link la site"). Each project's `demo` names a manifest,
+    `public/projects/demo/<id>/demo.json` (`lib/siteDemo.ts` is its contract and its strict reader):
+    a few pages of the site, each a capture with the **real links and buttons recorded over it as
+    rectangles** in the same layout pass (`tools/site-demo/`, which blocks the page's own writes
+    while it probes what a control does, and blurs what the pictures may not show — see Privacy).
+    The screen becomes a small browser:
+    - **A thin bar** at its top (`DemoBar`): Back, the page's address on the real site
+      ("cgam.md/arena"; a private system says "IQ Arena · sistem privat") — with more than one
+      page it is a button listing them — and, in the screen, a light along its foot while the next
+      page comes in. A press beside the open list closes it and presses nothing.
+    - **The page's links and buttons light under the pointer.** A link to another page of the
+      demo switches to it (the screen crossfades from the old page, the new one lands at its top
+      or at the link's target), an in-page link scrolls, a fixed header stays pinned at the top as
+      on the real site, a long page cut short ends in "Restul paginii, pe {site} ↗". A jump lands
+      where the live site's view lands — the tool records that, the site's own header offset in —
+      so the pinned band covers just what the live header covers (it used to take the header off a
+      second time: 65–90px too high). The pinned band takes the presses it covers: between its
+      links the screen's opens the larger view, as the picture does — a control scrolled under it
+      is never pressed unseen. While a page comes in, its links wait for its picture.
+    - **What only the real site can do** — a form, a login, a search, a chat, a gallery, a
+      language switch, a page outside the demo — **opens a sheet** inside the screen: "„{button}”
+      merge pe site-ul adevărat. Aici poți răsfoi paginile principale; restul funcționează pe
+      {site}." with **"Deschide {site} ↗"** (that very page, in the same tab, like the project's
+      own link) and "Rămân aici". A private system's sheet says "{name} e un sistem privat — lucrează
+      cu datele unui client…" and offers **"Vreau un proiect similar"** (the request, with the
+      project attached; never over the larger view). A modified click on a link (a new tab) opens
+      the real page directly. Links only ever lead to the project's own site.
+    - **What each demo holds:** BizCheck — home, the test, the privacy page; CGAM — home, IQ Arena,
+      the league, an event, login, sign-up; Itara Global and Balloons Breeze — one long page whose
+      menu jumps between its sections; IQ Arena — its four app screens as a flow (sign in → round
+      table → jury sheet → winner); DocuSafe, Crowe Portal, Statistic and FLIRT — their one screen,
+      every control on it answering with the private system's sheet.
+    - **Who presses what.** A mouse or trackpad presses the small screen's links directly. A finger
+      does on a phone-sized shot — the public sites' pages are captured at 390px too and shown on
+      phones (a desktop capture's links are ~10px wide there); elsewhere a tap opens the larger
+      view, where every link answers anyone — a private system's on a phone too, each target 24px at
+      least. **The larger view is the same demo** at up to 1080px, same page, same place: every link
+      and button there is a real stop for the keyboard, named by its own text, in reading order —
+      row by row, so a header's logo, links and button go left to right although they sit a few px
+      apart in height (`readingOrder`, which keeps a button that sits on a card after the card); the
+      small screen's ones are a pointer's shortcut (`aria-hidden`, out of the tab order) — the
+      keyboard has the bar, the picture and the larger view. Closing the larger view leaves the
+      screen on the page and at the place the visitor was. Escape closes the sheet, then the page
+      list, then the dialog.
+    - **Where the focus goes.** A page opened from the larger view comes on as a page loads: the
+      focus at its top (its scrolling window, a group named "{title} — {address}"), since the link
+      that was pressed went with its page. A jump to a point of a page — an in-page link, a link
+      with a target — puts the focus on a **mark** where it landed (a cyan line across the page
+      while it has the focus, the link's words for a screen reader), among the links in reading
+      order: Tab goes on from the section it jumped to, not from the top. A focused link is never
+      under the pinned band: it is drawn over it, and brought into view below it (`scroll-margin`
+      of the band's height, `--band` × the page's width in container units). Back keeps its focus
+      even at the first page (`aria-disabled`, not `disabled`, which would drop it to the body). A
+      page chosen from the list, or Escape in it, puts the focus back on the address that opened
+      it. The sheet closes onto what opened it: the link in the larger view, the picture in the
+      screen; and when the focus goes on past the sheet or the list (Tab, a press elsewhere), they
+      close and the focus stays where it went. A sheet left open on a project is gone when the
+      visitor comes back to it: another project, or the same one again, starts at its start page.
+    - **What a screen reader hears.** A page change is said in the stage's live region —
+      and, while the larger view is open, in its own (a modal dialog hides the page behind it): the
+      page's title and address. The sheet is described by its text as well as named by its title;
+      a link's name, and the button's words in the sheet's title, carry the site's language
+      (`lang`), the group's name ours.
+    - **On a phone** the arrows sit on the screen's edges: while the sheet or the page list is
+      open they step aside, off its words. A cut page's last line ("Restul paginii…") ends above the
+      "Vezi mai mare" chip, which a phone's width would otherwise put over it.
+    - **Kept honest.** The manifest is checked before anything is drawn from it (ids, numbers,
+      plain-text labels, site paths; a broken one is ignored). If the admin replaces a project's
+      capture, the screen shows the new one without the start page's hotspots (they were measured
+      on the old) until the demo is regenerated with `tools/site-demo` — a capture and its hotspots
+      are always made together. No third-party request, no storage, no CSP change
+      ([11](./11-security.md)).
+    - **Privacy.** Before any of this, the private screenshots were cleaned (2026-10-06): the
+      e-mail addresses on DocuSafe, Statistic, FLIRT and IQ Arena replaced with `demo@example.com`
+      (FLIRT's "this e-mail is already used" line removed with it) and a real person's photo on
+      Crowe Portal replaced with initials. The public sites' pictures show what the live pages
+      show, so the capture blurs what is not ours to republish (`redact` in `tools/site-demo`):
+      CGAM's league players — the podium on its home and IQ Arena pages, all 62 names of the league
+      table — and its event photo (the participants' faces), and the address in its IQ Arena mockup
+      becomes `demo@example.com`. Reviews the sites publish as such keep their authors' names.
+  - **The whole picture is a button**, "Vezi mai mare tot site-ul BizCheck" (a screenshot's: "Vezi
+    mai mare captura de ecran: BizCheck"): it opens the picture larger in the site's dialog
+    (`Modal`, `ground="ink"`, `restoreFocusRef` back to the picture; open only while there is a
+    picture, and closed by any change of project). A whole site comes at its own width (1080px,
+    where its words can be read) and scrolls in the dialog, **opened at the same place the screen
+    was scrolled to**; a screenshot comes whole, as wide as the window allows. The names start
+    with the chip's own words in every language ("View larger: the whole BizCheck site"), so a
+    voice saying them finds it. A project with no picture at all shows its name on the screen in
+    its colours, and nothing opens.
 - **Changing project:** ‹ › beside the screen (on its edges at 640px and below); ← → anywhere on
   the stage (repeats ignored, modified keys left to the browser; a pixel with the focus hands it
   to its neighbour, so the keys walk the row); a sideways **swipe** on the screen, by a finger or a
   pen — 40px, and 1.3× more sideways than down; the click a browser may send after it (within
-  400ms) is dropped, and `touch-action: pan-y pinch-zoom` keeps scrolling and zoom the browser's;
-  or a press on a pixel. Round the list both ways. The live region (`aria-live="polite"`) says
-  "Itara Global, proiectul 2 din 9".
-- **The pixel transition** (~350ms, `breakScreen`): the picture on the screen now is painted on a
+  400ms) is dropped. `touch-action: pan-y pinch-zoom` is set on the screen and again on its
+  scrolling window (inside a scroller only the scroller's own counts): up and down scroll the site
+  (then the page), sideways is ours. Or a press on a pixel. Round the list both ways. The live
+  region (`aria-live="polite"`) says "Itara Global, proiectul 2 din 9".
+- **The pixel transition** (~350ms, up to about half a second while the board's pulse runs;
+  `breakScreen`): the picture on the screen now is painted on a
   canvas over it, the `<img>` changes underneath, and the canvas breaks into a 16 × 10 grid of
   blocks in shades of the NEW project's two colours over the black matrix (`--void`), sweeping from
-  the side it comes in; once the new picture has decoded (no sooner than 170ms, no later than
-  1.5s) the blocks go out the same way. The project's words rise in (6px, 260ms). None of it under
-  reduced motion, nor without a loaded picture to break up. The other screenshots are fetched when
-  the page goes idle, so a switch never waits.
+  the side it comes in; once the new picture has decoded — and, for another project of the page on
+  show, once the board's pulse has reached the chin (below) — no sooner than 170ms and no later
+  than 1.5s, the blocks go out the same way. A scrolled site is painted as the screen shows it —
+  the band of it in view, beside its scrollbar. The picture is decoded for that canvas ahead of
+  time (2026-10-07): a second after it has decoded, at idle, it is painted once into the hidden
+  canvas, so the switch away from it finds it decoded instead of decoding it in the click's task
+  (40–65ms measured on the screenshots). Not over 8 megapixels, not under reduced motion, and a
+  switch sooner than that simply decodes as before. The project's words rise in (6px, 260ms). None of it under
+  reduced motion, nor without a loaded picture to break up. Once the page goes idle it fetches the
+  screen pictures (the capture, else the screenshot) of the projects on either side of the one on
+  the screen (where the arrows go), and a pixel pointed at or focused fetches its own — never a
+  whole portfolio's worth of pictures at once (with 100 projects the first screen asks for 3, not
+  100). The pixels of the page on show bring small pictures of their own (below), a few kilobytes
+  each.
 - **The pixels** — one labelled button per project, in the page's own order (a channel never
-  reshuffles them): at rest a flat square of the project's colour, its name under it; the current
-  one (`aria-current="true"`) is seen up close — larger, ringed, opened into its red, green and
-  blue **subpixels**, each lit to its share of the colour
-  ([04](./04-design-system.md#subpixels)) — and its button tinted. They switch on as the page
-  arrives, one after another along the row (dark, a white flash, a stutter, the colour, in hard
-  steps). One row as wide as the monitor and its arrows, never under 640px so a name never breaks
-  inside a word. Five to a row, with 44px arrows, wherever the column is too narrow for nine names
-  (600px or less: side by side up to ~1120px, a narrow tablet, a phone) — a lone pixel on a second
-  row looked lost; four to a row in a column under 299px (a phone up to 330px). The column decides,
-  not the window: `.left` is a size container and these are `@container` rules.
+  reshuffles them), each a **small square showing the project** — the top left of what the screen
+  shows for it, its site's capture or else its screenshot, where a site keeps its logo — framed in
+  the project's colour, on a
+  **circuit board** whose traces run up into the monitor's chin, its name under it. (2026-10-05:
+  the owner sent the old selected pixel — a black square of red, green and blue bars in a white
+  ring, inside a tinted box — with "schimbă ăsta, fă ceva mai frumos"; of five directions built on
+  a bench copy of the page and scored by judges, the owner chose "Lumina", LED squares. That
+  evening — "înlocuiește aceste pătrățele cu altceva mai frumos", "ceva mai wow" — of seven
+  designs, the refined five and two bolder ones, the owner chose **"Circuitul"**, round pads of the
+  project's colour. 2026-10-08, of those pads: "in loc de pastile pune niste patrate mici unde se
+  vede fiecare proiect".) Off, the picture a quarter dimmed, so the one on the screen stands out;
+  a project with no picture is a square of its colour. The project on the screen
+  (`aria-current="true"`) is the pad switched on — larger, undimmed, glowing — and **its route is
+  lit in its colour all the way into the chin**, so the board always shows which project is wired
+  to the screen; its name white and bold; no box and no ring around it
+  ([04](./04-design-system.md#the-portfolios-controls)). Hover and keyboard focus only whiten the
+  name, undim the picture and step the square up — never light it; a channel's fading copies are
+  never the lit one.
+  - **The squares' pictures are small.** A picture of the site's own, right under `/projects/`,
+    comes through Next's image optimiser (`pixelPicture` in `Portfolio.tsx`, `getImageProps`):
+    asked for 128px across for a screenshot (a landscape screenshot fills the square's height at
+    about 64px across, and a 1.5× screen needs more) and 64px for a site's capture (taller than
+    wide), twice that on a high-density screen (`srcset` 1x / 2x), in WebP. The nine come to
+    46.7 KB there and 19.6 KB on a 1× screen, where the files they are made from weigh 2 MB.
+    - **Uploads.** An uploaded picture (`/api/uploads/…`, on the API's origin) does not pass
+      through the optimiser and is loaded as it is. For an uploaded project the square therefore
+      shows its screenshot (uploads are at most 1600px wide), never its capture: that is the whole
+      site, up to 1080 × 12000px, for a 26px square.
+    - **Failures.** A capture the screen could not load is passed over, as the screen passes it
+      over. A square whose optimised picture fails loads the project's screenshot file instead.
+      That holds even when it failed before the page woke up: the server's HTML already asks for
+      the pictures, and a check on mount catches what React's `onError` missed. Checked with every
+      `/_next/image` request failed in the browser: all nine squares showed their screenshots. If
+      that fails too, the square keeps its colour.
+    - **What the optimiser takes** is pinned in `next.config.ts`
+      ([11](./11-security.md#the-portfolios-pixels-through-the-image-optimiser-2026-10-08)).
+  - **On a phone the squares are smaller**: a 26px place, 24px at rest and 26px lit or focused, and
+    the lines 4px apart. A 32px lit square left the web's knots no room to clear its corners (see
+    the web, below, and [04](./04-design-system.md#the-portfolios-controls)).
+  - **Another project of the page on show plays the switch** — a pad pressed, the arrows, ← →, a
+    swipe, a name from the search: the old pad goes out and its route dark, the new pad lights,
+    and a **pulse of light** leaves it and runs its route into the chin, getting there 0.16s
+    (the middle pad) to 0.34s (an end one) after the pick at 1366×768. The chin flashes as it
+    arrives, and only then does the screen's transition let the new project through — timed from
+    the frame the pulse really started on. About half a second from the pick to the screen
+    settled, the farthest pad included (measured on a real GPU at 1366×768 and 1720×1300). A page
+    turn or a channel's glide plays no pulse: the board goes while the pads move and comes back
+    drawn where they stopped.
+  - **The board** is one `aria-hidden` SVG laid over the row and drawn from the layout:
+    `components/sections/portfolioCircuit.ts` measures the pads and the chin, draws, lights and plays;
+    `lib/portfolioBoard.ts` routes, pure. Every pad's trace rises, bends 45° onto a bus, and the bus
+    turns up in a Y into a trunk ending under the chin's subpixels. Measured again whenever the row
+    or the monitor changes size, another page or channel comes, or the fonts arrive. A row with
+    nothing right above it (the search used to stand there) gets no board.
+  - **On a phone the board is a spider web** (2026-10-06, the owner: "pe telefon uneste te rog
+    frumos linia cumva ca o pautina"). The nine wrap into five and four (four, four and one on the
+    narrowest; a page of eight into five and three), and every line hangs on one web spun from the
+    chin: the Y's arms go on as 45° **rays** into a tent over the pad under the chin, **spokes** run
+    down the real gaps between the names, and at each lower line's height a **ring** sags from spoke
+    to spoke, with knots where it meets them. A lower pad hangs from a knot (a page of nine) or sits
+    in a sag (a page of eight) — the same ring either way, only where the pads hang changes — and its
+    route is **one unbroken line** into the chin, so the lit route and the pulse run all the way up
+    (before, a lower pad's trace dived into a square via and its light reappeared on the trunk; the
+    owner saw them hanging loose). Every turn is 45°; a pad is only ever a route's end; nothing
+    crosses a name: the page measures each name's text (`portfolioCircuit.ts`, a `Range` over it)
+    and the web keeps its spokes in the gaps and its knots under the names. A pad the web cannot
+    reach — names closing every gap above it, a row the page never makes — keeps the old via. A row
+    of one line, the desktop's, is exactly as before. Chosen from three designs (a circuit
+    lattice, this radial web, threads between neighbours) by two judges over the real measured
+    rows of 320–430px phones, then refined: flat-bottomed sags (no sharp V at a ~60px pitch), lower
+    knots over a pad right under its spoke, the hub's rays kept on a 430px phone. Since the pads
+    became squares (2026-10-08) the web keeps its runs off each lit square itself, its corners
+    included, not off a circle round its middle. A square's corner reaches √2 as far along the
+    45° runs every knot is made of, and a review found the arms cutting 0.6–1.3px into a lit
+    lower square on every phone. Now there is 2.8–3.6px of air at 360–430px and 0.6–2px at
+    331–345px, measured on the page with each pad lit in turn.
+  - **A hundred projects or more** never crowd the board: the row shows one page of at most nine
+    (`lib/portfolioPages.ts`, balanced: 100 make twelve pages of eight or nine), with "Pagina 1 din
+    12", a window of page dots, the previous and next pages, and the search by name — so the board
+    only ever wires one page, and the web above is the same for every page.
+  - The pads switch on as the page arrives, one after another along the row (dark, a white flash, a
+    stutter, the square, in hard steps). One row as wide as the monitor and its arrows, never under
+    640px so a name never breaks inside a word. Five to a row, with 44px arrows, wherever the
+    column is too narrow for nine names (600px or less: side by side up to ~1120px, a narrow
+    tablet, a phone) — a lone pixel on a second row looked lost; four to a row in a column under
+    299px (a phone up to 330px). The column decides, not the window: `.left` is a size container
+    and these are `@container` rules. Each button is 89px tall with a two-line name (78px on a
+    phone, its lines 4px apart; 81 and 76px with the round pads, before 2026-10-08): the 12px over
+    the pad hold its trace's neck, bend and bus. The first screen still holds the row: at 1366×768 it ends at 701px
+    (650px of 720 at 1280×720).
 - **The project's words** — beside the screen from 1000px, under it below and in a window taller
   than about 5:4 (`min-aspect-ratio: 4/5`: an iPad Pro held upright, 1024×1366, had a screen a
   third of its width beside them; under them it fills the width): "01 / 09", the name as
@@ -1915,8 +2385,9 @@ actions are on the first screen, and the first project is there from the server 
   another language (a description that fits in Romanian can fold in Russian), another width (a
   `ResizeObserver`) and once the web font is in. Hidden, it keeps its row (`visibility`, and
   hidden in the server's HTML), and the description is at least four lines tall: neither the page
-  waking nor a change of project moves the buttons under them. Then **"Vreau un proiect similar"** and "Deschide site-ul ↗" (or "nu are
-  pagină publică", in plain case), plus App Store / Google Play when the project has them. The
+  waking nor a change of project moves the buttons under them. Then **"Vreau un proiect similar"**
+  and "Deschide site-ul ↗" (or "nu are pagină publică", in plain case), plus App Store / Google
+  Play when the project has them. The
   links open **in the same tab**: a new tab greyed out Back, and a visitor who closed it to return
   closed the whole window. When the project changes, a control that had the focus and is gone
   hands it on rather than dropping it to the top of the page: a link the next project has not, or
@@ -1932,10 +2403,52 @@ actions are on the first screen, and the first project is there from the server 
   ales ca exemplu: CGAM" (`Estimator.tsx`, shown whenever a request carries a `projectName`).
   Closing it puts the focus back on the button.
 - **The first screen.** `--mon-w`, the monitor's widest, is worked out from the window's height —
-  `(100svh − 426px) × 1.6 + 16px` with the words beside the screen, `− 440px` with them under it,
-  never under 400 / 380px; 426 / 440px are everything else on that screen: the header, the title and the filter,
-  the bezel and the chin, the pixels — so the screen, the pixels and the words fit the first
-  screen of a laptop. At 1720×1300 the close is on it too.
+  `(100svh − 429px) × 1.6 + 16px` with the words beside the screen, `− 443px` with them under it,
+  never under 400 / 380px; 429 / 443px are everything else on that screen: the header, the title
+  and the filter, the bezel and the chin, the pixels — so the screen, the pixels and the words fit
+  the first screen of a laptop. A big portfolio (below) gives the screen up for its pages and its
+  search: 539 / 553px, so at 1366×768 the pages end at 651px and the search under them at 707px
+  (measured with 100 projects on 2026-10-08; 8px lower than with the round pads).
+  At 1720×1300 the close is on the first screen too.
+- **A big portfolio: pages and a search** (2026-10-05, "dar dacă așa să fie 100 de proiecte, cum
+  procedăm?"). Measured with 100 projects, the row became a wall of 9 rows (904px) under the
+  screen at 1366×768 — 20 on a phone — and the page fetched all 100 screenshots. Of four working
+  prototypes (a scrolling strip, a matrix of nameless LEDs, pages, a search-first list) scored by
+  three judges, the owner chose **the pages**:
+  - The row shows **one page** of pixels — at most nine, the row of today on every width, so the
+    nine projects of today look exactly as before — and always **the page of the project on the
+    screen**, so its lit pixel is always in sight. Pages are **balanced** (`lib/portfolioPages.ts`):
+    100 projects make twelve pages of eight or nine, never eleven of nine and one alone. Only the
+    page's pixels are in the DOM.
+  - Under the row, in words: **"‹ Pagina anterioară · Pagina 2 din 12 · Pagina următoare ›"**, and a
+    small pixel for each page, the page on show lit in the project's colour (a pointer's shortcut,
+    hidden from the keyboard and screen readers, who have the words; at most 13, a window round the
+    page on show). A page button puts that page's first project on the screen. ← → and the screen's
+    arrows turn the page by themselves when they step past its end; a pixel with the focus hands it
+    to the next page's pixel. The live region adds "Pagina 3 din 12" when a step turned the page.
+  - A page turn slides: the page on show leaves as a sheet of copies (never lit), the new one slides
+    in from the side it comes from, without the switch-on of an arrival; the board goes at once and
+    comes back drawn under the new page once it has stopped. Nothing slides under reduced motion.
+    The row's window clips the slide sideways only (the board's trunk rises out of it), with room
+    for the lit pad's glow; every page is as tall as a page of two-line names, so what is under it
+    never jumps.
+  - Under the row and its pages, **"Caută un proiect după nume"** (`PortfolioSearch.tsx`, a
+    combobox) — above the row until the board came: between the screen and the row it would cut
+    the traces. Capitals
+    and diacritics do not matter; the list offers the names holding what was typed (the start of
+    the name first, then a word or a seam — "Agro|Market" — then anywhere), then the projects whose
+    kind of work holds it ("magazin" finds the shops), each led by a dot of its colour (the row's
+    round pad until 2026-10-08) and followed by its kind
+    or "pe ecran"; eight at most, "Mai sunt 5 — scrie mai multe litere din nume" for the rest, and
+    "Nu am găsit niciun proiect cu „zzz”. Încearcă alt cuvânt sau alege un serviciu de mai sus."
+    Nothing on the page changes until a name is chosen (a click, or Enter for the first): it comes
+    on the screen, on its page, with the focus on its pixel; a project outside the chosen channel
+    brings back "Toate" and says so. ↑ ↓ walk the list, Escape closes it, a second Escape empties the
+    field; the count is said once the typing pauses. The list opens under the field or, where the
+    window has more room there, over it — never under the sticky header. 44px tall, 16px text, so a
+    phone does not zoom into it.
+  - Both appear only in a portfolio bigger than one page (`.paged`); a channel with one page hides
+    the pages and keeps the search.
 - **The assistant's corner.** The corner assistant (184px from 861px, 20px from the edges) takes
   the window's bottom-right 204 × 204px. From 1000px the words' column is never narrower than
   400px, so the red button (227px) and the links, left-aligned in it, start at least 431px from the
@@ -1948,7 +2461,16 @@ actions are on the first screen, and the first project is there from the server 
   proiectul"; the arrows "Proiectul anterior" / "Proiectul următor" (disabled with fewer than two
   projects). The project's name is the section's one `<h2>`, so the scroll rail still names the
   section by its h1, "Portofoliu", and the close gets the second marker, "Ai un proiect în minte?".
-  Tab runs: the channels, ‹, the picture, ›, the pixels, "Citește tot", the request, the links.
+  Tab runs: the channels, ‹, (a demo's Back and its address,) the picture, ›, the pixels, (the
+  two page buttons, the search,) "Citește tot", the request, the links. A demo's links and buttons
+  are stops in the larger view, a group named "Linkurile din pagina {titlu}". With pages, the
+  pixels' group is named with its page
+  ("Alege proiectul, pagina 2 din 12"). The board and the chin's flash are pictures
+  (`aria-hidden`): the live region already says which project came on. The site's scrolling
+  window holds the picture's button, so the window is never a dead stop for the keyboard (axe's
+  `scrollable-region-focusable`): with the button focused, ↑ ↓ / Page Up / Page Down / Home / End
+  scroll the site, Enter or Space open it larger, ← → still change the project. "Derulează
+  site-ul" is a picture of words (`aria-hidden`), like "Vezi mai mare".
 - **The close** — after the section, the service pages' closing panel (corner brackets, the
   three-stop thread) with their approved words: "Ai un proiect în minte?" and "Începe cererea"
   (`source: "portfolio-bottom"`, carrying the chosen channel). While a channel is chosen it also
@@ -1957,12 +2479,16 @@ actions are on the first screen, and the first project is there from the server 
   page made of pixels it read as a matrix of its own ("pe fundal să nu se vadă matricea"). While the
   page is mounted the body keeps its wash and drops the grid layers (`:global(body):has(.page)`),
   and any other page gets them back.
-- **Reduced motion:** no transition on the screen, no rise of the words, no switch-on, no glide or
-  fade in the filter, the glow changes at once, and no thread is drawn across the close.
+- **Reduced motion:** no transition on the screen, no rise of the words, no switch-on, no pulse
+  along the board and no flash in the chin (a pad is simply on or off, its route simply lit), no
+  glide down and back of the site (it still scrolls, as the visitor scrolls it), no glide or fade
+  in the filter, no page slide, the glow changes at once, and no thread is drawn across the close.
 - **A project the admin adds** gets a pixel and its place on the screen at once, but belongs to no
   service until a developer writes its id into `solutionProjectIds` (and, if it is an app or a
   private system, `projectRequestType`): until then it shows under "Toate" only. With no project
-  at all, the page shows the title and "Proiecte · 0".
+  at all, the page shows the title and "Proiecte · 0". For a portfolio that grows past a few dozen
+  this is the next thing to change: the services of a project belong in the admin, next to its
+  name, not in code.
 
 ## Legal pages
 

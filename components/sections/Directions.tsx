@@ -19,131 +19,55 @@ import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Locale } from "@/lib/i18n/locales";
 import { directionHref } from "@/lib/directions";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { SCENE_SHAPES, SCENE_TESTID, selectSceneShape, type SceneShape } from "@/lib/scene";
-import { directionTab, projectsForSolution, solutions } from "@/lib/solutions";
+import { directionPrice, directionTab, projectsForSolution, solUI, solutions } from "@/lib/solutions";
 import { useSiteContent } from "@/lib/siteContent";
 import { shouldInterceptTap } from "@/lib/tapIntent";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 /**
- * The /02 block is a DIRECTION CHOOSER, not a second sales pitch.
+ * The /02 block answers "what do you want to solve?" one direction at a time, and lets the
+ * visitor act on the answer where they read it.
  *
  * Every pill is a real link to `/servicii/<slug>` (the tabs used to be inert buttons, so a
- * visitor who clicked one and expected a page got nothing), and the preview under them is
- * read-only: one textual link into the service page and no competing CTA. Everything
- * commercial — talking to the team, the projects, the reference link — now lives in the
- * action bar on the service page itself (`DirectionPage`).
+ * visitor who clicked one and expected a page got nothing). The panel under them says what the
+ * selected direction delivers — its pitch from `lib/solutions.ts`, the same words its service
+ * page opens with — and what it starts at (the admin's price, through `directionPrice`, which
+ * is what the request dialog will quote). Then the two ways on: "Cere ofertă" opens the shared
+ * request dialog with this direction preselected, "Detalii →" opens its service page.
  *
- * `slug` is the CURRENT slug, so it keys straight into `lib/solutions.ts` (accent and project
- * membership), into `directionHref`, and into the interior scene's models (`SceneShape`).
+ * `slug` is the CURRENT slug, so it keys straight into `lib/solutions.ts` (pitch, accent and
+ * project membership), into `directionHref`, and into the interior scene's models (`SceneShape`).
  */
 type Service = {
   slug: SceneShape;
   tab: LocalizedText;
-  title: LocalizedText;
-  text: LocalizedText;
-  list: LocalizedText[];
 };
 
+/* The pills keep their short labels (`directionTab`): they are navigation. Everything the panel
+   says about a direction lives in lib/solutions.ts, so this list holds no copy of its own. */
 const SERVICES: Service[] = [
-  {
-    slug: "produs-digital",
-    tab: directionTab["produs-digital"],
-    title: L("Produs digital", "Цифровой продукт", "Digital product"),
-    text: L(
-      "Clarificăm problema, proiectăm experiența și livrăm un produs ușor de evoluat.",
-      "Проясняем задачу, проектируем опыт и выпускаем продукт, который легко развивать.",
-      "We frame the problem, design the experience and ship a product that is easy to evolve.",
-    ),
-    list: [
-      L("Workshop de strategie", "Стратегический воркшоп", "Strategy workshop"),
-      L("UX/UI cu prototip testabil", "UX/UI с тестируемым прототипом", "UX/UI with a testable prototype"),
-      L("Dezvoltare și măsurare", "Разработка и метрики", "Development and measurement"),
-    ],
-  },
-  {
-    slug: "e-commerce",
-    /* The pill keeps the short label — it is a navigation item; the panel carries the full
-       title. Nothing here is written in the past tense: we have not shipped a shop. */
-    tab: directionTab["e-commerce"],
-    title: L(
-      "E-commerce pentru produse, rapoarte și acces digital",
-      "E-commerce для продуктов, отчётов и цифрового доступа",
-      "E-commerce for products, reports and digital access",
-    ),
-    text: L(
-      "Construim fluxul întreg: oferta, plata și accesul la produs sau la raport.",
-      "Строим весь поток: предложение, оплата и доступ к продукту или отчёту.",
-      "We build the whole flow: the offer, the payment and the access to the product or report.",
-    ),
-    list: [
-      L("Checkout și plăți", "Чекаут и оплата", "Checkout and payments"),
-      L("Livrare și acces digital", "Цифровая выдача и доступ", "Digital delivery and access"),
-      L("Raportare și gestionare produse", "Отчётность и управление товарами", "Reporting and product management"),
-    ],
-  },
-  {
-    slug: "automatizare-api",
-    tab: directionTab["automatizare-api"],
-    title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
-    text: L(
-      "Eliminăm munca repetitivă și conectăm sistemele care trebuie să comunice.",
-      "Убираем рутину и соединяем системы, которым нужно общаться друг с другом.",
-      "We remove repetitive work and connect the systems that need to talk to each other.",
-    ),
-    list: [
-      L("Audit de procese", "Аудит процессов", "Process audit"),
-      L("Integrări sigure", "Безопасные интеграции", "Secure integrations"),
-      L("Fluxuri și dashboard-uri", "Потоки и дашборды", "Flows and dashboards"),
-    ],
-  },
-  {
-    slug: "asistenti-ia",
-    /* The pill label and the route stay as the client signed them off; only the panel copy
-       changed, so that what is described as delivered is what actually runs. */
-    tab: directionTab["asistenti-ia"],
-    title: L(
-      "Asistenți și boți conectați la conversații reale",
-      "Ассистенты и боты, подключённые к реальным разговорам",
-      "Assistants and bots connected to real conversations",
-    ),
-    text: L(
-      "Răspuns, calificare și automatizare prin web, Telegram și sistemele interne.",
-      "Ответ, квалификация и автоматизация через веб, Telegram и внутренние системы.",
-      "Answering, qualification and automation across web, Telegram and internal systems.",
-    ),
-    list: [
-      L("Chat pentru clienți", "Чат для клиентов", "Chat for customers"),
-      L("Asistent care califică cererea", "Ассистент, который квалифицирует заявку", "An assistant that qualifies the request"),
-      L("Bot Telegram conectat la fluxul echipei", "Telegram-бот, подключённый к потоку команды", "A Telegram bot wired into the team's flow"),
-    ],
-  },
-  {
-    slug: "brand-ui",
-    tab: directionTab["brand-ui"],
-    title: L("Brand & UI", "Бренд и UI", "Brand & UI"),
-    text: L(
-      "Dăm produsului un sistem vizual coerent, clar și ușor de folosit.",
-      "Даём продукту цельную, ясную и удобную визуальную систему.",
-      "We give the product a coherent, clear and easy-to-use visual system.",
-    ),
-    list: [
-      L("Poziționare și direcție", "Позиционирование и направление", "Positioning and direction"),
-      L("Design system", "Дизайн-система", "Design system"),
-      L("Interfață premium", "Премиальный интерфейс", "Premium interface"),
-    ],
-  },
+  { slug: "produs-digital", tab: directionTab["produs-digital"] },
+  { slug: "e-commerce", tab: directionTab["e-commerce"] },
+  { slug: "automatizare-api", tab: directionTab["automatizare-api"] },
+  { slug: "asistenti-ia", tab: directionTab["asistenti-ia"] },
+  { slug: "brand-ui", tab: directionTab["brand-ui"] },
 ];
 
 const SECTION = {
-  title: L(
-    "Un selector de servicii făcut pentru decizie rapidă.",
-    "Селектор услуг, сделанный для быстрого решения.",
-    "A service selector built for a fast decision.",
+  title: L("Ce vrei să rezolvi?", "Что вы хотите решить?", "What do you want to solve?"),
+  lead: L(
+    "Alege direcția: vezi ce primești, de la ce preț pornim, și cere oferta direct de aici.",
+    "Выберите направление: посмотрите, что получите и с какой цены мы начинаем, — и запросите предложение прямо здесь.",
+    "Pick a direction: see what you get and what we start at — and ask for a quote right here.",
   ),
   tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
-  more: L("Deschide serviciul", "Открыть услугу", "Open the service"),
+  /* The service page's own action-bar label: both buttons open the same request. */
+  quote: solUI.actionTalk,
+  /* Its arrow is drawn beside it, aria-hidden, so the link's name is the word alone. */
+  more: L("Detalii", "Подробнее", "Details"),
 };
 
 const CASE = {
@@ -199,29 +123,34 @@ const SCAN_CLASSES =
   "[html:has(#tbs-intro)_&]:[animation-play-state:paused] group-data-offscreen/services:[animation-play-state:paused] motion-reduce:hidden";
 
 /*
- * Heights that do not move when another direction is selected. The copy and the case card
- * change per direction, so without a floor a pill tap would shift everything under the
+ * Heights that do not move when another direction is selected. The pitch, the price and the case
+ * card change per direction, so without a floor a pill tap would shift everything under the
  * section — on a phone right under the finger — and every scroll measurement of the stage.
- * Each value is the tallest of the five directions in that language, measured with the site
- * fonts at the narrowest width of its band (320 / 360 / 401 / 641px for the stacked copy and
- * screen, 861 / 1025 / 1180px for the two-column panel), plus 4px. New or longer copy here, or
- * a longer portfolio entry, means measuring again.
+ * Each value is the tallest of the five directions in that language, plus 4px.
+ *
+ * The screen's floors, and the panel's from 861px where the screen is the taller column, were
+ * measured in a browser at the narrowest width of each band (320 / 360 / 401 / 641px stacked,
+ * 861 / 1025 / 1180px side by side). The copy's — and the panel's where the copy is taller —
+ * were computed for the pitch, price and buttons (2026-10-09) from the site fonts' own glyph
+ * widths over EVERY width of each band, since the heading, the padding and the type grow inside
+ * one, wrapping 3% narrower than the column for kerning, with 6px more on top. Longer copy, a
+ * longer price or button label, or a longer portfolio entry, means measuring again.
  */
 const MIN_HEIGHT_CLASSES: Record<Locale, { copy: string; screen: string; panel: string }> = {
   ro: {
-    copy: "max-md:min-h-[374px] max-sm:min-h-[398px] max-xs:min-h-[474px] max-[360px]:min-h-[518px]",
+    copy: "max-md:min-h-[420px] max-sm:min-h-[531px] max-xs:min-h-[557px] max-[360px]:min-h-[582px]",
     screen: "max-md:min-h-[558px] max-sm:min-h-[540px] max-xs:min-h-[564px] max-[360px]:min-h-[624px]",
-    panel: "md:min-h-[592px] lg:min-h-[484px] xl:min-h-[486px]",
+    panel: "md:min-h-[592px] lg:min-h-[526px] xl:min-h-[495px]",
   },
   ru: {
-    copy: "max-md:min-h-[398px] max-sm:min-h-[498px] max-xs:min-h-[526px] max-[360px]:min-h-[618px]",
+    copy: "max-md:min-h-[423px] max-sm:min-h-[557px] max-xs:min-h-[581px] max-[360px]:min-h-[608px]",
     screen: "max-md:min-h-[586px] max-sm:min-h-[604px] max-xs:min-h-[624px] max-[360px]:min-h-[644px]",
     panel: "md:min-h-[620px] lg:min-h-[574px] xl:min-h-[542px]",
   },
   en: {
-    copy: "max-md:min-h-[374px] max-sm:min-h-[448px] max-xs:min-h-[498px] max-[360px]:min-h-[526px]",
+    copy: "max-md:min-h-[420px] max-sm:min-h-[531px] max-xs:min-h-[555px] max-[360px]:min-h-[582px]",
     screen: "max-md:min-h-[566px] max-sm:min-h-[584px] max-xs:min-h-[604px] max-[360px]:min-h-[664px]",
-    panel: "md:min-h-[612px] lg:min-h-[492px] xl:min-h-[486px]",
+    panel: "md:min-h-[612px] lg:min-h-[507px] xl:min-h-[495px]",
   },
 };
 
@@ -254,7 +183,8 @@ export function Directions({ initialArt }: DirectionsProps) {
   const l = useLoc();
   const { locale } = useLanguage();
   const minHeights = MIN_HEIGHT_CLASSES[locale];
-  const { projects } = useSiteContent();
+  const { projects, services } = useSiteContent();
+  const { openRequest } = useRequestFlow();
   const sectionRef = useRef<HTMLElement>(null);
   const [active, setActive] = useState(0);
   /** The pointer behind the next click: "mouse" | "touch" | "pen", "keyboard", or "" (none
@@ -280,8 +210,8 @@ export function Directions({ initialArt }: DirectionsProps) {
   };
 
   /* Mouse and keyboard hover or focus first, so their click navigates at once. A finger has
-     no hover: its first tap on another pill selects it (the preview and the model change) and
-     stays on the page; the second tap, or the "open the service" link, opens it — the header's
+     no hover: its first tap on another pill selects it (the panel and the model change) and
+     stays on the page; the second tap, or the "Detalii →" link, opens it — the header's
      dropdown rule (lib/tapIntent.ts). A tap on the pill that is ALREADY selected (the default
      one included) has nothing left to reveal — its model and preview are on screen and it
      shows the ↗ cue — so it opens on that first tap. Next's Link skips navigation once the
@@ -322,6 +252,10 @@ export function Directions({ initialArt }: DirectionsProps) {
      table the service page reads. No project name, no external link. */
   const sol = solutions[svc.slug];
   const flow = !reference && sol?.flow?.length ? sol : undefined;
+  const pitch = sol.pitch;
+  /* The admin's figure for the service the dialog opens on, as the dialog will show it; "" for
+     Brand & UI (no service of its own) and for a price the owner has not set. */
+  const price = directionPrice(svc.slug, services, l);
 
   return (
     <section
@@ -335,11 +269,14 @@ export function Directions({ initialArt }: DirectionsProps) {
             <h2 className="m-0 text-balance font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
               {l(SECTION.title)}
             </h2>
+            <p className="mt-3.5 mb-0 max-w-[560px] font-copy text-base leading-[1.6] text-mut">
+              {l(SECTION.lead)}
+            </p>
           </div>
         </Reveal>
 
         {/* Links, not tabs: each one navigates to its service page. Hover, focus and a first
-            tap move the preview, so the selection is visible before leaving the page. Below
+            tap move the panel, so the selection is visible before leaving the page. Below
             641px the row is a band that scrolls and snaps inside itself — the page never
             scrolls sideways, and a swipe that runs off its end does not chain to the page. */}
         <nav
@@ -401,15 +338,17 @@ export function Directions({ initialArt }: DirectionsProps) {
           <div
             className={`entry-sweep relative flex min-w-0 flex-col bg-glass-solid p-[clamp(24px,3vw,38px)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${minHeights.copy}`}
           >
-            {/* Keyed, so a new direction's copy plays its entrance. The link below is NOT
-                inside: it stays the same element, only its href follows the selection. */}
+            {/* Keyed, so a new direction's copy plays its entrance. The buttons below are NOT
+                inside: they stay the same elements, only what they open follows the selection.
+                The heading is a step smaller than the old one-word titles: a pitch is a
+                sentence, and at the old size the longest would run to six lines at 320px. */}
             <div key={svc.slug} className="animate-swap-in motion-reduce:animate-none">
-              <h3 className="mt-0 mb-3.5 font-disp text-[clamp(26px,3vw,34px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
-                {l(svc.title)}
+              <h3 className="mt-0 mb-3.5 font-disp text-[clamp(24px,2.6vw,30px)] font-black uppercase leading-[1.06] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
+                {l(pitch.title)}
               </h3>
-              <p className="m-0 mb-4 max-w-[430px] font-copy text-base leading-[1.6] text-mut">{l(svc.text)}</p>
+              <p className="m-0 mb-4 max-w-[430px] font-copy text-base leading-[1.6] text-mut">{l(pitch.text)}</p>
               <ul className="m-0 mb-5.5 grid list-none gap-1 p-0 font-copy text-base leading-normal text-txt">
-                {svc.list.map((item, i) => (
+                {pitch.points.map((item, i) => (
                   <li
                     key={i}
                     className="flex gap-2 py-0.5 before:shrink-0 before:font-bold before:text-red-text before:content-['✓']"
@@ -419,14 +358,43 @@ export function Directions({ initialArt }: DirectionsProps) {
                 ))}
               </ul>
             </div>
-            {/* The ONLY interactive thing in the preview: one textual link into the service
-                page. The commercial actions live on that page's action bar. */}
-            <Link
-              href={directionHref(svc.slug)}
-              className="mt-auto inline-flex min-h-11 items-center self-start border-b-2 border-transparent font-hud text-sm font-bold uppercase tracking-[.06em] text-txt no-underline transition-colors duration-200 hover:border-red hover:text-red-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
-            >
-              {l(SECTION.more)} →
-            </Link>
+            {/* The price and the two ways on, held at the column's foot: the floors above make
+                room for the longest direction, so the buttons stay where the finger already is
+                whichever pill is selected. Stacked full width under 641px, like the service
+                page's action bar. */}
+            <div className="mt-auto">
+              {price ? (
+                <p
+                  key={svc.slug}
+                  className="m-0 mb-4 animate-swap-in font-disp text-xl font-black uppercase leading-none tracking-[-0.04em] text-txt motion-reduce:animate-none"
+                >
+                  {price}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-3 max-sm:flex-col max-sm:items-stretch">
+                {/* Opens the site's one request dialog with this direction preselected. */}
+                <button
+                  type="button"
+                  onClick={(event) =>
+                    openRequest({
+                      source: "home-services",
+                      serviceSlug: svc.slug,
+                      returnFocusTo: event.currentTarget,
+                    })
+                  }
+                  className="cta-neon inline-flex min-h-12 items-center justify-center rounded-md px-4 py-2.5 font-copy text-base font-bold leading-[1.4]"
+                >
+                  {l(SECTION.quote)}
+                </button>
+                <Link
+                  href={directionHref(svc.slug)}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-glass-line bg-glass px-4 py-2.5 font-hud text-sm font-bold uppercase leading-[1.4] tracking-[.08em] text-txt no-underline transition-[border-color,color,box-shadow] duration-200 hover:border-blue hover:text-blue-text hover:shadow-neon-blue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
+                >
+                  {l(SECTION.more)}
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            </div>
           </div>
 
           {/* The HUD screen: the selected direction's model above its case card. Below 861px

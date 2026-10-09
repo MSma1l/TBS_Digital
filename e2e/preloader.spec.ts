@@ -110,8 +110,9 @@ test.describe("intro — first visit", () => {
     const response = await page.goto("/");
     const html = await response!.text();
     expect(html).toContain('data-testid="intro"');
-    // The hero is in the same response, under the overlay, not waiting for the intro.
-    expect(html).toMatch(/<h1[^>]*data-intro-reveal="title"/);
+    // The hero is in the same response, under the overlay, not waiting for the intro. The title
+    // target wraps the <h1> and its subtitle (2026-10-09).
+    expect(html).toMatch(/data-intro-reveal="title"[^>]*>\s*<h1[\s>]/);
 
     await expect(introOverlay(page)).toBeVisible();
     await expect(page.locator("header")).toHaveCount(1);

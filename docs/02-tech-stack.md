@@ -102,7 +102,10 @@ lockfile are unchanged. What it uses differently:
   `scene-contract.test.ts`); the rules are in [07 — Conventions](./07-conventions.md#gsap-and-scrolltrigger).
 - **A CSS scroll-driven animation** for the project screenshots' parallax (`view-work` /
   `parallax-media` in `app/tailwind.css`): on the compositor, no JavaScript, and simply still
-  where `animation-timeline` is unsupported (Firefox) or motion is reduced.
+  where `animation-timeline` is unsupported (Firefox) or motion is reduced. Inside the scene's
+  spiral it is held at a value the driver writes per card instead of played: a running animation
+  is a compositor layer per card, and those layers were what braked a hard scroll there
+  ([05](./05-page-sections.md#work)).
 - **One shared three.js chunk.** Both scenes are reached only through a dynamic `import()` of
   `components/three/runtime.tsx`. Turbopack builds a chunk group per `import()` target, so two
   targets had shipped two byte-identical copies of three + R3F; one target means one download,

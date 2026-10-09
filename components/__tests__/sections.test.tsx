@@ -24,6 +24,7 @@ import { SITE_DATA_KEY, SiteContentProvider, defaultSiteData } from "@/lib/siteC
 import { Services } from "@/components/sections/Services";
 import { Team } from "@/components/sections/Team";
 import { Principles } from "@/components/sections/Principles";
+import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import * as contentModule from "@/lib/content";
 
 // The presentational sections use <Reveal>, which constructs an
@@ -143,40 +144,51 @@ describe("Team section", () => {
   });
 });
 
+/* Card 02's price rows open the site's one request dialog, so the section needs the request flow
+   above it, as app/layout.tsx puts it (and direction-page.test.tsx renders its page). */
+function withPrinciples() {
+  return withProvider(
+    <RequestFlowProvider>
+      <Principles />
+    </RequestFlowProvider>,
+  );
+}
+
 describe("Principles section", () => {
-  // Redesigned from the 5 principles in lib/content.ts into 3 numbered rationale cards,
-  // each with its own accent. The copy below is the component's, not the catalog's.
-  it("renders the three rationale cards with their numbers and titles", async () => {
-    withProvider(<Principles />);
+  // Redesigned from the 5 principles in lib/content.ts into numbered rationale cards, each with
+  // its own accent; since 2026-10-09 four of them, the reasons to choose TBS ("De ce TBS."), in a
+  // bento with each reason's proof. The copy below is the component's, not the catalog's.
+  it("renders the four rationale cards with their numbers and titles", async () => {
+    withPrinciples();
 
-    expect(await screen.findByText("01 / PRODUS")).toBeInTheDocument();
-    expect(screen.getByText("02 / PROCES")).toBeInTheDocument();
-    expect(screen.getByText("03 / REZULTAT")).toBeInTheDocument();
+    expect(await screen.findByText("01 / REZULTAT")).toBeInTheDocument();
+    expect(screen.getByText("02 / PREȚ")).toBeInTheDocument();
+    expect(screen.getByText("03 / PROCES")).toBeInTheDocument();
+    expect(screen.getByText("04 / ECHIPĂ")).toBeInTheDocument();
 
-    expect(screen.getByText("Produs, nu doar un site")).toBeInTheDocument();
-    expect(screen.getByText("Proces transparent")).toBeInTheDocument();
-    expect(
-      screen.getByText(/Pornim de la problema de business/),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Gândim în rezultate, nu în pagini")).toBeInTheDocument();
+    expect(screen.getByText("Știi prețul de la început")).toBeInTheDocument();
+    expect(screen.getByText(/Pornim de la ce ai nevoie/)).toBeInTheDocument();
   });
 });
 
 /**
  * THE CARD MARKS.
  *
- * One small drawing per card, the same size in the same corner on all three. The first attempt
+ * One small drawing per card, the same size in the same corner on all four. The first attempt
  * gave each card a different instrument and the row came apart; these tests pin the sameness and
  * the silence, which are the two things that made it work.
  */
 describe("The principles' card marks", () => {
   it("gives every card a mark, and gives them all the same one", async () => {
-    const { container } = withProvider(<Principles />);
-    await screen.findByText("01 / PRODUS");
+    const { container } = withPrinciples();
+    await screen.findByText("01 / REZULTAT");
 
-    const marks = Array.from(container.querySelectorAll("svg"));
-    expect(marks).toHaveLength(3);
+    // `[data-mark]`: the track in card 03 draws its ticks as line art of its own.
+    const marks = Array.from(container.querySelectorAll("svg[data-mark]"));
+    expect(marks).toHaveLength(4);
 
-    // Same box and the same stroke on all three: that sameness is the design. Three drawings at
+    // Same box and the same stroke on all of them: that sameness is the design. Drawings at
     // three different weights is what the row looked like before, and it read as three unrelated
     // widgets rather than one row.
     for (const mark of marks) {
@@ -184,16 +196,16 @@ describe("The principles' card marks", () => {
       expect(mark.getAttribute("stroke")).toBe("currentColor");
       expect(mark.getAttribute("fill")).toBe("none");
     }
-    // …and three DIFFERENT drawings inside that identical box.
+    // …and four DIFFERENT drawings inside that identical box.
     const shapes = marks.map((m) => m.innerHTML);
-    expect(new Set(shapes).size).toBe(3);
+    expect(new Set(shapes).size).toBe(4);
   });
 
   it("keeps the marks silent and out of the accessibility tree", async () => {
-    const { container } = withProvider(<Principles />);
-    await screen.findByText("01 / PRODUS");
+    const { container } = withPrinciples();
+    await screen.findByText("01 / REZULTAT");
 
-    for (const mark of Array.from(container.querySelectorAll("svg"))) {
+    for (const mark of Array.from(container.querySelectorAll("svg[data-mark]"))) {
       // The sentence beside a mark is the claim; the mark is only that claim drawn. Repeating
       // any of it here would also be copy hardcoded outside the { ro, ru, en } fields.
       expect(mark).toHaveAttribute("aria-hidden", "true");
@@ -204,28 +216,33 @@ describe("The principles' card marks", () => {
   });
 
   it("draws no circle and no round cap anywhere", async () => {
-    const { container } = withProvider(<Principles />);
-    await screen.findByText("01 / PRODUS");
+    const { container } = withPrinciples();
+    await screen.findByText("01 / REZULTAT");
 
     // The house rule for line art in this repo (docs/07): straight strokes, square caps, no
     // circles, no decorative dots. `decorative-dots.test.tsx` scans the sections it covers; this
-    // keeps the rule true here too.
+    // keeps the rule true here too — on every SVG in the section, the marks and the ticks alike.
     const markup = Array.from(container.querySelectorAll("svg")).map((m) => m.outerHTML).join("");
     expect(markup).not.toMatch(/<circle|<ellipse/i);
     expect(markup).not.toMatch(/stroke-linecap="round"|strokeLinecap/i);
   });
 
   it("shows no reading anywhere, and keeps the deleted stat literals gone", async () => {
-    const { container } = withProvider(<Principles />);
-    await screen.findByText("01 / PRODUS");
+    const { container } = withPrinciples();
+    await screen.findByText("01 / REZULTAT");
 
-    // Card 03's mark is a sight, not a readout: the only indicator it could display is one it
+    // Card 01's mark is a sight, not a readout: the only indicator it could display is one it
     // invented. "50+", "98% clienti multumiti" and "24/7" were deleted from the team card for
     // exactly that reason, after the first was caught contradicting the hero's real portfolio
-    // count. The only digits this section may carry are its own card numbers.
+    // count. The only digits this section may carry are its own card numbers — and card 02's
+    // price list, whose figures are the owner's own prices read from the store, not written here.
     expect(container.textContent).not.toMatch(/50\+|98%|24\/7/);
-    const digits = (container.textContent?.match(/\d+/g) ?? []).filter(
-      (d) => !["01", "02", "03"].includes(d),
+    const rest = container.cloneNode(true) as HTMLElement;
+    const prices = rest.querySelector("[data-price-list]");
+    expect(prices).not.toBeNull();
+    prices!.remove();
+    const digits = (rest.textContent?.match(/\d+/g) ?? []).filter(
+      (d) => !["01", "02", "03", "04"].includes(d),
     );
     expect(digits).toEqual([]);
 

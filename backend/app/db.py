@@ -128,6 +128,52 @@ def _backfill_partner_previews(engine: Engine) -> None:
         session.commit()
 
 
+def _backfill_project_full_pages(engine: Engine) -> None:
+    """Give the existing project rows the whole-site capture the new column expects.
+
+    Same trap as ``_backfill_partner_previews``: ``ALTER TABLE … ADD COLUMN`` leaves every
+    existing row empty, so without this /portofoliu's screen would show no capture at all,
+    even for the projects that ship one. Only rows that are still empty are touched, and
+    only for projects we ship a capture for — an admin's own project is left as it is. The
+    caller runs it only on the boot that adds the column, so a capture the admin clears
+    later stays cleared.
+    """
+    from .defaults import default_projects
+    from .models import ProjectRow
+
+    captures = {p.id: p.fullPage for p in default_projects() if p.fullPage}
+
+    with Session(engine) as session:
+        for row in session.exec(select(ProjectRow)).all():
+            if not row.full_page and row.id in captures:
+                row.full_page = captures[row.id]
+                session.add(row)
+        session.commit()
+
+
+def _backfill_project_demos(engine: Engine) -> None:
+    """Give the existing project rows the interactive demo the new column expects.
+
+    The trap of ``_backfill_project_full_pages`` once more: ``ALTER TABLE … ADD COLUMN``
+    leaves ``demo`` empty on every existing row, so /portofoliu's screen would offer no
+    demo at all, although every shipped project comes with a manifest. Same rules: only
+    rows that are still empty, only projects we ship a demo for — an admin's own project
+    is left as it is — and only on the boot that adds the column, so a demo the admin
+    clears later stays cleared.
+    """
+    from .defaults import default_projects
+    from .models import ProjectRow
+
+    demos = {p.id: p.demo for p in default_projects() if p.demo}
+
+    with Session(engine) as session:
+        for row in session.exec(select(ProjectRow)).all():
+            if not row.demo and row.id in demos:
+                row.demo = demos[row.id]
+                session.add(row)
+        session.commit()
+
+
 def _insert_default_partners(engine: Engine) -> None:
     from .defaults import default_partners
     from .models import PartnerRow
@@ -184,6 +230,8 @@ def _insert_default_projects(engine: Engine) -> None:
                     url=project.url,
                     app_store=project.appStore,
                     play_store=project.playStore,
+                    full_page=project.fullPage,
+                    demo=project.demo,
                     position=position,
                 )
             )
@@ -235,12 +283,27 @@ def create_db_and_tables() -> None:
     # No backfill: unlike a partner's preview, we ship no default photo or profile link —
     # the admin fills them in, and an empty link just doesn't render.
     _add_missing_columns(engine, "team", TEAM_LINK_COLUMNS)
+    # A project's whole-site capture and its interactive demo (/portofoliu's screen). Each
+    # is backfilled below, on its own, like the partner preview: four of the shipped
+    # projects come with a capture, all nine with a demo.
+    added_projects = _add_missing_columns(
+        engine,
+        "projects",
+        {
+            "full_page": "VARCHAR NOT NULL DEFAULT ''",
+            "demo": "VARCHAR NOT NULL DEFAULT ''",
+        },
+    )
 
     if is_fresh_db:
         return  # seed_database() fills everything from defaults.default_content()
 
     if "preview" in added:
         _backfill_partner_previews(engine)
+    if "full_page" in added_projects:
+        _backfill_project_full_pages(engine)
+    if "demo" in added_projects:
+        _backfill_project_demos(engine)
 
     if migrated_partners:
         _insert_default_partners(engine)

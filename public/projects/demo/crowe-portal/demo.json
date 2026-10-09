@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "lang": "ro",
+  "start": "sarcini",
+  "pages": [
+    {
+      "id": "sarcini",
+      "title": "Sarcinile mele",
+      "d": {
+        "src": "/projects/crowe-portal-1.png",
+        "w": 1276,
+        "h": 702,
+        "hot": [
+          { "r": [2, 58, 58, 44], "t": "Tablou de bord", "k": "site", "el": "link" },
+          { "r": [2, 160, 58, 40], "t": "Tichete", "k": "site", "el": "link" },
+          { "r": [2, 207, 58, 40], "t": "Clienți", "k": "site", "el": "link" },
+          { "r": [72, 33, 150, 26], "t": "Rapoarte", "k": "site", "el": "link" },
+          { "r": [72, 143, 150, 26], "t": "Poștă", "k": "site", "el": "link" },
+          { "r": [72, 173, 150, 26], "t": "Ședințe", "k": "site", "el": "link" },
+          { "r": [72, 223, 150, 26], "t": "Word", "k": "site", "el": "button" },
+          { "r": [800, 75, 177, 30], "t": "Titlu, companie, tichet sau cod", "k": "site", "el": "button" },
+          { "r": [1152, 75, 102, 30], "t": "Sarcină nouă", "k": "site", "el": "button" },
+          { "r": [315, 114, 54, 30], "t": "Calendar", "k": "site", "el": "button" },
+          { "r": [422, 156, 59, 25], "t": "Întârziate", "k": "site", "el": "button" },
+          { "r": [251, 301, 212, 25], "t": "Adaugă", "k": "site", "el": "button" }
+        ]
+      }
+    }
+  ]
+}

@@ -240,6 +240,15 @@ def default_projects() -> list[Project]:
     gallery. Store links are left empty on purpose: a card only renders the store button
     whose link is actually set.
 
+    `fullPage` is the whole-site capture /portofoliu's screen scrolls through — a bundled
+    WebP (`public/projects/<name>-site.webp`) for the four public sites, and empty for the
+    rest, whose screen shows their first screenshot instead.
+
+    `demo` is the interactive demo on that screen: a bundled manifest of a few of the
+    site's pages with their links and buttons (`public/projects/demo/<id>/demo.json`, made
+    by `tools/site-demo/`) — one for each of the nine. A public site's start page draws
+    on the same capture as `fullPage`, so the two are regenerated together.
+
     `url` is empty for DocuSafe, Crowe Portal, IQ Arena, Statistic and FLIRT — private
     client systems and an unreleased app, none of which have a public address. No URL is
     invented to fill the field; the card simply isn't a link.
@@ -257,6 +266,8 @@ def default_projects() -> list[Project]:
                 "/projects/bizcheck-3.png",
                 "/projects/bizcheck-4.png",
             ],
+            fullPage="/projects/bizcheck-site.webp",
+            demo="/projects/demo/bizcheck/demo.json",
         ),
         Project(
             id="itara-global",
@@ -270,6 +281,8 @@ def default_projects() -> list[Project]:
                 "/projects/itara-3.png",
                 "/projects/itara-4.png",
             ],
+            fullPage="/projects/itara-site.webp",
+            demo="/projects/demo/itara-global/demo.json",
         ),
         Project(
             id="docusafe",
@@ -277,6 +290,7 @@ def default_projects() -> list[Project]:
             tag=_l(*_TAG_CRM_PRIVATE),
             desc=_l(*_DOCUSAFE_DESC),
             images=["/projects/docusafe-1.png"],
+            demo="/projects/demo/docusafe/demo.json",
         ),
         Project(
             id="crowe-portal",
@@ -284,6 +298,7 @@ def default_projects() -> list[Project]:
             tag=_l(*_TAG_CRM_PRIVATE),
             desc=_l(*_CROWE_PORTAL_DESC),
             images=["/projects/crowe-portal-1.png"],
+            demo="/projects/demo/crowe-portal/demo.json",
         ),
         Project(
             id="cgam",
@@ -297,6 +312,8 @@ def default_projects() -> list[Project]:
                 "/projects/cgam-3.jpg",
                 "/projects/cgam-4.png",
             ],
+            fullPage="/projects/cgam-site.webp",
+            demo="/projects/demo/cgam/demo.json",
         ),
         # The game itself, not the academy's platform. Store links start empty — they are
         # filled in from the admin, and each button only appears once its link is set.
@@ -311,6 +328,7 @@ def default_projects() -> list[Project]:
                 "/projects/iq-arena-3.png",
                 "/projects/iq-arena-4.png",
             ],
+            demo="/projects/demo/iq-arena/demo.json",
         ),
         Project(
             id="balloons-breeze",
@@ -319,6 +337,8 @@ def default_projects() -> list[Project]:
             desc=_l(*_BALLOONS_BREEZE_DESC),
             url="https://balloonsbreeze.md/",
             images=["/projects/balloons-breeze-1.png"],
+            fullPage="/projects/balloons-breeze-site.webp",
+            demo="/projects/demo/balloons-breeze/demo.json",
         ),
         Project(
             id="statistic",
@@ -326,6 +346,7 @@ def default_projects() -> list[Project]:
             tag=_l(*_TAG_SAAS_PRIVATE),
             desc=_l(*_STATISTIC_DESC),
             images=["/projects/statistic-1.png"],
+            demo="/projects/demo/statistic/demo.json",
         ),
         Project(
             id="flirt",
@@ -333,6 +354,7 @@ def default_projects() -> list[Project]:
             tag=_l(*_TAG_MOBILE_SOON),
             desc=_l(*_FLIRT_DESC),
             images=["/projects/flirt-1.png"],
+            demo="/projects/demo/flirt/demo.json",
         ),
     ]
 

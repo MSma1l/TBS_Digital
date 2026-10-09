@@ -74,6 +74,27 @@
   );
 }
 
+/* The thread and the head each sit in a layer of their own: the fibre's box, which itself never
+   moves. The scroll changes both on every frame; painted in the rail's layer, each scrolled frame
+   re-recorded and re-rasterised the whole rail (63 repaints in 60 steps of a scroll through Work,
+   0.82ms of raster a main frame against 0.30ms now; 0.26ms with no rail at all, 2026-10-08).
+   The layer is the box, not the thread itself: a thread promoted with `will-change: transform` is
+   rastered once at full length and then squeezed by the compositor, and near the top of the page —
+   scaled to 2% — its lit end came out a third dimmer, its glow wider. Inside a still box both are
+   painted at their real size and place, as before. Compared pixel for pixel with every animation
+   frozen, what differs is anti-aliasing only: the edges of the ticks, which are composited above
+   these layers now, and at fractional scaling (1.5×, 1.75×) one device-pixel column along the
+   thread's and the head's edges, by up to ~20 of 255.
+   `opacity`, not `transform`: Chromium drops a box's sub-pixel paint offset under
+   will-change: transform (its kPreventingSubpixelAccumulationReasons) and keeps it under opacity.
+   Both rendered identically in every capture here, at 1, 1.5, 1.75 and 2×; the raster saving is
+   the same. */
+.layer {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+
 /* The lit thread: the scroll progress, brightest at its leading end. */
 .thread {
   position: absolute;

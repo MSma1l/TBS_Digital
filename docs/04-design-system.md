@@ -364,7 +364,8 @@ hidden, forced WebGL, **12 frames**, every pixel under a text line box.
   the dark h2 fell to 1.0–1.07:1 and the lead to 1.15–2.28:1; 100% needed 0.07 on the dark page.
   The light lead's grey (4.24–4.28:1 on the HUD grid lines without any canvas) allowed no ink at all.
 - **In the band, at full brightness** (320, 375, 390, 412, 640, 700, 767px, both themes): the
-  eyebrow, h2, lead and the Directions panel's "Deschide serviciul" link are 100% (dark: eyebrow
+  eyebrow, h2, lead and the Directions panel's "Deschide serviciul" link (now "Detalii →", beside
+  the panel's "Cere ofertă" since 2026-10-09; not re-measured) are 100% (dark: eyebrow
   ≥5.4, h2 ≥14.2, lead ≥7.9, link ≥15.3; light: the link ≥16.9, the heading identical to the page
   without the canvas). The canvas changes no pixel over the panel, at or below the eyebrow's top or
   over the band of cards. The helix is 57–67px tall (the band less `HELIX_AMBIENT.clear`, 10px each
@@ -562,6 +563,18 @@ dark wash → the glass edge and corner brackets → the copy.
   `@supports (animation-timeline: view())` and `prefers-reduced-motion: no-preference`. The
   luminosity blend sits on the wrapper, not the `<img>` (the running animation makes the wrapper a
   stacking context).
+  **Inside the scene's spiral the drift is held, not played** (2026-10-08): a running animation
+  is a compositor layer, and one in every card split each card into layers and offscreen passes of
+  its own — the rounded clip, the blend, the scan above it — 16 passes a frame with five cards on
+  screen (1280×800 at 1.5×), 6 held. The driver writes each card `--helix-parallax`, the
+  timeline's own value at the scroll that makes it the front card, and the CSS holds
+  `translateY(calc(-5% + 10% × that)) scale(1.12)` — a 2D transform, painted with the card. The
+  card being read sits exactly where the animation put it (measured: within 0.003px); the cards
+  around it give up their drift — a card step's share of the section's scroll times 10% of the
+  card: about 1.7px a step with the nine projects at 1280×800 (3.45px two steps out, at half
+  opacity), more with fewer projects or taller cards (about 2.9px at the three-card minimum,
+  2.4px for a 360px card on a 768×1024 touch tablet, where every description shows). The held
+  rule repeats the keyframes' numbers; change the two together.
 - **Layout:** three columns; two up to 900px (`max-[901px]:`), where an odd last card spans the
   row and keeps its screenshot at a normal card's size on its right half, edges faded
   (`edge-fade-x`) — stretched, `object-cover` enlarged the top of a screenshot ~2×. ≤640px one
@@ -577,13 +590,12 @@ dark wash → the glass edge and corner brackets → the copy.
 ```
 
 The three primaries a real screen pixel is made of, for `/portofoliu`, where every project is
-one pixel ([05](./05-page-sections.md#portfolio--portofoliu)). They show only up close. A pixel
-at rest is a flat square of its project's colour (`--p2`, ≈18px, a soft glow of the same); the
-current project's pixel is seen up close — 26px, ringed in `--txt` — and opens into these three
-bars on a `--void` matrix. Each bar is lit (`opacity`) to its share of the colour (never under
-0.14: a dark channel still shows as a dim bar), is brightest along its middle and is
-screen-blended, as in a macro photo of a display. The monitor's chin carries the same three, small,
-as its maker's mark.
+one pixel ([05](./05-page-sections.md#portfolio--portofoliu)). The monitor's chin carries them,
+small, as its maker's mark, and the circuit board under the screen ends at their foot: a pulse
+arriving there flashes white over them (red, green and blue at full make white). Until 2026-10-05
+the current project's pixel also opened into these three bars on a `--void` matrix, ringed in
+white; the owner found it ugly. It became an LED square ("Lumina"), then, the same day, a round pad
+on that board, and on 2026-10-08 a small square showing the project ("The pixels", below).
 
 The primaries are deliberate: a triad tinted toward the brand palette stops reading as a pixel.
 They are softened just enough not to vibrate on `--void`. Never remapped, graphic only, never
@@ -600,20 +612,143 @@ existing tokens:
   `--r-lg` radius (the screen's is that less the bezel, so the corners stay concentric), an 8px
   bezel and a 14px chin (6px / 11px on phones) with the three subpixels in it. Its glow is
   `--pf-glow`, set from the project's `--p2` and **registered** (`@property`, `<color>`) so it glides
-  in 0.35s from one project's colour to the next; `--p1` / `--p2` themselves stay unregistered —
-  Home's cards share them. The glass: an 8% `--on-accent` sheen from the top-left and a 35% `--void`
+  in 0.35s from one project's colour to the next — set and glided on `.monitor` itself, its only
+  reader, and not inherited (2026-10-07: glided on the stage, it restyled the ~200 elements under
+  it on every frame of the glide); `--p1` / `--p2` themselves stay unregistered — Home's cards
+  share them. The glass: an 8% `--on-accent` sheen from the top-left and a 35% `--void`
   inner shade.
 - **"Vezi mai mare".** A pill in 78% `--void` with a 20% `--on-accent` edge (cyan under the
   pointer), `--fs-sm` bold, bottom-right on the screen. Not a button of its own — the picture is;
   its focus ring is a 3px cyan ring drawn inside the screen, over the glass (outside, the bezel
   hid it).
+- **The site in the screen** (2026-10-06). A project's whole site, captured top to bottom at
+  1080px wide, fills the screen's width and scrolls inside it under the glass; the window's thin
+  scrollbar is the project's `--p2` with 45% `--on-accent` on no track — the scrollbar of a browser
+  window, in the project's colour. "Derulează site-ul" is the zoom chip's twin at the bottom left
+  (the same pill, a ↓ arrow): it fades and sinks 4px once the site is scrolled, and comes back at
+  its top, and is not shown at all for a capture with nothing to scroll. Once a page load the
+  first site glides down half a screen and back (1.9s, ease-in-out, held a moment at the bottom),
+  never under reduced motion. Larger, a site comes at its own 1080px in a dialog up to 1152px
+  wide (room for a classic scrollbar beside it) and scrolls there, opened where the screen was.
+  Under 340px of window "Derulează site-ul" keeps only its arrow, so the two chips never meet.
+  The picture's focus ring is drawn through `:has()`; a browser without `:has()` keeps its own
+  outline, drawn inside the picture.
+- **A project's demo** (2026-10-06, `SiteDemo.tsx`). The screen as a small browser:
+  - **The bar:** 28px (24px on phones, 34px in the larger view), `--deck`, a 9% `--on-accent`
+    hairline at its foot. Back is a 22px chevron (30% when there is nowhere to go back to —
+    `aria-disabled`, so it keeps the focus). The
+    address is a pill in 7% `--on-accent`, mono `--fs-xs` in `--mut`, ellipsed; with several pages
+    it carries a ▾ and opens a `--panel` list with `--sh-lg` (32px rows, the current page washed
+    16% in the project's `--p2`, its path in mono `--mut`). Under the pointer both wash 18% `--p2`.
+    While a page comes in, a 2px light of `--p2` with 30% `--on-accent` runs ¾ along the bar's
+    foot (0.8s, eased out).
+  - **The links and buttons:** invisible until pointed at — then a 2px ring of `--p2` with 30%
+    `--on-accent` round them, 3px out, and a 12% `--p2` wash (0.12s). The keyboard's (larger view)
+    is the site's cyan ring with a 2px `--void` gap, legible on any capture. A target smaller than
+    24px gets an invisible hit area of 24px round it.
+  - **A page switch** crossfades the old page out over the new one (0.2s, eased out) once the new
+    picture has decoded; a pinned header is a band of the same picture kept at the top, which in
+    the screen shows the zoom-in cursor between its links (it opens the larger view, as the
+    picture does). A focused link is drawn over the band (`z-index` 3).
+  - **The landing mark:** where a jump in the larger view landed, a 2px `--cyan` line across the
+    page while it holds the focus (`Highlight` in forced colours); nothing otherwise.
+  - **The sheet:** a `--panel` card with `--sh-lg` at the screen's foot, 8px in (4px on phones), over
+    a 50% `--void` dimming; the title `--fs-base` extra-bold, the text `--fs-md` `--mut`; the way on
+    on the red CTA fill (it is the one action), "Rămân aici" a cyan-underlined text button. It rises
+    8px into place (0.22s); the chips step aside while it is open — and on phones the arrows on
+    the screen's edges too, while it or the page list is open.
+  - **A cut page** ends in "Restul paginii, pe {site} ↗" on a fade to 88% `--void`; in the screen
+    its words end 46px up (`--sp-3` + 34px), above the "Vezi mai mare" chip.
+  - **Reduced motion:** no crossfade, no light running, no rise, no lit transition. **Forced
+    colours:** the lit and focused links outlined in `Highlight`, the bar's controls (a single
+    page's plain address excepted) and the sheet's way on bordered in `ButtonText`, Back with
+    nowhere to go in `GrayText`, the list's page on show outlined in `Highlight`, the light of a
+    page coming in drawn in `Highlight`, the sheet and the list in `CanvasText`.
+  - **A finger** (`pointer: coarse`): the list's rows and the sheet's two actions 44px tall, like
+    the page's other controls; Back keeps its 22px look with a hit area of about 38 × 40. The bar's
+    focus rings are drawn inside their boxes, and so is a cut page's end: the screen clips
+    whatever goes past its edge.
 - **The arrows.** 48px circles (44px in a column too narrow for nine names, and on phones), a
   `--line2` edge, washed in the project's colour under the pointer. On phones they sit on the
   screen's edges, in 74% `--void` with a blur.
-- **The pixels.** A pixel is a column: its square, its name in mono `--fs-sm` (10.5–12px on phones)
-  in `--mut`. The current one: `--txt` bold name, a 13% wash of its `--p2` and a 1px inside ring of
-  50%. Hover (only where there is hover): `--txt`, a 4.5% `--on-accent` wash, the square a little
-  larger.
+- **The pixels — the circuit board** ("Circuitul", the owner's pick on 2026-10-05 of seven
+  designs — five directions scored by judges on a bench copy of the page, then two bolder ones —
+  replacing the "Lumina" LED squares the same day: "inlocuieste aceste patratele cu altceva mai
+  frumos"). A pixel is a column: its pad, its name in mono `--fs-sm` (10.5–12px on phones) in
+  `--mut`; no box and no ring around the button. The pad is a **square showing the project**
+  (2026-10-08, for the round pads: "in loc de pastile pune niste patrate mici unde se vede fiecare
+  proiect"): the top left of what the screen shows for it (`object-fit: cover`, `object-position:
+  0 0`), where a site keeps its logo. Taken from the middle, Crowe Portal's was an empty grey
+  tile and IQ Arena lost its name. Its place is 32px, 26px on a phone. Off: 26px (24px on a
+  phone), a 4px radius, a 1px frame of `--p2` at 80%, under a 26% `--void` veil, so the one on
+  the screen stands out and the nine still tell apart. Its ground is `--p2`: what shows until the
+  picture is in, and the whole square for a project with no picture, or whose picture failed
+  with nothing to fall back on. On (the project on the screen): the whole place and undimmed, a
+  1px rim (`--p2` with 45% `--on-accent`), a bloom of `--p2` (8px at 78%, 22px at 30%), a pool of
+  its light on the board round it (24%); the name `--txt` bold. Hover and keyboard focus: the
+  name `--txt`, the square 2px larger and undimmed with a 1px edge of `--p2` toward `--txt`, never
+  lit — only one pad ever looks on.
+  - **The board** (one SVG under the buttons and over the monitor's chin,
+    `components/sections/portfolioCircuit.ts`; the routing is `lib/portfolioBoard.ts`). Every trace
+    starts under its pad's middle, rises out of it, bends 45° onto a bus 2px inside the buttons'
+    top; the bus's two halves turn up in a 45° Y into a trunk that ends at the foot of the chin's
+    subpixels (a pad right under the chin goes straight up).
+    1px of `--line2` on whole pixels, butt ends, mitred corners, every run horizontal, vertical or
+    exactly 45°, never a dot. **Several lines of pads** (a phone, a narrow column) hang on a web
+    spun from the chin (`lib/portfolioBoard.ts`, "the web"): the Y's arms run on as 45° rays into
+    a tent, spokes run down the middle of the real gaps between the names' text (a gap under ~7px
+    is no spoke), and over each lower line a ring sags from spoke to spoke: 6px 45° knots like the
+    chin's Y, flat-bottomed sags (never a bare V), a knot over a pad right under its spoke lower
+    than the full rise where a pad sits in the sag. Same 1px `--line2`, same 45° grammar; no vias,
+    except the 5px square a pad the web cannot reach keeps.
+    - **Clearance.** Every run keeps 3px off a lit pad's ring, measured against the square itself,
+      its rounded corners included (`padGap`), not against a circle round its middle. Beside a pad
+      that is 20px from its middle (17px on a phone); past a corner it is more, since a square's
+      corner reaches √2 as far along a 45° run.
+    - **Knot heights.** A knot over a pad right under its spoke rises 36px over the pad's middle
+      (30px on a phone), so that its arms clear the lit square's corners. Two-line names above
+      it, or pads only 60–63px apart, hold it lower: 35px on a 641–1024px column, 30px on
+      360–430px phones (whose lines are 4px apart to make that room), 27–28px on 331–345px
+      phones.
+    - **Measured** with each pad lit in turn, on the page: 2.8–3.6px of air between the arms and a
+      lit lower square at 360–430px, and 0.6–2px at 331–345px. The pads never touch.
+    - **Why a 26px place on phones.** With a 32px lit square, the arms took 0.6–1.3px of its
+      corners.
+    - **The web reads the place from the page** (`BoardPad.half`, measured by
+      `portfolioCircuit.ts`), so the stylesheet decides the size. The route of the project on the screen is lit:
+    2px of `--p2` with 35% `--on-accent` (3.4:1 against the board for the darkest colour, Crowe
+    Portal; 7.2:1 against the page) over a 6px glow of `--p2` at 22% — all the way into the chin,
+    on every line. A row with nothing right above it (more than 30px from the monitor) gets no
+    board — pads alone.
+  - **The switch.** The new pad comes on in 0.2–0.3s, the old one goes out in 0.12s and its route
+    fades in 0.14s. 30ms after the pick a **pulse** leaves the new pad and runs its route into the
+    chin — a run of 180–330ms, the tail sinking into the chin included, so it gets there 0.16–0.34s
+    after the pick at 1366×768 (a longer route runs faster; it speeds up as it goes, it plunges
+    into the chin): a streak ending square at its head — a 9px halo of `--p2` at 42%, a 3px body of `--p2`
+    with 55% `--on-accent`, a 3px core with 88% `--on-accent` — leaving the route lit behind it. A
+    lower line's pad sends it up the web, one run into the chin (a pad the web cannot reach: its via
+    sparks once, a 13px square, and the light comes up the trunk in 80ms). As it
+    arrives the **chin flashes** (230ms): white with a halo of the project's colour, over the
+    three subpixels — and only then does the screen let the new project through: its blocks go out
+    as the pulse arrives, and never before the new picture has decoded. About half a second from
+    the pick to the screen settled, the farthest pad included. A page's slide or a channel's
+    glide plays no pulse: the board goes at once and comes back drawn where the pads stopped
+    (0.16s fade). Reduced motion: a pad simply on or off, a route simply lit; no pulse, no flash.
+- **The search** (a portfolio bigger than one page), under the row and its pages — between the
+  screen and the row it would cut the board's traces. A 44px field, `--r-md`, a `--line2` edge on a
+  3.5% `--on-accent` wash, 16px text, a magnifier in `--mut` (`--cyan-text` while it has the focus);
+  focused, a `--cyan` edge and an 18% `--neon-cyan` ring. Its list: a `--panel` card with `--sh-lg`,
+  rows of 44px — a 12px disc of the project's colour (the row's pad until 2026-10-08), lit for the
+  row chosen, its name in `--fs-base`
+  semi-bold with the typed letters in `--cyan-text` extra-bold, its kind in mono `--fs-xs` `--mut`
+  ("pe ecran" in `--cyan-text`); the chosen row a 10% `--neon-cyan` wash with a 40% inside ring.
+- **The pages.** No boxes: the screen's arrows are the boxed ones. "‹ Pagina anterioară" /
+  "Pagina următoare ›" in `--fs-md` bold `--txt`, washed in the project's colour under the
+  pointer, 36% when there is no page that way; between them "Pagina **2** din **12**" in `--mut`
+  with the numbers in `--txt` extra-bold, and a row of page pixels — 8px squares in 24%
+  `--on-accent`, the page on show lit like an LED (its project's `--p2` with a bloom, 1.3×). On a
+  phone the words stand on their own line and the two buttons share the line under the dots, each
+  44px tall.
 - **The words.** The counter in mono `--fs-sm` at 0.14em with a hairline running out of it; the
   name in the display face at 32–48px (30–36px on phones), **as it writes itself** — not the
   `.disp` capitals, a brand name in capitals is another word; the tag in mono `--fs-sm`, tinted
@@ -637,9 +772,11 @@ existing tokens:
   ring while the current pixel has the focus). The two red buttons get a `ButtonText` border — the
   fill is erased and they read as loose text without one. The picture's focus ring, a shadow
   elsewhere, is a 3px `Highlight` outline inside the screen (a contrast theme drops shadows). The
-  pixels, the tag's square and the chin's subpixels keep their own paint
-  (`forced-color-adjust: none`): they are pictures of light
-  a contrast theme would erase to empty squares.
+  board turns `GrayText` and the lit route and the pulse `Highlight`, without their glows; the
+  chin's flash is not shown. The pads' frames, ground, veil and glow, the tag's square and the
+  chin's subpixels keep their own paint (`forced-color-adjust: none`): a contrast theme would drop
+  the frames and the glow, repaint the ground and the veil and erase the squares and bars to empty
+  shapes. The pads' pictures it never touches.
 - **Hover** only under `(hover: hover)`: touch keeps `:hover` on the last thing tapped.
 
 ## Cyber Dark / Neon Cyan / Obsidian Black
@@ -872,198 +1009,336 @@ The first HUD part (IT-OS Phase 4, 2026-09-17), and since 2026-09-24 a photograp
 monochrome 722×849 head-to-chest cutout in a light beam, with orbit rings, that breathes, blinks and
 mouths what she says — **inside her square and never outside it**.
 
-**Her mouth (2026-09-27), and the thing five passes missed: THE OPENING IS UNCOVERED, NEVER
-DRAWN.**
+**The mouth (2026-10-08): her own face moving, not windows slid over it.** *"gura asistentei fa sa
+se miste mai real ca la un om adevarat, analizeaza undeva de pe internet dintrun videou si fa
+schimbarile, ca nu pare real parca se vad taiturile"*
 
-Every earlier version painted a dark shape ON her closed lips while the photographed lower lip
-stayed roughly where it was. That is a slit cut into a shut mouth — which is what "the cut"
-meant — and no amount of colour, masking, easing or anatomy in the teeth can talk the eye out of
-it. A real mouth does the opposite: the lower lip travels down, and the dark interior is what was
-behind it all along.
+What draws it:
 
-So the order inverts. The interior and the teeth are painted FIRST; `.jaw`, a window onto her own
-lower lip sitting exactly on the seam (`--mo`), is laid over them and covers them completely while
-her mouth is shut; and on a beat the lip TRAVELS DOWN and uncovers precisely as much as it moved.
+- **Frames of her own portrait, warped.** `tools/guide/mouth.mjs` writes 33 files into
+  `public/guide/gura/`, one per frame (`<opening>-<shape>.webp`, 91 KB in all): 11 openings × 3
+  lip shapes. Each is the portrait's own size, transparent but for her mouth, which sits on the
+  pixels it has in the portrait.
+  - **The displacement field.** It moves the lower lip and the chin down with the jaw, lifts the
+    upper lip, and carries the corners in (rounded) or out (spread).
+    - **The lips ride on the jaw nearly whole.** The lower lip's border drops 0.89 as far as its
+      inner edge. The upper lip's edge lifts 0.17 of the lower lip's drop and its border 0.10.
+      So the lips thin only as much as the tracked faces' do.
+    - **The skin follows.** Below the lower lip it eases into the chin's drop (0.57), and the chin's
+      drop dies away into the neck. Above, the philtrum takes up the upper lip's lift before the
+      nose.
+    - **No edge.** It is exactly zero before the edge of the patch, and wherever it is zero the
+      frame is the portrait's own pixel, copied.
+  - **Between the parted lips, a mouth, not a hole** (*"dintii nu sunt, parca-i o gaura neagra"*,
+    the owner, on the first version).
+    - **The upper teeth** hang from the upper jaw, so they do not drop with the lower lip. Their
+      edge stays 2.8 source px (3 mm) below where the lips meet, a little higher towards the
+      canines, and they span the middle 62% of the mouth. Shaded under the lip, darker as they
+      turn towards the corners, parted where one tooth meets the next. Their lightness is her lit
+      skin's, dimmed by the opening, and their colour her own (both below).
+    - **A small opening shows teeth and only teeth**, the lips just apart over them.
+    - **A wider one** shows the dark below the teeth's edge (her lip line's colour at 0.62–0.8 of
+      its lightness, never black), the tongue at its floor, and the edge of the lower teeth just
+      above the lower lip.
+    - **Lit only through the opening** (*"dintii parca sunt prea albi"*, the owner, on teeth as
+      light in a narrow opening as in a wide one). Teeth behind the lips get only the light that
+      comes in between them, so in a narrow opening they stand in the lips' shadow.
+      - In full light her teeth would be 1.1 times as light as her lit skin (`TEETH_LIGHT`). The
+        opening at that point of the mouth lets in 1 − e^(−gap / `TEETH_REACH`) of that light:
+        63% at `TEETH_REACH` (3.8 source px), 92% at the widest frame (9.4 px). No frame is in
+        full light. The lower teeth follow at 0.69 of the upper.
+      - Both numbers are fitted to talking faces on video, against their eye whites and against
+        the lips around the teeth ("How bright her teeth are", below).
+    - **In her own colour.** Every tone inside the mouth sets only a lightness, and takes the
+      colour her portrait has at that lightness (`hers` in `mouth.mjs`: the median colour of the
+      patch's pixels there). The portrait is a tinted projection, deep teal in the shadows and
+      paler in the light; her lit skin's colour merely darkened came out grey against it.
+  - **The grid.**
+    - The openings run from 0 to 8 source px of lower-lip drop, which parts the lips 9.4 px:
+      10 mm of a real face, or 2.6 px on the 106 px bust (one source px is `--s`, 0.276 px there).
+    - **That is half what the tracked faces open, by choice.** At their size — up to 19 mm, 4.8 px
+      on the bust — the owner found her mouth too big: *"se mareste gura ceea ce arata urat"*.
+      Their rhythm and timing are kept; only the size is halved.
+    - The mm scale: her eyes are 58 source px apart, and the tracked faces were scaled to 63 mm,
+      so one source px is 1.09 mm.
+    - The shapes are rounded, neutral and spread.
+    - **The mouth does not widen as it opens** (*"cand se deschide gura, ea parca se mareste"*,
+      the owner).
+      - On the tracked video a mouth parting its lips gets no wider than with them together up to
+        7 mm, and only a little wider beyond: 0.94 of that width at 1–3 mm, 0.95 at 3–5, 0.99 at
+        5–7, 1.03 at 7–11 (`analyze.py`, `width_by_aperture`). Its outline grows in height, and
+        that reads as lips parting.
+      - Hers spread 3.2 source px a corner on every *e* and *i*, so while she spoke her mouth was
+        1.02–1.04 as wide as at rest at those openings: wider and taller at once, which reads as a
+        mouth growing.
+      - She is smiling at rest, her corners already drawn back. A spread vowel now takes them only
+        `SPREAD_OUT` (1 px) further, a rounded one still draws them in by `SPREAD` (3.2), and a
+        small pull-in, `NARROW` (0.1 px per px of drop), keeps every opening at most as wide as
+        she is at rest. While she speaks her mouth is now 1.00 as wide as at rest up to 5 mm and
+        0.98–0.99 beyond (`track.mjs` prints both).
+      - `SPREAD_OUT` and `NARROW` are choices the study argues for, not measurements: real
+        mouths do widen about 3% at 7–11 mm, where hers stays narrower, so that no opening of hers
+        reads as growth.
+  - **Exact where nothing moves.** Every pixel is mapped through its centre, so a pixel that does
+    not move comes out exactly. Only the lips' inner edges are supersampled.
+- **Four layers (`.mouthFrame`), one frame each.** A pose between frames is the bilinear blend of
+  the four around it, composed "over" from the bottom.
+  - **Each layer is the portrait's own rectangle**, its frame filling it (`background-size: 100%
+    100%`, no offset).
+    - A background that fills its box exactly is drawn the way the `<img>` is. Measured, the
+      frames land 0.00 device px off the portrait at every size, from a phone at 3x to a desktop
+      at 1x.
+    - The first build of this mouth cut the frames out of one sprite and placed them by
+      background offsets in a box at the mouth. An offset background is drawn another way: those
+      frames landed up to 1.5 device px off on a phone, and resampled differently everywhere.
+  - **What the script changes.** Each layer's file (`--f`) and its opacity, nothing else.
+  - **Composited for opacity alone** (`will-change: opacity`).
+    - The blend's weights change every frame she speaks, and on a layer of its own a new opacity is
+      a value for the compositor, not a re-layerization of the page. Measured while she speaks:
+      layerization went from 0.83 to 0.08 ms of main thread a frame.
+    - Opacity keeps a layer's sub-pixel place.
+  - **No transform.** A `transform` would rasterise the layers half a pixel off the picture. That
+    is the old cut, and `guide-assistant.test.tsx` forbids it.
+- **The shut frame is always on, silence included.** The frames and the portrait are still two
+  encodings, drawn on two layers. If the frames switched in only when she spoke, her mouth would
+  change by that difference the instant she started — up to 79 luminance units on a phone at 3x
+  when the frames came out of a sprite. So the mouth is always drawn from the frames:
+  - The portrait shows only where nothing ever moves.
+  - The frames' outline follows the region that moves, plus 2 px, feathered over 3. It lies on skin
+    that never moves: smooth skin for most of its length, crossing the jaw's contour and the
+    nostril sill for a few pixels.
+  - Silence is the shut frame itself, so starting to speak changes nothing until her lips move. A
+    closure mid-sentence keeps the corners of the vowel around it, rounded or spread, from the
+    neighbouring frames.
+  - **Measured against the portrait alone, silent**, at 1x, 1.5x, 2x, 2.625x and 3x:
+    - 0.00 px off by position;
+    - at most 8.4 luminance units along the frames' outline, 12.5 inside her lips (the composited
+      layer);
+    - 0.2 on average over the mouth's region.
 
-That also rules the old ghost out **by construction** rather than by luck. A travelling patch
-exposes a strip of untouched original at its top edge — that strip was the phantom second lip.
-Here the strip is exactly the aperture's height (both come off one number per beat) and the
-patch's opaque core is narrower than the aperture is wide, so no exposed original is ever left
-over. Its side fades land inside the aperture; its bottom fade runs to 62% of the patch, past
-where the lip's own edge ends up after a full 1.37px of travel, so it spends itself on chin —
-which has nothing to double. (At 46% it stopped on the lip's edge, and a faint second edge came
-back.)
+    None of it moves. Measure it with the frames emptied (`background-image: none`), not the
+    layers hidden: hiding them recomposites the hologram's scanlines, which at 2.625x then land a
+    sub-pixel apart and differ by up to 51 units across the whole bust, none of it the frames'.
+- **Her face appears whole.** It is the portrait and, over it, the shut frame: two files.
+  - The face (`.live`) waits until both have decoded, then fades in over 0.25 s. Otherwise her lips
+    would be redrawn, standing still, the moment the frame arrived.
+  - The beam and the rings show meanwhile. On a fast link all of this happens inside her 0.4 s
+    fade-in.
+  - The other 32 frames are fetched at the same time, behind them — not under reduced motion,
+    where only the shut frame is ever drawn. An answer that starts before they have all decoded is
+    said with her mouth at rest. A layer whose file is not in yet would paint nothing, and her mouth
+    would flicker.
+  - **The 33 frame images are kept referenced for the page's lifetime.** A loaded image nothing
+    references any more is dropped from the memory cache. The next layer to name it then fetches
+    it again, and paints nothing for that round trip: measured at a 50 ms RTT, the first answer had
+    44 display frames with the base layer blank. Kept, at a 150 ms RTT: no frame was requested
+    during the first answer, nor during a second one 25 s and a garbage collection later.
+  - **Cached for an hour.** `/guide/*` is served with an hour of freshness (`next.config.ts`),
+    so a second page view does not ask again.
+  - **What speaking costs.** As many frames are drawn while she speaks as in silence (719 and 718
+    in 3 s).
+- **Driven by the answer's own text** (`components/hud/guide/speech.ts`):
+  - **Letters to targets.**
+    - *a* opens widest; *e*, *ă* and *o* about three quarters; *i*, *u* and *î* under half.
+    - *o* and *u* round the lips; *e* and *i* spread them.
+    - In Romanian and English, a high vowel next to a more open one is a glide, not a syllable of
+      its own: *ia*, *ie*, *iu*, *ai*, *au*, *ei*, *oi*, *ea*, *oa*; *you*, *they*, *out*.
+    - Russian writes its glides as letters (*я*, *ю*, *е*, *ё*, *й*), so two vowel letters there are
+      two syllables.
+    - A Latin-script word in a Russian answer (*e-commerce*, *email*) is read as English.
+  - **Closures.** *p*, *b* and *m* shut the lips. *f* and *v* bring them together too, a little less.
+    The frames have no tucked-lip pose, and at this size a labiodental reads as a light closure.
+  - **Pauses.** She comes to rest at a comma (0.30 s) and a full stop (0.55 s), and the syllable
+    before a pause is drawn out.
+  - **Stress.** The default stressed syllable opens wider and lasts longer: penultimate in
+    Romanian and Russian, first in English.
+  - **Variation.** Every syllable differs by up to 14%, from a hash of the text, so the same
+    answer always moves the same way.
+  - **Rate.**
+    - A syllable's base length is 1/5.4 s. Stress, the drawn-out syllable before a pause and
+      consonant clusters stretch it, so the answers run at 4.5 syllables a second while she speaks.
+    - Her lips part distinctly 2.6 times a second, as the tracked faces' do (2.8). Lips do not
+      part on every syllable.
+- **How it moves between targets.** Each channel (the opening, the lip shape) chases its targets
+  through six equal first-order stages: Birkholz & Hoole's target approximation.
+  - **Time constants.** τ is 18 ms for the opening and 28 ms for the corners. Birkholz fitted
+    20.5 ms to one speaker's lower lip; 18 brings her rhythm to the tracked faces'.
+  - **A bell-shaped speed.** Six stages give a real movement's speed curve: a bell, peaking a
+    little before the middle (0.41 of an opening).
+  - **Why not a spring.** A single spring lurches off and creeps in (0.29), the shape Birkholz's
+    fit rejected. The first draft of this mouth used one.
+  - **No jumps, no holds.** The mouth never jumps and never holds a pose, and a fast syllable is
+    reached only part of the way. That undershoot is coarticulation.
+  - **Closures aim past shut.** The lips meet while still moving and press (a "virtual target"
+    beyond contact, Löfqvist & Gracco 1997).
+    - *p*/*b*/*m* aim at −0.5 and *f*/*v* at −0.1, and the track is clamped at shut.
+    - Aimed at exactly shut, the same follow shut the lips for 16 of the 59 *p*/*b*/*m* in the
+      answers. Aimed past it, all 59 close and stay pressed for about 90 ms. The minimum for a
+      visible closure in animation (Rhubarb) is 70–80 ms.
+  - **Every other target is set 1.1× past the opening it stands for**, because the follow
+    undershoots. That lets a stressed /a/ reach her widest frame.
+- **Interrupted** (another question, ✕, Escape, a language switch), the mouth closes from wherever
+  it is over 0.15 s, easing in and out, and a new answer starts from there. It used to snap shut
+  between two frames.
+- **As long as the text, never more than 7 s.**
+  - A longer answer stops at a comma or full stop in its last 2.5 s before 6.7 s, or else after
+    its last whole word, then settles shut in 0.3 s. Without sound nobody can tell which word that
+    was, only that her mouth came to rest.
+  - The one-line answer ("În cel mult o zi lucrătoare.") used to be "said" for 7 s; it now takes
+    3.0 s.
+- **Reduced motion:** the mouth never moves, and `data-say` still follows the text's length.
 
-**And both lips move now (2026-09-28).** Until then only the lower one did, and a jaw dropping
-under an upper lip nailed to the photograph is the last thing that still said "painted on": in a
-face the two edges PART, and the eye reads the parting rather than the drop.
+**The numbers are measured, not chosen**, all but her size, which is half the measured by choice,
+and her corners' sideways travel (`SPREAD_OUT`, `NARROW`), kept small by choice (both above).
 
-So the same construction runs once more, mirrored. `.upperLip` is a window onto her own upper lip
-and the philtrum above it, sitting on the same seam; it TRAVELS UP, and `.mouthTop` — a strip of
-its own, anchored at the seam by `transform-origin: 50% 100%` — grows up by exactly what the lip
-vacated. Both run off the same stops as the jaw, so the dark can never be taller than the lip has
-lifted, nor shorter. A third of the jaw, because that is anatomy: a mandible drops ten to fifteen
-millimetres on an open vowel and the upper lip lifts one or two. The widest syllable moves it
-**0.453px against the jaw's 1.511px**.
+The source:
+- two speakers, a man and a woman, in four public-domain clips (White House weekly addresses on
+  Wikimedia Commons, 480p);
+- tracked frame by frame with MediaPipe Face Mesh as six face tracks: 352 s of speech to camera;
+- distances scaled by an inter-pupil distance of 63 mm.
 
-**NEITHER PHOTOGRAPHIC PATCH IS EVER TRANSFORMED, AND THAT IS THE WHOLE OF "THE CUT".**
+Her track was measured on the six answers in three languages, with the same method: sampled at
+30 fps, with the same peak and closure detection (`tools/guide/lips/track.mjs`).
 
-The first version of the upper lip was transformed like the jaw, and the user's verdict was that
-the lip still did not move and now there was a visible cut at her mouth. Both halves of that were
-one cause, and it is not a perceptual argument — it is three frames measured row by row at device
-pixels:
+| | tracked faces | her track |
+|---|---|---|
+| lips apart, median / p75 / p95 | 8.4 / 11.2 / 17.9 mm | 4.2 / 6.0 / 8.6 mm |
+| one syllable's opening, median | 9.8 mm | 5.8 mm |
+| openings a second | 2.76 | 2.63 |
+| trough to peak / peak to trough, median | 133 / 133 ms | 133 / 100 ms |
+| peak speed, opening / closing, median | 81 / 82 mm/s | 47 / 47 mm/s |
+| shut (under 2 mm) | 19% | 27% |
+| short closures (under 2 mm, under 0.25 s) | 1.25 a second, 67 ms | 0.97 a second, 133 ms |
 
-- silent, with a compositing layer FORCED onto the patches, is identical — to 0.1 of a luminance
-  unit on every row — to her SPEAKING with her mouth shut;
-- the same patch with `transform: none` WHILE she speaks is identical to silence;
-- therefore the difference is the transform, not the movement.
+Notes on the table:
+- **Her sizes and speeds are half theirs, her timing is theirs.** The frames open half as far
+  (above). A full opening at a lectern is not what a guide in a 106 px corner needs, and
+  exaggerated movement on a smiling face reads as uncanny (Tinwell et al. 2011).
+- **Her closures stay under 2 mm longer.** The follow approaches them gradually, and the press
+  itself is the 90 ms above. The clips, at 30 fps, see 67 ms as two frames.
+- **The anatomy comes from the same tracking**, with the slopes fitted within each stretch of
+  speech: fitted across stretches raw, they would mix one person's resting face with another's.
+  - For every mm the lips part, the lower lip's border drops 0.76, the upper lip's border lifts
+    0.085, and the chin drops 0.49.
+  - The lips thin by the 0.16 left over, between them.
+  - In the frames' terms, against the lower lip's drop, these are the 0.89, 0.10, 0.17 and 0.57
+    above.
 
-A transformed element gets its own compositing layer, and that layer rasterises the background
-image against the device grid about half a pixel out of step with the inline paint. On the upper
-lip, where the portrait's gradient is the steepest on her face — 27 luminance units per device row
-— that half pixel is **up to 47 units arriving in one frame**: her lip flattens and an edge appears
-the instant she starts to speak. That is the cut, and it had been there on the lower lip all along,
-at 17 units, which is why "taitura" kept coming back. It also ate the lift whole: the registration
-error is downward and the lift is upward, so 0.45px of real movement arrived as nothing.
+A second source agrees. It is electromagnetic articulography of read English (MOCHA-TIMIT: one
+woman and one man, 460 sentences each). It was analysed for this change in a one-off script that
+is not kept in the repo, because the corpus is licensed for research, so only its statistics are
+quoted:
+- **Timing.** Lip openings and closings take 100–140 ms each, and closing is slightly faster.
+- **Speed.** The speed curve is a bell, peaking at 0.49–0.52 of the movement.
+- **Closures.** The lips meet still moving (at 37–53% of their peak speed), press 1.3 mm past
+  contact, and stay shut 70–85 ms.
+- **Rhythm.** There are 2.8–3.0 distinct openings a second.
+- **Size.** The aperture's median is 6–7 mm and its p95 13–16 mm.
 
-So the lips move WITHOUT a transform. The photograph slides inside a box that never moves
-(`background-position-y`, offset from a named `--bpy`) and the window it is seen through retreats
-with it (`mask-position`, which carries the mask's own soft edge along, where a `clip-path` would
-cut a hard line across her lip). Both are paint properties: no layer, no re-registration, and
-silence and speech rasterise the same. The offsets are written as a fraction of `--bust-h`, never
-in px, so they still scale at `--bust` 38 and 60.
+**How bright her teeth are, measured the same way** (`tools/guide/lips/teeth.py`, 2026-10-08).
 
-The gradients — the aperture, the strip above the seam, the teeth, the crease — keep their
-transforms. They have no photograph to register against, so there is nothing for a layer to put out
-of step. `components/__tests__/guide-assistant.test.tsx` enforces exactly that split: the two lips
-may animate only the paint properties, everything else only `transform` and `opacity`, and neither
-lip may carry a `transform` anywhere.
+- **The faces:** the four clips above and three more with light-skinned speakers (Vice President
+  Biden's weekly address of 9 July 2016, Secretary Blinken's message of 22 May 2023, Hillary
+  Clinton's concession speech of 2016): nine faces, in the frames where they speak with their lips
+  apart.
+- **What is measured:** the pixels between the inner lips, a pixel in from them — their brightest
+  tenth (the teeth) and their mean (the opening) — against the speaker's own eye whites.
+  - **Against the eye whites, not the chin.** Two white tissues in one face, so neither the skin's
+    tone nor the video's exposure enters. Against the chin they would: with the lips 6–10 mm apart
+    the Obamas' teeth come out 1.2–2.0 times as light as their chin, the light-skinned speakers'
+    0.75–0.8 (Clinton, Blinken) to 1.4–1.5 (Biden). Against the eye whites, light and dark skin
+    fall in one range (0.81–1.06 and 0.84–1.24 at 8–10 mm). Both are in `measured-teeth.json`.
+  - **In lightness, not luma:** each pixel's luminance in linear light, written as the grey that
+    luminous (0–255). For a grey, and nearly for a white tooth or an eye white, the two are the
+    same. Her portrait is saturated teal, and luma reads teal darker than it looks: her eye
+    white is luma 135, lightness 152. Fitted in luma, her teeth came out about a tenth too dark.
+  - **At the bust's size, too:** the same over the whole opening blurred by 1 mm. On a desktop at
+    1.5x one device pixel spans 2.6 mm of her face, so a narrow opening is seen mixed with the lips
+    around it. This is the comparison that counts: her frames are sharp, the video is not.
+- **Her eye white** is 152 (the portrait read at six scales, 151.4–153.3), her lips 124 as seen at
+  the bust's size, her lit chin 192.
+- **And against the lips around them.** Seen at the bust's size, real teeth are 1.01 of their lips
+  at 4–6 mm, 1.20 at 6–8 and 1.33 at 8–10 (`teeth_seen_over_lips`): it is that step from lip to
+  tooth that makes an opening read as lips parting over teeth.
+  - Her lips are lighter against her eye whites than real lips are (0.81 against 0.72), so teeth
+    fitted to her eye whites alone came out darker than her lips up to about 6 mm (0.92 of them at
+    5 mm), and short of the real step from lip to tooth beyond (1.04–1.12 against 1.21–1.38). The
+    opening then read as the dark of the mouth spreading — a mouth growing (*"cand se deschide
+    gura, ea parca se mareste"*).
+  - The two references are both measured and disagree for her portrait, so `TEETH_LIGHT` and
+    `TEETH_REACH` are fitted, at the bust's size and from 4 to 10 mm, to the geometric mean of what
+    each asks for: rms 3.3%, and at most 5% under it (at 9–10 mm).
+- **The result**, as seen at the bust's size (the faces: the median over faces;
+  `tools/guide/lips/measured-teeth.json`). `mouth.mjs` prints her side every time it runs. "First"
+  is her first teeth, as light in every opening; "eyes only" the fit to the eye whites alone.
 
-**Measured after the fix**, at device pixels with the sway cancelled and the crop anchored on the
-seam: silence, and speech at two different closures, are identical on every row; at a small
-syllable the upper lip's dark band moves up by 11–24 units and at the widest by 16–34. The largest
-step between neighbouring rows at rest is 80.1, against silence's 80.7 — no new edge anywhere.
+| lips apart | 3 mm | 5 mm | 7 mm | 10 mm |
+|---|---|---|---|---|
+| teeth against the eye white, the faces | 0.66 | 0.75 | 0.87 | 0.98 |
+| — hers, first | 0.95 | 0.97 | 0.96 | 0.96 |
+| — hers, eyes only | 0.59 | 0.75 | 0.85 | 0.91 |
+| — hers, now | 0.62 | 0.81 | 0.92 | 0.99 |
+| teeth against the lips, the faces | 0.93 | 1.02 | 1.21 | 1.38 |
+| — hers, first | 1.17 | 1.19 | 1.18 | 1.18 |
+| — hers, eyes only | 0.73 | 0.92 | 1.04 | 1.12 |
+| — hers, now | 0.77 | 1.00 | 1.13 | 1.22 |
+| the opening's mean against the eye white, the faces | 0.48 | 0.53 | 0.59 | 0.65 |
+| — hers, first | 0.74 | 0.67 | 0.62 | 0.61 |
+| — hers, now | 0.53 | 0.59 | 0.59 | 0.62 |
 
-**And the loop closes now.** The cycle ran from `scaleY` 0 at 100% to 0.1692 at 0%: the first
-syllable was centred at 0.010 with its opening half-width reaching back past the start, so the
-curve was simply cut there and the mouth JUMPED to 27% of its opening once every 4.7 seconds. The
-generator now measures a syllable's distance on the CIRCLE, so one that straddles the seam keeps
-its tail at the other end, and it asserts that the first and last frame are the same number.
+- **What was wrong with her first teeth was the narrow openings.** At 8–10 mm they were about as
+  light as the faces' (0.96–0.97 against the eye white; 0.91–0.98). At 3–5 mm they were 30–45%
+  lighter, the opening a pale line where a real mouth shows a shadowed one, and their colour grey
+  in a teal face.
+- **The light comes in with the opening.** Every face's teeth brighten as its lips part — over the
+  faces, from 0.64 of the eye white at 2–4 mm to 1.08 at 10–12 mm, before the blur — which is why
+  one tone for all openings could not be right at every one of them.
+- **The faces differ** (0.42–0.74 at 2–4 mm, 0.81–1.24 at 8–10 mm). Hers now sit between the two
+  references: a little above the faces against the eye white (up to 0.06), a little below them
+  against the lips (up to 0.16, at 10 mm); at 3 mm the opening is under a device pixel and reads as
+  the lips.
+- **The geometry changed only at the corners** (the mouth no longer widens as it opens, above);
+  the speech track did not. The rest frame, silent, is the portrait as before.
 
+The video-tracking tools, their method and how to run them are in
+[`tools/guide/README.md`](../tools/guide/README.md).
 
-The aperture carries BOTH axes in one animation, which is what makes syllables rather than a
-pulse: wide and flat is "e/i", narrow and tall is "o/u", both open is "a", both at zero is
-"m/b/p". The width moves on its own, slower centres, so wide never coincides with tall — that
-disagreement *is* the viseme.
+**What the implementation follows in the literature:**
+- **The rhythm:** a talking mouth opens and closes at 2–7 Hz (Chandrasekaran et al. 2009, *PLoS
+  Comput Biol*).
+- **Two axes:** jaw and lips move independently, with ~120 ms ramps (JALI, Edwards et al. 2016).
+- **The follow:** six-stage target approximation, with the lower lip fastest and the corners
+  slowest (Birkholz & Hoole).
+- **Closures:** the lips meet at speed (Löfqvist 2005, after Löfqvist & Gracco 1997), and a
+  closure lasts at least 70 ms (Rhubarb Lip Sync).
+- **Visemes:** the tables of MPEG-4, Rhubarb / Preston Blair and Azure (Azure's include ro-RO).
+- **The region:** it covers the mouth, the chin and the cheeks, "so that the chin and jaw move"
+  (Video Rewrite, Bregler et al. 1997).
+- **The edge:**
+  - feathered masks instead of a square around the mouth (Easy-Wav2Lip, FaceFusion);
+  - a displacement that reaches zero with zero slope at its border (local radial warps, Arad et al.
+    1994).
 
-**The rhythm is irregular on purpose, because an even one is a metronome.** Seven evenly spaced
-syllables looping every 1.9s is a rate the eye learns in two passes, and learning it is what
-"robotic" means. The cycle is **4.7s with 22 syllables** at uneven centres, with four pauses of four
-different lengths. Since she only ever speaks for 7s at a time, a visitor sees **one and a half
-turns of it** and never a repeat.
+**What it replaced, and why "the cut" never went away before.** Until 2026-10-08 the mouth was six
+windows onto the portrait:
+- `.jaw`, `.upperLip`, `.mouth`, `.teeth`, `.mouthTop` and `.lipShade`;
+- the lower lip slid down at most 1.5 px and the upper lip up 0.45 px, over a painted slit;
+- it played a 4.7 s loop of 22 synthetic syllables, about 5,000 lines of generated keyframes, for a
+  fixed 7 s.
 
-**And then "the lips seem slow", which was not about speed at all.** Every syllable was WIDER
-than the distance to the next one — half-width over centre-spacing 1.06 to 1.22 — so neighbours
-fused into a single plateau and the 22 syllables produced only **twelve visible openings, 2.55 a
-second**, against the 5–6 of real speech. Between them the lip did not return; it sagged. The
-individual movement was never slow: its rise measured **89ms**, which is a normal jaw. Narrowing
-every half-width to 0.60 of itself turns the same 22 syllables into **22 openings, 4.68 a
-second**.
+Two things made the seam impossible to remove that way, however carefully the windows were
+masked and registered:
+- **A sliding window is a rigid piece of a face that in reality stretches.** Wherever the piece
+  ended, the picture was cut.
+- **The windows' backgrounds were drawn another way than the `<img>`.** They were sized to the
+  bust's box, a hair wider than the picture, and placed by offsets. The portrait itself, drawn as
+  such a background over itself, measured up to **37.6** luminance units off at 1.5x, so every
+  window differed from the picture under it. A background that fills the picture's own rectangle
+  exactly is drawn as the `<img>` is, and that is how the frames are drawn now.
 
-**The beat is also asymmetric now**, because a jaw drops faster than it closes and a raised
-cosine is symmetric — symmetry was part of what read as sluggish. The two halves of each syllable
-are stretched in opposite directions (0.75 / 1.25): **45ms down, 75ms back up**. She is shut 24%
-of the cycle.
-
-And the timing function is **`linear`, which is the opposite of the old mistake rather than a
-return to it**. `linear` was wrong when the keyframes were sixteen *poses*: one speed between them
-and an instant turn at each. `ease-in-out` fixed the turns and bought a worse problem — velocity
-zero at all sixteen, which is a series of little moves. The curve now lives IN the keyframes, and the stops are
-placed **by curvature rather than at a fixed interval**: a speech envelope is mostly flat pause
-with a few short climbs, so a uniform grid pays the same price everywhere — too coarse exactly
-where the mouth moves, wasted in the pauses. The generator samples finely and keeps only the
-stops without which the polyline would stray more than **0.02px** from the true curve, and that
-error is verified rather than assumed. That gives 228 stops for the aperture, 190 for the lip,
-136 for the teeth and 74 for the crease, against a uniform grid of 158.
-
-Played linear, the polyline *is* the curve. Measured in the browser across the rendered cycle:
-largest velocity change between samples **12.7 px/s**, **zero** steps over 40. It was 7.7 before
-and the rise is correct — the movements are faster now, so their acceleration is higher. It is
-not a sampling artefact: doubling the stops only moves the computed figure from 11.6 to 10.7.
-
-Two probes had to be fixed before those numbers could be believed. One stepped the rendered cycle
-every 31ms — coarser than a 45ms fall, so it aliased the motion and reported 17.9; at 10ms it
-agrees with the generator. The other took the mouth's reference height by dividing its rect by the
-scaleY of that instant, which amplifies rounding when scaleY is near zero, and had been reporting
-an aperture of 1.71px that does not exist.
-
-All three keyframe blocks are **generated**, and the generator now rewrites whatever duration it
-finds on the shorthand and fails loudly if it does not find exactly three. It used to match the
-literal `1.9s`; once the file said something else the match silently did nothing, the keyframes
-were written for one cycle length and played at another, and every measurement taken through
-`currentTime` landed on the wrong phase.
-
-The **teeth** are painted because she is closed-mouthed in the photograph. An arch, not a comb:
-divisions where a front arch has them (canine · lateral · central | central · lateral · canine),
-the midline strongest, the centrals brighter than the laterals than the canines as the arch turns
-away, a translucent biting edge. **They are not white.** At `--txt` 56% they were the lightest
-thing on a face whose brightest skin sits well under white, and the eye goes to the lightest
-thing.
-
-**And 30% was still too much.** The complaint survived the first climb-down, so the question
-became a measurement rather than a taste: photographed at 4x and read as luminance, the teeth
-peaked at 189 against a cheek at 202 and a lip at 198 — *not* brighter than her skin, which means
-the glare was never absolute brightness but **local contrast against the dark cavity right next
-to them**. So the enamel came down and the teeth peaked at 176, below the lip they sit behind and
-below the cheek.
-
-**And they still did not look real, because the problem was never colour. THE BAND WAS 0.358px
-TALL.** `.teeth` is a child of `.mouth` and `.mouth` is the element that scales, so the painted
-band is 26% × 2.4435px × the aperture's scaleY. That is 0.36 of a device pixel at 1x and 0.72 at
-2x — **never one whole pixel on any display**. The renderer drew it as one row at 27% coverage or
-two at 13.6%, and because the height and its sub-pixel phase change every frame with scaleY, the
-row count and the brightness changed continuously through every syllable. **The teeth flickered.**
-That is how the luminance figures could be right and the teeth still wrong.
-
-**Three of the four layers were then deleted, because arithmetic says they never reached a
-screen:** the tooth divisions at 15.2/31.2/49–51/67.2/83.2%, each a 1.6% band = **0.16px** wide —
-for one of them to be a single device pixel at 2x, `--bust` would have to be about 280px, 2.6× her
-drawn size, so the whole canine · lateral · central story this document used to tell was
-unreachable at *any* dpr and only ever averaged into a tint; and the enamel's three vertical
-stops, which ran down the 0.358px axis, where no device row could hold two of them. (The radius
-is kept though its vertical curvature is 0.315px and the band renders as a rectangle: it becomes
-true if she is ever drawn larger, and removing it changes nothing.) What is left is the two
-layers that DO resolve across the width — the corner shading, a 2.6px ramp, and the midline
-highlight, a 3.5px hump.
-
-**The band is now 72% of the aperture instead of 26%** — measured at about **1.05px** at the widest
-syllable, a whole row instead of a third of one — and a fourth generated block, `guide-teeth`,
-keeps them dark until the mouth passes 55% of its opening and full only from 85%. They are
-therefore on screen **24% of the time and fully lit 5%**, so below the gate there is no thin band
-left to flicker and above it there is a stable row. Peak luminance now reads **167–173** against
-176 before: per pixel the enamel is dimmer, but there is three times more of it, so brightness is
-roughly a wash. The fix here was the flicker, not the brightness.
-
-**What is NOT fixed, and is worth knowing:** the band is a percentage of an element that scales,
-so the arch still stretches and shrinks with the jaw, and a tooth is bone. The anatomically right
-answer is a rigid crown behind a growing window — `.teeth` at `height: 100%` with its own
-counter-scale — which was designed and costed and then left on the shelf: at a 1.43px aperture the
-stretch is below what a pixel can show, while the change makes the enamel 1.84× more present at
-the peak, which is the complaint it started from.
-
-Every beat of all three comes off one number, the aperture's own opening, so they cannot drift
-apart — the strip the lip vacates and the height the aperture reaches are ONE quantity, and the
-three keyframe blocks are generated from it rather than typed. Editing a stop by hand puts them
-out of step and the ghost comes back.
-
-Sized off the measured lip box, never in pixels: at her drawn size the box measures 14.6×4.7px,
-the aperture opens to **1.42px** and the lip travels **1.42px** — the same number to the
-hundredth, measured separately, which is the ghost-lip invariant holding: the strip the lip
-vacates *is* the aperture — a third of its
-own height, which is what a conversational voice does; at 2.55px it was more than half, an open
-mouth at every syllable. It sits under `.wash`, so the scanlines cross the teeth too —
-part of the hologram rather than a white shape on top of one. Shut whenever she is not speaking,
-under reduced motion, and below 641px. Behaviour is in
+On phones she has spoken since 2026-10-07 (*"fă ca asistentul fix așa să miște din gură și pe
+telefon"*). Everything above is a fraction of `--bust-h`, so the 60 px and 38 px busts move the
+same face at their own scale. Behaviour is in
 [05](./05-page-sections.md#asistent-tbs-the-corner-assistant).
 
 **Three things went on 2026-09-26, and every one of them was something she did unasked:** the
@@ -1080,18 +1355,32 @@ which also scaled and lifted her, because a transform changes the box the HUD sp
 the right edge of the viewport and against the rail's markers.
 
 Her bubble has **one mode** left, her questions, and it is only ever on screen because someone
-pressed her for it. Her mouth still moves while an answer is up, for 7 s, which is the only thing
-`data-say` means now. `data-state` is gone with the entrance: there is no state to be in.
+pressed her for it. Her mouth moves while she says an answer — as long as its text takes, never
+more than 7 s — which is the only thing `data-say` means now. `data-state` is gone with the
+entrance: there is no state to be in.
 
 Her box is `--guide-box`: 68 below 400px (it has to clear the phone dock's 156px bar at 320), 104,
 136 from 641px and **184 from 861px** at `right/bottom: 20px` — which is why `--hud-bottom` is 208
 there, so the fibre rail stops 4px above her instead of running under her (at 112 its last two
 markers sat inside her box and the bottom one could not be pressed).
 
+Each box has its scene, and she is drawn INSIDE it: a 56px scene in the 68px box (`--bust` 38), 86
+in 104 (60), 114 in 136 (78), 156 in 184 (106). Two of those were wrong until 2026-10-07, by
+cascade and not by design. Under 400px the 56px scene was written ABOVE the base `.scene` rule,
+which therefore won (two equal selectors: the later one holds), so from the day she was built she
+was drawn at 60px in a 68px square — her head over its top edge and the rings out of its sides on
+nearly every iPhone (375, 390, 393px). And from 641px a rewrite on 2026-09-28 gave that rule the
+under-400 values, so a tablet or a phone on its side drew her at 38px in a 136px square. Both are
+back to the table above, which is exactly the design she shipped with (6d695af); the owner chose
+the smaller phone size over keeping 60px out of the square (*"a"*).
+
 Everything else about her is this section's rules, not her own: the palette above, the stacking
 ladder, **no `backdrop-filter` and no `filter`** anywhere in a part or above one (she sits over the
 live WebGL canvas), **no round dot** and square line caps, every animation inside
-`@media (prefers-reduced-motion: no-preference)` and limited to `transform` and `opacity`.
+`@media (prefers-reduced-motion: no-preference)` and limited to `transform` and `opacity`. The
+one exception is her mouth: it is painted by the script (each layer's frame file and its `opacity`,
+never a transform, for the reason in "The mouth" above), and it does not move at all under reduced
+motion.
 
 ### The fibre rail
 
@@ -1120,6 +1409,18 @@ media gate.
   `translateY(var(--rail-p) × 100%)` over the rail less its own length.
 - **Flow:** a 28px `--on-accent` streak that travels down the lit thread (0.9s) **only while the
   visitor scrolls** (`data-flowing`, dropped 180ms after the last scroll event).
+- **The thread and the head each sit in a still layer of their own** (`.layer`: the fibre's box,
+  `will-change: opacity`, never moved; 2026-10-08). Both change on every scrolled frame; painted
+  in the rail's own layer, each frame re-rasterised the whole rail — 0.82ms of GPU-thread raster a
+  main frame over Team → footer, 0.30ms now, against 0.26ms with no rail at all. The layer is the
+  box, not the thread: a thread promoted itself is rastered once at full length and squeezed by the
+  compositor, and at the top of the page (scaled to 2%) its lit end came out a third dimmer and its
+  glow wider. Inside a still box both are painted at their real size and place, as before;
+  compared pixel for pixel with the animations frozen, what differs is anti-aliasing only — the
+  ticks' edges (composited above them now) and, at 1.5× and 1.75×, one device-pixel column along
+  the thread's and the head's edges, by up to ~20 of 255. `opacity` rather than `transform`
+  because Chromium drops a box's sub-pixel paint offset under `will-change: transform`; both
+  rendered identically in every capture here, and save the same.
 - **Ticks:** one 8×8 **diamond** per section (a square rotated 45°, `border-radius: 0`): a 1px
   `--neon-cyan` edge over `--bg` ahead; filled `--neon-cyan` with a `--glow-cyan` glow once passed
   (`data-passed`). A downward scroll that passes a tick pulses it once, 0.7s: the diamond scales
@@ -1441,7 +1742,7 @@ scale.
 | Shadow | `shadow-sm/md/lg` · `shadow-neon-red` · `shadow-neon-red-strong` · `shadow-neon-blue` · `shadow-neon-cyan` | `--sh-*` · `--neon-*` · `--neon-cyan-ring` (the ring, not a shadow colour: the `--shadow-*` key wins over `--color-neon-cyan`) |
 | Spacing | `p-4`, `gap-3`, `min-h-11`, … | `calc(var(--sp-1) * n)` |
 | Custom utilities | `glass` · `glass-text` · `cta-neon` · `cyber-grid` · `cyber-floor` · `edge-fade-x` · `fade-b` | see [HUD layer](#hud-layer--the-first-screen) |
-| | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed) | see [The interior stage](#the-interior-stage) |
+| | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed; inside the scene's spiral holds it at `--helix-parallax` instead) | see [The interior stage](#the-interior-stage) |
 | | `entry-glow` (the Directions panel's accent edge: under `[data-renderer="webgl"][data-entry="formed"]`, static on the `fallback` / `off` renderers, never `pending`) · `entry-sweep` (its copy column's `::after` band: `hud-glass-sweep` under `[data-renderer="webgl"][data-entry="burst"]`, motion allowed) | see [Directions — the HUD screen](#directions--the-hud-screen) |
 | Variant | `menu-open:` | a desktop dropdown is open: real hover (`(hover: hover)`), `focus-within`, or `[data-open]` (first touch tap) — never with `[data-dismissed]` (Escape) |
 

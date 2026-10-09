@@ -1,0 +1,30 @@
+{
+  "v": 1,
+  "lang": "ro",
+  "start": "tbs-digital",
+  "pages": [
+    {
+      "id": "tbs-digital",
+      "title": "TBS-Digital",
+      "d": {
+        "src": "/projects/statistic-1.png",
+        "w": 1276,
+        "h": 760,
+        "hot": [
+          { "r": [7, 53, 170, 27], "t": "Tablou de bord", "k": "site", "el": "link" },
+          { "r": [7, 115, 170, 27], "t": "Linkuri & QR", "k": "site", "el": "link" },
+          { "r": [7, 145, 170, 27], "t": "Galerie", "k": "site", "el": "link" },
+          { "r": [7, 176, 170, 27], "t": "Utilizatori", "k": "site", "el": "link" },
+          { "r": [312, 19, 100, 17], "t": "Înapoi la site-uri", "k": "site", "el": "link" },
+          { "r": [954, 47, 46, 26], "t": "7 zile", "k": "site", "el": "button" },
+          { "r": [1052, 47, 52, 26], "t": "90 zile", "k": "site", "el": "button" },
+          { "r": [1051, 177, 82, 28], "t": "Revocă", "k": "site", "el": "button" },
+          { "r": [330, 241, 245, 20], "t": "Alege un utilizator...", "k": "site", "el": "button" },
+          { "r": [660, 237, 83, 27], "t": "Adaugă", "k": "site", "el": "button" },
+          { "r": [1047, 340, 86, 30], "t": "Copiază", "k": "site", "el": "button" }
+        ],
+        "cut": true
+      }
+    }
+  ]
+}

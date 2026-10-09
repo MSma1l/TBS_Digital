@@ -27,7 +27,7 @@ Every string field is capped so no input can flood the DB or the UI:
 | contact value / email | 254 |
 | phone | 6–40 |
 | contact message | 5000 |
-| partner logo / site URL | 500 |
+| any link or image path (site URL, logo, photo, screenshot, capture, demo manifest) | 500 |
 
 Required fields (contact `name`, `email`, `message`) must be non-empty **after trimming**.
 Each content list (services, stats, team, partners, contacts) is capped at **200 items**
@@ -41,23 +41,53 @@ is obscurity, not a control (the route is still guarded by a real login and rate
 so it only removes a free hint. `components/__tests__/navbar.test.tsx` pins it so the
 button can't quietly come back.
 
-### Links (partner site / logo) — rejected, never escaped
-A partner's `url` and `logo` are the only fields that land in an `href`/`src`, so they are
-**rejected on a strict shape** instead of being HTML-escaped (escaping would corrupt a real
-URL: `?a=1&b=2` → `?a=1&amp;b=2`). A link must be either a site-relative path (`/partners/…`,
-`/api/uploads/…`) or an absolute `http(s)` URL; `javascript:` / `data:` / `vbscript:` /
-`file:`, protocol-relative `//host`, and the markup/quote/whitespace characters that could
-break out of an attribute are all refused. Enforced on both sides — `LinkStr` in
-`backend/app/validators.py` and `isLink` / `sanitizeLink` in `lib/validation.ts`.
+### Links (sites, logos, photos, screenshots, captures) — rejected, never escaped
+Every field that lands in an `href`/`src` — a partner's `url`, `logo` and `preview`, a team
+member's photo and profiles, a project's links, its screenshots and its whole-site capture
+(`fullPage`, 2026-10-06) — is **rejected on a strict shape** instead of being HTML-escaped
+(escaping would corrupt a real URL: `?a=1&b=2` → `?a=1&amp;b=2`). A link must be either a
+site-relative path (`/partners/…`, `/api/uploads/…`) or an absolute `http(s)` URL;
+`javascript:` / `data:` / `vbscript:` / `file:`, protocol-relative `//host`, and the
+markup/quote/whitespace characters that could break out of an attribute are all refused.
+Enforced on both sides — `LinkStr` in `backend/app/validators.py` and `isLink` /
+`sanitizeLink` in `lib/validation.ts`. The path of a project's interactive demo (`demo`,
+2026-10-06), a manifest the site fetches rather than renders, is held to the same shape
+([below](#the-interactive-demo-on-portofoliu-2026-10-06)).
 
-### Logo upload (`POST /api/admin/uploads`) — admin-only, magic-byte sniffed
-The only endpoint accepting binary content. Admin-authenticated and rate-limited (20/min),
-capped at **512 KB** (streamed, so an oversized file is abandoned mid-read). The format is
-decided by the file's **magic bytes**, never by the client's `Content-Type` or filename, and
-only PNG / JPEG / WebP are stored. **SVG is refused**: it is XML and can carry `<script>`, so
-serving one from our own origin would be a stored-XSS primitive. The stored filename is a
-uuid we generate plus an extension from our own allow-list, so a hostile `filename` can
-neither traverse the filesystem nor choose its own extension.
+### Image uploads — admin-only, magic-byte sniffed, always re-encoded
+The only endpoints accepting binary content: `POST /api/admin/uploads` stores a picture (a
+partner logo or preview, a team photo, a project screenshot) and `POST
+/api/admin/uploads/capture` a project's whole-site capture (`fullPage`, 2026-10-06). Both are
+admin-authenticated, rate-limited (20/min each) and share every guard
+(`backend/app/routers/uploads.py`):
+
+- **Size.** Capped at **8 MB** (`MAX_UPLOAD_BYTES`), read as a stream so an oversized file is
+  abandoned mid-read (413). The body-size middleware and nginx allow 10 MB on the
+  `/api/admin/uploads` prefix — headroom for the multipart framing — and 1 MB everywhere else.
+  (This page used to say 512 KB, a limit the code no longer has.)
+- **Format.** Decided by the file's **magic bytes**, never by the client's `Content-Type` or
+  filename; only PNG / JPEG / WebP are accepted. **SVG is refused**: it is XML and can carry
+  `<script>`, so serving one from our own origin would be a stored-XSS primitive.
+- **Decompression bombs.** The pixel count is read from the header, and anything over **24 MP**
+  (`MAX_IMAGE_PIXELS`, also pinned as Pillow's own limit) is refused with a 400 before a single
+  pixel is decoded. A corrupt or truncated file is a 400 too, never a 500.
+- **Memory and CPU.** Decoding runs in a worker thread, behind a semaphore: at most two picture
+  decodes at once, and one capture decode (~370 MB of RAM at worst, a 24 MP WebP).
+- **Disk.** The uploads directory has a **512 MB** budget; past it, uploads are refused with 507
+  before anything is decoded.
+- **Always re-encoded.** What is stored is rebuilt from the decoded pixels and written as WebP —
+  never the client's bytes — so a polyglot's appended payload and any EXIF (GPS), ICC or XMP
+  block are dropped. The filename is a uuid we generate plus our own extension, so a hostile
+  `filename` can neither traverse the filesystem nor choose its own extension.
+- **Geometry.** A picture's longest side is capped at 1600px. A capture is scaled to **1080px
+  wide** when wider (never upscaled) and **cut at 12000px tall** from the top, so whatever is
+  uploaded, at most 1080 × 12000 is stored. Both are first turned upright by their EXIF
+  orientation (then the EXIF goes), and 16-bit grey is scaled to 8 bits rather than clipped.
+- **One decoder per format.** The magic bytes pick the format, and `Image.open` is given only
+  that format's decoder (`formats=[…]`): a body that merely starts like a JPEG is never handed
+  to another of Pillow's plugins. Any failure while decoding — a malformed chunk raising
+  `struct.error` or `IndexError` included — is a 400, never a 500.
+- Stored files are served from `/api/uploads/` with `X-Content-Type-Options: nosniff`.
 
 ### XSS / script injection — escaped at the boundary that renders, not at the one that stores
 Free-text is stored **exactly as the user typed it** (trimmed, control-chars rejected,
@@ -93,7 +123,8 @@ payload like `'; DROP TABLE users;--` is stored as literal text and cannot affec
 
 ### Request-body size guard
 A middleware in `backend/app/main.py` rejects request bodies larger than **1 MB** with HTTP
-413 before they are parsed.
+413 before they are parsed — **10 MB** under `/api/admin/uploads`, where the body is an
+image (see above).
 
 ## The HTML CSP and the first-visit intro (2026-09-16)
 
@@ -180,6 +211,12 @@ cookie policy (`app/(site)/cookies/content.ts` says so in its header comment, RO
 gate compares `x-pathname` — which `proxy.ts` overwrites on every document request — only with
 `"/"`; a client that forges it on a prefetch request can only toggle the overlay in its own
 response (pages are rendered per request, and nginx does not cache them).
+
+**`x-intro` (2026-10-09).** The proxy's verdict that a URL came from an ad (`utm_*` or a click id
+such as `gclid` / `fbclid`; `fromAd` in `lib/intro.ts`), forwarded so the layout leaves the intro
+out. `proxy.ts` deletes any copy the browser sent and sets its own; only the literal `skip`
+counts, and it can only remove the overlay. Like `x-pathname`, a copy forged on a router prefetch
+(which skips the proxy) changes nothing but the sender's own response. Nothing is stored.
 
 ## The interior 3D stage (2026-09-17)
 
@@ -304,27 +341,40 @@ several up-front files were outside the list. Fixed before release (review findi
 - **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
   through React (escaped), exactly as the whole tag was rendered before.
 
-### The Ghid TBS guide — removed (2026-09-26)
+### The Ghid TBS guide's tip — removed (2026-09-26); the assistant stays
 
-The guide (IT-OS Phase 4, 2026-09-17) was a holographic assistant in the bottom-right corner that
-offered help about the section a visitor lingered on. It was **removed on 2026-09-25, briefly restored on the 26th at the owner's request and removed again the same day, for good**: `components/hud/guide/*`, `lib/hud/linger.ts`, `lib/hud/obscure.ts`, `lib/hud/busy.ts`,
-`public/guide/*`, `tools/guide/*` and `e2e/guide.spec.ts` are gone, and with them the
-`data-guide-topic` attribute, the `data-guide` root and the `guide` / `guide-prompt` request
-sources. Nothing replaced it.
+The guide (IT-OS Phase 4, 2026-09-17) offered help about the section a visitor lingered on. That
+**linger tip** was removed on 2026-09-25, briefly restored on the 26th at the owner's request and
+removed again the same day, for good: `lib/hud/linger.ts`, the `data-guide-topic` attribute and
+`e2e/guide.spec.ts` are gone. **The assistant herself stayed** — the photographic hologram in the
+bottom-right corner (`components/hud/guide/*`, root `[data-guide]`), who answers written questions
+when pressed and opens the request flow from her bubble (request source `guide`).
 
-It had added no dependency, no storage key, no cookie, no request and no CSP change, so its removal
-takes nothing off the review's list — it only shrinks the surface:
+What she puts on the review's list:
 
-- **The only lead rows it could write are unreachable.** `- Secțiune: <topic>` came from a
-  `data-guide-topic` attribute it read off the page. The row's validation
-  (`isGuideTopic`: `servicii`, `lucrari`, `service`) and the `RequestContext.guideTopic` field
-  stay, because the format is the estimator's, not the guide's; no CTA passes one today, so the
-  row no longer appears in any lead. `POST /api/contact` validates exactly as before.
-- **One asset less to serve.** The 384px WebP portrait it drew (`public/guide/`) and the
-  `sharp`-based tool that produced it (`tools/guide/`, a dev-only script, never shipped) are gone.
+- **Same-origin images only:**
+  - `public/guide/asistent-384.webp`, her portrait (32 KB);
+  - since 2026-10-08, `public/guide/gura/*.webp`, her mouth's frames (33 files, 91 KB in all).
+
+  They load as an `<img>` and as CSS backgrounds and masks, and through `new Image()`, to wait
+  for their decode before her face shows or her mouth moves. If a frame fails to load, each new
+  answer asks for them again. All of it is
+  `img-src 'self'`, so there is no CSP change. There is no dependency, no storage key, no cookie
+  and no request of her own.
+- **The lead rows she could write.** `- Secțiune: <topic>` came from the tip's `data-guide-topic`,
+  so it is unreachable now. The row's validation (`isGuideTopic`: `servicii`, `lucrari`,
+  `service`) and the `RequestContext.guideTopic` field stay, because the format is the estimator's,
+  not the guide's. No CTA passes one today, so the row no longer appears in any lead.
+  `POST /api/contact` validates exactly as before.
+- **Developer tools, never shipped:** `tools/guide/`.
+  - The `sharp` scripts that cut the portrait and draw the mouth's frames.
+  - The lip study, `tools/guide/lips/`. It downloads public-domain video from Wikimedia Commons
+    onto a developer's machine, into the gitignored `.work/`, and analyses it in its own Docker
+    image. Nothing of it reaches the site but the numbers. Since 2026-10-08 that includes
+    `fetch_teeth.py`, which takes three more clips by exact title and refuses any whose licence is
+    not public domain, and `teeth.py`, which measures the teeth's brightness on all of them.
 - **Still measured on every run:** `e2e/hud-integration.spec.ts` (HI6, the home page armed and
-  scrolled through) asserts 0 `securitypolicyviolation` events and no console error — now with the
-  rail as the whole chrome.
+  scrolled through) asserts 0 `securitypolicyviolation` events and no console error.
 
 ### The fibre rail (IT-OS Phase 5, 2026-09-17)
 
@@ -340,10 +390,10 @@ request and no CSP change**:
   sections, `scrollY` / `scrollHeight` / `innerHeight`, `--header-h`, and the text of `h1` / `h2`
   headings already on the page. A label is rendered as React text (escaped), never as HTML; the
   home labels are static catalog keys and `{ ro, ru, en }` copy.
-- **It writes only on its own root** (`--rail-p`, `data-flowing`, `data-pulse` on its ticks) and a
-  temporary `tabindex="-1"` on a section a keyboard jump focuses (removed on blur). Nothing on
-  `<html>` or `<body>`, no new `window` global, no new event (it listens to the stage's existing
-  `tbs:scene-layout`).
+- **It writes only inside its own root** (`data-flowing` on the root, `--rail-p` on its fibre,
+  `data-pulse` on its ticks) and a temporary `tabindex="-1"` on a section a keyboard jump focuses
+  (removed on blur). Nothing on `<html>` or `<body>`, no new `window` global, no new event (it
+  listens to the stage's existing `tbs:scene-layout`).
 - **Passive listeners only** (`scroll`, `resize`), so it can never block or hijack scrolling.
 - **The thin cyan scrollbar** is a stylesheet rule on `html` (`scrollbar-width`,
   `scrollbar-color`), not an inline style: nothing in the CSP or the root-style checks changes.
@@ -351,11 +401,135 @@ request and no CSP change**:
   1280 with the rail armed: 0 CSP violations, no console error; HI10: `<html>` / `<body>` untouched
   after the rail's jumps).
 
+## The interactive demo on /portofoliu (2026-10-06)
+
+/portofoliu's screen lets a visitor press a project's links and buttons and move between a few of
+its pages without using the site for real: anything functional (a form, a login, a search, a chat)
+opens a prompt that points to the real site. Each demo is drawn from a **manifest**, a static JSON
+file the site serves itself (`public/projects/demo/<id>/demo.json`, made by `tools/site-demo/`),
+named by the project's `demo` field. It adds **no dependency, no third-party request, no storage and
+no CSP change**:
+
+- **Static and same-origin.** The manifest and the captures it names are files of our own site
+  (`/projects/…`), so the existing `connect-src 'self'` and `img-src 'self'` already cover them.
+  The screen fetches a manifest only from a site path (`sitePath`, in `useSiteDemo`), and the
+  field takes nothing else: `SitePathStr` on the server, `isSitePath` in the admin (a link, see
+  [above](#links-sites-logos-photos-screenshots-captures--rejected-never-escaped), that is a path on
+  the site — a whole URL is refused). Nothing is fetched from a project's site or from anyone else.
+  The backend keeps only the path; it never reads the manifest, and nothing uploads one.
+- **Ours, but parsed as if it were not.** `parseManifest` (`lib/siteDemo.ts`, pure: no DOM, no
+  React) rebuilds the manifest from checked parts, and nothing is drawn from the raw JSON:
+  - **ids** — version `1`, a site language, 1–12 pages with unique ids of `[a-z0-9-]{1,32}`, a
+    start page that is one of them; a hotspot that links to a page not in the manifest is dropped;
+  - **numbers** — every coordinate finite, a shot at most 4000 × 40000 units, each hotspot clipped
+    into its shot (one with nothing left is dropped), at most 160 per shot, no scroll target above
+    the top of its page (and an in-page one not past its end);
+  - **labels** — a page title or a button's text is one line of plain text, 1–120 characters, and
+    one with a control character is refused; it is the button's accessible name, text to print,
+    never markup;
+  - **site paths** — every picture and every path is a plain site path: `/…`, never `//…`, never a
+    scheme, and none of the characters `isLink` refuses (so not `/\host` either).
+
+  A bad page id, title or desktop shot refuses the whole manifest; a hotspot, a phone shot or a
+  page path that fails is dropped on its own. A manifest whose server states (`Content-Length`)
+  more than `DEMO_MAX_BYTES` (256 KB) is not read at all; one that turns out longer than that
+  (256 K characters) is dropped before `JSON.parse` ever sees it.
+- **Deep links only to the project's own origin.** `deepLink` resolves a hotspot's path against
+  the project's `url` (`http` / `https` only) and returns nothing unless the result is on that
+  same origin: no manifest can send a visitor to another site. A project with no public `url`
+  gets no link at all.
+- **No storage.** Where the visitor is in a demo — the page, the pages behind it (at most 20), an
+  open prompt — is a plain value (`demoStep`) held in memory for the page load. No cookie,
+  `localStorage` or `sessionStorage` key is written, and the cookie policy does not change.
+- **No personal data in the pictures.** The rule of the captures ([09](./09-admin.md): never a
+  real client's names, e-mails, phone numbers or faces) holds for a demo's pictures too, and they
+  come from live pages. Labels: a private e-mail or phone becomes "E-mail" / "Telefon", looked for
+  in the whole text. Pixels: the private systems' screenshots were cleaned by hand (2026-10-06);
+  the public sites' captures blur, at capture time, what the live page shows of people
+  (`redact` in `tools/site-demo/config.mjs`: CGAM's league players — the podium and the 62 names
+  of the table — an event photo's faces, a real address in the IQ Arena mockup). A CSS blur
+  changes paint, not layout, so the hotspots stay aligned; a text swap is kept by a mutation
+  observer and checked again after the capture; a rule that must reach a page and reaches nothing
+  stops that page, so a site that changed is never published unblurred. Reviews a site publishes
+  as such keep their authors' names. The originals of the cleaned screenshots remain in the git
+  history: removing them from it means rewriting the history — the owner's call.
+- **The capture tool's own reach** ([tools/site-demo](../tools/site-demo/README.md)): one headless
+  browser in a throwaway profile, deleted when it closes; every request of the captured page that
+  is not GET/HEAD/OPTIONS is failed before it leaves. Not intercepted: a tab a press opens (closed
+  after the press's wait), a cross-site frame, a worker, a WebSocket — fine for the studio's own
+  clients' sites, not a sandbox for a stranger's.
+
+## The portfolio's pixels through the image optimiser (2026-10-08)
+
+Each of /portofoliu's pixels is a small square showing its project
+([05](./05-page-sections.md#portfolio--portofoliu)). A picture of the site's own, right under
+`/projects/`, comes to it through Next's image optimiser, `/_next/image` (`pixelPicture` in
+`components/sections/Portfolio.tsx`, `getImageProps`): a few kilobytes where the file is tens to
+hundreds of them. Nothing else on the site uses the optimiser.
+
+**Before this change.** `next.config.ts` had no `images` key. With none, Next 16 sets
+`localPatterns: [{ pathname: "**", search: "" }]` (`server/config.js`): any file under `public/`
+without a query string, at any of its fifteen default widths. Nothing asked for that, but anyone
+could.
+
+**Now the config pins what the optimiser takes:**
+
+- **Only the pictures right under `/projects`, without a query.**
+  - The rule is `localPatterns: [{ pathname: "/projects/*", search: "" }]`.
+  - Anything else is a 400:
+    - the demos' pages in `/projects/demo/…` (up to 780 × 16000px);
+    - another folder (`/guide/…`);
+    - a query string;
+    - `//host/…`;
+    - a remote URL.
+  - Next appends `/_next/static/media/**` to the list itself. What is there (the fonts, an icon)
+    it refuses as images.
+  - There are no `remotePatterns`, so the optimiser fetches nothing from anyone else and cannot be
+    pointed at a URL (no SSRF).
+  - All of it was checked on the running container.
+- **One quality, three widths.**
+  - The settings are `qualities: [75]`, `imageSizes: [64, 128]` and `deviceSizes: [256]`: exactly
+    what the squares ask for.
+  - `qualities: [75]` is Next 16's default, written down so no later default widens it.
+  - Any other `q` or `w` is a 400, so nothing wider than 256px is ever encoded.
+- **Each request's cost is bounded, but their number is not.**
+  - Next keys its cache on the `url` string as sent, while the allow-list parses it first. So
+    `…png#1`, `…png#2`, a bare `?` and `./` are each a new cache key for the same file.
+  - Each such miss decodes the source again and encodes at most 256px of it. The largest file
+    right under `/projects` is 1080 × 5999px (6.5 MP).
+  - So a caller can keep one CPU busy, but cannot reach a bigger file, a bigger output or the
+    disk. `maximumDiskCacheSize: 50_000_000` caps the encoded variants at 50 MB, dropping the
+    least recently used first. They live in `.next/cache/images` in the container and are gone
+    when it is recreated.
+  - Limiting the rate of `/_next/image` belongs to the reverse proxy (see "What to still do for
+    production", below).
+- **Response headers.**
+  - Next's own, on the optimiser's responses:
+    - `Content-Security-Policy: script-src 'none'; frame-src 'none'; sandbox;`
+    - `Content-Disposition: attachment`
+    - `Cache-Control: public, max-age=14400, must-revalidate` (`minimumCacheTTL`, 4 hours)
+    - `Vary: Accept`
+  - SVG stays refused (`dangerouslyAllowSVG` unset).
+  - `X-Content-Type-Options: nosniff` comes from the `headers()` rule for `/:path*` in
+    `next.config.ts`, as on every other response.
+- **No CSP change.**
+  - The optimised picture is same-origin, under `img-src 'self'`.
+  - An uploaded picture (`/api/uploads/…`) is on the API's origin and never passes through the
+    optimiser. The square loads it as it is, under the API origin that `img-src` already names.
+  - For an uploaded project that picture is the screenshot, never the capture: a capture is the
+    whole site, up to 1080 × 12000px.
+  - If the optimised picture fails, the square falls back to the project's screenshot file, from
+    our origin or the API's.
+- **No new data.** The squares show what the screen already shows for each project. The same rule
+  for pictures applies ([above](#the-interactive-demo-on-portofoliu-2026-10-06)): no real
+  client's names, e-mails, phone numbers or faces.
+
 ## Authentication
 - Admin users live in the DB `users` table with **bcrypt-hashed** passwords
   (`backend/app/security.py`). Login (`POST /api/auth/login`) verifies the hash in constant
   time (with a dummy verify for unknown users to avoid timing leaks) and returns a short-lived
-  JWT. The JWT guards `PUT /api/content` and `GET /api/admin/submissions`.
+  JWT. The JWT guards `PUT /api/content`, the `/api/admin/submissions` routes and both image
+  uploads (`POST /api/admin/uploads`, `POST /api/admin/uploads/capture`).
 - The first admin is **seeded** from `ADMIN_USERNAME` / `ADMIN_PASSWORD` on startup
   (`backend/app/seed.py`), hashed. Changing `ADMIN_PASSWORD` after first run does **not**
   rotate an existing user's password — add a rotation step if you need it.
@@ -369,5 +543,9 @@ string left inert. Run `make test` (Docker) or `make test-local` (venv).
 ## What to still do for production
 - Add rate limiting on `POST /api/contact` and `POST /api/auth/login` (e.g. slowapi / a
   reverse-proxy limit) to stop brute-force and spam.
+- Rate-limit `/_next/image` at the reverse proxy (nginx `limit_req` on `location = /_next/image`).
+  Next keys the image cache on the raw `url`, so equivalent spellings of one path each decode its
+  file again. Each costs at most a 6.5 MP decode and a 256px encode, but their number is unbounded
+  ([above](#the-portfolios-pixels-through-the-image-optimiser-2026-10-08)).
 - Serve everything over HTTPS behind a reverse proxy; don't expose Postgres publicly.
 - Consider Alembic migrations before the schema changes in production (currently `create_all`).

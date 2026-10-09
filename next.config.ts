@@ -27,6 +27,22 @@ const nextConfig: NextConfig = {
   // ship without node_modules or a full `next start`.
   // Ref: node_modules/next/dist/docs/.../05-config/01-next-config-js/output.md
   output: "standalone",
+  // Next's image optimiser (/_next/image) serves the portfolio's pixels, and nothing else on the
+  // site: a small square of each project's own picture, a few kilobytes where the file is tens to
+  // hundreds of them (components/sections/Portfolio.tsx, pixelPicture). It takes only the pictures
+  // right under /projects (not the demos' pages in its folders, up to 16000px tall), with no query
+  // string and from no other origin, at the one quality and the three widths the pixels ask for
+  // (64 and 128px, and twice that for a sharp screen). It keeps at most 50 MB of them on disk.
+  // Next adds /_next/static/media/** itself; what is there (fonts, an icon) it refuses as images.
+  // Ref: node_modules/next/dist/docs/01-app/03-api-reference/02-components/image.md
+  // (localPatterns, qualities, imageSizes, deviceSizes, maximumDiskCacheSize)
+  images: {
+    localPatterns: [{ pathname: "/projects/*", search: "" }],
+    qualities: [75],
+    imageSizes: [64, 128],
+    deviceSizes: [256],
+    maximumDiskCacheSize: 50_000_000,
+  },
 
   // Security headers applied to every route (clickjacking / MIME-sniffing /
   // referrer-leak hardening — the admin page in particular must never be
@@ -94,7 +110,12 @@ const nextConfig: NextConfig = {
         // components/sections/Work.tsx). An hour of freshness plus a week of
         // stale-while-revalidate is the honest middle: repeat views inside the hour cost
         // nothing, and a replaced screenshot is picked up in the background right after.
-        source: "/:dir(projects|partners|team)/:path*",
+        //
+        // `guide` is the corner assistant: her portrait and her mouth's 33 frames, asked for on
+        // every page once the HUD arms. Revalidated, each frame a layer names for the first time
+        // costs a round trip in which that layer paints nothing (GuideAssistant.tsx keeps them
+        // in memory once loaded; this keeps a second page view from asking again).
+        source: "/:dir(projects|partners|team|guide)/:path*",
         headers: [
           {
             key: "Cache-Control",

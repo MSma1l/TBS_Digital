@@ -1044,10 +1044,10 @@ export function createIntroLaptop(tier: IntroTier, palette: IntroPalette): Intro
       // It is also the one object in the scene that costs a full extra render of everything
       // (`transmission: 1`), and beats 1-3 are where the frame budget is tightest.
       //
-      // `visible`, never a material swap — the same rule `setLite` follows. The pane IS visible
-      // when the scene compiles (`useSceneReady` runs before the first frame, and three's
-      // `compileAsync` walks `traverseVisible`), so its program is built up front and coming back
-      // on at u 0.62 re-uses it. Turning it on at the top of the lid's travel is also invisible:
+      // `visible`, never a material swap — the same rule `setLite` follows. The scene's compile
+      // builds the pane's program up front whether it is visible or not (`useSceneReady` runs
+      // before the first frame, and three r186 collects materials with `traverse`), so coming
+      // back on at u 0.62 re-uses it. Turning it on at the top of the lid's travel is also invisible:
       // from K3, behind the machine, the pane is facing away.
       if (glassMesh) glassMesh.visible = !lite && next !== 0;
 

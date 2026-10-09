@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { navLinks } from "@/lib/content";
 import type { SocialNetwork } from "@/lib/content";
+import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { useSiteContent } from "@/lib/siteContent";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
@@ -112,6 +113,7 @@ export function Footer() {
       ? t("footer.social.websiteAria")
       : format(t("footer.social.networkAria"), { network: socialNames[type] });
   const l = useLoc();
+  const { openRequest } = useRequestFlow();
   const { partners, contacts, socials } = useSiteContent();
   const firstEmail = contacts.find((c) => c.type === "email")?.value;
 
@@ -125,8 +127,16 @@ export function Footer() {
     return undefined;
   };
 
+  /*
+   * `#contact` is the footer since 2026-10-09: it was the home page's closing call to action,
+   * which went. The rail's "Contact" marker and any /#contact link now land on this card, with
+   * the contacts in its brand block, on every page. The card rather than the contact list: on the
+   * desktop windows the rail is drawn in, the list sits too low for the page to scroll it to the
+   * top, so a jump to it would be a jump to the page's very end, and the rail's tick would sit
+   * there whatever came above it.
+   */
   return (
-    <footer className={styles.footer} ref={footerRef}>
+    <footer id="contact" className={styles.footer} ref={footerRef}>
       {/* The thread along the card's top edge: it draws itself out from the centre on arrival. */}
       <span className={styles.edge} aria-hidden="true">
         <span className={styles.spark} />
@@ -139,6 +149,19 @@ export function Footer() {
               TBS<span className={styles.dot}>.</span> DIGITAL
             </div>
             <p className={styles.brandText}>{t("footer.brandText")}</p>
+            {/* The request, from the end of every page: the same shared dialog the hero and the
+                header open, so a visitor who read to the bottom is one press from a price. Focus
+                is handed back to this button explicitly: Safari does not focus a button on click,
+                so the default (`document.activeElement` at the press) would be <body> there. */}
+            <button
+              type="button"
+              className={styles.cta}
+              onClick={(event) =>
+                openRequest({ source: "footer", returnFocusTo: event.currentTarget })
+              }
+            >
+              {t("footer.cta")}
+            </button>
             <div className={styles.socials}>
               {linkedSocials.map((s) => (
                 <a

@@ -22,8 +22,9 @@ from app.db import (
     _drop_legacy_partners_table,
     _insert_default_partners,
     _insert_default_socials,
+    create_db_and_tables,
 )
-from app.models import PartnerRow, ServiceRow, SocialRow, TeamRow
+from app.models import PartnerRow, ProjectRow, ServiceRow, SocialRow, TeamRow
 
 LEGACY_PARTNERS_DDL = """
 CREATE TABLE partners (
@@ -327,3 +328,86 @@ def test_team_and_socials_migration_leaves_other_content_untouched(pre_socials_e
         services = session.exec(select(ServiceRow)).all()
 
     assert [s.id for s in services] == ["landing"]
+
+
+# --- a project gains its whole-site capture and its interactive demo -----------------
+#
+# The partner-preview trap again: `projects` is live in production, so `create_all` never
+# adds `full_page` or `demo`, and `ALTER TABLE` leaves them empty on every row —
+# /portofoliu's screen would show no capture and no demo at all, even for the projects
+# that ship them.
+
+# The `projects` table as production has it: no `full_page`, no `demo`.
+LEGACY_PROJECTS_DDL = """
+CREATE TABLE projects (
+    id VARCHAR NOT NULL PRIMARY KEY,
+    name VARCHAR NOT NULL,
+    tag VARCHAR NOT NULL,
+    description VARCHAR NOT NULL,
+    url VARCHAR NOT NULL,
+    app_store VARCHAR NOT NULL,
+    play_store VARCHAR NOT NULL,
+    position INTEGER NOT NULL
+)
+"""
+
+
+def test_boot_adds_full_page_and_demo_and_backfills_the_shipped_ones_once(
+    legacy_engine, monkeypatch
+):
+    """The real boot path, so a backfill written but never wired fails here too."""
+    with legacy_engine.begin() as conn:
+        conn.execute(text("DROP TABLE projects"))
+        conn.execute(text(LEGACY_PROJECTS_DDL))
+        for position, project_id in enumerate(
+            ["bizcheck", "itara-global", "docusafe", "cgam", "balloons-breeze", "own"]
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO projects (id, name, tag, description, url, app_store,"
+                    " play_store, position)"
+                    " VALUES (:id, :id, '', '', '', '', '', :position)"
+                ),
+                {"id": project_id, "position": position},
+            )
+    monkeypatch.setattr("app.db.get_engine", lambda: legacy_engine)
+
+    create_db_and_tables()
+
+    columns = {c["name"] for c in inspect(legacy_engine).get_columns("projects")}
+    assert {"full_page", "demo"} <= columns
+    with Session(legacy_engine) as session:
+        rows = session.exec(select(ProjectRow)).all()
+        captures = {r.id: r.full_page for r in rows}
+        demos = {r.id: r.demo for r in rows}
+    assert captures == {
+        "bizcheck": "/projects/bizcheck-site.webp",
+        "itara-global": "/projects/itara-site.webp",
+        "docusafe": "",  # one of ours, but it ships no capture
+        "cgam": "/projects/cgam-site.webp",
+        "balloons-breeze": "/projects/balloons-breeze-site.webp",
+        "own": "",  # the admin's own project: never filled in
+    }
+    assert demos == {
+        "bizcheck": "/projects/demo/bizcheck/demo.json",
+        "itara-global": "/projects/demo/itara-global/demo.json",
+        "docusafe": "/projects/demo/docusafe/demo.json",  # a demo without a capture
+        "cgam": "/projects/demo/cgam/demo.json",
+        "balloons-breeze": "/projects/demo/balloons-breeze/demo.json",
+        "own": "",
+    }
+
+    # Only the boot that adds a column backfills it: a capture or a demo the admin clears
+    # stays cleared through the next deploy.
+    with Session(legacy_engine) as session:
+        row = session.exec(select(ProjectRow).where(ProjectRow.id == "bizcheck")).one()
+        row.full_page = ""
+        row.demo = ""
+        session.add(row)
+        session.commit()
+
+    create_db_and_tables()
+
+    with Session(legacy_engine) as session:
+        row = session.exec(select(ProjectRow).where(ProjectRow.id == "bizcheck")).one()
+    assert (row.full_page, row.demo) == ("", "")

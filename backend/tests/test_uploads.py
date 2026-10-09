@@ -1,4 +1,5 @@
-"""Logo upload: auth, format sniffing, size cap, compression — and the partner links.
+"""Logo upload: auth, format sniffing, size cap, compression — the partner links, and the
+geometry of a project's whole-site capture.
 
 The upload endpoint is the only one that accepts binary content, so the checks that
 keep it from becoming a file-drop / stored-XSS primitive are pinned here, together with
@@ -406,3 +407,44 @@ def test_upload_refused_when_the_storage_budget_is_exhausted(client, monkeypatch
 
     r = _upload(client, _image())
     assert r.status_code == 507, r.text
+
+
+# --------------------------------------------------------- whole-site captures
+
+
+@pytest.mark.parametrize(
+    "source, stored",
+    [
+        ((1440, 9000), (1080, 6750)),  # wider than 1080: scaled down, ratio kept
+        ((1080, 14000), (1080, 12000)),  # longer than the cap: the bottom is cut off
+        ((800, 3000), (800, 3000)),  # within both: kept at its own size, never upscaled
+    ],
+    ids=["scaled", "cut", "untouched"],
+)
+def test_capture_is_fitted_to_1080_wide_and_cut_at_12000_tall(client, source, stored):
+    """A project's whole-site capture keeps its width and its top — it is no thumbnail.
+
+    The logo route's 1600px longest side would squeeze each of these to a sliver, and a
+    centred crop would drop the top of the site, which is where the screen starts.
+    """
+    page = Image.new("RGB", source, (0, 0, 255))
+    page.paste((255, 0, 0), (0, 0, source[0], 200))  # the top of the site, in red
+    buffer = io.BytesIO()
+    page.save(buffer, format="PNG")
+    files = {"file": ("site.png", buffer.getvalue(), "image/png")}
+
+    # Admin only, like the logo upload.
+    assert client.post("/api/admin/uploads/capture", files=files).status_code == 401
+
+    r = client.post(
+        "/api/admin/uploads/capture",
+        files=files,
+        headers={"Authorization": f"Bearer {_token(client)}"},
+    )
+    assert r.status_code == 201, r.text
+
+    with Image.open(io.BytesIO(_stored_bytes(r.json()["url"]))) as image:
+        assert image.format == "WEBP"
+        assert image.size == stored
+        red, _, blue = image.convert("RGB").getpixel((0, 0))
+    assert red > 200 and blue < 60  # the top survived, so the cut was at the bottom

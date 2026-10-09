@@ -16,8 +16,10 @@ talk to.
 - **SQLModel** (SQLAlchemy 2) for persistence — SQLite or Postgres (`psycopg[binary]`)
 - **bcrypt** for password hashing, **PyJWT** for tokens
 - **pytest** + **httpx** for tests
-- Tables: `services`, `stats`, `team`, `partners`, `contacts`, `submissions`, `users`.
-  `DbStore` (`app/storage/db_store.py`) assembles them into the `SiteContent` document.
+- Tables: `services`, `stats`, `team`, `projects` (+ `project_images`), `partners`,
+  `contacts`, `socials`, `submissions`, `users`, and the Telegram bot's `telegram_topics` and
+  `telegram_settings`. `DbStore` (`app/storage/db_store.py`) assembles the content ones into the
+  `SiteContent` document.
 
 ## Run it
 
@@ -64,14 +66,20 @@ Run the tests with `pytest` (they use an isolated temp SQLite DB, so they don't 
 | `PUT` | `/api/content` | admin | Replace the whole content document (the admin's Save) |
 | `POST` | `/api/contact` | public | Store a contact-form submission |
 | `GET` | `/api/admin/submissions` | admin | List submissions (newest first) |
+| `POST` | `/api/admin/uploads` | admin | Multipart `file` (PNG/JPEG/WebP, ≤ 8 MB) → `{url}` of a WebP, longest side ≤ 1600px |
+| `POST` | `/api/admin/uploads/capture` | admin | Same, for a project's whole-site capture → WebP 1080px wide, ≤ 12000px tall |
 | `POST` | `/api/auth/login` | public | `{username, password}` → `{access_token}` |
 | `GET` | `/api/auth/me` | admin | Validate the current token |
 
 Send the token as `Authorization: Bearer <token>` on admin routes.
 
 `SiteContent` mirrors the frontend's `SiteData` (`lib/siteContent.tsx`) exactly:
-`stats[]`, `services[]` (with `price` + `estimatorOnly`), `team[]`, `partners[]`, `contacts[]`.
-So `GET`/`PUT /api/content` is a drop-in for the current localStorage store.
+`stats[]`, `services[]` (with `price` + `estimatorOnly`), `team[]`, `projects[]` (with
+`images[]`, `fullPage` — the whole-site capture — and `demo`, the path of the project's
+interactive-demo manifest), `partners[]`, `contacts[]`, `socials[]`.
+So `GET`/`PUT /api/content` is a drop-in for the current localStorage store. The upload
+routes and their limits are in [docs/10](../docs/10-backend.md) and
+[docs/11](../docs/11-security.md).
 
 ## Auth — DB-backed users → JWT
 
@@ -136,7 +144,7 @@ backend/
 │  │  ├─ base.py         # ContentStore interface
 │  │  ├─ db_store.py     # DbStore — the active persistence
 │  │  └─ json_store.py   # JSONFileStore (reference/fallback, not wired)
-│  └─ routers/           # auth, content, contact
+│  └─ routers/           # auth, content, contact, uploads
 ├─ data/                 # runtime SQLite DB / JSON (gitignored)
 ├─ tests/                # pytest smoke + DB tests (isolated temp SQLite)
 ├─ requirements.txt / requirements-dev.txt

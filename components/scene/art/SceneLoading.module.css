@@ -30,6 +30,24 @@
     visibility 0s linear 0.35s;
 }
 
+/* And out of the CLOCK too, once the fade has ended (2026-10-07): `visibility` stopped the paint,
+   not the six loops, and the scan bar's transform on an SVG path forced a layout every frame (one a
+   frame on Home at rest). `--loading-play` (Loading.module.css reads it into animation-play-state)
+   flips to `paused` by a discrete transition delayed by the fade's own 0.35s, the frame visibility
+   flips; raised, it is `running` at once. A transition, not @keyframes — a value set from
+   @keyframes is animation-tainted and Blink ignores it in animation-play-state. Unsupported: never
+   set, and the mark runs as before. */
+@supports (transition-behavior: allow-discrete) {
+  .host {
+    --loading-play: paused;
+    transition:
+      opacity 0.35s var(--motion-ease-out),
+      visibility 0s linear 0.35s,
+      --loading-play 0s linear 0.35s;
+    transition-behavior: allow-discrete;
+  }
+}
+
 /* Only while the stage has not decided. `pending` is the server's value too, so a host is never
    empty — and the <noscript> guard in app/(site)/layout.tsx takes the mark away where no decision
    ever comes, because a loader that can never resolve is a lie. */
@@ -37,6 +55,14 @@
   opacity: 1;
   visibility: visible;
   transition: opacity 0.35s var(--motion-ease-out);
+  --loading-play: running;
+}
+
+/* Raised but behind the intro's film: the stage waits for the overlay, so the marks stay raised under
+   its opaque cover for the whole film. They rest there, and run from the first frame the reveal can
+   show them (the rule stops matching in the same style change). */
+:global(html:not([data-intro-played]):has(#tbs-intro[data-phase="run"])) .host {
+  --loading-play: paused;
 }
 
 /* Work's cards are the portfolio, not a fallback: the scene RE-PLACES them onto the spiral rather

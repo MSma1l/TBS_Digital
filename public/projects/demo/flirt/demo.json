@@ -1,0 +1,25 @@
+{
+  "v": 1,
+  "lang": "ro",
+  "start": "creeaza-cont",
+  "pages": [
+    {
+      "id": "creeaza-cont",
+      "title": "Creează cont",
+      "d": {
+        "src": "/projects/flirt-1.png",
+        "w": 1021,
+        "h": 762,
+        "hot": [
+          { "r": [20, 107, 985, 36], "t": "Email", "k": "site", "el": "button" },
+          { "r": [19, 173, 986, 38], "t": "Parolă", "k": "site", "el": "button" },
+          { "r": [19, 240, 986, 38], "t": "Confirmă parola", "k": "site", "el": "button" },
+          { "r": [127, 290, 96, 14], "t": "Termenii și condițiile", "k": "site", "el": "link" },
+          { "r": [233, 290, 131, 14], "t": "Politica de confidențialitate", "k": "site", "el": "link" },
+          { "r": [20, 358, 985, 41], "t": "Creează cont", "k": "site", "el": "button" },
+          { "r": [430, 424, 165, 16], "t": "Ai deja cont? Autentifică-te", "k": "site", "el": "link" }
+        ]
+      }
+    }
+  ]
+}

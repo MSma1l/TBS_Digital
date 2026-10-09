@@ -34,13 +34,16 @@ const RequestSection = dynamic(
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-/* The dialog's own copy — the same two lines the flow has always carried. Local
-   `{ro,ru,en}` objects rather than catalog keys, same as `components/sections/Estimator.tsx`. */
+/* The dialog's own copy. Local `{ro,ru,en}` objects rather than catalog keys, same as
+   `components/sections/Estimator.tsx`. The title is the home section's heading (`SECTION.title`
+   there), written out again rather than imported: importing it would put the estimator into the
+   first load of every page, which is what the dynamic import above exists to prevent. The lead is
+   the dialog's own. */
 const COPY = {
   title: L(
-    "Spune-ne ce vrei să construiești.",
-    "Расскажите, что хотите построить.",
-    "Tell us what you want to build.",
+    "Află de la ce preț pornește proiectul tău.",
+    "Узнайте, с какой цены начинается ваш проект.",
+    "See the starting price for your project.",
   ),
   lead: L(
     "Un dialog scurt clarifică cererea, iar rezumatul se atașează automat propunerii.",
@@ -60,9 +63,16 @@ export type RequestSource =
   | "hero"
   | "navbar"
   | "navbar-menu"
-  | "bottom-cta"
   | "service-page"
   | "service-page-bottom"
+  /** "Cere ofertă" on a direction of the home page's services; the direction travels with it. */
+  | "home-services"
+  /** "Vreau un proiect similar" under the home page's projects. */
+  | "home-work"
+  /** A starting price in "De ce TBS"; its project type travels with it. */
+  | "home-why"
+  /** "Calculează prețul" in the footer. */
+  | "footer"
   /** "Vreau un proiect similar" beside the /portofoliu screen; the project travels with it. */
   | "project-card"
   /** The close of /portofoliu. */
@@ -151,8 +161,8 @@ const RequestFlowContext = createContext<RequestFlowApi | null>(null);
 /**
  * One request flow for the whole site.
  *
- * Every commercial CTA — the hero, the navbar (bar and menu), the bottom CTA, both actions
- * on a service page — calls `openRequest()` from `useRequestFlow()`. The dialog itself is
+ * Every commercial CTA — the hero, the navbar (bar and menu), the footer, both actions on a
+ * service page — calls `openRequest()` from `useRequestFlow()`. The dialog itself is
  * mounted **here, once**, in `app/layout.tsx`: a CTA that rendered its own `Modal` would put
  * one dialog in the DOM per CTA, so a page with four of them would ship four dialogs, four
  * focus traps and four scroll locks.

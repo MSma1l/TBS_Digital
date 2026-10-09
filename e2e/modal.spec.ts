@@ -28,7 +28,7 @@ import {
  * The request dialog on a service page.
  *
  * `components/sections/DirectionPage.tsx` puts a `RequestModal` in the action bar under the
- * hero: pressing "Vorbește cu echipa" opens `components/ui/Modal.tsx` with the REAL request
+ * hero: pressing "Cere ofertă" opens `components/ui/Modal.tsx` with the REAL request
  * flow inside it (`RequestSection` → `Estimator`), the service already chosen.
  *
  * What is tested here is the part jsdom cannot prove: that it behaves like a dialog in a

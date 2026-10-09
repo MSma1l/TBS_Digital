@@ -7,7 +7,7 @@
  *      any other page's `section` headings, and no nav past 8 markers;
  *   2. its markup — `[data-hud][data-rail]`, an `aria-hidden` fibre, real buttons (no href);
  *   3. the jump — `scrollTo` under the header, smooth or instant, focus only from the keyboard;
- *   4. the frame — `--rail-p` on the rail's own root (never on <html> or <body>), the current
+ *   4. the frame — `--rail-p` on the fibre (never on the root, <html> or <body>), the current
  *      marker, the tick pulses, the flow flag, and nothing while covered or measuring;
  *   5. re-measuring — the ResizeObserver, `resize`, the scene's layout event, the cover's release,
  *      a client navigation;
@@ -204,7 +204,7 @@ const fibre = () => railRoot().querySelector<HTMLElement>(":scope > [aria-hidden
 const ticks = () => Array.from(railRoot().querySelectorAll<HTMLElement>("[data-rail-tick]"));
 const railNav = () => screen.queryByRole("navigation", { name: RAIL_COPY.nav.ro });
 const markers = () => within(railNav()!).getAllByRole("button");
-const railP = () => railRoot().style.getPropertyValue("--rail-p");
+const railP = () => fibre().style.getPropertyValue("--rail-p");
 const yOf = (el: HTMLElement) => el.style.getPropertyValue("--y");
 
 /* ---- setup ------------------------------------------------------------------------------------- */
@@ -280,7 +280,8 @@ describe("home page", () => {
       expect(button.hasAttribute("href")).toBe(false);
     }
     expect(root.querySelector("a, [href]")).toBeNull();
-    // The buttons are the only non-hidden content; the fibre holds the core, thread, flow, head and one tick per section.
+    // The buttons are the only non-hidden content; the fibre holds the core, the thread's layer, the flow, the
+    // head's layer and one tick per section.
     expect(ticks()).toHaveLength(7);
     expect(fibre().children).toHaveLength(4 + 7);
   });
@@ -539,7 +540,7 @@ describe("jumping to a section", () => {
 /* ---- 4. the frame ---------------------------------------------------------------------------------- */
 
 describe("per scroll frame", () => {
-  it("writes --rail-p on the rail root only, once per frame, and never a style on <html> or <body>", () => {
+  it("writes --rail-p on the fibre only, once per frame, and never a style on the root, <html> or <body>", () => {
     mountHomeFixture();
     renderRail();
     expect(railP()).toBe("0.0000");
@@ -560,6 +561,8 @@ describe("per scroll frame", () => {
     scrollTo(-20);
     expect(railP()).toBe("0.0000");
 
+    // Not on the root: the property is inherited, and the nav under the root never reads it.
+    expect(railRoot().getAttribute("style")).toBeNull();
     expect(document.documentElement.getAttribute("style")).toBeNull();
     expect(document.body.getAttribute("style")).toBeNull();
   });

@@ -23,6 +23,7 @@ import {
   fetchSubmissions,
   deleteSubmission,
   uploadLogo,
+  uploadCapture,
   mediaUrl,
   getToken,
   setToken,
@@ -125,6 +126,9 @@ const SOCIAL_LABEL: Record<SocialField | SocialNetwork, string> = {
   telegram: "Telegram",
 };
 
+/** A full-page capture's byte limit — the capture route's own (`MAX_UPLOAD_BYTES`, 8 MiB). */
+const CAPTURE_MAX_BYTES = 8 * 1024 * 1024;
+
 /** Per-field validation rules for the editable content fields. */
 const RULES = {
   serviceName: { label: "Numele serviciului", max: LIMITS.short },
@@ -145,6 +149,8 @@ const RULES = {
   projectUrl: { label: "Link-ul proiectului", max: LIMITS.link, link: true },
   projectAppStore: { label: "Link-ul App Store", max: LIMITS.link, link: true },
   projectPlayStore: { label: "Link-ul Google Play", max: LIMITS.link, link: true },
+  projectFullPage: { label: "Captura întregului site", max: LIMITS.link, link: true },
+  projectDemo: { label: "Demo-ul interactiv", max: LIMITS.link, link: true, path: true },
   teamPhoto: { label: "Fotografia", max: LIMITS.link, link: true },
   teamSocial: { label: "Link-ul", max: LIMITS.link, link: true },
   socialUrl: { label: "Link-ul", max: LIMITS.link, link: true },
@@ -202,6 +208,9 @@ function sanitizeDraft(d: SiteData): SiteData {
       playStore: sanitizeLink(p.playStore),
       // An image that doesn't survive sanitizing is dropped from the gallery entirely.
       images: p.images.map(sanitizeLink).filter(Boolean),
+      // Optional: content saved before these fields existed has no key at all.
+      fullPage: sanitizeLink(p.fullPage ?? ""),
+      demo: sanitizeLink(p.demo ?? ""),
     })),
     partners: d.partners.map((p) => ({
       ...p,
@@ -245,7 +254,9 @@ function draftHasErrors(d: SiteData): boolean {
         locHasError(p.desc, RULES.projectDesc) ||
         !!validateText(p.url, RULES.projectUrl) ||
         !!validateText(p.appStore, RULES.projectAppStore) ||
-        !!validateText(p.playStore, RULES.projectPlayStore),
+        !!validateText(p.playStore, RULES.projectPlayStore) ||
+        !!validateText(p.fullPage ?? "", RULES.projectFullPage) ||
+        !!validateText(p.demo ?? "", RULES.projectDemo),
     ) ||
     d.partners.some(
       (p) =>
@@ -667,11 +678,14 @@ export default function AdminPage() {
    * Upload an image and hand the stored path to `apply`. The file itself is saved
    * immediately (it is named by a uuid, so an abandoned upload is just an orphan
    * file); the row that points at it only persists on Save, like every other field.
+   * `upload` picks the endpoint: a project's full-page capture passes
+   * `uploadCapture`, every other image goes through `uploadLogo`.
    */
   const uploadImage = async (
     key: string,
     file: File,
     apply: (url: string) => void,
+    upload: (file: File, token: string) => Promise<string> = uploadLogo,
   ) => {
     const token = getToken();
     if (!token) {
@@ -681,7 +695,7 @@ export default function AdminPage() {
     setUploadingKey(key);
     setUploadError("");
     try {
-      apply(await uploadLogo(file, token));
+      apply(await upload(file, token));
     } catch (err) {
       if (isUnauthorized(err)) {
         clearToken();
@@ -703,7 +717,7 @@ export default function AdminPage() {
   // ---- projects (name/links are plain, tag/desc are localized) --------------
   const setProject = (
     i: number,
-    field: "name" | "url" | "appStore" | "playStore",
+    field: "name" | "url" | "appStore" | "playStore" | "demo",
     val: string,
   ) =>
     setDraft((d) => ({
@@ -740,11 +754,20 @@ export default function AdminPage() {
           appStore: "",
           playStore: "",
           images: [],
+          fullPage: "",
+          demo: "",
         },
       ],
     }));
   const removeProject = (i: number) =>
     setDraft((d) => ({ ...d, projects: d.projects.filter((_, idx) => idx !== i) }));
+  /* By id, not by place: a capture can take seconds to upload, and a project removed meanwhile
+     must not hand its capture to the one that moved up into its place. */
+  const setProjectFullPage = (id: string, url: string) =>
+    setDraft((d) => ({
+      ...d,
+      projects: d.projects.map((p) => (p.id === id ? { ...p, fullPage: url } : p)),
+    }));
 
   const setProjectImages = (i: number, images: string[]) =>
     setDraft((d) => ({
@@ -1331,7 +1354,7 @@ export default function AdminPage() {
             <h2 className={`mono ${styles.panelTitle}`}>PARTENERI</h2>
             <p className={styles.panelHint}>
               Logo-ul apare în secțiunea „Partenerii noștri” și trimite către
-              site-ul partenerului. Încarcă un PNG, JPG sau WebP de max 512 KB —
+              site-ul partenerului. Încarcă un PNG, JPG sau WebP de max 8 MB —
               ideal alb, pe fundal transparent (site-ul are fundal închis).
             </p>
             {uploadError && (
@@ -1579,7 +1602,111 @@ export default function AdminPage() {
 
                   <div className={styles.field}>
                     <span className={`mono ${styles.fieldLabel}`}>
-                      Imagini ({p.images.length}) — se rotesc în ordinea de mai jos
+                      Captura întregului site
+                    </span>
+                    <div className={styles.logoRow}>
+                      {p.fullPage ? (
+                        // A capture is a whole site tall: fetch it only once its card
+                        // scrolls into view. The thumbnail shows its top.
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={mediaUrl(p.fullPage)}
+                          alt={`Captura întregului site ${p.name}`}
+                          loading="lazy"
+                          className={styles.shotThumb}
+                        />
+                      ) : (
+                        <span className={`mono ${styles.logoEmpty}`}>
+                          fără captură
+                        </span>
+                      )}
+                      <div className={styles.logoActions}>
+                        <label className={`mono ${styles.uploadBtn}`}>
+                          {uploadingKey === `capture:${p.id}`
+                            ? "Se încarcă…"
+                            : "Încarcă captura"}
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={uploadingKey !== null}
+                            aria-describedby={`capture-hint-${i}`}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!file) return;
+                              // the server's own limit, said before the upload: past ~10 MB
+                              // the request is stopped before the route can explain
+                              if (file.size > CAPTURE_MAX_BYTES) {
+                                setUploadError(
+                                  "Captură prea mare (max 8 MB). Salveaz-o ca JPG sau WebP.",
+                                );
+                                return;
+                              }
+                              const id = p.id;
+                              void uploadImage(
+                                `capture:${id}`,
+                                file,
+                                (url) => setProjectFullPage(id, url),
+                                uploadCapture,
+                              );
+                            }}
+                            className={styles.fileInput}
+                          />
+                        </label>
+                        {p.fullPage && (
+                          <button
+                            type="button"
+                            onClick={() => setProjectFullPage(p.id, "")}
+                            className={`mono ${styles.linkBtn}`}
+                          >
+                            Elimină
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p id={`capture-hint-${i}`} className={styles.fieldHint}>
+                      Un PNG, JPG sau WebP cu tot site-ul, de sus până jos, lat de cel
+                      puțin 1080px; cel mult 8 MB și 24 de megapixeli (de ex. 1440×16600
+                      px). Se păstrează la 1080px lățime, cel mult primii 12000px. Ecranul
+                      din /portofoliu îl derulează; fără el, arată prima imagine de mai jos.
+                      Fără date personale reale — folosește date demo.
+                    </p>
+                    <FieldError
+                      msg={validateText(p.fullPage ?? "", RULES.projectFullPage)}
+                    />
+                  </div>
+
+                  {/* A div with a real <label>, not a wrapping one: the hint stays out of the
+                      input's name and is read as its description instead. */}
+                  <div className={styles.field}>
+                    <label
+                      htmlFor={`demo-${i}`}
+                      className={`mono ${styles.fieldLabel}`}
+                    >
+                      Demo interactiv
+                    </label>
+                    <input
+                      id={`demo-${i}`}
+                      value={p.demo ?? ""}
+                      onChange={(e) => setProject(i, "demo", e.target.value)}
+                      placeholder="/projects/demo/<id>/demo.json"
+                      aria-describedby={`demo-hint-${i}`}
+                      className={`mono ${styles.input}`}
+                    />
+                    <p id={`demo-hint-${i}`} className={styles.fieldHint}>
+                      Câteva pagini ale site-ului, cu butoanele lor, pe care vizitatorul le
+                      apasă în ecranul din /portofoliu; tot ce e funcțional îl trimite pe
+                      site-ul real. Aici e calea manifestului lor, generat de tools/site-demo
+                      (vezi README-ul lui). Gol = fără demo. Când site-ul se schimbă,
+                      regenerează-l odată cu captura.
+                    </p>
+                    <FieldError msg={validateText(p.demo ?? "", RULES.projectDemo)} />
+                  </div>
+
+                  <div className={styles.field}>
+                    <span className={`mono ${styles.fieldLabel}`}>
+                      Imagini ({p.images.length}) — prima apare pe carduri și, fără
+                      captură, pe ecran
                     </span>
                     <div className={styles.shotList}>
                       {p.images.map((src, k) => (

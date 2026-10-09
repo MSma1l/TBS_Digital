@@ -11,7 +11,7 @@ from typing import Annotated, List, Literal
 
 from pydantic import AfterValidator, BaseModel, EmailStr, Field, model_validator
 
-from .validators import IdStr, LinkStr, PhoneStr, text, validate_contact_value
+from .validators import IdStr, LinkStr, PhoneStr, SitePathStr, text, validate_contact_value
 
 # Stored e-mail from the contact form. ``EmailStr`` first enforces a valid address
 # (so the endpoint still 422s on garbage), then — for symmetry with every other
@@ -131,13 +131,19 @@ class Social(BaseModel):
 
 
 class Project(BaseModel):
-    """A delivered project shown on the /04 grid.
+    """A delivered project shown on the /04 grid and on /portofoliu.
 
-    ``images`` is the card's gallery — it rotates through them — and each entry is
-    either a bundled asset (``/projects/…``) or an uploaded path (``/api/uploads/…``).
-    ``url`` links to the live product; ``appStore`` / ``playStore`` are the mobile
-    download links, and a card only shows the store button whose link is set (so a
-    web-only project simply has neither).
+    ``images`` is the project's gallery, and ``images[0]`` is the picture the cards and
+    /portofoliu's screen show; each entry is either a bundled asset (``/projects/…``) or
+    an uploaded path (``/api/uploads/…``). ``fullPage`` is a capture of the whole site,
+    top to bottom (1080px wide — see the capture upload in routers/uploads.py), that
+    /portofoliu's screen scrolls through; a project without one leaves it empty and the
+    screen shows ``images[0]``. ``demo`` names the project's interactive demo on that
+    screen: a static manifest the site serves (``/projects/demo/<id>/demo.json``, made by
+    ``tools/site-demo/``, parsed by ``lib/siteDemo.ts``) of a few of its pages with their
+    links and buttons; empty means no demo. ``url`` links to the live product;
+    ``appStore`` / ``playStore`` are the mobile download links, and a card only shows the
+    store button whose link is set (so a web-only project simply has neither).
     """
 
     id: IdStr
@@ -150,6 +156,8 @@ class Project(BaseModel):
     images: List[LinkStr] = Field(
         default_factory=list, max_length=MAX_PROJECT_IMAGES
     )
+    fullPage: LinkStr = ""
+    demo: SitePathStr = ""
 
 
 class Partner(BaseModel):

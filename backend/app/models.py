@@ -92,6 +92,8 @@ class ProjectRow(SQLModel, table=True):
     url: str = ""
     app_store: str = ""  # maps to schema field `appStore`
     play_store: str = ""  # maps to schema field `playStore`
+    full_page: str = ""  # maps to schema field `fullPage` (ALTERed in by db.py on boot)
+    demo: str = ""  # the demo manifest's path, schema field `demo` (ALTERed in on boot too)
     position: int = 0
 
 

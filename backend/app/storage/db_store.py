@@ -158,6 +158,8 @@ class DbStore(ContentStore):
                     appStore=r.app_store,
                     playStore=r.play_store,
                     images=images_by_project.get(r.id, []),
+                    fullPage=r.full_page,
+                    demo=r.demo,
                 )
                 for r in projects
             ],
@@ -274,6 +276,14 @@ class DbStore(ContentStore):
             row.url = item.url
             row.app_store = item.appStore
             row.play_store = item.playStore
+            # A document that does not name the capture or the demo at all — an admin page
+            # loaded before the field existed, saving after the deploy — leaves that one as
+            # it is; an explicit "" (the admin's "Elimină", an emptied demo field) still
+            # clears it. Each key is judged on its own.
+            if "fullPage" in item.model_fields_set:
+                row.full_page = item.fullPage
+            if "demo" in item.model_fields_set:
+                row.demo = item.demo
             row.position = pos
             session.add(row)
 

@@ -446,7 +446,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
 
     test("E10 the \"open the service\" link navigates on the first tap", async ({ page }) => {
       await gotoHydrated(page, "/");
-      const open = page.locator("#servicii").getByRole("link", { name: /^Deschide serviciul/ });
+      const open = page.locator("#servicii").getByRole("link", { name: /^Detalii/ });
       await open.scrollIntoViewIfNeeded();
       await open.tap();
       await page.waitForURL(`**/servicii/${SCENE_SHAPES[0]}`);

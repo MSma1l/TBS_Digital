@@ -166,9 +166,9 @@ export const guideAvatar = (page: Page): Locator => guideRoot(page).locator('[da
 
 /**
  * The fibre-optic scroll rail (components/hud/rail/ScrollRail.tsx), a desktop-only HUD part
- * (≥861px): its root on the right edge (`[data-hud][data-rail]`, which carries `--rail-p`), and
- * the real `<nav>` of section buttons on it (absent when a page has no sections, or more than
- * eight). The decorative fibre is the root's `aria-hidden` child. The nav's name and the home
+ * (≥861px): its root on the right edge (`[data-hud][data-rail]`), and the real `<nav>` of
+ * section buttons on it (absent when a page has no sections, or more than eight). The decorative
+ * fibre is the root's `aria-hidden` child, and it carries `--rail-p`. The nav's name and the home
  * labels are the rail's copy (components/hud/rail/copy.ts), which a spec imports.
  */
 export const railRoot = (page: Page): Locator => page.locator("[data-hud][data-rail]");
@@ -292,8 +292,8 @@ export const estimatorSection = (page: Page): Locator => page.locator("#estimare
 export const PRIVATE_COPY = {
   /** `components/ui/Modal.tsx` → `COPY.close` (the ✕ button's aria-label). */
   modalClose: "Închide",
-  /** `components/sections/RequestModal.tsx` → `COPY.title` (the dialog's accessible name). */
-  modalTitle: "Spune-ne ce vrei să construiești.",
+  /** `lib/request/RequestFlowProvider.tsx` → `COPY.title` (the dialog's accessible name). */
+  modalTitle: "Află de la ce preț pornește proiectul tău.",
   /** `components/sections/Estimator.tsx` → `SECTION.submit` (the real contact submit). */
   estimatorSubmit: "Trimite cererea",
   /** `lib/request/catalog.ts` → `PROJECT_TYPES[0].label`, the first project chip. */
@@ -446,9 +446,10 @@ export const chatInput = (root: Locator): Locator =>
 export const chatSendButton = (root: Locator): Locator =>
   root.getByRole("button", { name: PRIVATE_COPY.chatSend, exact: true });
 
-/** Every bubble in the transcript, assistant and visitor alike, in order. */
+/** Every bubble in the transcript, assistant and visitor alike, in order — the thread inside the
+    conversation's scrolling window (`chatLog`), which since 2026-10-07 also holds the summary. */
 export const chatBubbles = (root: Locator): Locator =>
-  root.locator('[class*="chatLog"] > [class*="bubble"]');
+  root.locator('[class*="chatThread"] > [class*="bubble"]');
 
 /**
  * One quick reply in the chat. `button[class*="chatOption"]` and not just the class: the

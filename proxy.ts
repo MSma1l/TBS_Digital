@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { DEFAULT_LOCALE, splitLocalePath } from "@/lib/i18n/locales";
+import { INTRO_HEADER, INTRO_SKIP, fromAd } from "@/lib/intro";
 
 /*
  * Per-request Content-Security-Policy (Next 16 "Proxy" — the renamed Middleware).
@@ -85,6 +86,14 @@ export function proxy(request: NextRequest) {
   );
   requestHeaders.set("x-pathname", localeStrippedPath);
   if (urlLocale !== DEFAULT_LOCALE) requestHeaders.set("x-locale", urlLocale);
+
+  // The intro's ad bypass (lib/intro.ts `fromAd`), on the same channel and for the same reason:
+  // the `(site)` layout that gates the first-visit intro cannot read the query string. A URL
+  // carrying a `utm_*` tag or an ad platform's click id (gclid, fbclid, …) goes through as
+  // `x-intro: skip`, and the layout renders no overlay. Deleted first: the header is this
+  // function's verdict, so a copy the browser sent with the request must never reach the layout.
+  requestHeaders.delete(INTRO_HEADER);
+  if (fromAd(request.nextUrl.searchParams)) requestHeaders.set(INTRO_HEADER, INTRO_SKIP);
 
   const response = NextResponse.next({
     request: { headers: requestHeaders },

@@ -72,7 +72,7 @@ describe("action bar", () => {
 
     // It is a button, not a link: the flow opens here rather than throwing the visitor
     // back to the home page mid-read.
-    const cta = screen.getByRole("button", { name: "Vorbește cu echipa" });
+    const cta = screen.getByRole("button", { name: "Cere ofertă" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await user.click(cta);
@@ -103,7 +103,7 @@ describe("action bar", () => {
     /* Scoped to the bar itself — the button's own row. The projects section carries a second
        "Vezi proiectul" per project now: the visually hidden list that stands in for the 3D
        laptop's display for anyone the picture cannot reach (`reelListTitle`). */
-    const bar = screen.getByRole("button", { name: "Vorbește cu echipa" }).parentElement!;
+    const bar = screen.getByRole("button", { name: "Cere ofertă" }).parentElement!;
     const link = within(bar).getByRole("link", { name: /Vezi proiectul/ });
     expect(link).toHaveAttribute("href", "https://bizcheck.md");
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
@@ -124,7 +124,7 @@ describe("action bar", () => {
     const user = userEvent.setup();
     renderPage("e-commerce");
 
-    await user.click(screen.getByRole("button", { name: "Vorbește cu echipa" }));
+    await user.click(screen.getByRole("button", { name: "Cere ofertă" }));
 
     const dialog = await screen.findByRole("dialog");
     // The estimator's e-commerce project type — its price is what proves the preselection.
@@ -138,7 +138,7 @@ describe("action bar", () => {
     expect(screen.queryByRole("link", { name: "Vezi proiectele relevante" })).toBeNull();
     expect(container.querySelector("#proiecte")).toBeNull();
     // The request flow is still offered — the page never ends up actionless.
-    expect(screen.getByRole("button", { name: "Vorbește cu echipa" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cere ofertă" })).toBeInTheDocument();
   });
 });
 

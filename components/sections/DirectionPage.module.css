@@ -60,6 +60,38 @@
   overflow-wrap: break-word;
 }
 
+/* The pitch under the title (lib/solutions.ts — the home page's panel says the same): the
+   promise in the page's own ink, then the detail in the muted tone the page's leads use. */
+.leadTitle {
+  margin: 0 0 10px;
+  max-width: 560px;
+  color: var(--txt);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-extra);
+  line-height: 1.35;
+}
+
+.lead {
+  margin: 0;
+  max-width: 560px;
+  color: var(--mut);
+  font-size: var(--fs-base);
+  line-height: 1.6;
+}
+
+/* The admin's own text ("de la 150€"), set the way the request dialog's proposal sets it: the
+   display face in capitals, tight. On its own line, so a longer figure wraps rather than
+   pushing the column. */
+.price {
+  margin: 20px 0 0;
+  font-family: var(--font-display-stack);
+  font-weight: var(--fw-black);
+  font-size: var(--fs-xl);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--txt);
+}
 
 /* Same <button>-not-<a> treatment as `Hero .primary`: explicit `border: 0` and
    `cursor: pointer`, and the 56.8px shared by every content CTA. */

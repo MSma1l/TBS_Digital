@@ -26,7 +26,13 @@ import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { directions } from "@/lib/directions";
-import { solutions, solUI, solutionPalette, projectsForSolution } from "@/lib/solutions";
+import {
+  directionPrice,
+  solutions,
+  solUI,
+  solutionPalette,
+  projectsForSolution,
+} from "@/lib/solutions";
 import { useSiteContent, type ProjectItem } from "@/lib/siteContent";
 import styles from "./DirectionPage.module.css";
 
@@ -101,18 +107,23 @@ const NO_CASES: readonly string[] = Object.freeze([]);
  * branch anywhere in this file: the mapping lives in `lib/scene.ts`. `modelArt` is optional,
  * so the section still renders on its own, with the drawing simply absent.
  *
- * The hero is the model and the copy, nothing else: the reference-project card that used to
- * sit under the model was moved out (2026-09-18). The project it named is the first card of
- * the "Proiecte relevante" grid further down and still carries the action bar's link, and the
- * flow scheme the card drew for a direction with no shipped project moved down beside the
- * "Cum lucrăm" steps, which is what it describes.
+ * The hero is the model and the copy, nothing else — the title, then the direction's pitch and
+ * the price it starts at, the same words and figure as its panel on the home page
+ * (`lib/solutions.ts`). The reference-project card that used to sit under the model was moved
+ * out (2026-09-18): the project it named is the first card of the "Proiecte relevante" grid
+ * further down and still carries the action bar's link, and the flow scheme the card drew for a
+ * direction with no shipped project moved down beside the "Cum lucrăm" steps, which is what it
+ * describes.
  */
 export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: ReactNode }) {
   const t = useT();
   const l = useLoc();
   const { openRequest } = useRequestFlow();
-  const { projects } = useSiteContent();
+  const { projects, services } = useSiteContent();
   const sol = solutions[slug];
+  /* The admin's figure, as the request dialog will quote it; "" where there is none to show
+     (Brand & UI has no service of its own). */
+  const price = directionPrice(slug, services, l);
 
   /* Which of the five models the scene draws. An unknown slug changes nothing, and the store
      is module-level, so this survives a client navigation between two service pages. */
@@ -502,6 +513,12 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
         <section className={styles.hero}>
           <div>
             <h1 className={styles.title}>{l(sol.title)}</h1>
+            {/* Two paragraphs, not a <strong> run into the text: a screen reader would read the
+                promise and its first sentence as one. Not a heading either — it introduces the
+                page rather than a section of it. */}
+            <p className={styles.leadTitle}>{l(sol.pitch.title)}</p>
+            <p className={styles.lead}>{l(sol.pitch.text)}</p>
+            {price ? <p className={styles.price}>{price}</p> : null}
           </div>
 
           {/* The model's host, and the whole of the hero's right column since the reference

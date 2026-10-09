@@ -1,6 +1,9 @@
 /* Site-wide horizontal gutter — see the note in globals' `.section`. It was `0`, so the
    three principle cards touched the viewport edge on every phone. */
+/* Positioned so that, when it rides up over the end of the Work spiral (app/globals.css, "the end
+   of the Work spiral"), it paints above the stage it overlaps rather than under its layers. */
 .section {
+  position: relative;
   padding: clamp(40px, 6vw, 60px) clamp(16px, 4vw, 40px);
 }
 
@@ -14,63 +17,130 @@
   color: var(--txt);
 }
 
+/* ================================================================================================
+ * THE BENTO (2026-10-09)
+ *
+ * Not a row of four any more. "Cum începem" further down is a row of four, and the owner saw the
+ * two sections as the same thing twice. Three columns from 1025px, with the two cards whose proof
+ * needs room (01 and 04) two columns wide, locked into the two that do not:
+ *
+ *   [ 01 REZULTAT ············ ][ 02 PREȚ ]
+ *   [ 03 PROCES ][ 04 ECHIPĂ ············ ]
+ *
+ * Two columns from 641px: the wide cards across both, 02 beside 03 between them. One column on a
+ * phone. The breakpoints are the ones docs/07 sets for new code. The grid only spans, it never
+ * places, so the source order is the reading order at every width.
+ * `minmax(0, 1fr)` and not `1fr`: a track must not widen to fit its longest word — an uppercase
+ * Russian title is the widest thing in a card — or the grid outgrows a phone.
+ *
+ * The cards in a row stretch to the tallest, and each proof is pinned to its card's foot
+ * (`.proof`), so a shorter card's slack opens between its sentence and its proof — the proofs in
+ * one row end on one line — instead of hanging empty under the proof.
+ * ============================================================================================= */
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
+@media (min-width: 641px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .wide {
+    grid-column: 1 / -1;
+  }
+}
+@media (min-width: 1025px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .wide {
+    grid-column: span 2;
+  }
+}
 
+/* No `transition` here: the card is the `[data-reveal]` element itself, and a transition list of
+   its own would replace the reveal's in globals.css outright (same specificity, so whichever sheet
+   comes last wins) — the card would arrive without the fade every other reveal has. */
 .card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--line);
   border-radius: 18px;
   padding: var(--sp-5);
   background: var(--panel);
-  transition:
-    transform 0.25s ease,
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
 
-  /* The mark hangs off this. `relative` and not a flex row, because the mark is taller than the
-     12px number it sits beside and would otherwise set that row's height. */
-  position: relative;
-
-  /* This card's place in the row, as a PLAIN NUMBER. The delay below multiplies it in one flat
+  /* This card's place in the source, as a PLAIN NUMBER. The delay below multiplies it in one flat
      calc(); `--step` must never hold a calc of its own — substituting one calc into another
      inside an animation value made the whole declaration unparseable in DirectionPage.module.css
      and every delay silently fell back to 0s, firing the entire row at once. */
   --step: var(--card-index, 0);
 }
-.card:hover {
-  transform: translateY(-5px);
+
+/* Pointed at, the card's edge lights in its accent over the deep shadow. A layer that fades in —
+   opacity only — rather than a transition on the border and the shadow, which repaint on every
+   frame of it. It no longer lifts: the cards are not controls, and 02 holds some (its price rows),
+   which a card rising under the pointer would move while the pointer aims at them. */
+.card::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--accent, var(--blue));
+  border-radius: inherit;
   box-shadow: var(--sh-lg);
-  border-color: var(--accent, var(--blue));
+  opacity: 0;
+  pointer-events: none;
+}
+@media (hover: hover) {
+  .card:hover::after {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card::after {
+    transition: opacity 0.25s ease;
+  }
+}
+
+/* The card's first row: the number, and the mark opposite it. The row is as tall as the mark, so
+   the title starts under both and has the card's whole width. With three cards the mark hung
+   absolutely in the corner and the title kept 46px clear of it on every line, which a narrow card
+   cannot spare. On a wide card the row spans both of its columns, so the mark stays in the same
+   corner as on the narrow ones. */
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
 }
 
 /* ================================================================================================
  * THE CARD MARK
  *
- * One small drawing per card — the same size, in the same corner, on all three. The sameness is
+ * One small drawing per card — the same size, in the same corner, on all four. The sameness is
  * the design. The first attempt gave each card a different instrument (a CSS 3D model, a list of
  * stages, a large bracketed frame) and the row came apart: three different visual weights, and
- * the empty frame read as a panel that had failed to load rather than as a deliberate mark.
+ * the empty frame read as a panel that had failed to load rather than as a deliberate mark. The
+ * proofs at the cards' feet differ from card to card; the marks are what keeps the four one set.
  *
- * Top RIGHT, opposite the number, which is the one place that is empty in both layouts: it
- * balances the card's top line at three columns, and fills the space beside the text that opens
- * up when the grid stacks and a card becomes 780px wide.
+ * Top RIGHT, opposite the number, in every layout: it closes the card's first row whether the
+ * card is a third of the bento or the whole width of a phone.
  *
- * NOTHING HERE MAY EVER SHOW A VALUE — no numeral, no percentage, no axis labels, no needle, no
- * bar. Card 03's sentence is "Legăm fiecare livrare de un indicator real", and the only indicator
- * a component could put in that mark is one it invented. The site has already paid for that once:
- * the team card carried "50+ proiecte", "98% clienți mulțumiți" and "24/7" until the first was
- * caught contradicting the hero's real portfolio count, and all three were deleted rather than
- * re-guessed (the note above `initialsOf` in components/sections/Team.tsx). The mark is a sight,
- * not a readout.
+ * NOTHING HERE MAY EVER SHOW A VALUE — no numeral, no percentage, no currency sign, no axis label,
+ * no needle, no bar. Card 01 is about results and card 02 about the price, and the only result or
+ * price a component could draw into its mark is one it invented, or a real price copied out of
+ * the admin and wrong the first time the owner changes it. The site has already paid for that
+ * once: the team card carried "50+ proiecte", "98% clienți mulțumiți" and "24/7" until the first
+ * was caught contradicting the hero's real portfolio count, and all three were deleted rather than
+ * re-guessed (the note above `initialsOf` in components/sections/Team.tsx). The marks are a sight
+ * and a blank tag, not a readout and a price. The price list under card 02 is not an exception:
+ * it reads the owner's figures from the store on every render, which is the opposite of copying
+ * one into a drawing.
  * ============================================================================================= */
 
 .mark {
-  position: absolute;
-  top: var(--sp-5);
-  right: var(--sp-5);
+  flex: none;
   width: 38px;
   height: 38px;
   color: var(--accent, var(--blue));
@@ -79,7 +149,7 @@
      on another the moment the sizes diverge. */
   stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
-  /* Square caps and joins, and no circle anywhere in the three drawings: the house rule for line
+  /* Square caps and joins, and no circle anywhere in the four drawings: the house rule for line
      art in this repo (docs/07), and what keeps these in the same family as the HUD brackets and
      the square nodes the interior already draws. */
   stroke-linecap: butt;
@@ -94,9 +164,8 @@
 }
 
 /* The one pass. `Reveal` adds the global `rv-in` class once and then unobserves, so this plays
-   once per session and nothing in this section moves again afterwards — no loop, because
-   `#despre` is a destination the header jumps to directly and something still animating when a
-   visitor arrives by anchor is something they cannot stop.
+   once per session. The marks never move again; the only thing in this section that repeats is
+   the light on card 01's goals (below), and it rests off screen and under reduced motion.
    `:global(.rv-in)` as a standalone ancestor is the spelling every other module here uses; a
    bare class name would be hashed and match nothing, silently, with no build error.
    Longhands, never the `animation` shorthand — a shorthand carrying a var() easing and a var()
@@ -116,8 +185,8 @@
     animation-duration: 0.5s;
     animation-timing-function: var(--motion-ease-out);
     animation-fill-mode: backwards;
-    /* 140ms apart — enough to read as a row arriving in order, short enough that the last mark
-       has landed well before a visitor has finished the first sentence. */
+    /* 140ms apart — enough to read as the cards arriving in order, short enough that the last
+       mark has landed well before a visitor has finished the first sentence. */
     animation-delay: calc(var(--step) * 140ms);
   }
 }
@@ -129,13 +198,19 @@
   letter-spacing: 0.06em;
 }
 .cardTitle {
-  margin: 11px 0 8px;
+  margin: var(--sp-3) 0 8px;
+  /* 23px from 959px. The narrowest title column is 240px (a phone, and the two columns at 641px),
+     where 19px still fits the longest uppercase word in any language, "РЕЗУЛЬТАТЕ,"; the 1.9vw
+     ceiling the four-column row needed at 1025px went with it. */
   font-size: clamp(19px, 2.4vw, 23px);
+  /* A narrow card's title runs to two or three lines, and at the body's 1.55 they read as
+     separate lines rather than one heading. 1.2 still clears a comma-below (Ș, Ț) over a breve or
+     circumflex (Ă, Î). */
+  line-height: 1.2;
   letter-spacing: -0.03em;
   color: var(--txt);
-  /* The mark is 38px in a 24px gutter, so it reaches 62px into the card's top-right. The title
-     is the only line long enough to run under it, and only at three columns. */
-  padding-right: 46px;
+  /* The last resort only: the sizes above are chosen so that no word needs it. */
+  overflow-wrap: break-word;
 }
 
 .cardText {
@@ -145,29 +220,473 @@
   line-height: 1.55;
 }
 
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1fr;
+/* ================================================================================================
+ * THE PROOFS
+ *
+ * Every card ends in the evidence for its sentence: 01 the goals, 02 the prices, 03 the stages,
+ * 04 the people. Pinned to the card's foot by the auto margin, which works the same in the
+ * narrow cards' column and in the wide cards' grid below.
+ * ============================================================================================= */
+.proof {
+  margin-top: auto;
+  padding-top: var(--sp-5);
+}
+
+/* The wide cards from 1025px: the sentence on the left, its proof on the right, centred in the
+   height the row gives the card — pinned to the foot it left the top right and the bottom left
+   empty, a diagonal of nothing. The first row spans both columns, so the number and the mark keep
+   the card's top corners. Only while there IS a proof (`:has`): a team-less 04 keeps its sentence
+   across the whole card rather than beside an empty half, and a browser without `:has` keeps the
+   proof under the sentence. */
+@media (min-width: 1025px) {
+  .wide:has(> .proof) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: var(--sp-6);
   }
-  .cardTitle {
-    /* Stacked, the card is wide enough that nothing reaches the mark. */
-    padding-right: 0;
+  .wide > .cardTop {
+    grid-column: 1 / -1;
+  }
+  .wide > .cardTitle,
+  .wide > .cardText {
+    grid-column: 1;
+  }
+  .wide:has(> .proof) > .proof {
+    grid-column: 2;
+    grid-row: 2 / -1;
+    align-self: center;
+    margin-top: 0;
+    padding-top: 0;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* The global rule kills every `animation`; it does NOT touch transitions, so the card's own
-     hover lift has to be named here. */
-  .card {
-    transition: none;
+/* ---------- 01: the goals ----------
+   The three answers, in the shape the assistant offers them in (`.chatOption`, Estimator.module.css:
+   an `--r-sm` box), a size up and outlined in the card's blue. A column on a phone; a row of three
+   across the wide card from 641px; a column again from 1025px, where they stand in the right half
+   beside the sentence. */
+.goals {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 641px) {
+  .goals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1025px) {
+  .wide:has(> .proof) .goals {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
+.goal {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 48px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--r-sm);
+  color: var(--txt);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  line-height: 1.3;
+}
+
+/* A goal's light: its tint, its full-strength edge and its glow, on one layer under the words, so
+   lighting it is one opacity. Its base value is ON — all three lit is the resting state, and the
+   entrance below only ever brings the light in, once. */
+.goalLit {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--accent);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 28%, transparent);
+  pointer-events: none;
+}
+
+/* The square that leads each goal, filled while its goal is lit. A square, never a dot (docs/07);
+   positioned, like the label, so both paint over the light rather than under its tint. */
+.goalGlyph {
+  position: relative;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--accent);
+}
+.goalGlyphFill {
+  position: absolute;
+  inset: 2px;
+  background: var(--accent);
+}
+.goalLabel {
+  position: relative;
+  min-width: 0;
+}
+
+/* The goals light up one after another as the card is revealed (`rv-in`, added once and never
+   removed) — "Mai mulți clienți" first — and stay lit: the answers offered in turn, once. An
+   entrance, never a loop: nothing on this page moves on its own for more than five seconds
+   without a way to stop it (WCAG 2.2.2), and `#despre` is an anchor the header jumps to. Opacity
+   only, so the compositor runs it. The lit state is the base declaration, so reduced motion and a
+   card not yet revealed simply show all three lit. */
+@keyframes goal-on {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :global(.rv-in) .goalLit,
+  :global(.rv-in) .goalGlyphFill {
+    animation-name: goal-on;
+    animation-duration: 0.5s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: backwards;
+    animation-delay: calc(var(--goal, 0) * 450ms + 300ms);
+  }
+}
+
+/* ---------- 02: the price list ----------
+   A menu, not a table: the type on the left, the owner's price on the right, a leader between
+   them. Every row is a button into the request with its type already chosen. The leader is 2px
+   squares — square, like every other mark on the site, never round dots — at the text's baseline
+   (`flex-end`, so a type that wraps to two lines keeps its price on the last one). */
+.prices {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.priceRow {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  width: 100%;
+  /* 9px over and under a 18.2px line: a 36px row. */
+  padding: 9px var(--sp-2);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--txt);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The row's light, behind its words (`isolation` keeps the −1 inside the button). */
+.priceRow::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+  opacity: 0;
+}
+
+/* The type gives way first: it wraps, and the price never does. */
+.priceType {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: var(--fw-semi);
+  overflow-wrap: anywhere;
+}
+.leader {
+  flex: 1 1 var(--sp-3);
+  min-width: var(--sp-3);
+  height: 2px;
+  /* From the foot of the line up to just over the baseline. */
+  margin-bottom: 0.32em;
+  color: var(--line2);
+  background-image: linear-gradient(90deg, currentColor 2px, transparent 2px);
+  background-position: right bottom;
+  background-size: 6px 2px;
+  background-repeat: repeat-x;
+}
+/* The figure in the card's amber (its text tone, which for amber is the fill itself: 9.9:1 on
+   --panel). */
+.priceValue {
+  flex: none;
+  color: var(--accent-text);
+  font-weight: var(--fw-extra);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* The site's "opens the request" arrow, as in the header's "CERE OFERTĂ ↗". The auto margin takes
+   it to the row's end when a type has no price to show; beside a leader it has nothing to take. */
+.priceGo {
+  flex: none;
+  margin-left: auto;
+  color: var(--mut);
+  font-size: var(--fs-sm);
+}
+
+/* Pointed at or reached by the keyboard, the row lights in the card's amber. The keyboard also
+   gets the site's cyan ring — the focus ring is never the card's colour. */
+@media (hover: hover) {
+  .priceRow:hover {
+    color: var(--accent-text);
+  }
+  .priceRow:hover::before {
+    opacity: 1;
+  }
+  .priceRow:hover .leader,
+  .priceRow:hover .priceGo {
+    color: var(--accent-text);
+  }
+  .priceRow:hover .priceGo {
+    transform: translate(2px, -2px);
+  }
+}
+.priceRow:focus-visible {
+  color: var(--accent-text);
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+.priceRow:focus-visible::before {
+  opacity: 1;
+}
+.priceRow:focus-visible .leader,
+.priceRow:focus-visible .priceGo {
+  color: var(--accent-text);
+}
+.priceRow:focus-visible .priceGo {
+  transform: translate(2px, -2px);
+}
+
+/* A finger needs 44px: 13px over and under the line, and the height pinned in case a font runs
+   short. */
+@media (pointer: coarse) {
+  .priceRow {
+    min-height: 44px;
+    padding-block: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .priceRow::before {
+    transition: opacity 0.15s ease;
+  }
+  .priceGo {
+    transition: transform 0.15s ease;
+  }
+}
+
+/* ---------- 03: the track ----------
+   A segmented bar standing up the left of the stages: one segment per stage, butted 3px apart so
+   the four read as one track. A done stage's segment is filled in the card's green with a tick
+   cut out of it in the card's own colour; the stage still to come is the outline alone. Square
+   segments, square tags: the HUD's line art, no round ends anywhere. */
+.track {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 34px;
+}
+
+.seg {
+  position: relative;
+  flex: none;
+  align-self: stretch;
+  width: 22px;
+  border: 1px solid var(--accent);
+}
+.segFill {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: 50% 0;
+}
+.tick {
+  position: absolute;
+  inset: 0;
+  width: 12px;
+  height: 12px;
+  margin: auto;
+  color: var(--panel);
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.stageName {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--txt);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  line-height: 1.3;
+}
+.demo {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-text, var(--green-text));
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+/* The stage still to come: its words a step back, its demo not yet held. */
+.stage:not([data-done]) .stageName,
+.stage:not([data-done]) .demo {
+  color: var(--mut);
+}
+.stage:not([data-done]) .demo {
+  border-color: var(--line2);
+}
+
+/* Once, when the card is revealed: the three done segments fill top to bottom one after another,
+   and each tick lands as its segment finishes. Transform and opacity only; the base declarations
+   are the finished track, so reduced motion simply shows it done. */
+@keyframes seg-fill {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes tick-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  :global(.rv-in) .segFill {
+    animation-name: seg-fill;
+    animation-duration: 0.4s;
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: backwards;
+    animation-delay: calc(var(--seg) * 160ms + 300ms);
+  }
+  :global(.rv-in) .tick {
+    animation-name: tick-in;
+    animation-duration: 0.2s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: backwards;
+    animation-delay: calc(var(--seg) * 160ms + 560ms);
+  }
+}
+
+/* ---------- 04: the team ----------
+   The names and roles, in as many columns as fit (no faces: the team section under this one
+   shows them). */
+.crew {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-5);
+}
+
+.people {
+  display: grid;
+  flex: 1 1 200px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: var(--sp-3) var(--sp-5);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.person {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.personName {
+  color: var(--txt);
+  font-size: var(--fs-base);
+  line-height: 1.2;
+  overflow-wrap: break-word;
+}
+.personRole {
+  color: var(--mut);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+/* ================================================================================================
+ * FORCED COLOURS
+ * A contrast theme repaints text, borders and outlines in its own colours and drops backgrounds'
+ * colours, gradients and shadows. Anything here that MEANS something by a fill keeps its paint
+ * in the system's colours (`forced-color-adjust: none`), so nothing disappears with the theme.
+ * ============================================================================================= */
 @media (forced-colors: active) {
-  /* Forced colours flattens the accent to one system colour, which is fine for a line drawing —
-     it stays a legible outline. It is `currentColor`, so it follows CanvasText on its own; the
-     only thing worth dropping is the hold-back, which there reads as a faded glyph. */
+  /* The mark is `currentColor`, so it follows CanvasText on its own; the only thing worth
+     dropping is the hold-back, which there reads as a faded glyph. */
   .mark {
     opacity: 1;
+  }
+
+  /* The goals: the light is a tint and a glow, both dropped by the theme, so it is not drawn and
+     the three sit equal — each square filled in the text colour. */
+  .goalLit {
+    display: none;
+  }
+  .goalGlyph {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+  }
+  .goalGlyphFill,
+  :global(.rv-in) .goalGlyphFill {
+    background: CanvasText;
+    animation: none;
+  }
+
+  /* The prices: the row's light is a tint the theme drops, so the row takes the system's
+     highlight colour instead; the leader is a gradient the theme would erase, so it keeps its
+     squares in grey. */
+  .leader {
+    forced-color-adjust: none;
+    color: GrayText;
+  }
+  .priceRow:hover,
+  .priceRow:focus-visible,
+  .priceRow:hover .leader,
+  .priceRow:focus-visible .leader,
+  .priceRow:hover .priceValue,
+  .priceRow:focus-visible .priceValue,
+  .priceRow:hover .priceGo,
+  .priceRow:focus-visible .priceGo {
+    color: Highlight;
+  }
+
+  /* The track: done and still to come are told apart by a fill, which the theme would erase. */
+  .seg {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+  }
+  .segFill {
+    background: CanvasText;
+  }
+  .tick {
+    color: Canvas;
   }
 }

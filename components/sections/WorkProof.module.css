@@ -1,0 +1,284 @@
+/* WorkProof — the proof under the home page's projects: one line, the two ways on, the partners.
+   A centred column, compact on purpose: it closes the projects above it rather than opening a
+   section of its own. Colours, type, radii and shadows are tokens; the literals are this layout's
+   geometry (the column, the logo heights, the tile heights) and the metrics every content CTA on
+   the site shares.
+
+   Every target is at least 52px tall at every width (the CTAs 56.8px, the logo tiles 56/64px), so
+   a coarse pointer needs no bump of its own. */
+
+.section {
+  position: relative;
+  /* Close under the projects it captions, clear of Principles below it. */
+  padding: clamp(16px, 3vw, 32px) var(--gutter) clamp(28px, 4vw, 44px);
+}
+
+.inner {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.line {
+  margin: 0 auto;
+  max-width: 58ch;
+  color: var(--txt);
+  /* --fs-lg from 1000px; a step under it on a phone, where the sentence already runs to several
+     lines. Between the two it is not on the scale: a statement line scales like a heading. */
+  font-size: clamp(18px, 2vw, var(--fs-lg));
+  font-weight: var(--fw-semi);
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* ---------- the two actions ----------
+   Phones: stacked, full width, the request first. From 641px: one centred row. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-5);
+}
+
+.cta,
+.more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  text-align: center;
+  text-decoration: none;
+  transition:
+    translate 0.15s,
+    box-shadow 0.15s,
+    border-color 0.15s;
+}
+
+/* The site's red CTA, as at the close of /portofoliu: the label-safe gradient (white clears AA
+   along all of it), `<button>`, so an explicit `border: 0` and `cursor: pointer`. */
+.cta {
+  padding: 16px 26px;
+  border: 0;
+  cursor: pointer;
+  background: var(--grad-red-cta);
+  box-shadow: var(--sh-red);
+  color: var(--on-accent);
+  font-weight: var(--fw-extra);
+}
+
+/* The secondary: the service page's ghost button, so the pair reads as one decision. */
+.more {
+  gap: 0.5em;
+  padding: 15px 24px;
+  border: 1px solid var(--line2);
+  background: var(--panel);
+  color: var(--txt);
+  font-weight: var(--fw-bold);
+}
+
+.arrow {
+  display: inline-block;
+  transition: translate 0.15s;
+}
+
+/* Hover only where a hover exists: a tap would leave the lift stuck on. */
+@media (hover: hover) {
+  .cta:hover {
+    translate: 0 -2px;
+    box-shadow: var(--sh-red-strong);
+  }
+
+  .more:hover {
+    translate: 0 -2px;
+    border-color: var(--txt);
+    box-shadow: var(--sh-sm);
+  }
+
+  .more:hover .arrow {
+    translate: 3px 0;
+  }
+}
+
+.cta:focus-visible,
+.more:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* ---------- the partners ---------- */
+.partners {
+  position: relative;
+  margin-top: clamp(28px, 4vw, 40px);
+  padding-top: clamp(22px, 3vw, 30px);
+}
+
+/* The hairline between the actions and the logos, fading out at both ends. */
+.partners::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line2), transparent);
+}
+
+.partnersLabel {
+  margin: 0 0 var(--sp-4);
+  color: var(--dim);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.08em;
+}
+
+/* The logos wrap onto as many centred rows as the width needs (the three seeded ones: two and one
+   on a phone, one row on a desktop), and a row can never be wider than the column: an item may
+   shrink to it, and the logo inside with it. */
+.logos {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* DARK tiles, not light ones. The partners' logos are white on transparent (public/partners/,
+   and the admin asks for exactly that, "site-ul are fundal închis"): a light tile would erase
+   them. On --panel they keep their full contrast, one height for every tile, each logo
+   contained in it whatever its aspect ratio. */
+.tile {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--txt);
+  text-decoration: none;
+  transition:
+    border-color 0.18s,
+    background-color 0.18s,
+    translate 0.18s;
+}
+
+/* Held back a little until hovered or focused, as on the partner cards in Partners.module.css. */
+.logo {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.8;
+  transition: opacity 0.18s;
+}
+
+/* A partner with no logo yet: its name, as a wordmark. */
+.name {
+  font-size: var(--fs-md);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+/* The footer's social tiles: a red edge and a red wash, and a 2px lift. */
+@media (hover: hover) {
+  a.tile:hover {
+    translate: 0 -2px;
+    border-color: color-mix(in srgb, var(--red) 55%, transparent);
+    background-color: color-mix(in srgb, var(--red) 8%, var(--panel));
+  }
+
+  a.tile:hover .logo {
+    opacity: 1;
+  }
+}
+
+a.tile:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+a.tile:focus-visible .logo {
+  opacity: 1;
+}
+
+/* ---------- from 641px: one row of actions, larger logos ---------- */
+@media (min-width: 641px) {
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--sp-3) var(--sp-4);
+  }
+
+  .logos {
+    gap: var(--sp-3);
+  }
+
+  .tile {
+    min-height: 64px;
+    padding: var(--sp-3) var(--sp-5);
+  }
+
+  .logo {
+    height: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta,
+  .more,
+  .arrow,
+  .tile,
+  .logo {
+    transition: none;
+  }
+
+  .cta:hover,
+  .more:hover,
+  .more:hover .arrow,
+  a.tile:hover {
+    translate: none;
+  }
+}
+
+@media (forced-colors: active) {
+  /* The red fill is erased: without a border the button reads as loose text. The gradient goes
+     explicitly, so no engine is left painting system-coloured text on it. */
+  .cta {
+    border: 1px solid ButtonText;
+    background-image: none;
+  }
+
+  /* The white logos were drawn for this dark plate, and a contrast theme would repaint it to
+     Canvas — white in the light themes, where they would vanish. The tile keeps its own paint and
+     takes a system-coloured edge; the focus ring takes the system's colour too. */
+  .tile {
+    forced-color-adjust: none;
+    border-color: CanvasText;
+  }
+
+  a.tile {
+    border-color: LinkText;
+  }
+
+  a.tile:focus-visible {
+    outline-color: Highlight;
+  }
+}

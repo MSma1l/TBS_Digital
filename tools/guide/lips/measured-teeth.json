@@ -1,0 +1,1147 @@
+{
+ "what": "lightness (0-255, the grey of equal luminance) of the teeth (brightest tenth of the opening, a pixel in from the lips) and the opening (its mean), against the speaker's brighter eye white; *_seen: the same over the whole opening blurred by seen_mm (the bust's size); teeth_over_chin: the teeth against the chin's front, per face, for comparison; teeth_seen_over_lips: the blurred opening's brightest tenth against the blurred lips' median - whether the teeth read as lighter than the lips around them",
+ "seen_mm": 1.0,
+ "her": {
+  "portrait": "portrait.png",
+  "eye_white": 152.4,
+  "readings": [
+   152.2,
+   153.0,
+   151.4,
+   153.3,
+   152.6,
+   151.7
+  ],
+  "lips": 125.4,
+  "lips_seen": 124.0
+ },
+ "pooled": [
+  {
+   "mm": [
+    2,
+    4
+   ],
+   "faces": 8,
+   "teeth": 0.641,
+   "teeth_range": [
+    0.42,
+    0.738
+   ],
+   "opening": 0.454,
+   "teeth_seen": 0.661,
+   "opening_seen": 0.483,
+   "teeth_seen_over_lips": 0.927,
+   "teeth_seen_over_lips_range": [
+    0.827,
+    1.372
+   ]
+  },
+  {
+   "mm": [
+    4,
+    6
+   ],
+   "faces": 9,
+   "teeth": 0.802,
+   "teeth_range": [
+    0.461,
+    0.965
+   ],
+   "opening": 0.522,
+   "teeth_seen": 0.741,
+   "opening_seen": 0.53,
+   "teeth_seen_over_lips": 1.012,
+   "teeth_seen_over_lips_range": [
+    0.816,
+    1.451
+   ]
+  },
+  {
+   "mm": [
+    6,
+    8
+   ],
+   "faces": 9,
+   "teeth": 0.94,
+   "teeth_range": [
+    0.679,
+    1.159
+   ],
+   "opening": 0.626,
+   "teeth_seen": 0.865,
+   "opening_seen": 0.592,
+   "teeth_seen_over_lips": 1.199,
+   "teeth_seen_over_lips_range": [
+    0.863,
+    1.522
+   ]
+  },
+  {
+   "mm": [
+    8,
+    10
+   ],
+   "faces": 9,
+   "teeth": 1.021,
+   "teeth_range": [
+    0.809,
+    1.238
+   ],
+   "opening": 0.669,
+   "teeth_seen": 0.951,
+   "opening_seen": 0.636,
+   "teeth_seen_over_lips": 1.329,
+   "teeth_seen_over_lips_range": [
+    0.897,
+    1.56
+   ]
+  },
+  {
+   "mm": [
+    10,
+    12
+   ],
+   "faces": 8,
+   "teeth": 1.077,
+   "teeth_range": [
+    0.852,
+    1.267
+   ],
+   "opening": 0.678,
+   "teeth_seen": 0.997,
+   "opening_seen": 0.653,
+   "teeth_seen_over_lips": 1.409,
+   "teeth_seen_over_lips_range": [
+    1.124,
+    1.573
+   ]
+  },
+  {
+   "mm": [
+    12,
+    16
+   ],
+   "faces": 8,
+   "teeth": 1.054,
+   "teeth_range": [
+    0.869,
+    1.323
+   ],
+   "opening": 0.602,
+   "teeth_seen": 0.991,
+   "opening_seen": 0.588,
+   "teeth_seen_over_lips": 1.409,
+   "teeth_seen_over_lips_range": [
+    1.183,
+    1.683
+   ]
+  }
+ ],
+ "faces": [
+  {
+   "clip": "File:20160709 VPOTUS Weekly Address HD.webm",
+   "face": "C",
+   "frames": 2436,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 379,
+     "teeth": 0.687,
+     "opening": 0.448,
+     "teeth_seen": 0.671,
+     "opening_seen": 0.478,
+     "teeth_over_chin": 0.915,
+     "teeth_over_lips": 0.967,
+     "teeth_seen_over_lips": 0.92
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 588,
+     "teeth": 0.847,
+     "opening": 0.522,
+     "teeth_seen": 0.752,
+     "opening_seen": 0.509,
+     "teeth_over_chin": 1.219,
+     "teeth_over_lips": 1.153,
+     "teeth_seen_over_lips": 1.012
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 768,
+     "teeth": 1.013,
+     "opening": 0.626,
+     "teeth_seen": 0.904,
+     "opening_seen": 0.592,
+     "teeth_over_chin": 1.403,
+     "teeth_over_lips": 1.384,
+     "teeth_seen_over_lips": 1.208
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 407,
+     "teeth": 1.065,
+     "opening": 0.669,
+     "teeth_seen": 0.971,
+     "opening_seen": 0.627,
+     "teeth_over_chin": 1.476,
+     "teeth_over_lips": 1.501,
+     "teeth_seen_over_lips": 1.342
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 160,
+     "teeth": 1.112,
+     "opening": 0.619,
+     "teeth_seen": 1.021,
+     "opening_seen": 0.607,
+     "teeth_over_chin": 1.468,
+     "teeth_over_lips": 1.576,
+     "teeth_seen_over_lips": 1.414
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 96,
+     "teeth": 1.008,
+     "opening": 0.449,
+     "teeth_seen": 0.893,
+     "opening_seen": 0.467,
+     "teeth_over_chin": 1.34,
+     "teeth_over_lips": 1.451,
+     "teeth_seen_over_lips": 1.298
+    }
+   ]
+  },
+  {
+   "clip": "File:230522-O-NU539-603 - Secretary Blinken's video message to the Sudanese people.webm",
+   "face": "C",
+   "frames": 1561,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 601,
+     "teeth": 0.738,
+     "opening": 0.545,
+     "teeth_seen": 0.819,
+     "opening_seen": 0.638,
+     "teeth_over_chin": 0.649,
+     "teeth_over_lips": 0.745,
+     "teeth_seen_over_lips": 0.827
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 648,
+     "teeth": 0.845,
+     "opening": 0.6,
+     "teeth_seen": 0.823,
+     "opening_seen": 0.639,
+     "teeth_over_chin": 0.723,
+     "teeth_over_lips": 0.829,
+     "teeth_seen_over_lips": 0.816
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 209,
+     "teeth": 0.934,
+     "opening": 0.626,
+     "teeth_seen": 0.881,
+     "opening_seen": 0.643,
+     "teeth_over_chin": 0.785,
+     "teeth_over_lips": 0.929,
+     "teeth_seen_over_lips": 0.863
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 65,
+     "teeth": 0.977,
+     "opening": 0.638,
+     "teeth_seen": 0.925,
+     "opening_seen": 0.636,
+     "teeth_over_chin": 0.792,
+     "teeth_over_lips": 0.953,
+     "teeth_seen_over_lips": 0.897
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 28,
+     "teeth": 0.93,
+     "opening": 0.589,
+     "teeth_seen": 0.883,
+     "opening_seen": 0.604,
+     "teeth_over_chin": 0.77,
+     "teeth_over_lips": 0.929,
+     "teeth_seen_over_lips": 0.887
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 9,
+     "teeth": 1.053,
+     "opening": 0.634,
+     "teeth_seen": 1.018,
+     "opening_seen": 0.64,
+     "teeth_over_chin": 0.831,
+     "teeth_over_lips": 0.946,
+     "teeth_seen_over_lips": 0.918
+    }
+   ]
+  },
+  {
+   "clip": "File:Hillary Rodham Clinton 2016 concession speech.webm",
+   "face": "C",
+   "frames": 327,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 14,
+     "teeth": 0.571,
+     "opening": 0.509,
+     "teeth_seen": 0.615,
+     "opening_seen": 0.513,
+     "teeth_over_chin": 0.577,
+     "teeth_over_lips": 0.846,
+     "teeth_seen_over_lips": 0.906
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 33,
+     "teeth": 0.766,
+     "opening": 0.585,
+     "teeth_seen": 0.729,
+     "opening_seen": 0.588,
+     "teeth_over_chin": 0.742,
+     "teeth_over_lips": 1.077,
+     "teeth_seen_over_lips": 1.007
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 54,
+     "teeth": 0.779,
+     "opening": 0.589,
+     "teeth_seen": 0.716,
+     "opening_seen": 0.571,
+     "teeth_over_chin": 0.752,
+     "teeth_over_lips": 1.074,
+     "teeth_seen_over_lips": 0.995
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 97,
+     "teeth": 0.809,
+     "opening": 0.579,
+     "teeth_seen": 0.748,
+     "opening_seen": 0.567,
+     "teeth_over_chin": 0.799,
+     "teeth_over_lips": 1.18,
+     "teeth_seen_over_lips": 1.093
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 53,
+     "teeth": 0.852,
+     "opening": 0.577,
+     "teeth_seen": 0.806,
+     "opening_seen": 0.576,
+     "teeth_over_chin": 0.821,
+     "teeth_over_lips": 1.191,
+     "teeth_seen_over_lips": 1.124
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 30,
+     "teeth": 0.869,
+     "opening": 0.549,
+     "teeth_seen": 0.81,
+     "opening_seen": 0.536,
+     "teeth_over_chin": 0.88,
+     "teeth_over_lips": 1.296,
+     "teeth_seen_over_lips": 1.183
+    }
+   ]
+  },
+  {
+   "clip": "File:Hillary Rodham Clinton 2016 concession speech.webm",
+   "face": "L",
+   "frames": 28,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 3,
+     "teeth": 0.818,
+     "opening": 0.688,
+     "teeth_seen": 0.812,
+     "opening_seen": 0.662,
+     "teeth_over_chin": 0.702,
+     "teeth_over_lips": 1.017,
+     "teeth_seen_over_lips": 0.99
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 3,
+     "teeth": 0.934,
+     "opening": 0.628,
+     "teeth_seen": 0.844,
+     "opening_seen": 0.608,
+     "teeth_over_chin": 0.884,
+     "teeth_over_lips": 1.277,
+     "teeth_seen_over_lips": 1.131
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 11,
+     "teeth": 0.832,
+     "opening": 0.684,
+     "teeth_seen": 0.795,
+     "opening_seen": 0.638,
+     "teeth_over_chin": 0.863,
+     "teeth_over_lips": 1.245,
+     "teeth_seen_over_lips": 1.16
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 7,
+     "teeth": 0.934,
+     "opening": 0.673,
+     "teeth_seen": 0.859,
+     "opening_seen": 0.636,
+     "teeth_over_chin": 0.889,
+     "teeth_over_lips": 1.272,
+     "teeth_seen_over_lips": 1.181
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 2,
+     "teeth": 0.836,
+     "opening": 0.721,
+     "teeth_seen": 0.806,
+     "opening_seen": 0.685,
+     "teeth_over_chin": 0.786,
+     "teeth_over_lips": 1.122,
+     "teeth_seen_over_lips": 1.074
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 2,
+     "teeth": 1.202,
+     "opening": 0.816,
+     "teeth_seen": 1.157,
+     "opening_seen": 0.809,
+     "teeth_over_chin": 0.81,
+     "teeth_over_lips": 1.177,
+     "teeth_seen_over_lips": 1.129
+    }
+   ]
+  },
+  {
+   "clip": "File:Hillary Rodham Clinton 2016 concession speech.webm",
+   "face": "R",
+   "frames": 25,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 2,
+     "teeth": 0.495,
+     "opening": 0.439,
+     "teeth_seen": 0.597,
+     "opening_seen": 0.495,
+     "teeth_over_chin": 0.537,
+     "teeth_over_lips": 0.747,
+     "teeth_seen_over_lips": 0.896
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 2,
+     "teeth": 0.521,
+     "opening": 0.337,
+     "teeth_seen": 0.688,
+     "opening_seen": 0.501,
+     "teeth_over_chin": 0.433,
+     "teeth_over_lips": 0.637,
+     "teeth_seen_over_lips": 0.83
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 5,
+     "teeth": 0.805,
+     "opening": 0.601,
+     "teeth_seen": 0.719,
+     "opening_seen": 0.591,
+     "teeth_over_chin": 0.819,
+     "teeth_over_lips": 1.105,
+     "teeth_seen_over_lips": 1.017
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 9,
+     "teeth": 0.646,
+     "opening": 0.525,
+     "teeth_seen": 0.651,
+     "opening_seen": 0.515,
+     "teeth_over_chin": 0.679,
+     "teeth_over_lips": 1.013,
+     "teeth_seen_over_lips": 0.995
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 4,
+     "teeth": 0.462,
+     "opening": 0.246,
+     "teeth_seen": 0.66,
+     "opening_seen": 0.363,
+     "teeth_over_chin": 0.366,
+     "teeth_over_lips": 0.566,
+     "teeth_seen_over_lips": 0.801
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 3,
+     "teeth": 0.332,
+     "opening": 0.255,
+     "teeth_seen": 0.586,
+     "opening_seen": 0.357,
+     "teeth_over_chin": 0.223,
+     "teeth_over_lips": 0.36,
+     "teeth_seen_over_lips": 0.631
+    }
+   ]
+  },
+  {
+   "clip": "File:Weekly Address- Merry Christmas from the President and the First Lady.webm",
+   "face": "L",
+   "frames": 2027,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 132,
+     "teeth": 0.672,
+     "opening": 0.488,
+     "teeth_seen": 0.704,
+     "opening_seen": 0.568,
+     "teeth_over_chin": 0.951,
+     "teeth_over_lips": 0.941,
+     "teeth_seen_over_lips": 0.993
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 187,
+     "teeth": 0.813,
+     "opening": 0.578,
+     "teeth_seen": 0.758,
+     "opening_seen": 0.612,
+     "teeth_over_chin": 1.167,
+     "teeth_over_lips": 1.16,
+     "teeth_seen_over_lips": 1.056
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 302,
+     "teeth": 0.97,
+     "opening": 0.695,
+     "teeth_seen": 0.865,
+     "opening_seen": 0.68,
+     "teeth_over_chin": 1.392,
+     "teeth_over_lips": 1.327,
+     "teeth_seen_over_lips": 1.184
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 378,
+     "teeth": 1.05,
+     "opening": 0.744,
+     "teeth_seen": 0.951,
+     "opening_seen": 0.728,
+     "teeth_over_chin": 1.497,
+     "teeth_over_lips": 1.449,
+     "teeth_seen_over_lips": 1.309
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 267,
+     "teeth": 1.084,
+     "opening": 0.779,
+     "teeth_seen": 1.003,
+     "opening_seen": 0.752,
+     "teeth_over_chin": 1.526,
+     "teeth_over_lips": 1.498,
+     "teeth_seen_over_lips": 1.374
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 368,
+     "teeth": 1.116,
+     "opening": 0.798,
+     "teeth_seen": 1.034,
+     "opening_seen": 0.767,
+     "teeth_over_chin": 1.533,
+     "teeth_over_lips": 1.506,
+     "teeth_seen_over_lips": 1.401
+    }
+   ]
+  },
+  {
+   "clip": "File:Weekly Address- Merry Christmas from the President and the First Lady.webm",
+   "face": "R",
+   "frames": 1132,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 67,
+     "teeth": 0.571,
+     "opening": 0.46,
+     "teeth_seen": 0.651,
+     "opening_seen": 0.488,
+     "teeth_over_chin": 0.68,
+     "teeth_over_lips": 0.808,
+     "teeth_seen_over_lips": 0.859
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 90,
+     "teeth": 0.802,
+     "opening": 0.516,
+     "teeth_seen": 0.741,
+     "opening_seen": 0.53,
+     "teeth_over_chin": 0.907,
+     "teeth_over_lips": 1.062,
+     "teeth_seen_over_lips": 1.007
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 227,
+     "teeth": 1.159,
+     "opening": 0.719,
+     "teeth_seen": 0.993,
+     "opening_seen": 0.677,
+     "teeth_over_chin": 1.321,
+     "teeth_over_lips": 1.57,
+     "teeth_seen_over_lips": 1.313
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 258,
+     "teeth": 1.238,
+     "opening": 0.759,
+     "teeth_seen": 1.09,
+     "opening_seen": 0.711,
+     "teeth_over_chin": 1.393,
+     "teeth_over_lips": 1.678,
+     "teeth_seen_over_lips": 1.464
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 204,
+     "teeth": 1.267,
+     "opening": 0.818,
+     "teeth_seen": 1.134,
+     "opening_seen": 0.756,
+     "teeth_over_chin": 1.436,
+     "teeth_over_lips": 1.756,
+     "teeth_seen_over_lips": 1.573
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 205,
+     "teeth": 1.323,
+     "opening": 0.831,
+     "teeth_seen": 1.192,
+     "opening_seen": 0.778,
+     "teeth_over_chin": 1.431,
+     "teeth_over_lips": 1.759,
+     "teeth_seen_over_lips": 1.587
+    }
+   ]
+  },
+  {
+   "clip": "File:Weekly Address- The President and First Lady Thank our Troops for their Service this Holiday Season - 2011.webm",
+   "face": "L",
+   "frames": 1043,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 58,
+     "teeth": 0.715,
+     "opening": 0.567,
+     "teeth_seen": 0.866,
+     "opening_seen": 0.651,
+     "teeth_over_chin": 1.471,
+     "teeth_over_lips": 1.167,
+     "teeth_seen_over_lips": 1.372
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 72,
+     "teeth": 0.965,
+     "opening": 0.669,
+     "teeth_seen": 0.938,
+     "opening_seen": 0.688,
+     "teeth_over_chin": 1.863,
+     "teeth_over_lips": 1.518,
+     "teeth_seen_over_lips": 1.451
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 119,
+     "teeth": 1.029,
+     "opening": 0.713,
+     "teeth_seen": 0.985,
+     "opening_seen": 0.72,
+     "teeth_over_chin": 1.879,
+     "teeth_over_lips": 1.594,
+     "teeth_seen_over_lips": 1.522
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 169,
+     "teeth": 1.06,
+     "opening": 0.743,
+     "teeth_seen": 1.003,
+     "opening_seen": 0.725,
+     "teeth_over_chin": 1.961,
+     "teeth_over_lips": 1.647,
+     "teeth_seen_over_lips": 1.56
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 151,
+     "teeth": 1.117,
+     "opening": 0.772,
+     "teeth_seen": 1.035,
+     "opening_seen": 0.749,
+     "teeth_over_chin": 1.95,
+     "teeth_over_lips": 1.694,
+     "teeth_seen_over_lips": 1.57
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 287,
+     "teeth": 1.174,
+     "opening": 0.847,
+     "teeth_seen": 1.094,
+     "opening_seen": 0.813,
+     "teeth_over_chin": 2.011,
+     "teeth_over_lips": 1.809,
+     "teeth_seen_over_lips": 1.683
+    }
+   ]
+  },
+  {
+   "clip": "File:Weekly Address- The President and First Lady Thank our Troops for their Service this Holiday Season - 2011.webm",
+   "face": "R",
+   "frames": 1252,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 69,
+     "teeth": 0.547,
+     "opening": 0.358,
+     "teeth_seen": 0.553,
+     "opening_seen": 0.376,
+     "teeth_over_chin": 0.849,
+     "teeth_over_lips": 0.937,
+     "teeth_seen_over_lips": 0.961
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 85,
+     "teeth": 0.624,
+     "opening": 0.378,
+     "teeth_seen": 0.629,
+     "opening_seen": 0.394,
+     "teeth_over_chin": 0.987,
+     "teeth_over_lips": 1.056,
+     "teeth_seen_over_lips": 1.05
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 260,
+     "teeth": 0.803,
+     "opening": 0.465,
+     "teeth_seen": 0.718,
+     "opening_seen": 0.449,
+     "teeth_over_chin": 1.223,
+     "teeth_over_lips": 1.341,
+     "teeth_seen_over_lips": 1.199
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 334,
+     "teeth": 0.911,
+     "opening": 0.552,
+     "teeth_seen": 0.823,
+     "opening_seen": 0.517,
+     "teeth_over_chin": 1.332,
+     "teeth_over_lips": 1.469,
+     "teeth_seen_over_lips": 1.329
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 265,
+     "teeth": 0.97,
+     "opening": 0.579,
+     "teeth_seen": 0.874,
+     "opening_seen": 0.545,
+     "teeth_over_chin": 1.372,
+     "teeth_over_lips": 1.572,
+     "teeth_seen_over_lips": 1.404
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 181,
+     "teeth": 0.925,
+     "opening": 0.53,
+     "teeth_seen": 0.835,
+     "opening_seen": 0.514,
+     "teeth_over_chin": 1.324,
+     "teeth_over_lips": 1.56,
+     "teeth_seen_over_lips": 1.416
+    }
+   ]
+  },
+  {
+   "clip": "File:Weekly Address - President Obama's Supreme Court Nomination.webm",
+   "face": "C",
+   "frames": 914,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 81,
+     "teeth": 0.611,
+     "opening": 0.394,
+     "teeth_seen": 0.644,
+     "opening_seen": 0.448,
+     "teeth_over_chin": 0.832,
+     "teeth_over_lips": 0.874,
+     "teeth_seen_over_lips": 0.934
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 105,
+     "teeth": 0.785,
+     "opening": 0.516,
+     "teeth_seen": 0.722,
+     "opening_seen": 0.499,
+     "teeth_over_chin": 1.099,
+     "teeth_over_lips": 1.177,
+     "teeth_seen_over_lips": 1.076
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 226,
+     "teeth": 0.94,
+     "opening": 0.616,
+     "teeth_seen": 0.865,
+     "opening_seen": 0.578,
+     "teeth_over_chin": 1.313,
+     "teeth_over_lips": 1.414,
+     "teeth_seen_over_lips": 1.297
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 228,
+     "teeth": 1.021,
+     "opening": 0.715,
+     "teeth_seen": 0.955,
+     "opening_seen": 0.668,
+     "teeth_over_chin": 1.35,
+     "teeth_over_lips": 1.472,
+     "teeth_seen_over_lips": 1.371
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 155,
+     "teeth": 1.069,
+     "opening": 0.737,
+     "teeth_seen": 0.991,
+     "opening_seen": 0.7,
+     "teeth_over_chin": 1.342,
+     "teeth_over_lips": 1.473,
+     "teeth_seen_over_lips": 1.375
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 89,
+     "teeth": 1.02,
+     "opening": 0.651,
+     "teeth_seen": 0.976,
+     "opening_seen": 0.639,
+     "teeth_over_chin": 1.285,
+     "teeth_over_lips": 1.405,
+     "teeth_seen_over_lips": 1.321
+    }
+   ]
+  },
+  {
+   "clip": "File:2016-03-12 President Obama's Weekly Address.webm",
+   "face": "C",
+   "frames": 1893,
+   "bins": [
+    {
+     "mm": [
+      2,
+      4
+     ],
+     "frames": 159,
+     "teeth": 0.42,
+     "opening": 0.292,
+     "teeth_seen": 0.483,
+     "opening_seen": 0.331,
+     "teeth_over_chin": 0.871,
+     "teeth_over_lips": 0.78,
+     "teeth_seen_over_lips": 0.882
+    },
+    {
+     "mm": [
+      4,
+      6
+     ],
+     "frames": 204,
+     "teeth": 0.461,
+     "opening": 0.279,
+     "teeth_seen": 0.507,
+     "opening_seen": 0.31,
+     "teeth_over_chin": 0.997,
+     "teeth_over_lips": 0.896,
+     "teeth_seen_over_lips": 0.959
+    },
+    {
+     "mm": [
+      6,
+      8
+     ],
+     "frames": 331,
+     "teeth": 0.679,
+     "opening": 0.396,
+     "teeth_seen": 0.659,
+     "opening_seen": 0.39,
+     "teeth_over_chin": 1.293,
+     "teeth_over_lips": 1.145,
+     "teeth_seen_over_lips": 1.111
+    },
+    {
+     "mm": [
+      8,
+      10
+     ],
+     "frames": 631,
+     "teeth": 0.841,
+     "opening": 0.483,
+     "teeth_seen": 0.777,
+     "opening_seen": 0.463,
+     "teeth_over_chin": 1.501,
+     "teeth_over_lips": 1.364,
+     "teeth_seen_over_lips": 1.269
+    },
+    {
+     "mm": [
+      10,
+      12
+     ],
+     "frames": 371,
+     "teeth": 0.954,
+     "opening": 0.523,
+     "teeth_seen": 0.87,
+     "opening_seen": 0.501,
+     "teeth_over_chin": 1.642,
+     "teeth_over_lips": 1.577,
+     "teeth_seen_over_lips": 1.448
+    },
+    {
+     "mm": [
+      12,
+      16
+     ],
+     "frames": 141,
+     "teeth": 1.088,
+     "opening": 0.552,
+     "teeth_seen": 1.007,
+     "opening_seen": 0.532,
+     "teeth_over_chin": 1.771,
+     "teeth_over_lips": 1.721,
+     "teeth_seen_over_lips": 1.59
+    }
+   ]
+  }
+ ],
+ "left_out": [
+  "File:Hillary Rodham Clinton 2016 concession speech.webm [L]: 28 frames",
+  "File:Hillary Rodham Clinton 2016 concession speech.webm [R]: 25 frames"
+ ]
+}

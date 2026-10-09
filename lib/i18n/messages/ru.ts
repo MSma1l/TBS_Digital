@@ -200,7 +200,7 @@ export const ru: Record<MessageKey, string> = {
   "nav.company.team": "Команда",
   "nav.company.partners": "Партнёры",
   "nav.company.cases": "Кейсы",
-  "nav.cta": "НАЧАТЬ ПРОЕКТ ↗",
+  "nav.cta": "ОСТАВИТЬ ЗАЯВКУ ↗",
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",
   "nav.primaryAria": "Основная",

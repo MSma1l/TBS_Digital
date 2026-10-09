@@ -12,7 +12,7 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  title: L("Proiectele care ne reprezintă.", "Проекты, которые говорят за нас.", "The projects that speak for us."),
+  title: L("Ce am construit deja.", "Что мы уже построили.", "What we've already built."),
 };
 
 /* ---------- Card gradients ----------
@@ -56,10 +56,13 @@ const CARD_CLASSES =
 /* The screenshot's wrapper is the parallax target: `parallax-media` (app/tailwind.css) plays
    a small drift + 1.12 scale across the section's view timeline (`view-work` on the
    section), on the compositor, only where scroll-driven animations exist and motion is
-   allowed. It is NOT aria-hidden — the image inside keeps its role and alt.
-   The luminosity blend sits on the wrapper, not on the <img>: the running animation makes
-   the wrapper a stacking context, and an <img> blending inside it would only see the
-   wrapper's empty backdrop instead of the card gradient. */
+   allowed. Inside the scene's spiral it is held instead of played — at `--helix-parallax`,
+   written on the card once per layout by components/scene/workHelix.ts `holdParallax` — as a
+   2D transform painted with the card. It is NOT aria-hidden — the image inside keeps its role
+   and alt.
+   The luminosity blend sits on the wrapper, not on the <img>: the running animation (or, in the
+   spiral, the held transform) makes the wrapper a stacking context, and an <img> blending inside
+   it would only see the wrapper's empty backdrop instead of the card gradient. */
 const MEDIA_CLASSES = "parallax-media pointer-events-none absolute inset-0 mix-blend-luminosity";
 /* `work-media-reveal` (app/tailwind.css) is inert everywhere but inside the scene's spiral: there
    the screenshot is clipped by `--helix-wipe`, which the scene writes from the card's own place on
@@ -101,9 +104,10 @@ const WASH_READ_CLASSES =
 /* The glass: a faint diagonal reflection and a hairline inner edge, both in --on-accent,
    that turn into the neon tube (the accent) on hover. No backdrop-filter over a whole card:
    the screenshot under it moves with the parallax, and nine live blurs would re-sample it on
-   every scrolled frame. */
+   every scrolled frame. Its radius is the card's, stated (rounded-lg) rather than inherited: an
+   `inherit` on it made each of the spiral's per-frame writes on the card restyle all its children. */
 const GLASS_CLASSES =
-  "pointer-events-none absolute inset-0 rounded-[inherit] bg-[linear-gradient(155deg,color-mix(in_srgb,var(--on-accent)_13%,transparent)_0%,transparent_38%)] inset-ring inset-ring-on-accent/12 transition-[box-shadow] duration-300 group-hover/card:inset-ring-[color-mix(in_srgb,var(--p2)_70%,transparent)] group-focus-visible/card:inset-ring-[color-mix(in_srgb,var(--p2)_70%,transparent)] motion-reduce:transition-none";
+  "pointer-events-none absolute inset-0 rounded-lg bg-[linear-gradient(155deg,color-mix(in_srgb,var(--on-accent)_13%,transparent)_0%,transparent_38%)] inset-ring inset-ring-on-accent/12 transition-[box-shadow] duration-300 group-hover/card:inset-ring-[color-mix(in_srgb,var(--p2)_70%,transparent)] group-focus-visible/card:inset-ring-[color-mix(in_srgb,var(--p2)_70%,transparent)] motion-reduce:transition-none";
 
 /* The accent hairline along the top edge, the same mark the hero's stat cards carry; it
    brightens with the neon edge. */

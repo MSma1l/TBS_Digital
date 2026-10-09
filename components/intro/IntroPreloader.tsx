@@ -7,6 +7,7 @@ import {
   INTRO_OVERLAY_ID,
   INTRO_TIMING,
   finishIntro,
+  fromAd,
   hashSkipsIntro,
   markIntroGone,
   readIntroForce,
@@ -111,8 +112,9 @@ function prefersReducedMotion(): boolean {
  * Rendered on the server (only when `shouldPlayIntro` says so) so the ∞, the grid and the
  * "SYSTEM_SYNCHRONIZATION: ▮" readout are on screen from the first paint, with a CSS
  * failsafe that clears them if JS never arrives. After hydration it makes ONE decision:
- *  · bypass — reduced motion, a `#hash` that targets the page, or JS so late the failsafe
- *    is about to fire → finish the intro silently and unmount;
+ *  · bypass — reduced motion, a `#hash` that targets the page, a URL from an ad (which the
+ *    server normally catches first), or JS so late the failsafe is about to fire → finish
+ *    the intro silently and unmount;
  *  · run    — lock page scroll, turn navigation keys / clicks / the wheel into "skip",
  *    start a visibility-aware watchdog, and mount the director (GSAP), which drives the
  *    counter, the burst and the page entrance, and unmounts all of this when done.
@@ -173,13 +175,17 @@ function IntroShell() {
   useEffect(() => {
     const el = overlay.current;
     /* The failsafe is not negotiable: past `LATE_TAKEOVER_MS` the CSS has already faded the
-       overlay out, and taking it over then would snap a half-gone overlay back to full. The other
-       two are, and `tbs_intro_force` is how the owner (and QA) sees the intro on a machine that
-       asks for less motion, or on a URL that still carries a `#section`. */
+       overlay out, and taking it over then would snap a half-gone overlay back to full. Neither
+       is an ad's link (`fromAd`): the server already leaves the overlay out for one (proxy.ts →
+       `x-intro`) without ever seeing `tbs_intro_force`, which lives in localStorage — so this
+       check can only agree with it. The other two are negotiable, and `tbs_intro_force` is how
+       the owner (and QA) sees the intro on a machine that asks for less motion, or on a URL
+       that still carries a `#section`. */
     const forced = readIntroForce();
     const bypass =
       !el ||
       failsafeClock(el) >= INTRO_TIMING.LATE_TAKEOVER_MS ||
+      fromAd(window.location.search) ||
       (!forced &&
         (prefersReducedMotion() || hashSkipsIntro(readNavigationKind(), hasHashTarget())));
     if (bypass) finishIntro({ played: false });

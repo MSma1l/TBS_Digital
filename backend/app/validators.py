@@ -164,6 +164,19 @@ def _clean_link(value: object) -> str:
 LinkStr = Annotated[str, BeforeValidator(_clean_link)]
 
 
+def _clean_site_path(value: object) -> str:
+    """A path on the site itself (``/projects/demo/x/demo.json``) or empty: a link (see
+    ``_clean_link``) that is neither a whole URL nor protocol-relative. For a file the page
+    fetches from its own origin — a project's demo manifest, which the site ignores otherwise."""
+    v = _clean_link(value)
+    if v and not v.startswith("/"):
+        raise ValueError("must be a path on the site, starting with '/'")
+    return v
+
+
+SitePathStr = Annotated[str, BeforeValidator(_clean_site_path)]
+
+
 def validate_contact_value(value: str, contact_type: str) -> None:
     """Reject unsafe/invalid contact-book values (email/phone shape, URL scheme)."""
     if not value:

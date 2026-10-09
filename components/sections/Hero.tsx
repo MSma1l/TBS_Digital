@@ -10,7 +10,7 @@ import {
   hologramShapeFor,
   type HologramShape,
 } from "@/lib/hologram";
-import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useLoc, type LocalizedText, type MaybeLocalized } from "@/lib/i18n/content";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
 import { setSceneBoost, STATS_GROUP_ATTR, type SceneBoostSource } from "@/lib/scene";
@@ -22,19 +22,38 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const TITLE = L(
-  "Construim digital ce mișcă businessul.",
-  "Строим digital, который двигает бизнес.",
-  "We build digital that moves business.",
+  "Mai mulți clienți, mai puțină muncă manuală.",
+  "Больше клиентов, меньше ручной работы.",
+  "More customers, less manual work.",
 );
-const CTA_PRIMARY = L("Începe proiectul", "Начать проект", "Start a project");
-const CTA_SECONDARY = L(
-  "Explorăm serviciile ↓",
-  "Смотреть услуги ↓",
-  "Explore services ↓",
+/** What we build and for whom, right under the headline. */
+const SUBTITLE = L(
+  "Construim site-uri, magazine online, aplicații, CRM-uri și automatizări pentru afaceri care vor să crească — de la idee până la lansare.",
+  "Создаём сайты, интернет-магазины, приложения, CRM и автоматизацию для бизнеса, который хочет расти, — от идеи до запуска.",
+  "We build websites, online stores, apps, CRMs and automations for businesses that want to grow — from idea to launch.",
 );
+const CTA_PRIMARY = L("Cere o ofertă", "Оставить заявку", "Get a quote");
+const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
+/** The line under the CTAs: one phrase per promise, so a narrow screen breaks the line between
+ *  them rather than inside one. The "·" between them is drawn where they are rendered. */
+const REASSURANCE: LocalizedText[] = [
+  L(
+    "Prețul de pornire îl vezi pe loc",
+    "Стартовую цену видно сразу",
+    "See the starting price right away",
+  ),
+  L("Fără obligații", "Без обязательств", "No obligation"),
+  L(
+    "Răspuns în cel mult o zi lucrătoare",
+    "Ответ не позже чем через рабочий день",
+    "Reply within one business day",
+  ),
+];
 const METRICS_LABEL = L("Indicatori", "Показатели", "Metrics");
 
-type Metric = { id: string; value: string; label: LocalizedText; note: LocalizedText };
+/** A metric's value is the portfolio count (digits, the same in every language) or a fixed
+ *  claim worded per language. */
+type Metric = { id: string; value: MaybeLocalized; label: LocalizedText; note: LocalizedText };
 
 /** The portfolio counter's copy. Its *value* is counted, never written here. */
 const PROJECTS_LABEL = L(
@@ -44,15 +63,16 @@ const PROJECTS_LABEL = L(
 );
 const PROJECTS_NOTE = L("experiență aplicată", "прикладной опыт", "applied experience");
 
-/** Metrics that don't come from the portfolio. `24/7` describes how the automations we
- *  build run, not a countable list, so it stays a fixed claim. The /02 stats are still
- *  blank placeholders (docs/06), so there is nothing real to read from the store here. */
+/** Metrics that don't come from the portfolio. The reply time is a promise made on every
+ *  request, not a countable list, so it stays a fixed claim. The /02 stats are still blank
+ *  placeholders (docs/06), so there is nothing real to read from the store here. The card keeps
+ *  the `automation` id from when it counted automations: the hero's tests find it by that id. */
 const FIXED_METRICS: Metric[] = [
   {
     id: "automation",
-    value: "24/7",
-    label: L("automatizări active", "активных автоматизаций", "active automations"),
-    note: L("mai puțină rutină", "меньше рутины", "less routine"),
+    value: L("1 zi", "1 день", "1 day"),
+    label: L("răspuns la orice cerere", "ответ на любой запрос", "reply to every request"),
+    note: L("în cel mult o zi lucrătoare", "не позже одного рабочего дня", "within one business day"),
   },
 ];
 
@@ -293,7 +313,7 @@ export function Hero({ coreArt }: HeroProps) {
             heading or has a role.
              · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded to
                match the WebGL chip it crossfades into, per theme, fainter again at 641–860px
-               where the chip sits under the lead).
+               where the chip sits under the subtitle).
              · 861–1024px: the right-hand column is narrower than the core and the stat cards
                stack in it, so the core sits on the seam between the columns, raised to the
                top: centred behind the cards they would cover most of it. The offset is 6vw,
@@ -316,12 +336,13 @@ export function Hero({ coreArt }: HeroProps) {
         <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-bg" />
       </div>
 
-      {/* Phones only: a soft pool of the page colour behind the eyebrow, headline and lead —
+      {/* Phones only: a soft pool of the page colour behind the headline and its subtitle —
           over the core (art or canvas), under the copy — so the text keeps its contrast.
-          Centred like the core it covers: the lead spans the full width, and a pool centred
-          on the copy's left edge left 4% of the light theme's lead pixels under 4.5:1 at
-          390px. Its strength is a theme token (--hero-scrim, globals.css): the light page needs
-          more of it over the WebGL core than over the static art. */}
+          Centred like the core it covers: the subtitle spans the full width, as the old lead
+          line did, and a pool centred on the copy's left edge left 4% of the light theme's
+          lead pixels under 4.5:1 at 390px. Its strength is a theme token (--hero-scrim,
+          globals.css): the light page needs more of it over the WebGL core than over the
+          static art. */}
       <div
         aria-hidden="true"
         data-scene-scrim=""
@@ -330,67 +351,96 @@ export function Hero({ coreArt }: HeroProps) {
 
       {/* ≤860px one column (copy, then stats). From 861px two columns filling the first
           screen with the ticker: `content-center` keeps the row as tall as the copy and
-          centres it, `items-end` then sits the stats on the CTA row's baseline. */}
+          centres it, `items-end` then sits the stats on the copy's last line (the reassurance
+          under the CTAs). */}
       <div className="relative mx-auto grid w-full max-w-(--maxw) gap-[clamp(32px,5vw,56px)] px-(--gutter) pt-[clamp(32px,7vw,88px)] pb-[clamp(48px,7vw,88px)] md:min-h-[min(860px,calc(100svh_-_var(--header-h)_-_var(--ticker-h)))] md:grid-cols-[1.3fr_.7fr] md:content-center md:items-end">
         <div className="min-w-0">
 
-          {/* The page's only <h1>, and its LCP element: the entrance moves and blurs it, but
-              nothing may ever hide it (no opacity / visibility, here or in the intro). The
-              closing full stop is split off only to colour it red — a glyph, never a glow. */}
-          <h1
-            data-intro-reveal="title"
-            className="mt-4 mb-0 max-w-[16ch] text-balance font-disp text-[clamp(34px,8.6vw,74px)] font-black uppercase leading-[.98] tracking-[-0.045em] text-txt [overflow-wrap:break-word] md:mt-5 md:text-[clamp(44px,5.4vw,92px)]"
-          >
-            {title.endsWith(".") ? (
-              <>
-                {title.slice(0, -1)}
-                <span className="text-red">
-                  .
-                </span>
-              </>
-            ) : (
-              title
-            )}
-          </h1>
+          {/* The title marker wraps the headline and its subtitle, so the two come in as one.
+              The <h1> is the page's only one and its LCP element: the entrance moves and blurs
+              this wrapper, but nothing may ever hide it (no opacity / visibility, here or in
+              the intro). */}
+          <div data-intro-reveal="title">
+            {/* The closing full stop is split off only to colour it red — a glyph, never a glow. */}
+            <h1 className="mt-4 mb-0 max-w-[16ch] text-balance font-disp text-[clamp(34px,8.6vw,74px)] font-black uppercase leading-[.98] tracking-[-0.045em] text-txt [overflow-wrap:break-word] md:mt-5 md:text-[clamp(44px,5.4vw,92px)]">
+              {title.endsWith(".") ? (
+                <>
+                  {title.slice(0, -1)}
+                  <span className="text-red">
+                    .
+                  </span>
+                </>
+              ) : (
+                title
+              )}
+            </h1>
+
+            {/* Where the lead line was, and set like it (`--mut`, 16→19px): the contrast of the
+                copy over the core (docs/04, --hero-scrim) was measured on that line. At
+                861–1024px the chip sits on the seam between the columns, raised to the top, so
+                the lines stop at 40ch there, about where the lead ended, rather than running on
+                under its left traces. */}
+            <p className="m-0 mt-5 max-w-[46ch] text-pretty font-copy text-[clamp(16px,2vw,19px)] leading-[1.6] text-mut md:mt-6 md:max-w-[40ch] lg:max-w-[46ch]">
+              {l(SUBTITLE)}
+            </p>
+          </div>
 
           {/* The entrance targets this wrapper, never the button: the button's hover lift is
-              a `translate` transition that a GSAP `transform` would fight. */}
-          <div
-            data-intro-reveal="cta"
-            className="mt-8 flex flex-col items-stretch gap-3 xs:flex-row xs:flex-wrap xs:items-center xs:gap-4"
-          >
-            {/* Opens the request dialog in place. A <button>, not an <a href="#contact">: it
-                no longer navigates anywhere. Its accessible name is the label alone — the
-                arrow is an aria-hidden SVG with no <title>, and there is no text-transform,
-                so it never reads like the header's "START PROIECT ↗" (nav.cta). */}
-            <button
-              type="button"
-              onClick={() => openRequest({ source: "hero" })}
-              {...PRIMARY_BOOST}
-              className="cta-neon group/cta inline-flex min-h-14 items-center justify-center gap-2.5 rounded-md px-6.5 py-4 font-copy text-base font-bold leading-[1.55] shadow-neon-red-strong"
-            >
-              {l(CTA_PRIMARY)}
-              <svg
-                aria-hidden="true"
-                focusable="false"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-4 shrink-0 transition-[translate] duration-200 group-hover/cta:translate-x-0.5 group-hover/cta:-translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover/cta:translate-none"
+              a `translate` transition that a GSAP `transform` would fight. The reassurance
+              under the buttons comes in with them. */}
+          <div data-intro-reveal="cta" className="mt-8">
+            <div className="flex flex-col items-stretch gap-3 xs:flex-row xs:flex-wrap xs:items-center xs:gap-4">
+              {/* Opens the request dialog in place. A <button>, not an <a href="#contact">: it
+                  no longer navigates anywhere. Its accessible name is the label alone — the
+                  arrow is an aria-hidden SVG with no <title>, and there is no text-transform,
+                  so it never reads like the header's "CERE OFERTĂ ↗" (nav.cta). */}
+              <button
+                type="button"
+                onClick={() => openRequest({ source: "hero" })}
+                {...PRIMARY_BOOST}
+                className="cta-neon group/cta inline-flex min-h-14 items-center justify-center gap-2.5 rounded-md px-6.5 py-4 font-copy text-base font-bold leading-[1.55] shadow-neon-red-strong"
               >
-                <path d="M7 17 17 7M9 7h8v8" />
-              </svg>
-            </button>
-            <a
-              href="#servicii"
-              {...SECONDARY_BOOST}
-              className="relative inline-flex min-h-14 items-center justify-center rounded-md border border-glass-line bg-glass px-6 py-3 font-hud text-sm font-bold uppercase leading-[1.4] tracking-[.08em] text-txt no-underline transition-[border-color,color,box-shadow] duration-200 hover:border-blue hover:text-blue-text hover:shadow-neon-blue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
-            >
-              {l(CTA_SECONDARY)}
-            </a>
+                {l(CTA_PRIMARY)}
+                <svg
+                  aria-hidden="true"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-4 shrink-0 transition-[translate] duration-200 group-hover/cta:translate-x-0.5 group-hover/cta:-translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover/cta:translate-none"
+                >
+                  <path d="M7 17 17 7M9 7h8v8" />
+                </svg>
+              </button>
+              <a
+                href="#servicii"
+                {...SECONDARY_BOOST}
+                className="relative inline-flex min-h-14 items-center justify-center rounded-md border border-glass-line bg-glass px-6 py-3 font-hud text-sm font-bold uppercase leading-[1.4] tracking-[.08em] text-txt no-underline transition-[border-color,color,box-shadow] duration-200 hover:border-blue hover:text-blue-text hover:shadow-neon-blue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
+              >
+                {l(CTA_SECONDARY)}
+              </a>
+            </div>
+
+            {/* The three promises, joined by the copy's own "·" kept as text, so the line is
+                read exactly as written. Each phrase opens with a --sep slot that holds the "·"
+                before it (empty on the first), and the row starts one slot left of the column,
+                where the paragraph clips: a phrase that wraps to the start of a line on a phone
+                has its "·" cut off, so no line starts or ends on a separator. */}
+            <p className="m-0 mt-4 overflow-x-clip font-copy text-sm leading-normal text-mut [--sep:1.25em]">
+              <span className="-ml-(--sep) flex flex-wrap">
+                {REASSURANCE.map((phrase, i) => (
+                  <span key={i} className="relative pl-(--sep)">
+                    {i > 0 ? (
+                      <span className="absolute top-0 left-0 w-(--sep) text-center"> · </span>
+                    ) : null}
+                    {l(phrase)}
+                  </span>
+                ))}
+              </span>
+            </p>
           </div>
         </div>
 
@@ -427,7 +477,7 @@ export function Hero({ coreArt }: HeroProps) {
               >
                 <MetricHologram shape={hologramShapeFor(m.id)} />
                 <b className="relative block font-disp text-[clamp(32px,4.2vw,48px)] font-black leading-none tracking-[-0.04em] text-txt">
-                  {m.value}
+                  {l(m.value)}
                 </b>
                 <span className="relative mt-2.5 block font-copy text-md leading-[1.4] text-mut [overflow-wrap:anywhere]">
                   {l(m.label)}

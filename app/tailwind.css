@@ -301,7 +301,21 @@
 /* Work's image parallax, on the compositor and without JavaScript: `view-work` names the
    section's view timeline, `parallax-media` (on each card's image wrapper) plays
    hud-parallax-media across it. Only where scroll-driven animations exist and motion is
-   allowed; everywhere else the image simply sits still. */
+   allowed; everywhere else the image simply sits still.
+
+   Inside the scene's spiral the drift is HELD, not played (2026-10-08). A running animation is a
+   compositor layer, and one inside every card split each card into layers and offscreen passes —
+   its rounded clip, the luminosity blend, the scan painted over it — 16 passes a frame with five
+   cards on screen, against 6 held; on the laptop GPU it was measured on, which its driver holds
+   at 225–855 MHz while a page scrolls, that was the stutter of a hard scroll through the spiral.
+   The driver writes each card the timeline's own value at the scroll that makes it the front
+   card (`--helix-parallax`, 0..1; components/scene/workHelix.ts `holdParallax`), so the card
+   being read shows its picture exactly where the animation put it. The drift given up around that
+   moment is a card step's share of the section's scroll times 10% of the card — about 1.7px a
+   step with the nine projects at 1280×800 (3.45px two steps out); more with fewer projects or
+   taller cards (about 2.9px at the three-card minimum, 2.4px for a 360px card on a touch tablet).
+   The numbers are hud-parallax-media's (-5% → 5%, at 1.12), as a 2D transform: that is no reason
+   to composite, so the picture is painted with its card. */
 @utility view-work {
   view-timeline-name: --work-view;
   view-timeline-axis: block;
@@ -312,13 +326,19 @@
       animation: hud-parallax-media linear both;
       animation-timeline: --work-view;
       animation-range: cover 0% cover 100%;
+
+      [data-scene-stage][data-helix="spiral"] [data-work-track] & {
+        animation: none;
+        transform: translateY(calc(-5% + 10% * var(--helix-parallax, 0.5))) scale(1.12);
+      }
     }
   }
 }
 
 /* Top level, not in the animations @theme block below: keyframes there are emitted only when
    an `--animate-*` token that names them is used, and hud-parallax-media is referenced from
-   the `parallax-media` utility instead of a token. */
+   the `parallax-media` utility instead of a token. The spiral's held transform in that utility
+   repeats these numbers (-5% → 5%, 1.12): change the two together. */
 @keyframes hud-parallax-media {
   from {
     transform: translate3d(0, -5%, 0) scale(1.12);
@@ -397,7 +417,9 @@
 
 /* ---- Work's spiral: the screenshots are drawn on as their card climbs -------------------
    Inside the scene's spiral (components/scene/workHelix.ts) the driver writes `--helix-wipe`
-   on each card, 0 → 1, from the card's own place on the strand: 0 while it is still climbing
+   on each card's two readers — the screenshot (`work-media-reveal`) and the `work-scan` span,
+   found by these two class names — not on the card, whose whole subtree would restyle on every
+   write (2026-10-07), 0 → 1, from the card's own place on the strand: 0 while it is still climbing
    into the bottom of the zone, 1 a card's width of travel below the front, and 1 for the whole
    of its way out over the top. So the picture is drawn on by the scroll the visitor is making,
    at the moment they are looking at that card — and again, in reverse, if they scroll back.
@@ -445,7 +467,10 @@
   inset: 0;
   z-index: 0;
   overflow: clip;
-  border-radius: inherit;
+  /* the card's own radius, stated rather than inherited (as the glass layer in Work.tsx): an
+     `inherit` here made every per-frame write on the card restyle all its children. Follow the card
+     if its radius ever changes with a state. */
+  border-radius: var(--r-lg);
   pointer-events: none;
 
   &::before,

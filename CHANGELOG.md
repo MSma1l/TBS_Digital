@@ -16,6 +16,1735 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Fixed: dupa spirala proiectelor nu mai ramane jumatate de pagina goala
+
+*„uitete ca spirala se termina prea devreme si jumatate de pagina ramane goala, corecteaza te rog
+asta”*
+
+**Cauza.**
+- La final, spirala are o „iesire”: cateva sute de pixeli de derulare in care pachetul de carduri,
+  fixat pe ecran, zboara in sus si se dizolva.
+- Secțiunea urmatoare putea veni abia dupa toata aceasta derulare. Masurat la 1702×1287, ultimul
+  card disparea cu un ecran intreg inainte ca blocul urmator sa ajunga la mijloc.
+- Linia in trepte din captura e urma de circuit pe care o lasa mouse-ul peste scena.
+
+**Acum.**
+- **Secțiunea urmatoare urca peste finalul spiralei.** Scena primeste o margine negativa egala cu
+  lungimea iesirii, minus un spatiu cat cel dintre doua carduri (cel putin 64px). Scena isi pastreaza
+  inaltimea, deci cardurile si spirala 3D se termina exact ca inainte. Doar continutul urmator vine
+  imediat sub ultimul card.
+- **Cortina.** Stratul fixat al scenei (spirala si holograma) e taiat la marginea de sus a sectiunii
+  care urca. Sectiunea acopera scena ca o cortina, fara fundal propriu (se vede grila paginii), iar
+  textul nu mai e desenat peste liniile spiralei. Calculul e doar aritmetica pe derulare: nicio
+  citire de layout pe cadru, si o scriere doar cand taietura se misca.
+- „De ce TBS” e acum pozitionata, ca sa se picteze deasupra scenei pe care o acopera.
+- Fara spirala (telefon, desen static, „reduced motion”), nu se suprapune nimic.
+
+**Verificat** in Edge, pe GPU real (imaginea din 2026-10-09T06:36:08Z):
+- **La 1702×1287:** intre ultimul card si sectiunea urmatoare raman 132–240px (inainte, jumatate de
+  pagina goala).
+- **La 1366×768:** raman 35–50px si nu se ating niciodata.
+- **Capturi la final, plus 300 si plus 600px:** textul e curat, iar spirala si holograma sunt taiate
+  la marginea blocului.
+- **Teste:** tsc, eslint, vitest 1552/1552.
+
+Fisiere: `components/scene/helix.ts` (`helixOverlap`, `HELIX_OVERLAP_PROP`),
+`components/scene/workHelix.ts` (marginea si cortina), `app/globals.css`,
+`components/sections/Principles.module.css`, `docs/05-page-sections.md` (Work, „What follows rides up
+over the finish”).
+
+## 2026-10-09 — Changed: „De ce TBS” devine un bento cu dovezi, „Cum începem” un traseu de circuit
+
+*„dar uite, ele arata una ca alta trebuie ceva mai altfel, mai interesant de aratat sa nu fie una
+ca una”* — cele doua sectiuni noi erau acelasi rand de patru carduri. Din variantele propuse,
+proprietarul a ales „Bento cu dovezi” si „Traseu de circuit”.
+
+**„De ce TBS.”** (`Principles.tsx`): cardurile nu mai sunt egale, iar fiecare motiv isi arata dovada.
+- **Grila:** pe desktop, REZULTAT pe doua coloane langa PREȚ, apoi PROCES langa ECHIPĂ pe doua
+  coloane. Pe tableta sunt doua coloane, pe telefon una.
+- **REZULTAT:** cele trei obiective pe care le ofera asistentul cererii („Mai mulți clienți”, „Mai
+  puțină rutină”, „Un produs nou”). Se aprind pe rand, o singura data, si raman aprinse.
+- **PREȚ:** lista reala de preturi de pornire din admin, pentru cele cinci tipuri de proiect.
+  Fiecare rand deschide cererea cu tipul deja ales.
+- **PROCES:** etapele unui proiect, fiecare cu un demo; primele trei sunt bifate, ultima urmeaza.
+- **ECHIPĂ:** numele si rolurile echipei din admin. Fetele (poza sau initialele) au iesit la cererea
+  proprietarului (*„acestea scoatele de aici”*), pentru ca sectiunea echipei de dedesubt le arata.
+- Cardurile nu se mai ridica la hover, ca sa nu fuga de sub mouse cand alegi un pret.
+
+**„Cum începem.”** (`Process.tsx`): fara carduri.
+- Un traseu luminos, in stilul circuitului din portofoliu, trece prin patru noduri patrate.
+- Pasul 02 are eticheta „≤ 1 zi lucrătoare”.
+- Traseul coteste in jos spre formular si se termina intr-o sageata.
+- Se aprinde de la 01 la sageata cand ajungi la el, apoi un singur puls trece pe traseu.
+- Pe telefon traseul e vertical.
+
+**Nimic nu se misca la nesfarsit:** ambele animatii sunt de intrare, nu bucle. Nimic nu se misca
+singur mai mult de cinci secunde (WCAG 2.2.2). Cu „reduced motion”, totul apare direct aprins.
+
+**Verificat:**
+- in Edge, pe imaginea din 2026-10-09T05:41:16Z: 1366×768 (RO, RU), 1024px (RU) si un telefon de
+  390px, fara scroll orizontal, erori in consola sau incalcari CSP;
+- cardurile de jos apar la derulare;
+- tsc, eslint, vitest 1552/1552. Testul cardurilor (`sections.test.tsx`) gaseste semnele dupa
+  `data-mark` si scoate lista de preturi din verificarea „fara cifre”: cifrele ei sunt preturile din
+  admin.
+
+Fisiere: `components/sections/{Principles,Process}.tsx` si `.module.css`,
+`lib/request/RequestFlowProvider.tsx` (sursa `home-why`), `components/__tests__/sections.test.tsx`,
+`docs/05-page-sections.md`, `docs/14-testing.md`.
+Explicatia: [docs/05 — „De ce TBS” si „Cum începem”](./docs/05-page-sections.md).
+
+## 2026-10-09 — Changed: prima pagina vinde — serviciile, preturile si cererea in fata
+
+Brief-ul proprietarului: accentul pe reclama si pe serviciile oferite, iar vizitatorul sa inteleaga
+pe loc ce valoare aducem, ce probleme rezolvam si cum ne cere serviciile. Propunerea a fost
+aprobata asa cum a fost scrisa: *„fa schimbarile”*.
+
+**Prima pagina**, in ordinea noua: Hero → Servicii → Lucrari + parteneri → De ce TBS → Echipa →
+Cum incepem → Cererea.
+
+- **Hero.**
+  - Titlul: „Mai mulți clienți, mai puțină muncă manuală.” Era „Construim digital ce mișcă
+    businessul.”, care vorbea despre noi.
+  - Un subtitlu nou spune ce facem si pentru cine.
+  - Butoanele: „Cere o ofertă” si „Vezi serviciile ↓”.
+  - Sub butoane, trei promisiuni pe care site-ul le tine deja: „Prețul de pornire îl vezi pe loc ·
+    Fără obligații · Răspuns în cel mult o zi lucrătoare”.
+  - Cardul „24/7 automatizări active” era prea aproape de cifrele scoase pentru ca nu se puteau
+    masura; acum e „1 zi — răspuns la orice cerere”.
+  - Butonul din antet: „CERE OFERTĂ ↗”.
+- **Banda** spune ce vindem, nu tehnici: „Site-uri care aduc clienți · Magazine online · CRM la
+  comandă · Automatizări · Boți Telegram · Aplicații mobile”.
+- **Serviciile** au titlul „Ce vrei să rezolvi?” si un subtitlu. Fiecare directie arata:
+  - un rezultat ca titlu, ce facem si trei livrabile;
+  - pretul de pornire din admin, acelasi pe care il arata cererea (Brand & UI ramane fara pret);
+  - doua butoane: „Cere ofertă”, care deschide cererea cu serviciul deja ales, si „Detalii →”.
+- **Lucrarile** au titlul „Ce am construit deja.” Dupa proiecte vin:
+  - o fraza;
+  - „Vreau un proiect similar” si „Vezi toate proiectele →”;
+  - logo-urile partenerilor, sub „Lucrăm alături de”: Crowe Turcan Mikhailenko, CGAM Business
+    Academy, Ivan Turcan. Erau pe disc, dar nu apareau nicaieri.
+- **„De ce TBS.”** inlocuieste „Cum lucrăm, pe scurt.” cu patru motive: rezultate, pretul de la
+  inceput, totul la vedere, totul de la aceeasi echipa.
+- **„Cum începem.”** e o sectiune noua, chiar inainte de formular: patru pasi de la cerere la
+  lansare.
+- **Cererea** are titlul „Află de la ce preț pornește proiectul tău.”, plus un rand cu ce faci
+  si cand raspundem.
+  - Sectiunea „Ai un proiect care merită construit corect? / Programează consultarea” a iesit. Repeta
+    formularul de deasupra, iar butonul promitea o programare care nu exista.
+  - `#contact` e acum subsolul, care primeste si butonul „Calculează prețul ↗”.
+
+**Paginile de serviciu**, pe care aterizeaza reclamele:
+- sub titlu: rezultatul, ce facem si pretul;
+- butonul principal e „Cere ofertă” (era „Vorbește cu echipa”);
+- au titlu si descriere proprii pentru Google si pentru distribuiri. Inainte titlul era
+  „TBS Digital — produs-digital”, iar descrierea lipsea.
+
+**Intro-ul si reclamele.**
+- Cine vine dintr-o reclama nu mai vede intro-ul de 6–7 s si ajunge direct la oferta. Conteaza
+  linkurile cu `utm_*`, `gclid`, `fbclid`, `msclkid` si ceilalti parametri de click.
+- Toti ceilalti il vad in continuare la fiecare incarcare, cum ai cerut.
+- `proxy.ts` citeste parametrii si trimite verdictul ca `x-intro`, dupa ce sterge orice copie
+  venita din browser. Nu se scrie nimic.
+
+**Nimic inventat.** Nu am adaugat nicio cifra, recenzie sau logo de client nou. Promisiunile sunt
+cele pe care site-ul le facea deja: raspuns in cel mult o zi lucratoare, demo-uri regulate, pretul
+de pornire afisat. Recenziile isi au locul dupa proiecte, cand vor exista unele reale.
+
+**De stiut.** Pe 2026-10-02 au iesit, la cererea ta, randurile de sub titluri. Acest brief readuce
+trei (Hero, Servicii, Cerere) si unul pe paginile de serviciu, cu text nou, de vanzare.
+
+**Verificat.**
+- **In Edge,** pe imaginea noua (2026-10-09T03:48:46Z):
+  - prima pagina, sectiune cu sectiune, la 1366×768 (RO si RU) si pe un telefon de 390px;
+  - trei pagini de serviciu (RO, RU, telefon);
+  - nicio eroare in consola, nicio incalcare CSP, niciun scroll orizontal;
+  - schimbarea directiei nu misca pagina: `#lucrari` ramane pe loc la toate cinci.
+- **Intro-ul:**
+  - „/” si „/?ref=…” il au;
+  - linkurile cu `utm_`, `gclid`, `fbclid` si `/ru?utm_…` nu il au;
+  - un `x-intro` trimis din afara nu are efect.
+- **Teste:** tsc, eslint, vitest 1552/1552.
+  - Nu am adaugat teste noi.
+  - Am actualizat testele care numeau textele vechi; cazul care testa sectiunea scoasa a iesit odata
+    cu ea.
+  - Am aliniat si specificatiile e2e, dar nu le-am rulat.
+
+**Fisiere.**
+- Hero, antet, banda: `components/sections/{Hero,Ticker}.tsx`, cheia `nav.cta` din
+  `lib/i18n/messages/{ro,ru,en}.ts`.
+- Servicii: `components/sections/{Directions,DirectionPage}.tsx` (+ `DirectionPage.module.css`),
+  `lib/solutions.ts` (`pitch`, `directionPrice`), `app/(site)/servicii/[slug]/page.tsx`.
+- Dovezi: `components/sections/Work.tsx`, `WorkProof.tsx` + `.module.css` (noi).
+- De ce TBS si Cum incepem: `components/sections/Principles.tsx` (+ css), `Process.tsx` +
+  `.module.css` (noi).
+- Cererea si subsolul: `components/sections/Estimator.tsx` (+ css),
+  `lib/request/RequestFlowProvider.tsx`, `components/layout/Footer.tsx` (+ css); scoase
+  `components/sections/BottomCTA.tsx` + css.
+- Ordinea paginii: `app/(site)/page.tsx`.
+- Intro-ul: `proxy.ts`, `lib/intro.ts`, `app/(site)/layout.tsx`, `components/intro/IntroPreloader.tsx`.
+- Comentarii aduse la zi: `app/globals.css`, `components/scene/three/statFace.ts`,
+  `components/intro/IntroDirector.tsx`, `components/hud/{rail,guide}/copy.ts`.
+- Teste si e2e: testele din `components/__tests__` care numeau textele vechi,
+  `e2e/{preloader,interior,modal}.spec.ts`, `e2e/helpers.ts`, `e2e/README.md`.
+- Documentatia: `docs/03`, `docs/04`, `docs/05`, `docs/07`, `docs/11`, `docs/14`, `docs/16`,
+  `SECURITY.md`.
+
+Docs:
+
+- [05 — Page Sections](./docs/05-page-sections.md) (ordinea, Hero, Directions, WorkProof,
+  „De ce TBS”, Process, cererea, subsolul, paginile de serviciu, intro-ul);
+- [16 — i18n & SEO](./docs/16-i18n-seo.md) (metadatele paginilor de serviciu, `x-intro`);
+- [11 — Security](./docs/11-security.md#the-tbs_intro_skip-cookie--read-never-written) (`x-intro`).
+
+## 2026-10-09 — Changed · Security: in portofoliu, pixelii devin patrate mici in care se vede fiecare proiect
+
+*„si aici in loc de pastile pune niste patrate mici unde se vede fiecare proiect”* (2026-10-08)
+
+**Ce era.** Sub monitorul din /portofoliu fiecare proiect era o pastila rotunda in culoarea lui
+(16px, 24px cea aprinsa), legata de placa de circuit. Culoarea singura nu spunea ce proiect e.
+
+**Acum.**
+
+- **Fiecare pixel e un patrat cu proiectul in el**: coltul din stanga-sus al ce arata ecranul
+  pentru el (captura site-ului, altfel captura de ecran), acolo unde un site isi tine logo-ul,
+  intr-o rama de 1px in culoarea proiectului.
+  - Pe desktop: 26px in repaus, cu imaginea un sfert intunecata; 28px sub mouse sau la focus; 32px
+    cel de pe ecran, neintunecat, cu rama, stralucirea si traseul aprins pana in barbia
+    monitorului.
+  - Pe telefon: 24px in repaus, 26px aprins (de ce, mai jos).
+  - Un proiect fara imagine ramane un patrat in culoarea lui.
+- **Imaginile sunt mici.** Pozele site-ului aflate direct in `/projects/` trec prin optimizatorul
+  Next (`/_next/image`, `getImageProps`): 128px latime pentru o captura de ecran, 64px pentru
+  captura unui site intreg, de doua ori atat pe ecranele dense, in WebP. Cele noua au 46,7KB
+  (19,6KB pe un ecran 1×), din fisiere care au 2MB.
+  - O poza incarcata din admin (`/api/uploads/…`) nu trece prin optimizator si se foloseste asa
+    cum e. Pentru un proiect incarcat, patratul arata captura de ecran (cel mult 1600px), niciodata
+    captura site-ului intreg (pana la 1080 × 12000px).
+  - Daca imaginea optimizata nu vine, patratul ia fisierul capturii de ecran; daca nici acela,
+    ramane culoarea. Merge si cand esecul a venit inainte ca pagina sa porneasca: o verificare la
+    montare prinde ce a scapat `onError`. Cu toate cererile `/_next/image` picate in browser, toate
+    cele noua patrate si-au aratat capturile de ecran.
+  - O captura pe care ecranul n-a putut-o incarca e sarita si de patrat.
+- **Placa de circuit tine cont de colturi.** Pastila era rotunda. Coltul unui patrat ajunge de √2
+  ori mai departe pe diagonala, adica exact pe unde merg bratele panzei. Revizia a gasit ca, pe
+  telefon, bratele intrau 0,6–1,3px in colturile unui patrat aprins de pe randul de jos.
+  - `lib/portfolioBoard.ts` masoara acum fiecare traseu fata de patratul aprins insusi, cu
+    colturile rotunjite (`padGap`), si pastreaza 3px de aer. Inaltimea nodurilor (`hang`), `near`
+    si celelalte distante se calculeaza din marimea patratului.
+  - Marimea o citeste din pagina (`BoardPad.half`, masurata de `portfolioCircuit.ts`): 32px pe
+    desktop, 26px pe telefon.
+  - Pe telefon, un patrat aprins de 32px nu lasa loc nodurilor sa-i ocoleasca colturile. De aceea
+    locul e de 26px acolo, iar randurile de pixeli stau la 4px unul de altul (in loc de 2px), ca
+    nodurile sa aiba loc sa urce sub numele scrise pe doua randuri.
+  - Masurat pe pagina, cu fiecare patrat aprins pe rand: 2,8–3,6px de aer la 360–430px si 0,6–2px
+    la 331–345px (unde patratele sunt la 60–63px unul de altul). Bratele nu ating niciodata
+    patratul, iar placa nu are niciun via.
+- **Securitate: optimizatorul accepta mai putin decat inainte** (`next.config.ts`).
+  - Fara configurare, Next 16 accepta orice fisier din `public/` fara query, la 15 latimi. Acum
+    accepta doar:
+    - fisierele aflate direct in `/projects/`, nu si paginile demo de 780 × 16000px;
+    - fara query;
+    - calitatea 75;
+    - latimile 64, 128 si 256px.
+  - Cache-ul pe disc are cel mult 50MB.
+  - Restul primeste 400 (verificat pe container). Fara `remotePatterns`, nu se aduce nimic din
+    alta parte.
+  - Next isi tine cache-ul dupa `url`-ul brut. Asa ca scrieri echivalente ale aceleiasi cai
+    (`#1`, `#2`, `./`) decodeaza fisierul din nou (masurat: MISS, MISS, apoi HIT la repetare).
+    Fiecare costa cel mult o decodare de 6,5MP si o codare de 256px, dar numarul lor ramane
+    nelimitat. Limitarea ratei pentru `/_next/image` la proxy e trecuta in lista pentru productie
+    (docs/11).
+  - CSP-ul ramane neschimbat.
+- **Inaltimi.** Un buton cu nume pe doua randuri are 89px pe desktop (era 81) si 78px pe telefon
+  (era 76).
+  - Randurile cu pagini au 90px pe desktop, 183px in coloana ingusta, 160px pe telefon si 242px
+    pe telefonul cu patru pe rand.
+  - Primul ecran incape inca: la 1366×768 randul se termina la 701px; cu 100 de proiecte, paginile
+    se termina la 651px si cautarea la 707px.
+
+**Verificat.**
+
+- **In Edge, pe build-urile noi** (ultima imagine: 2026-10-08T21:06:58Z):
+  - la 1280×800@1,5, 820×1180@2, 600×900, 641×900 si 1024×768;
+  - pe telefoane intre 320 si 430px;
+  - cu 100 de proiecte injectate, la 1366×768 si 390×844;
+  - patratele si starile lor sunt corecte, fara erori in consola si fara incalcari CSP.
+- **Placa, cu fiecare proiect aprins pe rand:** cifrele de mai sus, si niciun via la nicio
+  latime.
+- **Optimizatorul:** latimile 64, 128 si 256 primesc 200; 384, 640, `q=50`, paginile demo, un query
+  si `/guide/…` primesc 400.
+- **Teste:** tsc, eslint (`npm run lint`), vitest 1553/1553. Niciun test nou.
+- **Revizie** (9 agenti; fiecare gasire a fost verificata de alt agent, care a incercat s-o
+  infirme). Au ramas 10 probleme confirmate, toate reparate aici:
+  - colturile (mai sus);
+  - capturile incarcate, aduse intregi;
+  - fallback-ul pierdut inainte de hidratare;
+  - capturile stricate, pe care patratul nu le sarea;
+  - `NEAR`, facut pentru pastila;
+  - trei afirmatii gresite in docs/11 si SECURITY.md: cache-ul „marginit”, valoarea implicita a
+    lui Next si sursa lui `nosniff`;
+  - comentariul cu „cercuri goale” de la culorile fortate;
+  - lipsa intrarii din changelog;
+  - doua patrate (Crowe Portal, IQ Arena) care nu se recunosteau decupate din mijloc; acum se
+    decupeaza din stanga-sus.
+- **Infirmate de verificatori** (trei):
+  - imaginea nu prinde apasarea lunga;
+  - stralucirea taiata, cu o opacitate de ~1%, nu se vede;
+  - caile cu query nu apar in continut. Am adaugat totusi filtrul care trimite la optimizator
+    doar caile pe care le accepta (`OPTIMISABLE`).
+- **Judecata vizuala:** „face ce a cerut proprietarul”.
+
+**Fisiere.**
+
+- `components/sections/Portfolio.tsx`: `pixelPicture`, `PIXEL_SHOT_W`, `OPTIMISABLE`,
+  `pixelFallback`, imaginea din pad, verificarea la montare.
+- `components/sections/Portfolio.module.css`: patratul, valul, starile, decuparea din stanga-sus,
+  locul de 26px pe telefon, inaltimile randului.
+- `lib/portfolioBoard.ts`: `Geometry`, `padGap`, marimea masurata (`BoardPad.half`).
+- `components/sections/portfolioCircuit.ts`: masoara marimea locului.
+- `next.config.ts`: `images`.
+- Documentatia: `docs/04`, `docs/05`, `docs/11`, `docs/03`, `SECURITY.md`.
+
+Docs:
+
+- [05 — „The pixels”](./docs/05-page-sections.md#portfolio--portofoliu);
+- [04 — „The portfolio's controls”](./docs/04-design-system.md#the-portfolios-controls);
+- [11 — optimizatorul de imagini](./docs/11-security.md#the-portfolios-pixels-through-the-image-optimiser-2026-10-08);
+- [SECURITY.md](./SECURITY.md#the-portfolios-pixels-through-nexts-image-optimiser-2026-10-08).
+
+## 2026-10-08 — Changed: gura asistentei nu se mai mareste cand se deschide
+
+*„dar cand se deschide gura, ea parca se mareste, corecteaza”*
+
+**Ce era gresit.** Doua lucruri faceau ca o gura care se deschide sa para o gura care creste:
+
+- **Se latea.** La fiecare *e* si *i*, colturile ei se intindeau 3,2px in afara, asa ca, cat
+  vorbea, gura ajungea de 1,02–1,04 ori mai lata decat in repaus la deschiderile obisnuite. Pe
+  aceleasi clipuri, o gura reala nu se lateste cand se deschide pana la 7mm, si doar putin dupa:
+  0,94 din latimea cu buzele lipite la 1–3mm, 0,95 la 3–5, 0,99 la 5–7, 1,03 la 7–11. A ei crestea
+  deodata in inaltime si in latime, ceea ce se citeste ca o marire, nu ca o deschidere.
+- **Dintii nu se desprindeau de buze.** Potriviti doar dupa albul ochilor, dintii ieseau sub
+  luminozitatea buzelor ei pana pe la 6mm (0,92 din ele la 5mm), si mult sub pasul real de la buza
+  la dinte dupa aceea (1,04–1,12 fata de 1,21–1,38), pentru ca, fata de ochi, buzele ei sunt mai
+  deschise decat la oamenii reali (0,81 fata de 0,72). Deschiderea se citea ca intunericul gurii
+  care se intinde. La oamenii filmati, la marimea bustului, dintii sunt 1,01 din buze la 4–6mm,
+  1,20 la 6–8 si 1,33 la 8–10.
+
+**Acum** (`tools/guide/mouth.mjs`):
+
+- **Colturile.** Ea zambeste deja in repaus, deci o vocala intinsa le mai duce doar 1px
+  (`SPREAD_OUT`), una rotunjita le strange tot cu 3,2px (`SPREAD`), iar o mica strangere, 0,1px pe
+  pixel de coborare (`NARROW`), tine orice deschidere cel mult cat gura in repaus. Cat vorbeste,
+  gura ei ramane cat in repaus pana la 5mm si 0,98–0,99 din ea dincolo. `SPREAD_OUT` si `NARROW`
+  sunt alegeri sprijinite de masuratoare, nu masuratori: gurile reale se latesc cu vreo 3% la
+  7–11mm, a ei ramane putin mai ingusta acolo, ca nicio deschidere sa nu para o marire.
+- **Dintii.** Sunt potriviti, la marimea bustului si intre 4 si 10mm, la media geometrica a celor
+  doua referinte masurate, albul ochilor si buzele (`TEETH_LIGHT` 1,1, `TEETH_REACH` 3,8px; abatere
+  medie 3,3%, cel mult 5% sub ea, la 9–10mm). Raman sub dintii de la inceput („prea albi”) pana la 9mm, si raman turcoaz.
+
+La marimea bustului:
+
+| buze departate | 3mm | 5mm | 7mm | 10mm |
+|---|---|---|---|---|
+| dintii fata de buze, fetele filmate | 0,93 | 1,02 | 1,21 | 1,38 |
+| — ai ei, potriviti doar dupa ochi | 0,73 | 0,92 | 1,04 | 1,12 |
+| — ai ei, acum | 0,77 | 1,00 | 1,13 | 1,22 |
+| dintii fata de albul ochilor, fetele | 0,66 | 0,75 | 0,87 | 0,98 |
+| — ai ei, primii („prea albi”) | 0,95 | 0,97 | 0,96 | 0,96 |
+| — ai ei, acum | 0,62 | 0,81 | 0,92 | 0,99 |
+
+**Masurat, si reproductibil din repo:**
+
+- `tools/guide/lips/analyze.py` raporteaza acum latimea gurii la fiecare deschidere
+  (`width_by_aperture`). Rulat din nou, toate celelalte cifre din `measured.json` au iesit
+  identice.
+- `tools/guide/lips/track.mjs` pune latimea ei langa a fetelor: 1,00 / 1,00 / 0,99 / 0,99 / 0,98
+  fata de 0,94 / 0,95 / 0,99 / 1,03 / 1,03 (1–3 … 9–11mm). Inainte: 1,02–1,04.
+- `tools/guide/lips/teeth.py` masoara si buzele (`teeth_seen_over_lips`), iar `mouth.mjs`
+  tipareste dintii ei si fata de buze.
+
+**Verificat.**
+
+- **In Edge, pe build-ul nou:**
+  - tacerea e identica cu portretul (0,0);
+  - cusatura in tacere a scazut la 4,0–7,0 unitati pe contur (inainte 8,4), cu 8,3–11,5 in buze
+    si 0,2 in medie, la 1×, 1,5×, 2,625× si 3×;
+  - cadrele stau pe portret la cel mult 0,03px;
+  - pe pagina, intunericul gurii deschise pe *e*/*i* are cat in tacere (21 de pixeli de ecran;
+    inainte 24), iar dintii se vad ca o banda turcoaz mai deschisa decat buzele, de la 6mm in sus.
+- **Teste:** tsc, eslint si vitest 1553/1553 trec. Niciun test nou.
+- **Revizie** (9 agenti; fiecare gasire verificata de altul, care a incercat s-o infirme):
+  - codul n-are defecte: campul de deplasare nu se pliaza la nicio poza, iar nicio poza nu poate
+    misca un pixel acolo unde cadrul e transparent, deci nu se poate deschide o cusatura;
+  - judecata vizuala: gura deschisa „se citeste ca buze care se departeaza peste dinti, nu ca o
+    gura care creste”, fara artefacte noi;
+  - s-au reparat cateva formulari: abaterea de 3,3% era media patratica (cel mult 5%), cifrele
+    latimii erau din scriptul de lucru, nu din `measured.json`, si `NARROW` era descris ca masurat.
+
+**Fisiere.**
+
+- `tools/guide/mouth.mjs`: `SPREAD_OUT`, `NARROW`, `TEETH_LIGHT` 1,1, petecul si masca ce acopera
+  acum si gura inchisa, comparatia cu buzele.
+- `public/guide/gura/`: cele 33 de cadre, regenerate (91,3KB; petecul e mai mic, pentru ca
+  colturile se misca mai putin).
+- `tools/guide/lips/`: `analyze.py`, `measured.json`, `track.mjs`, `teeth.py`,
+  `measured-teeth.json`.
+- Documentatia: `docs/04` (latimea gurii; dintii fata de buze), `docs/11` (marimea cadrelor),
+  `tools/guide/README.md`.
+
+Docs:
+
+- [04 — „The mouth”](./docs/04-design-system.md#asistent-tbs--the-corner-assistant);
+- [tools/guide/README.md](./tools/guide/README.md).
+
+## 2026-10-08 — Changed: dintii asistentei stau in umbra buzelor si in culoarea ei, cat de luminati sunt la oamenii filmati
+
+*„dintii parca sunt prea albi dar miscrile gurei sunt bune”*
+
+**Ce era gresit.**
+
+- **Acelasi ton la orice deschidere.** Dintii erau 1,12–1,17 din albul ochilor ei in orice cadru
+  deschis de la 3mm in sus. La o gura reala, dintii primesc doar lumina care intra printre buze:
+  intr-o deschidere ingusta stau in umbra buzelor. La marimea bustului, la deschiderile mari erau
+  cam cat la oameni; la cele mici si medii (3–5mm), cu 30–45% prea luminosi: o linie deschisa
+  acolo unde o gura adevarata arata una umbrita.
+- **Gri, intr-o fata turcoaz.** Erau pielea barbiei ei, intunecata. Portretul e o proiectie
+  colorata, turcoaz adanc in umbre si mai deschis in lumina; pielea intunecata iesea gri langa el
+  (o diferenta de culoare CIE76 de 6–12, la aceeasi luminozitate). Intr-o holograma de o singura culoare, mai putin
+  saturat se citeste ca mai alb.
+
+**Masurat pe video** (`tools/guide/lips/teeth.py`, nou):
+
+- **Fetele:** cele patru clipuri ale studiului buzelor (Barack si Michelle Obama) si trei noi, cu
+  vorbitori cu pielea deschisa, ca a ei (Joe Biden 2016, Antony Blinken 2023, Hillary Clinton
+  2016; `fetch_teeth.py`, nou, le ia dupa titlu si refuza orice nu e domeniu public): noua fete.
+- **Ce se masoara**, in cadrele in care o fata vorbeste cu buzele departate: pixelii dintre buzele
+  interioare — cea mai luminoasa zecime (dintii) si media (deschiderea) — fata de albul ochilor
+  aceleiasi persoane. Doua tesuturi albe, deci nu conteaza nici culoarea pielii, nici expunerea
+  clipului. Fata de barbie ar fi contat: cu buzele departate 6–10mm, la Obama dintii ies de
+  1,2–2,0 ori mai luminosi decat barbia, la vorbitorii cu pielea deschisa de 0,75–1,5 ori.
+- **In luminozitate, nu in luma:** luminanta fiecarui pixel in lumina liniara, scrisa ca griul la
+  fel de luminos (0–255). Pentru gri, si aproape pentru un dinte sau albul ochilor, cele doua
+  coincid; turcoazul ei pare mai inchis in luma decat este (albul ochilor ei: luma 135,
+  luminozitate 152). Prima calibrare, facuta in luma, iesise cu vreo zecime prea intunecata.
+- **Si la marimea bustului:** acelasi lucru estompat cu 1mm (pe desktop la 1,5×, un pixel de
+  ecran acopera 2,6mm din fata ei). Asta e comparatia care conteaza: cadrele ei sunt clare,
+  video-ul nu.
+- **La toate fetele, dintii se lumineaza pe masura ce se deschide gura:** de la 0,64 din albul
+  ochilor la 2–4mm la 1,08 la 10–12mm (mediana pe fete).
+
+**Acum** (`tools/guide/mouth.mjs`):
+
+- **Lumina vine prin deschidere.** In lumina plina, dintii ar fi cat pielea ei luminata
+  (`TEETH_LIGHT`, 1). Deschiderea din acel punct al gurii lasa sa intre 1 − e^(−deschidere/
+  `TEETH_REACH`) din lumina asta: 63% la `TEETH_REACH` (3,8px), 92% la cel mai larg cadru (9,4px),
+  deci niciun cadru nu e in lumina plina. Dintii de jos urmeaza la 0,69 din cei de sus.
+- **In culoarea ei.** Fiecare ton din gura stabileste doar luminozitatea, iar culoarea o ia din
+  portretul ei la acea luminozitate (`hers`: culoarea mediana a pixelilor din jurul gurii).
+- **Generatorul se masoara singur** la fiecare rulare, ca `teeth.py`, si se pune langa fete (sau
+  spune intr-un rand de ce nu poate).
+
+Fata de albul ochilor, la marimea bustului („inainte” e aceeasi masuratoare a cadrelor servite
+pana acum):
+
+| buze departate | 3mm | 5mm | 7mm | 10mm |
+|---|---|---|---|---|
+| dintii, fetele filmate | 0,66 | 0,75 | 0,87 | 0,98 |
+| dintii ei, inainte | 0,95 | 0,97 | 0,96 | 0,96 |
+| dintii ei, acum | 0,59 | 0,75 | 0,85 | 0,91 |
+| media deschiderii, fetele | 0,48 | 0,53 | 0,59 | 0,65 |
+| media deschiderii ei, inainte | 0,74 | 0,67 | 0,62 | 0,61 |
+| media deschiderii ei, acum | 0,52 | 0,56 | 0,57 | 0,59 |
+
+Intre 4 si 10mm, dintii ei urmeaza mediana fetelor la 4% in medie si 7% cel mult, si masurat
+direct, si la marimea bustului.
+
+**Miscarea a ramas exact cum era:** aceeasi geometrie, aceeasi pista a vorbirii; cele trei cadre
+cu gura inchisa sunt aceleasi fisiere, bit cu bit, deci tacerea si asezarea peste portret nu s-au
+schimbat.
+
+**Verificat.**
+
+- **In Edge, pe build-ul nou**, la 1280×800 (1,5×) si 390×844 (3×):
+  - tacerea e identica cu cadrul inchis (0,0);
+  - cusatura e cea de dinainte: 8,4 unitati pe contur si 11,0 in buze la 1,5×, 5,7 si 12,5 la 3×,
+    0,2 in medie;
+  - cadrele stau pe portret la cel mult 0,03px;
+  - in vorbire, dintii cresc lin cu deschiderea, fara salturi.
+- **Culoarea:** pixelii din gura sunt la 1,0–1,8 (CIE76) de paleta ei; inainte erau la 4,6–10. Pe
+  pagina, dintii ies (35,163,189), langa pielea ei de aceeasi luminozitate (32,166,189); inainte,
+  (89,168,185).
+- **Studiul se reproduce:** scripturile din repo, rulate de la zero, dau exact mediile din
+  `measured-teeth.json`.
+- **Teste:** tsc, eslint si vitest 1553/1553 trec. Niciun test nou.
+- **Revizie, in doua runde** (27 de agenti; fiecare gasire verificata de altul, care a incercat s-o
+  infirme):
+  - Prima a gasit, si s-au reparat:
+    - dintii gri, in afara paletei ei;
+    - masurarea in luma, care citea turcoazul ei prea inchis (calibrarea iesise cu o zecime prea
+      intunecata);
+    - masca generatorului, mai stransa cu un pixel decat a lui `teeth.py`;
+    - cifrele fata de barbie, care nu se puteau reproduce (acum sunt in `measured-teeth.json`);
+    - formularea lui `TEETH_REACH`;
+    - reincercarile din `fetch_teeth.py`.
+
+    Infirmate: media deschiderii la 3–5mm (in zgomotul dintre fete) si intervalul de 2–4mm.
+  - A doua, dupa recalibrare: codul e corect (paleta cade exact pe luminozitate, nicio culoare nu
+    se taie, nimic schimbat in afara gurii), iar judecata vizuala n-a gasit defecte. S-au reparat
+    cateva formulari si garda generatorului la un fisier de studiu stricat.
+
+**Fisiere.**
+
+- `tools/guide/mouth.mjs`: `lit(gap)`, `TEETH_LIGHT`, `TEETH_REACH`, luminozitatea (`lightness`),
+  paleta ei (`hers`) si masurarea dintilor la fiecare rulare.
+- `public/guide/gura/`: cele 33 de cadre, regenerate (93,8KB).
+- `tools/guide/lips/teeth.py`, `fetch_teeth.py`, `measured-teeth.json` (noi).
+- Documentatia: `tools/guide/README.md`, `docs/04` (dintii si „How bright her teeth are”),
+  `docs/11` (noile descarcari ale studiului).
+
+Docs:
+
+- [04 — „The mouth”, „How bright her teeth are”](./docs/04-design-system.md#asistent-tbs--the-corner-assistant);
+- [11](./docs/11-security.md);
+- [tools/guide/README.md](./tools/guide/README.md).
+
+## 2026-10-08 — Changed: gura asistentei e fata ei care se misca, si spune textul raspunsului
+
+*„gura asistentei fa sa se miste mai real ca la un om adevarat, analizeaza undeva de pe internet
+dintrun videou si fa schimbarile, ca nu pare real parca se vad taiturile”*
+
+**Ce era gresit.**
+
+- **Gura erau sase ferestre peste portret:** `.jaw`, `.upperLip`, `.mouth`, `.teeth`, `.mouthTop`
+  si `.lipShade`. Buza de jos aluneca in jos cel mult 1,5px, cea de sus 0,45px, peste o fanta
+  pictata.
+- **O fereastra e o bucata rigida dintr-o fata care, in realitate, se intinde.** Oriunde se
+  termina bucata, imaginea era taiata. Acestea erau „taieturile”.
+- **Fundalurile ferestrelor erau desenate altfel decat poza.** Erau cat cutia bustului, putin mai
+  late decat imaginea, si asezate cu offseturi. Portretul insusi, desenat asa peste el, a iesit
+  diferit cu pana la 37,6 unitati de luminanta, la 1,5×. Asa ca fiecare fereastra diferea de poza
+  de sub ea, oricum ar fi fost mascata. (Un fundal care umple exact dreptunghiul pozei e desenat ca
+  ea; asa sunt desenate acum cadrele.)
+- **Miscarea nu urma textul.** Era o bucla de 4,7s cu 22 de silabe inventate, care tinea fix 7s:
+  raspunsul de un rand era „spus” inca cinci secunde dupa ultimul cuvant.
+
+**Acum.**
+
+1. **Cadre din propria ei fata, deformate.** `tools/guide/mouth.mjs` scrie 33 de fisiere in
+   `public/guide/gura/` (94KB in total): 11 deschideri × 3 forme ale buzelor. Fiecare are marimea
+   portretului, e transparent in afara gurii, iar gura sta pe pixelii pe care ii are in portret.
+   - **Cum se misca fata:**
+     - buza de jos si barbia coboara cu maxilarul;
+     - buza de sus se ridica;
+     - colturile se strang (o, u) sau se intind (e, i).
+   - **Buzele merg cu maxilarul aproape intregi.** Marginea buzei de jos coboara 0,89 cat marginea
+     ei dinauntru, iar buzele se subtiaza doar cat la fetele masurate. Pielea de sub buza trece
+     treptat in coborarea barbiei, iar a barbiei se stinge in gat.
+   - **Fara margine de vazut.** Miscarea e exact zero inainte de marginea petecului. Acolo cadrul
+     e chiar pixelul portretului.
+   - **Intre buze, o gura, nu o gaura neagra.** Dintii de sus atarna de maxilarul de sus, deci nu
+     coboara cu buza de jos: marginea lor sta la 3mm sub linia buzelor, putin mai sus spre canini, in
+     tonul pielii ei luminate, umbriti sub buza si despartiti intre ei. O deschidere mica arata doar
+     dinti (buze usor departate peste ei); una mai mare arata, sub marginea lor, intunericul gurii (in
+     tonul liniei buzelor, nu negru), limba si marginea dintilor de jos.
+   - **Jumatate cat la oamenii filmati.** Cadrul cel mai larg desparte buzele 10mm (2,6px pe bustul
+     de 106px). La marimea lor, pana la 19mm, gura arata prea mare pe un bust atat de mic; ritmul si
+     timpii raman ai lor.
+   - **Patru straturi.** O poza intre cadre e amestecul biliniar al celor patru cadre din jurul
+     ei. Se schimba doar fisierul fiecarui strat (`--f`) si opacitatea lui, niciodata cu transform:
+     un transform ar rasteriza cadrele la o jumatate de pixel de poza.
+   - **Asezate exact peste portret.** Fiecare strat e chiar dreptunghiul portretului, umplut de
+     cadrul lui (100% × 100%, fara offset), iar un fundal care isi umple exact cutia e desenat la
+     fel ca `<img>`-ul. Masurat: 0,00px decalaj, de la telefon la 3× pana la desktop la 1×. Prima
+     varianta lua cadrele dintr-un singur sprite, cu offseturi, si ateriza pana la 1,5px alaturi pe
+     telefon.
+   - **Compuse pentru opacitate** (`will-change: opacity`). Greutatile amestecului se schimba la
+     fiecare cadru, iar pe un strat propriu o opacitate noua e o valoare pentru compozitor, nu o
+     re-stratificare a paginii: 0,83 → 0,08ms de fir principal pe cadru cat vorbeste.
+   - **Cadrul inchis e afisat mereu, si in tacere.** Cadrele si portretul raman doua codari; altfel
+     gura s-ar schimba cu diferenta lor in clipa in care incepe sa vorbeasca. Tacerea e chiar cadrul
+     inchis.
+   - **Fata apare intreaga.** Fata asteapta portretul si cadrul inchis, decodate, apoi apare in
+     0,25s, ca buzele sa nu fie redesenate, nemiscate, o clipa mai tarziu. Celelalte 32 de cadre se
+     incarca in acelasi timp (nu si la „reduced motion”, unde nu se foloseste decat cadrul inchis);
+     un raspuns inceput inainte sa fie toate gata e spus cu gura in repaus.
+   - **Cadrele raman tinute in memorie** cat traieste pagina. O imagine incarcata pe care n-o mai
+     tine nimic e scoasa din cache, iar stratul care o numea din nou o cerea iar de la server si nu
+     desena nimic pe durata drumului (masurat la 50ms latenta: 44 de cadre cu stratul de baza gol la
+     primul raspuns). Acum, la 150ms latenta: 0 cereri la primul raspuns si 0 la al doilea, dupa
+     25s si un GC. Si `/guide/*` are o ora de cache (`next.config.ts`), ca a doua pagina sa nu le
+     mai ceara.
+2. **Spune textul raspunsului** (`components/hud/guide/speech.ts`, nou).
+   - **Literele devin tinte:**
+     - *a* deschide cel mai mult; *e*, *ă* si *o* cam trei sferturi; *i*, *u* si *î* sub jumatate;
+     - *o* si *u* rotunjesc buzele, iar *e* si *i* le intind;
+     - *p*, *b* si *m* inchid buzele, iar *f* si *v* le apropie.
+   - **Diftongii.** In romana si engleza, o vocala inalta langa una mai deschisa aluneca, nu e
+     silaba separata: *ia*, *ie*, *iu*, *ai*, *au*, *ea*, *oa*; *you*, *they*. Rusa isi scrie
+     alunecarile cu litere (*я*, *ю*, *е*, *ё*), asa ca acolo doua vocale sunt doua silabe.
+   - **Cuvintele latine dintr-un raspuns rusesc** (*e-commerce*, *email*) se citesc ca in engleza.
+   - **Pauze:** la virgula (0,3s) si la punct (0,55s).
+   - **Accent:** silaba accentuata se deschide mai mult si tine mai mult. E penultima in romana si
+     rusa, prima in engleza.
+   - **Variatie:** fiecare silaba e putin diferita, cu pana la 14%. Acelasi raspuns se misca mereu
+     la fel.
+   - **Ritmul:** cam 4,5 silabe pe secunda cat vorbeste. Buzele se deschid distinct de 2,6 ori pe
+     secunda, ca la fetele masurate (2,8): nu la fiecare silaba.
+   - **Miscarea dintre tinte:** sase etape egale (modelul lui Birkholz).
+     - Viteza creste si scade ca un clopot, cu varful putin inainte de mijloc (la 0,41 dintr-o
+       deschidere).
+     - Un arc simplu porneste brusc si se taraste spre final (varful la 0,29).
+   - ***p*, *b* si *m* inchid buzele de-a binelea.**
+     - Buzele se intalnesc inca in miscare si apasa. In articulatie asta se numeste tinta
+       „dincolo de contact” (Löfqvist & Gracco 1997).
+     - De aceea *p*/*b*/*m* tintesc −0,5 si *f*/*v* −0,1, iar pista se opreste la „inchis”.
+     - Tintind exact „inchis”, doar 16 din cele 59 de *p*/*b*/*m* din raspunsuri ajungeau sa inchida
+       buzele. Acum le inchid pe toate 59, lipite ~90ms. Minimul vizibil folosit in animatie
+       (Rhubarb) e 70–80ms.
+   - **Intrerupta** (alta intrebare, ✕, Escape, alta limba), gura se inchide lin din pozitia in
+     care e, in 0,15s. Un raspuns nou porneste de acolo.
+   - **Cat tine textul, niciodata peste 7s.** Un raspuns mai lung se opreste la o virgula sau la un
+     punct din ultimele 2,5s dinainte de 6,7s, altfel dupa ultimul cuvant intreg. Raspunsul de un
+     rand tine acum 3,0s in loc de 7.
+   - **La „reduced motion”** gura nu se misca, iar `data-say` tine cat textul.
+3. **Masurat pe video, nu ales** — in afara de marime, injumatatita intentionat.
+   - **Sursa:** doi vorbitori, un barbat si o femeie, in patru clipuri din domeniul public
+     (discursurile saptamanale ale Casei Albe, de pe Wikimedia Commons). Au fost urmariti cadru cu
+     cadru cu MediaPipe Face Mesh, ca sase piste de fata: 352s de vorbire.
+   - **Uneltele si rezultatele** sunt in `tools/guide/lips/` (`measured.json`).
+   - **Gura ei e masurata la fel**, cu `track.mjs`:
+
+   | | fete filmate | asistenta |
+   |---|---|---|
+   | buze departate, mediana / p75 / p95 | 8,4 / 11,2 / 17,9 mm | 4,2 / 6,0 / 8,6 mm |
+   | deschiderea unei silabe, mediana | 9,8 mm | 5,8 mm |
+   | deschideri pe secunda | 2,76 | 2,63 |
+   | deschidere / inchidere, mediana | 133 / 133 ms | 133 / 100 ms |
+   | viteza maxima, deschidere / inchidere | 81 / 82 mm/s | 47 / 47 mm/s |
+   | inchisa (sub 2 mm) | 19% | 27% |
+
+   Marimile ei sunt jumatate din ale lor, cu buna stiinta (mai sus); ritmul si timpii sunt ai lor.
+
+   - **Anatomia vine din aceleasi masuratori**, calculata in interiorul fiecarei secvente de
+     vorbire. Pentru fiecare mm cu care se deschid buzele, marginea buzei de jos coboara 0,76, a
+     celei de sus urca 0,085, barbia coboara 0,49, iar buzele se subtiaza cu 0,16 intre ele.
+   - **A doua sursa** (articulografie, MOCHA-TIMIT) da aceleasi lucruri: deschideri si inchideri de
+     100–140ms, viteza in clopot, buze care se lovesc in miscare si raman lipite 70–85ms.
+
+**Fisiere.**
+
+- **Codul:**
+  - `components/hud/guide/speech.ts` (nou);
+  - `GuideAssistant.tsx`: `paintMouth`, efectul care o face sa vorbeasca, inchiderea lina la
+    intrerupere, asteptarea fetei (`faceReady`);
+  - `GuideAssistant.module.css`: `.mouth`, `.mouthFrame`, `.live:not([data-face])`. Au plecat cele
+    sase elemente vechi si keyframe-urile lor generate.
+- **Cadrele si uneltele:**
+  - `public/guide/gura/` (nou, 33 de cadre);
+  - `tools/guide/mouth.mjs` (nou);
+  - `tools/guide/lips/` (nou: `Dockerfile`, `fetch.py`, `frames.py`, `analyze.py`, `measured.json`,
+    `track.mjs`);
+  - `tools/guide/asset.mjs` (cutia buzelor, pentru `mouth.mjs`), `tools/guide/README.md`.
+- **Cache:** `next.config.ts` — `/guide/*` primeste aceeasi regula ca pozele proiectelor (o ora,
+  plus o saptamana de stale-while-revalidate).
+- **Testul:** `components/__tests__/guide-assistant.test.tsx` — testul CSS verifica acum ca gura nu
+  e niciodata transformata, ca fiecare strat e dreptunghiul portretului umplut de cadrul lui si ca e
+  compus doar pentru opacitate; plus comentarii.
+- **Documentatia:** `docs/04`, `05`, `03`, `11`. In `docs/03` si `docs/11` scria ca asistenta a
+  fost scoasa „definitiv”; s-a scos doar sfatul aparut singur, ea a ramas. Am corectat si lista de
+  fisiere servite.
+
+**Verificat** in Edge, pe build-ul nou:
+
+- **Tacere fata de gura inchisa in timpul vorbirii:** identice (0,0).
+- **In direct, la 60 de cadre pe secunda:**
+  - la 1280×800 (1,5×), 500×900 (2×) si 390×844 (3×), in romana, engleza si rusa;
+  - buzele se inchid de 2–7 ori pe raspuns, intre 17 si 150ms;
+  - cel mai mare pas intre doua cadre e 0,21 din deschiderea maxima, la o inchidere.
+- **Intrerupere:**
+  - alta intrebare apasata in mijlocul unui cuvant: niciun pas mai mare decat cei ai vorbirii
+    (0,18);
+  - Escape la o deschidere de 0,70: inchisa lin (pas maxim 0,11), complet dupa 150ms.
+- **Fata:** apare decodata, la timp cu avatarul.
+- **Asezarea cadrelor peste portret**, in tacere, la 1×, 1,5×, 2×, 2,625× si 3× (busturi de 38, 60,
+  78 si 106px):
+  - 0,00px decalaj la toate;
+  - cel mult 8,4 unitati de luminanta pe conturul cadrelor si 12,5 in interiorul buzelor, 0,2 in
+    medie. Sprite-ul ajungea la 79. (Masurat cu imaginile cadrelor golite, nu cu straturile
+    ascunse: ascunse, ele recompun dungile hologramei, care la 2,625× se muta cu un sub-pixel si
+    dau 51 de unitati pe tot bustul, fara legatura cu cadrele.)
+- **Cost:** in vorbire, la fel de multe cadre desenate ca in tacere (719 fata de 718 in 3s); niciun
+  cadru cerut din nou de la server in timpul raspunsurilor, la 150ms latenta.
+- **e2e:** `hud-integration`, `scroll-rail` si `hud-shell`, pe build-ul cu dintii: 48 trec. Cele 4
+  care pica (HI1 si cele 3 „burger menu after scrolling”) picau deja pe HEAD d3dea91. In Edge,
+  pe site-ul servit, meniul burger deschis si inchis dupa derulare pastreaza pozitia (800) in 12
+  din 12 incercari, la 390×844 (3×) si 320 (2×): pica doar in mediul testului.
+- **Teste:** tsc, eslint si vitest 1553/1553 trec. Niciun test nou.
+- **Revizie.** Patru recenzori independenti (vorbirea, cadrele, masuratorile, documentatia), fiecare
+  verificat de altul care a incercat sa-i infirme. Au gasit si s-au reparat:
+  - **buza de jos turtita** la 40% din inaltime la deschiderea maxima: pantele buzelor erau aplicate
+    pe marginea gresita;
+  - **scara in mm**: 75px intre ochi in loc de 58, deci toate cifrele ei erau cu o treime mai mici;
+  - **pantele amestecate intre fete**;
+  - **regula de diftongi** care nu se aplica niciodata;
+  - **cuvintele latine din rusa** si **„si”, „zi”, „the”**, care ramasesera fara vocala;
+  - **gura care se inchidea brusc la intrerupere**;
+  - **descarcarile intrerupte** in `fetch.py`;
+  - mai multe cifre si fraze din documentatie.
+
+  Dupa revizie, masurand la telefon, s-a mai gasit si reparat un lucru: cadrele luate din sprite
+  stateau pana la 1,5 pixeli de dispozitiv langa portret la 2× si 3×. De aici fisierele de marimea
+  portretului. A doua revizie, pe cadrele noi, a gasit ca cele preincarcate erau eliberate din
+  memorie dupa decodare (pe o retea reala, primul raspuns ar fi palpait), plus cateva fraze vechi
+  din documentatie; toate reparate.
+
+  A treia revizie, pe dinti si pe gura injumatatita: dintii portati in node si verificati cadru cu
+  cadru (niciun dinte in cadrele inchise, niciunul in afara deschiderii, fara salt intre cadre,
+  culori in limite) — nimic gresit. A gasit in schimb cifre ramase de la marimea veche, toate
+  corectate: 96KB in loc de 94, „de vreo 3 ori pe secunda” in loc de 2,6, varful vitezei la 0,42 in
+  loc de 0,41, „3 din 59” de *p*/*b*/*m* tintind exact „inchis” (la marimea noua sunt 16), o
+  limita de 8 unitati depasita (8,4), comentariul din CSS care descria inca gaura de dinainte si
+  antetele care spuneau ca si marimea e masurata.
+
+Docs:
+
+- [04 — the corner assistant, „The mouth”](./docs/04-design-system.md#asistent-tbs--the-corner-assistant);
+- [05](./docs/05-page-sections.md#asistent-tbs-the-corner-assistant), [03](./docs/03-architecture.md),
+  [11](./docs/11-security.md);
+- [tools/guide/README.md](./tools/guide/README.md).
+
+## 2026-10-08 — Fixed: spirala din Lucrari nu mai franeaza cand e derulata brusc
+
+*„aici la spirala cand brusc merg renderingul franeaza foarte tare, te rog frumos optimizeaza
+spirala aceasta ca sa fie lin”*
+
+**Ce era gresit.** Masurat pe laptopul pe care se lucreaza (RTX 4070 Laptop, ecran de 240Hz):
+driverul tine placa la 225–855 MHz (din 3105) cat timp o pagina deruleaza, la 20–45% incarcare.
+Orice munca in plus pe GPU se simte ca franare. Doua costuri:
+
+- **Paralaxa pozelor, in spirala.**
+  - E o animatie CSS legata de derulare. Animata, poza fiecarui card devenea un strat separat pe
+    compozitor.
+  - In jurul ei, colturile rotunjite ale cardului, amestecul „luminosity” si stratul de scanare de
+    deasupra deveneau si ele straturi si treceri de randare separate (offscreen), cate 3 pe card.
+  - Cu cinci carduri pe ecran: 16 treceri pe cadru.
+- **Bara de derulare din dreapta, oriunde pe pagina.** Se redesena si se re-rasteriza intreaga la
+  fiecare cadru derulat (63 de redesenari in 60 de pasi).
+
+**Acum.**
+
+1. **In spirala, paralaxa e tinuta pe loc, nu animata.**
+   - *Cum:* driverul scrie pe fiecare card, o data la asezare, unde e cronologia sectiunii in
+     momentul in care cardul ajunge in fata (`--helix-parallax`). CSS-ul tine poza acolo cu un
+     transform 2D, desenat odata cu cardul.
+   - *Rezultat:*
+     - un singur strat pe card;
+     - 6 treceri pe cadru in loc de 16;
+     - cu 21% mai putine desenari pe compozitor;
+     - firul principal cu 24% mai putin de lucru pe cadru (3,03 → 2,30ms);
+     - cu sincronizarea si limita de cadre oprite, 15,9ms pe cadru in loc de 20,8. E singurul timp
+       de cadru de aici: in acel regim, trecerile alternate in aceeasi sesiune au dat noua varianta
+       mai rapida in 9 perechi din 10.
+   - *Ce se vede:* cardul din fata e identic, masurat la 0,003px de pozitia animata, la fiecare
+     card. Cardurile din jur nu mai au deriva pozei in jurul acelui moment:
+     - cu cele 9 proiecte, la 1280×800: cam 1,7px pe pas, 3,45px la doi pasi distanta, unde cardul
+       e mic, intors si pe jumatate transparent;
+     - mai mult cu mai putine proiecte sau carduri mai inalte: cam 2,9px pe pas la minimul de 3
+       carduri, 2,4px pentru cardul IQ Arena (360px) pe o tableta tactila de 768×1024.
+   - In grila, in banda de pe telefon si langa helixul mic (ambiental), paralaxa merge ca inainte.
+2. **Bara de derulare.**
+   - *Cum:* firul aprins si capul lui stau fiecare intr-o cutie nemiscata care e un strat al ei
+     (`will-change: opacity`). La derulare se redeseneaza doar aceste doua straturi mici.
+   - *Rezultat:* rasterizarea pe firul GPU scade de la 0,82 la 0,30ms pe cadru, fata de 0,26ms fara
+     bara deloc.
+   - *De ce stratul e cutia, nu firul:* un fir promovat direct e rasterizat o data la lungime
+     intreaga si apoi strivit de compozitor. In capul paginii (scalat la 2%), capatul aprins iesea cu
+     o treime mai stins. In cutia nemiscata, firul si capul se deseneaza la marimea si locul lor,
+     ca inainte.
+   - *Ce difera*, comparat pixel cu pixel cu animatiile inghetate: doar anti-aliasing-ul.
+     - muchiile romburilor;
+     - la scalare fractionara (150%, 175%), o coloana de un pixel de-a lungul marginii firului si a
+       capului, cu pana la ~20 din 255.
+   - *De ce `opacity` si nu `transform`:* sub `will-change: transform`, Chromium arunca fractiunea
+     de pixel a pozitiei. Aici ambele au iesit identice in toate capturile.
+
+**Ce ramane.** Prima desenare a fiecarei capturi in holograma o decodeaza pe firul principal: 1,8–9,4ms,
+o data pe card la fiecare vizita.
+
+- `createImageBitmap` a fost masurat si decodeaza tot sincron (9,4ms).
+- Citirea fisierului (fetch/blob) e exclusa de regula de confidentialitate a hologramei.
+- Asa ca ramane cum e.
+
+**Fisiere.**
+
+- `app/tailwind.css` (`parallax-media`);
+- `components/scene/helix.ts` (`HELIX_PARALLAX_PROP`, `viewProgress`);
+- `components/scene/workHelix.ts` (`holdParallax`, `CARD_PROPS`);
+- `components/hud/rail/ScrollRail.tsx` si `.module.css` (`.layer`);
+- `components/sections/Work.tsx`, `components/__tests__/scroll-rail.test.tsx` (comentarii);
+- `docs/02`, `03`, `04`, `05`, `07`.
+
+**Verificat** in Edge, pe build-ul nou:
+
+- **Paralaxa:**
+  - toate cele 9 carduri, la pozitia in care fiecare e in fata, comparate cu animatia repornita
+    (≤0,003px);
+  - iesirea din spirala readuce stilul cardului octet cu octet si animatia;
+  - un singur strat pe card.
+- **Bara:** comparata pixel cu pixel in 9 pozitii (la 1×, 1,5×, 1,75× si 2×), cu animatiile
+  inghetate; costul masurat pe cadru principal, la acelasi scroll.
+- **Teste:**
+  - tsc, eslint si vitest 1553/1553 trec;
+  - e2e pe bara si pe spirala: 49 trec, iar cele 7 care pica sunt cele care picau deja pe HEAD
+    d3dea91 (E1, E7, E8, E8b, W15, W18, W19: `<svg>`-ul de la inceputul pistei Work).
+- **Revizie:** patru recenzori independenti (driverul, CSS-ul, bara, textele) si un verificator care
+  a incercat sa le infirme. Nu au gasit niciun defect de functionare. Corecturile de text confirmate
+  sunt facute: cifra de 2px conditionata, raportul de cadre, „parintele” lui `--rail-p`,
+  `will-change: opacity`.
+- **Cum s-a masurat:** pe acest laptop, timpii de cadru ai browserului de test (cu sincronizare) sar
+  de la o rulare la alta:
+  - 60 sau 240Hz;
+  - opriri de prezentare de 160–250ms cu GPU-ul liber;
+  - o comparatie de control cu pagini identice a dat diferente de 3×.
+
+  De aceea, in afara de timpul de cadru fara sincronizare de mai sus, cifrele sunt munca numarata
+  (treceri, straturi, rasterizari, timp pe fir).
+
+Docs:
+
+- [05 — Work](./docs/05-page-sections.md#work);
+- [04 — Work, the HUD card](./docs/04-design-system.md#work--the-hud-card);
+- [04 — The fibre rail](./docs/04-design-system.md#the-fibre-rail);
+- [07](./docs/07-conventions.md), [03](./docs/03-architecture.md), [02](./docs/02-tech-stack.md).
+
+## 2026-10-07 — Fixed: asistenta incape in patratul ei pe telefon si are din nou marimea ei pe tableta
+
+*„a”* — varianta aleasa: pe telefon, asistenta se micsoreaza ca in designul original, ca sa incapa
+in patrat.
+
+**Ce era gresit.** Doua greseli de cascada CSS, niciuna de design:
+
+- **Pe telefoanele sub 400px** (aproape orice iPhone: 375, 390, 393px; multe Android-uri):
+  - *De ce:* regula care ii dadea scena de 56px (portret de 38px) era scrisa *deasupra* regulii de
+    baza `.scene`. Doua selectoare egale se decid dupa ordine, asa ca regula de baza castiga mereu.
+  - *De cand:* din ziua in care a fost facuta asistenta (6d695af).
+  - *Efect:* era desenata la 60px intr-un patrat de 68px. Capul ii iesea peste marginea de sus,
+    inelele pe laterale.
+- **Pe tableta si pe telefonul tinut orizontal** (641–860px):
+  - *De ce:* o rescriere din 2026-09-28 (1d84787) a dat regulii de acolo valorile de sub 400px.
+  - *Efect:* era desenata la 38px intr-un patrat de 136px, minuscula, cu eticheta sub ea.
+
+**Acum** fiecare patrat are scena lui, iar asistenta e desenata in interior, exact ca in designul cu
+care a fost lansata:
+
+| latime | patrat | scena | portret |
+|---|---|---|---|
+| sub 400px | 68px | 56px | 38px |
+| 400–640px | 104px | 86px | 60px |
+| 641–860px | 136px | 114px | 78px |
+| de la 861px | 184px | 156px | 106px |
+
+Desktopul nu se schimba. Pe telefonul sub 400px, gura ei (care se misca acum si acolo, intrarea de
+mai sus) coboara ~0,5px, adica ~1,5 pixeli de ecran la 3x.
+
+**Fisiere.**
+
+- `components/hud/guide/GuideAssistant.module.css`:
+  - regula de sub 400px a fost mutata sub regula de baza;
+  - regula de la 641px are din nou 78 / 90 / 108 / 114px.
+- `docs/04`, `docs/05`.
+
+**Verificat** in Edge, pe build-ul nou:
+
+- **Nimic in afara patratului:** la 320, 360, 390, 500, 700 si 1280px, nici portretul, nici
+  inelele, nici scena nu ies din patrat (0px peste margine).
+- **Gura:** se misca la toate latimile.
+- **Fara taietura:** la 390px (2x si 3x), 500px si 700px, cadrele cu gura inchisa sunt identice cu
+  tacerea (0,7–0,8 din 255).
+- **Regulile de marime:** comparate declaratie cu declaratie cu cele din 6d695af, au 0 diferente.
+- **Teste:** cele 36 de teste ale asistentei si ale regulii „fara puncte decorative” trec.
+
+Docs: [04 — Asistent TBS](./docs/04-design-system.md#asistent-tbs--the-corner-assistant),
+[05](./docs/05-page-sections.md).
+
+## 2026-10-07 — Changed: asistenta din colt misca din gura si pe telefon
+
+*„acum fa ca asistentul fix asa sa miste din gura si pe telefon”*
+
+**Inainte.** Gura asistentei se misca doar de la 641px latime. Pe telefon raspundea cu gura
+nemiscata:
+
+- `data-say` se punea corect;
+- dar cele sase animatii ale gurii (buza de jos, buza de sus, deschiderea, fasia de sub buza de sus,
+  dintii, umbra de sub buza) stateau intr-un `@media (prefers-reduced-motion: no-preference) and
+  (min-width: 641px)`;
+- motivul notat: „lansatorul e destul de mare ca sa arate o gura de la 641px in sus”.
+
+**Acum** gura se misca pe orice ecran, cat timp raspunde (7s), la fel ca pe desktop.
+
+- **Ce s-a schimbat:** doar conditia media, in `GuideAssistant.module.css`. Ramane doar
+  `prefers-reduced-motion: no-preference`; la miscare redusa gura sta nemiscata, ca inainte.
+- **De ce a fost de ajuns:** toata miscarea gurii era scrisa deja ca fractie din `--bust-h`, nu in
+  pixeli (`docs/04`), deci se scaleaza.
+- **Cat se misca:** pe portretul de 60px al telefonului buza de jos coboara **0,8px**, fata de
+  1,41–1,51px pe desktop. La densitatea 3x a unui telefon asta inseamna 2,4 pixeli de ecran, cam cat
+  pe un desktop la 1,5x.
+
+**Verificat** in Edge, pe build-ul nou, cu emulare de telefon.
+
+- **Animatiile:** la 390, 360 si 500px (3x), cand raspunde pornesc toate cele sase. Buza de jos se
+  misca 0,8px (pe desktop 1,51px).
+- **Fara „taietura”:** am comparat gura la densitatea reala, cu bula deschisa si in tacere, si cand
+  vorbeste.
+  - La 2x si 3x, cadrele cu gura inchisa sunt identice cu tacerea (diferenta 0,7 din 255), exact ca
+    pe desktop la 2x.
+  - Cea mai mare treapta dintre doua randuri vecine nu creste cand vorbeste, deci nu apare nicio
+    muchie noua.
+- **Densitatile fractionare** (Android 2,625x): apare o diferenta fina de rasterizare pe banda de
+  scanare de peste buza. Ea exista la fel pe desktop la 1,5x si 1,25x, unde gura se misca de mult,
+  deci nu vine de aici.
+- **Revizie independenta:** doi recenzenti (randarea sub-pixel; invariantele „fara taietura” si
+  „fara buza-fantoma”) au calculat din CSS fiecare strat al gurii la portretele de 60 si 38px si
+  la densitati de 2–3,5x.
+  - Fiecare constatare a fost verificata de un al doilea, si niciun defect vizibil nu a ramas.
+  - O nuanta: rotunjirea fasiei de sub buza de sus la grila de 1/64px a fost calibrata doar pentru
+    106px. Pe telefon poate ramane in urma cu cel mult 0,05 pixeli de ecran, ceea ce nu se vede.
+    Comentariul si `docs/04` spun acum exact asta.
+- **Teste:** cele 19 teste ale asistentei trec. Testul care verifica faptul ca animatiile stau
+  numai sub `prefers-reduced-motion: no-preference` le gaseste in continuare acolo.
+
+Docs: [04 — Asistent TBS](./docs/04-design-system.md#asistent-tbs--the-corner-assistant),
+[05](./docs/05-page-sections.md).
+
+## 2026-10-07 — Changed: chatul asistentului din estimare are o singura marime, de la prima intrebare pana la rezumat
+
+*„aici fa dimensiunea sa fie asa si sa nu sa se mai schimbe”* (captura: chatul la a doua
+intrebare — intrebarea, „A new product”, intrebarea urmatoare, trei raspunsuri rapide, caseta de
+scris), apoi *„fa ca cand scriu si apar mesaje noi automat sa se faca scroll in jos”*.
+
+**Inainte**, panoul crestea la fiecare raspuns:
+
+| moment | inaltime |
+|---|---|
+| prima intrebare | 303px |
+| a doua intrebare | 416px |
+| a treia intrebare | 529px |
+| lista ajunge la limita ei de 360px | 599px |
+| final, cu rezumatul | 835px |
+
+Tot cubul se misca la fiecare raspuns, si pagina de sub el odata cu el.
+
+**Acum, pe pagina,** chatul are mereu marimea din captura: 419px pe ecran lat. Captura avea 416,1;
+cei 3px in plus impiedica aparitia unei bare de derulare la zoom sub 100%.
+
+- **Stau pe loc:** titlul, raspunsurile rapide si caseta de scris.
+- **Conversatia** se deruleaza in fereastra dintre ele.
+
+**In dialogul de cerere** chatul are cea mai mica marime la care intrebarea noua se vede mereu
+intreaga: 391px pe un dialog lat.
+
+- *De ce nu 296px:* ai ales intai marimea de la prima intrebare (296px). Masurat pe tot arborele,
+  la jumatate din pasi raspunsurile trec pe doua randuri. Fereastra ramanea atunci de 13px, iar
+  mesajul nou nu se vedea oricum s-ar fi derulat.
+- *Cat incape:* dialogul incape fara derulare de la ~865px inaltime (romana) sau ~920px (engleza,
+  rusa), pe toata conversatia. Inainte incapea de la 768px, dar numai pana la primul raspuns.
+
+**Mesajele noi se vad singure.**
+
+- **Dupa fiecare raspuns** (scris, dictat sau ales), fereastra deruleaza la mesajul nou. Este
+  instant la miscare redusa.
+- **Ramane la mesajul nou** si cand fereastra se micsoreaza sub ea: o eroare sub caseta,
+  starea dictarii, raspunsuri rupte pe alt rand.
+  - Numai derularea ta (rotita, atingere, taste, bara) o desprinde de mesajul nou.
+  - *De ce:* propriile noastre derulari dau si ele evenimente. Unul dintre ele, sosit dupa
+    urmatoarea schimbare de inaltime, parea „nu mai e la capat” cand microfonul era refuzat pe
+    loc.
+- **Daca ai derulat inapoi** sa citesti, fereastra nu se misca.
+- **La final** se opreste la mesajul de incheiere. Rezumatul se citeste mai jos, in aceeasi
+  fereastra.
+
+**Restul.**
+
+- **Mesajele stau jos:** intrebarea curenta e chiar deasupra raspunsurilor ei (alegerea ta).
+- **Marginile ferestrei se estompeaza** pe 14px sus si 8px jos, cat marginile bulelor. Derulata,
+  taietura lasa o fasie dintr-o bula, ca o linie sub titlu.
+- **Tastatura:** fereastra e un pas de Tab („Conversatia cu asistentul”, cu inel de focus) si se
+  deruleaza cu sagetile.
+- **Caseta de scris** nu se mai redimensioneaza.
+- **Dictarea vocala:** cat e deschisa revizia ei (textul, nota, „Adauga in camp” / „Renunta”),
+  panoul creste, apoi revine. E singurul caz in care marimea se schimba.
+  - *De ce:* cu marime fixa, revizia se revarsa sub panoul de propunere. In dialogul de 768px,
+    butoanele ei nu se mai puteau apasa.
+
+**Cum e facut.** `--chat-h` este interiorul panoului.
+
+- Este o **podea** (`min-height`). Fereastra conversatiei nu adauga inaltime (baza `0px`), deci
+  nicio intrebare, niciun set de raspunsuri si niciun rezumat nu creste panoul.
+- Treptele urmeaza **latimea chatului insusi** (`container: bay` pe `.bayLeft`), nu a cubului. In
+  doua coloane chatul are 60% din cub. Intre 711 si 800px de cub avea latimea unui telefon, iar
+  pragurile cubului il ratau.
+
+| latimea chatului | ≥ 500px | 500–345px | 345–275px | < 275px |
+|---|---|---|---|---|
+| pagina | 381px (390 sub 860px) | 442px | 537px | 599px |
+| dialog | 361px (370 sub 860px) | 442px | 537px | 599px |
+
+**Fisiere.**
+
+- `components/sections/Estimator.tsx`:
+  - fereastra derulabila, cu firul de mesaje;
+  - rezumatul, in fereastra;
+  - derularea la mesajul nou, care tine fereastra la el;
+  - textul nou, ca `L(ro, ru, en)`.
+- `Estimator.module.css`: marimea, treptele, estomparea.
+- `e2e/helpers.ts`: `chatBubbles` cauta bulele in fir.
+- `docs/05`.
+
+**Revizie.** Patru recenzenti independenti au citit schimbarea (layout, React si accesibilitate,
+teste, conventii). Fiecare constatare a fost verificata de un al doilea. Toate cele confirmate sunt
+reparate:
+
+- revarsarea dictarii;
+- treptele, pe latimea chatului;
+- tinerea la mesajul nou cand fereastra se micsoreaza;
+- rezerva pentru zoom;
+- pragul dialogului din docs;
+- inelul de focus de langa titlu.
+
+**Verificat** in Edge, pe build-ul nou.
+
+- **Conversatia:** toate cele 12 intrebari ale arborelui, la 12 latimi (marginile fiecarei trepte,
+  pagina si dialog), in romana, engleza si rusa: 36 de combinatii.
+  - Panoul are o singura inaltime la fiecare latime.
+  - Intrebarea noua incape intreaga peste tot (cea mai stransa: 3,2px ramasi).
+- **Dictarea simulata** (pagina 1280 si 390, dialog 768, 1440 si 390):
+  - revizia creste panoul si „Adauga in camp” pune textul in caseta;
+  - panoul revine la marimea fixa;
+  - nimic nu iese din panou;
+  - microfonul refuzat lasa fereastra la mesajul nou.
+- **Starea din captura:** arata ca inainte, fara coltul de redimensionare al casetei.
+- **Tastatura si mesajul respins:** Tab si sagetile merg. Un mesaj respins pastreaza intrebarea
+  noua intreaga, iar o fereastra derulata inapoi ramane unde e.
+- **Teste:** tsc, eslint si cele 1553 de teste trec.
+- **Playwright pe specificatiile chatului:** chat, request-flow, contact-form, dictare, modal, HUD
+  si tastatura.
+  - Trec toate, cu doua exceptii: HI1 si testul de derulare al modalului, care pica la fel pe HEAD
+    `d3dea91`.
+  - `chatBubbles` a fost singurul lucru de reparat.
+
+Docs: [05 — Estimator](./docs/05-page-sections.md#07--estimator--contact-estimează-prețul).
+
+## 2026-10-07 — Changed: animatiile lucreaza mai putin — spirala ADN de pe Home si tot site-ul, fara nicio schimbare vizuala
+
+*„acum fa animatia cu spirala si toate animatiile ar fi bine sa fie mai optimizate dar fara sa se
+schimbe ceva vizual”* (spirala: cea ADN de pe Home; zona: tot site-ul)
+
+**Ce se vede: nimic nou.** 19 capturi au fost facute cu animatiile oprite in acelasi moment (Home,
+`/portofoliu`, o pagina de servicii si `/cookies`; la 1720 si la 390px). Sunt identice pixel cu
+pixel cu cele de dinainte, cu doua exceptii:
+
+- ceasul live din antet, singura diferenta constanta;
+- cateva puncte cu ±1–2 pe portretul din Echipa si pe colturile cardurilor de proces. Au aparut
+  si au disparut intre doua rulari ale aceluiasi build, deci sunt zgomot de rasterizare.
+
+**Ce s-a schimbat: munca din spatele lor.** Masurat in Edge, pe GPU-ul real (~240 Hz), cu
+cache-urile calde, in milisecunde de fir principal pe secunda:
+
+| | inainte | dupa |
+|---|---|---|
+| Home, eroul in repaus | 860 | **398** |
+| Home, spirala in repaus | 864 | **302** |
+| Home, derulare prin spirala | 861 | **560** |
+| Home, derulare pana la capat | 844 | **512** |
+| `/portofoliu` in repaus | 260 | **52** |
+
+- **Home in repaus:** layout-urile au scazut de la unul pe cadru (1189 in 5s) la aproape niciunul
+  (8).
+- **`/portofoliu` in repaus:** recalcularile de stil au scazut de la 964 in 4s la 0.
+- **Cadre pe secunda:** prin spirala, 177 → 206; pana la capatul paginii, 207 → 223.
+- **Intro-ul**, la prima vizita, pe tier-ul high:
+  - cel mai lung task: 637ms → **87ms**. Din cele 637ms, 597 erau asteptarea legarii shaderelor,
+    timp in care numaratoarea si desenul stateau inghetate;
+  - cel mai lung cadru: 558 → 125ms;
+  - timpul blocat: 1429 → 883ms.
+- **Comutarea proiectelor din `/portofoliu`:** un click dureaza **13–16ms** in loc de 17–82ms.
+  Decodarea imaginii (pana la 65ms) nu mai e in click, cu conditia ca proiectul sa fi stat pe ecran
+  cel putin ~1,5s.
+
+**Cum.**
+
+1. **Ecranul de incarcare** (`PageLoading.module.css`, `BootCore.module.css`):
+   - *Problema:* `visibility: hidden` oprea desenarea, dar nu cele 13 bucle ale nucleului. Ele
+     rulau toata vizita sub un ecran pe care nu-l vedea nimeni, cu o recalculare de stil pe cadru,
+     pe fiecare pagina.
+   - *Acum:* `--boot-play` le pune pe pauza dupa ce estomparea s-a terminat, printr-o tranzitie
+     discreta intarziata cu durata estomparii. Le porneste in acelasi cadru in care ecranul revine.
+   - *Verificat* la o navigare client `/portofoliu` → `/`: acelasi nod, opac din primul cadru,
+     nucleul se invarte.
+2. **Semnul de incarcare al scenei** (`SceneLoading.module.css`, `Loading.module.css`): acelasi
+   mecanism, cu `--loading-play`. Sta pe pauza si cat timp filmul intro-ului e peste el. Bara lui
+   de scanare forta un layout pe cadru.
+3. **Spirala ADN** (`components/scene/workHelix.ts`):
+   - `--helix-wipe` se scrie pe cele doua elemente care il citesc (captura si stratul `work-scan`),
+     nu pe card. Scrierea pe card restiliza tot cardul, vreo 20 de elemente, la fiecare pas.
+   - Observatorul pistei vede si in interiorul cardurilor, deci o captura noua primeste imediat
+     stergerea cardului.
+   - Contractul de restaurare include acum si aceste doua elemente (`READER_PROPS`).
+4. **Cardurile spiralei** (`Work.tsx`, `app/tailwind.css`): stratul de sticla si `work-scan` au raza
+   cardului scrisa explicit (`rounded-lg` / `var(--r-lg)`), nu `inherit`. Cu `inherit`, fiecare
+   scriere pe card restiliza toti copiii lui.
+5. **Sina de derulare** (`ScrollRail.tsx`): `--rail-p` se scrie pe fibra, care e parintele
+   singurelor elemente ce il citesc, nu pe radacina `nav`. Fiind o proprietate mostenita,
+   restiliza toata navigatia la fiecare cadru.
+6. **Lumina monitorului din `/portofoliu`** (`Portfolio.module.css`): `--pf-glow` e inregistrata cu
+   `inherits: false`, iar tranzitia ei sta pe `.monitor`, nu pe toata scena.
+7. **Raza hologramei din Echipa** (`Team.tsx`, `Team.module.css`):
+   - Se opreste cand sectiunea e departe de ecran. Animatia ei de `mask-position` nu se poate
+     compune, asa ca repicta portretul la fiecare cadru.
+   - `holoLive` si `holoTear` raman pornite: au stari tinute (`steps()`), deci intra sub regula din
+     [07](./docs/07-conventions.md).
+8. **Scena 3D** (`SceneWorld.tsx`): pe paginile fara pista Lucrari (paginile de servicii), spirala
+   nu se mai construieste, nu se mai compileaza si nu se mai pre-incalzeste degeaba.
+9. **Renderer-ul** (`components/three/renderer.ts`): extensia de filtrare anizotropa e ceruta la
+   crearea renderer-ului. Prima ei cerere venea la prima incarcare a hologramei si costa 8,4ms de
+   citiri sincrone.
+10. **Intro-ul** (`components/three/environment.ts`, `components/intro/three/environment.ts`,
+    `IntroScene.tsx`):
+    - Mediul PMREM al sticlei isi leaga cele patru programe in paralel (`compileAsync`), cat timp
+      filmul continua. Apoi ruleaza acelasi `fromScene`, deci aceiasi texeli.
+    - R3F nu deseneaza nimic pana nu porneste compilarea scenei. Canvasul oricum nu se vede inainte
+      de `sceneReady`, iar asa sticla nu mai leaga un program fara mediu.
+    - *Efect:* filmul nu mai ingheata. 3D-ul preia scena la 2,65s, masurat. Raportat la crearea
+      contextului, asta e cu ~60ms mai tarziu ca inainte. Fata de film, preia un pic mai departe,
+      pentru ca filmul nu mai pierde jumatatea de secunda de inghet.
+11. **Comutarea din `/portofoliu`** (`Portfolio.tsx`): la o secunda dupa ce imaginea de pe ecran s-a
+    decodat, in timp liber, imaginea e pictata o data in canvasul ascuns al tranzitiei. Asa,
+    trecerea la urmatorul proiect o gaseste deja decodata.
+
+Doua comentarii corectate (`renderer.ts`, `intro/three/laptop.ts`): three r186 strange materialele
+cu `traverse`, nu cu `traverseVisible`.
+
+**Ce n-am schimbat, si de ce.**
+
+- **Cadrele lungi de la prima vizita pe un profil nou:** sunt compilari de shadere ale GPU-ului
+  (Skia/ANGLE), pastrate apoi in cache per profil. Nu se pot evita din pagina.
+- **Repictarea stratului radacina la derulare:** vine din `background-attachment: fixed`.
+  Schimbarea lui ar trece textul de pe anti-aliasing LCD pe gri, adica o schimbare vizibila.
+- **Rasterizarea capturii noi la comutarea din `/portofoliu` (~95ms pe GPU):** ar cere alte
+  imagini.
+- **`holoLive` si `holoTear`, oprite in afara ecranului:** fiecare s-ar putea opri pe un cadru de
+  glitch, care s-ar vedea la intoarcere.
+
+**Verificat.**
+
+- **Verificarile frontend:** tsc, eslint si cele 1553 de teste vitest trec. Testele `scene-helix`
+  si `scroll-rail` (si e2e-ul sinei) urmaresc acum noile locuri ale scrierilor.
+- **Playwright:** 224 din 237 trec.
+  - 12 pica la fel pe HEAD `d3dea91`, construit separat si rulat cu aceleasi teste, deci nu vin de
+    aici. Doua cauze: semnul de incarcare e primul copil al pistei Lucrari din 2026-09-24, iar
+    testele de blocare a derularii sunt mai vechi.
+  - Al 13-lea (sina, sub incarcarea suitei complete) trece singur, de doua ori din doua, pe ambele
+    build-uri.
+- **Docker:** imaginea frontend reconstruita (2026-10-07 13:05 UTC); totul masurat pe
+  localhost:3000.
+
+Docs: [07 — conventii](./docs/07-conventions.md) (buclele invizibile, scrierile pe cititori,
+legarea in paralel), [05](./docs/05-page-sections.md) (intro-ul; decodarea din `/portofoliu`),
+[03](./docs/03-architecture.md), [04](./docs/04-design-system.md),
+[11](./docs/11-security.md), [14](./docs/14-testing.md).
+
+## 2026-10-07 — Changed: pe telefon, placa de sub ecranul din `/portofoliu` devine o panza de paianjen
+
+*„dar aici cum va lucra daca vom avea 100 de proiecte sau peste si pe telefon uneste te rog frumos
+linia cumva ca o pautina”*
+
+**100 de proiecte sau mai multe.** Asta mergea deja: randul arata o pagina de cel mult 9 proiecte
+(paginile sunt echilibrate, deci 100 de proiecte fac 12 pagini de 8 sau 9). Sub rand sunt:
+
+- „Pagina 1 din 12”;
+- punctele de pagina, intr-o fereastra care se muta (si la sute de pagini raman cateva);
+- butoanele pagina anterioara / urmatoare;
+- cautarea dupa nume.
+
+Placa leaga mereu o singura pagina, deci nu se aglomereaza niciodata. Verificat cu 100 de proiecte,
+pe calculator si pe telefon.
+
+**Pe telefon, liniile se unesc intr-o panza.** Randul se rupe in 5 + 4 (4 + 4 + 1 la 320px). Pana
+acum, punctele de pe a doua linie aveau doar cate un fir scurt care se termina intr-un patratel
+(„via”), fara legatura vizibila cu ecranul. Acum toata placa e o panza tesuta din barbia ecranului:
+
+- bratele Y-ului continua ca raze la 45°, intr-un cort peste proiectul de sub ecran;
+- spitele coboara prin golurile reale dintre nume;
+- la inaltimea fiecarei linii de jos, un inel atarna intre spite, cu noduri unde le intalneste.
+
+Un proiect de jos atarna de un nod (pe o pagina de 9) sau sta intr-un leagan (pe o pagina de 8).
+Inelul e acelasi pe ambele pagini; se schimba doar locul unde atarna proiectele. Fiecare traseu e
+**o singura linie neintrerupta** pana in ecran, deci traseul aprins si impulsul de lumina urca pana
+sus. Toate cotiturile sunt la 45°. Niciun fir nu trece peste un nume: pagina masoara textul fiecarui
+nume, iar panza isi tine spitele in goluri si nodurile sub nume. Pe calculator (o singura linie)
+placa e exact ca inainte.
+
+**Cum a fost aleasa.** Trei designuri au fost desenate peste randurile reale, masurate in browser
+pe telefoane de 320–430px:
+
+- o retea ortogonala de circuit;
+- aceasta panza radiala;
+- fire intre vecini.
+
+Doi judecatori au ales-o pe cea radiala (singura care se citeste ca o panza; are si cele mai
+directe trasee: 3,2 cotituri in medie, fata de 5,4). Apoi a fost rafinata:
+
+- spitele urmeaza latimea reala a numelor, nu doar mijlocul dintre puncte;
+- leaganele goale au fundul drept (fara varf ascutit pe un telefon de ~345px);
+- nodurile de deasupra unui proiect sunt mai joase, ca pagina de 5 + 4 sa fie mai linistita;
+- razele din centru raman si pe telefoanele de 430px.
+
+Un proiect la care panza n-ar putea ajunge (nume care inchid orice gol, un rand pe care pagina nu-l
+face) isi pastreaza vechiul patratel.
+
+**Revizia de cod** a rulat ~60.000 de randuri generate ca ale paginii (248–640px, nume de 3–15
+litere, 1–9 proiecte) si 881.000 de construiri: niciun fir peste un nume sau alt proiect, nicio
+cotitura mai ascutita de 45°, sub 0,4ms pe placa. A gasit doua cazuri rare, reparate (niciunul nu
+apare cu numele de azi):
+
+- pe un telefon sub 330px, cu nume lungi, al 9-lea proiect primea patratelul desi putea urca pe
+  panza;
+- la unele latimi ramanea o bucatica dreapta de 1px in varful cortului.
+
+**Fisiere.**
+
+- `lib/portfolioBoard.ts`: panza; campul nou optional `BoardPad.label`, adica unde sta textul
+  numelui.
+- `components/sections/portfolioCircuit.ts`: masoara textul numelor cu un `Range` si redeseneaza
+  cand se schimba (de pilda cand sosesc fonturile).
+- `Portfolio.tsx`: clasa numelui pentru placa.
+
+**Verificat** in Edge pe build-ul nou, pe pagina reala:
+
+- **Telefon, 390 / 360 / 320 / 430px:** pagini de 9 si de 8; proiectul aprins de pe linia de jos
+  (Balloons Breeze, Statistic, FLIRT pe a treia linie, IQ Arena) e legat continuu de ecran. Pe nicio
+  latime nu mai apare vreun patratel.
+- **Impulsul:** la 170ms dupa atingere, capul de lumina urca pe raza; la 260ms traseul e aprins
+  pana in ecran, iar barbia straluceste.
+- **Calculator, 1366×768 si 1720×1300:** firele si traseul aprins sunt identice byte cu byte cu
+  cele de dinainte.
+- **Verificarea automata** pe 16 randuri masurate (320–430px, pagini de 3–9 proiecte, 2–3 linii;
+  cu si fara masurarea numelor): niciun fir peste un nume sau peste alt proiect, fiecare traseu de
+  la proiectul lui pana in ecran.
+- Ecranul demo, pe calculator si pe telefon: toate verificarile trec, fara erori in consola.
+
+tsc, lint si cele 1553 de teste trec. Nu s-au adaugat teste: geometria se verifica pe randurile
+reale si in browser.
+
+Docs: [05 — Portfolio](./docs/05-page-sections.md#portfolio--portofoliu),
+[04 — placa](./docs/04-design-system.md#the-portfolios-controls), [03](./docs/03-architecture.md).
+
+## 2026-10-06 — Added: fiecare fereastra din `/portofoliu` e un mic browser — pagini, butoane, si drumul spre site-ul adevarat
+
+*„ii de dorit la toate ferestrele sa fie posibilitatea de interactiune si daca este posibil si sa
+schimbam ferestrele acolo nu doar scroll, adica sa putem apasa butoane dar sa nu putem folosi pe
+deplin, sa se ceara sa trecem deja dupa link la site”*
+
+**Ce vede vizitatorul.** Ecranul fiecaruia dintre cele 9 proiecte se poate folosi ca un browser mic:
+
+- **Bara de sus:** Inapoi, adresa paginii pe site-ul real (`cgam.md/arena`; la un sistem privat
+  „IQ Arena · sistem privat”) si, cand sunt mai multe pagini, lista lor sub adresa.
+- **Linkurile si butoanele reale ale paginii** se aprind sub mouse:
+  - un link spre alta pagina a demo-ului schimba pagina in ecran (cu o trecere scurta);
+  - un link din pagina deruleaza la sectiunea lui;
+  - antetul fix al site-ului ramane sus, ca pe site;
+  - o pagina lunga taiata se termina cu „Restul paginii, pe {site} ↗”.
+- **Ce merge doar pe site-ul adevarat** (formulare, login, testul, chatul, galeria, limba, pagini
+  din afara demo-ului) deschide o fereastra in ecran: „„{buton}” merge pe site-ul adevărat”, cu
+  **„Deschide {site} ↗”** (chiar pagina aceea) si „Rămân aici”.
+- **La un sistem privat** fereastra spune „{nume} e un sistem privat”. Butonul **„Vreau un proiect
+  similar”** deschide cererea, cu proiectul atasat.
+- **„Vezi mai mare”** arata acelasi demo, la aceeasi pagina si in acelasi loc. Acolo fiecare link e
+  o oprire pentru tastatura, in ordinea citirii.
+- **Pe telefon,** cele 4 site-uri publice au capturi de telefon (390px), deci degetul apasa direct.
+  Proiectele private raman doar de privit pe telefon: butoanele lor ar avea ~10px.
+
+**Ce contine fiecare demo** — 19 pagini, 445 de zone apasabile:
+
+- **BizCheck:** acasa, testul, confidentialitatea.
+- **CGAM:** acasa, IQ Arena, liga, un eveniment, autentificarea, inregistrarea.
+- **Itara Global si Balloons Breeze:** pagina lunga, cu meniul care sare intre sectiuni.
+- **IQ Arena:** cele 4 ecrane ale aplicatiei, ca un drum (autentificare → masa → juriu →
+  castigator).
+- **DocuSafe, Crowe Portal, Statistic, FLIRT:** ecranul lor, cu fiecare buton raspunzand cu
+  fereastra de sistem privat.
+
+**Cum e facut.**
+
+- **Contractul:** `lib/siteDemo.ts`. Un manifest pe proiect, `public/projects/demo/<id>/demo.json`,
+  citit strict inainte sa se deseneze ceva din el:
+  - maxim 256 KB, 12 pagini, 160 de zone pe captura;
+  - id-uri si etichete curate;
+  - linkuri doar spre site-ul proiectului.
+  Un manifest stricat e ignorat si ecranul ramane derulabil ca inainte.
+- **Ecranul:** `components/sections/SiteDemo.tsx` (nou: bara, pagina cu zonele, fereastra),
+  `Portfolio.tsx` + `Portfolio.module.css` (integrarea, trecerea, fereastra mare, telefonul,
+  miscarea redusa, contrastul fortat). Textele noi sunt in ro/ru/en.
+- **Datele:** campul nou `demo` pe proiect, pana la capat:
+  - frontend: `lib/content.ts`, `lib/siteContent.tsx`;
+  - backend: `schemas.py` `LinkStr`, coloana `projects.demo` in `models.py`;
+  - migrarea: `db.py` adauga coloana si completeaza o singura data proiectele livrate
+    (`_backfill_project_demos`);
+  - salvarea (`db_store.py`): un `PUT` fara cheia `demo` nu o sterge;
+  - `defaults.py`;
+  - adminul: campul „Demo interactiv”.
+- **Capturile site-urilor publice:** unealta noua `tools/site-demo/` (Node 22+ si Edge, fara
+  pachete), [README](./tools/site-demo/README.md). Ruleaza pe site-urile live, in romana, si:
+  - blocheaza orice scriere (nimic in afara de GET/HEAD/OPTIONS nu pleaca);
+  - apasa fiecare buton pe o incarcare curata si vede ce face;
+  - scrie captura si zonele din aceeasi trecere;
+  - dovedeste alinierea: conturul fiecarei zone, desenat in pagina, e cautat in poza; abaterea
+    maxima e sub 2px CSS.
+  Au rulat pe GPU-ul real, cu `--check`: itara ~3 min, balloonsbreeze ~5½, bizcheck ~6½, cgam
+  ~15. Capturile de start ale celor 4 site-uri (`*-site.webp`, si `fullPage`-ul lor) au fost
+  refacute in aceeasi trecere. Paginile in plus adauga 5,6 MB, incarcate doar cand le deschizi.
+
+**Confidentialitate.** Inainte de toate, capturile sistemelor private au fost curatate pe loc
+(aceleasi dimensiuni, fara metadate):
+
+- DocuSafe, Statistic, FLIRT si IQ Arena: adresele de e-mail reale sunt acum `demo@example.com`;
+- FLIRT: a disparut si linia „Nu am putut crea contul…”;
+- Crowe Portal: fotografia unei persoane reale a devenit initiale.
+
+Originalele raman in istoria git, in commit-urile vechi. Stergerea lor si de acolo cere rescrierea
+istoriei, iar decizia e a proprietarului.
+
+Capturile site-urilor publice arata ce arata paginile live, deci unealta estompeaza la captura ce
+nu e al nostru de republicat (`redact` in `tools/site-demo/config.mjs`):
+
+- CGAM, liga: cele 62 de nume de jucatori din clasament si cele 3 de pe podium (pe acasa si pe IQ
+  Arena);
+- CGAM, evenimentul: poza (fetele participantilor);
+- CGAM, macheta IQ Arena: adresa reala de autentificare devine `demo@example.com`.
+
+Estomparea e o foaie de stil (un filtru CSS schimba desenul, nu asezarea), deci zonele raman
+aliniate. O regula care nu mai gaseste nimic pe pagina pe care trebuie opreste captura acelei
+pagini, ca sa nu se publice nimic neestompat. Recenziile publicate ca atare isi pastreaza autorii.
+
+**Reparat dupa revizie** (patru directii: stare si React, securitate si confidentialitate,
+accesibilitate si texte, unealta si documentatia):
+
+- **Ancorele ajungeau cu 65–90px prea sus.** Unealta inregistreaza unde ajunge vederea pe site-ul
+  live, cu decalajul antetului deja inclus, iar ecranul il mai scadea o data. Acum CGAM „Liga”
+  ajunge la 2074 in loc de 2044.
+- **Antetul fixat lasa clicurile sa treaca:** un clic pe o parte goala a lui apasa un buton
+  ascuns dedesubt. Acum ia el apasarea; intre linkurile lui, in ecran, deschide vederea mare.
+- **Un proiect la care revii** isi pastra fereastra deschisa, care fura si focusul. Acum orice
+  proiect porneste de la pagina lui de start.
+- **Captura care nu se incarca** nu mai cadea pe poza de rezerva cat timp manifestul nu sosise
+  (sau daca lipsea). O captura inlocuita de admin nu mai e intinsa in forma celei vechi.
+- **Telefon, CGAM acasa:** galeria se rotise intre doua incarcari si zona ei ducea la evenimentul
+  „21 Марта”. Unealta isi regaseste un buton dupa cuvinte doar langa locul lui si noteaza cand o
+  face.
+- **Focusul de la tastatura, in vederea mare:**
+  - nu mai sta ascuns sub antetul fixat;
+  - dupa o ancora sta pe un semn la inceputul sectiunii (o linie cyan), iar Tab continua de
+    acolo;
+  - fereastra „merge pe site-ul adevarat” se inchide inapoi pe linkul care a deschis-o;
+  - fereastra si lista se inchid cand focusul trece mai departe (Tab, un clic in alta parte);
+  - Escape pe ✕ nu mai ramane fara efect.
+- **Cititoarele de ecran:** schimbarea paginii se anunta si in vederea mare (are regiunea ei),
+  fereastra e descrisa de textul ei, iar etichetele site-ului poarta limba site-ului.
+- **Altele:**
+  - un clic langa lista deschisa nu mai deschide vederea mare;
+  - linkurile paginii care vine asteapta poza ei;
+  - un clic cu Ctrl pe un buton nu mai e ignorat;
+  - proiectele private au butoane si in vederea mare pe telefon;
+  - in contrast fortat se vad pagina curenta din lista, lumina de incarcare si Inapoi dezactivat;
+  - tintele de deget au 44px;
+  - inelele de focus nu mai sunt taiate pe telefon;
+  - in rusa, „закрытая система” se acorda corect („она… её… похожую”);
+  - in engleza: „Back”, „Scroll and press”.
+- **Campul `demo`** primeste doar o cale de pe site (`SitePathStr` pe server, `isSitePath` in
+  admin): un URL intreg, pe care ecranul l-ar fi ignorat, e refuzat unde e scris.
+- **Unealta:** un contact e cautat in tot textul, inainte de taiere; o pagina fara captura de
+  calculator nu mai strica construirea; README-ul spune exact ce blocheaza (cererile paginii
+  capturate, nu si un tab nou, un iframe strain, un worker sau un WebSocket) si ce e
+  `--check`.
+
+**Verificat** in Edge pe build-ul nou, pe placa video reala, fara nicio eroare in consola si
+fara nicio cerere esuata:
+
+- **1366×768 si 1720×1300:**
+  - toate cele 9 demo-uri se incarca, cu zonele lor;
+  - CGAM: „Liga” ajunge unde ajunge site-ul live (2074 = 2074);
+  - „Despre IQ Arena”, apasat in antetul fixat, schimba pagina: adresa in 1–50 ms, poza in
+    72–142 ms;
+  - Inapoi, de doua ori, readuce pagina de start exact unde era (cota 0,6407 → 0,6407);
+  - „EMAIL” deschide fereastra cu `https://cgam.md/autentificare`; Escape, „Rămân aici” si un
+    clic alaturi o inchid fara sa navigheze;
+  - lista de pagini merge cu mouse-ul si cu tastatura;
+  - in fereastra mare: aceeasi pagina, Tab in ordinea citirii, Enter schimba pagina, Escape
+    inchide intai fereastra mica, apoi dialogul, iar ecranul ramane la aceeasi cota (0,300);
+  - DocuSafe: „Vreau un proiect similar” deschide cererea cu DocuSafe in ea;
+  - dupa revizie:
+    - o parte goala a antetului fixat deschide vederea mare si nu apasa nimic;
+    - „Servicii” (Itara) pune focusul pe semnul de la inceputul sectiunii, chiar sub antet, iar Tab
+      merge la primul ei link;
+    - un clic langa lista o inchide fara alt efect;
+    - CGAM, la care revii, porneste fara fereastra ramasa deschisa.
+- **Telefon 390×844, atingere:**
+  - capturile de telefon, cu cele 15 zone ale CGAM;
+  - o tragere pornita pe un buton deruleaza si nu deschide nimic;
+  - o atingere schimba pagina;
+  - Inapoi revine la cota exacta (0,7605);
+  - o glisare laterala schimba proiectul fara sa apese vreun buton;
+  - pagina taiata a balloonsbreeze se termina cu linkul spre site;
+  - fereastra mare arata captura de telefon.
+- **Miscare redusa:** fara plimbare si fara trecere; ancora ajunge imediat.
+- **Contrast fortat:** conturul zonelor in culoarea sistemului; bara si fereastra au margini.
+
+tsc, lint, 1553 de teste frontend si 193 de teste backend trec (si dupa reparatii). Teste:
+
+- 4 teste noi in `lib/__tests__/siteDemo.test.ts`: cititorul de manifest e granita dintre un
+  fisier spre care poate arata adminul si pagina. O slabire pe tacute ar lasa un link sa iasa din
+  site-ul proiectului.
+- 2 teste de backend extinse: migrarea adauga si completeaza `demo` o singura data; o salvare fara
+  cheie il pastreaza.
+
+Docs: [05 — Portfolio](./docs/05-page-sections.md#portfolio--portofoliu),
+[04 — demo-ul unui proiect](./docs/04-design-system.md#the-portfolios-controls),
+[03](./docs/03-architecture.md), [09 — admin](./docs/09-admin.md), [10 — backend](./docs/10-backend.md),
+[11 — securitate](./docs/11-security.md), [SECURITY.md](./SECURITY.md),
+[backend/README.md](./backend/README.md), [tools/site-demo](./tools/site-demo/README.md),
+[14 — teste](./docs/14-testing.md), [README](./README.md) (tabelul de docs).
+
+## 2026-10-06 — Added: in ecranul din `/portofoliu` e tot site-ul proiectului, si se deruleaza
+
+*„fa ca in fereastra aceasta sa fie siteul si se poate da scroll la fiecare proiect si de vazut ce
+este in el”*
+
+**De ce o captura, nu site-ul „viu”.** Intai s-a masurat varianta cu site-ul adevarat intr-un
+iframe. A cazut din patru motive:
+
+- 3 din cele 4 site-uri publice refuza sa fie afisate in alt site: bizcheck.md si cgam.md prin
+  `frame-ancestors`, balloonsbreeze.md prin `X-Frame-Options`. Refuzul nici nu se poate detecta din
+  script. Alte 5 proiecte n-au deloc pagina publica.
+- bizcheck.md si cgam.md contacteaza Meta si Google imediat ce se incarca, inainte ca vizitatorul
+  sa raspunda la bannerul nostru de cookie-uri (contra regulii din docs/16).
+- Intr-un ecran de 540px, un site viu arata versiunea lui de telefon.
+- Pe telefon, iframe-ul ar fi furat orice glisare in sus.
+
+Asa ca ecranul arata o **captura a intregului site**, de sus pana jos, care se deruleaza in el.
+
+**Ce se vede acum.**
+
+- **Derularea:** rotita, trackpadul, degetul (sus-jos) sau tastele ↑ ↓ / Page Up / Page Down /
+  Home / End, cand poza are focusul, deruleaza site-ul in ecran. La capete continua pagina. O bara
+  subtire in culoarea proiectului arata cat mai e.
+- **Indiciul:** „Derulează site-ul” (stanga jos) dispare cand derulezi si revine sus.
+- **Plimbarea de proba:** o data pe incarcare, primul site coboara singur jumatate de ecran si
+  revine, ca sa se vada ca se deruleaza. Nu ruleaza cu miscare redusa; o rotita, o atingere sau o
+  tasta o opreste.
+- **„Vezi mai mare”** deschide site-ul la latimea lui (1080px), unde textul se citeste, **exact
+  unde ai ramas** in ecran.
+- **Alt proiect** porneste de sus. Tranzitia cu blocuri porneste din bucata vizibila.
+- **Glisarea laterala** schimba in continuare proiectul.
+- **Proiectele fara captura** (DocuSafe, Crowe Portal, IQ Arena, Statistic, FLIRT — n-au pagina
+  publica) arata poza ca inainte, pana li se incarca o captura facuta cu date demo.
+
+**Capturile.** Cele 4 site-uri publice, in romana, facute pe 2026-10-06:
+`public/projects/{bizcheck,itara,cgam,balloons-breeze}-site.webp`, 170–500 KB fiecare. La captura:
+cookie-uri refuzate, butoane plutitoare ascunse, slideshow-uri oprite, iar fundalurile fixe ale
+cgam si balloonsbreeze au fost puse sub toata pagina.
+
+**Cum e facut.**
+
+- **Datele:** campul nou `fullPage` (`lib/content.ts`, `lib/siteContent.tsx`, `schemas.py`,
+  coloana `projects.full_page`), cu cele 4 cai in `defaults.py`. Prima pornire cu coloana noua le
+  scrie o singura data intr-o baza existenta (`_backfill_project_full_pages`); o captura stearsa de
+  admin nu mai revine.
+- **Serverul:** ruta noua `POST /api/admin/uploads/capture`, cu aceleasi garzi ca la logouri
+  (admin, 20/min, 8 MB, magic bytes, 24 MP, bugetul de stocare, re-encode fara metadate). Doar ca
+  pastreaza captura lunga: 1080px latime, primii 12000px, WebP q80, decodata pe rand. Ruta veche
+  (1600px) e neschimbata.
+- **Adminul:** blocul „Captura întregului site” la fiecare proiect (incarca / elimina), cu limitele
+  reale si regula „fara date personale reale”.
+- **Ecranul:** `Portfolio.tsx` + `Portfolio.module.css` (fereastra derulabila, indiciul, plimbarea,
+  tranzitia, fereastra mare, revenirea la poza daca o captura nu se incarca).
+
+**Reparat dupa revizie** (patru directii de revizie, fiecare verificata de un sceptic):
+
+- **Pozitia de derulare:** la sosirea datelor de la API (sau din cache, sau din alt tab), site-ul
+  derulat sarea inapoi sus. Acum revine sus doar cand vine alt proiect.
+- **Captura care nu se incarca:** daca pica inainte ca pagina sa porneasca, nu mai lasa ecranul
+  gol. Paginile tin minte toate capturile picate, nu doar ultima.
+- **Rezolvarea cailor:** capturile incarcate (`/api/uploads/…`) trec prin `mediaUrl()`, ca sa se
+  vada si local, unde API-ul are alt port.
+- **Siteuri scurte:** o captura fara nimic de derulat nu mai primeste indiciu si plimbare.
+- **Ecrane inguste:** sub 340px, indiciul ramane doar sageata, ca sa nu se suprapuna cu „Vezi
+  mai mare”.
+- **Focusul pe poza:** in browserele fara `:has()` (Firefox sub 121), poza pastreaza conturul
+  propriu, ca sa se vada unde e focusul.
+- **Fereastra mare:** are 1152px, ca sa incapa site-ul intreg langa bara de derulare.
+- **Plimbarea de proba** nu mai scrie nimic in `sessionStorage` (nimic inainte de consimtamant).
+- **Adminul — captura:** captura se leaga de proiect dupa id. Un proiect sters in timpul unei
+  incarcari nu-si mai da captura celui de dupa el.
+- **Adminul — fisierul:** un fisier peste 8 MB e refuzat inainte de trimitere, cu mesajul
+  serverului.
+- **Adminul — focus si texte:** butoanele de incarcare arata focusul de la tastatura. Eticheta
+  galeriei nu mai spune ca imaginile „se rotesc”, iar indiciul de la parteneri spune 8 MB, nu
+  512 KB.
+- **Serverul (ambele rute de incarcare):**
+  - fiecare format e citit doar de decodorul lui;
+  - orice fisier stricat (si un chunk PNG malformat, care dadea 500) da 400;
+  - o poza tinuta pe lat e intoarsa dupa EXIF;
+  - griul pe 16 biti nu mai iese alb.
+- **Fara pierderi de date:** un `PUT` fara cheia `fullPage` (o pagina de admin deschisa dinainte
+  de deploy) pastreaza captura. `""` o sterge in continuare.
+
+**Verificat** in Edge pe build-ul nou, pe placa video reala:
+
+- **1366×768 si 1720×1300:**
+  - 4 rotiri derulează 1200px, iar indiciul dispare;
+  - ↓ ↓, Page Down, End si Home deruleaza; → schimba proiectul;
+  - la capatul site-ului, rotita deruleaza pagina;
+  - „Vezi mai mare” se deschide la aceeasi cota (0,482 → 0,482);
+  - dintr-un site derulat, alt proiect porneste de sus;
+  - primul cadru al tranzitiei e chiar bucata vizibila: diferenta e 1–2,5, fata de 33–84 fata de
+    inceputul site-ului.
+- **Telefon 390px:** degetul pe ecran deruleaza site-ul (122px), iar pe restul paginii deruleaza
+  pagina (325px). Glisarea laterala schimba proiectul.
+- **Miscare redusa:** fara plimbare. **Contrast fortat:** inel de focus in culoarea sistemului.
+- **Incarcare reala pe ruta noua:** 1440×9000 → 1080×6750; 1080×14000 → 1080×12000; 800×3000 ramane
+  neschimbat. Un PNG malformat da 400; un JPEG rotit iese drept; griul pe 16 biti iese 128.
+- **Migrarea** pe baza existenta: API-ul intoarce cele 4 capturi. **Adminul:** blocul apare la
+  toate cele 9 proiecte.
+
+tsc, lint, 1549 de teste frontend si 193 de teste backend trec. Trei teste noi in backend:
+
+- limitele rutei de capturi;
+- completarea o singura data;
+- salvarea fara cheia `fullPage`.
+
+Toate trei se pot strica pe tacute. Docs/14 spune acum comanda care chiar ruleaza testele de
+backend (imaginea `backend` n-are pytest si nici `tests/`).
+
+Docs: [05 — Portfolio](./docs/05-page-sections.md#portfolio--portofoliu),
+[04 — The site in the screen](./docs/04-design-system.md#the-portfolios-controls),
+[09 — admin](./docs/09-admin.md), [10 — backend](./docs/10-backend.md#project-captures-fullpage-2026-10-06),
+[11 — securitate](./docs/11-security.md), [SECURITY.md](./SECURITY.md),
+[14 — teste](./docs/14-testing.md), [03](./docs/03-architecture.md),
+[backend/README.md](./backend/README.md).
+
+## 2026-10-05 — Changed: pixelii din `/portofoliu` devin „Circuitul”: beculete rotunde pe o placa legata de ecran
+
+*„inlocuieste aceste patratele cu altceva mai frumos”*, apoi *„hai aici sa facem altceva dupa
+design, ceva mai wow”* — proprietarul a trimis captura randului de patratele („Lumina”).
+
+**Cum s-a ales.** Pe copia fidela a paginii s-au facut sapte variante: cinci simple (Sfere,
+Cristale, Monograme, Mini-ecrane, Iconite), refacute dupa judecatori, si doua „wow”: Circuitul si
+Ecranele care zboara. Proprietarul a ales **Circuitul**.
+
+**Ce se vede acum.**
+
+- Fiecare proiect e un **beculet rotund** in culoarea lui, pe o **placa de circuit**. Fire subtiri
+  pleaca de sub beculete, urca, se indoaie la 45° pe o magistrala, iar magistrala urca intr-un
+  trunchi pana in barbia monitorului, sub cei trei subpixeli.
+- Proiectul de pe ecran are beculetul aprins si **firul lui aprins in culoarea lui pana in ecran**:
+  se vede mereu care proiect e „conectat” la ecran.
+- **Cand alegi alt proiect** de pe pagina din rand (clic pe beculet, sagetile, ← →, swipe, un nume
+  din cautare), firul vechi se stinge, beculetul nou se aprinde si **o luminita fuge pe firul lui
+  pana in barbie**: ajunge acolo la 0,16s (beculetul din mijloc) pana la 0,34s (cel de la capat)
+  dupa clic, pe 1366×768. Barbia straluceste alb cand ajunge, si abia atunci ecranul lasa sa treaca
+  proiectul nou. In total cam o jumatate de secunda, si pentru beculetul cel mai departat.
+- Pe telefon, al doilea rand nu-si trage firele printre alte proiecte: fiecare beculet are un fir
+  scurt intr-un „via” patrat; lumina intra acolo si urca pe trunchi.
+- La o pagina noua si la filtre (cand beculetele aluneca), placa dispare si revine desenata unde
+  s-au oprit.
+- **Cautarea** (doar peste 9 proiecte) s-a mutat sub rand si sub pagini: intre ecran si rand ar fi
+  taiat firele.
+- Mouse-ul si tastatura doar albesc numele si maresc putin beculetul, fara sa-l aprinda.
+
+**Cum e facut.**
+
+- `lib/portfolioBoard.ts` (nou, pur): din pozitiile beculetelor si ale barbiei calculeaza firele,
+  drumul fiecarui proiect si timpii luminitei.
+- `components/sections/portfolioCircuit.ts` (nou): masoara randul si monitorul, deseneaza placa
+  (SVG), aprinde drumul, ruleaza luminita (Web Animations). Redeseneaza doar cand se schimba
+  asezarea: alta latime, alta pagina, alt filtru, fonturile.
+- `Portfolio.tsx`: tranzitia ecranului asteapta luminita (blocurile pleaca dupa ce poza noua s-a
+  decodat si dupa ce luminita a ajuns in barbie); placa asteapta alunecarile; cautarea e mutata.
+- `Portfolio.module.css`: beculetele rotunde, placa, luminita, blitul din barbie; au disparut
+  patratele LED si linia de sub nume. Randul are aceeasi inaltime (81px; 76px pe telefon).
+- `PortfolioSearch.tsx`: beculetul din lista e rotund; comentariul spune unde sta acum.
+
+**Reparat dupa revizie** (patru directii de revizie, fiecare verificata de un sceptic):
+
+- Fereastra randului mai avea jos o margine ramasa de la vechea decupare, care acoperea primii ~4px
+  ai butoanelor „Pagina anterioara / urmatoare”: un clic acolo nu facea nimic. Acum fereastra are
+  doar margini laterale.
+- Ecranul socotea sosirea luminitei de la clic, dar animatiile pornesc la cadrul urmator, pana la
+  ~45ms mai tarziu cand acel cadru e greu: blocurile plecau inainte sa ajunga luminita. Acum sosirea
+  se socoteste din cadrul in care pornesc animatiile.
+- Timpii din docs: luminita ajunge in barbie la 0,16–0,34s; tranzitia ecranului tine pana la ~0,5s
+  (nu ~350ms) cand ruleaza luminita.
+
+**Verificat** in Edge pe build-ul nou, pe placa video reala:
+
+- **1366×768 si 1720×1300**: trunchiul intra exact sub subpixelul verde. Blocurile ecranului pleaca
+  la 4–17ms dupa sosirea reala a luminitei (~0,36s pentru cel mai departat proiect); totul se
+  linisteste la ~0,55s.
+- **Telefon 390px**: doua randuri, via-urile, luminita care urca pe trunchi.
+- **Filtre si 100 de proiecte**: placa asteapta alunecarea (0,3s la filtru, 0,39s la pagina) si
+  revine. Cautarea de sub pagini se termina la 699px pe 1366×768. Butoanele de pagina raspund de la
+  marginea lor de sus.
+- **Reduced motion**: nicio animatie; firul se aprinde direct.
+- **Contrast fortat**: placa gri, drumul in culoarea sistemului.
+- In browserul de test fara placa video (randare software), unele treceri ingheata ~0,5s, si cu
+  luminita oprita. Vine din tranzitia ecranului de dinainte, nu din circuit.
+
+tsc, lint si cele 1549 de teste trec. Niciun test nou.
+
+Docs: [04 — The pixels](./docs/04-design-system.md#the-portfolios-controls),
+[05 — Portfolio](./docs/05-page-sections.md#portfolio--portofoliu),
+[03 — structura](./docs/03-architecture.md).
+
+## 2026-10-05 — Added: pagini si cautare in `/portofoliu`, pentru cand vor fi multe proiecte
+
+*„dar daca asa sa fie 100 de proiecte, cum procedam?”*
+
+**Ce s-a masurat.** Cu 100 de proiecte, pagina de azi avea trei probleme:
+
+- pixelii se adunau intr-un zid de 9 randuri (904px) sub ecran, pe un laptop de 1366×768; pe
+  telefon erau 20 de randuri;
+- pagina descarca toate cele 100 de capturi;
+- cu sagetile treceai prin toate cele 100, pe rand.
+
+**Cum s-a ales.** S-au facut patru prototipuri cu 100 de proiecte: Banda, Matricea, Paginile si
+Cautarea. Le-au notat trei judecatori: proprietarul, un vizitator in varsta cu sarcini concrete, si
+executia. Proprietarul a ales **Paginile** (22 de puncte, alese de doi judecatori din trei).
+
+**Ce face acum.**
+
+- **Cu cele 9 proiecte de azi, nimic nu se schimba**: nu apar cautarea si paginile.
+- **Randul arata o singura pagina**: cel mult 9 pixeli, adica randul de azi pe orice ecran. E mereu
+  pagina proiectului de pe ecran, deci pixelul aprins se vede mereu. Paginile sunt echilibrate:
+  100 de proiecte fac 12 pagini de 8 sau 9, niciodata una cu un singur pixel.
+- **Sub rand** scrie „‹ Pagina anterioara · Pagina 2 din 12 · Pagina urmatoare ›”, cu un mic pixel
+  pentru fiecare pagina. Sagetile si ← → trec singure la pagina urmatoare cand depasesc capatul
+  randului. Pagina noua aluneca din partea din care vine.
+- **Deasupra randului** e „Cauta un proiect dupa nume”. Nu conteaza literele mari si diacriticele,
+  iar un cuvant din tipul lucrarii merge si el („magazin” gaseste magazinele). Nimic nu se schimba
+  pana nu alegi un nume. Cand alegi, proiectul vine pe ecran, pe pagina lui.
+- **Capturile**: se cer doar cele de langa proiectul de pe ecran si cea a pixelului pe care tii
+  mouse-ul. Cu 100 de proiecte, primul ecran cere 3, nu 100.
+
+**Verificat** in Edge pe build-ul nou:
+
+- **Azi (9 proiecte)**: pagina e la fel ca inainte.
+- **Cu 100 de proiecte, pe laptop 1366×768**:
+  - cautarea, randul si paginile incap pe primul ecran (paginile se termina la 699px);
+  - „Pagina urmatoare” aduce proiectul 10 si spune „Pagina 2 din 12”;
+  - → de pe ultimul pixel al paginii 2 trece la pagina 3, cu focusul pe pixelul nou;
+  - cautarea gaseste „VinMarket”, „magazin” arata 8 nume plus „Mai sunt 5”, iar „zzz” spune clar ca
+    nu a gasit nimic;
+  - un filtru cu 2 proiecte ascunde paginile si pastreaza cautarea;
+  - in toata sesiunea s-au cerut 10 capturi din 100.
+- **Telefon si 1720×1300**: merg, fara scroll lateral.
+- Nu sunt erori in consola.
+
+**Ce a gasit recenzia de cod.** Un recenzent independent a gasit 7 probleme; toate sunt reparate si
+verificate:
+
+- **Pixelii paginii noi palpaiau din nou**, dupa ce terminau de alunecat. Acum pixelii veniti cu o
+  pagina noua nu se mai aprind din nou cat timp stau pe ecran.
+- **Butoanele de pagini ieseau din coloana** cand era ingusta (1000px, tableta), mai ales in rusa.
+  Acum, unde nu incap pe un rand, cuvintele trec pe randul lor, punctele dedesubt si cele doua butoane
+  sub ele. Masurat in ro si ru la 1000×700, 1366×768, 700×900, 390 si 320px: nimic nu iese din
+  coloana.
+- **Randurile unei pagini de 8 se departau** pe telefoanele mici. Acum stau lipite (2px intre ele).
+- **Copiile care se sting la un filtru** erau taiate cand randul scadea de la doua randuri la unul.
+- **Cautarea**: primul nume e marcat de cum apare lista, iar Enter il alege pe cel marcat. Cand nu
+  e niciun rezultat, campul nu mai spune cititorului de ecran ca lista e deschisa. Numele marcat
+  ramane in vedere intr-o lista scurta.
+- **Literele gasite se subliniau gresit** in numele scrise cu diacritice descompuse.
+- **Capturile**: se cer si pentru prima pagina spre care arati cu mouse-ul (butoanele de pagina,
+  punctele) si pentru numele marcat in cautare.
+
+tsc si lint trec. Niciun test nou.
+
+**Ce mai trebuie pentru multe proiecte (inca nefacut):**
+
+- **Serviciile proiectului se aleg in cod.** Azi se scriu in `lib/solutions.ts`. Proiectele de
+  proba cu care s-a testat nu apartin niciunui serviciu, deci apar doar la „Toate”. Locul lor e in
+  admin.
+- **Proiectul n-are o adresa a lui.** Nu se poate trimite cuiva un anumit proiect, iar Google vede
+  doar primul.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}`, nou `components/sections/PortfolioSearch.tsx`,
+nou `lib/portfolioPages.ts`.
+
+Explicatia:
+
+- [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu) („A big portfolio:
+  pages and a search”);
+- [docs/04-design-system.md](./docs/04-design-system.md#the-portfolios-controls) („The search”,
+  „The pages”);
+- [docs/03-architecture.md](./docs/03-architecture.md).
+
+---
+
+## 2026-10-05 — Changed: pixelul ales din `/portofoliu` devine un LED aprins („Lumina”)
+
+*„schimba aista, fa ceva mai frumos”* — proprietarul a trimis o captura cu pixelul ales: un
+patrat negru cu trei bare rosu-verde-albastru, intr-un inel alb, intr-o cutie colorata.
+
+**Cum s-a ales.** Pe o copie fidela a paginii (aceleasi tokenuri si aceeasi asezare) s-au construit
+cinci directii: LED aprins, lupa pe subpixeli, fereastra cu captura proiectului, indicator care
+aluneca si colturi de tinta HUD. Le-au notat trei judecatori: frumusete, claritate pentru un om in
+varsta, executie. Primele trei au fost refacute dupa observatiile lor si judecate din nou.
+Proprietarul a ales **Lumina**.
+
+**Ce se vede acum.**
+
+- Fiecare pixel e un LED in culoarea proiectului. Stins, e un patrat plat in culoarea lui
+  adevarata, deci cele noua raman vii si se deosebesc.
+- Pixelul proiectului de pe ecran e cel aprins: mai mare, luminat din interior, cu o stralucire in
+  culoarea lui. Numele lui e alb si ingrosat, cu o linie din lumina lui dedesubt. Nu mai are nici
+  cutie, nici inel.
+- Mouse-ul si tastatura doar albesc numele si maresc putin patratul; nu-l aprind niciodata. Astfel
+  doar un pixel arata aprins.
+- La schimbare, LED-ul vechi se stinge imediat (0,12s), iar cel nou se aprinde (~0,25s), cu linia
+  trasa din mijloc.
+
+**Reparat dupa judecatori, inainte de mutare.**
+
+- Centrul aprins era palid si incetosat; acum ramane in culoarea proiectului.
+- Doua LED-uri pareau aprinse in timpul schimbarii; acum se stinge cel vechi primul.
+- Copia care se stinge la filtru nu mai e cea aprinsa.
+- Linia nu mai apare sub un LED inca stins la incarcare.
+
+**Verificat** in Edge pe build-ul nou:
+
+- **Aprinderea**: un singur pixel aprins in repaus, dupa ← → si dupa un filtru.
+- **Filtrul**: copiile care se sting raman stinse.
+- **Ecranele**: 1366×768, 1720×1300 si telefon 390px (doua randuri, fara scroll lateral).
+- **Contrast fortat**: inel si linie in culoarea sistemului.
+- **Reduced motion**: nimic nu se misca.
+- **Asistenta din colt** nu acopera nimic la 1366×768, 1280×720, 1024×768, 1720×1300, 768×1024 si
+  1024×1366.
+
+Randul de pixeli a crescut cu 3px (81px). Bugetul primului ecran (`--mon-w`) a fost ajustat la
+fel: 429 / 443px. tsc si lint trec. Niciun test nou.
+
+Fisiere: `components/sections/Portfolio.{tsx,module.css}`. S-au scos subpixelii pixelului (cele
+trei `<i>`, `--sr/--sg/--sb`); `--subpixel-r/g/b` raman pentru „barbia” monitorului.
+
+Explicatia:
+
+- [docs/04-design-system.md](./docs/04-design-system.md#the-portfolios-controls) („The pixels —
+  LEDs”) si [Subpixels](./docs/04-design-system.md#subpixels);
+- [docs/05-page-sections.md](./docs/05-page-sections.md#portfolio--portofoliu).
+
+---
+
 ## 2026-10-05 — Changed: `/portofoliu` devine un ecran, cu cate un pixel pentru fiecare proiect
 
 *„mie imi pare parca nu este intuitiv, hai poate sa schimbam formatul”* — din patru prototipuri

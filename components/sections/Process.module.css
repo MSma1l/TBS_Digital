@@ -1,0 +1,689 @@
+/* The gutter, rhythm and heading of Principles (Principles.module.css): "De ce TBS" and "Cum
+   începem" are one family — why us, then how it starts — with Team between them. The vertical
+   padding has a name because the trace's arrow reaches down into it (`--reach` on the board). */
+.section {
+  --pad-y: clamp(40px, 6vw, 60px);
+  padding: var(--pad-y) clamp(16px, 4vw, 40px);
+}
+
+.head {
+  margin-bottom: 26px;
+}
+.title {
+  margin: 0;
+  font-size: clamp(26px, 3.2vw, 40px);
+  letter-spacing: -0.04em;
+  color: var(--txt);
+}
+
+/* ================================================================================================
+ * THE CIRCUIT
+ *
+ * "De ce TBS" right above is a row of four cards, and this section was a second row of four: the
+ * owner could not tell them apart. So the steps lost their boxes and hang on ONE trace, drawn in
+ * the grammar of the portfolio's circuit board (Portfolio.module.css, "the board"): straight runs,
+ * exact 45° bends, square ends and mitred corners, square pads — never a circle, never a dot.
+ *
+ * Under 1025px the trace runs down the left through the four pads, the words to their right. From
+ * 1025px it runs across through them, carries on past 04, turns down at 45° and drops along the
+ * right edge. Both end in an arrowhead just above the section's foot, pointing down at the request
+ * form that follows.
+ *
+ * Every piece is placed from the measures named on the board and from the list's own grid — a run
+ * starts at a pad's edge and stops at the far side of the gap — so the lines meet the pads at every
+ * width and in every language, and nothing here was read off a screenshot.
+ *
+ * The trace is drawn twice: dim (`--line2`, always there) and lit over it (a cyan → blue neon with
+ * a soft glow), so the light can grow along the line by a scale alone.
+ * ============================================================================================= */
+.board {
+  /* A pad: a square, like the portfolio's pixels; 44px from 641px (below). */
+  --node: 40px;
+  --trace: 2px;
+  /* The trace runs through the pads' middles. */
+  --mid: calc(var(--node) / 2);
+  /* Between two steps under 1025px; the trace bridges it. */
+  --row: var(--sp-6);
+  /* How far past the board's foot the trace runs, into the section's padding: its tip stops 12px
+     short of the section's edge, right above the request form. */
+  --reach: calc(var(--pad-y) - var(--sp-3));
+  /* Where the trace comes down to its tip: the pads' middle here, the right edge from 1025px. */
+  --tip-x: var(--mid);
+  /* Each stroke of the arrowhead. */
+  --head: 12px;
+  /* The pulse: its streak, and the window it runs in (the glow's room either side). */
+  --streak: 56px;
+  --halo: 8px;
+  /* The lit trace goes from cyan at 01 to blue at the arrow in five even steps, one per run, so
+     each run's own gradient picks up where the last one stopped and the runs read as one line. */
+  --c0: var(--neon-cyan);
+  --c1: color-mix(in srgb, var(--blue) 20%, var(--neon-cyan));
+  --c2: color-mix(in srgb, var(--blue) 40%, var(--neon-cyan));
+  --c3: color-mix(in srgb, var(--blue) 60%, var(--neon-cyan));
+  --c4: color-mix(in srgb, var(--blue) 80%, var(--neon-cyan));
+  --c5: var(--blue);
+  --glow-lit: 0 0 6px var(--glow-cyan), 0 0 14px var(--glow);
+  /* The light's time from one pad to the next. Four runs, the bend, the drop and the arrow's
+     switch-on come to about 1.4s. A plain time, never a calc: the delays below multiply it. */
+  --seg: 0.24s;
+  position: relative;
+}
+@media (min-width: 641px) {
+  .board {
+    --node: 44px;
+  }
+}
+
+/* One step per row under 1025px: the pad in a column of its own, the words beside it.
+   `minmax(0, 1fr)` so no track widens to fit an uppercase word. */
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: var(--row);
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--node) minmax(0, 1fr);
+  column-gap: var(--sp-4);
+  align-items: start;
+}
+
+/* The pad, with the step's number in it. Off: a dark square in a dim edge. On: a cyan edge, a glow
+   and a lighter fill — two layers over the square that only ever change their opacity, so
+   switching a pad on is compositor work. Cyan, because cyan is information here — threads, ticks,
+   status — and red stays the one call to action, the request section right below (docs/04).
+   4px corners, the portfolio pad's (.pxPad): a square that reads as a part, never as a ring. */
+.node {
+  position: relative;
+  /* over the trace that runs into it and the pulse that runs under it */
+  z-index: 1;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--cyan-text);
+  font-size: 12px;
+  /* JetBrains Mono is loaded up to 700 (app/layout.tsx); 800 would only be synthesised. */
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+}
+.node::before,
+.node::after {
+  content: "";
+  position: absolute;
+  /* under the number, over the square's own fill */
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+/* the lighter fill: --cyan-text computes to about 7.7:1 against it (WCAG formula, token values) */
+.node::before {
+  inset: 0;
+  background: var(--neon-cyan);
+  opacity: 0.14;
+}
+/* the cyan edge, laid exactly over the dim one, and its glow */
+.node::after {
+  inset: -1px;
+  border: 1px solid var(--neon-cyan);
+  box-shadow: 0 0 16px var(--glow-cyan);
+}
+
+/* Under 1025px the title stands beside its pad, its first line centred on it (1.2em is one line of
+   the title), and the text under the title. */
+.stepTitle {
+  grid-column: 2;
+  grid-row: 1;
+  margin: calc((var(--node) - 1.2em) / 2) 0 var(--sp-2);
+  font-size: clamp(19px, 2.4vw, 23px);
+  /* Long titles run to three lines, and at the body's 1.55 they read as separate lines rather
+     than one heading. 1.2 still clears a comma-below (Ș, Ț) over a breve or circumflex (Ă, Î), as
+     in Principles. */
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--txt);
+  /* The last resort only: the sizes are chosen so that no word needs it. */
+  overflow-wrap: break-word;
+}
+
+.stepText {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  color: var(--mut);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+/* Step 02's promise as a part on the wire: a dark chip with a cyan edge, sitting ON the trace, so
+   the line runs into it and out the other side, its opaque fill hiding the run beneath. Under
+   1025px it hangs below step 02's words, threaded on the vertical trace — it starts at the pads'
+   left edge, so the line passes through it at the pads' middle; from 1025px it sits on the
+   horizontal trace right after pad 02. */
+.chip {
+  position: relative;
+  z-index: 1;
+  grid-column: 1 / -1;
+  grid-row: 3;
+  justify-self: start;
+  margin-top: var(--sp-4);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 4px;
+  background: var(--bg);
+  box-shadow: 0 0 12px var(--glow-cyan);
+  color: var(--cyan-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* ---------- the runs: one per step, from its pad to the next ----------
+   A step's ::before is its dim run and its ::after the lit one, the same box. Under 1025px a run
+   goes down from the pad's foot, across the gap, to the next pad's head; the last stops at the
+   board's foot, where the drop takes over. */
+.step::before,
+.step::after {
+  content: "";
+  position: absolute;
+  top: var(--node);
+  bottom: calc(-1 * var(--row));
+  left: calc(var(--mid) - var(--trace) / 2);
+  width: var(--trace);
+  pointer-events: none;
+}
+.step:last-child::before,
+.step:last-child::after {
+  bottom: 0;
+}
+.step::before {
+  background: var(--line2);
+}
+.step::after {
+  background-image: linear-gradient(180deg, var(--from), var(--to));
+  box-shadow: var(--glow-lit);
+  transform-origin: 50% 0;
+}
+/* Each run's stretch of the cyan → blue. Four steps, four runs: the copy above has four. */
+.step:nth-child(1) {
+  --from: var(--c0);
+  --to: var(--c1);
+}
+.step:nth-child(2) {
+  --from: var(--c1);
+  --to: var(--c2);
+}
+.step:nth-child(3) {
+  --from: var(--c2);
+  --to: var(--c3);
+}
+.step:nth-child(4) {
+  --from: var(--c3);
+  --to: var(--c4);
+}
+
+/* ---------- the bend, the drop, the arrowhead and the pulse ----------
+   Laid over the whole board (aria-hidden in Process.tsx) and placed from its edges. Positioned
+   but without a z-index, after the list: over the runs, under the pads and the chip. */
+.wires,
+.pulse {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bend,
+.drop {
+  position: absolute;
+}
+.bend::before,
+.bend::after,
+.drop::before,
+.drop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.bend::before,
+.drop::before {
+  background: var(--line2);
+}
+.bend::after,
+.drop::after {
+  box-shadow: var(--glow-lit);
+}
+.bend::after {
+  background: var(--c4);
+  transform-origin: 0 50%;
+}
+.drop::after {
+  background-image: linear-gradient(180deg, var(--c4), var(--c5));
+  transform-origin: 50% 0;
+}
+
+/* The 45° turn exists only from 1025px, where the trace has to come round a corner. */
+.bend {
+  display: none;
+}
+
+/* The drop: under 1025px it carries the trace on from the board's foot into the padding below.
+   It ends 2px short of the arrowhead's point, inside the arrowhead's corner, so no square end of
+   the line pokes out past the point. */
+.drop {
+  top: 100%;
+  bottom: calc(var(--trace) - var(--reach));
+  left: calc(var(--tip-x) - var(--trace) / 2);
+  width: var(--trace);
+}
+
+/* The arrowhead: two 45° strokes meeting in a mitred point — the bottom and right sides of a
+   square turned 45°, so the corner between them points straight down, each stroke's free end cut
+   square across it. Turned about its middle, that corner sits (√2 / 2) × side below the middle, so
+   the square's unturned foot is lifted (√2 − 1) / 2 ≈ 0.2071 of a side to put the point exactly
+   `--reach` under the board. Drawn twice, like the trace: dim, and lit over it. */
+.arrow {
+  position: absolute;
+  left: calc(var(--tip-x) - var(--head) / 2);
+  bottom: calc(0.2071 * var(--head) - var(--reach));
+  width: var(--head);
+  height: var(--head);
+  transform: rotate(45deg);
+}
+.arrow::before,
+.arrow::after {
+  content: "";
+  position: absolute;
+  background: var(--line2);
+}
+.arrow::before {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--trace);
+}
+.arrow::after {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--trace);
+}
+.arrowLit::before,
+.arrowLit::after {
+  background: var(--c5);
+  box-shadow: var(--glow-lit);
+}
+
+/* ---------- the pulse ----------
+   A short streak of light that runs the lit trace once, just after it has lit — the signal
+   arriving at the form; only where motion is allowed (below). A run is a clipping window along the
+   trace. Inside it, a mover one window plus one streak long, the streak at its far end, slides
+   through by exactly its own length: it starts with the streak's head at the window's start and
+   ends with its tail past the window's end, both resting places clipped away. A length in
+   percent, so it fits the window at every width with nothing measured. Under 1025px one run goes
+   down the whole trace, from pad 01's middle to the arrowhead. */
+.pulse {
+  display: none;
+}
+.run,
+.runDrop {
+  position: absolute;
+  overflow: hidden;
+}
+.run {
+  top: var(--mid);
+  bottom: calc(var(--trace) - var(--reach));
+  left: calc(var(--tip-x) - var(--halo) / 2);
+  width: var(--halo);
+}
+.runDrop {
+  display: none;
+}
+.spark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: calc(-1 * var(--streak));
+}
+/* The streak: a cyan halo, a cyan body and a white-hot front half, all ending square at its head —
+   the portfolio's pulse (.headHalo / .headBody / .headCore), never a dot. */
+.spark::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--streak);
+  background:
+    linear-gradient(180deg, transparent 50%, var(--on-accent)) 50% 0 / var(--trace) 100% no-repeat,
+    linear-gradient(180deg, transparent, var(--neon-cyan)) 50% 0 / var(--trace) 100% no-repeat,
+    linear-gradient(180deg, transparent, var(--glow-cyan)) 0 0 / 100% 100% no-repeat;
+}
+
+/* ================================================================================================
+ * FROM 1025px: ACROSS
+ *
+ * Four columns, each step's pad at its column's left and its words under the pad, left-aligned
+ * with it. The trace runs through the pads' middles: each step's run goes from its pad's right
+ * edge across the gap to the next pad. The list keeps a lane of `--tail` on its right, so the drop
+ * never crosses a line of text: past pad 04 the run carries on to `--bend` short of the lane's
+ * middle, turns down 45° and drops down the middle of the lane to its tip, half a lane clear of
+ * step 04's words.
+ * ============================================================================================= */
+@media (min-width: 1025px) {
+  .board {
+    --gap: var(--sp-6);
+    --tail: 48px;
+    --bend: 16px;
+    --drop-x: calc(var(--tail) / 2);
+    --tip-x: calc(100% - var(--drop-x));
+  }
+
+  .steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: var(--gap);
+    row-gap: 0;
+    padding-right: var(--tail);
+  }
+
+  .step {
+    display: block;
+  }
+
+  .stepTitle {
+    margin: var(--sp-5) 0 var(--sp-2);
+    /* A column is 200px at 1025px, and "РАЗРАБАТЫВАЕМ" — thirteen uppercase letters — is the
+       longest word in any language here: 1.8vw sets it at 18.5px there, an estimated 176px by
+       the face's advance widths (not measured), and the size stops at 22px from 1223px, where a
+       column is 250px. */
+    font-size: clamp(18px, 1.8vw, 22px);
+  }
+
+  .step::before,
+  .step::after {
+    top: calc(var(--mid) - var(--trace) / 2);
+    bottom: auto;
+    left: var(--node);
+    right: calc(-1 * var(--gap));
+    width: auto;
+    height: var(--trace);
+  }
+  /* Pad 04's run ends where the bend starts, half a trace into it, so the two leave no notch on
+     the outside of the corner. */
+  .step:last-child::before,
+  .step:last-child::after {
+    bottom: auto;
+    right: calc(var(--drop-x) + var(--bend) - var(--tail) - var(--trace) / 2);
+  }
+  .step::after {
+    background-image: linear-gradient(90deg, var(--from), var(--to));
+    transform-origin: 0 50%;
+  }
+
+  /* On the trace, 12px after pad 02: an estimated 140px wide in the longest language (Romanian),
+     ending inside its 200px column at 1025px, well short of pad 03 past the gap. */
+  .chip {
+    position: absolute;
+    top: var(--mid);
+    left: calc(var(--node) + var(--sp-3));
+    margin: 0;
+    transform: translateY(-50%);
+  }
+
+  /* From the run's end, down-right at exactly 45° to the top of the drop: a bar √2 × `--bend` long,
+     turned about its start. */
+  .bend {
+    display: block;
+    left: calc(100% - var(--drop-x) - var(--bend));
+    top: calc(var(--mid) - var(--trace) / 2);
+    width: calc(1.4142 * var(--bend));
+    height: var(--trace);
+    transform-origin: 0 50%;
+    transform: rotate(45deg);
+  }
+
+  /* From the bend's end (half a trace into it, for the same notch) down the lane to the tip. */
+  .drop {
+    top: calc(var(--mid) + var(--bend) - var(--trace) / 2);
+  }
+
+  /* Two runs: along the top from pad 01's middle to the bend, then down the drop. The pulse jumps
+     the bend — its head leaves the top run in the same moment it enters the drop, 16px across and
+     16px down — a corner too short to read as a gap at its speed. */
+  .run {
+    top: calc(var(--mid) - var(--halo) / 2);
+    bottom: auto;
+    left: var(--mid);
+    right: calc(var(--drop-x) + var(--bend));
+    width: auto;
+    height: var(--halo);
+  }
+  .runDrop {
+    display: block;
+    top: calc(var(--mid) + var(--bend));
+    bottom: calc(var(--trace) - var(--reach));
+    left: calc(var(--tip-x) - var(--halo) / 2);
+    width: var(--halo);
+  }
+  .run .spark {
+    bottom: 0;
+    right: calc(-1 * var(--streak));
+  }
+  .run .spark::after {
+    top: 0;
+    left: auto;
+    width: var(--streak);
+    height: auto;
+    background:
+      linear-gradient(90deg, transparent 50%, var(--on-accent)) 0 50% / 100% var(--trace) no-repeat,
+      linear-gradient(90deg, transparent, var(--neon-cyan)) 0 50% / 100% var(--trace) no-repeat,
+      linear-gradient(90deg, transparent, var(--glow-cyan)) 0 0 / 100% 100% no-repeat;
+  }
+}
+
+/* ================================================================================================
+ * THE LIGHT
+ *
+ * The finished board is the base declaration above: lit, every pad on, every word there. That is
+ * what reduced motion gets, and what a board gets that was on screen before it could be armed.
+ * Only here, where motion is allowed, does an ARMED board (Process.tsx) start dark and come on.
+ *
+ * Once, when it ENTERS: the light grows over the dim trace from pad 01 to the arrow — each run a
+ * scale from its start, linear, one `--seg` per run (from 0.001, not 0, as in the footer: a
+ * scale of 0 cannot be inverted) — and each pad, then its words, switch on as the light reaches
+ * them. Transform and opacity only, so it is compositor work from end to end. The transitions sit
+ * on the entered state, the state each piece goes TO, so arming a board is instant and only
+ * entering it moves. Longhands, and every delay one flat calc() of a plain number and a plain
+ * time (`--step`, `--seg`): a calc substituted into another inside a timing value made a whole
+ * declaration unparseable once (Principles.module.css), every delay falling back to 0s.
+ *
+ * Then the pulse: one streak, just after the light has reached the arrow, and never again — an
+ * entrance, not a loop, so nothing here moves on its own for more than five seconds (WCAG 2.2.2).
+ * If the board leaves the screen first, the streak waits (`data-offscreen`), the whole group under
+ * one condition so the run along the top and the run down the drop keep their hand-over.
+ * ============================================================================================= */
+@media (prefers-reduced-motion: no-preference) {
+  .board[data-armed]:not([data-entered]) .step::after,
+  .board[data-armed]:not([data-entered]) .drop::after {
+    transform: scaleY(0.001);
+  }
+  .board[data-armed]:not([data-entered]) .bend::after {
+    transform: scaleX(0.001);
+  }
+  .board[data-armed]:not([data-entered]) .node::before,
+  .board[data-armed]:not([data-entered]) .node::after,
+  .board[data-armed]:not([data-entered]) .arrowLit,
+  .board[data-armed]:not([data-entered]) .chip {
+    opacity: 0;
+  }
+  .board[data-armed]:not([data-entered]) .stepTitle,
+  .board[data-armed]:not([data-entered]) .stepText {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  .board[data-entered] .step::after,
+  .board[data-entered] .bend::after,
+  .board[data-entered] .drop::after {
+    transition-property: transform;
+    transition-timing-function: linear;
+  }
+  .board[data-entered] .step::after {
+    transition-duration: var(--seg);
+    transition-delay: calc(var(--step) * var(--seg));
+  }
+  .board[data-entered] .bend::after {
+    transition-duration: calc(0.16 * var(--seg));
+    transition-delay: calc(4 * var(--seg));
+  }
+  .board[data-entered] .drop::after {
+    transition-duration: var(--seg);
+    transition-delay: calc(4.16 * var(--seg));
+  }
+  .board[data-entered] .arrowLit {
+    transition-property: opacity;
+    transition-duration: 0.2s;
+    transition-timing-function: var(--motion-ease-out);
+    transition-delay: calc(5.16 * var(--seg));
+  }
+  .board[data-entered] .node::before,
+  .board[data-entered] .node::after {
+    transition-property: opacity;
+    transition-duration: 0.35s;
+    transition-timing-function: var(--motion-ease-out);
+    transition-delay: calc(var(--step) * var(--seg));
+  }
+  .board[data-entered] .stepTitle,
+  .board[data-entered] .stepText {
+    transition-property: opacity, transform;
+    transition-duration: 0.5s;
+    transition-timing-function: var(--motion-ease-out);
+    transition-delay: calc(var(--step) * var(--seg) + 0.08s);
+  }
+  /* Opacity only: from 1025px the chip's transform centres it on the trace. */
+  .board[data-entered] .chip {
+    transition-property: opacity;
+    transition-duration: 0.5s;
+    transition-timing-function: var(--motion-ease-out);
+    transition-delay: calc(var(--step) * var(--seg) + 0.12s);
+  }
+
+  .board[data-entered] .pulse {
+    display: block;
+  }
+  .board[data-entered] .spark {
+    animation-name: spark-down;
+    animation-duration: 4s;
+    animation-timing-function: linear;
+    animation-iteration-count: 1;
+    animation-delay: 1.6s;
+  }
+  .board[data-offscreen] .spark {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) and (min-width: 1025px) {
+  .board[data-armed]:not([data-entered]) .step::after {
+    transform: scaleX(0.001);
+  }
+  .board[data-entered] .run .spark {
+    animation-name: spark-across;
+  }
+  .board[data-entered] .runDrop .spark {
+    animation-name: spark-drop;
+  }
+}
+
+/* Under 1025px: down the whole trace in about a second, then rest. */
+@keyframes spark-down {
+  from {
+    transform: translateY(-100%);
+  }
+  26%,
+  to {
+    transform: none;
+  }
+}
+
+/* From 1025px: across the top in about a second… */
+@keyframes spark-across {
+  from {
+    transform: translateX(-100%);
+  }
+  24%,
+  to {
+    transform: none;
+  }
+}
+
+/* …and down the drop from the moment its head reaches the bend: 24% × run / (run + streak), which
+   is 22.6% of the cycle at 1025px and 22.9% at 1280px. */
+@keyframes spark-drop {
+  from,
+  22.8% {
+    transform: translateY(-100%);
+  }
+  29.5%,
+  to {
+    transform: none;
+  }
+}
+
+/* A contrast theme (forced colours) would repaint the trace's backgrounds in the page colour and
+   erase them, so the trace keeps its own paint in system colours: dim in GrayText, lit in
+   Highlight, with no glow. The pads' and the chip's edges are borders, which it keeps in its own
+   text colour; the lit edge of a pad is Highlight. The pulse is not shown. Last in the file, so
+   these win over the layouts above. */
+@media (forced-colors: active) {
+  .step::before,
+  .step::after,
+  .bend::before,
+  .bend::after,
+  .drop::before,
+  .drop::after,
+  .arrow::before,
+  .arrow::after {
+    forced-color-adjust: none;
+    box-shadow: none;
+  }
+  .step::before,
+  .bend::before,
+  .drop::before,
+  .arrow::before,
+  .arrow::after {
+    background: GrayText;
+  }
+  .step::after,
+  .bend::after,
+  .drop::after,
+  .arrowLit::before,
+  .arrowLit::after {
+    background: Highlight;
+  }
+  .node::before {
+    display: none;
+  }
+  .node::after {
+    border-color: Highlight;
+    box-shadow: none;
+  }
+  .chip {
+    box-shadow: none;
+  }
+  .board[data-entered] .pulse {
+    display: none;
+  }
+}

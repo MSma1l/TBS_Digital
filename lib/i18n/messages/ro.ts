@@ -207,7 +207,7 @@ export const ro = {
   "nav.company.team": "Echipă",
   "nav.company.partners": "Parteneri",
   "nav.company.cases": "Cazuri",
-  "nav.cta": "START PROIECT ↗",
+  "nav.cta": "CERE OFERTĂ ↗",
   "nav.burgerAria": "Meniu",
   "nav.closeAria": "Închide",
   // Screen readers already announce the landmark as "navigation": the label only names which one.

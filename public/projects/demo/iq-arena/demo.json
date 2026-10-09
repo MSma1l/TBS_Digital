@@ -1,0 +1,63 @@
+{
+  "v": 1,
+  "lang": "ro",
+  "start": "autentificare",
+  "pages": [
+    {
+      "id": "autentificare",
+      "title": "Bine ai venit",
+      "d": {
+        "src": "/projects/iq-arena-1.png",
+        "w": 1600,
+        "h": 1000,
+        "hot": [
+          { "r": [1102, 309, 313, 71], "t": "Email", "k": "site", "el": "button" },
+          { "r": [1102, 394, 313, 71], "t": "Parolă", "k": "site", "el": "button" },
+          { "r": [1102, 484, 312, 53], "t": "Autentificare", "k": "page", "to": "masa", "el": "button" },
+          { "r": [1180, 548, 155, 30], "t": "Creează cont nou", "k": "site", "el": "link" },
+          { "r": [1233, 829, 48, 30], "t": "RU", "k": "site", "el": "button" },
+          { "r": [1290, 829, 48, 30], "t": "EN", "k": "site", "el": "button" }
+        ]
+      }
+    },
+    {
+      "id": "masa",
+      "title": "Masa rotundă",
+      "d": {
+        "src": "/projects/iq-arena-2.png",
+        "w": 1600,
+        "h": 1000,
+        "hot": [
+          { "r": [646, 802, 307, 52], "t": "Start rundă", "k": "page", "to": "juriu", "el": "button" }
+        ]
+      }
+    },
+    {
+      "id": "juriu",
+      "title": "Fișa juriului",
+      "d": {
+        "src": "/projects/iq-arena-3.png",
+        "w": 1600,
+        "h": 1000,
+        "hot": [
+          { "r": [646, 300, 307, 112], "t": "Atingerea obiectivelor", "k": "site", "el": "button" },
+          { "r": [646, 423, 307, 112], "t": "Strategia win-win", "k": "site", "el": "button" },
+          { "r": [646, 546, 307, 112], "t": "Persuasiune", "k": "site", "el": "button" },
+          { "r": [817, 812, 136, 42], "t": "Finalizează", "k": "page", "to": "castigator", "el": "button" }
+        ]
+      }
+    },
+    {
+      "id": "castigator",
+      "title": "Câștigător",
+      "d": {
+        "src": "/projects/iq-arena-4.png",
+        "w": 1600,
+        "h": 1000,
+        "hot": [
+          { "r": [711, 671, 177, 46], "t": "Vezi recapul", "k": "site", "el": "button" }
+        ]
+      }
+    }
+  ]
+}

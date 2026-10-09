@@ -89,6 +89,9 @@ Verified, no change needed:
 - **`x-pathname`**: overwritten by `proxy.ts` on document requests and only compared with `"/"`;
   a forged header on a prefetch request can only toggle the overlay in the sender's own
   response (no page caching).
+- **`x-intro`** (2026-10-09): the proxy's own verdict that the URL came from an ad (`utm_*`,
+  `gclid`, `fbclid`, …), so the intro is left out. Any incoming copy is deleted first, and only
+  `skip` counts. It can only remove the overlay, and only in the sender's own response.
 - **User input into the DOM**: the intro's `location.hash` check goes through
   `getElementById`; nothing reaches `innerHTML`.
 - **Dependencies**: runtime packages pinned exactly (three 0.186.0 and @react-three/fiber 9.7.0,
@@ -147,6 +150,112 @@ review round; recorded so the next audit starts from the facts.
   yet) renders nothing on the server and waits for an answered cookie banner, a first
   interaction, the intro gone and an idle slot before any part loads. It adds no `window` event
   and writes no storage.
+
+## Whole-site captures (2026-10-06) — one admin upload route, one link field
+
+/portofoliu's screen scrolls through one tall capture of each project's site, so the admin
+gained a second upload route. Not a review round; recorded so the next audit starts from the
+facts.
+
+- **`POST /api/admin/uploads/capture`** (`backend/app/routers/uploads.py`): admin-only, 20/min,
+  and every guard of the picture upload — the 8 MB streamed cap (413), magic-byte sniffing
+  (PNG / JPEG / WebP, SVG refused), the 24 MP pixel cap read from the header before decoding
+  (400), the 512 MB uploads budget (507), decoding in a worker thread and a generated uuid
+  filename. What is stored is always rebuilt from raw pixels and re-encoded to WebP (a
+  polyglot's payload and EXIF / ICC / XMP are dropped), at most **1080px wide** (never
+  upscaled) and **12000px tall** (the rest of the page is cut off from the bottom).
+- **Hardened after review (both upload routes):** `Image.open` gets only the decoder of the
+  format the magic bytes named; every decoding failure, a malformed PNG chunk after IDAT
+  included (it used to escape as a 500), is a 400; a photo is turned upright by its EXIF
+  orientation before it is stripped; 16-bit grey is scaled, not clipped to white.
+- **No data loss from a stale admin page.** A content `PUT` that does not name `fullPage` keeps
+  the stored capture (an admin tab loaded before the deploy would otherwise wipe all four on its
+  first save); `""` still clears it. Pinned in `test_api.py`.
+- **No storage before consent.** The screen's one glide down and back, which shows a visitor that
+  the site scrolls, is remembered in memory for the page load — nothing is written to
+  `localStorage` or `sessionStorage` for it.
+- **Bounded memory.** Capture decodes run **one at a time** behind their own semaphore, beside
+  at most two picture decodes; one peaks at ~370 MB at the pixel cap (a WebP, whose decoder
+  holds two full canvases until the source is dropped — the first step drops it).
+- **No proxy or middleware change.** nginx's `location ^~ /api/admin/uploads` and
+  `BodySizeLimitMiddleware`'s `startswith("/api/admin/uploads")` both match the new path, so it
+  gets the same 10 MB body ceiling as the picture route.
+- **`fullPage`** (`Project` schema, `projects.full_page` column) is a `LinkStr`: a site-relative
+  path or an `http(s)` URL, rejected — never escaped — like every other link field. The column
+  is ALTERed in on boot through the guarded `ADD COLUMN` helper (Q1) and backfilled once.
+- Regression tests: capture geometry and admin-only in `test_uploads.py`, the column and its
+  one-time backfill in `test_migration.py`. Details:
+  [docs/11-security.md](docs/11-security.md#image-uploads--admin-only-magic-byte-sniffed-always-re-encoded),
+  [docs/10-backend.md](docs/10-backend.md#project-captures-fullpage-2026-10-06).
+
+## Interactive demos (2026-10-06) — one link field, static manifests
+
+/portofoliu's screen lets a visitor press through a few pages of a project's site, while anything
+functional points to the real site. Not a review round; recorded so the next audit starts from the
+facts.
+
+- **No new route, no upload.** A demo is a static manifest the site serves itself
+  (`public/projects/demo/<id>/demo.json`, made by `tools/site-demo/`). The backend only stores its
+  path: `demo` (`Project` schema, `projects.demo` column), a `SitePathStr` — a link field that is
+  a path on the site or nothing (`isSitePath` in the admin; a whole URL, which the screen would
+  ignore anyway, is refused) — ALTERed in on boot through the guarded `ADD COLUMN` helper (Q1) and
+  backfilled once.
+- **Validated before anything is drawn from it.** `parseManifest` (`lib/siteDemo.ts`) checks the
+  ids, numbers, labels and site paths and drops whatever does not check out; labels are plain text,
+  never markup. `deepLink` lets a prompt point only at the project's own origin (`http` / `https`),
+  and nowhere for a project without a public site.
+- **No CSP change, no third-party request, no storage.** The manifest and its pictures are
+  same-origin files (`connect-src 'self'`, `img-src 'self'`), and a manifest is fetched only from a
+  site path. Where the visitor is in a demo lives in memory for the page load.
+- **Personal data in the pictures.** A label is text the build controls (a private e-mail or phone
+  becomes "E-mail" / "Telefon"); a picture shows whatever the live page shows. The private systems'
+  screenshots were cleaned by hand (e-mails, a photo); the public sites' captures blur what is not
+  ours to republish at capture time (`redact` in `tools/site-demo/config.mjs`: CGAM's league
+  players by name, an event photo's faces, a real address in a mockup), and a rule that stops
+  matching stops the capture rather than publish the page unblurred. The originals of the cleaned
+  screenshots are still in the git history.
+- **The capture tool's write-blocking** covers the captured page's own requests; a tab a press
+  opens, a cross-site frame, a worker and a WebSocket are not intercepted (tools/site-demo README).
+- **No data loss from a stale admin page**, as with `fullPage`: a content `PUT` that does not name
+  `demo` keeps the stored one; `""` still clears it.
+- Regression tests: the capture's two tests, extended — the column and its one-time backfill in
+  `test_migration.py`, the stale-tab save in `test_api.py`. Details:
+  [docs/11-security.md](docs/11-security.md#the-interactive-demo-on-portofoliu-2026-10-06),
+  [docs/10-backend.md](docs/10-backend.md#project-demos-demo-2026-10-06).
+
+## The portfolio's pixels through Next's image optimiser (2026-10-08)
+
+/portofoliu's pixels each show a small square of their project's picture, served small by
+`/_next/image`. This is the first use of the optimiser. It is not a review round; it is recorded
+so the next audit starts from the facts.
+
+- **Narrower than before.**
+  - With no `images` config, Next 16 let the optimiser take any file under `public/` without a
+    query string (`localPatterns: [{ pathname: "**", search: "" }]`), at fifteen widths.
+  - `next.config.ts` now allows only the files right under `/projects` (`/projects/*`, no query),
+    one quality (`qualities: [75]`, Next's default made explicit) and three widths (64, 128 and
+    256px).
+  - A 400 now meets:
+    - the demos' 780 × 16000px pages under `/projects/demo/`;
+    - another path, a query, `//host` or a remote URL;
+    - another `q`, or a width of 384 or more.
+  - All of this was checked on the running container.
+  - There are no `remotePatterns`, so nothing is fetched from elsewhere (no SSRF).
+- **Each request is bounded, but their number is not.**
+  - Next keys its cache on the raw `url`, so `…png#1`, `…png#2` or `/projects/./…` each miss. This
+    was measured: MISS, MISS, then HIT on a repeat.
+  - Each miss decodes at most 6.5 MP and encodes at most 256px.
+  - The disk cache is capped at 50 MB (`maximumDiskCacheSize`, least recently used out first).
+  - CPU is the open end: rate-limiting `/_next/image` at the proxy is on the production list
+    ([docs/11](docs/11-security.md#what-to-still-do-for-production)).
+- **No CSP change.**
+  - The optimised picture is same-origin (`img-src 'self'`).
+  - Uploaded pictures (`/api/uploads/…`, the API's origin) skip the optimiser and load as they are.
+    For a square that is the screenshot, never a whole-site capture.
+  - Next's own headers on the optimiser's responses stay: `Content-Security-Policy: script-src
+    'none'; frame-src 'none'; sandbox;`, `Content-Disposition: attachment`, and SVG refused.
+    `nosniff` comes from `next.config.ts` `headers()`.
+- Details: [docs/11-security.md](docs/11-security.md#the-portfolios-pixels-through-the-image-optimiser-2026-10-08).
 
 ## Verified secure (no change needed)
 

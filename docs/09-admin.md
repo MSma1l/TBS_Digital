@@ -24,7 +24,7 @@ section. Order (the **Cereri** tab is first and is the default on open):
 | Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
 | Statistici | value, label → /02 stats row | content API |
 | Echipă | name, role, bio → /05 team cards | content API |
-| Proiecte | name, category, description, project link, App Store / Google Play links, and a gallery of screenshots (upload, reorder, remove) → the home page's Work cards, which show the **first** screenshot, split the category on "·" into chips (the "·" stays visible between them) and link out only when a project link is set; the Directions case card reads the same project | content API + `POST /api/admin/uploads` |
+| Proiecte | name, category, description, project link, App Store / Google Play links, a **full-page capture** of the site (upload, remove — [see below](#a-projects-full-page-capture)), the path of its **interactive demo** ([see below](#a-projects-interactive-demo)) and a gallery of screenshots (upload, reorder, remove) → the home page's Work cards, which show the **first** screenshot, split the category on "·" into chips (the "·" stays visible between them) and link out only when a project link is set; the Directions case card reads the same project; `/portofoliu`'s screen scrolls through the capture, or shows the first screenshot when there is none, and lets a visitor press through the demo where there is one | content API + `POST /api/admin/uploads` (screenshots) + `POST /api/admin/uploads/capture` (the capture) |
 | Parteneri | name, site URL, logo, site preview (both uploadable) → /06 partners strip **and** the footer partners row | content API + `POST /api/admin/uploads` |
 | Contact | type (email/phone/other), value → footer contact column | content API |
 
@@ -42,6 +42,83 @@ the token and drops back to the login gate, like every other admin call.
 > The Telegram lead messages are **not** touched by a deletion. Tapping a classification button
 > on the message of a deleted request answers *"Lead inexistent"* — see
 > [13 — Telegram](./13-telegram.md).
+
+### A project's full-page capture
+
+Every project in **Proiecte** has a **Captura întregului site** block, above its screenshot
+gallery: the project's whole site, top to bottom, in one tall image (`fullPage`). It is what the
+screen on `/portofoliu` scrolls through ([05 — Portfolio](./05-page-sections.md#portfolio--portofoliu));
+a project without one shows its first screenshot there instead.
+
+- **The block:** a thumbnail of the capture's top (`.shotThumb`, loaded lazily, since the file is
+  a whole site tall), **Încarcă captura**, **Elimină**, and under them a help text with the rules
+  below (the file input's `aria-describedby`).
+- **The file:** PNG, JPEG or WebP, sent to `POST /api/admin/uploads/capture` (`uploadCapture` in
+  `lib/api.ts`). It has an endpoint of its own because `POST /api/admin/uploads` fits the longest
+  side into 1600px, which would shrink a site to a sliver. The limits, all said in the help text:
+  **at most 8 MB and 24 megapixels** (e.g. 1440×16600 — a longer page has to be cut before it is
+  uploaded, or saved narrower), PNG / JPG / WebP; take it **at least 1080px wide**. The server
+  stores one WebP **1080px wide** (a wider capture is scaled down, a narrower one is not scaled
+  up) and keeps **at most its first 12000px** at that width. A file over 8 MB is refused here,
+  before it is sent, with the server's own words ("Captură prea mare (max 8 MB). Salveaz-o ca
+  JPG sau WebP.") — past ~10 MB the request would be stopped before the route could explain.
+- **The same upload plumbing as every other image** (`uploadImage`, which takes the uploader):
+  one upload at a time (every upload button is disabled while one runs, and this one reads
+  *Se încarcă…*), a failure shown at the top of the tab with the server's reason, a `401` back to
+  the login gate. The capture lands on its project **by id**, not by place in the list: a project
+  removed while the upload runs never hands its capture to the one that moved up. The file is
+  stored at once, but the project only points at it after **Save**; **Elimină** just unlinks it
+  (the file stays on disk, like any replaced upload). Every upload button shows the keyboard's
+  focus (the hidden file input inside it takes it).
+- **Validated as a link**, like the store links: `RULES.projectFullPage` here, `LinkStr` on the
+  server — empty, a site-relative path (`/api/uploads/…`, the bundled `/projects/…`) or an absolute
+  `http(s)` URL. Content saved before the field existed has no `fullPage` key at all; the editor
+  reads that as "no capture" (`p.fullPage ?? ""`) and the next Save writes `fullPage: ""`. The
+  other way round, a save that does not name the field at all (an admin page loaded before the
+  deploy) leaves the stored capture as it is ([10](./10-backend.md#project-captures-fullpage-2026-10-06)).
+- **The gallery's label** says what the first screenshot is for — "prima apare pe carduri și,
+  fără captură, pe ecran" (it said the images "se rotesc", from when the Home cards rotated).
+- **No real personal data.** The capture is public: every visitor can scroll through all of it.
+  Take it with **demo data**, never a real client's names, e-mails, phone numbers or documents,
+  least of all from a signed-in dashboard. The help text says so under the button.
+
+### A project's interactive demo
+
+Under the capture, every project has a **Demo interactiv** field (2026-10-06): the path of its
+demo's **manifest** (`demo`, e.g. `/projects/demo/bizcheck/demo.json`). A manifest lists a few
+pages of the project's site, each a capture with its real links and buttons recorded over it, and
+`/portofoliu`'s screen lets a visitor press them: a link to another of those pages opens it in the
+screen, and anything that needs the real site (a form, a login, a search) asks them to go there
+([05 — Portfolio](./05-page-sections.md#portfolio--portofoliu); the format is `lib/siteDemo.ts`).
+
+- **The field:** a text input with a real `<label>` and, under it, a help text that is the input's
+  description (`aria-describedby`): what the demo is, that `tools/site-demo` generates it (see its
+  README), that **empty means no demo**, and that it is regenerated together with the capture when
+  the site changes.
+- **Nothing is uploaded here.** A manifest is a static file that ships with the site, like the
+  pictures it names (`public/projects/demo/<id>/demo.json`, made by `tools/site-demo`); the field
+  only names one. Every shipped project starts with its own (`/projects/demo/<id>/demo.json` — the
+  seed in `lib/content.ts` and `defaults.py`, all nine). Emptying the field turns the demo off; it
+  deletes no file.
+- **Regenerate it with the capture.** A demo's buttons are rectangles measured on its own
+  pictures, and its start page is the project's own picture: the whole-site capture its
+  `fullPage` ships with (`/projects/<name>-site.webp`) or, for a private system without one, its
+  first screenshot. Replace that picture here (upload another capture or remove it; without a
+  capture, change the first screenshot) and the screen shows the new one **without the start
+  page's buttons**, since they were measured on the old one
+  ([05](./05-page-sections.md#portfolio--portofoliu)). So when the site changes, run
+  `tools/site-demo` again and ship the capture and the manifest together, rather than uploading
+  a capture alone.
+- **Validated as a path on the site**: `RULES.projectDemo` here (a link, and `isSitePath`: `/…`,
+  never `//…`, never a whole URL — "Introdu o cale de pe site, care începe cu /…"),
+  `SitePathStr` on the server. The screen reads a manifest only from its own site, so an absolute
+  URL, which it would ignore, is refused where it is typed rather than saved for nothing. As with
+  `fullPage`, content saved before the field existed has no `demo` key at all — the editor reads
+  that as "no demo" (`p.demo ?? ""`) and the next Save writes `demo: ""` — and a save that does
+  not name the field (an admin page loaded before the deploy) keeps the stored demo
+  ([10](./10-backend.md#project-demos-demo-2026-10-06)). The site checks the manifest itself
+  before it draws anything from it
+  ([11](./11-security.md#the-interactive-demo-on-portofoliu-2026-10-06)).
 
 ## Editing & validation
 
@@ -118,6 +195,7 @@ The integration touched exactly the store + auth, as designed — the section co
 untouched:
 
 1. `lib/api.ts` — typed API client (`fetchContent`, `saveContent`, `submitContact`, `login`,
-   `fetchMe`, `fetchSubmissions`, token helpers) using `NEXT_PUBLIC_API_URL`.
+   `fetchMe`, `fetchSubmissions`, `deleteSubmission`, the uploads `uploadLogo` and
+   `uploadCapture`, token helpers) using `NEXT_PUBLIC_API_URL`.
 2. `lib/siteContent.tsx` — loads from the API with a localStorage fallback.
 3. `app/admin-tbs-digital/page.tsx` — real login replaces the PIN; tabs + Cereri added.

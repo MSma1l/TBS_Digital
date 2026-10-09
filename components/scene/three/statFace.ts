@@ -93,7 +93,8 @@ export const STAT_FACE = {
   /**
    * The wireframe hangs off the top-right corner, like the card's own (`-top-5 -right-5`, cropped
    * by its `overflow-hidden`): `hang` is the share of its radius that stays inside the face. Inside
-   * it entirely, it crosses a wide number — `24/7` at 48px reaches within a few px of it.
+   * it entirely, it crosses a wide number — `24/7` at 48px reached within a few px of it, and the
+   * Russian `1 день` (2026-10-09) is wider still.
    */
   accent: { share: 0.34, hang: 0.55 },
   bracket: { arm: 12, inset: 4, width: 1.5 },
@@ -327,8 +328,8 @@ function withTracking(ctx: CanvasRenderingContext2D, em: number, px: number, dra
  *
  * The one ratio: `s = canvasHeight / cardLayoutHeight`. Every px below is a css px of the card times `s`,
  * so the face is the card's own typography at the canvas's scale and nothing is authored twice. The
- * number is fitted down if a language makes it wider than the card (nothing does today: the widest
- * is `24/7`), and the label wraps the way the card wraps it.
+ * number is fitted down if a language makes it wider than the card (the Russian `1 день` may, since
+ * 2026-10-09), and the label wraps the way the card wraps it.
  *
  * `index` is the card's place in the group, drawn as the hologram's two-digit tick in the corner —
  * the one thing on the face that is not the card's own text, and the same figure the Work hologram

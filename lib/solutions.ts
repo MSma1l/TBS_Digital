@@ -1,5 +1,6 @@
-import type { LocalizedText } from "@/lib/i18n/content";
-import type { EstimatorTypeId } from "@/lib/request/catalog";
+import type { LocalizedText, MaybeLocalized } from "@/lib/i18n/content";
+import { SERVICE_TO_ESTIMATOR_TYPE } from "@/lib/directions";
+import { SERVICE_FOR_TYPE, isEstimatorTypeId, type EstimatorTypeId } from "@/lib/request/catalog";
 
 /** Rich content for a single "direction" page. Kept out of the message catalog as
  *  self-contained trilingual objects (rendered with useLoc). Only filled directions
@@ -8,6 +9,18 @@ import type { EstimatorTypeId } from "@/lib/request/catalog";
  *  Keys are the URL slugs from lib/directions.ts, i.e. the `<slug>` in
  *  `/servicii/<slug>` — the same in all three languages. */
 export type SolutionItem = { title: LocalizedText; desc: LocalizedText };
+
+/**
+ * What a direction promises, in the owner's words. ONE source for the three places that say it:
+ * the home page's services panel (`components/sections/Directions.tsx`), the lead under the
+ * service page's H1 (`components/sections/DirectionPage.tsx`) and that page's meta description
+ * (`app/(site)/servicii/[slug]/page.tsx`) — so the panel never promises something the page does not.
+ */
+export type SolutionPitch = {
+  title: LocalizedText;
+  text: LocalizedText;
+  points: [LocalizedText, LocalizedText, LocalizedText];
+};
 
 /** One documented case on a direction page: a piece of work that really exists.
  *  `url` is set ONLY when there is a real public page behind it — a case without one is
@@ -22,6 +35,10 @@ export type SolutionCase = {
 
 export type Solution = {
   title: LocalizedText;
+  pitch: SolutionPitch;
+  /** Set on a direction with no service of its own in the admin's price list: it shows no
+   *  starting price rather than borrowing the one its request opens on (`directionPrice`). */
+  noPrice?: true;
   cardTitle: LocalizedText;
   cardText: LocalizedText;
   items: SolutionItem[];
@@ -40,6 +57,23 @@ export const solutions: Record<string, Solution> = {
   "produs-digital": {
     accent: "#3970ff",
     title: L("Produs digital", "Цифровой продукт", "Digital product"),
+    pitch: {
+      title: L(
+        "Ideea ta, transformată într-un produs folosit",
+        "Ваша идея — в продукт, которым пользуются",
+        "Your idea, turned into a product people use",
+      ),
+      text: L(
+        "Site, platformă web sau aplicație mobilă: clarificăm problema, testăm experiența înainte de cod și lansăm ceva ușor de dezvoltat mai departe.",
+        "Сайт, веб-платформа или мобильное приложение: проясняем задачу, тестируем опыт до кода и запускаем продукт, который легко развивать дальше.",
+        "A website, web platform or mobile app: we clarify the problem, test the experience before any code and launch something easy to grow.",
+      ),
+      points: [
+        L("Workshop de strategie", "Стратегическая сессия", "Strategy workshop"),
+        L("Prototip testabil", "Тестируемый прототип", "Testable prototype"),
+        L("Lansare și măsurare", "Запуск и измерение", "Launch and measurement"),
+      ],
+    },
     cardTitle: L("Strategie + UX + dezvoltare", "Стратегия + UX + разработка", "Strategy + UX + development"),
     cardText: L(
       "Un drum simplu de la primul workshop la produs funcțional.",
@@ -68,6 +102,23 @@ export const solutions: Record<string, Solution> = {
       "E-commerce для продуктов, отчётов и цифрового доступа",
       "E-commerce for products, reports and digital access",
     ),
+    pitch: {
+      title: L(
+        "Vinde online, fără pași în plus",
+        "Продавайте онлайн без лишних шагов",
+        "Sell online, with no extra steps",
+      ),
+      text: L(
+        "Ofertă clară, plată scurtă și acces automat la produs — clientul cumpără în câteva clicuri, tu vezi totul într-un panou.",
+        "Понятное предложение, короткая оплата и автоматический доступ к продукту — клиент покупает в несколько кликов, а вы видите всё в одной панели.",
+        "A clear offer, a short checkout and automatic access to the product — customers buy in a few clicks, and you see everything in one panel.",
+      ),
+      points: [
+        L("Checkout cu plățile potrivite", "Оплата удобными способами", "Checkout with the right payments"),
+        L("Livrare automată", "Автоматическая выдача", "Automatic delivery"),
+        L("Panou de comenzi și rapoarte", "Панель заказов и отчётов", "Orders and reports panel"),
+      ],
+    },
     cardTitle: L("Ofertă → Plată → Acces", "Предложение → Оплата → Доступ", "Offer → Payment → Access"),
     cardText: L(
       "Trei pași, fără nimic în plus între decizie și livrare.",
@@ -138,6 +189,23 @@ export const solutions: Record<string, Solution> = {
   "automatizare-api": {
     accent: "#12ae9e",
     title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
+    pitch: {
+      title: L(
+        "Mai puțină muncă manuală, mai puține erori",
+        "Меньше ручной работы и ошибок",
+        "Less manual work, fewer errors",
+      ),
+      text: L(
+        "Găsim unde se pierde timpul, conectăm CRM-ul, plățile și datele, și lăsăm fluxurile să meargă singure.",
+        "Находим, где теряется время, связываем CRM, платежи и данные — и процессы идут сами.",
+        "We find where time gets lost, connect your CRM, payments and data, and let the workflows run themselves.",
+      ),
+      points: [
+        L("Audit de procese", "Аудит процессов", "Process audit"),
+        L("Integrări sigure", "Надёжные интеграции", "Secure integrations"),
+        L("Dashboard-uri clare", "Понятные дашборды", "Clear dashboards"),
+      ],
+    },
     cardTitle: L("Procese care se mișcă singure", "Процессы, которые движутся сами", "Processes that move on their own"),
     cardText: L(
       "Mai puține copii, erori și rapoarte făcute manual.",
@@ -165,6 +233,23 @@ export const solutions: Record<string, Solution> = {
       "Ассистенты и боты, подключённые к реальным разговорам",
       "Assistants and bots connected to real conversations",
     ),
+    pitch: {
+      title: L(
+        "Răspunzi mai repede, fără să pierzi nicio cerere",
+        "Отвечайте быстрее и не теряйте ни одной заявки",
+        "Reply faster, and never lose a request",
+      ),
+      text: L(
+        "Chat pe site, un asistent care clarifică cererea și un bot Telegram care o aduce la echipă, sortată pe servicii.",
+        "Чат на сайте, ассистент, который уточняет запрос, и Telegram-бот, который передаёт его команде с сортировкой по услугам.",
+        "Live chat on your site, an assistant that clarifies each request and a Telegram bot that brings it to your team, sorted by service.",
+      ),
+      points: [
+        L("Chat live", "Живой чат", "Live chat"),
+        L("Cereri structurate automat", "Автоматически структурированные заявки", "Automatically structured requests"),
+        L("Bot Telegram pentru echipă", "Telegram-бот для команды", "Telegram bot for the team"),
+      ],
+    },
     cardTitle: L(
       "Chat + asistent de calificare + bot Telegram",
       "Чат + ассистент квалификации + Telegram-бот",
@@ -263,6 +348,26 @@ export const solutions: Record<string, Solution> = {
   "brand-ui": {
     accent: "#3970ff",
     title: L("Brand & UI", "Бренд и интерфейс", "Brand & UI"),
+    pitch: {
+      title: L(
+        "Un brand pe care îl recunoști și o interfață ușor de folosit",
+        "Узнаваемый бренд и удобный интерфейс",
+        "A recognisable brand and an interface that's easy to use",
+      ),
+      text: L(
+        "Clarificăm mesajul, construim un sistem vizual coerent și interfețe care arată premium.",
+        "Проясняем посыл, строим цельную визуальную систему и интерфейсы премиального уровня.",
+        "We sharpen the message, build a coherent visual system and interfaces that look premium.",
+      ),
+      points: [
+        L("Poziționare și mesaj", "Позиционирование и посыл", "Positioning and message"),
+        L("Design system", "Дизайн-система", "Design system"),
+        L("Interfață premium", "Премиальный интерфейс", "Premium interface"),
+      ],
+    },
+    /* No service of its own in the admin's price list: its request opens on the site type
+       (lib/directions.ts), and the site's price is not this direction's. */
+    noPrice: true,
     cardTitle: L("Brand cu logică de produs", "Бренд с продуктовой логикой", "A brand with product logic"),
     cardText: L(
       "Identitate, interfață și reguli ușor de aplicat.",
@@ -390,13 +495,48 @@ export function projectsForSolution<T extends { id: string }>(
   });
 }
 
+/* ---------------------------------------------------------------------------
+   The price a direction starts at
+   ---------------------------------------------------------------------------
+   The owner's own figure, never one written here: the admin's price for the service the
+   request dialog opens on for this direction — direction → estimator type
+   (`SERVICE_TO_ESTIMATOR_TYPE`) → service (`SERVICE_FOR_TYPE`) — resolved exactly as the
+   dialog's "PROPUNEREA TA" resolves it (components/sections/Estimator.tsx). So a card can never
+   quote a number the dialog then contradicts. The admin's text already reads "de la 150€" /
+   "от 150€" / "from 150€", so it is shown as written. */
+
+/**
+ * The starting price to show for a direction, or "" when there is none to show: a direction
+ * marked `noPrice`, a service the admin left empty or on the seed's "..." placeholder, or an
+ * unknown slug. Where the dialog would fall back to its built-in figure, this shows nothing.
+ *
+ * Generic over the service shape and given the caller's `useLoc()` resolver, so this module
+ * stays free of a client-only import; the caller passes `useSiteContent().services`.
+ */
+export function directionPrice(
+  slug: string,
+  services: readonly { id: string; price: MaybeLocalized }[],
+  resolve: (value: MaybeLocalized | undefined) => string,
+): string {
+  const sol = solutions[slug];
+  if (!sol || sol.noPrice) return "";
+  const type = SERVICE_TO_ESTIMATOR_TYPE[slug];
+  if (!isEstimatorTypeId(type)) return "";
+  const price = resolve(services.find((s) => s.id === SERVICE_FOR_TYPE[type])?.price).trim();
+  // "..." is PRICE_PLACEHOLDER, spelled out: lib/content.ts calls into a client module as it
+  // loads, and the service route's server metadata imports this file.
+  return price.startsWith("...") ? "" : price;
+}
+
 /** Shared UI copy for the direction pages. */
 export const solUI = {
   back: L("← Înapoi la direcții", "← К направлениям", "← Back to directions"),
   stepsTitle: L("Cum lucrăm", "Как мы работаем", "How we work"),
   talk: L("Discută cu echipa", "Обсудить с командой", "Talk to the team"),
   /* --- action bar, straight under the hero --- */
-  actionTalk: L("Vorbește cu echipa", "Обсудить с командой", "Talk to the team"),
+  /* The same words as the home page's "Cere ofertă" (Directions.tsx), which opens the same
+     request. The key keeps its old name: the E2E helpers import it. */
+  actionTalk: L("Cere ofertă", "Оставить заявку", "Get a quote"),
   actionProjects: L(
     "Vezi proiectele relevante",
     "Смотреть релевантные проекты",

@@ -23,6 +23,9 @@
   border: 1px solid var(--line);
   border-radius: var(--r-2xl) var(--r-2xl) var(--r-md) var(--r-md);
   box-shadow: var(--sh-lg);
+  /* The card is `#contact` (Footer.tsx): a /#contact link stops its top under the sticky header,
+     not behind it, where the page has room below to scroll that far. */
+  scroll-margin-top: var(--header-h);
 }
 
 /* soft glow bleeding in from the top-right, like the reference */
@@ -156,6 +159,43 @@
   font-size: var(--fs-md);
   max-width: 330px;
   margin: 14px 0 0;
+}
+
+/* "Calculează prețul ↗" — the site's outline button (a service page's `.ghost`, the secondary
+   action beside its red CTA) at the footer's scale: a 1px --line2 frame and the same lift on
+   hover. Its fill is --panel2 rather than the ghost's --panel, because --panel is this card and
+   the button would have no surface of its own on it. 44px tall at every width, so it is a
+   fingertip target without a touch rule. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-height: 44px;
+  margin-top: 18px;
+  padding: 10px 20px;
+  border: 1px solid var(--line2);
+  border-radius: var(--r-md);
+  background: var(--panel2);
+  color: var(--txt);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    border-color 0.16s,
+    box-shadow 0.16s,
+    transform 0.16s;
+}
+.cta:hover {
+  border-color: var(--txt);
+  box-shadow: var(--sh-sm);
+  transform: translateY(-2px);
+}
+/* The site's usual cyan ring, the one the hero's secondary button wears. */
+.cta:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
 }
 
 .socials {
@@ -595,6 +635,10 @@ a.colLink:hover {
     margin-top: 10px;
   }
 
+  .cta {
+    margin-top: 14px;
+  }
+
   .socials {
     margin-top: 14px;
   }
@@ -613,7 +657,8 @@ a.colLink:hover {
 @media (prefers-reduced-motion: reduce) {
   .social,
   .colLink,
-  .contact {
+  .contact,
+  .cta {
     transition: none;
   }
 }

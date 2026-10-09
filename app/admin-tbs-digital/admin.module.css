@@ -533,6 +533,14 @@
   color: var(--dim);
   text-transform: uppercase;
 }
+/* A field's own help text, under its controls (the full-page capture's rules, what the
+   interactive demo is). */
+.fieldHint {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+  color: var(--dim);
+}
 
 .input,
 .textarea {
@@ -694,6 +702,11 @@
 .uploadBtn:hover {
   background: rgba(47, 107, 255, 0.18);
   color: var(--txt);
+}
+/* The file input inside is what takes the focus (it is hidden): the label shows it. */
+.uploadBtn:has(:focus-visible) {
+  outline: 2px solid var(--txt);
+  outline-offset: 2px;
 }
 
 /* The real <input type=file> is hidden; the label above is the button. */

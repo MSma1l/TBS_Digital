@@ -44,24 +44,42 @@ function strips(palette: IntroPalette): EnvStrip[] {
   ];
 }
 
+/**
+ * The neon environment, pre-filtered only once every program it draws with has linked in
+ * parallel (`createStripEnvironment`): building it used to freeze the film for over half a
+ * second. `null` when `cancelled()` by then.
+ */
 export function createNeonEnvironment(
   renderer: WebGLRenderer,
   palette: IntroPalette,
-): NeonEnvironment {
-  return createStripEnvironment(renderer, { room: palette.voidBg, strips: strips(palette) });
+  cancelled: () => boolean,
+): Promise<NeonEnvironment | null> {
+  return createStripEnvironment(
+    renderer,
+    { room: palette.voidBg, strips: strips(palette) },
+    cancelled,
+  );
 }
 
 /**
  * Use the neon environment for `scene` and make transmission work on a transparent canvas,
  * clearing the transmission target to opaque void (dark glass refracting the pulse line).
- * Returns the undo, which also disposes the environment.
+ * Resolves the undo, which also disposes the environment — or `null` when `cancelled()` (the
+ * scene unmounted) before the environment was built: then nothing was installed and nothing is
+ * left to dispose.
  */
-export function installNeonEnvironment(
+export async function installNeonEnvironment(
   renderer: WebGLRenderer,
   scene: Scene,
   palette: IntroPalette,
-): () => void {
-  const environment = createNeonEnvironment(renderer, palette);
+  cancelled: () => boolean,
+): Promise<(() => void) | null> {
+  const environment = await createNeonEnvironment(renderer, palette, cancelled);
+  if (!environment) return null;
+  if (cancelled()) {
+    environment.dispose();
+    return null;
+  }
   const undo = installTransmissionClear(renderer, scene, palette.voidBg, environment.texture);
   return () => {
     undo();

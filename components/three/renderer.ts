@@ -62,6 +62,16 @@ export function createRenderer(
   } catch {
     return null;
   }
+  /* Enabled now, beside the ones three enables at construction, not on a texture's first upload:
+     three asks for it on every texture it configures, and the first ask makes Chrome re-read the
+     extension lists synchronously from the GPU process — 8.4ms measured on the main thread the
+     moment the Work hologram first appeared, while the GPU was busy. No texture sets anisotropy, so
+     enabling it changes no sampling. `has`, not `get` (which warns when it is missing). */
+  try {
+    renderer.extensions.has("EXT_texture_filter_anisotropic");
+  } catch {
+    /* never fatal: the factory does not throw */
+  }
 
   const forceContextLoss = renderer.forceContextLoss.bind(renderer);
   renderer.forceContextLoss = () => {
@@ -110,8 +120,9 @@ export function compileScene(renderer: WebGLRenderer, scene: Scene, camera: Came
 }
 
 /**
- * Compile one subtree (visible objects only — three traverses with `traverseVisible`) with
- * the lights and environment of `scene`, so a big scene can compile in idle slices.
+ * Compile one subtree with the lights and environment of `scene`, so a big scene can compile in
+ * idle slices. Every material in it, hidden objects' too: three r186 collects them with
+ * `traverse` and only the lights with `traverseVisible`.
  */
 export function compileObject(
   renderer: WebGLRenderer,

@@ -38,12 +38,32 @@ export const WORK_HELIX_MEDIA = "(min-width: 768px) and (min-height: 600px)";
 export const HELIX_FRONT_ATTR = "data-helix-front";
 
 /**
- * The custom property the driver writes on each card for its screenshot's reveal, 0 → 1
+ * The custom property the driver writes for each card's screenshot reveal — on the card's two readers,
+ * the screenshot and its scan span (`WIPE_READERS` in workHelix.ts), not on the card — 0 → 1
  * (`helixWipe`). Work's CSS clips the picture and rides a scan sheet on it (app/tailwind.css
  * `work-media-reveal` / `work-scan`); absent — no scene, reduced motion, the phone's band — it
  * defaults to 1 and the screenshot is simply there, as it always was.
  */
 export const HELIX_WIPE_PROP = "--helix-wipe";
+
+/**
+ * The custom property the driver writes on each card once per layout (never per frame): where the
+ * Work section's view timeline stands, 0 → 1 (`viewProgress`), at the scroll that makes that card
+ * the front one. Inside the spiral Work's CSS holds the screenshot's parallax at it instead of
+ * playing the animation (app/tailwind.css `parallax-media`) — a running animation is a compositor
+ * layer, and one in every card split each card into layers and offscreen passes of its own.
+ * Absent, the CSS falls back to the timeline's middle.
+ */
+export const HELIX_PARALLAX_PROP = "--helix-parallax";
+
+/**
+ * The custom property the driver writes on the stage (`[data-scene-stage]`) while the spiral runs:
+ * how far what follows Work rides up over the finish, px (`helixOverlap`). The stage's CSS turns
+ * it into a negative bottom margin (app/globals.css), so the stage — and the sticky layers it
+ * contains — keeps its full height while the next section comes up behind the last card instead of
+ * a screen and a half below it. Absent (no spiral), nothing moves.
+ */
+export const HELIX_OVERLAP_PROP = "--helix-overlap";
 
 /** Below this many cards there is nothing to turn: the grid (or band) stays, the helix is ambient. */
 export const HELIX_MIN_CARDS = 3;
@@ -182,6 +202,30 @@ export function helixExitLength(innerHeight: number, sceneH: number): number {
   return helixOutro(innerHeight, sceneH) + helixSlack(sceneH);
 }
 
+/**
+ * Pure. How far what follows Work rides up over the finish, px (`HELIX_OVERLAP_PROP`).
+ *
+ * The finish is scroll the deck spends PINNED: the last card flies up and out of a layer that does
+ * not move, and the stage's sticky canvas stays with it — it has to, the cards ride the strand
+ * drawn there. What follows the track can only arrive once all of that scroll has passed, so at
+ * the user's 1700×1300 window the last card was gone a whole viewport before the next section
+ * reached the middle of the screen: half a page of nothing (2026-10-09, "spirala se termina prea
+ * devreme si jumatate de pagina ramane goala"). Instead, the next section is pulled up by the
+ * finish's own length (`exitLength`, plus the stage's padding under the track, `pad`) less one
+ * gap, so it is right under the last card as that card reaches the focus — the gap between two
+ * cards on the strand, never under `HELIX_TAIL_GAP_MIN` (on a short window the cards overlap a
+ * little and that gap is negative). From there it keeps its distance: on a tall window the deck
+ * climbs faster than the page, on a short one (768px) the lift makes up the difference within
+ * the gap.
+ */
+export const HELIX_TAIL_GAP_MIN = 64;
+
+export function helixOverlap(exitLength: number, sceneH: number, pad: number): number {
+  if (!(exitLength > 0) || !(sceneH > 0)) return 0;
+  const gap = Math.max(HELIX_LAYOUT.pitch * sceneH - helixCardHeight(sceneH), HELIX_TAIL_GAP_MIN);
+  return Math.max(0, exitLength + Math.max(0, pad) - gap);
+}
+
 /** Pure. How far into the finish `scrollY` is: 0 up to the last card's focus, 1 at its end. */
 export function helixExitAt(scrollY: number, span: ScrollSpan, exitLength: number): number {
   if (!(exitLength > 0) || !Number.isFinite(scrollY)) return 0;
@@ -253,6 +297,15 @@ export const focusFromProgress = (p: number, n: number): number => clamp01(p) * 
 /** The scroll offset at which card `i` is the focus: `focusFromProgress`'s inverse. */
 export const scrollForCard = (i: number, n: number, span: ScrollSpan): number =>
   span.start + (n > 1 ? i / (n - 1) : 0) * (span.end - span.start);
+
+/**
+ * Pure. Where a view timeline's `cover` range stands at `scrollY`, 0..1: 0 as the subject's top
+ * (`top`, its document offset) enters the bottom of the scrollport (`viewport` tall), 1 as its
+ * bottom (`top + height`) leaves the top. The range `parallax-media` plays hud-parallax-media over
+ * on the Work section; measured equal to the running animation's own progress to five decimals.
+ */
+export const viewProgress = (scrollY: number, top: number, height: number, viewport: number): number =>
+  scrollProgress(scrollY, { start: top - viewport, end: top + height });
 
 export type CardPose = {
   /** Offset from the zone's centre, CSS px. */

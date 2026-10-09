@@ -56,9 +56,11 @@ const headerHeight = (page: Page) =>
 const viewportTop = (page: Page, selector: string) =>
   page.evaluate((sel) => document.querySelector(sel)!.getBoundingClientRect().top, selector);
 
-/** The rail's `--rail-p` as written on its root. */
+/** The rail's `--rail-p` as written on its fibre (the root's `aria-hidden` child). */
 const railProgress = (page: Page) =>
-  railRoot(page).evaluate((el) => (el as HTMLElement).style.getPropertyValue("--rail-p").trim());
+  railRoot(page)
+    .locator(":scope > [aria-hidden]")
+    .evaluate((el) => (el as HTMLElement).style.getPropertyValue("--rail-p").trim());
 
 /** Every marker's centre, in px from the fibre's top, by accessible name. */
 const markerOffsets = (page: Page) =>

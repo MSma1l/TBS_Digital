@@ -1,9 +1,10 @@
 """
-Logo upload — the only endpoint that accepts binary content.
+Image uploads — the only endpoints that accept binary content.
 
-Admin-only, and deliberately narrow: a partner logo is a small raster image, so the
-endpoint accepts nothing else. Whatever arrives is decoded, downscaled and re-encoded
-before it is written, so the bytes we store are ours, not the client's.
+Admin-only, and deliberately narrow: a partner logo is a small raster image and a
+project's whole-site capture is one tall one, so the endpoints accept nothing else.
+Whatever arrives is decoded, downscaled and re-encoded before it is written, so the
+bytes we store are ours, not the client's.
 
 Security notes (see docs/11-security.md):
 - **SVG is refused.** An SVG is XML and can carry ``<script>`` / event handlers, so a
@@ -32,6 +33,9 @@ Storage notes:
   images are re-encoded as RGBA.
 - **EXIF/ICC/XMP metadata is stripped** — it can carry GPS coordinates (a privacy leak
   for anything uploaded straight from a phone) and it bloats the file.
+- **Captures are the exception to the 1600px rule** (``POST /api/admin/uploads/capture``,
+  a project's ``fullPage``): scaled to 1080px wide and cut at 12000px from the top, with
+  every guard above unchanged — see ``compress_capture``.
 """
 
 import asyncio
@@ -41,7 +45,7 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from PIL import Image, ImageFile, UnidentifiedImageError
+from PIL import Image, ImageFile, ImageOps, UnidentifiedImageError
 
 from ..config import get_settings
 from ..main import limiter
@@ -55,9 +59,11 @@ router = APIRouter(prefix="/api/admin/uploads", tags=["uploads"])
 # admin token — can't stack several hundred MB of concurrent bitmaps and OOM the worker.
 _DECODE_SEMAPHORE = asyncio.Semaphore(2)
 
-# Total bytes we let the uploads directory hold. Every stored file is small (a few dozen
-# KB), so this is a very high ceiling in practice, but it makes disk exhaustion via an
-# abused/stolen admin token impossible: past the budget, uploads are refused.
+# Total bytes we let the uploads directory hold, shared by both routes: a logo or a
+# screenshot is stored at a few dozen KB, a whole-site capture at a few hundred, and an
+# abandoned upload stays as an orphan that counts too. A high ceiling in practice, but it
+# makes disk exhaustion via an abused/stolen admin token impossible: past the budget,
+# uploads are refused.
 MAX_UPLOADS_DIR_BYTES = 512 * 1024 * 1024  # 512 MB
 
 # What we accept *in*; what we store is far smaller (see compress_image). A screenshot
@@ -104,9 +110,36 @@ def _extension_for(head: bytes) -> Optional[str]:
     return None
 
 
+# The one Pillow decoder each sniffed format may use. Image.open would otherwise try every
+# plugin it knows, so a body that merely *starts* like a JPEG could be decoded by another.
+_DECODER = {"png": "PNG", "jpg": "JPEG", "webp": "WEBP"}
+
+# 16-bit greyscale PNGs decode to these 32-bit integer modes; converted straight to 8-bit
+# they clip to white, so they are scaled down first (see _to_eight_bit).
+_WIDE_GREY_MODES = {"I", "I;16", "I;16B", "I;16L", "I;16N"}
+
+
 def _has_alpha(image: Image.Image) -> bool:
     """True if the image carries transparency in any of the forms Pillow represents it."""
     return image.mode in _ALPHA_MODES or "transparency" in image.info
+
+
+def _open(body: bytes, extension: str) -> Image.Image:
+    """Open ``body`` with the decoder its magic bytes named — no other."""
+    return Image.open(io.BytesIO(body), formats=[_DECODER[extension]])
+
+
+def _upright(image: Image.Image) -> None:
+    """Turn a decoded photo the way its EXIF says it was held (a phone's JPEG), in place, so
+    it is stored upright: the EXIF that says so is stripped on the way out."""
+    ImageOps.exif_transpose(image, in_place=True)
+
+
+def _to_eight_bit(image: Image.Image) -> Image.Image:
+    """A 16-bit greyscale image brought to 8 bits by scaling, not by clipping."""
+    if image.mode not in _WIDE_GREY_MODES:
+        return image
+    return image.convert("I").point(lambda v: v * (1 / 256)).convert("L")
 
 
 def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
@@ -117,11 +150,11 @@ def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
 
     The output is *always* the re-encode, never the original bytes: rebuilding the file
     from decoded pixels is what guarantees only image data reaches the disk (a polyglot's
-    appended payload is dropped) and that EXIF/GPS is stripped. ``source_extension`` is
-    accepted for signature stability but no longer influences the result.
+    appended payload is dropped) and that EXIF/GPS is stripped. ``source_extension`` — the
+    format the magic bytes named — picks the only decoder allowed to read the body.
     """
     try:
-        with Image.open(io.BytesIO(body)) as source:
+        with _open(body, source_extension) as source:
             # Image.open() has only parsed the header at this point, so the declared
             # dimensions are known while the pixels are still un-decoded. Refuse a bomb
             # here, before any allocation.
@@ -130,11 +163,12 @@ def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
                 raise _bad_image("Imagine prea mare (rezoluție).")
 
             source.load()  # decode; a truncated/corrupt body blows up here
+            _upright(source)
 
             # Alpha must survive: the partner logos are white-on-transparent PNGs, and
             # flattening them onto a white background would make them invisible.
             target_mode = "RGBA" if _has_alpha(source) else "RGB"
-            image = source.convert(target_mode)
+            image = _to_eight_bit(source).convert(target_mode)
 
         image.thumbnail((MAX_DIMENSION, MAX_DIMENSION), Image.Resampling.LANCZOS)
 
@@ -158,6 +192,10 @@ def compress_image(body: bytes, source_extension: str) -> Tuple[bytes, str]:
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError, MemoryError):
         # Corrupt body, truncated file, unsupported variant, hostile input — all of them
         # are the client's problem, so none of them may surface as a 500/traceback.
+        raise _bad_image()
+    except Exception:
+        # Pillow's chunk parsers can also fail with struct.error, IndexError, KeyError…
+        # on a hostile body (a malformed PNG chunk after IDAT): still the client's 400.
         raise _bad_image()
 
     # Always return the re-encoded output, even when it isn't smaller. Keeping the client's
@@ -229,4 +267,167 @@ async def upload_logo(
 
     # Served by the StaticFiles mount in main.py. Site-relative on purpose: it passes
     # the frontend's LinkStr validation and survives a change of backend host.
+    return UploadResponse(url=f"/api/uploads/{name}")
+
+
+# --- whole-site captures ------------------------------------------------------------
+#
+# A project's ``fullPage`` is one tall image of its whole site, top to bottom, that
+# /portofoliu's screen scrolls through. compress_image would ruin it — its 1600px longest
+# side squeezes a 1080x9000 page to 192px wide — so captures get their own route and their
+# own geometry: a fixed width, and a height cap that cuts the bottom off instead of
+# shrinking the whole page. Every guard above applies unchanged.
+
+# Stored width. A wider page is scaled down to it (ratio kept); a narrower one is never
+# upscaled.
+CAPTURE_WIDTH = 1080
+# Tallest capture we store, after scaling, counted from the top of the page; the rest is
+# cut off, never squashed. (WebP itself stops at 16383px a side.)
+CAPTURE_MAX_HEIGHT = 12000
+_CAPTURE_WEBP_QUALITY = 80
+# Not the logos' 6: measured on a 1080x12000 page, 6 took 25% longer for a file only 3%
+# smaller.
+_CAPTURE_WEBP_METHOD = 4
+
+# A capture decode is the heaviest thing this service does, so captures get their own lane
+# and run one at a time (beside, at most, the two logo decodes above). Peak RAM for one,
+# measured with Pillow 12 at the MAX_IMAGE_PIXELS cap: ~150-210 MB for a PNG or JPEG
+# without an alpha channel, ~290 MB for one with (Pillow resamples alpha premultiplied, on
+# a copy), and ~370 MB for a WebP — libwebp's decoder holds two full canvases beside the
+# image, which is why compress_capture lets go of the opened file at its very first step.
+_CAPTURE_SEMAPHORE = asyncio.Semaphore(1)
+
+_CAPTURE_TOO_LARGE = (
+    f"Captură prea mare (rezoluție, max {MAX_IMAGE_PIXELS // 1_000_000} MP)."
+)
+
+
+def _fit_capture(width: int, height: int) -> Tuple[int, Tuple[int, int]]:
+    """``(rows, size)`` for a ``width`` x ``height`` capture.
+
+    ``size`` is what gets stored: ``CAPTURE_WIDTH`` wide when the page is wider (never
+    upscaled, ratio kept) and at most ``CAPTURE_MAX_HEIGHT`` tall. ``rows`` is that cut in
+    *source* rows — how much of the page, from the top, survives — so the caller can crop
+    before it resamples.
+    """
+    if width <= CAPTURE_WIDTH:
+        rows = min(height, CAPTURE_MAX_HEIGHT)
+        return rows, (width, rows)
+    # Integer maths, rounded down, so the scaled cut can never land past the cap.
+    rows = min(height, CAPTURE_MAX_HEIGHT * width // CAPTURE_WIDTH)
+    return rows, (CAPTURE_WIDTH, max(1, round(rows * CAPTURE_WIDTH / width)))
+
+
+def compress_capture(body: bytes, extension: str) -> bytes:
+    """Decode a whole-site capture, fit it (``_fit_capture``) and re-encode it as WebP.
+
+    Raises ``HTTPException(400)`` for anything Pillow cannot safely decode — a corrupt
+    body, an unsupported variant, or a decompression bomb. ``extension`` — the format the
+    magic bytes named — picks the only decoder allowed to read the body.
+
+    The screen scrolls the page from its top, so a page longer than the cap loses its
+    bottom rather than being squeezed into it, which would leave all of it unreadable.
+    As with compress_image, the output is always our re-encode, never the client's bytes.
+    """
+    try:
+        image = _open(body, extension)
+        # Image.open() has only parsed the header: refuse a bomb before any allocation.
+        width, height = image.size
+        if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+            raise _bad_image(_CAPTURE_TOO_LARGE)
+
+        image.load()  # decode; a truncated/corrupt body blows up here
+        # Upright first (a rotated photo swaps its sides), so the page is fitted and cut
+        # from its real top. Only a photo that says it was turned is touched.
+        _upright(image)
+        width, height = image.size
+        rows, size = _fit_capture(width, height)
+        mode = "RGBA" if _has_alpha(image) else "RGB"
+
+        # Each step replaces `image`, and the bitmap it replaces is freed on the spot, so
+        # the steps never stack. The cut comes first, so nothing below converts or scales
+        # a row we drop — and it always runs, even when nothing is cut: letting go of the
+        # opened file is also what frees the canvases libwebp keeps beside a decoded WebP.
+        image = _to_eight_bit(image.crop((0, 0, width, rows)))
+        if image.mode != mode:
+            image = image.convert(mode)
+        if image.size != size:
+            image = image.resize(size, Image.Resampling.LANCZOS)
+
+        # Rebuild from raw pixels, as compress_image does: the new Image has an empty
+        # ``info``, so no EXIF (GPS!), ICC profile or XMP block can ride along into the
+        # encoder. The scaled bitmap goes before the clean one is allocated.
+        raw = image.tobytes()
+        del image
+        clean = Image.frombytes(mode, size, raw)
+        del raw
+
+        buffer = io.BytesIO()
+        clean.save(
+            buffer,
+            format="WEBP",
+            quality=_CAPTURE_WEBP_QUALITY,
+            method=_CAPTURE_WEBP_METHOD,
+            exif=b"",
+            icc_profile=b"",
+        )
+    except HTTPException:
+        raise
+    except Image.DecompressionBombError:
+        raise _bad_image(_CAPTURE_TOO_LARGE)
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError, MemoryError):
+        # Same funnel as compress_image: every Pillow failure is the client's 400.
+        raise _bad_image("Captură invalidă sau coruptă.")
+    except Exception:
+        # struct.error, IndexError, KeyError… from a hostile chunk: still a 400.
+        raise _bad_image("Captură invalidă sau coruptă.")
+
+    return buffer.getvalue()
+
+
+@router.post(
+    "/capture", response_model=UploadResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit("20/minute")
+async def upload_capture(
+    request: Request,
+    file: UploadFile = File(...),
+    admin: AdminInfo = Depends(get_current_admin),
+):
+    """Admin only — store a project's whole-site capture and return its path.
+
+    The same guards as ``upload_logo``, in the same order; only the processing differs.
+    """
+    body = b""
+    while chunk := await file.read(_CHUNK_BYTES):
+        body += chunk
+        if len(body) > MAX_UPLOAD_BYTES:
+            # A full-page PNG of a long, photo-heavy site can pass 8 MB; the same page as
+            # a JPG or WebP is a fraction of that, and it is re-encoded here either way.
+            raise HTTPException(
+                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                f"Captură prea mare (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB). "
+                "Salveaz-o ca JPG sau WebP.",
+            )
+
+    # The magic bytes decide the format — never the Content-Type or the filename.
+    extension = _extension_for(body)
+    if extension is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Format neacceptat. Încarcă un PNG, JPG sau WebP.",
+        )
+
+    if _uploads_dir_bytes() >= MAX_UPLOADS_DIR_BYTES:
+        raise HTTPException(
+            status.HTTP_507_INSUFFICIENT_STORAGE,
+            "Spațiu de stocare epuizat pentru imagini.",
+        )
+
+    # One capture at a time, in a thread, so the event loop never waits on it.
+    async with _CAPTURE_SEMAPHORE:
+        stored = await asyncio.to_thread(compress_capture, body, extension)
+
+    name = f"{uuid.uuid4().hex}.webp"
+    (uploads_dir() / name).write_bytes(stored)
     return UploadResponse(url=f"/api/uploads/{name}")

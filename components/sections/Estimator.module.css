@@ -23,6 +23,15 @@
   letter-spacing: -0.04em;
   color: var(--txt);
 }
+/* The close of the home page (2026-10-09): what to do here, and when we answer. Page only — the
+   dialog keeps its own lead. */
+.lead {
+  margin: 12px 0 0;
+  max-width: 600px;
+  color: var(--mut);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+}
 
 /* ================================================================================================
  * THE DECK
@@ -213,6 +222,13 @@
   position: relative;
   min-width: 0;
 }
+/* The chat's size steps with the chat's OWN width (`.chat`), which is the left bay's: the deck's
+   width says it only in one column — in two, the bay is 60% of it, and a deck between 711 and 800px
+   held a chat as narrow as a phone's. Inline-size only, like the deck: it never clips, and a grid
+   item with `min-width: 0` already took no width from its contents. */
+.bayLeft {
+  container: bay / inline-size;
+}
 .bayRight::before {
   content: "";
   position: absolute;
@@ -370,6 +386,44 @@
   background-size: 100% 1px, 1px 14px, 1px 14px;
   background-position: top center, top left 13px, top right 13px;
   background-repeat: no-repeat;
+  /*
+   * ONE SIZE, FROM THE FIRST QUESTION TO THE SUMMARY (2026-10-07).
+   *
+   * The panel used to be as tall as what was in it: 303px with the first question, 416 with the
+   * second, 529 with the third, 599 once the log reached its old 360px cap — and 835 at the end,
+   * the summary under the log — so the deck, and the page under it, moved at every answer. The
+   * owner sent the panel as it stands at the second question (question, "A new product",
+   * question; three replies; the composer) with "fă dimensiunea să fie așa și să nu se mai
+   * schimbe". That is its size now, for the whole conversation: the head, the replies and the
+   * composer keep their places, and the conversation scrolls in the window between them
+   * (`.chatLog`), the one part that gives.
+   *
+   * `--chat-h` is the INSIDE (`content-box`), so the page's 18px padding and the dialog's 14px
+   * frame the same number. It is a FLOOR (`min-height`) that every question, reply set and summary
+   * stays within — the window adds no height of its own (`flex-basis: 0`). Only the dictation's
+   * review or notice, the composer itself outgrowing the panel, makes it taller, while it is open:
+   * under a fixed height they spilled out of the panel and under the proposal bay.
+   *
+   * Measured at every step of the tree in all three languages, and stepped with the CHAT's own
+   * width (the `bay` container on `.bayLeft`) where its contents wrap:
+   *
+   *   chat width     >= 500px          500-345   345-275   < 275
+   *   page           381 (390 *)       442       537       599
+   *   dialog         361 (370 *)       442       537       599     * 860px and under: 44px rows
+   *
+   * Page at >= 500: the owner's moment exactly (378.1px inside, 416.1 with the frame) plus 3px, so
+   * a zoomed-out border (more than one CSS pixel under 100%) cannot tip it into a scrollbar.
+   * Everywhere else: the least inside in which the NEWEST question is whole at every step — the
+   * longest question in the language that wraps most, above its replies in as many rows as they
+   * take, above the composer — plus 3px. The dialog's wide value is that least and no more, the
+   * owner's choice: it has a height budget the page has not (docs/05). At its old size, the size
+   * of its first question, half the steps left the window 13px and the new question out of sight.
+   */
+  box-sizing: content-box;
+  min-height: var(--chat-h);
+  --chat-h: 381px;
+  display: flex;
+  flex-direction: column;
 }
 
 /*
@@ -386,20 +440,80 @@
 }
 
 .chatHead {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 9px;
   font-weight: var(--fw-extra);
   font-size: 13px;
 }
+/* The window the conversation scrolls in: whatever height the panel has left once the head, the
+   replies and the composer have theirs, so it is the one part that gives when the replies wrap to
+   a second row or an error line appears under the composer. `0px` and not `0` as its basis, so no
+   minifier can turn it into `flex: 1` (a `0%` basis, which a panel of content height resolves
+   against its contents): the conversation must never count towards the panel's height. 64px is a
+   floor only the dictation's review ever reaches — every size at `.chat` leaves the newest
+   question more — so that while it is open the last line of the question stays in sight.
+   A flex column only so its thread can sit at the bottom; `position: relative` makes it the
+   offset parent the scroll to the newest message measures against (Estimator.tsx). */
 .chatLog {
-  max-height: 360px;
+  flex: 1 1 0px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
   overflow-y: auto;
   /* Never sideways: a bubble wraps instead (see `overflow-wrap` below), so a horizontal
      scrollbar here would only ever mean a layout bug. */
   overflow-x: hidden;
   padding-right: 5px;
   scrollbar-color: var(--line2) transparent;
+}
+/* A tab stop (it scrolls, and nothing in it is focusable), so it shows where focus is: on its own
+   edge, outside it (a box never clips its own outline). No offset, unlike the other rings here —
+   the window's top edge is the head's bottom, with no padding between, and the ring would sit on
+   the head's line. */
+.chatLog:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--red-lift) 55%, transparent);
+  outline-offset: 0;
+}
+/*
+ * The window's two edges fade into the panel instead of cutting a message clean across: scrolled,
+ * a hard edge left slivers — the last pixel row of a bubble above, as a stray line under the head.
+ * Each fade is exactly a bubble's own margin at that edge (14px above, 8px below), so wherever the
+ * window rests — at the top, or at the newest message — it covers that margin and no message.
+ * Sticky, so they hold the window's edges while the content moves; overlays, not a mask, because
+ * a mask would also cut the window's focus ring, which is drawn outside it.
+ */
+.chatLog::before,
+.chatLog::after {
+  content: "";
+  position: sticky;
+  z-index: 1;
+  flex: none;
+  pointer-events: none;
+}
+.chatLog::before {
+  top: 0;
+  height: 14px;
+  margin-bottom: -14px;
+  background-image: linear-gradient(var(--slot), transparent);
+}
+.chatLog::after {
+  bottom: 0;
+  height: 8px;
+  margin-top: -8px;
+  background-image: linear-gradient(transparent, var(--slot));
+}
+/* The conversation sits at the BOTTOM of its window, the newest question right above the replies
+   that answer it — the owner's choice over starting under the head — and the empty part of the
+   window is above it while there is one. An auto top margin rather than `justify-content: end`,
+   which would put the overflow beyond the top edge where it can never be scrolled to. A flex item
+   is its own formatting context, so the bubbles' margins still collapse between them exactly as
+   they did straight in the log. */
+.chatThread {
+  flex: none;
+  margin-top: auto;
 }
 .bubble {
   max-width: min(88%, 100%);
@@ -421,6 +535,7 @@
   background: color-mix(in srgb, var(--red) 12%, var(--panel2));
 }
 .chatOptions {
+  flex: none;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
@@ -454,6 +569,7 @@
 
 /* composer — the free-text half of the dialog */
 .compose {
+  flex: none;
   display: grid;
   gap: var(--sp-2);
   margin-top: var(--sp-3);
@@ -469,7 +585,9 @@
   padding: 11px 13px;
   width: 100%;
   min-width: 0;
-  resize: vertical;
+  /* Its two rows, fixed like the panel around it: dragged taller it could only have taken the
+     height from the conversation (2026-10-07). Longer text scrolls inside it. */
+  resize: none;
   overflow-wrap: anywhere;
   transition:
     outline 0.15s ease,
@@ -549,9 +667,14 @@
   color: var(--txt);
 }
 
-/* summary — what the assistant understood, and what leaves with the request */
+/* summary — what the assistant understood, and what leaves with the request. It closes the
+   conversation INSIDE its window (`.chatLog`), under the last message, so it never makes the
+   panel taller: the window stops at the closing message and the summary is read on from there. */
 .summary {
+  flex: none;
   margin-top: var(--sp-4);
+  /* The window's lower fade (8px) lands here, not on the summary's own edge. */
+  margin-bottom: 8px;
   border: 1px solid var(--line);
   border-radius: var(--r-md);
   background: color-mix(in srgb, var(--green) 8%, var(--panel2));
@@ -1011,6 +1134,8 @@
 .box[data-layout="dialog"] .chat {
   margin-top: 14px;
   padding: 14px;
+  /* The dialog's own chat size (the table at `.chat`, and the steps below). */
+  --chat-h: 361px;
 }
 .box[data-layout="dialog"] .result {
   padding: 18px;
@@ -1053,6 +1178,35 @@
   .composeSend,
   .composeSkip {
     min-height: 44px;
+  }
+  /* The chat's one size, with those 44px rows in it (the table at `.chat`). */
+  .chat {
+    --chat-h: 390px;
+  }
+  .box[data-layout="dialog"] .chat {
+    --chat-h: 370px;
+  }
+}
+
+/* And where its contents wrap, the chat's own width (the `bay` container): the same value for the
+   page and the dialog from here down. After the 860px block on purpose — both match on a phone,
+   and the later rule is the one that holds. */
+@container bay (width < 500px) {
+  .chat,
+  .box[data-layout="dialog"] .chat {
+    --chat-h: 442px;
+  }
+}
+@container bay (width < 345px) {
+  .chat,
+  .box[data-layout="dialog"] .chat {
+    --chat-h: 537px;
+  }
+}
+@container bay (width < 275px) {
+  .chat,
+  .box[data-layout="dialog"] .chat {
+    --chat-h: 599px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1154,6 +1308,12 @@
      a second hard frame around it. Both go; the panel keeps its real edge. */
   .result::before,
   .result::after {
+    display: none;
+  }
+  /* The chat window's edge fades are panel-coloured overlays: a forced backplate could turn them
+     into bars across the text. The window keeps its plain cut. */
+  .chatLog::before,
+  .chatLog::after {
     display: none;
   }
   /*

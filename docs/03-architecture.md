@@ -12,8 +12,9 @@ so the data source can change without touching markup.
 ```
 /
 ├─ proxy.ts                # Next 16 Proxy (ex-Middleware): per-request CSP nonce
-│                          #   + x-locale / x-pathname headers for the root layout
-├─ next.config.ts          # standalone output, security headers, /ru + /en rewrites
+│                          #   + x-locale / x-pathname / x-intro headers for the layouts
+├─ next.config.ts          # standalone output, security headers, /ru + /en rewrites; the image
+│                          #   optimiser pinned to /projects/* (q 75, 64–256px, 50 MB cache)
 ├─ postcss.config.mjs      # loads only @tailwindcss/postcss (Lightning CSS does the prefixing)
 ├─ app/
 │  ├─ layout.tsx           # Root: fonts, <html lang data-theme>, JSON-LD, generateMetadata (SEO),
@@ -32,8 +33,8 @@ so the data source can change without touching markup.
 │  │  │                    #   until armed), CookieConsent, AnalyticsPixel (consent-gated);
 │  │  │                    #   imports ../tailwind.css
 │  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
-│  │  │                    #   (with the server-rendered art slots), then Principles, Team,
-│  │  │                    #   RequestSection, BottomCTA
+│  │  │                    #   (with the server-rendered art slots), then WorkProof, Principles,
+│  │  │                    #   Team, Process, RequestSection
 │  │  ├─ portofoliu/       # The portfolio: one project on a screen, one pixel per project (components/sections/Portfolio)
 │  │  ├─ confidentialitate/ # Privacy policy (content.ts + LegalDoc)
 │  │  └─ cookies/          # Cookie policy (content.ts, reuses LegalDoc)
@@ -63,7 +64,8 @@ so the data source can change without touching markup.
 │  │  ├─ capability.ts     # the site's one GPU probe (no three.js), DPR clamp
 │  │  ├─ renderer.ts · hooks.ts   # create / compile / retain / release the WebGLRenderer
 │  │  ├─ governor.ts       # the FPS governor (dpr → lite, and the interior's opt-in bail)
-│  │  ├─ environment.ts    # procedural PMREM + the transmission clear (colour-space compensated);
+│  │  ├─ environment.ts    # procedural PMREM (its programs linked in parallel before the pre-filter)
+│  │  │                    #   + the transmission clear (colour-space compensated);
 │  │  │                    #   the intro's glass only — the interior has no environment since the chip
 │  │  ├─ motion.ts · random.ts · palette.ts · glow.ts
 │  │  └─ RenderErrorBoundary.tsx  # catches a render error in either scene (was IntroErrorBoundary)
@@ -104,6 +106,9 @@ so the data source can change without touching markup.
 │  │  │                    #   layout since Phase 4) — gate (tbs_hud ≠ off → consent → first
 │  │  │                    #   interaction → intro gone → idle), then its lazy parts in one commit.
 │  │  │                    #   CSS Modules only; lucide-react may be imported only here
+│  │  ├─ guide/            # the corner assistant (a next/dynamic part, every width):
+│  │  │                    #   GuideAssistant.tsx + .module.css, copy.ts (GUIDE_COPY, GUIDE_FAQ),
+│  │  │                    #   speech.ts (an answer's text → her mouth's track; pure, no DOM)
 │  │  └─ rail/             # the fibre scroll rail (Phase 5, a desktop-only next/dynamic part):
 │  │                       #   ScrollRail.tsx (fibre, section markers, jumps) + .module.css, copy.ts
 │  │                       #   (RAIL_COPY, RAIL_HOME_SECTIONS; no directive, e2e imports it)
@@ -115,10 +120,17 @@ so the data source can change without touching markup.
 │  │  ├─ Directions.tsx    # the direction chooser (Tailwind): pills, preview, HUD screen
 │  │  ├─ Work.tsx          # the portfolio's HUD cards (Tailwind): tilt, CSS parallax; the grid is
 │  │  │                    #   `data-work-track`, which the scene turns into the helix spiral
-│  │  ├─ Principles.tsx    # principles grid + stats row
-│  │  ├─ RequestSection.tsx · BottomCTA.tsx · DirectionPage.tsx (the /servicii/<slug> pages)
+│  │  ├─ WorkProof.tsx     # after the projects: "Vreau un proiect similar", all projects, the partners' logos
+│  │  ├─ Principles.tsx    # "De ce TBS": four reasons, each with its mark
+│  │  ├─ Process.tsx       # "Cum începem": the four steps from the request to the launch
+│  │  ├─ RequestSection.tsx · DirectionPage.tsx (the /servicii/<slug> pages)
 │  │  ├─ Team.tsx          # team + system-status panel
 │  │  ├─ Estimator.tsx     # the request flow (RequestSection, and the request dialog)
+│  │  ├─ Portfolio.tsx     # /portofoliu: the screen (a project's whole site, scrolling), the pixels
+│  │  │                    #   on a circuit board, the pages · SiteDemo.tsx (the screen as a small
+│  │  │                    #   browser: the bar, a page's links and buttons, the "real site" sheet)
+│  │  │                    #   + PortfolioSearch.tsx · portfolioCircuit.ts (the board drawn, lit and
+│  │  │                    #   played: measures the pads and the chin, SVG + WAAPI)
 │  │  └─ Services.tsx · Partners.tsx   # not rendered by any page today
 │  └─ ui/                  # SectionLabel · Reveal · ScrollProgress · SectionCTA ·
 │                          #   LanguageSwitcher · CookieConsent (Tailwind) · AnalyticsPixel ·
@@ -132,6 +144,13 @@ so the data source can change without touching markup.
 │  ├─ validation.ts        # Frontend mirror of the backend validators
 │  ├─ consent.ts           # Cookie-consent state (localStorage + cookie + event)
 │  ├─ estimatorBridge.ts   # Service card → estimator pre-selection (window event)
+│  ├─ portfolioPages.ts    # /portofoliu's balanced pages (9 at most) and its search by name; pure
+│  ├─ portfolioBoard.ts    # /portofoliu's circuit board as numbers: traces, each pad's route into
+│  │                       #   the chin (one line: a bus and a Y; several, on a phone: a spider web
+│  │                       #   that keeps clear of the names and of the lit square pads, sized as
+│  │                       #   measured), the pulse's timing; pure, no DOM
+│  ├─ siteDemo.ts          # a project's interactive demo: the manifest's contract and strict reader,
+│  │                       #   deep links that never leave the project's site, the Back history; pure
 │  ├─ intro.ts             # The intro contract: cookie, events (tbs:intro-done, tbs:intro-gone),
 │  │                       #   overlay id, timings, reveal targets, shouldPlayIntro / finishIntro /
 │  │                       #   onIntroDone / onIntroGone (no DOM at import)
@@ -165,7 +184,10 @@ so the data source can change without touching markup.
 │
 ├─ backend/                # FastAPI service (own Dockerfile, tests, storage seam)
 ├─ deploy/                 # nginx vhosts + production compose bits
-├─ public/                 # Static assets (projects/, partners/, …)
+├─ public/                 # Static assets (projects/ — with projects/demo/<id>/ — partners/, …)
+├─ tools/                  # Developer tools, never deployed: guide/ (the assistant's art, her
+│                          #   mouth's frames, and lips/ — how real mouths move, measured on video),
+│                          #   site-demo/ (/portofoliu's demos: captures + hotspots; its README)
 └─ docs/                   # This documentation
 ```
 
@@ -177,7 +199,7 @@ defaults, `siteContent` for anything the admin edits, `i18n` for anything the vi
 | Route | What |
 |-------|------|
 | `/` · `/ru` · `/en` | The landing page in Romanian / Russian / English. `/ru` and `/en` are rewrites onto the same route; the language comes from the `x-locale` header ([16](./16-i18n-seo.md)). |
-| `/portofoliu` | The portfolio — one project at a time on a big screen, and under it one labelled pixel per project as the navigation (arrows, keys, swipe), a service filter, "Vreau un proiect similar" for the project on the screen and the service pages' close ([05](./05-page-sections.md#portfolio--portofoliu)). Prefixable with `/ru`, `/en`; its title and description follow the language (`generateMetadata`, `lib/i18n/requestLocale.ts`). |
+| `/portofoliu` | The portfolio — one project at a time on a big screen, and under it one labelled pixel per project as the navigation (arrows, keys, swipe), a service filter, pages and a search by name once there are more projects than one row holds, "Vreau un proiect similar" for the project on the screen and the service pages' close ([05](./05-page-sections.md#portfolio--portofoliu)). Prefixable with `/ru`, `/en`; its title and description follow the language (`generateMetadata`, `lib/i18n/requestLocale.ts`). |
 | `/confidentialitate`, `/cookies` | Legal pages (also prefixable with `/ru`, `/en`). |
 | `/admin-tbs-digital` | The login-gated admin panel. `noindex, nofollow`, outside the `(site)` chrome. |
 | `/robots.txt`, `/sitemap.xml`, `/opengraph-image`, `/twitter-image` | Generated metadata routes. |
@@ -196,9 +218,13 @@ rules are in [05 — Page Sections](./05-page-sections.md); this is how it is wi
 ### The gate — `app/(site)/layout.tsx`
 
 ```ts
-shouldPlayIntro(requestHeaders.get("x-pathname"), (await cookies()).get(INTRO_COOKIE)?.value)
-// true only for x-pathname === "/" (proxy.ts strips /ru and /en, so they count) and no
-// tbs_intro_skip=seen cookie
+shouldPlayIntro(
+  requestHeaders.get("x-pathname"),
+  (await cookies()).get(INTRO_COOKIE)?.value,
+  requestHeaders.get(INTRO_HEADER),
+)
+// true only for x-pathname === "/" (proxy.ts strips /ru and /en, so they count), no
+// tbs_intro_skip=seen cookie, and no `x-intro: skip` (proxy.ts sets it for a URL from an ad)
 ```
 
 > **The site never writes that cookie** (`lib/intro.ts`): the intro used to play once per
@@ -298,7 +324,7 @@ rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage
     Ticker
     Directions  #servicii … [data-testid="scene-services"] > [data-scene-anchor="services"] > the art
     Work        section#lucrari … heading block + div[data-work-track] > a | article   ← the cards
-  Principles · Team · RequestSection · BottomCTA        ← outside the stage
+  WorkProof · Principles · Team · Process · RequestSection        ← outside the stage
 ```
 
 - The track is positioned and first in tree order, so every positioned section after it paints
@@ -557,6 +583,13 @@ cover there is no second handover to flicker between. A bypassed intro sets noth
 cover it always had. The trade is LCP: an opaque cover over the hero means the largest contentful
 paint is not counted until it lifts, and that is accepted in exchange for never showing a
 half-rendered page.
+
+**Down, its loops rest** (2026-10-07): `visibility: hidden` stopped the paint but not BootCore's
+thirteen animations, which restyled the page every frame for the whole visit, on every page. The
+cover now pauses them once its fade-out has ended (a discrete transition of `--boot-play`, see
+docs/07 "An invisible loop is still a running loop"), and runs them from the first raised frame,
+continuing from the phase they held. A scene host's loading mark rests the same way, and behind the
+intro's film.
 
 **What is on it is `components/ui/BootCore.tsx` — the site's own processor, in exploded view,
 turning.** Not a spinner and not an invented shape: every measurement is `CHIP` from
@@ -855,17 +888,24 @@ A bare render without the slot (unit tests) draws no illustration at all.
 
 ## The HUD chrome (IT-OS Phase 4, 2026-09-17)
 
-The IT-OS HUD — the fibre scroll rail (Phase 5) now; the OS layer in a later phase — has **one
-mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />`
+The IT-OS HUD — the corner assistant (Phase 4) and the fibre scroll rail (Phase 5) now; the OS
+layer in a later phase — has **one mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />`
 and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget and "the intro's
 skip is the first Tab stop" both hold. Behaviour and limits are in
 [05 — the fibre rail](./05-page-sections.md#the-fibre-rail); the visual contract in
 [04](./04-design-system.md#the-fibre-rail).
 
-The Ghid TBS guide was Phase 4's part and was **removed on 2026-09-25, briefly restored on the 26th at the owner's request and removed again the same day, for good**
-(`components/hud/guide/**`, `lib/hud/linger.ts`, `lib/hud/obscure.ts`, `lib/hud/busy.ts`,
-`public/guide/`, `tools/guide/`). The mount, the gate below and `lib/hud/topics.ts` are what it
-shared and what outlives it.
+The Ghid TBS guide was Phase 4's part. Its **linger tip** — help that appeared by itself after a
+pause on a section, with `lib/hud/linger.ts` and the `[data-guide-topic]` scanning behind it — was
+removed on 2026-09-25, briefly restored on the 26th at the owner's request and removed again the
+same day, for good. **The assistant herself stayed**, and is the HUD's first part today: since
+2026-09-24 a photographic hologram in the bottom-right corner, on every screen, who answers
+written questions when she is pressed and opens the request flow from her bubble
+(`components/hud/guide/`; her portrait and her mouth's 33 frames in `public/guide/`; the tools that make them, and the lip
+study behind her mouth, in `tools/guide/`; `lib/hud/obscure.ts` is the overlap test she steps
+aside by). Look and behaviour: [04](./04-design-system.md#asistent-tbs--the-corner-assistant),
+[05](./05-page-sections.md#asistent-tbs-the-corner-assistant). `lib/hud/topics.ts` outlives the
+tip.
 
 ### Arming order
 
@@ -881,21 +921,21 @@ shared and what outlives it.
 4. the intro overlay is gone (`onIntroGone`);
 5. an idle slot (`afterIdle(0)`).
 
-Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk. One
-part is left: `ScrollRail` (`components/hud/rail/ScrollRail.tsx`, Phase 5), flagged `desktopOnly`.
-HudChrome renders it through `DesktopOnly`, a `useSyncExternalStore` over
-`matchMedia(HUD_DESKTOP_MEDIA)` (`(min-width: 861px)`), mounted only once the gate is open — so
-nothing reads the query before arming, a phone never requests the rail's chunk, and crossing 861px
-mounts or unmounts the rail alone, without re-rendering the mount or any other part. **Under 861px
-an armed HUD therefore renders nothing at all** — the guide was what a phone used to get. A visitor
-who never interacts, never answers the banner, or carries `tbs_hud=off` downloads no part: the page
-bundle carries only `HudChrome` itself (+473 B gzip on `/` in Phase 4, +166 B more for the rail's
-reference and `DesktopOnly` in Phase 5; a service page paid +675 B, which did not already load
-`lib/idle` and `lib/intro`), and the part arrives as a late chunk after arming (the B1h / B5h / B6h
-rows in `CHANGELOG.md`): on a viewport of 861px or more, the rail's JS 3.4 KB gzip with a 1.4 KB CSS
-Module. The guide's own chunk (5.9 KB JS, 2.3 KB CSS) went with it on 2026-09-25.
+Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk: the
+assistant (`components/hud/guide/GuideAssistant.tsx`), at every width, and `ScrollRail`
+(`components/hud/rail/ScrollRail.tsx`, Phase 5), flagged `desktopOnly`. HudChrome renders the rail
+through `DesktopOnly`, a `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`
+(`(min-width: 861px)`), mounted only once the gate is open — so nothing reads the query before
+arming, a phone never requests the rail's chunk, and crossing 861px mounts or unmounts the rail
+alone, without re-rendering the mount or any other part. **Under 861px an armed HUD renders the
+assistant alone.** A visitor who never interacts, never answers the banner, or carries
+`tbs_hud=off` downloads no part: the page bundle carries only `HudChrome` itself (+473 B gzip on
+`/` in Phase 4, +166 B more for the rail's reference and `DesktopOnly` in Phase 5; a service page
+paid +675 B, which did not already load `lib/idle` and `lib/intro`), and the parts arrive as late
+chunks after arming (the B1h / B5h / B6h rows in `CHANGELOG.md`): on a viewport of 861px or more,
+the rail's JS is 3.4 KB gzip with a 1.4 KB CSS Module.
 
-### What the guide left behind
+### What the guide's tip left behind
 
 The request flow it opened outlives it. `RequestContext` still carries `openAssistant` (the dialog
 opens on the chat, focus inside it) and `guideTopic` (`- Secțiune: <topic>` in the origin block,
@@ -910,9 +950,9 @@ Compiler rule): React re-renders only when the markers or the current section ch
 
 | Piece | What it does |
 |-------|--------------|
-| Sections | `discoverSections()`: the home page's curated list (`RAIL_HOME_SECTIONS` in `components/hud/rail/copy.ts`) when every id is on the page (`#top #servicii #lucrari #despre #echipa #estimare #contact`); otherwise one marker per `section` in `main`, named by its first `h1`/`h2` (`pickRailSections`: not inside `header`, `footer`, a dialog, an `aria-hidden` subtree or the rail itself; not a section holding more than one `h2`; the label whitespace-collapsed and clipped to 60 characters). More than 8 → the fibre only, no `<nav>` (`railHasNav`). |
+| Sections | `discoverSections()`: the home page's curated list (`RAIL_HOME_SECTIONS` in `components/hud/rail/copy.ts`) when every id is on the page (`#top #servicii #lucrari #despre #echipa #estimare #contact` — `#contact` is the footer since 2026-10-09); otherwise one marker per `section` in `main`, named by its first `h1`/`h2` (`pickRailSections`: not inside `header`, `footer`, a dialog, an `aria-hidden` subtree or the rail itself; not a section holding more than one `h2`; the label whitespace-collapsed and clipped to 60 characters). More than 8 → the fibre only, no `<nav>` (`railHasNav`). |
 | Measure | Each section's target is `sectionTarget(docTop, --header-h, max)` (its top right under the header, clamped to `[0, scrollHeight − innerHeight]`); `railLayout(targets, max, fibre.clientHeight)` places the markers proportionally, at least 44px apart, inside the fibre. Re-measured on mount, one `requestAnimationFrame` per burst of: a `ResizeObserver` on `<html>` (the page grows as content loads; Work's spiral lengthens its track), `resize`, `tbs:scene-layout` (`SCENE_LAYOUT_EVENT`, heard in the capture phase on `document`, since the stage dispatches it without bubbling), the page cover lifting (`subscribePageCover`), `document.fonts.ready`, and a pathname change. |
-| Scroll frame | One passive `scroll` listener on `window`, one frame per burst: `--rail-p` (`progressOf`, 4 decimals) written on the rail's own root with `style.setProperty` only when it changes; the current section (`activeIndex`, within 1px); the ticks a downward scroll crossed (`crossedDown`) get `data-pulse` swapped `a` ↔ `b` to restart their one-shot animation (not under reduced motion); `data-flowing` on the root until 180ms after the last scroll. |
+| Scroll frame | One passive `scroll` listener on `window`, one frame per burst: `--rail-p` (`progressOf`, 4 decimals) written with `style.setProperty` on the fibre, the closest common ancestor of its only readers (the thread and the head, each inside its `styles.layer`, and the flow), only when it changes — not on the root, where the inherited property would restyle the nav every frame; the current section (`activeIndex`, within 1px); the ticks a downward scroll crossed (`crossedDown`) get `data-pulse` swapped `a` ↔ `b` to restart their one-shot animation (not under reduced motion); `data-flowing` on the root until 180ms after the last scroll. The thread and the head that `--rail-p` moves each sit in a still composited layer (`styles.layer`), so a scrolled frame repaints those two small layers, never the whole rail ([04](./04-design-system.md#the-fibre-rail)). |
 | Held | While `isPageCovered()` (the dialog pins the body, the burger locks `<html>`) or `html[data-scroll-measure]` (ScrollTrigger measuring), the positions are not the page's: nothing is measured or written, and the cover lifting measures again. |
 | Jump | A marker `<button>` calls `window.scrollTo({ top: sectionTarget(…), behavior })` — `"smooth"`, or `"instant"` under `prefers-reduced-motion: reduce`. A keyboard activation (`event.detail === 0`) also focuses the section (`tabindex="-1"` added only if it had none, removed on blur; `focus({ preventScroll: true })`). A mouse click never moves focus. |
 | Never | No write to `<html>` or `<body>`, no `wheel` / `touch*` / `pointer*` listener, no scroll of its own except the jump asked for, no storage. |

@@ -175,6 +175,31 @@ def test_put_and_read_back(client):
     assert back["stats"][0]["value"] == "50+"
 
 
+def test_a_save_that_does_not_name_the_capture_or_the_demo_keeps_them(client):
+    """An admin page loaded before `fullPage` and `demo` existed saves documents without the
+    keys; its first save after the deploy must not wipe what the boot wrote in. An explicit
+    "" (the admin's "Elimină", an emptied demo field) still clears one, and leaves the key it
+    does not name alone. Earns its place: the loss is silent."""
+    project = {"id": "biz", "name": "BizCheck", "tag": "WEB", "desc": "O platformă.",
+               "url": "https://bizcheck.md", "appStore": "", "playStore": "",
+               "images": ["/projects/bizcheck-1.jpg"]}
+    stored = {"fullPage": "/projects/bizcheck-site.webp",
+              "demo": "/projects/demo/bizcheck/demo.json"}
+
+    def save(item):
+        r = client.put("/api/content", json={**EMPTY, "projects": [item]},
+                       headers=_auth(client))
+        assert r.status_code == 200, r.text
+        back = client.get("/api/content").json()["projects"][0]
+        return {key: back[key] for key in stored}
+
+    assert save({**project, **stored}) == stored
+    assert save(project) == stored  # neither key: both kept
+    assert save({**project, "fullPage": ""}) == {**stored, "fullPage": ""}  # cleared on purpose
+    assert save({**project, "demo": ""}) == {"fullPage": "", "demo": ""}
+    client.put("/api/content", json=EMPTY, headers=_auth(client))
+
+
 def test_db_round_trip_persists_across_new_store(client):
     """PUT then GET reflects a full document replace, read from the DB each time."""
     token = _token(client)

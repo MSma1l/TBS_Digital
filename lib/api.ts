@@ -163,19 +163,18 @@ export function saveContent(data: SiteData, token: string): Promise<void> {
 }
 
 /**
- * POST /api/admin/uploads — admin. Stores a partner logo and returns its path
- * (`/api/uploads/<uuid>.png`), ready to be saved as a partner's `logo`.
+ * POST one file to an admin upload endpoint and return the path it is served from.
  *
  * `fetch` sets the multipart `Content-Type` (with its boundary) from the FormData,
  * so this bypasses the JSON `request()` helper rather than fighting its headers.
  */
-export async function uploadLogo(file: File, token: string): Promise<string> {
+async function uploadFile(path: string, file: File, token: string): Promise<string> {
   const form = new FormData();
   form.append("file", file);
 
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/admin/uploads`, {
+    res = await fetch(`${API_URL}${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -199,6 +198,25 @@ export async function uploadLogo(file: File, token: string): Promise<string> {
 
   const data = (await res.json()) as UploadResponse;
   return data.url;
+}
+
+/**
+ * POST /api/admin/uploads — admin. Stores a partner logo and returns its path
+ * (`/api/uploads/<uuid>.webp`), ready to be saved as a partner's `logo`. The
+ * admin sends every other image through it too (team photos, project screenshots).
+ */
+export function uploadLogo(file: File, token: string): Promise<string> {
+  return uploadFile("/api/admin/uploads", file, token);
+}
+
+/**
+ * POST /api/admin/uploads/capture — admin. Stores a project's full-page capture
+ * (the whole site, top to bottom) and returns its path, ready to be saved as the
+ * project's `fullPage`. Its own endpoint because `/api/admin/uploads` fits the
+ * longest side into 1600px, which would shrink a site-tall image to a sliver.
+ */
+export function uploadCapture(file: File, token: string): Promise<string> {
+  return uploadFile("/api/admin/uploads/capture", file, token);
 }
 
 /** POST /api/contact — public. Stores a contact-form submission. */

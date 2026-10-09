@@ -7,16 +7,19 @@ import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
+/* What we sell, in plain words and in this order. The first one leads each group in bold, the
+   rest follow it. */
 const LEAD = L(
-  "Strategie → design → livrare",
-  "Стратегия → дизайн → запуск",
-  "Strategy → design → delivery",
+  "Site-uri care aduc clienți",
+  "Сайты, которые приводят клиентов",
+  "Websites that bring customers",
 );
 const ITEMS: LocalizedText[] = [
-  L("Design premium", "Премиум-дизайн", "Premium design"),
-  L("Integrări & API", "Интеграции и API", "Integrations & API"),
-  L("Multilingv", "Мультиязычность", "Multilingual"),
-  L("AI & automatizare", "ИИ и автоматизация", "AI & automation"),
+  L("Magazine online", "Интернет-магазины", "Online stores"),
+  L("CRM la comandă", "CRM под ваш бизнес", "Custom CRM"),
+  L("Automatizări", "Автоматизация", "Automation"),
+  L("Boți Telegram", "Telegram-боты", "Telegram bots"),
+  L("Aplicații mobile", "Мобильные приложения", "Mobile apps"),
 ];
 
 /**
@@ -35,8 +38,8 @@ const SEP_CLASSES =
   "h-4 w-px shrink-0 -skew-x-[18deg] bg-linear-to-b from-transparent via-red to-transparent shadow-[0_0_8px_var(--glow-red)]";
 
 /**
- * Trust ticker under the hero. Decorative (every word is said elsewhere on the page), so the
- * whole strip is `aria-hidden`.
+ * What we sell, as a ticker under the hero. Decorative (each of these is said elsewhere on the
+ * page: the hero's subtitle, the services, the estimator), so the whole strip is `aria-hidden`.
  *
  * Each group is LEAD, then a separator and an item per item, and ENDS with its own separator
  * and trailing gap — so where one group meets the next there is the same separator and the

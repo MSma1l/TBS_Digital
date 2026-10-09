@@ -58,8 +58,8 @@ export type GuideQuestion = { readonly id: string; readonly q: LocalizedText; re
  *
  * Two things are deliberately absent. NO PRICE FIGURE: the prices are the owner's and editable
  * from the admin, so a number written here would be wrong the first time they change one. NO
- * PROMISE OF A CALL FOR EVERY REQUEST: the site attaches the thirty minutes to one CTA, not to
- * every enquiry, and chaining the two into a sequence would invent a commitment.
+ * PROMISE OF A CALL: the thirty-minute conversation was the closing CTA's offer and it went with
+ * that CTA (2026-10-09), so an answer that promised a call would invent a commitment.
  */
 export const GUIDE_FAQ: readonly GuideQuestion[] = [
   {

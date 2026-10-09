@@ -85,6 +85,12 @@ export type ProjectItem = {
   appStore: string;
   playStore: string;
   images: string[];
+  /** A capture of the whole site, top to bottom, that /portofoliu's screen scrolls through.
+   *  Optional at runtime: older caches and payloads have no key at all. */
+  fullPage?: string;
+  /** The project’s interactive demo: a manifest (`/projects/demo/<id>/demo.json`, lib/siteDemo.ts)
+   *  of a few pages with their links and buttons. Optional at runtime, like `fullPage`. */
+  demo?: string;
 };
 
 export type SiteData = {

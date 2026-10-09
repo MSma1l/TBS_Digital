@@ -1,17 +1,19 @@
 /**
  * The first-visit intro contract — names, timings and the one "the intro is over" signal,
- * shared by the server gate, the preloader, the cookie banner and the E2E helpers.
+ * shared by proxy.ts, the server gate, the preloader, the cookie banner and the E2E helpers.
  *
  * Deliberately NOT a `"use client"` module and nothing here touches the DOM at import
  * time: a server component that imported a constant from a client module would receive a
- * client reference instead of the value, and `e2e/helpers.ts` imports it into Node. Every
- * function that needs `window`/`document` checks for it first and is a no-op on the server.
+ * client reference instead of the value, and proxy.ts and `e2e/helpers.ts` import it where no
+ * document exists. Every function that needs `window`/`document` checks for it first and is a
+ * no-op on the server.
  */
 
 /**
  * The cookie that suppresses the intro. **The site never writes it** — the intro plays on every
- * hard load of the home page. It exists so that a test run (or a QA session) can seed it and skip
- * the intro.
+ * hard load of the home page, except one that arrives on an ad's link (`fromAd`), which skips it
+ * without writing anything either. It exists so that a test run (or a QA session) can seed it and
+ * skip the intro.
  *
  * It was renamed away from `tbs_intro` deliberately. That name had been written into every
  * visitor's browser while the intro played once per session, and those session cookies outlive a
@@ -54,6 +56,9 @@ export const INTRO_FORCE_3D_KEY = "tbs_intro_3d";
  * It exists because the two bypasses below are invisible — a visitor whose system asks for less
  * motion, or whose address bar still carries a `#section`, simply gets no intro and no way to tell
  * why. The owner reviewing the site, and QA, need one.
+ *
+ * It does not reach past an ad's link (`fromAd`): the server leaves the overlay out for one before
+ * any browser storage could be read, and the preloader agrees with it.
  */
 export const INTRO_FORCE_KEY = "tbs_intro_force";
 
@@ -242,9 +247,67 @@ export function readIntroSeen(cookieString: string | null | undefined): boolean 
 }
 
 /**
+ * The request header proxy.ts forwards to the layout when the URL came from an ad (`fromAd`).
+ * The layout cannot read the query string — the reason `x-pathname` exists too — so the proxy
+ * reads it and passes the answer on. **The proxy deletes any copy the browser sent** before it
+ * decides: the header is its verdict, never the visitor's. (A request the proxy's matcher skips,
+ * the router's own prefetch, keeps what it sent — and can only drop the overlay from its own
+ * response, exactly like a forged `x-pathname`.)
+ */
+export const INTRO_HEADER = "x-intro";
+
+/** The only value that counts. Anything else (or no header) means "not from an ad". */
+export const INTRO_SKIP = "skip";
+
+/**
+ * The click ids ad platforms append to the URL they send a visitor to: Google (`gclid`,
+ * `gbraid`, `wbraid`, `dclid`), Meta (`fbclid`), Microsoft (`msclkid`), TikTok (`ttclid`),
+ * X (`twclid`), Yandex (`yclid`), LinkedIn (`li_fat_id`), Pinterest (`epik`), Reddit (`rdt_cid`).
+ */
+const AD_CLICK_IDS: ReadonlySet<string> = new Set([
+  "gclid",
+  "gbraid",
+  "wbraid",
+  "dclid",
+  "fbclid",
+  "msclkid",
+  "ttclid",
+  "twclid",
+  "yclid",
+  "li_fat_id",
+  "epik",
+  "rdt_cid",
+]);
+
+/**
+ * Pure. Did this visitor arrive on an ad's link? True when the query string carries a `utm_*`
+ * campaign tag or one of the click ids above.
+ *
+ * Such a visitor gets the page as if they had skipped the intro, so someone who clicked an ad
+ * lands straight on the offer (the owner's call, 2026-10-09). Nothing is remembered — no cookie,
+ * no storage — so their next visit without the tag plays it like anyone's, and everyone else,
+ * the owner included, still gets it on every hard load.
+ *
+ * Read on both sides of the page: proxy.ts runs it on the request's query string and forwards
+ * the answer as `INTRO_HEADER`, so the server never renders the overlay; the preloader runs it
+ * on `location.search` after hydration, so an overlay that was rendered anyway agrees.
+ *
+ * Only the key counts, never its value, and not its letter case either: a campaign link typed
+ * by hand as `UTM_Source=…` is still a campaign link.
+ */
+export function fromAd(search: string | URLSearchParams): boolean {
+  for (const key of new URLSearchParams(search).keys()) {
+    const name = key.toLowerCase();
+    if (name.startsWith("utm_") || AD_CLICK_IDS.has(name)) return true;
+  }
+  return false;
+}
+
+/**
  * The server gate `app/(site)/layout.tsx` renders the overlay behind. True only for the home
  * page — `pathname` is proxy.ts's locale-stripped `x-pathname`, so `/ru` and `/en` count as
- * "/" — and only while the session cookie is absent (or holds anything but `seen`).
+ * "/" — only while the session cookie is absent (or holds anything but `seen`), and only when
+ * `introHeader` (proxy.ts's `INTRO_HEADER`) does not say the URL came from an ad.
  *
  * It lives in the LAYOUT on purpose: layouts don't re-render on client navigation, so the
  * intro plays on a hard landing only, never on `/servicii/x` → Home or a Back into the cache.
@@ -252,8 +315,9 @@ export function readIntroSeen(cookieString: string | null | undefined): boolean 
 export function shouldPlayIntro(
   pathname: string | null | undefined,
   cookieValue: string | null | undefined,
+  introHeader?: string | null,
 ): boolean {
-  return pathname === "/" && !isIntroSeen(cookieValue);
+  return pathname === "/" && !isIntroSeen(cookieValue) && introHeader !== INTRO_SKIP;
 }
 
 /*
@@ -272,7 +336,8 @@ let done = false;
  *
  * **It no longer writes `INTRO_COOKIE`.** The intro used to play once per browser session, so a
  * reload never replayed it; the client reads that as the intro being broken ("la refresh nu
- * lucrează"). It now plays on every hard load of the home page. The cookie is still *honoured*
+ * lucrează"). It now plays on every hard load of the home page but one that arrives on an ad's
+ * link (`fromAd`), and that exception is not remembered either. The cookie is still *honoured*
  * (`shouldPlayIntro` → `isIntroSeen`) so that anything which sets it — the e2e suite seeds it by
  * default — still skips the intro; the site itself just never sets it any more.
  */

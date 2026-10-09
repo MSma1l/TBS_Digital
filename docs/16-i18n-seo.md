@@ -102,9 +102,10 @@ modules have no directive and only type imports, so the E2E specs import them an
 controls by exactly these strings; the lazy chunk ships the copy and nothing reaches the page
 bundle.
 
-The Ghid TBS guide (IT-OS Phase 4) was the first of them, with a `GUIDE_COPY` table here. It was
-removed on 2026-09-26 and its copy with it; what its entry pinned holds for every part that
-follows: **honest by construction** — never "AI", never "online", and no promised response time
+The Ghid TBS guide (IT-OS Phase 4) was the first of them. Its linger tip and that copy went on
+2026-09-26; the corner assistant stays, with her own `GUIDE_COPY` and `GUIDE_FAQ` in
+`components/hud/guide/copy.ts` (her answers' text also drives her mouth, per locale). What the
+first entry pinned holds for every part: **honest by construction** — never "AI", never "online", and no promised response time
 beyond the one business day the estimator's `SENT_COPY` already promises. Ids written into a lead
 (a CTA `source`, a section topic) are raw ids, not translated, like every origin row.
 
@@ -145,7 +146,10 @@ The mechanism, end to end:
    - `x-locale` — set **only** for an explicit `/ru` or `/en`, so `/` keeps its
      cookie/Accept-Language behaviour untouched;
    - `x-pathname` — the prefix-stripped path, so every route can build a correct
-     self-canonical.
+     self-canonical;
+   - `x-intro: skip` — when the URL carries an ad's parameter (`utm_*`, `gclid`, `fbclid`, …),
+     so the `(site)` layout leaves the home page's intro out (2026-10-09; any incoming copy is
+     deleted first).
 3. `app/layout.tsx` reads both and renders the right language, canonical and alternates.
 
 `splitLocalePath` matches the segment exactly — `/ru2` is **not** a Russian URL.
@@ -159,7 +163,7 @@ The mechanism, end to end:
 | `robots.txt` | `app/robots.ts` | Allows everything except `/admin-tbs-digital` and `/api/`; advertises the sitemap and host |
 | `sitemap.xml` | `app/sitemap.ts` | The public pages — `/`, `/portofoliu`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — each with full `ro`/`ru`/`en` + `x-default` hreflang alternates |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
-| A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title` |
+| A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title`. The service pages do the same since 2026-10-09 (`app/(site)/servicii/[slug]/page.tsx`): *"TBS Digital — <the direction's menu name, `dir.*`>"* and the direction's pitch text as the description (`lib/solutions.ts`), where they used to ship the raw slug and no description |
 | Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated images; `og:locale` follows the served language |
 | Site icon | `app/icon.svg` | The TBS wordmark. App Router picks the file up by name — no `icons` entry in `generateMetadata()` — and emits `<link rel="icon" type="image/svg+xml" sizes="any">`. Its colours are a **copy** of the `globals.css` tokens (a static file cannot read `var()`), so a palette change has to be mirrored by hand |
 | JSON-LD | `app/layout.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph — **only verifiable facts** (brand, URL, contact email, Chișinău/MD, languages). `sameAs` is omitted rather than invented |
