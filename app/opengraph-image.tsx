@@ -1,11 +1,29 @@
 import { ImageResponse } from "next/og";
+import type { LocalizedText } from "@/lib/i18n/content";
 
 // Branded social-share card. Self-contained: rendered server-side by Satori (next/og), no
 // external fetch. Colours are the brand tokens from app/globals.css inlined as hex, since
-// ImageResponse cannot read CSS variables. Latin-only copy so the default font suffices.
-// Ref: node_modules/next/dist/docs/.../03-file-conventions/01-metadata/opengraph-image.md
+// ImageResponse cannot read CSS variables. The root social card is English for the shared global
+// URL; its new copy still lives as a complete localized field, like all new user-facing copy.
+// Ref: node_modules/next/dist/docs/.../01-app/.../opengraph-image.md
 
-export const alt = "TBS Digital — custom software, mobile apps & AI automation";
+const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
+
+const COPY = {
+  eyebrow: L("MVP · WEB · SOFTWARE · AI", "MVP · WEB · SOFTWARE · AI", "MVP · WEB · SOFTWARE · AI"),
+  tagline: L(
+    "MVP-uri, site-uri, CRM și automatizări AI — de la primul test la următoarea etapă.",
+    "MVP, сайты, CRM и ИИ-автоматизация — от первого теста к следующему этапу.",
+    "MVPs, websites, CRM & AI automation — from the first test to the next stage.",
+  ),
+  alt: L(
+    "TBS Digital — MVP-uri, site-uri, CRM și automatizări AI",
+    "TBS Digital — MVP, сайты, CRM и ИИ-автоматизация",
+    "TBS Digital — MVPs, websites, CRM and AI automation",
+  ),
+};
+
+export const alt = COPY.alt.en;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -63,17 +81,17 @@ export default function OpengraphImage() {
               boxShadow: "0 0 22px 4px rgba(75,204,240,0.8)",
             }}
           />
-          WEB · SOFTWARE · AI // 2026
+          {COPY.eyebrow.en}
         </div>
 
         {/* wordmark + tagline */}
         <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
-          <div style={{ display: "flex", fontSize: 178, fontWeight: 800, lineHeight: 1, letterSpacing: -4 }}>
+          <div style={{ display: "flex", fontSize: 160, fontWeight: 800, lineHeight: 1, letterSpacing: -4 }}>
             <span style={{ color: "#f5f1fa" }}>TBS</span>
             <span style={{ color: "#93aeff", marginLeft: 28 }}>DIGITAL</span>
           </div>
-          <div style={{ display: "flex", fontSize: 40, fontWeight: 600, color: "#e7e2f2", maxWidth: 920 }}>
-            Custom software, mobile apps, CRM &amp; SaaS, and AI automation — strategy to launch.
+          <div style={{ display: "flex", fontSize: 38, fontWeight: 600, color: "#e7e2f2", maxWidth: 880, lineHeight: 1.28 }}>
+            {COPY.tagline.en}
           </div>
         </div>
 

@@ -16,6 +16,14 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Changed: cardul Open Graph descrie oferta actuală
+
+- **Changed:** imaginea de distribuire pentru Google, rețele sociale și mesagerie elimină copy-ul
+  vechi „strategy to launch”; cardul este mai aerisit și spune general oferta actuală: MVP-uri,
+  site-uri, CRM și automatizări AI, de la primul test la următoarea etapă.
+- **Docs:** [16 — i18n & SEO](./docs/16-i18n-seo.md) documentează copy-ul și dimensiunea cardului.
+- **Files:** `app/opengraph-image.tsx`, `docs/16-i18n-seo.md`.
+
 ## 2026-10-09 — Changed: MVP cu buget de pornire mic și clar
 
 - **Changed:** Hero-ul, cererea și răspunsul de preț al Asistentului TBS spun explicit că pornim
