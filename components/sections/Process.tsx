@@ -11,52 +11,52 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 type Step = { title: LocalizedText; text: LocalizedText };
 
 /*
- * "Cum începem" (2026-10-09, the owner's copy): the four steps from a request to a launch, placed
+ * "Cum începem": the four steps from a hypothesis to an evidence-led next iteration, placed
  * right above the request section where the first one is taken. Step 02 promises one business
  * day and nothing faster — the reply time the estimator's sent screen (`SENT_COPY`) already
  * promises.
  */
 const STEPS: Step[] = [
   {
-    title: L("Trimiți cererea", "Вы отправляете заявку", "You send a request"),
+    title: L("Spui ce vrei să verifici", "Рассказываете, что хотите проверить", "Tell us what you want to test"),
     text: L(
-      "Alegi tipul de proiect și vezi pe loc prețul de pornire.",
-      "Выбираете тип проекта и сразу видите стартовую цену.",
-      "Pick the type of project and see the starting price right away.",
+      "Alegi punctul de start și descrii problema, utilizatorul sau fluxul care contează.",
+      "Вы выбираете точку старта и описываете важную проблему, пользователя или процесс.",
+      "Choose a starting point and describe the problem, user or workflow that matters.",
     ),
   },
   {
     title: L(
-      "Îți răspundem în cel mult o zi lucrătoare",
-      "Отвечаем не позже чем через рабочий день",
-      "We reply within one business day",
+      "Clarificăm MVP-ul",
+      "Уточняем MVP",
+      "We define the MVP",
     ),
     text: L(
-      "Clarificăm ce ai nevoie, cu întrebări concrete.",
-      "Уточняем, что вам нужно, конкретными вопросами.",
-      "We clarify what you need with concrete questions.",
-    ),
-  },
-  {
-    title: L("Primești oferta", "Вы получаете предложение", "You get the offer"),
-    text: L(
-      "Ce construim, în cât timp și cu ce buget.",
-      "Что мы делаем, за какой срок и с каким бюджетом.",
-      "What we build, how long it takes and what it costs.",
+      "Revenim în cel mult o zi lucrătoare cu întrebări concrete și stabilim ce intră în prima versiune.",
+      "Не позже чем через рабочий день возвращаемся с конкретными вопросами и определяем, что войдёт в первую версию.",
+      "Within one business day, we return with concrete questions and define what belongs in the first version.",
     ),
   },
   {
-    title: L("Construim și lansăm", "Разрабатываем и запускаем", "We build and launch"),
+    title: L("Primești un plan de start", "Вы получаете план старта", "You get a starting plan"),
     text: L(
-      "Pe etape, cu demo-uri regulate, până la lansare.",
-      "По этапам, с регулярными демо, до запуска.",
-      "In stages, with regular demos, all the way to launch.",
+      "Vezi scopul, investiția inițială și pașii prin care validăm ipoteza.",
+      "Вы видите объём, начальную инвестицию и шаги проверки гипотезы.",
+      "See the scope, initial investment and the steps for validating the hypothesis.",
+    ),
+  },
+  {
+    title: L("Lansăm, învățăm, dezvoltăm", "Запускаем, учимся, развиваем", "Launch, learn, develop"),
+    text: L(
+      "Lansăm prima versiune, folosim feedback-ul real și alegem următoarea îmbunătățire.",
+      "Запускаем первую версию, используем реальную обратную связь и выбираем следующее улучшение.",
+      "Launch the first version, use real feedback and choose the next improvement.",
     ),
   },
 ];
 
 const SECTION = {
-  title: L("Cum începem.", "Как мы начинаем.", "How we start."),
+  title: L("De la ipoteză la următoarea versiune.", "От гипотезы к следующей версии.", "From hypothesis to the next version."),
 };
 
 /*

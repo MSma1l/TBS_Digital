@@ -76,7 +76,7 @@ const ro = messages.ro;
 
 /** The CTAs, by the label a visitor actually reads. */
 const CTA = {
-  hero: "Cere o ofertă",
+  hero: "Începe cu un MVP",
   navbar: ro["nav.cta"],
   servicePage: "Cere ofertă",
   servicePageBottom: "Începe cererea",

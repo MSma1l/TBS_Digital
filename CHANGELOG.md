@@ -16,6 +16,19 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-09 — Changed: poziționare MVP, validare și dezvoltare etapizată
+
+- **Changed:** textele RO/RU/EN din Hero, ticker, selectorul de servicii, argumentele de alegere,
+  traseul de pornire și paginile serviciilor descriu aceeași logică: o primă versiune concentrată
+  testează ipoteza cu utilizatori reali, iar următoarele investiții urmează dovezile și feedback-ul.
+  Păstrăm numai promisiunile verificabile: prețul de pornire și răspunsul în cel mult o zi lucrătoare.
+- **Docs:** [05 — Page sections](./docs/05-page-sections.md) documentează noile promisiuni și
+  traseul; [16 — i18n & SEO](./docs/16-i18n-seo.md) fixează limitele pentru comunicarea
+  „rapidă”/„accesibilă” în SEO.
+- **Files:** `components/sections/{Hero,Ticker,Directions,Principles,Process}.tsx`,
+  `lib/solutions.ts`, cataloagele SEO RO/RU/EN, testele de secțiuni și selector,
+  `docs/05-page-sections.md`, `docs/16-i18n-seo.md`.
+
 ## 2026-10-09 — Changed: sitemap XML complet și SEO localizat pentru servicii
 
 - **Changed:** `/sitemap.xml` listează fiecare URL public RO/RU/EN cu alternatele hreflang

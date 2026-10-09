@@ -117,7 +117,7 @@ function pointer(
   fireEvent(el, event);
 }
 
-const PRIMARY = "Cere o ofertă";
+const PRIMARY = "Începe cu un MVP";
 const SECONDARY = "Vezi serviciile ↓";
 
 const statsMarker = () =>

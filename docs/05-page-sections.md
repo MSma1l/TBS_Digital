@@ -949,16 +949,16 @@ reduced motion.
   - From 1025px: the right-hand column, centred, at full strength.
 - **Phone scrim** (`data-scene-scrim`, below 861px): a radial pool of the page colour over the
   core and under the headline and its subtitle, at `--hero-scrim`.
-- **Copy** (2026-10-09, the page turned to selling: the client's gain first, then what we do and
-  for whom). Trilingual literals (`L()` in the component), not catalog keys.
+- **Copy** (2026-10-09): trilingual literals (`L()` in the component), not catalog keys. The
+  central promise is a focused first version, real-user learning, then an evidence-led next
+  iteration; it does not invent a delivery deadline or call the work “cheap”.
   - **The headline:** the page's only `<h1>` (34→74px on phones, 44→92px from 861px),
-    **"Mai mulți clienți, mai puțină muncă manuală."**, whose closing full stop is a plain red
-    glyph. It was "Construim digital ce mișcă businessul.", which spoke about us.
-  - **The subtitle:** *"Construim site-uri, magazine online, aplicații, CRM-uri și automatizări
-    pentru afaceri care vor să crească — de la idee până la lansare."* It sits where the old lead
-    line sat and is set like it (`--mut`, 16→19px), since the copy's contrast over the core was
-    measured on that line. It stops at 40ch from 861 to 1024px, clear of the chip on the
-    columns' seam.
+    **"Testează ideea. Construiește doar ce funcționează."**, whose closing full stop is a plain
+    red glyph.
+  - **The subtitle:** *"Pornim cu un MVP concentrat, ca să pui ipoteza în fața utilizatorilor
+    reali fără să construiești totul din prima. După semnale clare, îl dezvoltăm etapizat."*
+    It sits where the old lead line sat and is set like it (`--mut`, 16→19px). It stops at 40ch
+    from 861 to 1024px, clear of the chip on the columns' seam.
   - **The entrance:** the `title` marker wraps the headline and the subtitle, so they come in as
     one.
   - **History:** the old lead line (*"De la consultanță la produs funcțional."*) was removed at
@@ -966,11 +966,11 @@ reduced motion.
     of 2026-10-09. The kicker above the headline (`TBS DIGITAL / WEB · SOFTWARE · AI`) went on
     2026-09-25, with every other kicker on the site — see
     [No kicker lines](#no-kicker-lines-2026-09-25).
-- **CTAs:** the primary `cta-neon` button **"Cere o ofertă"** with an `aria-hidden` ↗ SVG opens
-  the request dialog (`source: "hero"`); the secondary ghost link **"Vezi serviciile ↓"** goes
-  to `#servicii`. Under them, in the same `cta` entrance group, one small muted line of three
-  promises the site keeps: *"Prețul de pornire îl vezi pe loc · Fără obligații · Răspuns în cel
-  mult o zi lucrătoare"*. Each phrase is its own nowrap span, so a phone breaks the line between
+- **CTAs:** the primary `cta-neon` button **"Începe cu un MVP"** with an `aria-hidden` ↗ SVG
+  opens the request dialog (`source: "hero"`); the secondary ghost link **"Vezi serviciile ↓"**
+  goes to `#servicii`. Under them, in the same `cta` entrance group, one small muted line says
+  that the starting price is clear, the first version is intentionally scoped, and the reply is
+  within one business day. Each phrase is its own nowrap span, so a phone breaks the line between
   promises, never inside one. Both CTAs **boost the 3D chip** while hovered by a mouse or pen (never a finger — a tap
   has no hover to end it) or focused **visibly** from the keyboard. Hover and focus are separate
   reasons, so moving the mouse off a keyboard-focused CTA keeps the boost, and the focus the dialog
@@ -1008,10 +1008,10 @@ From 861px the hero is two columns and fills the first screen together with the 
 
 ## Ticker
 
-`components/sections/Ticker.tsx`, directly under the hero. A glass band with a red neon top
-line and what we sell, in plain words (2026-10-09; it listed techniques before): *Site-uri care
-aduc clienți · Magazine online · CRM la comandă · Automatizări · Boți Telegram · Aplicații
-mobile*. Decorative (every word is said elsewhere), so the whole strip is `aria-hidden`.
+`components/sections/Ticker.tsx`, directly under the hero. A glass band with a red neon top line
+that repeats the decision logic in plain words: *Începe cu ce contează · MVP de test · Site-uri și
+e-commerce · CRM și automatizări · Feedback de la utilizatori · Dezvoltare etapizată*. Decorative
+(every word is said elsewhere), so the whole strip is `aria-hidden`.
 
 The track renders **five identical groups, each ending in its own separator** — a slanted red
 neon hairline, 1px wide in the layout (it was a round dot until 2026-09-17) — and the same gap,
@@ -1029,10 +1029,9 @@ read-only preview until 2026-10-09, when the owner turned the page to selling.) 
 copy is trilingual `L()` literals in the component; each direction's pitch, accent and reference
 project come from `lib/solutions.ts` and the live portfolio.
 
-- **Heading row:** the `<h2>` **"Ce vrei să rezolvi?"** (it was "Un selector de servicii făcut
-  pentru decizie rapidă.", which described the interface) and a lead: *"Alege direcția: vezi ce
-  primești, de la ce preț pornim, și cere oferta direct de aici."* (Its kicker, **"Alege direcția
-  potrivită"**, went on 2026-09-25; an older lead line on 2026-10-02.)
+- **Heading row:** the `<h2>` **"Cu ce începem ca să testezi ideea?"** and a lead that asks the
+  visitor to select the essential first version, see the starting investment and decide what is
+  worth testing before expanding.
 - **Pills** (`<nav aria-label="Direcțiile de servicii">`): five **real links** to
   `/servicii/<slug>`, in the scene's order (Produs digital · E-commerce · Automatizare & API ·
   Asistenți IA & boturi · Brand & UI). The selected one carries `aria-current="true"`, its
@@ -1068,11 +1067,11 @@ project come from `lib/solutions.ts` and the live portfolio.
 
   | Direction | Outcome (`<h3>`) | Price |
   |---|---|---|
-  | Produs digital | „Ideea ta, transformată într-un produs folosit” | site's |
-  | E-commerce | „Vinde online, fără pași în plus” | shop's |
-  | Automatizare & API | „Mai puțină muncă manuală, mai puține erori” | automation's |
-  | Asistenți IA & boturi | „Răspunzi mai repede, fără să pierzi nicio cerere” | automation's |
-  | Brand & UI | „Un brand pe care îl recunoști și o interfață ușor de folosit” | none |
+  | Produs digital | „Testează ideea înainte să construiești tot produsul” | site's |
+  | E-commerce | „Testează oferta înainte de un magazin complex” | shop's |
+  | Automatizare & API | „Automatizează mai întâi blocajul care costă timp” | automation's |
+  | Asistenți IA & boturi | „Începe cu conversația în care pierzi cereri” | automation's |
+  | Brand & UI | „Testează mesajul și experiența înainte de o schimbare mare” | none |
 - **HUD screen** (`data-testid="scene-services"`, `data-shape="<slug>"`): see-through, so the
   canvas shows behind it; a decorative layer (HUD grid with a radial fade, an accent glow, a scan
   line that pauses under the intro and while the section is off screen, four corner brackets);
@@ -1434,31 +1433,31 @@ principles. Four numbered cards, each with its own accent:
 
 | Card | Title | Text | Mark |
 |---|---|---|---|
-| `01 / REZULTAT` (blue) | „Gândim în rezultate, nu în pagini” | „Pornim de la ce ai nevoie: mai multe cereri, mai puțină rutină sau un produs nou.” | a bracketed sight |
-| `02 / PREȚ` (amber) | „Știi prețul de la început” | „Prețul de pornire îl vezi din primul minut; oferta exactă vine după o scurtă discuție.” | a price tag (no figure) |
-| `03 / PROCES` (green) | „Vezi tot ce se întâmplă” | „Etape clare, demo-uri regulate și decizii luate împreună.” | three listed stages |
-| `04 / ECHIPĂ` (red) | „Totul de la aceeași echipă” | „Site, aplicație, CRM și automatizări care comunică între ele — și vorbești direct cu cei care le construiesc.” | layers |
+| `01 / IPOTEZĂ` (blue) | „Începem cu ipoteza, nu cu lista de funcții” | „Clarificăm ce vrei să afli de la utilizatori înainte să investești într-un produs mai mare.” | a bracketed sight |
+| `02 / FOCUS` (amber) | „Investiție inițială controlată” | „Prima versiune are un scop clar, iar prețul de pornire îl vezi înainte să decizi.” | a price tag (no figure) |
+| `03 / DOVEZI` (green) | „Creștem după dovezi” | „Lansăm, urmărim feedbackul și alegem împreună următoarea etapă care merită construită.” | three listed stages |
+| `04 / CONTINUITATE` (red) | „Aceeași echipă, de la MVP la produs” | „Păstrăm contextul, codul și deciziile, astfel încât produsul să poată evolua fără reluări inutile.” | layers |
 
 **A bento with proofs (2026-10-09, the owner's pick).** As a row of four even cards it looked
 exactly like "Cum începem" under it ("arată una ca alta"). Now each reason carries its evidence
 at the card's foot, and the cards are not the same size:
 
-- **The grid:** one column on a phone. From 641px, two columns, with REZULTAT and ECHIPĂ across
-  both. From 1025px, three columns: REZULTAT spanning two beside PREȚ, then PROCES beside ECHIPĂ
+- **The grid:** one column on a phone. From 641px, two columns, with IPOTEZĂ and CONTINUITATE across
+  both. From 1025px, three columns: IPOTEZĂ spanning two beside FOCUS, then DOVEZI beside CONTINUITATE
   spanning two. There the wide cards put the sentence left and the proof right, centred in the
   card's height.
-- **REZULTAT:** the three goals a client brings — the request assistant's own answers, „Mai mulți
+- **IPOTEZĂ:** the three goals a client brings — the request assistant's own answers, „Mai mulți
   clienți” · „Mai puțină rutină” · „Un produs nou” — as outlined chips. As the card is revealed
   they light one after another and stay lit: an entrance, not a loop, since nothing on the page
   moves on its own for more than five seconds (WCAG 2.2.2).
-- **PREȚ:** the real price list. The request form's five project types, each with its starting
+- **FOCUS:** the real price list. The request form's five project types, each with its starting
   price read from the admin exactly as the dialog's "PROPUNEREA TA" reads it, a dotted leader
   between them. Every row is a button that opens the request with that type preselected
   (`source: "home-why"`); its accessible name adds "Cere ofertă". These are the only digits the
   section shows, and they are the owner's.
-- **PROCES:** a project as the client sees it: „Strategie” · „Design” · „Dezvoltare” · „Lansare”,
+- **DOVEZI:** a project as the client sees it: „Strategie” · „Design” · „Dezvoltare” · „Lansare”,
   each with a „demo” tag, the first three done, the last still to come. No numbers.
-- **ECHIPĂ:** the team from the store, up to four, each name and role. No faces: the photos and
+- **CONTINUITATE:** the team from the store, up to four, each name and role. No faces: the photos and
   initials were taken out at the owner's request the same day, since the team section right
   under it shows them. With an empty team, no proof.
 - **No lift on hover** (it got in the way of aiming at a price row); an accent edge fades in
@@ -1511,16 +1510,19 @@ with `!important`; under forced colours the drawings stay (a line drawing surviv
 one system colour — it is still a legible outline) and only the held-back opacity is released,
 which there would read as a faded glyph.
 
-## Process — "Cum începem." (`#proces`)
+## Process — "De la ipoteză la următoarea versiune." (`#proces`)
 
 `components/sections/Process.tsx` (2026-10-09), between Team and the request: how easy starting
 is, right before the form. An ordered list of four steps:
 
-1. **„Trimiți cererea”** — „Alegi tipul de proiect și vezi pe loc prețul de pornire.”
-2. **„Îți răspundem în cel mult o zi lucrătoare”** — „Clarificăm ce ai nevoie, cu întrebări
-   concrete.”
-3. **„Primești oferta”** — „Ce construim, în cât timp și cu ce buget.”
-4. **„Construim și lansăm”** — „Pe etape, cu demo-uri regulate, până la lansare.”
+1. **„Spui ce vrei să verifici”** — „Alegi punctul de start și descrii problema, utilizatorul
+   sau fluxul care contează.”
+2. **„Clarificăm MVP-ul”** — „Revenim în cel mult o zi lucrătoare cu întrebări concrete și
+   stabilim ce intră în prima versiune.”
+3. **„Primești un plan de start”** — „Vezi scopul, investiția inițială și pașii prin care
+   validăm ipoteza.”
+4. **„Lansăm, învățăm, dezvoltăm”** — „Lansăm prima versiune, folosim feedback-ul real și
+   alegem următoarea îmbunătățire.”
 
 **A circuit trace, not cards** (the owner's pick, the same day: as four cards it looked exactly
 like "De ce TBS"). The steps hang on one luminous trace, in the grammar of the portfolio's circuit

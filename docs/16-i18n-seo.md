@@ -194,6 +194,11 @@ content.
 ### Search intent coverage
 
 The page titles, descriptions and on-page service copy describe the offers visitors can actually
+deliver. Since 2026-10-09, the home and service language also describes the operating model:
+a focused MVP tests a stated hypothesis with real users, then the same team develops only the
+next validated stage. “Fast” means a deliberately scoped first decision and the stated one-business-day
+reply; copy must not invent a build deadline. “Affordable” is expressed through a visible starting
+price and controlled first scope, never an unsubstantiated “cheap” or “cheapest” claim.
 request. The target clusters are mapped to existing pages, rather than duplicated across new thin
 pages:
 

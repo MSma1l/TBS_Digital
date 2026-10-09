@@ -124,14 +124,14 @@ describe("direction selector — the preview follows the selection", () => {
     const links = pills();
 
     // first direction
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Ideea ta, transformată într-un produs folosit");
-    expect(screen.getByText("Workshop de strategie")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează ideea înainte să construiești tot produsul");
+    expect(screen.getByText("Ipoteză și public")).toBeInTheDocument();
 
     fireEvent.click(links[4]); // Brand & UI
 
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Un brand pe care îl recunoști și o interfață ușor de folosit");
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează mesajul și experiența înainte de o schimbare mare");
     expect(screen.getByText("Design system")).toBeInTheDocument();
-    expect(screen.queryByText("Workshop de strategie")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ipoteză și public")).not.toBeInTheDocument();
   });
 
   it("keeps the short description visible for every direction", () => {

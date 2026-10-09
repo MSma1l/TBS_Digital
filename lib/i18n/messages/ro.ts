@@ -15,9 +15,9 @@
  */
 export const ro = {
   // --- SEO / document ---
-  "meta.title": "TBS Digital — Site-uri web, software și aplicații",
+  "meta.title": "TBS Digital — MVP-uri, site-uri web și software",
   "meta.description":
-    "Dezvoltăm site-uri web, magazine online, CRM, SaaS, software personalizat și aplicații mobile pentru afaceri — de la idee la lansare.",
+    "Construim MVP-uri, site-uri web, CRM, SaaS și aplicații pentru a testa idei cu utilizatori reali, apoi le dezvoltăm etapizat.",
 
   // --- Hero ---
   "hero.badge": "DE LA CONSULTANȚĂ LA DIGITALIZARE",

@@ -22,27 +22,31 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const TITLE = L(
-  "Mai mulți clienți, mai puțină muncă manuală.",
-  "Больше клиентов, меньше ручной работы.",
-  "More customers, less manual work.",
+  "Testează ideea. Construiește doar ce funcționează.",
+  "Проверьте идею. Создавайте только то, что работает.",
+  "Test the idea. Build only what works.",
 );
 /** What we build and for whom, right under the headline. */
 const SUBTITLE = L(
-  "Construim site-uri, magazine online, aplicații, CRM-uri și automatizări pentru afaceri care vor să crească — de la idee până la lansare.",
-  "Создаём сайты, интернет-магазины, приложения, CRM и автоматизацию для бизнеса, который хочет расти, — от идеи до запуска.",
-  "We build websites, online stores, apps, CRMs and automations for businesses that want to grow — from idea to launch.",
+  "Pornim cu un MVP concentrat, ca să pui ipoteza în fața utilizatorilor reali fără să construiești totul din prima. După semnale clare, îl dezvoltăm etapizat.",
+  "Начинаем со сфокусированного MVP, чтобы проверить гипотезу на реальных пользователях и не строить всё сразу. После первых сигналов развиваем продукт поэтапно.",
+  "We start with a focused MVP, so you can test the hypothesis with real users without building everything first. Once the signals are clear, we develop it in stages.",
 );
-const CTA_PRIMARY = L("Cere o ofertă", "Оставить заявку", "Get a quote");
+const CTA_PRIMARY = L("Începe cu un MVP", "Начать с MVP", "Start with an MVP");
 const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
 /** The line under the CTAs: one phrase per promise, so a narrow screen breaks the line between
  *  them rather than inside one. The "·" between them is drawn where they are rendered. */
 const REASSURANCE: LocalizedText[] = [
   L(
-    "Prețul de pornire îl vezi pe loc",
-    "Стартовую цену видно сразу",
-    "See the starting price right away",
+    "Preț de pornire clar",
+    "Понятная стартовая цена",
+    "A clear starting price",
   ),
-  L("Fără obligații", "Без обязательств", "No obligation"),
+  L(
+    "Nu construim totul din prima",
+    "Не строим всё сразу",
+    "We do not build everything first",
+  ),
   L(
     "Răspuns în cel mult o zi lucrătoare",
     "Ответ не позже чем через рабочий день",

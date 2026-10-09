@@ -57,11 +57,15 @@ const SERVICES: Service[] = [
 ];
 
 const SECTION = {
-  title: L("Ce vrei să rezolvi?", "Что вы хотите решить?", "What do you want to solve?"),
+  title: L(
+    "Cu ce începem ca să testezi ideea?",
+    "С чего начнём, чтобы проверить идею?",
+    "What should we start with to test the idea?",
+  ),
   lead: L(
-    "Alege direcția: vezi ce primești, de la ce preț pornim, și cere oferta direct de aici.",
-    "Выберите направление: посмотрите, что получите и с какой цены мы начинаем, — и запросите предложение прямо здесь.",
-    "Pick a direction: see what you get and what we start at — and ask for a quote right here.",
+    "Alegem versiunea esențială, vezi investiția de pornire și decizi ce merită testat acum — înainte să extindem produsul.",
+    "Выбираем ключевую версию, вы видите стартовые вложения и решаете, что стоит проверить сейчас, — прежде чем расширять продукт.",
+    "We choose the essential version, show the starting investment and decide what is worth testing now — before expanding the product.",
   ),
   tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
   /* The service page's own action-bar label: both buttons open the same request. */

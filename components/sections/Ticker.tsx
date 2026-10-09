@@ -10,16 +10,16 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 /* What we sell, in plain words and in this order. The first one leads each group in bold, the
    rest follow it. */
 const LEAD = L(
-  "Site-uri care aduc clienți",
-  "Сайты, которые приводят клиентов",
-  "Websites that bring customers",
+  "Începe cu ce contează",
+  "Начните с главного",
+  "Start with what matters",
 );
 const ITEMS: LocalizedText[] = [
-  L("Magazine online", "Интернет-магазины", "Online stores"),
-  L("CRM la comandă", "CRM под ваш бизнес", "Custom CRM"),
-  L("Automatizări", "Автоматизация", "Automation"),
-  L("Boți Telegram", "Telegram-боты", "Telegram bots"),
-  L("Aplicații mobile", "Мобильные приложения", "Mobile apps"),
+  L("MVP de test", "MVP для теста", "Test MVP"),
+  L("Site-uri și e-commerce", "Сайты и e-commerce", "Websites & e-commerce"),
+  L("CRM și automatizări", "CRM и автоматизация", "CRM & automation"),
+  L("Feedback de la utilizatori", "Обратная связь от пользователей", "User feedback"),
+  L("Dezvoltare etapizată", "Поэтапная разработка", "Staged development"),
 ];
 
 /**

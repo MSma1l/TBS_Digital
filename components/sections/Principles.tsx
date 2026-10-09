@@ -34,16 +34,16 @@ type Why = {
    the bento's two rows, amber beside green between the two wide cards from 641px. */
 const WHY: Why[] = [
   {
-    number: L("01 / REZULTAT", "01 / РЕЗУЛЬТАТ", "01 / RESULT"),
+    number: L("01 / IPOTEZĂ", "01 / ГИПОТЕЗА", "01 / HYPOTHESIS"),
     title: L(
-      "Gândim în rezultate, nu în pagini",
-      "Думаем о результате, а не о страницах",
-      "We think in results, not pages",
+      "Începem cu ipoteza, nu cu lista de funcții",
+      "Начинаем с гипотезы, а не со списка функций",
+      "We start with the hypothesis, not a feature list",
     ),
     text: L(
-      "Pornim de la ce ai nevoie: mai multe cereri, mai puțină rutină sau un produs nou.",
-      "Начинаем с того, что вам нужно: больше заявок, меньше рутины или новый продукт.",
-      "We start from what you need: more requests, less routine, or a new product.",
+      "Clarificăm ce vrei să afli de la utilizatori înainte să investești într-un produs mai mare.",
+      "Уточняем, что вы хотите узнать от пользователей, прежде чем вкладываться в большой продукт.",
+      "We clarify what you need to learn from users before investing in a larger product.",
     ),
     mark: "rezultat",
     accent: "var(--blue)",
@@ -51,16 +51,16 @@ const WHY: Why[] = [
     wide: true,
   },
   {
-    number: L("02 / PREȚ", "02 / ЦЕНА", "02 / PRICE"),
+    number: L("02 / FOCUS", "02 / ФОКУС", "02 / FOCUS"),
     title: L(
-      "Știi prețul de la început",
-      "Цена известна с самого начала",
-      "You know the price from the start",
+      "Investiție inițială controlată",
+      "Контролируемая начальная инвестиция",
+      "A controlled initial investment",
     ),
     text: L(
-      "Prețul de pornire îl vezi din primul minut; oferta exactă vine după o scurtă discuție.",
-      "Стартовую цену вы видите с первой минуты, точное предложение — после короткого разговора.",
-      "You see the starting price in the first minute; the exact offer follows a short conversation.",
+      "Prima versiune are un scop clar, iar prețul de pornire îl vezi înainte să decizi.",
+      "У первой версии есть ясная цель, а стартовую цену вы видите до решения.",
+      "The first version has a clear purpose, and you see the starting price before deciding.",
     ),
     mark: "pret",
     accent: "var(--amber)",
@@ -68,16 +68,16 @@ const WHY: Why[] = [
     wide: false,
   },
   {
-    number: L("03 / PROCES", "03 / ПРОЦЕСС", "03 / PROCESS"),
+    number: L("03 / DOVEZI", "03 / ДОКАЗАТЕЛЬСТВА", "03 / EVIDENCE"),
     title: L(
-      "Vezi tot ce se întâmplă",
-      "Вы видите всё, что происходит",
-      "You see everything that happens",
+      "Creștem după dovezi",
+      "Растём на основе доказательств",
+      "We grow on evidence",
     ),
     text: L(
-      "Etape clare, demo-uri regulate și decizii luate împreună.",
-      "Понятные этапы, регулярные демо и совместные решения.",
-      "Clear stages, regular demos and decisions made together.",
+      "Lansăm, urmărim feedbackul și alegem împreună următoarea etapă care merită construită.",
+      "Запускаем, смотрим на обратную связь и вместе выбираем следующий этап, который стоит создавать.",
+      "We launch, review feedback and choose together the next stage worth building.",
     ),
     mark: "proces",
     accent: "var(--green)",
@@ -85,12 +85,12 @@ const WHY: Why[] = [
     wide: false,
   },
   {
-    number: L("04 / ECHIPĂ", "04 / КОМАНДА", "04 / TEAM"),
-    title: L("Totul de la aceeași echipă", "Всё от одной команды", "Everything from one team"),
+    number: L("04 / CONTINUITATE", "04 / НЕПРЕРЫВНОСТЬ", "04 / CONTINUITY"),
+    title: L("Aceeași echipă, de la MVP la produs", "Одна команда — от MVP до продукта", "One team, from MVP to product"),
     text: L(
-      "Site, aplicație, CRM și automatizări care comunică între ele — și vorbești direct cu cei care le construiesc.",
-      "Сайт, приложение, CRM и автоматизация, которые работают вместе, — и вы общаетесь напрямую с теми, кто их делает.",
-      "Website, app, CRM and automations that work together — and you talk directly to the people who build them.",
+      "Păstrăm contextul, codul și deciziile, astfel încât produsul să poată evolua fără reluări inutile.",
+      "Мы сохраняем контекст, код и решения, чтобы продукт развивался без лишних повторов.",
+      "We retain the context, code and decisions so the product can evolve without needless restarts.",
     ),
     mark: "echipa",
     accent: "var(--red)",
@@ -100,7 +100,7 @@ const WHY: Why[] = [
 ];
 
 const SECTION = {
-  title: L("De ce TBS.", "Почему TBS.", "Why TBS."),
+  title: L("De ce TBS pentru prima versiune.", "Почему TBS для первой версии.", "Why TBS for the first version."),
 };
 
 /*
@@ -189,7 +189,7 @@ function CardMark({ kind }: { kind: MarkKind }) {
  * `role="list"` on every list below: `list-style: none` costs a list its role in VoiceOver.
  */
 
-/* ---------- 01 / REZULTAT: the goals a client brings ----------
+/* ---------- 01 / IPOTEZĂ: the goals a client brings ----------
    Word for word the three quick replies the request's assistant opens with (`TREE.start` in
    components/sections/Estimator.tsx), written out again rather than imported: importing them
    would pull the whole estimator into the page, which RequestFlowProvider loads on demand on

@@ -161,14 +161,14 @@ describe("Principles section", () => {
   it("renders the four rationale cards with their numbers and titles", async () => {
     withPrinciples();
 
-    expect(await screen.findByText("01 / REZULTAT")).toBeInTheDocument();
-    expect(screen.getByText("02 / PREȚ")).toBeInTheDocument();
-    expect(screen.getByText("03 / PROCES")).toBeInTheDocument();
-    expect(screen.getByText("04 / ECHIPĂ")).toBeInTheDocument();
+    expect(await screen.findByText("01 / IPOTEZĂ")).toBeInTheDocument();
+    expect(screen.getByText("02 / FOCUS")).toBeInTheDocument();
+    expect(screen.getByText("03 / DOVEZI")).toBeInTheDocument();
+    expect(screen.getByText("04 / CONTINUITATE")).toBeInTheDocument();
 
-    expect(screen.getByText("Gândim în rezultate, nu în pagini")).toBeInTheDocument();
-    expect(screen.getByText("Știi prețul de la început")).toBeInTheDocument();
-    expect(screen.getByText(/Pornim de la ce ai nevoie/)).toBeInTheDocument();
+    expect(screen.getByText("Începem cu ipoteza, nu cu lista de funcții")).toBeInTheDocument();
+    expect(screen.getByText("Investiție inițială controlată")).toBeInTheDocument();
+    expect(screen.getByText(/Clarificăm ce vrei să afli/)).toBeInTheDocument();
   });
 });
 
@@ -182,7 +182,7 @@ describe("Principles section", () => {
 describe("The principles' card marks", () => {
   it("gives every card a mark, and gives them all the same one", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / REZULTAT");
+    await screen.findByText("01 / IPOTEZĂ");
 
     // `[data-mark]`: the track in card 03 draws its ticks as line art of its own.
     const marks = Array.from(container.querySelectorAll("svg[data-mark]"));
@@ -203,7 +203,7 @@ describe("The principles' card marks", () => {
 
   it("keeps the marks silent and out of the accessibility tree", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / REZULTAT");
+    await screen.findByText("01 / IPOTEZĂ");
 
     for (const mark of Array.from(container.querySelectorAll("svg[data-mark]"))) {
       // The sentence beside a mark is the claim; the mark is only that claim drawn. Repeating
@@ -217,7 +217,7 @@ describe("The principles' card marks", () => {
 
   it("draws no circle and no round cap anywhere", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / REZULTAT");
+    await screen.findByText("01 / IPOTEZĂ");
 
     // The house rule for line art in this repo (docs/07): straight strokes, square caps, no
     // circles, no decorative dots. `decorative-dots.test.tsx` scans the sections it covers; this
@@ -229,7 +229,7 @@ describe("The principles' card marks", () => {
 
   it("shows no reading anywhere, and keeps the deleted stat literals gone", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / REZULTAT");
+    await screen.findByText("01 / IPOTEZĂ");
 
     // Card 01's mark is a sight, not a readout: the only indicator it could display is one it
     // invented. "50+", "98% clienti multumiti" and "24/7" were deleted from the team card for

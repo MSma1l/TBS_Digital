@@ -12,7 +12,7 @@ import { INTRO_REVEAL_ATTR } from "@/lib/intro";
  * structure is pinned through the data hooks instead.
  */
 
-const LEAD_RO = "Site-uri care aduc clienți";
+const LEAD_RO = "Începe cu ce contează";
 const ITEM_COUNT = 5;
 
 function renderTicker() {

@@ -8,9 +8,9 @@ import type { MessageKey } from "./ro";
 
 export const ru: Record<MessageKey, string> = {
   // --- SEO / document ---
-  "meta.title": "TBS Digital — сайты, софт и мобильные приложения",
+  "meta.title": "TBS Digital — MVP, сайты и индивидуальный софт",
   "meta.description":
-    "Разрабатываем сайты, интернет-магазины, CRM, SaaS, индивидуальный софт и мобильные приложения для бизнеса — от идеи до запуска.",
+    "Создаём MVP, сайты, CRM, SaaS и приложения, чтобы проверять идеи на реальных пользователях, а затем развивать продукт поэтапно.",
 
   // --- Hero ---
   "hero.badge": "ОТ КОНСАЛТИНГА ДО ЦИФРОВИЗАЦИИ",
