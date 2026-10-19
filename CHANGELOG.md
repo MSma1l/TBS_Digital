@@ -16,6 +16,41 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-19 — Added: fiecare lead nou ajunge și în CRM (Nexa CRM)
+
+- **Added:** fiecare cerere nouă din formularul de contact este trimisă și în CRM-ul companiei
+  (`https://tbs-crm.sma1lsoft.eu`), unde devine client cu status „Nou”. Cererea este semnată
+  HMAC-SHA256 peste exact octeții trimiși (`X-CRM-Timestamp` + `X-CRM-Signature`), timeout 5 s,
+  fără urmărirea redirecționărilor. `POST /api/contact` răspunde imediat 201 ca înainte —
+  trimiterea rulează în fundal, lângă notificarea Telegram, și nu poate încetini sau pica
+  formularul.
+- **Added:** livrare fiabilă (outbox) pe rândul cererii: coloanele `crm_status`
+  (`pending`/`sent`/`failed`), `crm_attempts`, `crm_next_attempt_at`, `crm_last_error`, adăugate
+  la boot prin `ALTER` (SQLite + Postgres) și fără backfill — lead-urile vechi nu sunt împinse
+  în CRM la deploy. 429/5xx/rețea/timeout se reîncearcă de un worker periodic (max 8 încercări,
+  ≈ 22 h, backoff 1 min → 12 h); 400/401 marchează lead-ul `failed` fără reîncercări. Preluarea
+  unui lead se face printr-un `UPDATE` condiționat (lease), deci mai mulți workeri nu trimit de
+  două ori (iar CRM-ul deduplică pe `externalId`).
+- **Added:** în admin, tab-ul **Cereri** arată „CRM: trimis / în așteptare / eșuat”, iar un lead
+  eșuat are butonul **Retrimite în CRM** → `POST /api/admin/submissions/{id}/crm-resend` (doar
+  admin, rate limit 10/min). `crm_status` apare doar în API-ul de admin, nu în răspunsul public.
+- **Security:** `CRM_LEADS_SECRET` nu este logat și nu ajunge în DB/`crm_last_error`;
+  `CRM_LEADS_URL` trebuie să fie `https://` (http doar pentru localhost / nume de serviciu docker,
+  și niciodată în producție) — altfel backend-ul refuză să pornească.
+- **Deploy:** variabile noi `CRM_LEADS_URL`, `CRM_LEADS_SECRET` (în `.env`, transmise de
+  `docker-compose.yml`); ambele goale ⇒ integrarea e oprită complet.
+- **Docs:** pagină nouă [17 — CRM](./docs/17-crm.md) (setup din CRM: Setări → Integrări →
+  „Surse de lead-uri”, contract, outbox, rețea docker, depanare); actualizate
+  [09 — Admin](./docs/09-admin.md), [10 — Backend](./docs/10-backend.md),
+  [12 — Deployment](./docs/12-deployment.md), [14 — Testing](./docs/14-testing.md), `README.md`,
+  `backend/README.md`, `SECURITY.md`.
+- **Files:** `backend/app/crm/{__init__,client,service,worker}.py`, `backend/app/config.py`,
+  `backend/app/db.py`, `backend/app/models.py`, `backend/app/schemas.py`, `backend/app/main.py`,
+  `backend/app/routers/contact.py`, `backend/app/storage/{base,db_store,json_store}.py`,
+  `backend/tests/{conftest,test_crm}.py`, `app/admin-tbs-digital/{page.tsx,admin.module.css}`,
+  `lib/api.ts`, `app/__tests__/admin-delete-submission.test.tsx`, `.env.example`,
+  `backend/.env.example`, `docker-compose.yml`.
+
 ## 2026-10-09 — Changed: cardul Open Graph descrie oferta actuală
 
 - **Changed:** imaginea de distribuire pentru Google, rețele sociale și mesagerie elimină copy-ul

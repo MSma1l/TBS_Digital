@@ -59,6 +59,9 @@ services:
       TELEGRAM_GROUP_CHAT_ID: ${TELEGRAM_GROUP_CHAT_ID:-}
       TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-true}
       TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:-}
+      # CRM lead intake (docs/17-crm.md). Both empty => the CRM push is off.
+      CRM_LEADS_URL: ${CRM_LEADS_URL:-}
+      CRM_LEADS_SECRET: ${CRM_LEADS_SECRET:-}
     volumes:
       # Persist the JSON stand-in / SQLite fallback across restarts.
       - backend_data:/app/data

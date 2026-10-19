@@ -73,10 +73,18 @@ export type ContactSubmission = {
   estimate?: string;
 };
 
+/**
+ * Delivery of a lead into the company CRM (backend `app/crm`, docs/17-crm.md):
+ * `""` never queued (CRM not configured when it arrived, or an older lead),
+ * `"pending"` waiting for its first/next attempt, `"sent"`, `"failed"`.
+ */
+export type CrmStatus = "" | "pending" | "sent" | "failed";
+
 /** A stored submission as returned by `GET /api/admin/submissions`. */
 export type ContactSubmissionRecord = ContactSubmission & {
   id: string;
   created_at: string; // ISO 8601 timestamp
+  crm_status?: CrmStatus;
 };
 
 export type LoginResponse = { access_token: string; token_type: string };
@@ -267,4 +275,19 @@ export function deleteSubmission(id: string, token: string): Promise<void> {
     method: "DELETE",
     token,
   });
+}
+
+/**
+ * POST /api/admin/submissions/{id}/crm-resend — admin. Puts a lead back in the
+ * CRM outbox and tries it again right away; returns the record with its new
+ * `crm_status` ("pending"). 409 when the CRM integration isn't configured.
+ */
+export function resendSubmissionToCrm(
+  id: string,
+  token: string,
+): Promise<ContactSubmissionRecord> {
+  return request<ContactSubmissionRecord>(
+    `/api/admin/submissions/${encodeURIComponent(id)}/crm-resend`,
+    { method: "POST", token },
+  );
 }

@@ -357,7 +357,46 @@
 .subActions {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 6px;
+}
+/* CRM delivery badge (docs/17-crm.md) — sits at the left of the actions row. */
+.subCrm {
+  margin-right: auto;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+}
+.subCrm[data-crm="sent"] {
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+}
+.subCrm[data-crm="failed"] {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.5);
+}
+.subCrmResendBtn {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  text-transform: uppercase;
+}
+.subCrmResendBtn:hover:not(:disabled) {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+.subCrmResendBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
 }
 .subDeleteBtn {
   cursor: pointer;

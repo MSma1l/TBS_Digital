@@ -219,6 +219,17 @@ class ContactSubmission(ContactSubmissionIn):
     status: str = "nou"  # lead classification (see app/telegram STATUSES)
 
 
+class AdminContactSubmission(ContactSubmission):
+    """A submission as the admin panel sees it — adds the CRM delivery state.
+
+    Kept off the public ``POST /api/contact`` response on purpose: a visitor has no use
+    for (and should not learn about) the internal CRM integration.
+    """
+
+    # "" (not queued) · "pending" · "sent" · "failed" — see app/crm.
+    crm_status: str = ""
+
+
 # --- auth ---
 class LoginRequest(BaseModel):
     # Length caps only — credentials are never stored/rendered, so no escaping.

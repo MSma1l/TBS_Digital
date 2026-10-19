@@ -20,7 +20,8 @@ reference only. Remaining production polish (Alembic, rate limiting, notificatio
 | `GET` | `/api/content` | public | Return the whole content document |
 | `PUT` | `/api/content` | admin | Replace it (the admin's Save) |
 | `POST` | `/api/contact` | public | Store a contact-form submission |
-| `GET` | `/api/admin/submissions` | admin | List submissions |
+| `GET` | `/api/admin/submissions` | admin | List submissions (incl. `crm_status`) |
+| `POST` | `/api/admin/submissions/{id}/crm-resend` | admin | Re-queue a lead for the CRM and retry it now ([17 — CRM](./17-crm.md)) |
 | `POST` | `/api/admin/uploads` | admin | Store a picture (logo, photo, screenshot) → WebP, longest side ≤ 1600px |
 | `POST` | `/api/admin/uploads/capture` | admin | Store a project's whole-site capture → WebP, 1080px wide, ≤ 12000px tall ([below](#project-captures-fullpage-2026-10-06)) |
 | `POST` | `/api/auth/login` | public | Credentials → JWT |
@@ -50,15 +51,31 @@ easy to forget — a fresh column starts empty on every row, so a *content* colu
 without a backfill leaves the site silently rendering nothing there (it happened once
 with `partners.preview`). `tests/test_migration.py` pins all of it against a database in
 the old shape. The latest such columns are `projects.full_page`
-([below](#project-captures-fullpage-2026-10-06)) and `projects.demo`
-([below](#project-demos-demo-2026-10-06)).
+([below](#project-captures-fullpage-2026-10-06)), `projects.demo`
+([below](#project-demos-demo-2026-10-06)) and the CRM outbox on `submissions`
+(`crm_status`, `crm_attempts`, `crm_next_attempt_at`, `crm_last_error` — `db.CRM_COLUMNS`,
+deliberately **not** backfilled so older leads are never pushed; see
+[17 — CRM](./17-crm.md)).
 
 Key files: `app/models.py` (tables: services, stats, team, projects, project_images,
 partners, contacts, submissions,
 users — each content list keeps a `position` column for order), `app/db.py` (engine +
 `create_db_and_tables` + `get_session`), `app/storage/db_store.py` (upsert-by-id + delete-missing
 on `PUT`), `app/seed.py` (idempotent startup seed of content + the hashed admin),
-`app/routers/uploads.py` (the two image uploads).
+`app/routers/uploads.py` (the two image uploads), `app/telegram/` (the lead bot —
+[13](./13-telegram.md)) and `app/crm/` (the CRM lead push + its outbox worker —
+[17](./17-crm.md)).
+
+## Integrations on a new lead
+
+`POST /api/contact` saves the submission and answers **201** at once; everything else runs
+as background tasks and can never fail the request:
+
+- **Telegram** — best-effort notification into the group ([13 — Telegram](./13-telegram.md)).
+- **CRM** — the lead is queued in the same insert (`crm_status = pending`) and pushed to
+  Nexa CRM with an HMAC-signed request; failures are retried with back-off by a periodic
+  worker for ≈ 22 h ([17 — CRM](./17-crm.md)). Off when `CRM_LEADS_URL` / `CRM_LEADS_SECRET`
+  are empty.
 
 ## Project captures (`fullPage`, 2026-10-06)
 

@@ -257,6 +257,18 @@ TEAM_LINK_COLUMNS = {
 }
 
 
+# The CRM delivery outbox lives on the submission row (see app/crm). `submissions` is
+# long live in production, so these are ALTERed in too. No backfill, deliberately: an
+# empty `crm_status` means "never queued", so the leads that predate the integration
+# are NOT pushed into the CRM on the first boot after the deploy.
+CRM_COLUMNS = {
+    "crm_status": "VARCHAR NOT NULL DEFAULT ''",
+    "crm_attempts": "INTEGER NOT NULL DEFAULT 0",
+    "crm_next_attempt_at": "INTEGER NOT NULL DEFAULT 0",
+    "crm_last_error": "VARCHAR NOT NULL DEFAULT ''",
+}
+
+
 def create_db_and_tables() -> None:
     """Migrate, then create any missing tables. Safe to call repeatedly (idempotent)."""
     # Import for side effect: registers all tables on SQLModel.metadata.
@@ -283,6 +295,7 @@ def create_db_and_tables() -> None:
     # No backfill: unlike a partner's preview, we ship no default photo or profile link —
     # the admin fills them in, and an empty link just doesn't render.
     _add_missing_columns(engine, "team", TEAM_LINK_COLUMNS)
+    _add_missing_columns(engine, "submissions", CRM_COLUMNS)
     # A project's whole-site capture and its interactive demo (/portofoliu's screen). Each
     # is backfilled below, on its own, like the partner preview: four of the shipped
     # projects come with a capture, all nine with a demo.

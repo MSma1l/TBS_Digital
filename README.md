@@ -28,6 +28,9 @@ Postgres**, wired together, with a login-gated admin and a one-command Docker de
 - **Telegram lead bot:** `@TBS_Notification_Agent_bot` posts every new contact-form lead into a
   private group — one topic per service, inline classification buttons, `/stats`. See
   [13 — Telegram Bot](./docs/13-telegram.md).
+- **CRM lead intake:** every new lead is also pushed (HMAC-signed, retried with back-off,
+  never blocking the form) into Nexa CRM as a client with status „Nou”; the admin **Cereri**
+  tab shows the delivery status. See [17 — CRM](./docs/17-crm.md).
 - **Languages & SEO:** the site ships in **RO / RU / EN** (switcher + crawlable `/`, `/ru`,
   `/en` URLs, hreflang, sitemap, JSON-LD) and loads its analytics pixel only after cookie
   consent. See [16 — i18n & SEO](./docs/16-i18n-seo.md).
@@ -57,6 +60,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [14 — Testing](./docs/14-testing.md) | Vitest unit tests and Playwright E2E (in Docker, incl. the forced-WebGL `@webgl` specs), backend pytest, live API verification script |
 | [15 — Security Skills](./docs/15-security-skills.md) | Per-topic security skills (validation, XSS, SQLi, auth, rate-limit, pentest) |
 | [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, the intro and the 3D stage and SEO, cookie consent + analytics |
+| [17 — CRM Lead Intake](./docs/17-crm.md) | Pushing every new lead into Nexa CRM: setup, env vars, signed contract, outbox + retries, admin badge/re-send |
 | [tools/site-demo](./tools/site-demo/README.md) | How the portfolio screen's interactive demos are captured from the live sites: the pages, the hotspots, writes blocked, the alignment proof |
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for the running record of every change, and

@@ -31,8 +31,15 @@ class ContentStore(ABC):
         """
 
     @abstractmethod
-    def add_submission(self, data: ContactSubmissionIn) -> ContactSubmission:
-        """Persist a new contact-form submission and return the stored record."""
+    def add_submission(
+        self, data: ContactSubmissionIn, *, crm_queue: bool = False
+    ) -> ContactSubmission:
+        """Persist a new contact-form submission and return the stored record.
+
+        ``crm_queue`` marks the row as pending CRM delivery *in the same insert*, so the
+        lead sits in the outbox even if the process dies before the background push runs
+        (see app/crm). Stores without an outbox may ignore it.
+        """
 
     @abstractmethod
     def delete_submission(self, submission_id: str) -> bool:

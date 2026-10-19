@@ -1,8 +1,16 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, status
 
+from ..config import get_settings
+from ..crm import service as crm_service
+from ..crm.worker import push_lead_task
 from ..deps import get_store
 from ..main import limiter
-from ..schemas import AdminInfo, ContactSubmission, ContactSubmissionIn
+from ..schemas import (
+    AdminContactSubmission,
+    AdminInfo,
+    ContactSubmission,
+    ContactSubmissionIn,
+)
 from ..security import get_current_admin
 from ..storage.base import ContentStore
 from ..telegram.notify import notify_new_lead_task
@@ -24,16 +32,21 @@ def submit_contact(
 ):
     """Public — the site's contact form posts here.
 
-    After the submission is saved, a best-effort Telegram notification is scheduled as
-    a background task, so the 201 response never blocks on (or fails because of) the
-    Telegram API. When the integration is disabled the task is an immediate no-op.
+    After the submission is saved, a best-effort Telegram notification and the CRM push
+    are scheduled as background tasks, so the 201 response never blocks on (or fails
+    because of) either remote API. When an integration is disabled its task is an
+    immediate no-op. The CRM lead is queued in the same insert (``crm_queue``), so a
+    CRM outage delays it — the outbox worker retries — but never loses it.
     """
-    record = store.add_submission(body)
+    crm_enabled = get_settings().crm_is_enabled
+    record = store.add_submission(body, crm_queue=crm_enabled)
     background_tasks.add_task(notify_new_lead_task, record)
+    if crm_enabled:
+        background_tasks.add_task(push_lead_task, record.id)
     return record
 
 
-@router.get("/admin/submissions", response_model=list[ContactSubmission])
+@router.get("/admin/submissions", response_model=list[AdminContactSubmission])
 def list_submissions(
     store: ContentStore = Depends(get_store),
     admin: AdminInfo = Depends(get_current_admin),
@@ -63,3 +76,44 @@ def delete_submission(
     """
     if not store.delete_submission(submission_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+
+@router.post(
+    "/admin/submissions/{submission_id}/crm-resend",
+    response_model=AdminContactSubmission,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+@limiter.limit("10/minute")
+def resend_submission_to_crm(
+    request: Request,
+    submission_id: str,
+    background_tasks: BackgroundTasks,
+    admin: AdminInfo = Depends(get_current_admin),
+):
+    """Admin only — put a lead back in the CRM outbox and try it again right away.
+
+    Resets the retry budget, so it is the way out of ``failed`` once the cause (a wrong
+    key, a 400 the CRM has since fixed…) is gone. Safe to repeat: the CRM dedupes on the
+    submission id. 409 when the integration is not configured, 404 for an unknown id.
+    """
+    if not get_settings().crm_is_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="CRM integration is not configured",
+        )
+    row = crm_service.requeue(submission_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    background_tasks.add_task(push_lead_task, row.id)
+    return AdminContactSubmission.model_construct(
+        id=row.id,
+        created_at=row.created_at,
+        name=row.name,
+        email=row.email,
+        phone=row.phone,
+        message=row.message,
+        project=row.project,
+        estimate=row.estimate,
+        status=row.status or "nou",
+        crm_status=row.crm_status,
+    )

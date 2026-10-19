@@ -53,6 +53,8 @@ Run the tests with `pytest` (they use an isolated temp SQLite DB, so they don't 
 | `ADMIN_PASSWORD` | `change-me` | Seeds the admin user's password (stored bcrypt-hashed) |
 | `JWT_SECRET` | `dev-secret-change-me` | JWT signing key — **use ≥32 random bytes in prod** |
 | `JWT_EXPIRE_MINUTES` | `720` | Token lifetime |
+| `CRM_LEADS_URL` | *(empty)* | Nexa CRM intake endpoint (`https://…/api/v1/integrations/<id>/leads`). Empty → CRM push off. See [docs/17](../docs/17-crm.md) |
+| `CRM_LEADS_SECRET` | *(empty)* | HMAC key of that lead source — **secret**, never logged. Empty → CRM push off |
 
 > Changing `ADMIN_PASSWORD` after first run does **not** update the existing DB user
 > (seeding only creates a missing user). Update the `users` row directly to rotate it.
@@ -65,7 +67,9 @@ Run the tests with `pytest` (they use an isolated temp SQLite DB, so they don't 
 | `GET` | `/api/content` | public | Return the whole `SiteContent` document |
 | `PUT` | `/api/content` | admin | Replace the whole content document (the admin's Save) |
 | `POST` | `/api/contact` | public | Store a contact-form submission |
-| `GET` | `/api/admin/submissions` | admin | List submissions (newest first) |
+| `GET` | `/api/admin/submissions` | admin | List submissions (newest first), incl. `crm_status` |
+| `DELETE` | `/api/admin/submissions/{id}` | admin | Delete a submission |
+| `POST` | `/api/admin/submissions/{id}/crm-resend` | admin | Re-queue a lead for the CRM and retry it now (202; 409 if the CRM isn't configured) |
 | `POST` | `/api/admin/uploads` | admin | Multipart `file` (PNG/JPEG/WebP, ≤ 8 MB) → `{url}` of a WebP, longest side ≤ 1600px |
 | `POST` | `/api/admin/uploads/capture` | admin | Same, for a project's whole-site capture → WebP 1080px wide, ≤ 12000px tall |
 | `POST` | `/api/auth/login` | public | `{username, password}` → `{access_token}` |

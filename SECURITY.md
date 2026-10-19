@@ -290,6 +290,9 @@ Also recommended in production:
 - Set `TRUSTED_PROXY_COUNT` to the number of reverse proxies in front (1 for the shared nginx)
   so the rate-limit key can't be spoofed via `X-Forwarded-For`.
 - Run behind HTTPS / a reverse proxy; run compose with both files so Postgres isn't public.
+- CRM push ([docs/17](./docs/17-crm.md)): `CRM_LEADS_SECRET` lives only in `.env` (never
+  logged or stored); `CRM_LEADS_URL` must be `https://` in production — the app refuses to boot
+  otherwise — and redirects are never followed, so lead data can't be sent in clear text.
 
 ## Remaining (Phase 4, non-blocking)
 

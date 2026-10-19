@@ -30,6 +30,7 @@ from ..models import (
     TeamRow,
 )
 from ..schemas import (
+    AdminContactSubmission,
     Contact,
     ContactSubmission,
     ContactSubmissionIn,
@@ -331,7 +332,7 @@ class DbStore(ContentStore):
     # --- submissions -------------------------------------------------------------
     def list_submissions(
         self, limit: int = 50, offset: int = 0
-    ) -> List[ContactSubmission]:
+    ) -> List[AdminContactSubmission]:
         # Push LIMIT/OFFSET into SQL (newest-first) so we never load the whole table.
         with Session(self.engine) as session:
             rows = session.exec(
@@ -341,7 +342,7 @@ class DbStore(ContentStore):
                 .limit(limit)
             ).all()
         return [
-            ContactSubmission.model_construct(
+            AdminContactSubmission.model_construct(
                 id=r.id,
                 created_at=r.created_at,
                 name=r.name,
@@ -351,11 +352,14 @@ class DbStore(ContentStore):
                 project=r.project,
                 estimate=r.estimate,
                 status=r.status or "nou",
+                crm_status=r.crm_status or "",
             )
             for r in rows
         ]
 
-    def add_submission(self, data: ContactSubmissionIn) -> ContactSubmission:
+    def add_submission(
+        self, data: ContactSubmissionIn, *, crm_queue: bool = False
+    ) -> ContactSubmission:
         # `data` is already validated/sanitised; model_construct avoids re-escaping.
         record = ContactSubmission.model_construct(
             id=uuid.uuid4().hex,
@@ -363,7 +367,15 @@ class DbStore(ContentStore):
             **data.model_dump(),
         )
         with Session(self.engine) as session:
-            session.add(SubmissionRow(**record.model_dump()))
+            # crm_next_attempt_at=0 => due immediately: the background push claims it at
+            # once, and the CRM worker picks it up if that push never gets to run.
+            session.add(
+                SubmissionRow(
+                    **record.model_dump(),
+                    crm_status="pending" if crm_queue else "",
+                    crm_next_attempt_at=0,
+                )
+            )
             session.commit()
         return record
 

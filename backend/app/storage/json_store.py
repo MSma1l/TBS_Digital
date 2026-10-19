@@ -49,7 +49,10 @@ class JSONFileStore(ContentStore):
         items = [ContactSubmission.model_validate(s) for s in self._read(self.subs_path)]
         return list(reversed(items))  # newest first
 
-    def add_submission(self, data: ContactSubmissionIn) -> ContactSubmission:
+    def add_submission(
+        self, data: ContactSubmissionIn, *, crm_queue: bool = False
+    ) -> ContactSubmission:
+        # Reference store only: it has no CRM outbox, so `crm_queue` is ignored.
         record = ContactSubmission(
             id=uuid.uuid4().hex,
             created_at=datetime.now(timezone.utc).isoformat(),

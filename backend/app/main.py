@@ -66,6 +66,7 @@ from .db import create_db_and_tables  # noqa: E402
 from .routers import auth, contact, content, uploads  # noqa: E402
 from .seed import seed_database  # noqa: E402
 from .telegram.worker import run_worker  # noqa: E402
+from .crm.worker import run_worker as run_crm_worker  # noqa: E402
 
 
 class BodySizeLimitMiddleware:
@@ -156,22 +157,29 @@ class BodySizeLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create tables, seed content/admin, and run the Telegram worker (if enabled)."""
+    """Create tables, seed content/admin, and run the Telegram + CRM workers (if enabled)."""
     create_db_and_tables()
     seed_database()
 
-    worker_task = None
+    tasks = []
     if settings.telegram_is_enabled:
-        worker_task = asyncio.create_task(run_worker())
+        tasks.append(asyncio.create_task(run_worker()))
         logger.info("Telegram long-poll worker scheduled.")
+    if settings.crm_is_enabled:
+        tasks.append(asyncio.create_task(run_crm_worker()))
+    elif settings.crm_leads_url or settings.crm_leads_secret:
+        # Half-configured: say so loudly (WARNING reaches `docker logs`), never which value.
+        logging.getLogger("app.crm").warning(
+            "CRM integration disabled: CRM_LEADS_URL and CRM_LEADS_SECRET must both be set."
+        )
 
     try:
         yield
     finally:
-        if worker_task is not None:
-            worker_task.cancel()
+        for task in tasks:
+            task.cancel()
             try:
-                await worker_task
+                await task
             except asyncio.CancelledError:
                 pass
 

@@ -144,6 +144,13 @@ class SubmissionRow(SQLModel, table=True):
     # Lead classification, driven by the Telegram inline buttons (see app/telegram).
     # One of the STATUSES keys: nou / contactat / oferta / castigat / pierdut.
     status: str = "nou"
+    # CRM delivery outbox (see app/crm). ALTERed in by db.py on boot (CRM_COLUMNS).
+    # crm_status: "" (never queued — CRM off at submit time, or a pre-CRM row),
+    # "pending" (awaiting its first/next attempt), "sent", or "failed" (permanent).
+    crm_status: str = ""
+    crm_attempts: int = 0
+    crm_next_attempt_at: int = 0  # unix seconds; also the claim lease while in flight
+    crm_last_error: str = ""  # <= 300 chars, never contains the secret
 
 
 class TelegramTopic(SQLModel, table=True):

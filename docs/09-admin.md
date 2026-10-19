@@ -20,7 +20,7 @@ section. Order (the **Cereri** tab is first and is the default on open):
 
 | Tab | What | Source |
 |-----|------|--------|
-| **Cereri** (first) | Contact-form submissions, newest-first, with a **count badge**, name/email/phone/message + project/estimate + timestamp, and a Refresh button. Each request can be **deleted** (see below); the text itself isn't editable. | `GET /api/admin/submissions` · `DELETE /api/admin/submissions/{id}` |
+| **Cereri** (first) | Contact-form submissions, newest-first, with a **count badge**, name/email/phone/message + project/estimate + timestamp, a **CRM delivery badge** and a Refresh button. Each request can be **deleted** (see below); the text itself isn't editable. | `GET /api/admin/submissions` · `DELETE /api/admin/submissions/{id}` · `POST /api/admin/submissions/{id}/crm-resend` |
 | Servicii & prețuri | name, price, description → /03 cards **and** /06 estimator | content API |
 | Statistici | value, label → /02 stats row | content API |
 | Echipă | name, role, bio → /05 team cards | content API |
@@ -29,6 +29,16 @@ section. Order (the **Cereri** tab is first and is the default on open):
 | Contact | type (email/phone/other), value → footer contact column | content API |
 
 Landing on **Cereri** means the agency immediately sees whether a new request came in.
+
+### CRM delivery badge
+
+Each request shows whether it reached the company CRM ([17 — CRM](./17-crm.md)):
+**CRM: trimis** (delivered) · **CRM: în așteptare** (queued or being retried) ·
+**CRM: eșuat** (rejected, or retries exhausted). No badge means the lead was never queued — the
+integration was off when it arrived, or it predates it. A failed request also gets a
+**Retrimite în CRM** button: it re-queues the lead and tries again at once, and the badge
+flips to *în așteptare* (press Refresh to see the outcome). A `409` reads as *the CRM
+integration isn't configured on the server*.
 
 ### Deleting a request
 

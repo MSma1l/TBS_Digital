@@ -21,6 +21,7 @@ vi.mock("@/lib/api", async () => {
     fetchMe: vi.fn(),
     fetchSubmissions: vi.fn(),
     deleteSubmission: vi.fn(),
+    resendSubmissionToCrm: vi.fn(),
     getToken: vi.fn(() => "tok"),
     setToken: vi.fn(),
     clearToken: vi.fn(),
@@ -216,5 +217,66 @@ describe("Admin editor — deleting a submission (Cereri tab)", () => {
       await screen.findByText("Serverul nu răspunde. Încearcă din nou."),
     ).toBeInTheDocument();
     expect(screen.getByText("Ana Pop")).toBeInTheDocument();
+  });
+});
+
+describe("Admin editor — CRM delivery badge (Cereri tab)", () => {
+  const withCrm: ContactSubmissionRecord[] = [
+    { ...submissions[0], crm_status: "sent" },
+    { ...submissions[1], crm_status: "failed" },
+  ];
+
+  beforeEach(() => {
+    vi.mocked(api.fetchSubmissions).mockResolvedValue(withCrm);
+    vi.mocked(api.resendSubmissionToCrm).mockReset();
+  });
+
+  it("labels each lead with its CRM status; only a failed one offers a re-send", async () => {
+    await renderAuthedEditor();
+    await screen.findByText("Ana Pop");
+
+    expect(screen.getByText("CRM: trimis")).toBeInTheDocument();
+    expect(screen.getByText("CRM: eșuat")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Retrimite în CRM" })).toHaveLength(1);
+  });
+
+  it("shows no badge for a lead that was never queued", async () => {
+    vi.mocked(api.fetchSubmissions).mockResolvedValue(submissions);
+    await renderAuthedEditor();
+    await screen.findByText("Ana Pop");
+
+    expect(screen.queryByText(/^CRM:/)).not.toBeInTheDocument();
+  });
+
+  it("re-sending flips the badge to pending", async () => {
+    vi.mocked(api.resendSubmissionToCrm).mockResolvedValue({
+      ...withCrm[1],
+      crm_status: "pending",
+    });
+    const user = userEvent.setup();
+    await renderAuthedEditor();
+    await screen.findByText("Bob Ion");
+
+    await user.click(screen.getByRole("button", { name: "Retrimite în CRM" }));
+
+    expect(await screen.findByText("CRM: în așteptare")).toBeInTheDocument();
+    expect(api.resendSubmissionToCrm).toHaveBeenCalledWith("r2", "tok");
+    expect(screen.queryByRole("button", { name: "Retrimite în CRM" })).not.toBeInTheDocument();
+  });
+
+  it("explains a 409 (CRM not configured) and keeps the row", async () => {
+    vi.mocked(api.resendSubmissionToCrm).mockRejectedValue(
+      new ApiError(409, "CRM integration is not configured"),
+    );
+    const user = userEvent.setup();
+    await renderAuthedEditor();
+    await screen.findByText("Bob Ion");
+
+    await user.click(screen.getByRole("button", { name: "Retrimite în CRM" }));
+
+    expect(
+      await screen.findByText("Integrarea CRM nu este configurată pe server."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("CRM: eșuat")).toBeInTheDocument();
   });
 });

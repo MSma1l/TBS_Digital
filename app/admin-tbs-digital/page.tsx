@@ -22,6 +22,7 @@ import {
   saveContent,
   fetchSubmissions,
   deleteSubmission,
+  resendSubmissionToCrm,
   uploadLogo,
   uploadCapture,
   mediaUrl,
@@ -32,6 +33,7 @@ import {
   isNetworkError,
   ApiError,
   type ContactSubmissionRecord,
+  type CrmStatus,
 } from "@/lib/api";
 import {
   LIMITS,
@@ -59,6 +61,13 @@ import styles from "./admin.module.css";
  * first) then one tab per editable list. Every editable field is validated
  * client-side (max length + injection blocking) before Save is allowed.
  */
+
+/** The Cereri card's CRM delivery badge (backend `app/crm`, docs/17-crm.md). */
+const CRM_LABELS: Record<Exclude<CrmStatus, "">, string> = {
+  sent: "CRM: trimis",
+  pending: "CRM: în așteptare",
+  failed: "CRM: eșuat",
+};
 
 /** Auth lifecycle: validating a stored token, logged out, or logged in. */
 type AuthState = "checking" | "unauthenticated" | "authenticated";
@@ -385,6 +394,10 @@ export default function AdminPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
+  // Re-sending a lead to the CRM (Cereri tab, only offered when delivery failed).
+  const [crmResendingId, setCrmResendingId] = useState<string | null>(null);
+  const [crmErrors, setCrmErrors] = useState<Record<string, string>>({});
+
   // Validate any stored token on mount; show the login form if it's missing/invalid.
   useEffect(() => {
     const token = getToken();
@@ -503,6 +516,45 @@ export default function AdminPage() {
       setDeleteErrors((errs) => ({ ...errs, [id]: message }));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  // Put a failed lead back in the CRM outbox. The backend tries it again at once
+  // and the badge shows "în așteptare" until the next refresh shows the outcome.
+  const onResendToCrm = async (id: string) => {
+    const token = getToken();
+    if (!token) {
+      setAuth("unauthenticated");
+      return;
+    }
+    setCrmResendingId(id);
+    setCrmErrors((errs) => {
+      const next = { ...errs };
+      delete next[id];
+      return next;
+    });
+    try {
+      const updated = await resendSubmissionToCrm(id, token);
+      setSubmissions(
+        (subs) =>
+          subs?.map((s) =>
+            s.id === id ? { ...s, crm_status: updated.crm_status } : s,
+          ) ?? subs,
+      );
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        clearToken();
+        setAuth("unauthenticated");
+        return;
+      }
+      const message = isNetworkError(err)
+        ? "Serverul nu răspunde. Încearcă din nou."
+        : err instanceof ApiError && err.status === 409
+          ? "Integrarea CRM nu este configurată pe server."
+          : "Nu s-a putut retrimite cererea în CRM.";
+      setCrmErrors((errs) => ({ ...errs, [id]: message }));
+    } finally {
+      setCrmResendingId(null);
     }
   };
 
@@ -1024,6 +1076,24 @@ export default function AdminPage() {
                     {s.message && <p className={styles.subMessage}>{s.message}</p>}
 
                     <div className={styles.subActions}>
+                      {s.crm_status && (
+                        <span
+                          className={`mono ${styles.subCrm}`}
+                          data-crm={s.crm_status}
+                        >
+                          {CRM_LABELS[s.crm_status]}
+                        </span>
+                      )}
+                      {s.crm_status === "failed" && (
+                        <button
+                          type="button"
+                          onClick={() => void onResendToCrm(s.id)}
+                          disabled={crmResendingId === s.id}
+                          className={`mono ${styles.subCrmResendBtn}`}
+                        >
+                          {crmResendingId === s.id ? "Se retrimite…" : "Retrimite în CRM"}
+                        </button>
+                      )}
                       {confirmDeleteId === s.id ? (
                         <div className={styles.subConfirm}>
                           <span className={`mono ${styles.subConfirmLabel}`}>
@@ -1060,6 +1130,11 @@ export default function AdminPage() {
                     {deleteErrors[s.id] && (
                       <p className={`mono ${styles.subDeleteError}`}>
                         {deleteErrors[s.id]}
+                      </p>
+                    )}
+                    {crmErrors[s.id] && (
+                      <p className={`mono ${styles.subDeleteError}`}>
+                        {crmErrors[s.id]}
                       </p>
                     )}
                   </article>

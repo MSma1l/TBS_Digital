@@ -270,13 +270,16 @@ docker run --rm -u 0 -v "$PWD/backend:/src" -w /src -e TELEGRAM_ENABLED=false \
 
 (`make test-local` exists for a local venv, but Docker is the supported path.)
 
-**193 tests** across 8 files: content round-trip and the API surface (`test_api.py`), the
+**231 tests** across 9 files: content round-trip and the API surface (`test_api.py`), the
 content-migration path (`test_migration.py`), uploads (`test_uploads.py` — magic bytes, SVG
-refusal, pixel caps, re-encoding), the Telegram bot (`test_telegram*.py`), and the security
+refusal, pixel caps, re-encoding), the Telegram bot (`test_telegram*.py`), the CRM lead push
+(`test_crm.py` — HMAC over the exact bytes, outcomes/retries/back-off via
+`httpx.MockTransport`, the secret never logged, `/api/contact` still 201 with the CRM down,
+the `CRM_LEADS_URL` rules — see [17 — CRM](./17-crm.md)), and the security
 suite (`test_security_authz.py`, `test_security_hardening.py`, `test_security_http.py` —
 authz/IDOR, oversized → 422, `<script>` stored escaped, invalid email → 422, SQLi inert,
-rate limits, headers). Telegram is forced off in tests (`backend/tests/conftest.py`) so they
-stay hermetic.
+rate limits, headers). Telegram and the CRM push are forced off in tests
+(`backend/tests/conftest.py`) so they stay hermetic.
 
 ## Live API verification
 

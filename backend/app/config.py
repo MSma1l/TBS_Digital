@@ -1,6 +1,9 @@
+import re
 from functools import lru_cache
+from typing import Optional
+from urllib.parse import urlsplit
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Known insecure placeholder values that must never reach production.
@@ -8,6 +11,43 @@ _DEFAULT_JWT_SECRET = "dev-secret-change-me"
 _DEFAULT_ADMIN_PASSWORD = "change-me"
 _MIN_JWT_SECRET_LEN = 32
 _MIN_ADMIN_PASSWORD_LEN = 12
+
+# Plain-http CRM endpoints are tolerated only outside production, and only for a host that
+# cannot be on the public internet: localhost/127.0.0.1, or a single-label name such as a
+# docker-compose service (``http://tbs-crm-frontend:8080``). Anything else must be https.
+_LOCAL_HTTP_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_DOCKER_SERVICE_RE = re.compile(r"^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$")
+
+
+def crm_url_problem(url: str, *, production: bool) -> Optional[str]:
+    """Why ``url`` is not an acceptable ``CRM_LEADS_URL`` — or ``None`` when it is.
+
+    Kept a plain function so the rule is testable without building a whole Settings.
+    """
+    try:
+        parts = urlsplit(url)
+        parts.port  # noqa: B018 — raises ValueError on a malformed port
+    except ValueError:
+        return "CRM_LEADS_URL is not a valid URL"
+    host = (parts.hostname or "").lower()
+    if not host:
+        return "CRM_LEADS_URL has no host"
+    if parts.username or parts.password:
+        return "CRM_LEADS_URL must not embed credentials"
+    if parts.fragment:
+        return "CRM_LEADS_URL must not contain a #fragment"
+    if parts.scheme == "https":
+        return None
+    if parts.scheme == "http":
+        if production:
+            return "CRM_LEADS_URL must use https:// in production"
+        if host in _LOCAL_HTTP_HOSTS or _DOCKER_SERVICE_RE.match(host):
+            return None
+        return (
+            "CRM_LEADS_URL must use https:// (plain http is allowed only for localhost "
+            "or a docker service name, outside production)"
+        )
+    return "CRM_LEADS_URL must start with https://"
 
 
 class Settings(BaseSettings):
@@ -65,6 +105,21 @@ class Settings(BaseSettings):
     # group only (see telegram/worker.py authorization).
     telegram_admin_ids: str = ""
 
+    # --- CRM lead intake (app/crm) -----------------------------------------------
+    # Every new contact-form lead is also pushed to the company CRM (Nexa CRM), where it
+    # becomes a client with status "Nou". Both values come from the CRM's
+    # Setări → Integrări → "Surse de lead-uri" screen. When either is empty the whole
+    # integration is a no-op (never touches the network). See docs/17-crm.md.
+    crm_leads_url: str = ""  # full endpoint: https://…/api/v1/integrations/<id>/leads
+    crm_leads_secret: str = ""  # HMAC key — a secret: .env only, never logged
+
+    @field_validator("crm_leads_url", "crm_leads_secret", mode="before")
+    @classmethod
+    def _strip_crm_values(cls, value: object) -> object:
+        # A value pasted into .env easily picks up a trailing space or newline, which
+        # would silently break the HMAC (or the URL) — trim it.
+        return value.strip() if isinstance(value, str) else value
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
@@ -73,6 +128,11 @@ class Settings(BaseSettings):
     def telegram_is_enabled(self) -> bool:
         """True only when the integration should run (token present + enabled)."""
         return bool(self.telegram_bot_token) and self.telegram_enabled
+
+    @property
+    def crm_is_enabled(self) -> bool:
+        """True only when the CRM push should run (endpoint + secret both present)."""
+        return bool(self.crm_leads_url) and bool(self.crm_leads_secret)
 
     @property
     def is_production(self) -> bool:
@@ -94,6 +154,12 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _guard_production(self) -> "Settings":
         """Fail-fast: refuse to boot in production with insecure defaults."""
+        # The CRM endpoint is checked in every environment: a lead (personal data) must
+        # never be posted over plain http to a host on the public internet.
+        if self.crm_leads_url:
+            problem = crm_url_problem(self.crm_leads_url, production=self.is_production)
+            if problem:
+                raise ValueError(f"Invalid CRM configuration: {problem}")
         if not self.is_production:
             return self
         problems: list[str] = []

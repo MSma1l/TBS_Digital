@@ -261,6 +261,9 @@ CORS_ORIGINS=https://tbs.md
 NEXT_PUBLIC_API_URL=https://tbs.md
 TELEGRAM_BOT_TOKEN=INLOCUIESTE_TOKEN
 TELEGRAM_GROUP_CHAT_ID=
+# CRM (docs/17-crm.md): URL-ul https + cheia din Setări → Integrări → „Surse de lead-uri”
+CRM_LEADS_URL=https://tbs-crm.sma1lsoft.eu/api/v1/integrations/INLOCUIESTE_ID/leads
+CRM_LEADS_SECRET=INLOCUIESTE_CHEIA_CRM
 EOF
 chmod 600 .env
 ```
