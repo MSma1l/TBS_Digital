@@ -11,8 +11,7 @@
  *   2. none of ScrollTrigger's page-rewriting features under components/scene/**, nor in the
  *      HUD chrome (components/hud/**, lib/hud/**), which lives over the same scrolling page: no
  *      pinning (spacers shift every anchor), no snapping (inline scroll-behavior on html/body),
- *      no normalizeScroll / ScrollSmoother, no markers, no custom scroller, no lagSmoothing (the
- *      intro director owns GSAP's ticker);
+ *      no normalizeScroll / ScrollSmoother, no markers, no custom scroller, no lagSmoothing;
  *   3. the stage is in Tailwind's @source and no art file is (the art is a CSS Module);
  *   4. the art carries no directive: no "use client" in components/scene/art/**. The page
  *      server-renders the hero core and the first direction's drawing; Directions loads
@@ -55,10 +54,6 @@ const PAGE_BUNDLE_ROOTS = [
   "components/scene/shapes.ts",
   "components/three/RenderErrorBoundary.tsx",
   "components/three/capability.ts",
-  "components/intro/IntroPreloader.tsx",
-  "components/intro/IntroFallback.tsx",
-  "components/intro/capability.ts",
-  "components/intro/tiers.ts",
   "lib",
 ];
 
@@ -66,7 +61,7 @@ const HEAVY = ["three", "@react-three/fiber", "gsap", "gsap/ScrollTrigger", "@gs
 /** Every subpath of a heavy package (eslint.config.mjs `HEAVY_SUBPATHS`). */
 const HEAVY_SUBPATHS = ["three/*", "@react-three/fiber/*", "gsap/*", "@gsap/react/*"];
 /** The site's own modules that carry them (eslint.config.mjs `HEAVY_MODULES_REGEX`). */
-const HEAVY_MODULES = ["three/runtime", "SceneCanvas", "SceneWorld", "SceneDirector", "IntroScene", "IntroDirector"];
+const HEAVY_MODULES = ["three/runtime", "SceneCanvas", "SceneWorld", "SceneDirector"];
 const HEAVY_MODULE_PATTERN = new RegExp(`(^|/)(${HEAVY_MODULES.join("|")})(\\.(tsx?|jsx?|mjs))?$`);
 
 function isHeavy(specifier: string): boolean {
@@ -145,7 +140,7 @@ describe("interior stage — lazy heavy libraries", () => {
       "@/components/scene/SceneDirector",
     ]);
     expect(staticHeavyImports(`import { SceneWorld } from "../scene/SceneWorld";`)).toEqual(["../scene/SceneWorld"]);
-    expect(staticHeavyImports(`export { IntroDirector } from "./IntroDirector.tsx";`)).toEqual(["./IntroDirector.tsx"]);
+    expect(staticHeavyImports(`export { SceneDirector } from "./SceneDirector.tsx";`)).toEqual(["./SceneDirector.tsx"]);
     // …but not a module that merely shares a prefix, a type-only import, or an import().
     expect(staticHeavyImports(`import { x } from "three-stdlib-free";`)).toEqual([]);
     expect(staticHeavyImports(`import { x } from "@/lib/SceneCanvasProps";`)).toEqual([]);

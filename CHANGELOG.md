@@ -16,6 +16,41 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-28 — Changed: temă albă, fără animația de la intrare, texte de vânzare (StoryBrand + SEO)
+
+- **Changed — temă albă (light only):** o singură paletă, deschisă, fără comutator. Valorile
+  aprobate de client (`--bg` #f4f7ff, `--txt` #10172a, `--mut` #586784, `--line` #dbe3f1, carduri
+  albe), restaurate din istoricul de dinainte de `58b18ee`; `color-scheme: light`, `themeColor`
+  #f4f7ff. `--dim` = #586784 (vechiul #6b7891 pica AA pe alb). Scenele 3D rămân toate; desenează
+  în ramura „ink” (`uInk` = 1, blending „over”, tonurile `--blue-text` / `--red-text`), aleasă din
+  luminanța `--bg`. Scara `--dark-*` (citită doar de intro) a fost scoasă. Blocurile `--ink` și
+  `--scrim` rămân închise intenționat. Doar culori: nicio animație sau scenă schimbată.
+  Singura excepție, la cererea lui Ivan: holograma proiectului de lângă spirala din Work stă
+  pe un panou închis (`--ink`, 0.92) și se desenează în „glow”, ca pe tema închisă — pe alb, în
+  ink, captura ieșea ca un negativ șters și nu se citea. Panoul e copil al hologramei, deci
+  urmează deschiderea, glitch-ul, ieșirea și înclinarea ei.
+- **Removed — animația de la intrare:** intro-ul 3D cu laptopul (`components/intro/**`,
+  `lib/intro.ts`, cookie-ul `tbs_intro`, header-ul `x-intro` din `proxy.ts`) și coperta de
+  încărcare pe tot ecranul (`PageLoading`, `BootCore`). Pagina apare imediat; bannerul de cookie,
+  HUD-ul, asistentul și scena 3D nu mai așteaptă intro-ul. **Toate celelalte animații și scenele
+  3D (cipul din hero, serviciile, spirala proiectelor, panourile, trail-ul, GSAP) sunt neatinse.**
+- **Changed — texte (Marketing Made Simple / StoryBrand):** pagina urmează wireframe-ul cărții:
+  Hero → Problema (`Stakes`, nou) → Direcții → Proiecte / De ce TBS / Echipa → Planul în 3 pași →
+  Paragraful explicativ (`Explainer`, nou, SEO) → Cererea cu prețul → Footer. Un singur CTA direct
+  („Cere ofertă”). Hero: „Site-uri, aplicații și MVP cu buget mic.” La cererea lui Ivan au fost
+  scoase subtitlul din hero, rândul de sub butoanele hero și textul introductiv de la Direcții.
+  SEO: `meta.title` ≤ 60 caractere cu cuvântul cheie, `meta.description` 140–160, titluri de
+  servicii keyword-first („<serviciu> | TBS Digital”). În ro/ru/en.
+- **Docs:** [04 — Design system](./docs/04-design-system.md) (Light only, 3D în ink),
+  [05 — Page sections](./docs/05-page-sections.md) (ordinea wireframe, Stakes, Explainer),
+  [16 — i18n & SEO](./docs/16-i18n-seo.md) (Copy framework); mențiunile intro-ului scoase din
+  docs/02, 03, 07, 09, 11, 14, `SECURITY.md`, `README.md`, `e2e/README.md`.
+- **Files:** `app/globals.css`, `app/tailwind.css`, `app/layout.tsx` (viewport),
+  `app/(site)/layout.tsx`, `app/(site)/page.tsx`, `proxy.ts`, `components/**/*.module.css`,
+  `components/scene/three/palette.ts`, `components/scene/SceneStage.tsx` (doar cuplajul cu
+  intro-ul), `components/sections/*` (+ `Stakes`, `Explainer`), `components/ui/CookieConsent.tsx`,
+  `components/hud/**`, `lib/i18n/messages/*`, `lib/solutions.ts`, teste unitare și e2e aferente.
+
 ## 2026-10-19 — Added: fiecare lead nou ajunge și în CRM (Nexa CRM)
 
 - **Added:** fiecare cerere nouă din formularul de contact este trimisă și în CRM-ul companiei

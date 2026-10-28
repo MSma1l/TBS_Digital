@@ -14,13 +14,6 @@ import { Directions } from "@/components/sections/Directions";
 import { Hero } from "@/components/sections/Hero";
 import { Ticker } from "@/components/sections/Ticker";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
-import {
-  INTRO_OVERLAY_ID,
-  INTRO_REVEAL_ATTR,
-  INTRO_REVEAL_ORDER,
-  markIntroGone,
-  resetIntroForTests,
-} from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import {
   GPU_PROBE_CACHE_KEY,
@@ -104,12 +97,6 @@ vi.mock("@/components/scene/SceneCanvas", async () => {
   }
   return { SceneCanvas };
 });
-
-/* The stage loads its canvas through the shared 3D runtime (components/three/runtime.tsx),
-   which also re-exports the intro's scene. Without this, the first import in the file would
-   evaluate the real IntroScene — three.js and R3F — and eat the 1s budget of the timing
-   assertions under a loaded CPU. */
-vi.mock("@/components/intro/IntroScene", () => ({ IntroScene: () => null }));
 
 vi.mock("@/components/scene/SceneDirector", async () => {
   h.importLog.push("director:requested");
@@ -199,7 +186,6 @@ function renderStage(children: ReactNode = <p>page</p>) {
 }
 
 beforeEach(() => {
-  resetIntroForTests();
   resetSceneForTests();
   sessionStorage.clear();
   localStorage.clear();
@@ -226,7 +212,6 @@ afterEach(() => {
   for (const key of ["hardwareConcurrency", "deviceMemory", "connection"]) {
     Reflect.deleteProperty(navigator, key);
   }
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
 });
 
 /* ---- 1. everything before a chunk is requested ----------------------------------------- */
@@ -294,9 +279,9 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
   });
 
   it("a stage MOUNTED on the client answers the gates in its first commit — never pending", () => {
-    /* A client navigation mounts the stage instead of hydrating it, and `pending` raises the
-       full-window cover in one frame (PageLoading.module.css): a stage that settled only in its
-       effect would flash that cover on every click, for exactly the visitors with nothing to load.
+    /* A client navigation mounts the stage instead of hydrating it: a stage that settled only in
+       its effect would show `pending` for a frame on every click, for exactly the visitors with
+       nothing to load.
        A child's layout effect runs in the commit, before the stage's own effect: what it reads is
        what that first frame painted. */
     capableBrowser();
@@ -383,51 +368,11 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(h.probeImported).toBe(false);
   });
 
-  it("under an intro that will get the art: one warm slot, which loads nothing, then the full wait", () => {
-    capableBrowser();
-    /* Software: the answer is already "no WebGL", so the warm slot fires and asks for NOTHING.
-       That is what keeps this test in the first describe — a chunk imported here would break the
-       "never requested" guard above. */
-    seedCache({ strict: { context: true, software: true } });
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-
-    renderStage();
-    expect(attr("data-renderer")).toBe("pending");
-    // The stage schedules its warm-up behind the film, and nothing else.
-    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
-    runIdle();
-    expect(h.importLog).toEqual([]);
-
-    // Still attached: marking it gone is a no-op.
-    act(() => markIntroGone());
-    expect(pendingIdle()).toHaveLength(0);
-
-    overlay.remove();
-    act(() => markIntroGone());
-    // Nothing was warmed, so the settle is still owed.
-    expect(pendingIdle().map((entry) => entry.ms)).toEqual([
-      SCENE_TIMING.IDLE_TIMEOUT_MS + SCENE_TIMING.AFTER_INTRO_MS,
-    ]);
-    runIdle();
-    expect([attr("data-renderer"), attr("data-reason")]).toEqual(["fallback", "software"]);
-  });
-
-  it("an unmount cancels the wait; so does leaving before the intro is gone", () => {
+  it("an unmount cancels the wait", () => {
     capableBrowser();
     const view = renderStage();
     expect(pendingIdle()).toHaveLength(1);
     view.unmount();
-    expect(pendingIdle()).toHaveLength(0);
-
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-    const behindIntro = renderStage();
-    behindIntro.unmount();
-    overlay.remove();
-    act(() => markIntroGone());
     expect(pendingIdle()).toHaveLength(0);
   });
 
@@ -486,11 +431,6 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
         </LanguageProvider>,
       );
 
-      for (const target of INTRO_REVEAL_ORDER) {
-        const markers = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${target}"]`);
-        expect(markers, target).toHaveLength(1);
-        expect(markers[0].hasAttribute("style"), target).toBe(false);
-      }
       expect(document.querySelectorAll("h1")).toHaveLength(1);
 
       const layer = stage().querySelector<HTMLElement>("[data-scene-layer]")!;
@@ -579,33 +519,6 @@ describe("SceneStage — the WebGL path", () => {
     expect(attr("data-reason")).toBeNull();
     expect(attr("data-paused")).toBe("false");
     expect(attr("data-scroll-fx")).toBe("off");
-  });
-
-  /* The 5.6s the owner reported were mostly this wait. If it ever collapses back to
-     IDLE_TIMEOUT_MS + AFTER_INTRO_MS the site is slow again after every intro, silently. */
-  it("warmed behind the intro: the chunks are asked for under the film, and only the context wait is left", async () => {
-    capableBrowser();
-    seedCache({ strict: { context: true, software: false } });
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-
-    renderStage();
-    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
-
-    // Under the film: both chunks requested, and no probe and no canvas with them.
-    runIdle();
-    await waitFor(() => expect(h.importLog).toContain("director:requested"));
-    expect(h.importLog).toContain("canvas:requested");
-    expect(h.probeModes).toEqual([]);
-    expect(h.canvasMounts).toBe(0);
-    expect(attr("data-renderer")).toBe("pending");
-
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(pendingIdle().map((entry) => entry.ms)).toEqual([SCENE_TIMING.AFTER_INTRO_MS]);
-    runIdle();
-    await waitFor(() => expect(h.canvasMounts).toBe(1));
   });
 
   it("a session miss probes, then loads", async () => {

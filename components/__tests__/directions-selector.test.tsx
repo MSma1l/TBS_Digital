@@ -125,13 +125,13 @@ describe("direction selector — the preview follows the selection", () => {
 
     // first direction
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează ideea înainte să construiești tot produsul");
-    expect(screen.getByText("Ipoteză și public")).toBeInTheDocument();
+    expect(screen.getByText("Ideea și publicul")).toBeInTheDocument();
 
     fireEvent.click(links[4]); // Brand & UI
 
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează mesajul și experiența înainte de o schimbare mare");
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Clienții trebuie să înțeleagă din prima ce oferi");
     expect(screen.getByText("Design system")).toBeInTheDocument();
-    expect(screen.queryByText("Ipoteză și public")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ideea și publicul")).not.toBeInTheDocument();
   });
 
   it("keeps the short description visible for every direction", () => {

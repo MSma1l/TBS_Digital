@@ -12,7 +12,7 @@ so the data source can change without touching markup.
 ```
 /
 ├─ proxy.ts                # Next 16 Proxy (ex-Middleware): per-request CSP nonce
-│                          #   + x-locale / x-pathname / x-intro headers for the layouts
+│                          #   + x-locale / x-pathname headers for the layouts
 ├─ next.config.ts          # standalone output, security headers, /ru + /en rewrites; the image
 │                          #   optimiser pinned to /projects/* (q 75, 64–256px, 50 MB cache)
 ├─ postcss.config.mjs      # loads only @tailwindcss/postcss (Lightning CSS does the prefixing)
@@ -28,8 +28,7 @@ so the data source can change without touching markup.
 │  ├─ opengraph-image.tsx  # Generated OG image
 │  ├─ twitter-image.tsx    # Generated Twitter card image
 │  ├─ (site)/              # Route group for the public site (no URL segment)
-│  │  ├─ layout.tsx        # Chrome: the intro gate (IntroPreloader, first child), ScrollProgress,
-│  │  │                    #   Navbar, Footer, HudChrome (the HUD's one mount, renders nothing
+│  │  ├─ layout.tsx        # Chrome: ScrollProgress, Navbar, Footer, HudChrome (the HUD's one mount, renders nothing
 │  │  │                    #   until armed), CookieConsent, AnalyticsPixel (consent-gated);
 │  │  │                    #   imports ../tailwind.css
 │  │  ├─ page.tsx          # Landing page: <SceneStage> around Hero → Ticker → Directions → Work
@@ -43,32 +42,18 @@ so the data source can change without touching markup.
 │     └─ admin.module.css
 │
 ├─ components/
-│  ├─ intro/               # First-visit preloader — see "The first-visit intro" below
-│  │  ├─ IntroPreloader.tsx + .module.css  # tier 1, the shell: server-rendered overlay, the one
-│  │  │                    #   post-hydration decision, skip inputs, scroll lock, watchdog
-│  │  ├─ IntroFallback.tsx # the static SVG machine, CSS-only (no WebGL, before hydration — and
-│  │  │                    #   beats 1-2 of the film on every device)
-│  │  ├─ IntroDirector.tsx # tier 2 (GSAP): progress, burst, page entrance, scene lifecycle
-│  │  ├─ IntroScene.tsx · IntroLaptop.tsx · OrbitParticles.tsx    # tier 3 (three + R3F), reached
-│  │  │                    #   only through components/three/runtime.tsx
-│  │  ├─ capability.ts     # the intro's gates, then the shared GPU probe; tiers.ts: TIER_CONFIG
-│  │  ├─ flight.ts · fx.ts # pure: progress → the camera's flight; the director ↔ scene contract
-│  │  └─ three/            # imperative three.js, no React: cameraPath (the six-key shot list and
-│  │                       #   the machine's measurements) · laptop · edge · materials ·
-│  │                       #   environment (procedural PMREM) · particles · rig (camera, sway,
-│  │                       #   governor) · random — re-exporting what moved to components/three/
-│  ├─ three/               # 3D helpers shared by the intro and the interior scene — no scene of
+│  ├─ three/               # 3D helpers for the interior scene — no scene of
 │  │  │                    #   their own (see "The interior stage" below)
-│  │  ├─ runtime.tsx       # THE lazy entry for three.js + R3F: re-exports IntroScene and
+│  │  ├─ runtime.tsx       # THE lazy entry for three.js + R3F: re-exports
 │  │  │                    #   SceneCanvas; only ever import()ed, never statically
 │  │  ├─ capability.ts     # the site's one GPU probe (no three.js), DPR clamp
 │  │  ├─ renderer.ts · hooks.ts   # create / compile / retain / release the WebGLRenderer
 │  │  ├─ governor.ts       # the FPS governor (dpr → lite, and the interior's opt-in bail)
 │  │  ├─ environment.ts    # procedural PMREM (its programs linked in parallel before the pre-filter)
 │  │  │                    #   + the transmission clear (colour-space compensated);
-│  │  │                    #   the intro's glass only — the interior has no environment since the chip
+│  │  │                    #   unused — the interior has no environment since the chip
 │  │  ├─ motion.ts · random.ts · palette.ts · glow.ts
-│  │  └─ RenderErrorBoundary.tsx  # catches a render error in either scene (was IntroErrorBoundary)
+│  │  └─ RenderErrorBoundary.tsx  # catches a render error in either scene 
 │  ├─ scene/               # the interior stage (home page only)
 │  │  ├─ SceneStage.tsx    # Tailwind; the stage wrapper, the loading pipeline, pause, attributes
 │  │  ├─ SceneCanvas.tsx · SceneWorld.tsx   # the R3F canvas and world (three + R3F, lazy)
@@ -104,7 +89,7 @@ so the data source can change without touching markup.
 │  ├─ fx/                  # DOM hooks: useOffscreenAttribute (data-offscreen) · usePointerTilt
 │  ├─ hud/                 # the IT-OS HUD chrome: HudChrome.tsx, its one mount (in the (site)
 │  │  │                    #   layout since Phase 4) — gate (tbs_hud ≠ off → consent → first
-│  │  │                    #   interaction → intro gone → idle), then its lazy parts in one commit.
+│  │  │                    #   interaction → idle), then its lazy parts in one commit.
 │  │  │                    #   CSS Modules only; lucide-react may be imported only here
 │  │  ├─ guide/            # the corner assistant (a next/dynamic part, every width):
 │  │  │                    #   GuideAssistant.tsx + .module.css, copy.ts (GUIDE_COPY, GUIDE_FAQ),
@@ -151,17 +136,14 @@ so the data source can change without touching markup.
 │  │                       #   measured), the pulse's timing; pure, no DOM
 │  ├─ siteDemo.ts          # a project's interactive demo: the manifest's contract and strict reader,
 │  │                       #   deep links that never leave the project's site, the Back history; pure
-│  ├─ intro.ts             # The intro contract: cookie, events (tbs:intro-done, tbs:intro-gone),
-│  │                       #   overlay id, timings, reveal targets, shouldPlayIntro / finishIntro /
-│  │                       #   onIntroDone / onIntroGone (no DOM at import)
 │  ├─ clock.ts             # SYS_TIME: Chișinău time + real UTC offset, one shared 500ms store
-│  ├─ scrollLock.ts        # Reference-counted <html> scroll lock (burger menu + intro) and the
+│  ├─ scrollLock.ts        # Reference-counted <html> scroll lock (burger menu) and the
 │  │                       #   page cover (coverPage, tbs:page-cover), held by every lock
 │  ├─ scene.ts             # The interior stage contract: QA flag, gates, data-* names, directions →
 │  │                       #   models, the page → scene input store, the scroll probe; Work's
 │  │                       #   WORK_TRACK_ATTR, SceneHelixMode / SceneHelix, SCENE_LAYOUT_EVENT
 │  ├─ gpuProbe.ts          # The GPU probe's session cache (tbs_gpu_probe) + decideWebGL; no imports
-│  ├─ device.ts            # Device profile, detectTier (intro), detectSceneTier (interior)
+│  ├─ device.ts            # Device profile, detectSceneTier (interior)
 │  ├─ idle.ts              # afterIdle: visible-time delay + an idle slot
 │  ├─ tapIntent.ts         # first tap opens, second navigates (header dropdowns, direction pills)
 │  ├─ tilt.ts · hologram.ts  # pure tilt maths; the stat holograms' edges and rings
@@ -209,93 +191,14 @@ nonce and locale (see `proxy.ts`). It also stamps `data-theme` on `<html>` for e
 the admin included: the visitor's `tbs_theme` cookie if it says `light`, otherwise the dark
 default (`lib/theme/theme.ts`).
 
-## The first-visit intro
-
-A full-screen HUD preloader plays on every **hard load of the home page** — a six-beat camera
-flight through a laptop, from the processor die to the display. Behaviour, phases and bypass
-rules are in [05 — Page Sections](./05-page-sections.md); this is how it is wired.
-
-### The gate — `app/(site)/layout.tsx`
-
-```ts
-shouldPlayIntro(
-  requestHeaders.get("x-pathname"),
-  (await cookies()).get(INTRO_COOKIE)?.value,
-  requestHeaders.get(INTRO_HEADER),
-)
-// true only for x-pathname === "/" (proxy.ts strips /ru and /en, so they count), no
-// tbs_intro_skip=seen cookie, and no `x-intro: skip` (proxy.ts sets it for a URL from an ad)
-```
-
-> **The site never writes that cookie** (`lib/intro.ts`): the intro used to play once per
-> browser session, which reads as broken on a reload. It is only *honoured*, so the E2E suite
-> (and QA) can seed it and skip the overlay; `finishIntro` clears the old `tbs_intro` name a
-> browser may still be carrying.
-
-> **`x-pathname` is what makes the gate work, so every document request must reach the proxy**
-> (2026-09-25). `proxy.ts`'s matcher used to copy Next's CSP recipe verbatim and skip any request
+> **Every document request must reach the proxy** (2026-09-25), or it is served with no
+> `x-pathname`. `proxy.ts`'s matcher used to copy Next's CSP recipe verbatim and skip any request
 > carrying the legacy `Purpose: prefetch` header. That header is a BROWSER's, not this Next
 > version's router (which sends `next-router-prefetch` alone), and Chrome sends it when it
 > preloads a URL it predicted from its own history — so the visitor who comes back most often was
-> served a document with no `x-pathname`: no intro, no self-canonical, and no CSP header. The
+> served a document with no `x-pathname`: no self-canonical, and no CSP header. The
 > matcher now skips the router's RSC prefetch and nothing else
 > (`app/__tests__/proxy-matcher.test.ts` pins it).
-
-When it is true the layout renders, as its **first children**, a `<noscript><style>` that
-hides `#tbs-intro` and `<IntroPreloader />`. Why the layout and not `page.tsx`:
-
-- **A layout is not re-rendered on client navigation inside its group**, so the overlay only
-  ever comes from a hard load — never after `/servicii/x` → Home, never on a Back into the
-  router cache.
-- A client navigation **into** the `(site)` group from outside it (the admin's "view site"
-  link) does render the layout fresh, gate and all. The shell therefore only acts when it is
-  hydrating server HTML (`useSyncExternalStore`'s server snapshot, frozen at mount); a
-  client-rendered mount renders nothing, sets no cookie and fires no event.
-- Being first in the DOM makes its skip button the first Tab stop.
-- Unit tests don't render layouts, so no component test sees an overlay.
-
-### Three loading tiers
-
-```
-(site)/layout.tsx ─► IntroPreloader  (client; server-rendered; no GSAP, no three.js)
-                       │  after hydration, decision = "run":
-                       ├─► import("./capability")  (~1 KB chunk) → probeIntroCapability()
-                       │     └─ webgl? ─► import("@/components/three/runtime")  (three + R3F, warms the cache)
-                       └─► next/dynamic ssr:false ► IntroDirector (gsap, @gsap/react)
-                                                      └─ next/dynamic ssr:false ► runtime → IntroScene
-```
-
-- **Any page but `/`** — and any client navigation, and anyone carrying the skip cookie — gets
-  no overlay from the server and downloads neither GSAP nor three.js; reduced motion bypasses
-  before the director is ever requested.
-- The shell probes the device **once** and passes the answer to the director as its
-  `capability` prop (the probe itself is the site's shared one, `components/three/capability.ts`,
-  and its answer is cached for the tab in `sessionStorage.tbs_gpu_probe`, which the interior stage
-  reads too). When WebGL is usable it requests the three.js chunk itself — the shared
-  `components/three/runtime.tsx`, the interior stage's target too — in the same tick as the
-  director, so the scene never waits for the director to download, run and render
-  first; the director's own `dynamic()` then resolves from the module cache. (The director
-  chunk is deliberately not requested before the probe: Turbopack gives that import its own
-  chunk group and duplicates `capability.ts` into it.)
-- `next/dynamic` with `ssr: false` only code-splits from a Client Component, which is why the
-  shell is `"use client"` and owns the first `dynamic()` call.
-- The shell's CSS Module is merged into the render-blocking layout CSS of every `(site)` page,
-  whether or not an overlay renders — the cost of gating in the layout, and part of the
-  returning-visitor weight budget recorded in `CHANGELOG.md`.
-
-### Who owns what
-
-| Piece | Owns |
-|-------|------|
-| `lib/intro.ts` | Names and timings (`INTRO_TIMING`, incl. `LATE_SCENE_GOAL`), the drawing's scrub channel (`FB_PROGRESS_PROP`), the reveal targets (`INTRO_REVEAL_ORDER`), the server gate, and the one "done" signal: `finishIntro({ played })` clears the legacy cookie and dispatches the event, idempotently, behind a module flag |
-| `IntroPreloader` (shell) | The overlay markup, the post-hydration decision (bypass or run), scroll lock, skip inputs, the visibility-aware watchdog, the safety-net unmounts |
-| `IntroDirector` | Progress, the burst, the page entrance (GSAP writes straight to the DOM, never React state per frame), the scene's lifecycle. It scrubs **both** renderers off the same progress: `fx.flight` for 3D, `--fb-p` on the drawing |
-| `intro/flight.ts` | `FLIGHT_MAP` / `flightFromProgress` — progress → the camera's flight, a monotone cubic through the table's rows (piecewise-linear put a 79% speed corner at progress 0.86). Its own tiny module because the director needs it on the no-WebGL path, where the three.js chunk is never loaded |
-| `three/cameraPath.ts` | The shot list (`FLIGHT_KEYS`, eight frames — K3 is the run down the cavity past the guts and K4 the rise through the keyboard, which together keep the camera inside the machine to `u` 0.602), `cameraAt`, the lid and screen ramps, **and `INTRO_LAPTOP`, the machine's measurements** — `three/laptop.ts` imports them rather than re-declaring them, so the flight and the object cannot drift apart. `import type` only: no three.js, so the whole flight is unit-tested without a GL context |
-| `IntroScene` + `three/*` | Drawing; reports `onReady` / `onLost` and never touches the page |
-
-Every part the director drives is found under the overlay by `data-part`; every entrance
-target on the page by `data-intro-reveal`.
 
 ## The interior stage
 
@@ -345,8 +248,7 @@ rules in [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage
 SceneStage (client, in the page bundle — no three.js, no GSAP)
   mount ─ readSceneFlag · detectSceneTier(readDeviceProfile()) · readMotionGate()
   │         off (flag, reduced-motion, save-data, network) │ fallback (unsupported, low-tier) │ wait
-  ├─ under an intro ─► afterIdle(2500ms) ─► warm: readGpuFacts → both import()s, behind the film
-  └─ onIntroGone ─► afterIdle(warmed ? 600ms : 1500ms of visible time [+600ms] + an idle slot)
+  └─ afterIdle(1500ms of visible time + an idle slot)  (SCENE_TIMING.IDLE_TIMEOUT_MS)
         └─ readGpuFacts(mode)  ← sessionStorage.tbs_gpu_probe
              └─ none cached ─► import("@/components/three/capability") → probeGpu(mode)
         └─ decideWebGL(facts, force) ─► fallback(reasonFor) │ loading, in ONE commit:
@@ -361,8 +263,7 @@ SceneStage (client, in the page bundle — no three.js, no GSAP)
   its effect. A stage that MOUNTS on the client — a navigation from another page, a Back — reads
   the same line (`readEntry()`) in its first render instead, told apart by a
   `useSyncExternalStore` that answers from its server snapshot only while React hydrates. A device
-  the gates settle (off, fallback) therefore never renders `pending` on a client navigation, so
-  the loading cover, which now comes up in one frame (below), cannot flash for it. The line is
+  the gates settle (off, fallback) therefore never renders `pending` on a client navigation. The line is
   read ONCE per mount (`mountEntry`, reused by the effect): read in the render and again in the
   effect, a gate closing in between left the state at `waiting` with the pipeline skipped —
   `pending` for good. A gate that closes after the read is still caught when `decide()` re-reads it.
@@ -370,22 +271,9 @@ SceneStage (client, in the page bundle — no three.js, no GSAP)
   the low tier and a slow device are all accepted, and the governor never bails), else `strict`
   (`failIfMajorPerformanceCaveat`, software renderers refused).
 - **One three.js chunk for the whole site.** `components/three/runtime.tsx` re-exports
-  `IntroScene` and `SceneCanvas` and is the only `import()` target either scene is reached
-  through. Turbopack builds a chunk group per `import()` target and shares no vendor chunk
-  between groups, so two targets had shipped two byte-identical copies of three + R3F; a first
-  visitor who downloaded it for the intro now gets it from cache for the stage.
-- The delay after an intro is the time R3F takes to release the intro's context: the two scenes
-  never hold a WebGL context at once.
-- **The stage gets ready behind the film** (`SCENE_TIMING.WARM_MS`, 2500 ms into an intro). It
-  fetches its two chunks there — the shared runtime, usually already in cache because the intro
-  took the same `import()` target, and the director's own GSAP + ScrollTrigger group, which is
-  not shared. It reads the GPU answer out of the session cache and **never probes**: a second
-  live context under the film is the thing this avoids. No cached answer, or an answer that ends
-  on the static art, and it warms nothing.
-  A warmed stage then waits only for the context (600 ms) instead of the 1500 ms settle as well
-  — that settle exists so chunk requests never compete with the first paint, hydration or a first
-  tap, and none of those is still happening eight seconds into a film. Measured on a cold load at
-  1440×900: the canvas mounted at 12.11 s before this, 10.2 s after.
+  `SceneCanvas` and is the only `import()` target the scene is reached through. Turbopack builds
+  a chunk group per `import()` target and shares no vendor chunk between groups, so a second
+  target would ship a second byte-identical copy of three + R3F.
 - **Runtime transitions** (all for the mounted attempt only): reduced motion switched on → `off`
   for the visit; a context lost while visible, or a governor bail → `fallback` for the rest of
   the session (`markGpu("lost" | "slow")` in the probe cache); a context lost while the tab is
@@ -398,7 +286,7 @@ SceneStage (client, in the page bundle — no three.js, no GSAP)
 
 | `data-renderer` | When | `data-reason` |
 |-----------------|------|---------------|
-| `pending` | the server render, waiting for the intro / idle / probe, loading, a hidden-tab retry | — |
+| `pending` | the server render, waiting for idle / probe, loading, a hidden-tab retry | — |
 | `off` | `tbs_scene_3d=off`, reduced motion, Save-Data, a 2G connection | `flag` · `reduced-motion` · `save-data` · `network` |
 | `fallback` | no `ResizeObserver`, the low tier, the probe said no, a lost context, a bail, an error | `unsupported` · `low-tier` · `no-context` · `software` · `lost` · `slow` · `error` |
 | `webgl` | the scene drew and the director measured, for the same attempt | — |
@@ -453,7 +341,7 @@ mode, the card nearest the band's middle).
   source is active; `waveSeq` counts only the 0 → 1 edges, so moving between the two CTAs never
   starts a second light wave. The scene reads it every frame; the stage subscribes and toggles
   `data-boost`, which the static art's wave keys off. A module store, not a `window` event.
-- **`tbs:intro-gone`** (`lib/intro.ts`) and **`tbs:page-cover`** (`lib/scrollLock.ts`) — see
+- **`tbs:page-cover`** (`lib/scrollLock.ts`) — see
   [Data flow](#data-flow) below.
 - **The scene's fx** (`fx.ts`, one per canvas) — the tilt targets the listeners write, what the
   world smooths every frame, the services entry gate (`fx.entry`), the Work gate (`fx.work`), and
@@ -482,7 +370,7 @@ mode, the card nearest the band's middle).
   the plasma die top (P2); lines (P4) for the vias, bevel, pin-1 notch and die grid; flat trace
   ribbons carrying packets (P5); a square light wave (P4) only while a boost wave runs. The
   interior has **no** transmission glass, frost shader, PMREM environment or transmission pass any
-  more — `components/three/environment.ts` stays for the intro. Draws per frame at the top of `/`:
+  more. Draws per frame at the top of `/`:
   4 (the glass core drew 10 on high, 8 on mid).
 - **Geometry lives in `shapes.ts`** (`CHIP`, `CHIP_POSE`, `chipTraces(perSide)`,
   `chipPins(perSide)`), shared by the WebGL chip and the static art (`art/heroArt.ts`, one
@@ -498,10 +386,9 @@ mode, the card nearest the band's middle).
   (render order 9, no depth test), and only while a segment is still fading (`TRAIL.life` 0.9s).
   Per frame only its uniforms and transform change; a pause over 0.35s or a jump over 12 cells
   starts a new chain without a segment.
-- **Decision record (D-I).** The hero no longer shares geometry with the intro: the old core's
-  rings were tied to the intro's orbits (`RING_TILTS` / `RING_OMEGA` ≡ the intro's `ORBITS`, pinned
-  by a unit test). `CORE`, `RING_TILTS`, `RING_OMEGA` and that test are gone; the intro keeps its own
-  `ORBITS` in `components/intro/`.
+- **Decision record (D-I).** The old core's rings (`CORE`, `RING_TILTS`, `RING_OMEGA`) and the
+  unit test that tied them to another scene's orbits are gone; the chip shares no geometry outside
+  `shapes.ts`.
 
 ### The static illustration is the fallback, not a preamble
 
@@ -535,101 +422,7 @@ Decorative and `aria-hidden` with no `label`; a `role="status"` live region with
 `common.loading`). `components/scene/art/SceneLoading.tsx` is the thin wrapper that owns WHEN a
 scene host shows it — the mark knows nothing about the scene.
 
-### The full-window cover, and the object on it
-
-A mark in the corner of a box is the right answer for one host. It is the wrong answer for a whole
-page that is still assembling itself, so a page with a scene is covered outright:
-`components/ui/PageLoading.tsx`, the site's background and its perspective grid over the whole
-viewport.
-
-**When it is up.** Only while the stage carries `data-cover` — while `data-renderer` is `pending`
-and the stage has not left the window since it mounted — **and only on a load with no intro**.
-`pending` is the server's value too, so the cover is painted on the very first frame and nobody
-watches the page build itself; `webgl`, `fallback` and `off` are all answers and any of them takes
-it down. So does the stage leaving the window while it is still deciding, for the rest of that
-mount (2026-10-03): a `/#echipa` link from a service page lands below the stage, which is paused
-there, never draws, and so never answered — the cover sat over the Team section until its 6 s
-failsafe. It is matched from the root
-with `html:has([data-scene-stage][data-cover])` rather than as an ancestor, because
-`SceneStage` is `isolate`: anything rendered inside it is z-scoped to the stage, and the header
-(120) and the cookie banner (280) would paint straight over a cover that lived there. It is
-mounted in `app/(site)/layout.tsx` instead, at `--z-page-loading: 350`. A page with no stage never
-matches and never raises it.
-
-**It comes up in one frame and goes down with a fade** (2026-10-02). On a hard load nothing
-changes: there is no earlier style to transition from. On a CLIENT navigation (a service page →
-Home) the layout and the cover survive and the new page's stage mounts at `pending`; the cover
-used to fade IN over 450 ms, and the page it exists to hide showed through it first — the owner's
-"pe 0,2 s imi apare home, dupa loadingul", measured as Home committed with the cover still at
-opacity 0. The raise rule now has `transition: none`, so the new page and the raised cover are the
-same style change; the base rule keeps the 450 ms fade out. Devices whose stage never waits do not
-reach `pending` on a client mount at all (loading pipeline, above), so the snap cannot flash for
-them.
-
-**It blocks the page, so it carries a failsafe.** A `forwards` animation at 6 s takes it down
-whatever the stage is doing. Every one of the stage's own paths is far shorter, so that only fires
-on a genuine fault — a chunk that never arrived, a probe that threw where no boundary caught it —
-and without it that fault would leave a visitor on a blank screen with no way past. The
-`<noscript>` rule beside the drawings' one removes the cover outright, because with no JavaScript
-no answer ever comes. **Never after an intro** (2026-09-26). An intro is already a full-window cover with its own clock
-and its own skip, so `html:has(#tbs-intro)` stands this one down while it plays — and
-`html[data-intro-played]`, written on `<html>` by `finishIntro` on the frame of the reveal, keeps
-it down for the rest of the document. The owner reported the alternative: measured on a cold load,
-the film revealed the page at 8.19 s and this cover was up from 8.21 s to 13.80 s — 5.6 seconds of
-BootCore over a page photographed, with the cover forced down, as finished (header, title, lead,
-both CTAs, the static hero art, both stat cards). It used to stand down only until the reveal
-BEGAN, to close a 1236 ms window in which the page showed between the two covers; with no second
-cover there is no second handover to flicker between. A bypassed intro sets nothing and keeps the
-cover it always had. The trade is LCP: an opaque cover over the hero means the largest contentful
-paint is not counted until it lifts, and that is accepted in exchange for never showing a
-half-rendered page.
-
-**Down, its loops rest** (2026-10-07): `visibility: hidden` stopped the paint but not BootCore's
-thirteen animations, which restyled the page every frame for the whole visit, on every page. The
-cover now pauses them once its fade-out has ended (a discrete transition of `--boot-play`, see
-docs/07 "An invisible loop is still a running loop"), and runs them from the first raised frame,
-continuing from the phase they held. A scene host's loading mark rests the same way, and behind the
-intro's film.
-
-**What is on it is `components/ui/BootCore.tsx` — the site's own processor, in exploded view,
-turning.** Not a spinner and not an invented shape: every measurement is `CHIP` from
-`components/scene/shapes.ts`, the object the hero draws and the intro flies out of. A board at 2.3
-carrying a via field and routing that dog-legs out to its edges with square via pads at the turns;
-the substrate at 1.0 with pin runs down all four walls at `CHIP.pinGap`, stopping short of the
-corners at `CHIP.pinSpan`, and four capacitor studs on its lid; the machined heat spreader at 0.68;
-the lit die at 0.34 with its 3×2 of cores. The stack fans apart and closes again — the scene's own
-gesture, the one `coreExitPose`'s `lift` is literally named the exploded view for — over the dashed
-footprint every model on this site stands on, along a red assembly axis that grows exactly as far
-as the die travels, inside four HUD brackets held in SCREEN space so the object turns inside its
-frame rather than with it.
-
-**Real 3D, in CSS, and every layer is a real box.** `perspective` on the stage, `preserve-3d` on
-the assembly, and each layer is a lid plus four walls at its true thickness rather than a plane —
-that is the whole difference between stacked paper and an object, because the walls take the turn
-with one side lit and one dark. Bottom faces are never built: the camera is above the tilt and
-would never see one. Thickness is exaggerated 2.6× the way any technical illustration exaggerates
-it, since at true scale a 0.08 substrate is under half a pixel of wall; the proportions between the
-layers stay the model's.
-
-Two details are worth keeping if this is ever redrawn. The routing is stroked **twice** — solid and
-faint so the board always reads as routed, then a short bright dash travelling the same path — 
-because a dash alone leaves scattered specks that read as dirt, not as traces. And the loop is
-built not to read as one: the turn is 8 s against a 3.4 s breath, which do not divide into each
-other, so the two never land together twice.
-
-**It is deliberately not WebGL, although it is a 3D model.** This is on screen at exactly the
-moment the scene's chunk and shaders own the main thread, and asking for a second GL context there
-is the worst thing that could be done. Transform and opacity only, so every frame belongs to the
-compositor. Under `prefers-reduced-motion` it settles into the composed pose the animations rest
-on — the stack half-open, the die lit, the object framed and turned off its axis. Under
-`forced-colors` it hides: flattening every one of those surfaces to one fill turns the object into
-a grey blob, and the cover keeps its background and simply shows nothing. The size follows the
-viewport (`clamp(24px, 6.2vmin, 66px)` on the unit), so a phone gets the same composition as a
-desktop. It is `aria-hidden`: the page underneath is server-rendered at full opacity and a screen
-reader can read it the whole time, exactly as it can under the intro overlay, and nothing here
-takes focus, so nobody is trapped behind it.
-
-**The Work track gets the same treatment, for the same reason.** Its cards are the portfolio, not a
+**The Work track gets a loader of its own.** Its cards are the portfolio, not a
 fallback — the scene re-places them rather than replacing them — but until `data-renderer` is
 `webgl` they sit as a flat grid, and meeting that grid and then watching it fold into the helix is
 the swap `HelixLoader.tsx` hides. While `pending`, the two strands draw themselves and the cards
@@ -643,7 +436,7 @@ only, so an `<svg>` child is excluded from the cards by construction.
 A visitor with no JavaScript never reaches a decision — `data-renderer` stays at the server's
 `pending` — so a `<noscript><style>` rule in `app/(site)/layout.tsx` shows the drawings
 unconditionally — and hides the loader, which would otherwise spin for ever on a decision that
-never comes. Same shape as the intro overlay's rule beside it. `[data-shape-art]` is the
+never comes. `[data-shape-art]` is the
 stable hook; the CSS-module class is hashed. A visitor whose GPU is refused reaches `fallback` or
 `off` and gets the drawing by the table above.
 
@@ -890,8 +683,7 @@ A bare render without the slot (unit tests) draws no illustration at all.
 
 The IT-OS HUD — the corner assistant (Phase 4) and the fibre scroll rail (Phase 5) now; the OS
 layer in a later phase — has **one mount**, `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />`
-and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget and "the intro's
-skip is the first Tab stop" both hold. Behaviour and limits are in
+and `<CookieConsent />`. After the footer in the DOM, so the header's tab budget holds. Behaviour and limits are in
 [05 — the fibre rail](./05-page-sections.md#the-fibre-rail); the visual contract in
 [04](./04-design-system.md#the-fibre-rail).
 
@@ -918,8 +710,7 @@ tip.
    `CONSENT_EVENT`, and that answer **is** the interaction, so step 3 is skipped;
 3. the visitor's first `HUD_ARM_EVENTS` event on `window` (`pointermove`, `pointerdown`, `wheel`,
    `scroll`, `keydown`, `touchstart`, `focusin`; passive, capture; removed the moment one fires);
-4. the intro overlay is gone (`onIntroGone`);
-5. an idle slot (`afterIdle(0)`).
+4. an idle slot (`afterIdle(0)`).
 
 Then, in one commit, it renders its `PARTS` — each a `next/dynamic(…, { ssr: false })` chunk: the
 assistant (`components/hud/guide/GuideAssistant.tsx`), at every width, and `ScrollRail`
@@ -931,7 +722,7 @@ alone, without re-rendering the mount or any other part. **Under 861px an armed 
 assistant alone.** A visitor who never interacts, never answers the banner, or carries
 `tbs_hud=off` downloads no part: the page bundle carries only `HudChrome` itself (+473 B gzip on
 `/` in Phase 4, +166 B more for the rail's reference and `DesktopOnly` in Phase 5; a service page
-paid +675 B, which did not already load `lib/idle` and `lib/intro`), and the parts arrive as late
+paid +675 B, which did not already load `lib/idle`), and the parts arrive as late
 chunks after arming (the B1h / B5h / B6h rows in `CHANGELOG.md`): on a viewport of 861px or more,
 the rail's JS is 3.4 KB gzip with a 1.4 KB CSS Module.
 
@@ -988,23 +779,15 @@ list — **services (+ prices), stats, team, projects, partners, contacts** — 
 add/remove-able, so a saved list fully replaces its default (see `mergeSiteData`); don't
 rely on merging by index/id.
 
-Five cross-section channels exist deliberately, all as `window` events, because the components
+Three cross-section channels exist deliberately, all as `window` events, because the components
 are siblings with no shared state:
 
 - `lib/estimatorBridge.ts` — a service card on `/03` pre-selects itself in the `/07`
   estimator and scrolls there.
 - `lib/consent.ts` — the cookie banner tells the analytics pixel the choice changed.
-- `lib/intro.ts` — `tbs:intro-done` (`{ played }`): the intro stopped covering the page
-  (played, skipped or bypassed). The cookie banner waits for it through `onIntroDone()`, which
-  calls back **synchronously** when no intro is pending, so every page without an overlay
-  behaves exactly as before.
-- `lib/intro.ts` — `tbs:intro-gone` (a plain `Event`, 2026-09-17): the overlay has left the DOM
-  (`markIntroGone()`, fired once, a no-op while `#tbs-intro` is still attached). The interior
-  stage starts its idle wait and GPU probe only after it, through `onIntroGone()`, which is
-  synchronous when nothing is on screen; `isIntroOnScreen()` reads the same state.
 - `lib/scrollLock.ts` — `tbs:page-cover` (a plain `Event`, 2026-09-17): something full-screen
   covers the page. `coverPage()` is reference-counted and fires only on the 0 ↔ 1 transitions;
-  `lockRootScroll()` (burger, intro) and `Modal`'s body lock each hold one cover while locked,
+  `lockRootScroll()` (burger) and `Modal`'s body lock each hold one cover while locked,
   and **release it last**, once the page's styles and scroll position are back — a listener that
   re-measures on release (the interior director) must find the page in place. Read with
   `isPageCovered()` / `subscribePageCover()`.

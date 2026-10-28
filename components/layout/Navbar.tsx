@@ -47,11 +47,6 @@ const FOCUS_RING_CLASSES =
  * desktop `<nav>`, then the actions — preferences, the CTA as the group's very next
  * sibling, the burger. Nothing is added to the phone row, which is measured to fit 320px.
  *
- * `data-intro-reveal="header"` marks the `<header>` for the intro's page entrance, which
- * animates ONLY its transform: opacity or a filter on the header would make it the backdrop
- * root of its own glass and switch the blur off mid-entrance. No CSS rule may target the
- * attribute — without an intro nothing is hidden.
- *
  * ## The bar condenses on scroll
  *
  * At the top of the page the header is a full-width glass bar with a red hairline under it.
@@ -296,7 +291,6 @@ export function Navbar() {
     <>
       <header
         ref={headerRef}
-        data-intro-reveal="header"
         onBlur={menuOpen ? onMenuFocusOut : undefined}
         data-condensed={condensed ? "" : undefined}
         /* The BOX, and nothing else: position, stacking order, and the 1px bottom rule that

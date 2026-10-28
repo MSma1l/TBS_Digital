@@ -39,7 +39,7 @@ export async function generateMetadata({
   if (!dir) return {};
   const locale = await resolveContentLocale();
   const urlLocale = await resolveUrlLocale();
-  const title = `TBS Digital \u2014 ${messages[locale][dir.labelKey] || messages.ro[dir.labelKey]}`;
+  const title = `${messages[locale][dir.labelKey] || messages.ro[dir.labelKey]} | TBS Digital`;
   const pitch = solutions[slug]?.pitch.text;
   const description = pitch ? pitch[locale] || pitch.ro : messages[locale]["meta.description"];
   return {

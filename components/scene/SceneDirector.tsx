@@ -67,8 +67,7 @@ const PARALLAX_KEYS = Object.keys(PARALLAX_LAYERS) as Array<keyof typeof PARALLA
  *    the identity at scroll 0.
  *
  * Never: pinning, snapping, smoothing, markers, a custom scroll container, GSAP's lag
- * smoothing (the intro director owns the ticker), or a style on <html>/<body>/an entrance
- * marker (scene-contract.test.ts). Everything lives in one `useGSAP` context scoped to the
+ * smoothing, or a style on <html>/<body> (scene-contract.test.ts). Everything lives in one `useGSAP` context scoped to the
  * stage, so an unmount (leaving the home page) reverts every trigger and tween.
  */
 export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {

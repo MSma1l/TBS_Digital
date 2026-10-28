@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import { TICKER_COPIES, Ticker } from "@/components/sections/Ticker";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 
 /*
  * The trust ticker under the hero (components/sections/Ticker.tsx).
@@ -12,7 +11,7 @@ import { INTRO_REVEAL_ATTR } from "@/lib/intro";
  * structure is pinned through the data hooks instead.
  */
 
-const LEAD_RO = "Începe cu ce contează";
+const LEAD_RO = "Începe mic, crește pe rezultate";
 const ITEM_COUNT = 5;
 
 function renderTicker() {
@@ -87,13 +86,8 @@ describe("Ticker — structure", () => {
     }
   });
 
-  it("puts the entrance marker on the outer strip only, never on the animated track", () => {
-    const { container, root } = renderTicker();
-    const markers = container.querySelectorAll(`[${INTRO_REVEAL_ATTR}]`);
-
-    expect(markers).toHaveLength(1);
-    expect(root).toHaveAttribute(INTRO_REVEAL_ATTR, "ticker");
-    // No inline style on the marker: the entrance writes and clears its own.
+  it("carries no inline style on the outer strip", () => {
+    const { root } = renderTicker();
     expect(root.hasAttribute("style")).toBe(false);
   });
 });

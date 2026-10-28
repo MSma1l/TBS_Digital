@@ -333,7 +333,7 @@
 }
 
 /* The goals light up one after another as the card is revealed (`rv-in`, added once and never
-   removed) — "Mai mulți clienți" first — and stay lit: the answers offered in turn, once. An
+   removed) — "Unde pierdem clienți" first — and stay lit: the answers offered in turn, once. An
    entrance, never a loop: nothing on this page moves on its own for more than five seconds
    without a way to stop it (WCAG 2.2.2), and `#despre` is an anchor the header jumps to. Opacity
    only, so the compositor runs it. The lit state is the base declaration, so reduced motion and a

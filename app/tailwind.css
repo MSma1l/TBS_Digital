@@ -30,11 +30,9 @@
 /* Automatic source detection is off (`source(none)` above): it reads .gitignore, and the
    Docker build context has no .git/.gitignore (.dockerignore), so a local build and an
    image build would scan different files. Every file that uses utilities is listed here.
-   The intro preloader (components/intro) is deliberately NOT listed: its rules are keyframes,
-   state selectors and a pre-hydration failsafe, so it renders through its own CSS Module.
-   Neither is the interior's static art (components/scene/art): pure components with a CSS
-   Module each (server-rendered into the HTML, or drawn in the browser when another direction
-   is selected), never styled by a utility. */
+   The interior's static art (components/scene/art) is deliberately NOT listed: pure
+   components with a CSS Module each (server-rendered into the HTML, or drawn in the browser
+   when another direction is selected), never styled by a utility. */
 @source "../components/layout/Navbar.tsx";
 @source "../components/layout/HeaderClock.tsx";
 @source "../components/sections/Hero.tsx";
@@ -357,7 +355,7 @@
    it away again. The WebGL rules also require `data-renderer="webgl"`: the scene reports its
    first entry state in the frame it becomes ready, a commit before the stage says `webgl`, and
    a deep link's first report is already `formed`. The depth shadow stays under the glow; the panel's own shadow is not
-   clipped by its `overflow-hidden`. Neither goes on `[data-reveal]` or the intro.
+   clipped by its `overflow-hidden`. Neither goes on `[data-reveal]`.
    The glow's colours are `color-mix` inside an explicit @supports: Tailwind would otherwise
    add a fallback copy of every rule with the plain, fully opaque accent. An engine without
    color-mix keeps the plain panel. */

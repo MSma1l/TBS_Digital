@@ -8,8 +8,7 @@ Postgres**, wired together, with a login-gated admin and a one-command Docker de
   [admin panel](./docs/09-admin.md) at `/admin-tbs-digital` edits site content and shows
   incoming requests. Reads content from the API (localStorage is just an offline cache).
 - **Look:** a dark HUD theme by default (light is the visitor's choice). The home page's first
-  screen — a once-per-session 3D intro (three.js + GSAP, with an SVG fallback), the header,
-  hero, ticker and cookie banner — and its interior — one sticky 3D stage behind the hero, ticker
+  screen — the header, hero, ticker and cookie banner — and its interior — one sticky 3D stage behind the hero, ticker
   and service chooser (a neon microprocessor, a cursor circuit trail and five service models, static SVG art on devices that
   should not draw it), holographic stat cards, and the rebuilt Directions and Work sections — are
   built in Tailwind v4 on the same design tokens; the rest of the site stays on CSS Modules. See
@@ -46,9 +45,9 @@ All project documentation lives in [`docs/`](./docs). Start here:
 |-----|----------------|
 | [01 — Project Overview](./docs/01-project-overview.md) | What we're building, goals, current phase |
 | [02 — Tech Stack](./docs/02-tech-stack.md) | Chosen technologies and why — incl. three.js, GSAP + ScrollTrigger (licence) and Tailwind for the first screen and the interior stage, and what is deliberately not used |
-| [03 — Architecture](./docs/03-architecture.md) | Folder structure, routing, component layout, the intro gate and its three loading tiers, the interior stage (DOM, loading pipeline, the shared 3D runtime, stores and events) |
+| [03 — Architecture](./docs/03-architecture.md) | Folder structure, routing, component layout, the interior stage (DOM, loading pipeline, the shared 3D runtime, stores and events) |
 | [04 — Design System](./docs/04-design-system.md) | Colors (dark default), fonts, spacing, effects, HUD tokens (glass, neon, z-index, motion), Tailwind theme mapping, the interior stage (paint order, hero core tokens, static art, holograms, tilt, the Work card) |
-| [05 — Page Sections](./docs/05-page-sections.md) | Breakdown of every section on the landing page, incl. the first-visit intro, the HUD header, the interior 3D stage, Directions, Work and the cookie banner |
+| [05 — Page Sections](./docs/05-page-sections.md) | Breakdown of every section on the landing page, incl. the HUD header, the interior 3D stage, Directions, Work and the cookie banner |
 | [06 — Placeholder Rules](./docs/06-placeholder-rules.md) | Exactly what content to remove / stub out |
 | [07 — Conventions](./docs/07-conventions.md) | Coding rules: content/i18n boundary, styling (Tailwind rules), 3D / GSAP / ScrollTrigger / interior-stage rules, the heavy-import ban, components, changelog duty |
 | [08 — Roadmap](./docs/08-roadmap.md) | Phases from UI to backend integration |
@@ -59,7 +58,7 @@ All project documentation lives in [`docs/`](./docs). Start here:
 | [13 — Telegram Bot](./docs/13-telegram.md) | Lead-notification bot: per-service topics, classification buttons, /stats |
 | [14 — Testing](./docs/14-testing.md) | Vitest unit tests and Playwright E2E (in Docker, incl. the forced-WebGL `@webgl` specs), backend pytest, live API verification script |
 | [15 — Security Skills](./docs/15-security-skills.md) | Per-topic security skills (validation, XSS, SQLi, auth, rate-limit, pentest) |
-| [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, the intro and the 3D stage and SEO, cookie consent + analytics |
+| [16 — i18n & SEO](./docs/16-i18n-seo.md) | RO/RU/EN, localized content, per-language URLs, hreflang/sitemap/JSON-LD, the 3D stage and SEO, cookie consent + analytics |
 | [17 — CRM Lead Intake](./docs/17-crm.md) | Pushing every new lead into Nexa CRM: setup, env vars, signed contract, outbox + retries, admin badge/re-send |
 | [tools/site-demo](./tools/site-demo/README.md) | How the portfolio screen's interactive demos are captured from the live sites: the pages, the hotspots, writes blocked, the alignment proof |
 

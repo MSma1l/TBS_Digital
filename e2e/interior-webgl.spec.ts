@@ -1,6 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { messages } from "@/lib/i18n/messages";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { SCENE_SHAPES, type GpuProbeCache } from "@/lib/scene";
 import {
   breakRendererWebGL,
@@ -14,19 +13,15 @@ import {
   drawCallsPerFrame,
   expectNoHorizontalScroll,
   expectRootUntouched,
-  forceIntro3d,
   forceNoWebGL,
   forceScene3d,
   gotoHydrated,
   gsapLoaded,
-  introOverlay,
   liveWebGLContexts,
   modalDialog,
   probeMismatches,
-  recordSceneAttributes,
   resetDrawCalls,
   sceneProbeVsDom,
-  sceneAttributeValues,
   sceneServices,
   sceneStage,
   scrollToY,
@@ -41,11 +36,10 @@ import {
  * The interior stage with WebGL forced on (`tbs_scene_3d=force`) — SwiftShader in this
  * container, so everything is slow (the high tier compiles for seconds): each test gets 120s.
  * What must hold with a live canvas under the page: the canvas never takes a click, nothing
- * styles <html>, <body> or an entrance marker (ScrollTrigger's refreshes included — the
+ * styles <html> or <body> (ScrollTrigger's refreshes included — the
  * smooth-scroll guard's tripwire), the scene pauses when nothing of it is visible, the one
  * context is released when the visitor leaves and comes back once, a renderer that cannot
- * start or a missing WebGL ends in the static art, and the intro and the stage never draw at
- * the same time. Work is inside the stage too: from 768px its project cards turn round the
+ * start or a missing WebGL ends in the static art. Work is inside the stage too: from 768px its project cards turn round the
  * scene's DNA helix (sticky, laid out inline by the scene), below it a small helix lies behind
  * the heading and the band stays as it is.
  */
@@ -70,9 +64,6 @@ async function openForced(page: Page, url = "/"): Promise<void> {
     await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl", WEBGL);
   }
 }
-
-const styledMarkers = (page: Page) =>
-  page.evaluate((attr) => document.querySelectorAll(`[${attr}][style]`).length, INTRO_REVEAL_ATTR);
 
 /* ---- Work's helix ---------------------------------------------------------------------------- */
 
@@ -206,7 +197,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       await page.waitForTimeout(500);
       await expectRootUntouched(page, "after scrolling to #servicii and back");
 
-      expect(await styledMarkers(page)).toBe(0);
       await expect(page.locator(".pin-spacer")).toHaveCount(0);
       expect(await page.evaluate(() => (window as unknown as { gsapVersions?: string[] }).gsapVersions?.length)).toBe(1);
       expect(await cspViolations(page)).toEqual([]);
@@ -347,24 +337,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
     expect(await gsapLoaded(page)).toBe(false);
   });
 
-  test("W8 a first visit with both scenes forced never draws the stage while the intro is on screen", async ({
-    page,
-  }) => {
-    await recordSceneAttributes(page);
-    await trackWebGLContexts(page);
-    await forceIntro3d(page);
-    await forceScene3d(page);
-    await gotoHydrated(page, "/", { seedIntro: false });
-    await expect(introOverlay(page)).toHaveCount(0, { timeout: 60_000 });
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "webgl", WEBGL);
-
-    const records = await sceneAttributeValues(page);
-    expect(records.some((r) => r.renderer === "webgl" && r.introPresent), JSON.stringify(records)).toBe(false);
-    expect(records.some((r) => r.renderer === "webgl")).toBe(true);
-    // The intro's context is gone by the time the stage draws.
-    await expect.poll(() => liveWebGLContexts(page), { timeout: 5_000 }).toBe(1);
-  });
-
   test("W9 a reload in a forced session creates exactly one context (the renderer's)", async ({
     page,
   }) => {
@@ -400,7 +372,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       await scrollToY(page, y);
       await page.waitForTimeout(200);
       expect(await opaque(), `at scrollY ${Math.round(y)}`).toEqual([]);
-      expect(await styledMarkers(page)).toBe(0);
     }
   });
 
@@ -727,7 +698,6 @@ test.describe("interior stage — forced WebGL @webgl", () => {
       expect(hits.back).toBeGreaterThan(0);
       expect(hits.backPointer.every((value) => value === "none")).toBe(true);
       expect(hits.backStealing).toBe(0);
-      expect(await styledMarkers(page)).toBe(0);
 
       // Tab through every project that is a link: each one comes to the front within 3s. From the
       // spiral's start, once the first card is at the front again.

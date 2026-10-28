@@ -28,6 +28,10 @@
  *     rung by rung (`uProg`);
  *   · bits (P4 bits): a 0 and a 1 per slot, showing one at a time;
  *   · hologram (P2 holo): a 1.6 × 1.0 plane, spiral mode only, drawn once it has a texture.
+ *     It always draws as light (additive, the palette's glow tones). On the light page (ink) it
+ *     stands on a dark screen — a rounded P2 `panel` in --ink, a child of the plane
+ *     (`HELIX_HOLOGRAM_PANEL`) — so it reads as it did on the dark page. The panel rides inside
+ *     the hologram's draw object (compiled with its subtree), so `objects` still lists five.
  *
  * Frames: `group` (the world's placement) → `tilt` (pointer tilt) → `orient` (upright in spiral;
  * lying along x in ambient, `HELIX_AMBIENT_ROLL`) → `pivot` (the focus turn). The hologram hangs
@@ -47,6 +51,8 @@ import {
   Matrix4,
   Mesh,
   PlaneGeometry,
+  Shape,
+  ShapeGeometry,
   TubeGeometry,
   Vector3,
   type CanvasTexture,
@@ -65,7 +71,7 @@ import {
   paint,
   toColor,
 } from "../materials";
-import type { ScenePalette } from "../palette";
+import { glowPalette, type ScenePalette } from "../palette";
 import { HELIX_PARTS, helixChips, helixRungs, helixStrandPoint } from "../samples";
 import { mergeTagged, place } from "./types";
 
@@ -140,6 +146,20 @@ export const HELIX_AMBIENT_ROLL = Math.PI / 2;
  * frame; `layoutHelixHologram` moves it to a layout's box in px.
  */
 export const HELIX_HOLOGRAM = { width: 1.6, height: 1, x: 3.2, y: 0.15, z: 0, name: "scene-helix-hologram" } as const;
+/**
+ * The hologram's dark screen in ink: a rounded panel `pad` larger than the plane on each side
+ * (`radius` corners — the frame's square corners stay inside them), `z` a hair behind it in the
+ * plane's frame, `opacity` before `dim`. A child of the hologram, so every transform the frame
+ * gives the plane — layout, the open from a hairline, the swap's flinch, the exit's shrink, the
+ * pointer tilt, its visibility — is the panel's too. Hidden in glow (a dark page needs none).
+ */
+export const HELIX_HOLOGRAM_PANEL = {
+  pad: 0.05,
+  radius: 0.08,
+  z: -0.01,
+  opacity: 0.92,
+  name: "scene-helix-hologram-panel",
+} as const;
 /** Seconds for the accent to settle on a new card's colour (≈95%). */
 export const HELIX_ACCENT_SECONDS = 0.4;
 /** Seconds for a hologram swap's glitch to decay from 1 to 0. */
@@ -205,8 +225,26 @@ const FRONT = { from: 0.6, to: 0.8, gain: 1.4 } as const;
 const STRAND_ALPHA = { glow: 0.42, ink: 0.5 } as const;
 const RUNG_ALPHA = { glow: 0.45, ink: 0.55 } as const;
 const BIT_ALPHA = { glow: 0.85, ink: 0.8 } as const;
-/** The hologram draws a little lighter in ink (before `dim`). */
-const HOLO_INTENSITY = { glow: 1, ink: 0.85 } as const;
+/** Drawn just before the hologram (8), so its light lands on the panel. */
+const HOLO_PANEL_ORDER = 7.9;
+
+/** A `width` × `height` rectangle with `radius` corners, centred on the origin, facing +z. */
+function roundedPanelGeometry(width: number, height: number, radius: number): ShapeGeometry {
+  const w = width / 2;
+  const h = height / 2;
+  const r = Math.min(radius, w, h);
+  const shape = new Shape();
+  shape.moveTo(-w + r, -h);
+  shape.lineTo(w - r, -h);
+  shape.absarc(w - r, -h + r, r, -Math.PI / 2, 0, false);
+  shape.lineTo(w, h - r);
+  shape.absarc(w - r, h - r, r, 0, Math.PI / 2, false);
+  shape.lineTo(-w + r, h);
+  shape.absarc(-w + r, h - r, r, Math.PI / 2, Math.PI, false);
+  shape.lineTo(-w, -h + r);
+  shape.absarc(-w + r, -h + r, r, Math.PI, Math.PI * 1.5, false);
+  return new ShapeGeometry(shape, 6);
+}
 
 /** Pure. A frame's `dim` as the multiplier the draws use: clamped to 0..1, 1 when absent or not finite. */
 export function helixDim(dim: number | undefined): number {
@@ -478,6 +516,17 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
   holoMesh.position.set(HELIX_HOLOGRAM.x, HELIX_HOLOGRAM.y, HELIX_HOLOGRAM.z);
   holoMesh.visible = false;
   group.add(holoMesh);
+  // Its dark screen in ink: a child, so it follows every transform and the visibility above.
+  const panelGeometry = roundedPanelGeometry(
+    HELIX_HOLOGRAM.width + 2 * HELIX_HOLOGRAM_PANEL.pad,
+    HELIX_HOLOGRAM.height + 2 * HELIX_HOLOGRAM_PANEL.pad,
+    HELIX_HOLOGRAM_PANEL.radius,
+  );
+  const panel = createSurfaceMaterial({ mode: SURFACE_MODE.panel, roles: { a: "panel", b: "panel", hot: "panel" } });
+  const panelMesh = place(new Mesh(panelGeometry, panel.material), HOLO_PANEL_ORDER);
+  panelMesh.name = HELIX_HOLOGRAM_PANEL.name;
+  panelMesh.position.set(0, 0, HELIX_HOLOGRAM_PANEL.z);
+  holoMesh.add(panelMesh);
 
   let current = palette;
   let mode: HelixMode = "spiral";
@@ -531,7 +580,7 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
   };
 
   /**
-   * Every draw's intensity: `dim` over each one's own base (the hologram's depends on the theme),
+   * Every draw's intensity: `dim` over each one's own base (the hologram's panel: its opacity),
    * lifted by the arrival flare, the scroll's speed and the strands' slow breath. One number
    * stands for all three, so a frame where nothing drives it rewrites no uniform.
    */
@@ -541,7 +590,8 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
     chips.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.chips);
     rungs.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.rungs);
     bits.uniforms.uIntensity.value = dim * (1 + lift * HELIX_DRIVE.pulse.bits);
-    holo.uniforms.uIntensity.value = HOLO_INTENSITY[current.mode] * dim;
+    holo.uniforms.uIntensity.value = dim;
+    panel.uniforms.uIntensity.value = HELIX_HOLOGRAM_PANEL.opacity * dim;
   };
 
   const applyPalette = (next: ScenePalette) => {
@@ -551,7 +601,10 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
     paint(chips, next);
     paint(rungs, next);
     paint(bits, next);
-    paint(holo, next);
+    // The hologram is a screen: light in the glow tones whatever the page, on its dark panel in ink.
+    paint(holo, glowPalette(next));
+    paint(panel, next);
+    panelMesh.visible = ink;
     strands.uniforms.uAlpha.value = ink ? STRAND_ALPHA.ink : STRAND_ALPHA.glow;
     rungs.uniforms.uAlpha.value = ink ? RUNG_ALPHA.ink : RUNG_ALPHA.glow;
     bits.uniforms.uAlpha.value = ink ? BIT_ALPHA.ink : BIT_ALPHA.glow;
@@ -674,6 +727,8 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       holo.uniforms.uTime.value = frame.time;
       holo.uniforms.uReveal.value = reveal;
       holo.uniforms.uGlitch.value = glitchLeft;
+      // The panel dissolves with it (the same cells: the same plane, model units).
+      panel.uniforms.uReveal.value = reveal;
       // The hologram flinches on a swap and shrinks away with the finish.
       const base = holoMesh.userData[HOLOGRAM_BASE];
       holoBase = typeof base === "number" && base > 0 ? base : holoBase;
@@ -727,11 +782,13 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
       rungGeometryBuffer.dispose();
       bitGeometryBuffer.dispose();
       holoGeometry.dispose();
+      panelGeometry.dispose();
       strands.material.dispose();
       chips.material.dispose();
       rungs.material.dispose();
       bits.material.dispose();
       holo.material.dispose();
+      panel.material.dispose();
       chipMesh.dispose();
       holo.uniforms.uMap.value = null;
     },

@@ -2,7 +2,7 @@
 
    Placement is the HUD contract in docs/04 (critique R2): a fixed 44px column on the right edge,
    from 16px under the header down to --hud-bottom (4px above the Ghid TBS avatar's box), at
-   --z-rail — under the OS layer, the guide, the burger overlay, the dialog and the intro, which
+   --z-rail — under the OS layer, the guide, the burger overlay and the dialog, which
    cover it with no hide logic. Desktop only: HudChrome mounts it at 861px and up, and the media
    query below is the safety net.
 

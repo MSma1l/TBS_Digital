@@ -27,7 +27,7 @@ export type StatCards = {
 };
 
 export type StatCardsOptions = {
-  /** The group the cards live in (`[data-intro-reveal="stats"]` in Hero.tsx). */
+  /** The group the cards live in (`STATS_GROUP_ATTR` in Hero.tsx). */
   group: HTMLElement;
 };
 

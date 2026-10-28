@@ -68,9 +68,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     /* The direction names are the site's own tabs (lib/directions.ts, Directions.tsx), with the
        fourth described by what it DOES — its label is a word this component may not print. */
     a: L(
-      "Transformăm o idee, un blocaj sau o oportunitate într-o primă versiune pe care o poți testa. Construim MVP-uri, site-uri, e-commerce, automatizări, asistenți și Brand & UI; după semnalele reale, dezvoltăm ce merită.",
-      "Превращаем идею, узкое место или возможность в первую версию, которую можно проверить. Создаём MVP, сайты, e-commerce, автоматизацию, ассистентов и Brand & UI; после реальных сигналов развиваем то, что действительно нужно.",
-      "We turn an idea, bottleneck or opportunity into a first version you can test. We build MVPs, websites, e-commerce, automations, assistants and Brand & UI; after real signals, we develop what is worth building.",
+      "Te ajutăm să treci de la idee la o primă versiune pe care o poți testa: MVP, site, magazin online, automatizare, asistent pentru cereri sau Brand & UI. Apoi dezvoltăm doar ce aduce rezultat.",
+      "Помогаем пройти путь от идеи до первой версии, которую можно проверить: MVP, сайт, интернет-магазин, автоматизация, ассистент для заявок или Brand & UI. Затем развиваем только то, что даёт результат.",
+      "We help you go from an idea to a first version you can test: an MVP, a website, an online store, an automation, a request assistant or Brand & UI. Then we develop only what brings results.",
     ),
   },
   {
@@ -78,9 +78,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     q: L("Cât costă?", "Сколько это стоит?", "How much does it cost?"),
     /* No figure: lib/request/catalog.ts records what happened last time one was hard-coded. */
     a: L(
-      "Începem cu un MVP cu buget mic, nu cu tot produsul. Vezi prețul de pornire pentru fiecare tip direct în cerere; cifra finală vine după ce stabilim ce merită testat.",
-      "Начинаем с MVP с небольшим бюджетом, а не со всего продукта. Стартовую цену для каждого типа вы видите прямо в заявке; итоговая сумма — после того, как определим, что стоит проверить.",
-      "We start with a small-budget MVP, not the whole product. See each type’s starting price in the request; the final figure follows once we define what is worth testing.",
+      "Începi cu un MVP cu buget mic, nu cu tot produsul. Prețul de pornire pentru fiecare tip îl vezi direct în cerere. Suma finală o stabilim după ce clarificăm ce merită testat.",
+      "Вы начинаете с MVP с небольшим бюджетом, а не со всего продукта. Стартовую цену для каждого типа видно прямо в заявке. Итоговую сумму называем, когда понятно, что стоит проверить.",
+      "You start with a small-budget MVP, not the whole product. The starting price for each type is shown right in the request. We set the final figure once we know what is worth testing.",
     ),
   },
   {
@@ -96,9 +96,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     id: "nevoie",
     q: L("De ce aveți nevoie de la mine?", "Что вам нужно от меня?", "What do you need from me?"),
     a: L(
-      "Nume, email și câteva rânduri despre problemă, public și ce vrei să afli. Nu ai nevoie de un caiet de sarcini: dacă ai doar o idee, asistentul din cerere pune întrebări scurte și pregătește rezumatul.",
-      "Имя, email и несколько строк о проблеме, аудитории и о том, что хотите понять. ТЗ не нужно: если есть только идея, ассистент в заявке задаст короткие вопросы и подготовит итог.",
-      "Your name, email and a few lines about the problem, audience and what you want to learn. You do not need a brief: if you only have an idea, the request assistant asks short questions and prepares the summary.",
+      "Doar numele, emailul și câteva rânduri: ce problemă rezolvi, pentru cine și ce vrei să afli. Nu ai nevoie de caiet de sarcini. Dacă ai doar o idee, asistentul din cerere pune întrebări scurte și scrie rezumatul.",
+      "Только имя, email и пара строк: какую проблему решаете, для кого и что хотите узнать. ТЗ не нужно. Если есть только идея, ассистент в заявке задаст короткие вопросы и сам составит итог.",
+      "Just your name, email and a few lines: the problem you solve, who it is for and what you want to learn. No brief needed. If all you have is an idea, the request assistant asks short questions and writes the summary.",
     ),
   },
   {
@@ -107,9 +107,9 @@ export const GUIDE_FAQ: readonly GuideQuestion[] = [
     /* Conditional, because the site states it conditionally: the summary travels only once the
        assistant has recorded something (Estimator's PATHS.kept). */
     a: L(
-      "Dacă parcurgi ghidul din cerere, rezumatul dialogului pleacă împreună cu ea. Îl citim ca să vedem ce merită testat mai întâi și revenim în cel mult o zi lucrătoare.",
-      "Если вы пройдёте гид в заявке, итог диалога уйдёт вместе с ней. Мы читаем его, чтобы понять, что стоит проверить в первую очередь, и отвечаем в течение одного рабочего дня.",
-      "If you complete the request guide, its dialogue summary goes with the request. We read it to see what is worth testing first and reply within one business day.",
+      "Revenim în cel mult o zi lucrătoare cu întrebări concrete. Împreună stabilim prima versiune și prețul ei, apoi o lansăm și o dezvoltăm după feedback-ul real. Dacă ai parcurs ghidul din cerere, rezumatul lui pleacă odată cu ea.",
+      "Мы отвечаем не позже чем через рабочий день с конкретными вопросами. Вместе определяем первую версию и её цену, затем запускаем и развиваем её по реальной обратной связи. Если вы прошли гид в заявке, его итог уйдёт вместе с ней.",
+      "We reply within one business day with concrete questions. Together we define the first version and its price, then launch it and develop it from real feedback. If you completed the request guide, its summary goes with the request.",
     ),
   },
   {

@@ -1,6 +1,6 @@
 /* --------------------------------------------------------------------------------------
- * FPS governor — the drei `PerformanceMonitor` replacement, shared by the intro and the
- * interior scene. Plain TypeScript, no three.js, unit-tested.
+ * FPS governor — the drei `PerformanceMonitor` replacement for the interior scene. Plain
+ * TypeScript, no three.js, unit-tested.
  *
  * Frame deltas are averaged over ~1s windows. Two slow windows in a row step the quality
  * down: first the device-pixel ratio to 1×, then "lite". Three fast windows at the reduced
@@ -9,8 +9,8 @@
  * (every DPR change re-allocates the canvas and costs a hitch of its own). Materials are
  * never swapped — that would recompile shaders.
  *
- * "lite" is terminal for the intro: popping detail back in mid-intro would look like a
- * glitch. A scene that can live without WebGL (the interior stage) may also opt into a
+ * "lite" is terminal: popping detail back in mid-scene would look like a glitch. A scene
+ * that can live without WebGL (the interior stage) may also opt into a
  * "bail" (`bailFps` > 0): once lite, `bailWindows` slow windows in a row give up on the
  * device, and "bail" is terminal. With `bailFps` unset (0) nothing changes.
  *

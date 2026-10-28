@@ -88,13 +88,13 @@ const LUCIDE_BANNED = [
 //    `three/webgpu`, `@react-three/fiber/native`…);
 //  · the site's own modules that pull them in: the shared 3D runtime and the scene / director
 //    components, whatever the relative or aliased spelling (`@/components/three/runtime`,
-//    `../scene/SceneWorld`, `./IntroDirector.tsx`).
+//    `../scene/SceneWorld`, `./SceneDirector.tsx`).
 const HEAVY_MESSAGE =
   "Loads lazily behind the capability probe; a static import here ships ~290 KB to every visitor. Use next/dynamic or import() (docs/07-conventions.md).";
 const HEAVY_STATIC_PATHS = ["three", "@react-three/fiber", "gsap", "gsap/ScrollTrigger", "@gsap/react"];
 const HEAVY_SUBPATHS = ["three/*", "@react-three/fiber/*", "gsap/*", "@gsap/react/*"];
 const HEAVY_MODULES_REGEX =
-  "(^|/)(three/runtime|SceneCanvas|SceneWorld|SceneDirector|IntroScene|IntroDirector)(\\.(tsx?|jsx?|mjs))?$";
+  "(^|/)(three/runtime|SceneCanvas|SceneWorld|SceneDirector)(\\.(tsx?|jsx?|mjs))?$";
 
 /** The shared option block. Flat config REPLACES a rule's options per matching block, so a
  *  file-scoped block that adds bans must repeat these. */
@@ -156,7 +156,7 @@ const eslintConfig = defineConfig([
     },
   },
   // Modules the page bundle reaches (and the interior stage's own shell, art and math, the
-  // intro's up-front shell and both probe chunks, the HUD chrome's mount and its lazy parts):
+  // probe chunk, the HUD chrome's mount and its lazy parts):
   // no STATIC three / R3F / GSAP, nor a static import of a module that carries them.
   // `import()` stays allowed — that is how they load. The CSP, GSAP and lucide bans are
   // repeated inside (see `restrictedImports`).
@@ -173,10 +173,6 @@ const eslintConfig = defineConfig([
       "components/scene/shapes.ts",
       "components/three/RenderErrorBoundary.tsx",
       "components/three/capability.ts",
-      "components/intro/IntroPreloader.tsx",
-      "components/intro/IntroFallback.tsx",
-      "components/intro/capability.ts",
-      "components/intro/tiers.ts",
       "lib/**",
     ],
     ignores: ["**/__tests__/**"],

@@ -9,9 +9,9 @@
 | Styling | **CSS variables + CSS Modules** (or global CSS) | The prototype already ships a clean design-token system built on CSS custom properties — we keep it. See [04 — Design System](./04-design-system.md). |
 | Styling (first screen + interior stage) | **Tailwind CSS v4**, utilities only, **no preflight** | Used by exactly eight files — `Navbar`, `HeaderClock`, `Hero`, `Ticker`, `Directions`, `Work`, `SceneStage`, `CookieConsent` — with its theme mapped onto the same tokens. Details below and in [07 — Conventions](./07-conventions.md#tailwind-first-screen-and-interior-stage-files-only). |
 | Fonts | Google Fonts: **Archivo**, **Montserrat**, **JetBrains Mono**, **Manrope** | Loaded via `next/font`. Montserrat backs Archivo for Cyrillic headings — see [16 — i18n & SEO](./16-i18n-seo.md). |
-| Animations | Plain CSS + a small `IntersectionObserver` hook | Scroll-reveal, marquee, glow, the HUD backdrop, the stat holograms, and the project screenshots' parallax (a CSS scroll-driven animation, no JavaScript) — all doable without a heavy animation library. The exceptions are the intro's timeline and the interior stage's scroll measuring (next row). |
-| Intro timeline, interior scroll | **GSAP** + `@gsap/react` + **ScrollTrigger** | The first-visit preloader's progress, burst and page entrance (`components/intro/IntroDirector.tsx`), and the interior stage's director (`components/scene/SceneDirector.tsx`): ScrollTrigger **measures** the scroll spans the 3D scene reads, and scrubs the hero's desktop parallax. Both load lazily; a returning visitor without a capable GPU never downloads GSAP. |
-| 3D | **three.js** + **@react-three/fiber 9** | The intro's six-beat camera flight through a laptop (`components/intro/`) and the interior stage's neon microprocessor, cursor circuit trail and five service models (`components/scene/`), both behind one lazy entry (`components/three/runtime.tsx`, one shared chunk). Loaded only after a capability probe; devices without a usable GPU get static SVG art instead. |
+| Animations | Plain CSS + a small `IntersectionObserver` hook | Scroll-reveal, marquee, glow, the HUD backdrop, the stat holograms, and the project screenshots' parallax (a CSS scroll-driven animation, no JavaScript) — all doable without a heavy animation library. The exception is the interior stage's scroll measuring (next row). |
+| Interior scroll | **GSAP** + `@gsap/react` + **ScrollTrigger** | The interior stage's director (`components/scene/SceneDirector.tsx`): ScrollTrigger **measures** the scroll spans the 3D scene reads, and scrubs the hero's desktop parallax. It loads lazily; a visitor without a capable GPU never downloads GSAP. |
+| 3D | **three.js** + **@react-three/fiber 9** | The interior stage's neon microprocessor, cursor circuit trail and five service models (`components/scene/`), behind one lazy entry (`components/three/runtime.tsx`, one shared chunk). Loaded only after a capability probe; devices without a usable GPU get static SVG art instead. |
 | Content/state | **React Context** (`lib/siteContent.tsx`) over the API | Loads `GET /api/content`; `localStorage` is only an offline cache/fallback. See [09 — Admin Panel](./09-admin.md). |
 | i18n | **Hand-rolled catalogs + Context** (`lib/i18n/`) | RO/RU/EN, no i18n library: ~190 keys typed off the Romanian catalog, locale resolved server-side. See [16](./16-i18n-seo.md). |
 | Request layer | **Next 16 Proxy** (`proxy.ts`, the renamed Middleware) | Per-request CSP nonce + the `x-locale`/`x-pathname` headers the root layout needs. |
@@ -39,15 +39,15 @@
 
 ## The first-screen stack (HUD redesign, 2026-09-16)
 
-The home page's first screen — the intro preloader, the header, the hero, the ticker and the
+The home page's first screen — the header, the hero, the ticker and the
 cookie banner — added the only libraries the frontend has beyond Next/React:
 
 | Package | Version | Licence | Used by |
 |---------|---------|---------|---------|
-| `three` | **0.186.0** (exact) | MIT | `components/three/*` (shared helpers), `components/intro/three/*` + `IntroScene.tsx`, `IntroLaptop.tsx`, `OrbitParticles.tsx`; since 2026-09-17 also `components/scene/three/**`, `SceneCanvas.tsx`, `SceneWorld.tsx` |
+| `three` | **0.186.0** (exact) | MIT | `components/three/*` (shared helpers); since 2026-09-17 `components/scene/three/**`, `SceneCanvas.tsx`, `SceneWorld.tsx` |
 | `@react-three/fiber` | **9.7.0** (exact) | MIT | the same scene components (peers: `react`/`react-dom` `>=19 <19.3`) |
-| `gsap` | **3.15.0** (exact) | GSAP Standard "no charge" | `components/intro/IntroDirector.tsx`; since 2026-09-17 `components/scene/SceneDirector.tsx` with the **ScrollTrigger** plugin that ships inside this package (`gsap/ScrollTrigger`) |
-| `@gsap/react` | **2.1.2** (exact) | GSAP Standard "no charge" | `IntroDirector.tsx`, `SceneDirector.tsx` (`useGSAP`, context revert on unmount) |
+| `gsap` | **3.15.0** (exact) | GSAP Standard "no charge" | since 2026-09-17 `components/scene/SceneDirector.tsx` with the **ScrollTrigger** plugin that ships inside this package (`gsap/ScrollTrigger`) |
+| `@gsap/react` | **2.1.2** (exact) | GSAP Standard "no charge" | `SceneDirector.tsx` (`useGSAP`, context revert on unmount) |
 | `tailwindcss`, `@tailwindcss/postcss` | ^4.3.3 (dev) | MIT | `app/tailwind.css`, `postcss.config.mjs` |
 | `@types/three` | ~0.186.0 (dev) | MIT | types only, held to three's minor |
 
@@ -56,7 +56,7 @@ move: the high tier's transmission glass works around three r186's pass order on
 transparent canvas (`components/three/environment.ts`), `components/three/renderer.ts` works
 around how R3F 9.7 creates and releases its renderer, and the interior director's smooth-scroll
 guard and its quiet/wake switch rely on gsap 3.15.0's `ScrollTrigger` internals
-(`components/scene/scrollGuard.ts`). Upgrade any of them on purpose, and re-check both scenes
+(`components/scene/scrollGuard.ts`). Upgrade any of them on purpose, and re-check the scene
 when you do — the forced-WebGL E2E specs and `scroll-guard.test.ts` are the tripwires.
 
 **GSAP licence.** GSAP ships under the GSAP Standard "no charge" licence
@@ -74,17 +74,10 @@ does not exist. It is imported from `app/(site)/layout.tsx`, so the admin route 
 Vendor prefixing is not configured in PostCSS: under Turbopack, Lightning CSS prefixes from
 Next's browserslist targets whether a PostCSS config exists or not.
 
-**Why GSAP for the intro.** The intro is one wall-clock sequence — a progress model, a
-multi-stage burst and an eight-target page entrance — that must speed up on skip, revert every
-inline style it wrote, and never re-render React per frame. A timeline with labels,
-`timeScale` and `useGSAP`'s context revert covers exactly that; CSS keyframes cannot be
-sped up or reverted mid-flight.
-
 **Why R3F.** It mounts and disposes the scene with the React tree the director already owns,
 and `useFrame` drives continuous motion without React state. Everything imperative (geometry,
-materials, per-frame writes, the FPS governor) is plain TypeScript: `components/intro/three/`
-for the intro, `components/scene/three/` for the interior, `components/three/` for what both
-share.
+materials, per-frame writes, the FPS governor) is plain TypeScript: `components/scene/three/`
+for the interior, `components/three/` for the shared helpers.
 
 ## The interior stage (2026-09-17) — no new dependency
 
@@ -106,10 +99,9 @@ lockfile are unchanged. What it uses differently:
   spiral it is held at a value the driver writes per card instead of played: a running animation
   is a compositor layer per card, and those layers were what braked a hard scroll there
   ([05](./05-page-sections.md#work)).
-- **One shared three.js chunk.** Both scenes are reached only through a dynamic `import()` of
-  `components/three/runtime.tsx`. Turbopack builds a chunk group per `import()` target, so two
-  targets had shipped two byte-identical copies of three + R3F; one target means one download,
-  served from cache to the other scene.
+- **One shared three.js chunk.** The scene is reached only through a dynamic `import()` of
+  `components/three/runtime.tsx`. Turbopack builds a chunk group per `import()` target, so
+  separate targets would ship byte-identical copies of three + R3F; one target means one download.
 
 ## The HUD chrome (2026-09-17) — `lucide-react`
 
@@ -151,8 +143,7 @@ yet, so no chunk carries it until the first HUD part lands.
 - No state-management library — React Context + local state is enough.
 - No **`@react-three/drei`** — it would have been used for `PerformanceMonitor` alone, and its
   barrel can pull in loaders (HDR, fonts, Draco/KTX2) and blob workers that the nonce-based CSP
-  refuses. A small, unit-tested FPS governor in `components/three/governor.ts` replaces it (the
-  intro reaches it through `components/intro/three/rig.ts`), and the environment map is a
+  refuses. A small, unit-tested FPS governor in `components/three/governor.ts` replaces it, and the environment map is a
   procedural PMREM (`components/three/environment.ts`) instead of drei's `<Environment>`. ESLint bans the import ([11 — Security](./11-security.md)).
 - No **postprocessing** / `@react-three/postprocessing` (bloom) — ~50 KB gzip more, and its
   multi-target blur passes stack their fill cost on top of the high tier's transmission pass,
@@ -161,7 +152,7 @@ yet, so no chunk carries it until the first HUD part lands.
 - No **ScrollSmoother**, `gsap/all` or `gsap/dist/*` — ScrollSmoother rewrites `<html>`/`<body>`
   styles and takes over scrolling; `gsap/all` bundles every plugin; `gsap/dist` is a second copy
   of the core with its own ticker. ESLint bans all three.
-- No **framer-motion** — the site's motion is CSS; the intro's timeline and the interior's scroll
-  measuring are GSAP. A second
+- No **framer-motion** — the site's motion is CSS; the interior's scroll
+  measuring is GSAP. A second
   animation library would ship to every visitor for nothing GSAP and CSS don't already do.
 - No Tailwind **preflight**, and no Tailwind outside the eight files in `@source` (see above).

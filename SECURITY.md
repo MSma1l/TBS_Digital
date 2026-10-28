@@ -78,27 +78,18 @@ Verified, no change needed:
 - **CSP unchanged** (`proxy.ts`): 0 `securitypolicyviolation` events across first visit,
   returning visit, reduced motion, a service page, the admin and forced WebGL. The gsap and
   three/R3F chunks contain no `eval(`, `new Function`, `new Worker` or `WebAssembly`; the 3D
-  environment is procedural (no fetch); GSAP/R3F write styles through the CSSOM. The
-  `<noscript><style>` that hides the intro without JS relies on the existing
-  `style-src 'unsafe-inline'`. Details: [docs/11-security.md](docs/11-security.md).
-- **`tbs_intro_skip` cookie**: read, **never written by the site**. The intro now plays on every
-  hard load of the home page instead of once per session, so nothing sets it; the E2E suite and
-  QA seed it to suppress the overlay, and `finishIntro()` only clears the legacy `tbs_intro`
-  name. Only the literal `seen` counts and the value never reaches the DOM. No longer listed as
-  a cookie the site stores in the cookie policy.
-- **`x-pathname`**: overwritten by `proxy.ts` on document requests and only compared with `"/"`;
-  a forged header on a prefetch request can only toggle the overlay in the sender's own
-  response (no page caching).
-- **`x-intro`** (2026-10-09): the proxy's own verdict that the URL came from an ad (`utm_*`,
-  `gclid`, `fbclid`, …), so the intro is left out. Any incoming copy is deleted first, and only
-  `skip` counts. It can only remove the overlay, and only in the sender's own response.
-- **User input into the DOM**: the intro's `location.hash` check goes through
-  `getElementById`; nothing reaches `innerHTML`.
+  environment is procedural (no fetch); GSAP/R3F write styles through the CSSOM.
+  Details: [docs/11-security.md](docs/11-security.md).
+- **`x-pathname`**: overwritten by `proxy.ts` on document requests; a forged header on a
+  prefetch request only affects the sender's own response (no page caching).
+- **Removed 2026-10-28:** the first-visit intro this round introduced, with its `tbs_intro_skip`
+  cookie, the `x-intro` header, its `<noscript><style>` and its `location.hash` check — none of
+  them exists any more.
 - **Dependencies**: runtime packages pinned exactly (three 0.186.0 and @react-three/fiber 9.7.0,
   MIT; gsap 3.15.0 and @gsap/react 2.1.2, GSAP Standard "no charge" licence). 54 lockfile
   entries added, none with install scripts. `@types/three` pulls dev-only packages (Rapier,
   meshoptimizer, fflate, tween.js) that are never bundled.
-- **Admin route**: loads neither Tailwind nor the intro; now dark by default, which only raises
+- **Admin route**: does not load Tailwind; now dark by default, which only raises
   contrast on its fixed colours.
 
 ## Round 4 — interior 3D stage (2026-09-17)
@@ -148,7 +139,7 @@ review round; recorded so the next audit starts from the facts.
   Listed in [docs/11](docs/11-security.md#browser-storage-the-stage-uses).
 - **Nothing loads early**: the HUD's single mount (`components/hud/HudChrome.tsx`, not mounted
   yet) renders nothing on the server and waits for an answered cookie banner, a first
-  interaction, the intro gone and an idle slot before any part loads. It adds no `window` event
+  interaction and an idle slot before any part loads. It adds no `window` event
   and writes no storage.
 
 ## Whole-site captures (2026-10-06) — one admin upload route, one link field

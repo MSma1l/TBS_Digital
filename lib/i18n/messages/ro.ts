@@ -15,17 +15,17 @@
  */
 export const ro = {
   // --- SEO / document ---
-  "meta.title": "TBS Digital — MVP-uri, site-uri web și software",
+  "meta.title": "Creare site-uri, aplicații și MVP în Chișinău | TBS Digital",
   "meta.description":
-    "Construim MVP-uri, site-uri web, CRM, SaaS și aplicații pentru a testa idei cu utilizatori reali, apoi le dezvoltăm etapizat.",
+    "Ai o idee sau un proces care te încurcă? Construim MVP-ul, site-ul sau aplicația, o testezi cu clienți reali și investești doar în ce merge. Cere ofertă.",
 
   // --- Hero ---
-  "hero.badge": "DE LA CONSULTANȚĂ LA DIGITALIZARE",
+  "hero.badge": "SITE-URI · APLICAȚII · MVP · AUTOMATIZĂRI",
   "hero.kicker":
-    "Software care aduce rezultate:\nmai puțin timp, mai mulți clienți, mai mult venit.",
+    "Testează ideea înainte\nsă investești în tot produsul.",
   "hero.lead":
-    "Software personalizat, aplicații mobile, automatizări cu IA, CRM, SaaS și platforme care îți cresc afacerea — de la strategie până la execuție.",
-  "hero.cta.primary": "Calculează prețul ↗",
+    "Construim un MVP, un site sau o aplicație cu buget de pornire mic. O testezi cu clienți reali și dezvolți doar ce funcționează.",
+  "hero.cta.primary": "Cere ofertă ↗",
   "hero.cta.secondary": "Vezi serviciile",
 
   // --- Principles (/02) ---
@@ -43,10 +43,10 @@ export const ro = {
   "principles.4.desc": "Inteligență artificială acolo unde chiar contează.",
 
   // --- Services (/03) ---
-  "services.label": "CE PUTEM FACE",
-  "services.title": "Servicii de\ndigitalizare",
+  "services.label": "CE CONSTRUIM",
+  "services.title": "Site-uri, aplicații\nși automatizări",
   "services.lead":
-    "Alege un serviciu sau combină mai multe într-un produs complet.",
+    "Alege ce îți trebuie acum. Pornim mic și adăugăm doar ce aduce rezultat.",
   "services.swipeHint": "← GLISEAZĂ ↔ {n} SERVICII →",
   "services.card.cta": "Calculează prețul →",
   "services.card.estimateAria": "Calculează prețul pentru {name}",
@@ -133,11 +133,11 @@ export const ro = {
   "partners.label": "PARTENERII NOȘTRI",
   "partners.title": "Creștem\nîmpreună",
   "partners.lead":
-    "Lucrăm alături de companii care țin la aceleași standarde ca noi — în audit, consultanță și educație în afaceri. Ei aduc încrederea clienților lor, noi aducem partea tehnică.",
+    "Lucrăm alături de companii din audit, consultanță și educație în afaceri. Ele aduc încrederea clienților lor, noi aducem partea tehnică.",
   "partners.cta.label": "DEVINO PARTENER",
   "partners.cta.title": "Și tu poți deveni partener",
   "partners.cta.text":
-    "Lucrezi zi de zi cu antreprenori și vezi, înaintea tuturor, unde se blochează o afacere. Noi construim partea tehnică — software, automatizări, inteligență artificială — iar tu rămâi omul în care clientul are încredere. Fără birocrație și fără angajamente: ne scrii, ne auzim, și stabilim împreună cum arată colaborarea.",
+    "Lucrezi cu antreprenori și vezi primul unde se blochează o afacere. Noi construim partea tehnică — software, automatizări, IA — iar tu rămâi omul în care clientul are încredere. Ne scrii și stabilim împreună cum arată colaborarea.",
 
   // --- Estimator + contact (/07) ---
   "estimator.label": "HAI SĂ CONSTRUIM ÎMPREUNĂ",
@@ -192,11 +192,11 @@ export const ro = {
   "nav.about": "DESPRE",
   "dir.section.title": "Un instrument de alegere a direcției —\npentru decizii rapide și sigure.",
   "dir.section.lead": "Alege o direcție — se deschide o pagină dedicată cu detalii.",
-  "dir.digital": "Produs digital",
-  "dir.ecommerce": "E-commerce",
-  "dir.automation": "Automatizare și API",
-  "dir.ai": "Inteligență artificială: asistenți și boți",
-  "dir.brand": "Brand și interfață",
+  "dir.digital": "Site-uri, aplicații și MVP",
+  "dir.ecommerce": "Magazin online și e-commerce",
+  "dir.automation": "Automatizare, CRM și API",
+  "dir.ai": "Asistenți IA și boți",
+  "dir.brand": "Brand și design UI",
   "dir.page.soon": "Pagină în lucru — o completăm în curând cu detalii.",
   "dir.page.back": "Acasă",
   "nav.company": "COMPANIE",
@@ -219,11 +219,11 @@ export const ro = {
   // --- Footer ---
   "footer.partnersLabel": "PARTENERII NOȘTRI DE AFACERI",
   "footer.brandText":
-    "Digitalizăm afaceri prin software personalizat, aplicații mobile, automatizări și IA.",
+    "Agenție digitală din Chișinău, Moldova. Creăm site-uri, magazine online, aplicații, MVP-uri și automatizări cu buget de pornire mic: începi cu o primă versiune, o testezi cu clienți reali și crești pe rezultate.",
   "footer.col.nav": "NAVIGARE",
   "footer.col.services": "SERVICII",
   "footer.col.contact": "CONTACT",
-  "footer.cta": "Calculează prețul ↗",
+  "footer.cta": "Cere ofertă ↗",
   "footer.copyright": "© {year} TBS DIGITAL · TOATE DREPTURILE REZERVATE",
   "footer.madeBy": "REALIZAT DE ECHIPA TBS DIGITAL",
   "footer.services.0": "Web & Landing",
@@ -237,8 +237,8 @@ export const ro = {
   "footer.legal.cookies": "Cookie-uri",
 
   // --- Call to action repeated after each section ---
-  "cta.collaborate": "Hai să colaborăm →",
-  "cta.lead": "Ai un proiect în minte? Hai să-l construim împreună.",
+  "cta.collaborate": "Cere ofertă →",
+  "cta.lead": "Ai o idee? Pornește cu o primă versiune mică și află repede dacă merită.",
 
   // --- Lightbox ---
   "lightbox.dialogAria": "{title} — imagine {i} din {count}",
@@ -262,16 +262,8 @@ export const ro = {
   "cookie.reject": "Refuz",
   "cookie.settings": "Doar esențiale",
 
-  // --- Intro preloader ---
-  // `intro.status` / `intro.complete` are HUD codes shown identically in every language;
-  // `intro.progressAria` is what a screen reader announces for the progress bar.
-  // `intro.skipKey` is the key-cap beside the skip label (aria-hidden, fine pointers only).
+  // --- Loading ---
   "common.loading": "Se încarcă",
-  "intro.status": "SYSTEM_SYNCHRONIZATION",
-  "intro.complete": "ACCESS_GRANTED",
-  "intro.progressAria": "Se încarcă TBS Digital",
-  "intro.skip": "Sari peste intro",
-  "intro.skipKey": "ESC",
 } as const;
 
 export type MessageKey = keyof typeof ro;

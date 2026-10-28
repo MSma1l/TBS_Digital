@@ -3,7 +3,8 @@
  * by one of these, so the whole scene compiles to five programs (the numbering is historical:
  * P1, the hero's transmission / frost glass, is gone with the glass core):
  *
- *   P2  surface  — plasma / fresnel / box edges / the Work hologram (non-instanced)
+ *   P2  surface  — plasma / fresnel / box edges / the Work hologram and its ink backing panel
+ *                  (non-instanced)
  *   P3  surface  — the same source on an `InstancedMesh` (three adds the instancing defines)
  *   P4  line     — wireframes, the mesh wave, synapses, UI card outlines, the helix's 0/1 bits
  *   P5  tube     — flat or round ribbons: the chip's traces, the commerce track and gates, hub
@@ -97,7 +98,7 @@ function baseUniforms(mode: number): BaseUniforms {
 
 /** Which palette role feeds each colour uniform of a material. */
 export type ColorRoles = { a: keyof ScenePaletteColors; b: keyof ScenePaletteColors; hot: keyof ScenePaletteColors };
-type ScenePaletteColors = Pick<ScenePalette, "cyan" | "blue" | "red" | "hot" | "bg">;
+type ScenePaletteColors = Pick<ScenePalette, "cyan" | "blue" | "red" | "hot" | "bg" | "panel">;
 
 /** A shader material the world recolours on a theme change. */
 export type Paintable = {
@@ -115,8 +116,11 @@ export function paint(item: Paintable, palette: ScenePalette): void {
 
 /* ---- P2 / P3: surface ------------------------------------------------------------------------ */
 
-/** 3 was the glass core's shell; the other modes keep their numbers. */
-export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2, holo: 4 } as const;
+/**
+ * 3 was the glass core's shell; the other modes keep their numbers. `panel` is a flat fill of
+ * `uColorA` at `uIntensity`'s opacity: the dark screen the Work hologram stands on in ink.
+ */
+export const SURFACE_MODE = { plasma: 0, fresnel: 1, edges: 2, holo: 4, panel: 5 } as const;
 
 export type SurfaceUniforms = BaseUniforms & {
   uPulse: U<number>;
@@ -210,7 +214,7 @@ void main() {
     float edge = smoothstep(0.84, 0.96, a.x + a.y + a.z - hi - lo);
     color = mix(uColorA * hue, uHot, edge * 0.45 * hotness * smoothstep(1.2, 2.6, lum));
     strength = (0.035 + edge * 0.9 + fres * 0.05) * uIntensity;
-  } else {
+  } else if (uMode < 4.5) {
     // the Work hologram (models/helix.ts) and the laptop's display (models/laptop.ts): a Canvas2D
     // texture (hologram.ts) under scanlines, in a hairline frame; a glitch shears and flickers it
     // for a moment while the texture is swapped.
@@ -234,6 +238,11 @@ void main() {
     // linear before the output encodes it again — otherwise a screenshot comes back washed out.
     color = mix(mix(uColorA, uHot, peak * 0.35 * hotness), own * own, sat);
     strength = (tex.a * peak * 1.1 * scan + frame * 0.55) * uIntensity * (1.0 - 0.6 * uGlitch * step(0.5, fract(uTime * 30.0)));
+  } else {
+    // panel: the Work hologram's dark screen in ink (models/helix.ts) — one flat colour, its
+    // opacity uIntensity; drawn "over" the page, the hologram's light added on top of it.
+    color = uColorA;
+    strength = uIntensity;
   }
 
   strength *= gain;

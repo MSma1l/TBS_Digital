@@ -10,9 +10,11 @@ hardcode raw hex values in components.
 
 ## Colors
 
-The site ships **two palettes, and dark is the default** (2026-09-16): a visitor who has not
-chosen gets the dark HUD look, and light is an explicit choice — see [Dark theme](#dark-theme).
-The tokens on `:root` below are the **light** values; the dark theme remaps them.
+The site ships **one palette, and it is light** (2026-10-28) — see
+[Light only](#light-only-2026-10-28). There is no theme toggle, no `data-theme` attribute and
+no dark mode; `color-scheme: light` sits on `:root` and the viewport's `themeColor` is `--bg`
+(`#f4f7ff`). The values below are the client-approved light palette that 58b18ee removed,
+restored as the only one. In `globals.css` they live in the `:root` block titled **"The map"**.
 
 The light palette is a cool, airy scale where each surface step is a real elevation, so a card
 reads as a distinct surface against the page. The hue leans very slightly blue, which is what
@@ -29,6 +31,12 @@ is warm-inclusive — `--amber` is a rich gold and `--coral` is a warm ember.
   --wash:      rgba(219,227,255,.5);   /* the soft blue wash, top right of the page */
   --grid-line: rgba(16,23,42,.04);     /* the faint 56px page grid */
 
+  /* the request section (Estimator, Portfolio monitor) */
+  --deck:       #ffffff;   /* the console shell: a white card on the page */
+  --riser:      #f4f7ff;   /* the proposal panel, a faint blue recess in the deck */
+  --riser-line: #c5d0e4;
+  --slot:       #f4f6fb;   /* a field cut into deck or riser */
+
   /* scrim — stays near-black on purpose: it sits over bright partner/project
      screenshots and is what keeps white-on-transparent logos readable. It is NOT
      part of the light scale and must not be "lifted" to match it. */
@@ -39,7 +47,7 @@ is warm-inclusive — `--amber` is a rich gold and `--coral` is a warm ember.
 
   --txt:   #10172a;   /* primary text */
   --mut:   #586784;   /* body text, and ALL small text */
-  --dim:   #6b7891;   /* faintest tone — under AA on light surfaces, see below */
+  --dim:   #586784;   /* = --mut since 2026-10-28; #6b7891 was under AA, see below */
 
   /* FILLS — brand colours with --on-accent text on top */
   --red:   #ef263d;
@@ -102,30 +110,28 @@ along the whole gradient.
 
 ## HUD layer — the first screen
 
-The first screen (intro preloader, header, hero, ticker, cookie banner) adds a small token
+The first screen (header, hero, ticker, cookie banner) adds a small token
 family of its own, all in `app/globals.css`. It is built from the same palette — nothing here
 is a second design system.
 
 ### Void
 
 ```css
---void: #0a0b10;   /* the preloader's backdrop, and the dark page colour (--dark-bg) */
+--void: #0a0b10;   /* always-dark islands: the Obsidian consoles, chips over screenshots */
 ```
 
-**`--void` is never remapped.** The intro overlay is **always dark, in the light theme too** —
-it is the one sanctioned exception to "follow the active theme". Its CSS Module uses only the
-fixed tokens (`--void`, the `--dark-*` values, the brand fills), never the remapped `--bg` /
-`--txt` pair, and sets `color-scheme: dark`. The 3D scene also reads `--void` at runtime, so it
-must stay a hex value (see [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage)).
+**`--void` is not a page colour** — the page is light. It stays for what is dark on purpose:
+the Obsidian console islands, the portfolio's pixel matrix and the chips and fades laid over
+screenshots (which carry `--on-obsidian` text, never `--txt`). The old `--dark-*` scale was
+deleted on 2026-10-28: nothing reads it any more.
 
 ### Glass
 
 ```css
-/* light                                    dark twin (remapped)                  */
---glass-bg:       rgba(255,255,255,.72);  /* --dark-glass-bg:       rgba(24,30,48,.62) */
---glass-bg-text:  rgba(255,255,255,.90);  /* --dark-glass-bg-text:  rgba(24,30,48,.84) */
---glass-bg-solid: rgba(255,255,255,.94);  /* --dark-glass-bg-solid: rgba(24,30,48,.94) */
---glass-line:     rgba(16,23,42,.12);     /* --dark-glass-line:     rgba(246,247,251,.12) */
+--glass-bg:       rgba(255,255,255,.72);
+--glass-bg-text:  rgba(255,255,255,.90);
+--glass-bg-solid: rgba(255,255,255,.94);
+--glass-line:     rgba(16,23,42,.12);
 --glass-blur: 14px;                       /* 8px at ≤640px: blur cost scales with radius */
 ```
 
@@ -133,14 +139,13 @@ Tailwind exposes them as `glass`, `glass-text` (utilities: tint + `backdrop-filt
 `@supports` fallback to the solid tint) and `bg-glass`, `bg-glass-solid`, `border-glass-line`.
 
 **The glass contrast rule.** Text on glass is measured against the **worst pixel that can show
-through** — the darkest under the light sheet, the brightest under the dark one — never against
-the tint alone. That splits glass by what it carries:
+through** — the darkest, under this light sheet — never against the tint alone. That splits glass by what it carries:
 
 | Token | Use it for | Measured |
 |-------|------------|----------|
-| `--glass-bg` | decorative glass over a backdrop **we** control: hero stat cards, the secondary hero CTA | light: `--mut` 5.59:1 over `--bg`, but only 3.09 over `--ink` and 2.86 over black. Dark: `--dark-mut` 8.97 over `--dark-bg`, but 2.36 over a white photo |
-| `--glass-bg-text` | glass that carries small text over content we **don't** control: the sticky header over photos, its dropdowns over the headline | rendered worst case — dark over pure white: nav links / clock time 5.02, clock label (`--blue-text`) 4.64; light over black: links 4.56, clock label 4.90. The decorative "+" markers: 3.64 / 4.31 |
-| `--glass-bg-solid` | where the blur is dropped (below 861px on the header and stat cards; the `@supports` fallback) | dark: `--dark-mut` 7.01, `--dark-blue-text` 6.54 over white |
+| `--glass-bg` | decorative glass over a backdrop **we** control: hero stat cards, the secondary hero CTA | light: `--mut` 5.59:1 over `--bg`, but only 3.09 over `--ink` and 2.86 over black |
+| `--glass-bg-text` | glass that carries small text over content we **don't** control: the sticky header over photos, its dropdowns over the headline | rendered worst case — over black: links 4.56, clock label (`--blue-text`) 4.90. The decorative "+" markers: 3.64 / 4.31 |
+| `--glass-bg-solid` | where the blur is dropped (below 861px on the header and stat cards; the `@supports` fallback) | opaque enough that the page behind it never decides the contrast |
 
 Two more rules came out of rendering it:
 
@@ -160,8 +165,8 @@ Two more rules came out of rendering it:
 --neon-blue:       0 0 0 1px rgba(57,112,255,.45), 0 0 16px rgba(57,112,255,.35);
 
 /* the hero's two key lights sit behind its copy, so they have their own tokens */
---hero-glow-red:  rgba(239,38,61,.08);    /* dark: var(--glow-red) */
---hero-glow-blue: rgba(47,107,239,.06);   /* dark: var(--glow) */
+--hero-glow-red:  rgba(239,38,61,.08);
+--hero-glow-blue: rgba(47,107,239,.06);
 ```
 
 Neon is a stacked shadow (hairline ring + near glow + far glow) on a fill that reads as lit.
@@ -170,22 +175,22 @@ glow, `--neon-red-strong` on hover, the lift through `translate` (so a GSAP entr
 `transform` on a wrapper never fights it).
 
 - **Its focus ring is `--txt`, not the site's usual cyan.** The ring lands on the red glow on
-  both sides, and cyan there measured 1.2–2.5:1 in the light theme. `--txt` renders at ≥6.4:1
-  (light) and ≥6.75:1 (dark) against the gap and the glow around it.
+  both sides, and cyan there measured 1.2–2.5:1. `--txt` renders at ≥6.4:1 against the gap and
+  the glow around it.
 - **It has a transparent 1px outline at rest**, invisible normally; forced colours (Windows
   High Contrast) drop the gradient and glow and paint that outline, so the button keeps a
   boundary.
-- **The hero glows are much fainter in light** (`.08` / `.06` instead of the shared `.45` /
+- **The hero glows are faint on the light page** (`.08` / `.06` instead of the shared `.45` /
   `.22`): at full strength the lead dropped to 3.8–4.1:1. Now the lead measures ≥4.53:1 on
   every pixel behind it at 861 and 1280px, and ≥4.57 on 95% of the pixels at 390px (the rest,
-  down to 4.07, sat on the 1px HUD grid lines). Dark keeps the full glows (lead ≥7.26). Since
+  down to 4.07, sat on the 1px HUD grid lines). Since
   2026-09-17 the phone copy also sits on a scrim over the core (`--hero-scrim`, see
   [The interior stage](#hero-core-tokens-phones)).
 
 ### Grid, layout heights
 
 ```css
---hud-grid-line: rgba(57,112,255,.10);   /* dark: rgba(120,150,255,.09) */
+--hud-grid-line: rgba(57,112,255,.10);
 --grid-cell: 64px;
 --gutter:    clamp(16px, 4vw, 40px);     /* the site's horizontal gutter, named */
 --header-h:  71px;   /* 13px + the 44px tap-target row + 13px + 1px border, at every width */
@@ -211,12 +216,11 @@ One ladder for every fixed or sticky layer, low → high:
 | `--z-cookie` | 280 | cookie banner |
 | `--z-progress` | 300 | scroll progress bar (the fibre below 861px; hidden while the rail exists) |
 | `--z-modal` | 320 | the request dialog — above everything interactive |
-| `--z-intro` | 400 | first-visit intro — covers every CTA, so the dialog cannot open under it |
 
 New code reads the token (`z-(--z-header)` in Tailwind, `var(--z-modal)` in a module); a
 literal z-index for one of these layers is a bug. The three HUD chrome layers (2026-09-17, tokens
-only so far) sit **under the whole ladder**, burger overlay included: the overlay, the request
-dialog and the intro cover them with no hide logic ([Cyber Dark / Neon Cyan / Obsidian
+only so far) sit **under the whole ladder**, burger overlay included: the overlay and the request
+dialog cover them with no hide logic ([Cyber Dark / Neon Cyan / Obsidian
 Black](#cyber-dark--neon-cyan--obsidian-black)). The interior stage added no layer: it is an
 `isolate` stacking context, and the hero's plate and backdrop use local `-z-20` / `-z-10` inside
 it ([The interior stage](#paint-order)).
@@ -237,16 +241,16 @@ Computed with the WCAG formula against the values above (2026-09-16):
 |------------|-----------|------------|--------|---------|
 | `--txt` | 17.83 | 16.49 | 16.63 | 15.36 |
 | `--mut` | 5.69 | 5.27 | 5.31 | 4.91 |
-| `--dim` | **4.45** | **4.11** | **4.15** | **3.83** |
+| `--dim` | 5.69 | 5.27 | 5.31 | 4.91 |
 | `--red-text` | 5.38 | 4.98 | 5.02 | 4.64 |
 | `--blue-text` | 6.18 | 5.71 | 5.76 | 5.32 |
 | `--green-text` | 5.32 | 4.92 | 4.97 | 4.59 |
 
-**`--dim` does not clear AA 4.5:1 on any light surface.** This file used to claim that every
-text token did (`--dim` on `--panel2` at 4.94:1) — a figure for the `#666c7b` value documented
-here at the time, not for the `#6b7891` that `globals.css` actually carries. Use `--mut` for
-small text: the header clock and the language switcher were moved off `--dim` for exactly this
-reason. White on the fills: `--blue`
+**`--dim` is `--mut`'s value since 2026-10-28.** The light era's `#6b7891` measured 4.45 /
+4.11 / 4.15 / 3.83 — under AA 4.5:1 on every light surface — and `--dim` still carries small
+text in about twenty places (section labels, the admin panel). Rather than invent a new grey,
+it now points at the approved secondary text `#586784`; the hierarchy comes from size and
+weight. New code uses `--mut` for small text. White on the fills: `--blue`
 **4.25:1** (bold/large labels only), `--violet2` **6.18:1**, `--red` **4.19:1** — which is why a
 red button label sits on `--grad-red-cta`, not on `--red` or `--grad-red`.
 
@@ -303,10 +307,11 @@ has none. Nothing on the stage or an ancestor of its layer may carry `transform`
 ### Hero core tokens (phones)
 
 ```css
-/* light                       dark twin (remapped)         */
---hero-core-phone: 0.3;     /* --dark-hero-core-phone: 0.65 */   /* below 641px */
---hero-core-phone: 0.11;    /* --dark-hero-core-phone: 0.27 */   /* 641–860px   */
---hero-scrim:      0.92;    /* --dark-hero-scrim:      0.8  */
+--hero-core-phone: 0.3;     /* below 641px */
+--hero-core-phone: 0.11;    /* 641–860px   */
+--hero-scrim:      0.92;
+/* The figures below were measured while the site had a dark theme too; the "light" ones are
+   the live values (2026-10-28: light only, the scene draws in ink). */
 ```
 
 Re-measured for the microprocessor (IT-OS Phase 1, 2026-09-17) with the text hidden, over the
@@ -438,7 +443,7 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
   (`transform-3d`, `perspective-[600px]`). Size is one variable, `--holo-a` (26px, 30px from
   641px). **Never a vertex dot.**
 - It turns (`animate-holo-spin`, 18s) only under
-  `html:not(:has(#tbs-intro)) [data-motion=live] #top:not([data-offscreen])`; otherwise the
+  `[data-motion=live] #top:not([data-offscreen])`; otherwise the
   animation is paused on a three-quarter pose (`rotateX(-20deg) rotateY(35deg)`, with a negative
   delay so the paused spin sits on the same pose). Reduced motion removes the animation; the
   resting transform stays.
@@ -449,7 +454,7 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
   set (150ms), and eases back to none (300ms). Stat cards tilt up to 8° (`perspective(900px)`),
   project cards 6° (`perspective(1000px)`, from 641px). The tilt is `transform`, the hover lift is
   `translate` — two properties, so they compose. `data-tilt="on|off"` says whether the card can
-  tilt (`off` on the server). A tilt never touches an intro entrance marker.
+  tilt (`off` on the server).
 
 ### The hero stat panels (2026-09-25)
 
@@ -463,8 +468,8 @@ geometry, no vertex dots, no second plane.
 
 **The face is the card.** `three/statFace.ts` composes it from the card's own DOM: every string is
 its `textContent` and every size, weight, family, margin and padding is its COMPUTED style, scaled
-by the one ratio between the canvas and the card's LAYOUT box (`offsetHeight`, so the intro's
-entrance, the scroll parallax and the card's own tilt cannot lean a letter). The face therefore
+by the one ratio between the canvas and the card's LAYOUT box (`offsetHeight`, so the scroll
+parallax and the card's own tilt cannot lean a letter). The face therefore
 carries the counted portfolio number, the visitor's language and any copy or token change with
 nothing authored twice. Drawn on it, in this order: a faint pane (`STAT_FACE.plate`, 0.055 — an
 additive hologram cannot darken what is behind it, so it lifts its own surface instead), the
@@ -501,8 +506,8 @@ capped at 1.75), and it is re-sized when the window's aspect changes.
   `--accent` as border and glow, lifts 2px from 641px, and shows an `aria-hidden` "↗" in
   `--red-text`. Below 641px the row is a band that scrolls and snaps inside itself.
 - The screen: `cyber-grid` dissolved by `fade-radial`, an accent radial glow
-  (`color-mix(in srgb, var(--accent) 14%, transparent)`), a scan line (`animate-scan`, paused under
-  the intro overlay and while `#servicii` is off screen, hidden under reduced motion) and four
+  (`color-mix(in srgb, var(--accent) 14%, transparent)`), a scan line (`animate-scan`, paused while
+  `#servicii` is off screen, hidden under reduced motion) and four
   1px corner brackets. `--accent` comes from `lib/solutions.ts` — the same brand accent the
   service page uses — as an inline custom property, used for borders and glows only.
 - The case card is an `--ink` block; a reference project's tags are chips joined by the tag's own
@@ -530,7 +535,7 @@ capped at 1.75), and it is re-sized when the window's aspect changes.
     worst copy under the band's centre measured **5.11:1 dark and 4.61:1 light** (the tag, the
     tightest line in both themes, for all five accents); .16 would take the light tag to 4.38.
   - The glow changes no pixel of the copy's text area (measured). Neither goes on
-    `[data-reveal]` or an intro marker, and neither uses `filter`, blur or `border-radius`.
+    `[data-reveal]`, and neither uses `filter`, blur or `border-radius`.
     `tailwind-contract.test.ts` pins these rules.
 - Height floors: the copy, the screen and the panel carry per-locale `min-h` values measured as
   the tallest of the five directions per width band, so selecting a direction never moves the
@@ -781,6 +786,12 @@ existing tokens:
 
 ## Cyber Dark / Neon Cyan / Obsidian Black
 
+> **2026-10-28 — the page is light.** "Cyber Dark" below was written for the near-black page;
+> the chrome now reads the light map through the same tokens (`--panel`, `--glass-*`,
+> `--neon-cyan` `#0891b2`, `--cyan-text` `#0b7490`). The contrast figures quoted for the dark
+> scale are history; the light ones are in [Contrast](#contrast--the-constraint-that-shapes-the-whole-palette)
+> and in the comments of `globals.css`. Obsidian islands stay dark.
+
 The palette of the HUD chrome: the fibre scroll rail, the OS dock and windows, and the Command
 Center form. It is built from the existing system: two brand names map
 onto tokens that already existed, and the new tokens follow the same rules as the rest of the
@@ -800,7 +811,7 @@ remapped).
 
 | Name | Tokens | Theme behaviour |
 |------|--------|-----------------|
-| **Cyber Dark** | no new token: the `--dark-*` surface scale (`--dark-bg` `#0a0b10`, `--dark-panel` `#181e30`, `--dark-panel2` `#1f2639`, `--dark-line*`, `--dark-glass-*`), reached through the remapped `--bg` / `--panel` / `--glass-*` | follows the theme; in light the same component sits on the light scale |
+| **Cyber Dark** | no new token: the chrome is reached through `--bg` / `--panel` / `--glass-*` | the page is light (2026-10-28), so the chrome sits on the light scale; the `--dark-*` surface scale it was named after is gone |
 | **Neon Cyan** | `--neon-cyan` (graphics) · `--cyan-text` (text) · `--glow-cyan` · `--neon-cyan-ring` | light `#0891b2` / `#0b7490`, dark `#38e1ff` for both, remapped in both dark blocks |
 | **Obsidian Black** | `--obsidian` **is `--void`** (`#0a0b10`) · `--on-obsidian` · `--on-obsidian-mut` · `--obsidian-neon` · `--obsidian-line` | never remapped: always-dark islands, the same in both themes |
 
@@ -814,12 +825,12 @@ with the one red action on the screen.
 ### Tokens
 
 ```css
-/* light, on :root                                dark twin, on :root, remapped          */
---neon-cyan:      #0891b2;                        /* --dark-neon-cyan:      #38e1ff      */
---cyan-text:      #0b7490;                        /* --dark-cyan-text:      #38e1ff      */
---glow-cyan:      rgba(8,145,178,.28);            /* --dark-glow-cyan:      rgba(56,225,255,.38) */
---neon-cyan-ring: 0 0 0 1px rgba(8,145,178,.5),   /* --dark-neon-cyan-ring: 0 0 0 1px rgba(56,225,255,.55), */
-                  0 0 16px rgba(8,145,178,.3);    /*                        0 0 18px rgba(56,225,255,.4)    */
+/* the light map, on :root (the --dark-* twins were deleted on 2026-10-28) */
+--neon-cyan:      #0891b2;
+--cyan-text:      #0b7490;
+--glow-cyan:      rgba(8,145,178,.28);
+--neon-cyan-ring: 0 0 0 1px rgba(8,145,178,.5),
+                  0 0 16px rgba(8,145,178,.3);
 
 /* Obsidian Black: never remapped */
 --obsidian:         var(--void);   /* #0a0b10 */
@@ -988,9 +999,9 @@ the OS layer 108, both below `--z-nav-overlay` 115.
 
 **When the chrome shows:**
 
-- **Not armed:** nothing renders while the intro is on screen, while the cookie question is
+- **Not armed:** nothing renders while the cookie question is
   unanswered, or when QA sets the `tbs_hud=off` flag. So nothing ever collides with the cookie
-  banner (z 280) or the intro.
+  banner (z 280).
 - **Page covered** (the request dialog or the burger menu): nothing is hidden or made `inert`.
   The z-order covers the chrome and the dialog traps Tab, and live polling and rail writes pause.
 - **Away:** while the home page's own request form (`#estimare`) is in view, the dock goes to
@@ -1391,7 +1402,7 @@ native scrollbar, which stays the scrollbar. Behaviour is in
 
 **Placement** (critique R2): `position: fixed; top: calc(var(--header-h) + 16px); right: 0;
 bottom: var(--hud-bottom); width: var(--hud-rail-w)` (44px) at `--z-rail` (104) — under the OS
-layer, the burger overlay, the request dialog and the intro, which cover it with no
+layer, the burger overlay and the request dialog, which cover it with no
 hide logic. The root takes no pointer events; only the marker buttons do. Inside it the fibre and
 the nav are inset by half a marker (22px) at both ends, so every 44×44 button stays inside the
 rail box: clear of the header above, and clear of the bottom 112px of the edge below (the rail
@@ -1531,8 +1542,8 @@ rule in [07 — Conventions](./07-conventions.md).
 - **Scroll reveal** — elements fade/slide in via `IntersectionObserver` (`[data-reveal]`).
 - **Glow** — radial gradients + blurred layers behind the hero and contact sections.
 - **HUD backdrop** (hero) — two key lights, the `cyber-grid` wall, a `cyber-floor` in
-  perspective drifting towards the viewer, and a hairline scanner. All paused while the intro
-  overlay is in the document, while the hero is scrolled off screen, and under reduced motion.
+  perspective drifting towards the viewer, and a hairline scanner. All paused while the hero is
+  scrolled off screen, and under reduced motion.
 - **Neon and glass** — `cta-neon` buttons, glass header / dropdowns / stat cards / cookie
   banner (see [HUD layer](#hud-layer--the-first-screen)).
 - **Marquee / hazard stripes** — the diagonal `--blue` striped bars (`.hz`) and the trust
@@ -1549,9 +1560,6 @@ rule in [07 — Conventions](./07-conventions.md).
   every "·" in copy. `decorative-dots.test.tsx` and the E2E scan keep them out.
 - **Live clock** — `SYS_TIME 12:04:08 UTC+3` in the header (Chișinău time, real offset). The
   old top status bar is gone.
-- **First-visit intro** — the laptop preloader (2026-09-20, replacing the glass ∞): a six-beat
-  camera flight out of the processor and into the display, the first two beats always drawn as
-  flat SVG ([05 — Page Sections](./05-page-sections.md)).
 
 Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fadeIn`,
 `orbit`, `scan`, `blink`, `marquee`. The Tailwind animations live in `app/tailwind.css` with a
@@ -1586,62 +1594,63 @@ only, and the global reduced-motion switch stops them.
 > built CSS's prefix counts (`-webkit-backdrop-filter`, `-webkit-mask`, `-webkit-` overall) are
 > recorded in `CHANGELOG.md` and must not drop.
 
-## Dark theme
+## Light only (2026-10-28)
 
-The site ships **light and dark, and dark is the default**. The dark values live **once**, as
-`--dark-*` on `:root` in `globals.css`; the two activation paths only *remap* the real tokens
-onto them, so the palette cannot drift between them.
+The site has **one palette, light**. History: it shipped light, gained a dark default
+(2026-09-16), lost the light theme in 58b18ee (2026-09-19, "Removed: sunetul si tema
+deschisa"), and on 2026-10-28 went back to the client-approved light palette — as the only
+one, with no toggle. Only colours changed: every animation, the 3D scene, the layout and the
+copy are as they were.
 
-```css
---dark-bg:   #0a0b10;  --dark-bg2:    #06070b;  --dark-panel: #181e30;  --dark-panel2: #1f2639;
---dark-txt:  #f6f7fb;  --dark-mut:    #aeb8cb;  --dark-dim:   #94a1b9;
---dark-line: #2c354c;  --dark-line2:  #3b4664;  --dark-wash:  rgba(39,58,120,.55);
-```
+How it is wired:
 
-The page colour is the HUD's near-black — the same value as `--void` — with `--dark-bg2` one
-step deeper so it still reads as "below" the page (until 2026-09-16: `#101422` / `#0b0e18`).
-Every text pairing gained from it, computed with the WCAG formula:
+- **`app/globals.css`** — the `:root` block titled "The map" holds the light values directly
+  (no `--dark-*` indirection; that scale was deleted). `color-scheme: light` is on `:root`, so
+  form controls, selects and inner scrollbars paint light. The 641–860px
+  `--hero-core-phone: .11` override follows the map (same specificity, so the later rule wins).
+- **`app/layout.tsx`** — `viewport.themeColor` is `#f4f7ff` (`--bg`) and
+  `viewport.colorScheme` is `light`.
+- **No `data-theme`, no theme cookie, no anti-flash script.** One palette needs none of them.
 
-| On `--dark-bg` | Before (`#101422`) | Now (`#0a0b10`) |
-|----------------|--------------------|-----------------|
-| `--dark-txt` | 17.13 | **18.36** |
-| `--dark-mut` | 9.18 | **9.85** |
-| `--dark-dim` | 7.04 | **7.54** |
-| `--dark-blue-text` | 8.58 | **9.19** |
-| `--dark-red-text` | 6.67 | **7.15** |
-| `--red` (border / glow) | 4.38 | **4.69** |
+### The 3D scene draws in ink
 
-Cards separate more clearly too (`--dark-panel` on the page 1.11 → 1.19). Across the four dark
-surfaces the faintest text pairing is `--dark-red-text` on `--dark-panel2`, at 5.48:1.
+The interior scene reads its colours from the CSS tokens (`components/scene/three/palette.ts`)
+and picks its mode from the **page colour's luminance**: above `INK_LUMINANCE` (0.4) it draws in
+**ink**, below it in **glow**. `--bg` `#f4f7ff` is 0.93, so the live site is always ink:
 
-Three states, deliberately:
+- every material switches its blend factors to premultiplied **"over"** and sets `uInk = 1`
+  (`materials.ts` `applyMode`) — an additive glow would vanish on a pale page; no shader
+  recompiles;
+- blue and red come from the **text tones** (`--blue-text` `#2a56d6`, `--red-text` `#d41026`)
+  instead of `--blue` / `--red-lift`, cyan stays `--cyan`, and the highlight (`hot`) is `--txt`
+  — dark strokes on paper rather than white-hot cores;
+- every model keeps its own ink intensities (`PANEL_INTENSITY`, `GRID_ALPHA`, … keyed by mode)
+  and the hero core's dim behind the phone copy uses the ink column of `CORE_BEHIND_COPY_DIM`.
 
-| State | How it is expressed |
-|-------|---------------------|
-| Explicit choice | `data-theme="dark"` / `"light"` on `<html>`, from the `tbs_theme` cookie |
-| No choice yet | **`data-theme="dark"`** — `DEFAULT_THEME` in `lib/theme/theme.ts`. The OS preference is deliberately not read |
-| Persistence | cookie `tbs_theme`, 1 year — same shape as `tbs_locale` |
+The canvases the scene composes (`hologram.ts`, `statFace.ts`) are luminance/coverage masks the
+shader colours from the palette; the stat face reads its row colours off the card's own
+computed tokens, so it follows the light map too. The static hero art
+(`HeroCoreArt.module.css`) keeps the fainter light tints (glow core `.18`, body `.06`, die
+`.35` / `.6`, halo `.16`): ink on paper.
 
-**Why a cookie and not `localStorage`:** the server reads it and stamps `data-theme` into the
-HTML it sends, so every visitor gets the right palette in the **first byte**, with no flash and
-with JavaScript off — a missing or junk cookie stamps the dark default. The inline script in
-`<head>` stamps the same value again before first paint, as the guarantee that holds whatever
-produced the HTML, and pins `color-scheme`; it **carries the CSP nonce** (`x-nonce`, minted in
-`proxy.ts`), without which the strict policy blocks it. The `prefers-color-scheme` block left
-in `globals.css` only matters for a document that arrives with no `data-theme` at all.
+**The one exception: the Work hologram is a screen.** Drawn in ink, the project card beside the
+helix came out as a pale, washed-out negative on the white page. So in ink it stands on a **dark
+backing panel** — `--ink` (`ScenePalette.panel`, read via `SCENE_TOKENS.ink`), drawn "over" at
+0.92 opacity (× the frame's `dim`), slightly larger than the plane with rounded corners
+(`HELIX_HOLOGRAM_PANEL` in `models/helix.ts`, P2's flat `SURFACE_MODE.panel` branch) — and the
+hologram itself keeps drawing as **light**: additive, `uInk = 0`, in the palette's **glow tones**
+(`ScenePalette.glow`: `--cyan`, `--blue`, `--red-lift`, and `--on-ink` as the white-hot; applied
+through `glowPalette`). The panel is a child of the hologram mesh, so the layout, the open from a
+hairline, the swap's flinch, the exit's shrink, the pointer tilt and the visibility are all
+inherited; it shares the hologram's dissolve (`uReveal`). On a dark page (glow) the panel is hidden
+and nothing changes.
 
-The root layout stamps **every** route, so `/admin-tbs-digital` is dark by default as well.
+### What stays dark, and why
 
-### What is NOT remapped, and why
-
-`--ink*` is not a dark theme — it is the handful of blocks that invert *on purpose*. On dark
-they lift **above** the surface (`#1d2540`) instead of sinking below it, or they would vanish
-into the page.
-
-`--green` and `--amber` get their own dark values: they are darkened for a light background
-and fall under AA on `#181e30`. `--ice` and `--cyan` likewise. **`--blue` and `--red` are
-deliberately left alone** — they are brand *fills* carrying `--on-accent` text, and lightening
-them would weaken that pairing.
+- **`--ink` / `--ink2`** — the handful of blocks that invert *on purpose* (the steps card on a
+  direction page, the Directions project card). Their text is `--on-ink` / `--on-ink-mut`.
+- **`--scrim`** — near-black over bright screenshots and partner logos (Lightbox, Modal backdrop).
+- **The Obsidian islands and the chips over the portfolio's screenshots** — see [Void](#void).
 
 ### Red as text — `--red-text`
 
@@ -1669,9 +1678,6 @@ The same split now exists for the other two accents used as small text:
 --green-text: #0b7a5a;  /* 5.32:1 on --panel — the fill --green is 3.21:1 */
 ```
 
-On dark, `--green-text` simply points at `--dark-green` (already 8.92:1) rather than adding a
-fourth near-identical green.
-
 `Principles` shows why the split is per *role*, not per colour: its `--accent` tints a hover
 **border** (a graphic — 3:1 is enough) while `--accent-text` colours a 12px/800 **number**.
 Same hue, two thresholds, two tokens.
@@ -1680,12 +1686,11 @@ Same hue, two thresholds, two tokens.
 > `--red` 4.19 · `--blue` 4.25 · `--green` **3.21** · `--amber` 3.77 · `--cyan` 3.56 ·
 > `--mint` ≈2.4 · `--star` ≈1.6.
 >
-> **Still open:** `--amber` is text in `Partners.module.css`, and `--cyan` is still text in the
-> legal pages (`LegalDoc.module.css`), most of the admin panel and the section index labels in
-> `globals.css`. Both want the same `*-text` treatment. The header and the cookie banner no
-> longer use `--cyan` as text since their 2026-09-16 rewrite (the clock label is
-> `--blue-text`), and the status bar is gone. As **focus rings, borders and icons** `--cyan` is
-> fine: those are graphics, and 3.56:1 clears the 3:1 bar.
+> **Closed 2026-10-28:** the legal pages, the admin panel and the section index labels use
+> `--cyan-text` for cyan text; `Partners`' CTA label and Work's section index (formerly
+> `--amber`, which has no text twin) use `--red-text`; the admin's error / success text uses
+> `--red-text` / `--green-text`. As **focus rings, borders and icons** `--cyan` is fine: those
+> are graphics, and 3.56:1 clears the 3:1 bar.
 >
 > This file previously claimed `--green` and `--amber` were "darkened enough to clear AA as
 > text". They were not — the numbers above are measured, not derived.

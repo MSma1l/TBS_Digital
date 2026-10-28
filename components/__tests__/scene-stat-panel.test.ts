@@ -29,7 +29,7 @@ import { STATS_GROUP_ATTR, createScrollProbe, type ScrollProbe } from "@/lib/sce
  * Three things are pinned here, and they are the three ways this can go wrong:
  *  · the WINDOW — a card is measured only while the page says it opened one (`--stat-window: 1`,
  *    which `app/globals.css` sets in the same block that takes the card's paint away), and it is
- *    measured from LAYOUT, so the intro's entrance, the scroll parallax and a reveal offset cannot
+ *    measured from LAYOUT, so the scroll parallax, a tilt and a reveal offset cannot
  *    move a panel off the box it belongs to;
  *  · the PLACE — the panel fills that box, per axis, wherever the page put it and whatever the
  *    scroll is;
@@ -82,8 +82,7 @@ describe("the stat windows, measured", () => {
     const probe = createScrollProbe();
     const first = makeCard("projects", { x: 920, y: 554, w: 192, h: 167 });
     const second = makeCard("automation", { x: 1128, y: 554, w: 192, h: 167 });
-    // The intro's entrance is `{ y: 40, rotateX: -14 }` on the group, and the desktop parallax
-    // slides its wrapper: both move the rendered box and neither moves the layout.
+    // The desktop parallax slides the group's wrapper: it moves the rendered box, never the layout.
     vi.spyOn(first, "getBoundingClientRect").mockReturnValue({ x: 920, y: 594, width: 192, height: 158 } as DOMRect);
 
     writeStatWindows(probe, [first, second]);

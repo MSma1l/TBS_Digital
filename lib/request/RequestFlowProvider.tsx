@@ -71,6 +71,8 @@ export type RequestSource =
   | "home-work"
   /** A starting price in "De ce TBS"; its project type travels with it. */
   | "home-why"
+  /** "Cere ofertă" at the close of the home page's stakes ("Ce pierzi…"). */
+  | "home-stakes"
   /** "Calculează prețul" in the footer. */
   | "footer"
   /** "Vreau un proiect similar" beside the /portofoliu screen; the project travels with it. */

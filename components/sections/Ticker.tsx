@@ -10,16 +10,16 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 /* What we sell, in plain words and in this order. The first one leads each group in bold, the
    rest follow it. */
 const LEAD = L(
-  "Începe cu ce contează",
-  "Начните с главного",
-  "Start with what matters",
+  "Începe mic, crește pe rezultate",
+  "Начните с малого, растите на результатах",
+  "Start small, grow on results",
 );
 const ITEMS: LocalizedText[] = [
-  L("MVP de test", "MVP для теста", "Test MVP"),
-  L("Site-uri și e-commerce", "Сайты и e-commerce", "Websites & e-commerce"),
+  L("Site-uri și magazine online", "Сайты и интернет-магазины", "Websites & online stores"),
+  L("Aplicații mobile și web", "Мобильные и веб-приложения", "Mobile & web apps"),
+  L("MVP cu buget mic", "MVP с небольшим бюджетом", "Small-budget MVPs"),
   L("CRM și automatizări", "CRM и автоматизация", "CRM & automation"),
-  L("Feedback de la utilizatori", "Обратная связь от пользователей", "User feedback"),
-  L("Dezvoltare etapizată", "Поэтапная разработка", "Staged development"),
+  L("Asistenți IA și boți", "ИИ-ассистенты и боты", "AI assistants & bots"),
 ];
 
 /**
@@ -65,7 +65,6 @@ export function Ticker() {
     <div
       ref={stripRef}
       data-ticker
-      data-intro-reveal="ticker"
       aria-hidden="true"
       className="group/ticker relative flex min-h-(--ticker-h) items-stretch border-y border-glass-line bg-glass-solid [--ticker-gap:28px] md:[--ticker-gap:40px] before:pointer-events-none before:absolute before:inset-x-0 before:-top-px before:z-1 before:h-px before:bg-linear-to-r before:from-transparent before:via-red before:to-transparent before:shadow-[0_0_12px_var(--glow-red)] before:content-['']"
     >

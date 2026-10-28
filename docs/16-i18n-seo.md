@@ -66,13 +66,11 @@ The hero, the ticker, Directions and Work use it; it is still RO/RU/EN, never a 
 
 | Key | RO | RU | EN | Notes |
 |-----|----|----|----|-------|
-| `intro.status` | SYSTEM_SYNCHRONIZATION | SYSTEM_SYNCHRONIZATION | SYSTEM_SYNCHRONIZATION | HUD code, identical in every language — still a key, so the overlay carries no hardcoded copy |
-| `intro.complete` | ACCESS_GRANTED | ACCESS_GRANTED | ACCESS_GRANTED | replaces `intro.status` at 100% |
-| `intro.progressAria` | Se încarcă TBS Digital | Загрузка TBS Digital | Loading TBS Digital | the progress bar's accessible name |
-| `intro.skip` | Sari peste intro | Пропустить интро | Skip intro | the skip button's accessible name — E2E finds the button by exactly this string |
-| `intro.skipKey` | ESC | ESC | ESC | the key-cap beside it (`aria-hidden`, fine pointers only) |
 | `header.sysTime` | SYS_TIME | SYS_TIME | SYS_TIME | the header clock's label |
 | `nav.primaryAria` | Principal | Основная | Main | the desktop `<nav>`'s label |
+
+The `intro.*` keys (the first-visit overlay's readout and skip button) were removed on 2026-10-28
+with the intro itself.
 
 **`nav.primaryAria` names only *which* navigation.** Screen readers already announce the
 landmark role, so "Navigație principală" would be read as "navigație principală, navigație".
@@ -147,9 +145,6 @@ The mechanism, end to end:
      cookie/Accept-Language behaviour untouched;
    - `x-pathname` — the prefix-stripped path, so every route can build a correct
      self-canonical;
-   - `x-intro: skip` — when the URL carries an ad's parameter (`utm_*`, `gclid`, `fbclid`, …),
-     so the `(site)` layout leaves the home page's intro out (2026-10-09; any incoming copy is
-     deleted first).
 3. `app/layout.tsx` reads both and renders the right language, canonical and alternates.
 
 `splitLocalePath` matches the segment exactly — `/ru2` is **not** a Russian URL.
@@ -163,8 +158,8 @@ The mechanism, end to end:
 | `robots.txt` | `app/robots.ts` | Allows everything except `/admin-tbs-digital` and `/api/`; advertises the sitemap and host |
 | `sitemap.xml` | `app/sitemap.ts` | Every public URL — `/`, `/portofoliu`, `/confidentialitate`, `/cookies` and the five direction pages under `/servicii/…` — in **each** `ro`/`ru`/`en` version, each with its complete reciprocal cluster + `x-default` hreflang alternates. It omits `lastmod` until a truthful per-page/content timestamp exists. |
 | Canonical + hreflang | `app/layout.tsx` → `generateMetadata()` | Self-canonical per served URL; `hreflangAlternates(path)` for every locale |
-| A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title`. The service pages do the same since 2026-10-09 (`app/(site)/servicii/[slug]/page.tsx`): *"TBS Digital — <the direction's menu name, `dir.*`>"* and the direction's pitch text as the description (`lib/solutions.ts`), where they used to ship the raw slug and no description |
-| Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated 1200×630 card. The shared root image uses the concise English offer “MVPs, websites, CRM & AI automation — from the first test to the next stage”; its copy remains a complete RO/RU/EN field. `og:locale` follows the served language. |
+| A page's own title | the page's `generateMetadata()` | `/portofoliu` localizes its title and description with the layout's own locale rule (`lib/i18n/requestLocale.ts` — `resolveContentLocale`, shared with the layout). It restates `openGraph` and `twitter` whole: a page's `openGraph` REPLACES the layout's instead of merging, so a page that set only a title would ship Home's `og:title`. The service pages do the same since 2026-10-09 (`app/(site)/servicii/[slug]/page.tsx`): *"<the direction's menu name, `dir.*`> | TBS Digital"* (keyword first, brand last, since 2026-10-28; it was *"TBS Digital — <name>"*) and the direction's pitch text as the description (`lib/solutions.ts`), where they used to ship the raw slug and no description |
+| Open Graph / Twitter | `app/opengraph-image.tsx`, `app/twitter-image.tsx` + metadata | Generated 1200×630 card. The shared root image uses the English headline “Test the idea before you invest in the whole product.” under the eyebrow “WEBSITES · APPS · MVPS · AUTOMATION” (2026-10-28); its copy remains a complete RO/RU/EN field. `og:locale` follows the served language. |
 | Site icon | `app/icon.svg` | The TBS wordmark. App Router picks the file up by name — no `icons` entry in `generateMetadata()` — and emits `<link rel="icon" type="image/svg+xml" sizes="any">`. Its colours are a **copy** of the `globals.css` tokens (a static file cannot read `var()`), so a palette change has to be mirrored by hand |
 | JSON-LD | `app/layout.tsx` + `app/(site)/servicii/[slug]/page.tsx` (`<script type="application/ld+json">`) | `Organization` + `WebSite` graph globally and one truthful `Service` entity on each direction page — only verifiable facts (brand, URL, contact email, Chișinău/MD, languages and the offer visible on that page). `sameAs`, prices, reviews and foreign locations are omitted rather than invented |
 | `noindex` on admin | `next.config.ts` headers | `X-Robots-Tag: noindex, nofollow` on `/admin-tbs-digital*` |
@@ -220,35 +215,80 @@ Because the nonce is minted per request, **every page renders dynamically** (`aw
 headers()` in the root layout). That is a deliberate trade: a nonce'd CSP over a statically
 prerendered page would ship HTML whose scripts carry a stale nonce.
 
+### Copy framework (2026-10-28)
+
+Visitor copy follows the StoryBrand pattern ("Marketing Made Simple"), kept plain:
+
+- **The visitor is the hero, TBS Digital the guide.** Lead with their problem (an untested idea,
+  manual work, lost requests, an unclear offer), then what we build, then the result. Authority
+  comes only from real projects, the real team and the stated reply time — never invented
+  clients, figures, testimonials or guarantees.
+- **One-liner = problem → solution → result.** It opens the home `meta.description` and each
+  direction's `pitch.text` in `lib/solutions.ts`.
+- **One direct CTA, said the same way:** *Cere ofertă* / *Оставить заявку* / *Get a quote*
+  (header `nav.cta`, the hero's primary button, the Stakes close, footer `footer.cta`, the
+  service page's action bar, `cta.collaborate`). The estimator's price
+  is the transitional CTA; it keeps its own words.
+- **The plan has three steps:** tell us the idea → we reply within one business day with
+  questions and agree the first version and its price → we launch it and develop it from real
+  feedback (the guide's "Ce se întâmplă după ce trimit?" answer, `components/hud/guide/copy.ts`, says it in
+  these words).
+- **Stakes, lightly:** "don't risk the whole budget on an untested idea" — never fear or urgency
+  that is not true. Short sentences, no exclamation marks, no buzzwords; RU and EN are written
+  natively, not translated word for word.
+
+**The home page follows the 8-part website wireframe** of the book, in this order (the sections
+and their copy are in [05 — Page Sections](./05-page-sections.md#the-wireframe-order-2026-10-28)):
+
+1. **Header** — what we offer, how it makes life better, how to get it, and the direct CTA. The
+   Hero: a headline and two buttons, *no subtitle and no line under the buttons* (the owner's
+   rule).
+2. **Stakes** — what not acting costs: lost customers, budget spent on an untested idea, hours of
+   manual work. `Stakes.tsx`; named, never measured — no figures.
+3. **Value proposition** — what the visitor gets: the services (Directions), *no lead paragraph*
+   (the owner's rule).
+4. **The guide** — empathy first („Înțelegem ce riști când pornești ceva nou.”, Principles), then
+   authority from real things only: the projects (Work, WorkProof), the starting prices from the
+   admin, the team, the partners.
+5. **The plan** — three steps (Process): „Ne spui ideea” → „Primești planul și prețul” → „Lansezi
+   și crești”.
+6. **Explanatory paragraph** — the story retold in prose (`Explainer.tsx`): problem → guide →
+   plan → success. This is where the search phrases live in sentences — *creare site-uri*,
+   *magazine online*, *aplicații mobile și web*, *MVP*, *automatizări*, *Chișinău*, *Moldova* —
+   once each, never as a list.
+7. **Price choices** — the estimator (RequestSection): the starting prices, the transitional CTA.
+8. **Junk drawer** — the footer: the one-liner again (`footer.brandText`, with the city), the
+   CTA, navigation, partners, portfolio, legal.
+
+The direct CTA appears in parts 1, 2, 3 (each direction), 4 (WorkProof, the price rows), 7 and 8.
+Each section has one `h2`; a section's copy fits on one screen — no section grows a lead
+paragraph it did not have.
+
+**Titles and descriptions.** `meta.title` ≤ 60 characters, the main search phrase first and the
+brand last — *"Creare site-uri, aplicații și MVP în Chișinău | TBS Digital"*, *"Создание сайтов,
+приложений и MVP в Кишинёве | TBS Digital"*, *"Website, App & MVP Development in Moldova | TBS
+Digital"*. `meta.description` is 140–160 characters: the one-liner plus the CTA. A service page's
+description is its `pitch.text` (also 140–160, shown under the `<h1>` too, so it carries no CTA of
+its own — the buttons are right under it); its title is its `dir.*` name + *" | TBS Digital"* (keyword first, brand last),
+which now names the service as people search for it (*"Site-uri, aplicații și MVP"*, *"Magazin
+online și e-commerce"*, *"Automatizare, CRM și API"*, *"Asistenți IA și boți"*, *"Brand și design
+UI"*). Each phrase appears once per title and once or twice in the copy — no keyword lists.
+
 ### A preloaded document is the same document (2026-09-25)
 
 The root layout builds the self-canonical and the hreflang set from `x-pathname`, which `proxy.ts`
 sets. Until 2026-09-25 the proxy's matcher skipped any request carrying the legacy
 `Purpose: prefetch` header — a **browser's** header, sent on the document it preloads when the
 omnibox predicts a URL — so those documents were rendered with no `x-pathname`: no canonical, no
-hreflang, no intro and no CSP. The matcher now skips only the Next router's own RSC prefetch
+hreflang and no CSP. The matcher now skips only the Next router's own RSC prefetch
 (`next-router-prefetch`), and a preloaded document is byte-for-byte the document a typed address
-gets. See [11 — Security](./11-security.md#the-html-csp-and-the-first-visit-intro-2026-09-16).
+gets. See [11 — Security](./11-security.md#the-html-csp-2026-09-16).
 
-### The first-visit intro and SEO
+### The first screen and SEO
 
-A full-screen overlay on a first visit to `/` could look like an interstitial hiding the
-content. It is built so that it does not:
-
-- **The content is all there, server-rendered, under the overlay.** The `<h1>`, the lead, the
-  CTAs and every section are in the HTML the server sends; the overlay is a sibling, not a
-  wrapper, and nothing on the page is `aria-hidden` while it runs. `e2e/preloader.spec.ts`
-  asserts that the `<h1>`'s computed opacity is **1** under the overlay.
-- **Nothing hides the headline, ever.** No CSS rule targets the entrance markers, and the
-  entrance animates the `<h1>` with transform and blur only — never opacity — so it paints at
-  full opacity from the first frame.
-- **It is short and skippable** (a ~2.4s minimum, 5s hard cap, then a ~1.3s burst; any key,
-  click or wheel skips), never on a `#section` deep link, never under reduced motion, and never
-  on any other page. It plays on **every** hard load of `/` — it used to play once per browser
-  session, which reads as broken on a reload.
-- **Crawlers** without JavaScript get it hidden by a `<noscript>` rule; with a
-  `tbs_intro_skip=seen` cookie the server does not render it at all (the site never writes that
-  cookie — the E2E suite and QA seed it).
+- **Nothing hides the headline, ever.** The `<h1>`, the lead, the CTAs and every section are in
+  the HTML the server sends, and the `<h1>` paints at full opacity from the first frame. The
+  first-visit intro overlay that used to play over `/` was removed on 2026-10-28.
 
 **Measured** (headless Chromium, production build, during review): the LCP element is the
 `<h1>` in every run — phone 260 ms on a first visit / 148 ms on a returning one, desktop
@@ -262,16 +302,16 @@ a crawler or an assistive technology sees:
 
 - **All content stays server-rendered HTML.** The stage is a wrapper; its canvas lives in an
   `aria-hidden` track with no layout height, so no section moves and no text is drawn into the
-  canvas. The scene is requested only after the intro has gone and the page is idle (at least
-  1.5s of visible time), so it never competes with the `<h1>` for LCP.
+  canvas. The scene is requested only once the page is idle, so it never competes with the
+  `<h1>` for LCP.
 - **The static art is decoration in the HTML**: the hero's core and the first direction's
   drawing ship as inline, `aria-hidden` SVG without text; the other four drawings load in the
   browser only when a visitor switches direction, so they cost no HTML weight.
 - **The direction pills are real links** to `/servicii/<slug>` in every language (crawlable, as
   the sitemap lists them); a touch visitor's first tap previews instead of navigating, which a
   crawler never does.
-- **The entrance markers are never moved by the scroll effects** (the parallax targets wrappers),
-  and the `<h1>` is never hidden.
+- **The scroll effects never move the content itself** (the parallax targets wrappers), and the
+  `<h1>` is never hidden.
 - **The hero's numbers are drawn by the scene from 2026-09-25, and they are still HTML.** Where a
   panel is drawn (861px and up, on a `webgl` renderer) the metric card keeps its box, its text and
   its place in the accessibility tree and loses only its paint (`opacity: 0` and no glass); the
@@ -294,15 +334,9 @@ a crawler or an assistive technology sees:
 - `components/ui/CookieConsent.tsx` — the GDPR / Law-133 banner, shown until a choice is
   made. Accessible: labelled dialog region, focus moved to it, **Escape = essential only**
   (the privacy-preserving default), reduced-motion honoured. Links to `/cookies`.
-- **It waits for the first-visit intro.** Taking focus under a full-screen overlay would strand
-  a keyboard user behind it, so on a first visit to `/` the banner shows only when the intro
-  reports done (`tbs:intro-done`, via `onIntroDone()` in `lib/intro.ts`). Every other page — and
-  a home page with no overlay — shows it exactly as before, in the same effect. A backstop of
-  `WATCHDOG_MS + 1s`, counted in visible-tab time only, covers an intro that never reports back,
-  but never fires under an overlay that is still live. The effect on consent: until the banner
-  shows, nothing is decided, so the analytics pixel still does not load. After an intro that
-  played, Escape is ignored for 700ms (a second skip press must not answer the banner), and a
-  held key's repeats never answer it. Details: [05 — Page Sections](./05-page-sections.md#cookie-consent-banner).
+- **It shows at once** when no consent is stored, on every page (since 2026-10-28 there is no
+  intro overlay to wait for); a held key's repeats never answer it. Details:
+  [05 — Page Sections](./05-page-sections.md#cookie-consent-banner).
 - `components/ui/AnalyticsPixel.tsx` — the `statistica.tbs.md` pixel. Injected **only**
   after `consent === "accepted"`; before that no request to the tracker host fires at all.
   It reacts live to the banner, so accepting loads it without a reload.
@@ -327,13 +361,11 @@ The pixel host is allow-listed in the CSP `connect-src`/`script-src` via `proxy.
 copy in `content.ts` next to each page and shared styling in `LegalDoc.tsx` /
 `LegalDoc.module.css`. They are listed in the sitemap with full hreflang alternates.
 
-The cookie policy lists **`tbs_intro`** as an essential cookie in all three languages — it only
-remembers that the intro already played in this browser session, identifies nobody, and ends
-when the browser closes (last updated 16 September 2026). It also lists **`tbs_gpu_probe`** as
-essential **session storage**: whether this device can show the 3D animations, so the check is
+The cookie policy (last updated 16 September 2026) lists **`tbs_gpu_probe`** as
+essential **session storage** in all three languages: whether this device can show the 3D animations, so the check is
 not repeated on every page — yes/no values only (never the graphics card's name), identifies
-nobody, gone when the tab closes. `localStorage.tbs_scene_3d` and `tbs_intro_3d` are QA
-switches the site only reads and never writes, so they are not listed. `tbs_theme` and `tbs_sound` are still
+nobody, gone when the tab closes. `localStorage.tbs_scene_3d` is a QA
+switch the site only reads and never writes, so it is not listed. `tbs_theme` and `tbs_sound` are still
 not listed there; that gap predates the redesign.
 
 ---

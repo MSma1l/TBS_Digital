@@ -19,8 +19,7 @@
      dialog.
      Stack, low → high (the --z-* ladder in globals.css): lightbox 100 · nav overlay 115 ·
      header 120 · dropdown 130 · language popup 200 · cookie banner 280 · scroll progress
-     300 · THIS (--z-modal) · first-visit intro 400 (it covers every CTA, so the dialog
-     cannot be opened underneath it). */
+     300 · THIS (--z-modal). */
   z-index: var(--z-modal);
 
   display: flex;

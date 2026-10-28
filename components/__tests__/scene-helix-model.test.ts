@@ -8,6 +8,8 @@ import {
   LineSegments,
   Matrix4,
   Mesh,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
   Points,
   Quaternion,
   Vector3,
@@ -39,6 +41,7 @@ import {
   HELIX_EXIT,
   HELIX_GLITCH_SECONDS,
   HELIX_HOLOGRAM,
+  HELIX_HOLOGRAM_PANEL,
   createHelixModel,
   helixArrivePose,
   helixBitStrokes,
@@ -63,9 +66,13 @@ import {
 const PALETTE = pickSceneRoles({
   cyan: "#4fc3e8",
   blue: "#3970ff",
+  blueText: "#8fb0ff",
   redLift: "#ff5362",
+  redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
+  ink: "#111a31",
+  onInk: "#dbe5ff",
 });
 
 const frame = (over: Partial<HelixFrame> = {}): HelixFrame => ({
@@ -135,9 +142,14 @@ describe("helix model — draws per tier", () => {
       expect(hologram).toBeInstanceOf(Mesh);
       expect(uniforms(hologram).uMode.value).toBe(SURFACE_MODE.holo);
       // Every draw lives under the placed group; no sprite anywhere (squares and strokes only).
+      // The one extra mesh is the hologram's ink panel, a child riding in the hologram's object.
       const found: Object3D[] = [];
       model.group.traverse((object) => {
         if (object instanceof Points) found.push(object);
+        if (object.name === HELIX_HOLOGRAM_PANEL.name) {
+          expect(object.parent).toBe(hologram);
+          return;
+        }
         if (object instanceof Mesh || object instanceof LineSegments) expect(model.objects).toContain(object);
       });
       expect(found).toEqual([]);
@@ -911,8 +923,9 @@ describe("helix model — behaviour", () => {
         materials.add(object.material as Material);
       }
     });
-    expect(geometries.size).toBe(5);
-    expect(materials.size).toBe(5);
+    // Five draws and the hologram's ink panel.
+    expect(geometries.size).toBe(6);
+    expect(materials.size).toBe(6);
     const freed = new Set<unknown>();
     for (const item of [...geometries, ...materials]) item.addEventListener("dispose", () => freed.add(item));
     let textureFreed = false;
@@ -920,9 +933,147 @@ describe("helix model — behaviour", () => {
       textureFreed = true;
     });
     model.dispose();
-    expect(freed.size).toBe(10);
+    expect(freed.size).toBe(12);
     expect(textureFreed).toBe(false);
     texture.dispose();
+  });
+});
+
+describe("helix model — the hologram's dark screen in ink", () => {
+  /** The light page's tokens (globals.css): the scene draws in ink. */
+  const INK = pickSceneRoles({
+    cyan: "#0e93b9",
+    blue: "#3970ff",
+    blueText: "#2a56d6",
+    redLift: "#ff5362",
+    redText: "#d41026",
+    txt: "#10172a",
+    bg: "#f4f7ff",
+    ink: "#111a31",
+    onInk: "#dbe5ff",
+  });
+  const panelOf = (hologram: Mesh) => hologram.getObjectByName(HELIX_HOLOGRAM_PANEL.name) as Mesh;
+  const material = (object: Object3D) => (object as Mesh).material as ShaderMaterial;
+  const colorGap = (a: Color, b: Color) => Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+  /** The world-space box of a mesh's geometry. */
+  const worldBox = (mesh: Mesh) => {
+    mesh.geometry.computeBoundingBox();
+    return mesh.geometry.boundingBox!.clone().applyMatrix4(mesh.matrixWorld);
+  };
+
+  it("ink: a rounded --ink panel, a child of the hologram a hair behind it, drawn 'over' at 0.92 just before it", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.high, INK);
+    const { hologram } = parts(model);
+    const panel = panelOf(hologram);
+    expect(panel).toBeInstanceOf(Mesh);
+    expect(panel.parent).toBe(hologram);
+    expect(panel.visible).toBe(true);
+    expect(panel.position.toArray()).toEqual([0, 0, HELIX_HOLOGRAM_PANEL.z]);
+    expect(HELIX_HOLOGRAM_PANEL.z).toBeLessThan(0);
+    expect(panel.renderOrder).toBeLessThan(hologram.renderOrder);
+    expect(panel.frustumCulled).toBe(false);
+    // P2 (the hologram's own program), its flat `panel` branch, coloured from --ink — no literal.
+    expect(uniforms(panel).uMode.value).toBe(SURFACE_MODE.panel);
+    expect(colorGap(uniforms(panel).uColorA.value as Color, toColor(INK.panel))).toBeLessThan(1e-9);
+    // Normal "over": premultiplied, one minus source alpha.
+    expect(uniforms(panel).uInk.value).toBe(1);
+    expect(material(panel).blendDst).toBe(OneMinusSrcAlphaFactor);
+    model.update(frame());
+    expect(uniforms(panel).uIntensity.value).toBeCloseTo(HELIX_HOLOGRAM_PANEL.opacity, 12);
+    expect(HELIX_HOLOGRAM_PANEL.opacity).toBeCloseTo(0.92, 12);
+    // A frame round the plane: a little larger, so the hologram's square corners stay on it.
+    panel.geometry.computeBoundingBox();
+    const box = panel.geometry.boundingBox!;
+    expect(box.max.x - box.min.x).toBeCloseTo(HELIX_HOLOGRAM.width + 2 * HELIX_HOLOGRAM_PANEL.pad, 6);
+    expect(box.max.y - box.min.y).toBeCloseTo(HELIX_HOLOGRAM.height + 2 * HELIX_HOLOGRAM_PANEL.pad, 6);
+    const r = HELIX_HOLOGRAM_PANEL.radius - HELIX_HOLOGRAM_PANEL.pad;
+    expect(Math.SQRT2 * r).toBeLessThanOrEqual(HELIX_HOLOGRAM_PANEL.radius);
+    model.dispose();
+  });
+
+  it("ink: the hologram itself still draws as light — additive, uInk 0, the glow tones (--blue, a light highlight), not the ink ones", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.mid, INK);
+    const { strands, hologram } = parts(model);
+    expect(uniforms(hologram).uInk.value).toBe(0);
+    expect(material(hologram).blendDst).toBe(OneFactor);
+    expect(material(hologram).blendSrc).toBe(OneFactor);
+    expect(colorGap(uniforms(hologram).uColorB.value as Color, toColor(INK.glow.blue))).toBeLessThan(1e-9);
+    expect(colorGap(uniforms(hologram).uHot.value as Color, toColor(INK.glow.hot))).toBeLessThan(1e-9);
+    expect(colorGap(uniforms(hologram).uHot.value as Color, toColor(INK.hot))).toBeGreaterThan(0.5);
+    // At the glow intensity, `dim` alone over it.
+    model.update(frame());
+    expect(uniforms(hologram).uIntensity.value).toBe(1);
+    // Everything else stays in ink.
+    expect(uniforms(strands).uInk.value).toBe(1);
+    expect(material(strands).blendDst).toBe(OneMinusSrcAlphaFactor);
+    model.dispose();
+  });
+
+  it("ink: the panel follows every transform of the hologram — layout, tilt, the open, the flinch, the exit — and fades and hides with it", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.high, INK);
+    const { hologram } = parts(model);
+    const panel = panelOf(hologram);
+    model.setHologram(new CanvasTexture(document.createElement("canvas")));
+    layoutHelixHologram(model.group, 537.6, 36, 435.2, 121.5);
+    const behind = new Matrix4().makeTranslation(0, 0, HELIX_HOLOGRAM_PANEL.z);
+    /** The panel's world matrix is the hologram's, a hair behind it — whatever the frame did. */
+    const framed = () => {
+      model.group.updateMatrixWorld(true);
+      const expected = hologram.matrixWorld.clone().multiply(behind);
+      panel.matrixWorld.elements.forEach((value, i) => expect(value).toBeCloseTo(expected.elements[i], 9));
+      // So in world space it covers the plane, larger by the pad all round.
+      const plane = worldBox(hologram);
+      const back = worldBox(panel);
+      expect(back.max.x - back.min.x).toBeGreaterThan(plane.max.x - plane.min.x);
+      expect(back.max.y - back.min.y).toBeGreaterThan(plane.max.y - plane.min.y);
+    };
+    let t = 0;
+    // Opening from a hairline: the panel is a hairline too.
+    model.update(frame({ time: (t += 0.05), arrive: 0.93 }));
+    expect(hologram.visible).toBe(true);
+    expect(hologram.scale.y).toBeLessThan(hologram.scale.x);
+    framed();
+    // Open, laid out.
+    model.update(frame({ time: (t += 0.05) }));
+    framed();
+    // The swap's flinch.
+    model.glitch();
+    model.update(frame({ time: (t += 0.01) }));
+    expect(hologram.scale.x).toBeGreaterThan((435.2 / 121.5) / HELIX_HOLOGRAM.width);
+    framed();
+    // Pointer tilt: the panel turns with the plane.
+    model.update(frame({ time: (t += 0.5), tx: 0.8, ty: -0.6 }));
+    model.group.updateMatrixWorld(true);
+    const normal = (mesh: Mesh) => new Vector3(0, 0, 1).transformDirection(mesh.matrixWorld);
+    expect(normal(panel).distanceTo(normal(hologram))).toBeLessThan(1e-12);
+    expect(normal(hologram).z).toBeLessThan(1);
+    framed();
+    // Dim and the exit: the same dissolve, the opacity under the same dim, the shrink inherited.
+    model.update(frame({ time: (t += 0.05), dim: 0.5, exit: 0.8 }));
+    expect(uniforms(panel).uReveal.value).toBe(uniforms(hologram).uReveal.value);
+    expect(uniforms(panel).uReveal.value).toBeLessThan(1);
+    expect(uniforms(panel).uIntensity.value).toBeCloseTo(HELIX_HOLOGRAM_PANEL.opacity * 0.5, 12);
+    framed();
+    // No texture, ambient, or not opened yet: the hologram is hidden, and the panel with it.
+    model.setHologram(null);
+    expect(hologram.visible).toBe(false);
+    expect(panel.parent).toBe(hologram);
+    model.dispose();
+  });
+
+  it("glow (a dark page): no panel — and a theme switch brings it in and takes it away", () => {
+    const model = createHelixModel(SCENE_TIER_CONFIG.mid, PALETTE);
+    const { hologram } = parts(model);
+    const panel = panelOf(hologram);
+    expect(panel.visible).toBe(false);
+    expect(uniforms(hologram).uInk.value).toBe(0);
+    expect(colorGap(uniforms(hologram).uHot.value as Color, toColor(PALETTE.hot))).toBeLessThan(1e-9);
+    model.setPalette(INK);
+    expect(panel.visible).toBe(true);
+    expect(uniforms(hologram).uInk.value).toBe(0);
+    model.setPalette(PALETTE);
+    expect(panel.visible).toBe(false);
+    model.dispose();
   });
 });
 

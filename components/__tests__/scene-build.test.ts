@@ -47,9 +47,13 @@ import { createScrollProbe, readSceneInput, SERVICE_MODEL, SCENE_SHAPES } from "
 const PALETTE = pickSceneRoles({
   cyan: "#4fc3e8",
   blue: "#3970ff",
+  blueText: "#8fb0ff",
   redLift: "#ff5362",
+  redText: "#ff6b7b",
   txt: "#f6f7fb",
   bg: "#0a0b10",
+  ink: "#111a31",
+  onInk: "#dbe5ff",
 });
 
 /** An idle slice the test runs by hand, recording what happened in each task. */

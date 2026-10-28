@@ -77,7 +77,8 @@ const ROW_TINT = {
 } as const;
 
 /**
- * A colour from the card's own computed style, or white where the page does not define it.
+ * A colour from the card's own computed style, or the card's own text colour where the page does
+ * not define it (theme-aware: --txt, dark on the light page — never a hardcoded white).
  *
  * A custom property can still read back as an unresolved `var(...)` — assigning that to
  * `fillStyle` is a silent no-op and the row would take whatever colour was set last, which is a
@@ -85,7 +86,7 @@ const ROW_TINT = {
  */
 function tintOf(style: CSSStyleDeclaration, property: string): string {
   const value = style.getPropertyValue(property).trim();
-  return value === "" || value.startsWith("var(") ? "#fff" : value;
+  return value === "" || value.startsWith("var(") ? style.color || "#000" : value;
 }
 
 export const STAT_FACE = {
@@ -342,8 +343,8 @@ export async function composeStatFace(
   index: number,
 ): Promise<"text"> {
   const [w, h] = size;
-  /* `offsetHeight`, not a rendered box: the card is transformed by the intro's entrance, by the
-     scroll parallax and by its own tilt, and the face has to be drawn to the box it RESTS at — the
+  /* `offsetHeight`, not a rendered box: the card is transformed by the scroll parallax and by
+     its own tilt, and the face has to be drawn to the box it RESTS at — the
      same box `writeStatWindows` measures and `placeStat` fits the panel to. */
   const s = card.offsetHeight > 0 ? h / card.offsetHeight : 1;
 

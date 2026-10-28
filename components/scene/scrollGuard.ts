@@ -19,7 +19,6 @@
  */
 
 import type { ScrollTrigger } from "gsap/ScrollTrigger";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { INSTANT_SCROLL_ATTR, SCENE_ATTR } from "@/lib/scene";
 
 /** Run `run` with smooth scrolling off on `root` (normally <html>), and put it back even if `run` throws. */
@@ -135,11 +134,10 @@ export function resetScrollTriggerQuietForTests(): void {
 }
 
 /*
- * Never a parallax target: an intro entrance marker (the entrance owns its inline transform
- * and must leave no style behind), a scroll-reveal element (its CSS transition owns
- * `transform`), <html> or <body>. Ancestors and descendants of those are fine.
+ * Never a parallax target: a scroll-reveal element (its CSS transition owns `transform`),
+ * <html> or <body>. Ancestors and descendants of those are fine.
  */
-const NOT_A_PARALLAX_TARGET = `[${INTRO_REVEAL_ATTR}], [data-reveal]`;
+const NOT_A_PARALLAX_TARGET = "[data-reveal]";
 
 /** The `[data-parallax="<layer>"]` elements under `scope` that a parallax tween may move. */
 export function parallaxTargets(scope: ParentNode, layer: string): HTMLElement[] {

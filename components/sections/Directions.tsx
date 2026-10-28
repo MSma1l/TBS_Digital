@@ -56,16 +56,13 @@ const SERVICES: Service[] = [
   { slug: "brand-ui", tab: directionTab["brand-ui"] },
 ];
 
+/* The wireframe's value proposition (docs/16, "Copy framework"): the heading names what the
+   visitor can get, the way they search for it. The owner's rule: no lead paragraph under it. */
 const SECTION = {
   title: L(
-    "Cu ce începem ca să testezi ideea?",
-    "С чего начнём, чтобы проверить идею?",
-    "What should we start with to test the idea?",
-  ),
-  lead: L(
-    "Alegem versiunea esențială, vezi investiția de pornire și decizi ce merită testat acum — înainte să extindem produsul.",
-    "Выбираем ключевую версию, вы видите стартовые вложения и решаете, что стоит проверить сейчас, — прежде чем расширять продукт.",
-    "We choose the essential version, show the starting investment and decide what is worth testing now — before expanding the product.",
+    "Alege ce îți trebuie: site, magazin online, aplicație sau automatizare.",
+    "Выберите, что вам нужно: сайт, интернет-магазин, приложение или автоматизация.",
+    "Choose what you need: a website, an online store, an app or an automation.",
   ),
   tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
   /* The service page's own action-bar label: both buttons open the same request. */
@@ -119,12 +116,11 @@ const accentStyle = (slug: string): CSSProperties =>
   ({ "--accent": solutions[slug]?.accent ?? "var(--blue)" }) as CSSProperties;
 
 /*
- * The HUD screen's chrome loops only while it can be seen: the scan line pauses under the
- * first-visit intro overlay and while the section is scrolled away (`data-offscreen`), and
- * reduced motion removes it.
+ * The HUD screen's chrome loops only while it can be seen: the scan line pauses while the
+ * section is scrolled away (`data-offscreen`), and reduced motion removes it.
  */
 const SCAN_CLASSES =
-  "[html:has(#tbs-intro)_&]:[animation-play-state:paused] group-data-offscreen/services:[animation-play-state:paused] motion-reduce:hidden";
+  "group-data-offscreen/services:[animation-play-state:paused] motion-reduce:hidden";
 
 /*
  * Heights that do not move when another direction is selected. The pitch, the price and the case
@@ -273,9 +269,6 @@ export function Directions({ initialArt }: DirectionsProps) {
             <h2 className="m-0 text-balance font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
               {l(SECTION.title)}
             </h2>
-            <p className="mt-3.5 mb-0 max-w-[560px] font-copy text-base leading-[1.6] text-mut">
-              {l(SECTION.lead)}
-            </p>
           </div>
         </Reveal>
 

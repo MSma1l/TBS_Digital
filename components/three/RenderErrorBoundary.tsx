@@ -14,8 +14,7 @@ type RenderErrorBoundaryState = { failed: boolean };
  * Decoration must never take the page down: whatever throws inside a 3D subtree — a chunk
  * that fails to load, a WebGL renderer that can't be created, a shader that won't compile, a
  * token three can't parse — renders nothing from the moment it fails and tells the owner,
- * who decides what "failed" means there: the intro shell gets the page out from under the
- * overlay, the intro director drops back to the SVG ∞, the interior stage keeps its art.
+ * who decides what "failed" means there: the interior stage keeps its art.
  *
  * A class because error boundaries still have no hook form in React 19.
  */

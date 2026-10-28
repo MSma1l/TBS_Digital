@@ -101,8 +101,7 @@ such at the top of the file.
   rect, the whole Work spiral above it.
 - **An invisible loop is still a running loop.** `opacity: 0` and `visibility: hidden` stop the
   paint, not the animation: the browser restyles it every frame (and an SVG child's `transform`
-  costs a layout too). A loop inside something that FADES OUT (the page cover's BootCore, a scene
-  host's loading mark) rests once the fade has ended, never before: a custom property read into
+  costs a layout too). A loop inside something that FADES OUT (a scene host's loading mark) rests once the fade has ended, never before: a custom property read into
   `animation-play-state: var(--x, running)` flips to `paused` by a **discrete transition** delayed
   by the fade's own duration (`transition: …, --x 0s linear <fade>; transition-behavior:
   allow-discrete`, inside `@supports (transition-behavior: allow-discrete)`), and the raised rule
@@ -147,10 +146,8 @@ Tailwind CSS v4 is used by **exactly eight files**, the ones listed in `@source`
 `components/sections/Directions.tsx`, `components/sections/Work.tsx`,
 `components/scene/SceneStage.tsx` and `components/ui/CookieConsent.tsx` (Directions, Work and the
 stage joined on 2026-09-17, and `Directions.module.css` / `Work.module.css` were deleted).
-Everything else stays on CSS Modules. Two things are deliberately **not** Tailwind:
+Everything else stays on CSS Modules. One thing is deliberately **not** Tailwind:
 
-- the intro overlay — nearly every rule there is a keyframe, a state selector or a
-  pre-hydration failsafe, which a CSS Module expresses better;
 - the interior's static art (`components/scene/art/`) — SVG strokes, gradient stops and the
   selectors that hide it under WebGL, one CSS Module per drawing. It is not in `@source`, and
   `scene-contract.test.ts` checks that it stays out.
@@ -201,31 +198,26 @@ Rules, enforced by `components/__tests__/tailwind-contract.test.ts`:
   `pending`; its one transition only on the WebGL path; `color-mix` only inside its own
   `@supports`; the sweep animated only under `[data-renderer="webgl"][data-entry="burst"]` with motion allowed, by the
   top-level `hud-glass-sweep` (transform and opacity only, opacity ≤ .12); nothing on
-  `[data-reveal]` or the intro, no filter, blur or radius. Why: [04](./04-design-system.md#directions--the-hud-screen).
+  `[data-reveal]`, no filter, blur or radius. Why: [04](./04-design-system.md#directions--the-hud-screen).
 
 Not enforced by the test, but part of the convention:
 
 - `text-*` sizes carry **no line-height**; add `leading-*`.
 - A custom `@utility` that owns `transform` (`cyber-floor`) cannot also run a keyframe that
   animates `transform`: put the animation on a child.
-- Hover lifts on anything the intro's entrance moves use the `translate` property, not
-  `transform`, so a GSAP `transform` on a wrapper never fights them.
 - Avoid opacity modifiers (`bg-red/50`) on anything that carries meaning: without
   `color-mix()` (Firefox 111–112) they fall back to the **full** colour. Prefer a token
   (`bg-glass`, `bg-panel2`, `var(--glow)`); the remaining ones are decorative only.
 
 ## 3D, GSAP and the interior stage
 
-Two parts of the site draw with WebGL and run GSAP: the first-visit intro (`components/intro/`)
-and, since 2026-09-17, the home page's interior stage (`components/scene/`). They share their
-generic helpers in `components/three/`. These conventions exist because each one was either a
+The home page's interior stage (`components/scene/`, since 2026-09-17) draws with WebGL and runs
+GSAP; its generic helpers live in `components/three/`. These conventions exist because each one was either a
 real failure, a CSP violation or a weight regression waiting to happen.
 
-**No network, no loaders, no drei.** Both scenes are built procedurally from three core: geometry
-from math (`components/intro/three/laptop.ts` and `cameraPath.ts`, `components/scene/shapes.ts` and
-`components/scene/three/*`), for the intro's glass a PMREM environment rendered from emissive strips
-(`components/three/environment.ts`; the interior has used no environment since the hero became a
-chip, 2026-09-17), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
+**No network, no loaders, no drei.** The scenes are built procedurally from three core: geometry
+from math (`components/scene/shapes.ts` and `components/scene/three/*`; the interior has used no
+environment map since the hero became a chip, 2026-09-17), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
 fetched — no HDRs, fonts, GLTF, Draco/KTX2/Basis decoders, no wasm, no workers — because the
 nonce-based CSP in `proxy.ts` would block them, and they would pass every local check and fail
 only in the browser. ESLint (`eslint.config.mjs`) therefore **bans**, both as `import` and as
@@ -239,66 +231,42 @@ config replaces the whole option.
 **Per-frame writes live in plain `.ts` modules, not in components.** The React Compiler lint
 (`react-hooks/immutability`) flags assignments to objects a hook returned; plain TypeScript
 helpers called from `useFrame` keep the components to "create once, call per frame, dispose":
-`components/intro/three/{rig,laptop,particles}.ts` for the intro; `components/scene/three/world.ts`
+`components/scene/three/world.ts`
 (which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners, which also
 lay the cursor trail), `trail.ts` (the trail's ring buffer; `three/trail.ts` uploads what it
 wrote), `workHelix.ts` (Work's spiral driver, which writes the project cards' inline layout) and
-`scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
-never re-renders React per frame either: it writes `textContent`, attributes and `quickSetter` values straight to the DOM,
-and tweens a plain `fx` object the scene reads.
+`scrollProbe.ts` (the director's writes into the probe).
 
 **Dispose everything you create.** Geometries and materials are disposed by the modules that
-build them (`laptop.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the intro's
-PMREM generator and its render target in `environment.ts`. R3F 9.7 calls `forceContextLoss()` 500ms
+build them (`world.dispose()` in the interior). R3F 9.7 calls `forceContextLoss()` 500ms
 after unmount but never `renderer.dispose()`; `components/three/renderer.ts` (`retainRenderer`)
 adds it (deferred one tick so StrictMode's remount doesn't dispose a live renderer) and guards
 against losing an already-lost context. The renderer is created up front by that module
 (`useRendererFactory` in `components/three/hooks.ts`), because a failing `new WebGLRenderer()`
 inside R3F becomes an unhandled rejection that never reaches an error boundary.
 
-**Colour tokens read at runtime must stay hex or `rgb()`.** The intro reads `--red`,
-`--red-lift`, `--blue`, `--dark-cyan`, `--dark-txt` and `--void` (`components/intro/three/materials.ts`,
-`PALETTE_TOKENS`); the interior reads `--cyan`, `--blue`, `--blue-text`, `--red-lift`,
+**Colour tokens read at runtime must stay hex or `rgb()`.** The interior reads `--cyan`, `--blue`, `--blue-text`, `--red-lift`,
 `--red-text`, `--txt` and `--bg` (`components/scene/three/palette.ts`, `SCENE_TOKENS`; `--on-accent`
 left with the glass core), and re-reads them when `data-theme` or `prefers-color-scheme` changes.
 `THREE.Color` cannot parse `color-mix()` or `oklch()`. Changing one of these tokens to another
-format throws a descriptive error: the intro falls back to the SVG, the interior's error boundary
-keeps the static art (a later theme change that cannot be read keeps the previous palette).
+format throws a descriptive error: the interior's error boundary keeps the static art (a later theme change that cannot be read keeps the previous palette).
 
 **The FPS governor replaces drei's `PerformanceMonitor`** (`components/three/governor.ts`,
-re-exported by the intro's `three/rig.ts`, unit-tested): ~1s windows; two slow ones step the DPR
+unit-tested): ~1s windows; two slow ones step the DPR
 down to 1×, then to "lite" (terminal); three fast ones step back up; a flip budget stops
 oscillation; frame gaps over 0.5s are stalls, not a measure; a steady cadence ≥24 fps counts as a
 refresh cap (`CAP_STEADINESS` 1.25, `CAP_SLACK` 0.8, `CAP_MIN_FPS` 24). **`bail` is opt-in**
 (`bailFps` > 0): once lite, `bailWindows` slow windows in a row return `"bail"`, which is terminal.
-The intro passes no bail options; the interior passes 28 fps × 4 windows unless the scene is
+The interior passes 28 fps × 4 windows unless the scene is
 forced (QA and E2E must stay deterministic on SwiftShader). Materials are never swapped mid-scene
 — that would recompile shaders; the interior's light/dark switch changes blend factors only
 (every material is `CustomBlending`, so three's program cache key does not change).
 
 **GSAP rules.** Import `gsap` and `gsap/ScrollTrigger` only (ESLint bans `gsap/all`,
 `gsap/dist/*`, ScrollSmoother and `gsap-trial`, as `import` and as `import()`). Everything is
-created inside `useGSAP`'s context, so unmounting reverts every tween and inline style. The intro
-director sets `gsap.ticker.lagSmoothing(0)` for its lifetime (restored to `(500, 33)`): the intro
-is a wall-clock sequence, and a stretched burst could outlive the watchdog; nothing else touches
-the ticker. A director only tweens elements that have **no** CSS animation or transition on the
+created inside `useGSAP`'s context, so unmounting reverts every tween and inline style. Nothing
+touches the ticker. A director only tweens elements that have **no** CSS animation or transition on the
 same property.
-
-**Keep the static drawing cheap — it is not a fallback path any more.** It carries the whole
-intro on devices without a usable GPU, **and beats 1–2 on every device**, because the 3D canvas
-is transparent until the scene signals ready and the progress cannot pass 0.60 without that
-signal ([05](./05-page-sections.md#the-six-beats-and-who-draws-them)). So: no CSS `filter` on
-anything that moves (the halo's blur is an SVG `feGaussianBlur`, rasterised once), transform and
-opacity only in its burst, at most two `feGaussianBlur` and two filtered elements, its animations
-pause while the WebGL scene draws, and its resting pose — the first thing painted on the page —
-stays inside its node ceiling so the `<h1>` underneath keeps the LCP. Its windows are scrubbed
-from **one** custom property (`FB_PROGRESS_PROP`, `--fb-p`) written once a frame on one element;
-a new part cuts its own window out of that in CSS rather than earning a second write.
-
-**The overlay's hooks are a contract.** `#tbs-intro[data-testid="intro"]` with `data-phase`,
-`data-renderer` and `data-live`; `data-part="…"` on everything the director drives;
-`role="progressbar"`; the skip button's name is exactly the `intro.skip` key. Tests and the
-cookie banner (which reads `data-live`) depend on them — don't rename them in passing.
 
 ### Lazy by construction — the heavy-import ban
 
@@ -309,16 +277,15 @@ to every visitor, and nothing but a weight measurement would notice — so it fa
 `components/layout/**`, `components/ui/**`, `components/fx/**`, `components/hud/**` (the HUD
 chrome's mount and its lazy parts), `components/scene/SceneStage.tsx`,
 `components/scene/art/**`, `components/scene/shapes.ts`, `components/three/RenderErrorBoundary.tsx`,
-`components/three/capability.ts`, the intro's up-front files (`IntroPreloader.tsx`,
-`IntroFallback.tsx`, `capability.ts`, `tiers.ts`) and `lib/**` (tests excluded).
+`components/three/capability.ts` and `lib/**` (tests excluded).
 In those files a **static value import** of any of these is an error:
 
 - the packages `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`;
 - **any subpath** of them (`three/*`, `@react-three/fiber/*`, `gsap/*`, `@gsap/react/*` — e.g.
   `gsap/ScrollTrigger.js`, `gsap/Observer`, `three/webgpu`);
 - **the site's own modules that carry them**, in any spelling (`HEAVY_MODULES_REGEX`):
-  `three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector` —
-  `@/components/three/runtime`, `../scene/SceneWorld` and `./IntroDirector.tsx` all match.
+  `three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector` —
+  `@/components/three/runtime`, `../scene/SceneWorld` and `./SceneDirector.tsx` all match.
 
 `import type` is erased at build time and stays allowed; `import()` stays allowed (that is how
 they load). Flat config **replaces** a rule's options per matching block, so this block repeats
@@ -329,17 +296,15 @@ bundle's up-front path goes into both lists.
 
 **A deleted file has to leave both lists too.** The test walks each root with a `listFiles` that
 returns `[]` for a path that does not exist — so a root naming a file that was removed stops
-checking anything at all, silently, and stays green. `components/intro/lemniscate.ts` was taken
-out of both lists on 2026-09-20 for exactly that reason when the ∞ was deleted;
-`IntroFallback.tsx` is still there and still what keeps three.js out of the static drawing.
+checking anything at all, silently, and stays green.
 
 ### The 3D runtime module
 
 **A three.js scene is reached only through `components/three/runtime.tsx`**, and only with a
-dynamic `import()` (`next/dynamic` for a component). It re-exports `IntroScene` and
+dynamic `import()` (`next/dynamic` for a component). It re-exports
 `SceneCanvas`. Turbopack builds a chunk group per `import()` target and does not share a vendor
 chunk between groups: two targets that each import three.js shipped two byte-identical copies
-of three + R3F. One target means one chunk, downloaded once and served from cache to the other
+of three + R3F. One target means one chunk, downloaded once and served from cache to every
 scene. A new scene is exported from the runtime module, never given an `import()` of its own.
 Nothing may import the runtime statically (the ban above).
 
@@ -403,9 +368,8 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   trigger is left). A wake records the gsap listeners and matchMedia that `enable()` adds, and the
   next quiet removes them, so navigating back and forth never stacks them.
 - **Parallax targets** (`parallaxTargets`): any `[data-parallax="<layer>"]` under the stage,
-  **except** an element that is itself an intro entrance marker (`[data-intro-reveal]`), a
-  scroll-reveal element (`[data-reveal]`, whose transition owns `transform`), `<html>` or `<body>`.
-  Wrap the marker instead (`hero-backdrop` and `hero-stats` are wrappers). Desktop only
+  **except** a scroll-reveal element (`[data-reveal]`, whose transition owns `transform`), `<html>` or `<body>`.
+  Wrap the element instead (`hero-backdrop` and `hero-stats` are wrappers). Desktop only
   (`PARALLAX_MEDIA`), inside `gsap.matchMedia()` so it reverts with the context.
 
 ### The interior stage's contracts
@@ -472,14 +436,7 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   `components/three/renderer.ts`), with the same key: the same geometry, the same lights, a
   render target bound when the real draw has one (colour space and tone mapping are in the key).
   `createStripEnvironment` does this for the PMREM pre-filter's four programs, and a development
-  build warns if `fromScene` still linked one. Nothing is drawn before then either: the intro's
-  canvas stays `frameloop="never"` until its compile has been issued.
-- **The transmission clear is compensated in one place** — the intro's glass only: since the hero
-  became a chip (2026-09-17) the interior has no transmission pass. `installTransmissionClear`
-  (`components/three/environment.ts`) pre-compensates three's output-space conversion of the clear
-  colour while the canvas is bound (`linearTargetClearColor`), so the linear transmission target
-  really gets the page colour. A scene passes the **plain** page colour; converting it itself
-  applies the compensation twice.
+  build warns if `fromScene` still linked one.
 - **The interior draws with five programs (P2–P6), and new parts reuse them** (`three/materials.ts`).
   The hero chip and the cursor trail added none: they are box edges, a plasma surface, lines and
   flat ribbons like the service models. A mode is a `uMode` branch, and a retired mode keeps the
@@ -502,41 +459,10 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   `rounded-pill` or `rounded-[50%|999px|9999px]`), no blinking pip, no glowing full stop — in the
   header, the hero, the ticker, Directions, Work, the stage or the art. `decorative-dots.test.tsx`
   scans the source and the render; the E2E scan checks the page. Exceptions: the dictation
-  button's recording light, "✓" markers, "·" in copy, the red full-stop glyphs, the intro
-  fallback.
+  button's recording light, "✓" markers, "·" in copy, the red full-stop glyphs.
 - **Tilt and first-tap rules are shared, not copied**: `lib/tilt.ts` + `components/fx/usePointerTilt.ts`
   (mouse only, never reduced motion, one rAF write), `lib/tapIntent.ts` (`shouldInterceptTap`, the
   header dropdowns and the direction pills).
-
-### `data-intro-reveal` — the page entrance targets
-
-The page elements the intro animates in carry `data-intro-reveal="grid|header|title|cta|stats|
-ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`; the `eyebrow` target went with the hero's kicker
-line on 2026-09-25, the `lead` target with its lead line on 2026-10-02). Since 2026-10-09 `title`
-marks a wrapper round the `<h1>` and its subtitle, and `cta` holds the CTA row and the line of
-promises under it, so each enters with its group.
-
-- **Exactly one element per target** on the home page, and **no inline `style`** on any of
-  them once the intro is over.
-- **No CSS may target `[data-intro-reveal]`.** Without an intro — a returning visitor, reduced
-  motion, a test — nothing is hidden: the page is simply there. A rule that hid them "until the
-  entrance" would blank the page for everyone the intro skips.
-- **No CSS transition or animation on `transform`, `opacity` or `filter` on a marked
-  element** — GSAP writes those.
-- **`header` and `stats`: transform only.** An opacity or filter on `<header>` (or on the glass
-  cards) makes it the backdrop root of its own glass and switches the blur off mid-entrance.
-- **`title`: never opacity.** It holds the `<h1>`, the LCP element, which must paint at full
-  opacity under the overlay.
-- **`cta` and `ticker` mark the wrapper**, never the button (its hover lift) or the ticker's
-  CSS-animated track.
-- **No parallax, tilt or other inline style on a marker** (2026-09-17). The hero's parallax
-  moves wrappers inside the `grid` marker and around the `stats` marker; the stat cards tilt
-  inside it. `parallaxTargets` refuses a marker, and the forced-WebGL E2E checks that no marker
-  keeps a `style` attribute after scrolling.
-
-`components/__tests__/intro-reveal-contract.test.tsx` renders Navbar, Hero and Ticker in all
-three languages and checks one marker per target with no style attribute, and scans
-`globals.css`, `tailwind.css` and every `*.module.css` for a selector on the attribute.
 
 ## The HUD chrome (`components/hud/**`, `lib/hud/**`)
 
@@ -550,8 +476,7 @@ the assistant herself stays, and the rules below are hers and the rail's. Wiring
   `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />` and
   `<CookieConsent />`. A part is never imported anywhere else, so nothing of it reaches the page
   bundle or the HTML, and nothing loads before the gate opens (flag → consent → interaction →
-  intro gone → idle). A part also renders nothing on its own while the banner is unanswered or
-  the intro is on screen. A part that exists only on desktop (the rail) is flagged
+  idle). A part also renders nothing on its own while the banner is unanswered. A part that exists only on desktop (the rail) is flagged
   `desktopOnly: true` in `PARTS`: HudChrome renders it through `DesktopOnly`, a
   `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`, never with a CSS-only hide, so a
   phone never downloads it and a breakpoint crossing mounts or unmounts that part alone. Its own
@@ -570,8 +495,7 @@ the assistant herself stays, and the rules below are hers and the rail's. Wiring
   form (`[data-testid="request-flow"][data-layout="section"]`) intersects the viewport"; yield is
   "the focused element overlaps the part" (`lib/hud/obscure.ts`). No `animation-fill-mode` that
   would outrank the faded opacity.
-- **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger, the
-  intro's lock) a part shows no new prompt and clears a shown one, and the rail neither measures
+- **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger) a part shows no new prompt and clears a shown one, and the rail neither measures
   nor writes (the page's positions are not real while the body is pinned; the same holds while
   `html[data-scroll-measure]` is set); the z-order (`--z-rail` 104, `--z-os` 108 <
   `--z-nav-overlay` 115) does the covering.

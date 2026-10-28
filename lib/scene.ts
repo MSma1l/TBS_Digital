@@ -16,8 +16,7 @@ import { directionSlug } from "@/lib/directions";
 /**
  * `localStorage[SCENE_3D_KEY]`: `"force"` drops `failIfMajorPerformanceCaveat`, the software
  * renderer check, the low-tier gate and the FPS bail (SwiftShader in headless Chromium gets
- * WebGL); `"off"` keeps the stage on nothing at all. Interior only — the intro reads its own
- * key (`INTRO_FORCE_3D_KEY`).
+ * WebGL); `"off"` keeps the stage on nothing at all.
  */
 export const SCENE_3D_KEY = "tbs_scene_3d";
 export type SceneFlag = "force" | "off" | null;
@@ -34,8 +33,8 @@ export function readSceneFlag(): SceneFlag {
 
 /* ---- GPU probe cache ----------------------------------------------------------------- */
 
-/* The cache and the WebGL decision live in lib/gpuProbe.ts (import-free, so the intro's
-   capability chunk stays small); they are part of this contract all the same. */
+/* The cache and the WebGL decision live in lib/gpuProbe.ts (import-free, so the capability
+   chunk stays small); they are part of this contract all the same. */
 export {
   GPU_PROBE_CACHE_KEY,
   decideWebGL,
@@ -65,7 +64,7 @@ export type SceneReason =
   | "slow"
   | "error";
 
-/** The live, never-cached gates in front of any probe, in the intro probe's order. */
+/** The live, never-cached gates in front of any probe, in the order they are checked. */
 export type MotionGate = "ok" | "unsupported" | "reduced-motion" | "save-data" | "network";
 
 type NavigatorConnection = Navigator & {
@@ -419,17 +418,6 @@ export function scrollProgress(scroll: number, span: ScrollSpan): number {
 export const SCENE_TIMING = {
   /** `requestIdleCallback` timeout before the probe / chunk requests. */
   IDLE_TIMEOUT_MS: 1500,
-  /** Added when an intro overlay was on screen: R3F releases the intro's context 500ms after unmount. */
-  AFTER_INTRO_MS: 600,
-  /**
-   * How long into an intro the stage waits before fetching its own chunks behind it.
-   *
-   * Not zero, and the number comes off the film's own clock: the intro requests three.js the
-   * moment its probe answers and had its canvas up at 1.1s on the measured load, so anything
-   * earlier competes with the download the visitor is actually watching. 2500 leaves the whole
-   * rest of the film — the reveal was at 8.2s — for a chunk to arrive in.
-   */
-  WARM_MS: 2500,
   /** The CSS crossfade from the art to the canvas. */
   CROSSFADE_MS: 500,
   /** ResizeObserver → `ScrollTrigger.refresh()` debounce. */

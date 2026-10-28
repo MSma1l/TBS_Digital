@@ -182,7 +182,7 @@ GET /api/content  ──►  lib/api.ts  ──►  lib/siteContent.tsx  ──�
 The admin lives **outside** the public site's chrome. `app/` uses a route group:
 
 - `app/layout.tsx` — `<html>`, fonts, and the `SiteContentProvider` (wraps everything).
-- `app/(site)/` — the marketing chrome (the first-visit intro gate, Navbar, Footer,
+- `app/(site)/` — the marketing chrome (Navbar, Footer,
   ScrollProgress, CookieConsent) + the landing page. The `(site)` group adds **no** URL segment.
 - `app/admin-tbs-digital/` — the panel, with no marketing chrome.
 
@@ -192,12 +192,12 @@ Two consequences of that split since the 2026-09-16 redesign:
   every route: an admin who has never chosen gets `data-theme="dark"`, and the panel's
   stylesheet reads the same tokens, so it follows. The admin has no toggle of its own; a light
   choice made on the public site (`tbs_theme=light`, `path=/`) applies here as well.
-- **The admin does not load Tailwind or the intro.** Both are imported from
+- **The admin does not load Tailwind.** It is imported from
   `app/(site)/layout.tsx`. (Next never unloads a stylesheet on client navigation, so arriving
   at the admin *from* the site would keep the utilities CSS in the page — harmless, it only
   styles the five first-screen components. The site has no link to the admin, so in practice
   the admin is a direct load.) Its "view site" and back links (`<Link href="/">`) are client
-  navigations into `(site)`, and those never play the intro; the next hard load of `/` does.
+  navigations into `(site)`.
 
 ## Frontend ↔ backend seam (implemented)
 

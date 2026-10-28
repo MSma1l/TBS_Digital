@@ -153,8 +153,7 @@ export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): vo
  * `el`'s border box in document pixels **as the page laid it out**, with every ancestor transform
  * left out — the offset chain, not `getBoundingClientRect`.
  *
- * The hero's stat group is transformed by three different things at three different moments: the
- * intro's entrance moves and rotates it (`{ y: 40, rotateX: -14 }`, cleared at the end), the desktop
+ * The hero's stat group is transformed by different things at different moments: the desktop
  * scroll parallax slides its wrapper (`PARALLAX_LAYERS["hero-stats"]`), and a scroll reveal offsets
  * a section. A rect read off the rendered box during any of them is the box at that instant, and
  * the scene would fit a panel to it and keep it there until the next refresh. `offsetTop` /

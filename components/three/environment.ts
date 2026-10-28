@@ -84,11 +84,10 @@ function createStripScene(room: Color, strips: readonly EnvStrip[]): StripScene 
  * every program it draws with has linked. Why: `fromScene` draws with four programs it has never
  * met — the room's and the strips' MeshBasic, the 20-sample blur, the 256-sample GGX filter — and
  * three links each one inside `render()`, where its first use reads the link status back: the
- * main thread waits on every link in turn, one after another. Measured on the intro (real GPU,
- * high tier, 2026-10-07): one 637ms task, 597ms of it in 25 synchronous `GetProgramiv` waits —
- * the counter, the bar and the drawing frozen for over half a second, then the director's film
- * clock jumping its 150ms frame cap. Compiled first through `compileAsync`, the four link in
- * parallel off the main thread (`KHR_parallel_shader_compile`) while the film plays on, and
+ * main thread waits on every link in turn, one after another. Measured (real GPU, high tier,
+ * 2026-10-07): one 637ms task, 597ms of it in 25 synchronous `GetProgramiv` waits — the drawing
+ * frozen for over half a second. Compiled first through `compileAsync`, the four link in
+ * parallel off the main thread (`KHR_parallel_shader_compile`) while the scene plays on, and
  * `fromScene` then finds every one of them ready. The texels are the ones the synchronous build
  * made: the same scene, the same call, the same programs.
  *

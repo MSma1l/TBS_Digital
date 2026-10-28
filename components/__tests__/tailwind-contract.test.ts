@@ -432,7 +432,7 @@ describe("app/tailwind.css — the services glass reveal", () => {
     expect(glow).toMatch(/\[data-scene-stage\]\[data-renderer="fallback"\]\s+&\s*[,{]/);
     expect(glow).toMatch(/\[data-scene-stage\]\[data-renderer="off"\]\s+&\s*[,{]/);
     expect(glow).toMatch(/var\(--accent\)/);
-    expect(glow).not.toMatch(/pending|data-reveal|intro/);
+    expect(glow).not.toMatch(/pending|data-reveal/);
     // The one transition belongs to the WebGL path: the static glow never animates in.
     expect(glow.match(/\btransition\s*:/g)).toHaveLength(1);
     expect(/([^{}]*)\{[^{}]*\btransition\s*:/.exec(glow)?.[1].trim()).toBe(
@@ -447,7 +447,7 @@ describe("app/tailwind.css — the services glass reveal", () => {
       /@media\s*\(prefers-reduced-motion:\s*no-preference\)\s*\{[\s\S]*\[data-scene-stage\]\[data-renderer="webgl"\]\[data-entry="burst"\]\s+&::after\s*\{[^{}]*animation:\s*hud-glass-sweep\s/,
     );
     expect(sweep.match(/\banimation\s*:/g)).toHaveLength(1);
-    expect(sweep).not.toMatch(/pending|data-reveal|intro/);
+    expect(sweep).not.toMatch(/pending|data-reveal/);
   });
 
   it("mixes colours only inside its own color-mix @supports: Tailwind adds no opaque-accent copy", () => {

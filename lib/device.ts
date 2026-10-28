@@ -1,6 +1,6 @@
 /**
- * What the device can take, read once from the browser — shared by the intro (which picks
- * its tier with `detectTier`) and the interior stage (`detectSceneTier`).
+ * What the device can take, read once from the browser — the interior stage picks its tier
+ * from it (`detectSceneTier`).
  *
  * No `"use client"` and nothing runs at import: every reader checks for `window` first, so
  * a server component or `e2e/helpers.ts` can import the types and the pure tier rules.
@@ -49,21 +49,9 @@ export function readDeviceProfile(): DeviceProfile {
 }
 
 /**
- * The intro's tier. Pure, so it is unit-tested as a table.
- *  · low  — 4 cores or fewer, or 4 GB of memory or less (when known);
- *  · mid  — a touch-first device, or a viewport under 600px on its short side;
- *  · high — everything else.
- */
-export function detectTier({ w, h, cores, memory, coarse }: DeviceProfile): DeviceTier {
-  if ((cores !== undefined && cores <= 4) || (memory !== undefined && memory <= 4)) return "low";
-  if (coarse || Math.min(w, h) < 600) return "mid";
-  return "high";
-}
-
-/**
- * The interior stage's tier — deliberately looser than the intro's on phones. Chrome rounds
- * `deviceMemory` DOWN to a power of two (a 6 GB phone reports 4) and Safari masks
- * `hardwareConcurrency`, so the intro's `<= 4` rule would class nearly every phone as low.
+ * The interior stage's tier — deliberately loose on phones. Chrome rounds `deviceMemory` DOWN
+ * to a power of two (a 6 GB phone reports 4) and Safari masks `hardwareConcurrency`, so a
+ * `<= 4` rule would class nearly every phone as low.
  *  · touch-first — low only when it reports under 4 GB, otherwise mid (never high);
  *  · otherwise   — low under 4 cores or under 4 GB (when known), mid on a short side under
  *    600px, high for the rest.

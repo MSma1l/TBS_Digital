@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   detectSceneTier,
-  detectTier,
   mediaMatches,
   readDeviceProfile,
   type DeviceProfile,
@@ -9,8 +8,7 @@ import {
 } from "@/lib/device";
 
 /*
- * Device tiers (lib/device.ts). The intro's rule is pinned unchanged; the interior's rule is
- * looser on phones, whose browsers under-report memory (Chrome rounds down) or cores (Safari).
+ * Device tiers (lib/device.ts). The interior's rule is loose on phones, whose browsers under-report memory (Chrome rounds down) or cores (Safari).
  */
 
 const desktop: DeviceProfile = { w: 1440, h: 900, dpr: 2, cores: 8, memory: 8, coarse: false };
@@ -21,32 +19,12 @@ afterEach(() => {
   Reflect.deleteProperty(navigator, "deviceMemory");
 });
 
-describe("detectTier (the intro — unchanged)", () => {
-  const table: Array<[string, Partial<DeviceProfile>, DeviceTier]> = [
-    ["a capable desktop", {}, "high"],
-    ["4 cores", { cores: 4 }, "low"],
-    ["4 GB of memory", { memory: 4 }, "low"],
-    ["a low-end touch phone", { w: 360, h: 780, cores: 4, coarse: true }, "low"],
-    ["a touch-first device", { coarse: true }, "mid"],
-    ["a short side under 600px", { w: 1280, h: 560 }, "mid"],
-    ["a capable phone", { w: 390, h: 844, cores: 6, coarse: true }, "mid"],
-    ["Safari: cores and memory unknown", { cores: undefined, memory: undefined }, "high"],
-    ["a dense screen alone", { dpr: 3 }, "high"],
-  ];
-
-  for (const [name, overrides, tier] of table) {
-    it(`${name} → ${tier}`, () => {
-      expect(detectTier({ ...desktop, ...overrides })).toBe(tier);
-    });
-  }
-});
-
 describe("detectSceneTier (the interior)", () => {
   const phone: DeviceProfile = { w: 390, h: 844, dpr: 3, coarse: true };
   const table: Array<[string, DeviceProfile, DeviceTier]> = [
     ["a capable desktop", desktop, "high"],
-    ["a desktop with 4 cores (the intro calls it low)", { ...desktop, cores: 4 }, "high"],
-    ["a desktop reporting 4 GB (the intro calls it low)", { ...desktop, memory: 4 }, "high"],
+    ["a desktop with 4 cores", { ...desktop, cores: 4 }, "high"],
+    ["a desktop reporting 4 GB", { ...desktop, memory: 4 }, "high"],
     ["a desktop under 4 cores", { ...desktop, cores: 2 }, "low"],
     ["a desktop under 4 GB", { ...desktop, memory: 2 }, "low"],
     ["a desktop with a short side under 600px", { ...desktop, w: 1280, h: 560 }, "mid"],

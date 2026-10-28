@@ -22,11 +22,12 @@
 
 .glowCore {
   stop-color: var(--cyan);
-  stop-opacity: 0.42;
+  /* ink on paper (the site is light): every tint is fainter than it was on the dark page */
+  stop-opacity: 0.18;
 }
 .glowBody {
   stop-color: var(--blue);
-  stop-opacity: 0.12;
+  stop-opacity: 0.06;
 }
 .glowOut {
   stop-color: var(--blue);
@@ -35,11 +36,11 @@
 
 .dieDeep {
   stop-color: var(--blue);
-  stop-opacity: 0.55;
+  stop-opacity: 0.35;
 }
 .dieLit {
   stop-color: var(--cyan);
-  stop-opacity: 0.9;
+  stop-opacity: 0.6;
 }
 
 /* ---- lines ----------------------------------------------------------------------------------- */
@@ -59,7 +60,7 @@
 
 .halo {
   stroke-width: 5px;
-  stroke-opacity: 0.24;
+  stroke-opacity: 0.16;
 }
 
 .vias {

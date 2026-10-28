@@ -13,13 +13,13 @@
    ============================================================ */
 
 :root {
-  /* The site has ONE palette. `color-scheme` here is what makes the browser paint form
-     controls, selects and inner scrollbars dark instead of light. */
-  color-scheme: dark;
+  /* The site has ONE palette, and it is light (2026-10-28). `color-scheme` here is what makes
+     the browser paint form controls, selects and inner scrollbars light to match. */
+  color-scheme: light;
 
   /* The surfaces, lines, text tones, ink blocks, glass and shadows are NOT declared here:
-     they are the --dark-* scale further down, mapped onto the real token names in the
-     `:root` block that follows it. Only palette-independent values live in this block. */
+     they are the light palette in "The map" further down. Only palette-independent values
+     live in this block. */
 
   /* scrim — stays near-black on purpose (a hair warm): it sits over bright
      partner/project screenshots and is what keeps white-on-transparent logos
@@ -30,10 +30,12 @@
      FILLS — brand colours, used as backgrounds with --on-accent text on top:
        --red / --blue / --mint / --star.
      TEXT TONES — the *-text tokens (--red-text, --blue-text, --green-text, --cyan-text)
-     are the only ones that may carry small text; they belong to the dark scale below.
+     are the only ones that may carry small text; they live in the map below, dark enough
+     to clear AA 4.5:1 on the light surfaces.
 
-     Using a FILL token as text is the one mistake that reliably breaks contrast here —
-     see docs/04-design-system.md. */
+     Using a FILL token as text is the one mistake that reliably breaks contrast here, and
+     every fill fails it — measured on --panel: --red 4.19, --blue 4.25, --green 3.21,
+     --amber 3.77, --cyan 3.56, --mint ≈2.4, --star ≈1.6. Mint and star are fills only. */
   --red: #ef263d;
   --blue: #3970ff;
   --mint: #05b99f;
@@ -57,8 +59,8 @@
      Several sections invert on purpose (the project card in Directions, the dark
      panels in DirectionPage, the Estimator summary). One scale, used by all of them, so an
      inverted block is a *decision* rather than a colour someone picked. The surfaces
-     themselves (--ink, --ink2, --ink-line) are part of the dark scale below — on a dark
-     page they lift ABOVE it instead of sinking below it. Only the text on them lives here. */
+     themselves (--ink, --ink2, --ink-line) are in the map below; on the light page they
+     are the deliberate dark islands. Only the text on them lives here. */
   --on-ink: #dbe5ff; /* body text on --ink (AA on both ink steps) */
   --on-ink-mut: #aebee7; /* muted text on --ink */
 
@@ -77,22 +79,22 @@
   --grad-red-cta: linear-gradient(135deg, #e0213a, #b50e22);
 
   /* ---- HUD layer: the first screen (preloader, header, hero, ticker, cookie banner) ----
-     --void is the preloader's backdrop and the dark page colour. It is never mapped through
-     the scale below: the 3D scene reads it as a literal hex. */
+     --void is the near-black of the always-dark islands (chips over screenshots, the obsidian
+     consoles). It is never mapped through the palette below. */
   --void: #0a0b10;
-  /* Glass. The tints themselves are part of the dark scale below; the -solid twin there
-     replaces the blur where backdrop-filter is missing or too costly (phones). Text on
-     glass is measured against the WORST (brightest) pixel that can show through, not
-     against the glass tint alone. Only the blur radius is palette-independent. */
+  /* Glass. The tints themselves are in the map below; the -solid twin there replaces the
+     blur where backdrop-filter is missing or too costly (phones). Text on glass is measured
+     against the WORST (darkest) pixel that can show through, not against the glass tint
+     alone. Only the blur radius is palette-independent. */
   --glass-blur: 14px;
   /* Neon: stacked shadows (hairline ring + near glow + far glow) for fills that read as lit. */
   --glow-red: rgba(239, 38, 61, 0.45);
   /* The hero's two key lights (Hero.tsx) sit behind its copy: the red one (at opacity .6)
      under the lead from 861px up, the blue one under the eyebrow and the lead on phones.
-     On the near-black page they are the full --glow-red / --glow (lead ≥7.2:1), so
-     --hero-glow-red / --hero-glow-blue live in the dark scale below rather than as separate
-     values here. So do --hero-core-phone (the hero chip illustration behind the copy on
-     phones) and --hero-scrim (the pool of page colour between that chip and the copy). */
+     On the light page they are faint twins of --glow-red / --glow (so the --mut lead keeps
+     ≥4.5:1 over them) and live in the map below. So do --hero-core-phone (the hero chip
+     illustration behind the copy on phones) and --hero-scrim (the pool of page colour
+     between that chip and the copy). */
   --neon-red:
     0 0 0 1px rgba(255, 83, 98, 0.5), 0 0 18px rgba(239, 38, 61, 0.45),
     0 8px 24px rgba(239, 38, 61, 0.3);
@@ -104,13 +106,13 @@
 
   /* ---- Cyber Dark / Neon Cyan / Obsidian Black: the HUD chrome palette ---------------
      For the fibre rail, the assistant, the OS dock and windows and the Command Center
-     (docs/04-design-system.md). Cyber Dark adds no token: it is the --dark-* surface scale
-     below, reached through the mapped --panel / --glass-* like every other component.
+     (docs/04-design-system.md). Cyber Dark adds no token: the chrome is reached through the
+     mapped --panel / --glass-* like every other component (light, since 2026-10-28).
      Red stays the only call-to-action fill; cyan is information (rings, threads, ticks, status).
 
      Neon Cyan splits like red, blue and green do: a GRAPHIC tone (--neon-cyan: strokes, rings,
      threads, ticks, scrollbar thumbs — ≥3:1, never small text) and a TEXT tone (--cyan-text).
-     Both, and --glow-cyan / --neon-cyan-ring with them, are part of the dark scale below; the
+     Both, and --glow-cyan / --neon-cyan-ring with them, are part of the map below; the
      older --cyan keeps the places that use it, and new code takes these two.
      Obsidian Black is --void: the always-dark console islands, never mapped (like --void).
      On it: --on-obsidian 17.55, --on-obsidian-mut 9.13, --obsidian-neon 12.53. An island is
@@ -135,9 +137,9 @@
   /* ---- stacking order -------------------------------------------------------
      One ladder for every fixed/sticky layer, low → high. The header sits ABOVE the burger
      overlay on purpose: the overlay slides in under it, so the burger stays usable. The
-     request dialog outranks everything interactive; only the first-visit intro is above it.
-     The HUD chrome sits under the whole ladder, burger overlay included, so the overlay, the
-     dialog and the intro cover it with no hide logic: the fibre rail, then the OS layer (the
+     request dialog outranks everything.
+     The HUD chrome sits under the whole ladder, burger overlay included, so the overlay and the
+     dialog cover it with no hide logic: the fibre rail, then the OS layer (the
      dock and the windows order themselves inside it), then the assistant and her bubble. */
   --z-rail: 104;
   --z-os: 108;
@@ -149,10 +151,6 @@
   --z-cookie: 280;
   --z-progress: 300;
   --z-modal: 320;
-  /* The full-window loading cover: over the header, the banner and a modal, under the intro,
-     which is a cover with its own clock and its own skip. */
-  --z-page-loading: 350;
-  --z-intro: 400;
 
   /* ---- HUD placement ----------------------------------------------------------
      Static insets shared by the rail, the dock, the assistant and the OS windows. Stylesheets
@@ -173,8 +171,8 @@
   --motion-marquee: 28s;
 
   /* ---- elevation ----------------------------------------------------------
-     --sh-sm / --sh-md / --sh-lg are part of the dark scale below: on a near-black page a
-     shadow has to be much deeper than on paper to read as elevation at all. */
+     --sh-sm / --sh-md / --sh-lg are part of the map below: soft, cool shadows on the light
+     page (a near-black page would have needed far deeper ones to read as elevation). */
 
   /* ---- spacing scale ------------------------------------------------------
      Every gap/padding in a component should come from here. The steps are the
@@ -254,121 +252,6 @@
 
 
 
-/* ============================================================
-   The dark scale — the site's only palette
-   ------------------------------------------------------------
-   The values live ONCE, as --dark-* on :root, and the block right after them maps the real
-   token names onto them. The indirection is kept on purpose: the intro preloader
-   (IntroPreloader.module.css) and the intro's 3D materials read --dark-txt / --dark-cyan and
-   friends BY NAME, because they are drawn on their own near-black backdrop rather than on
-   the page's surfaces.
-
-   There is no light palette and no `data-theme` attribute any more: the site is dark, full
-   stop. `color-scheme: dark` on :root (above) is what makes the browser's own chrome — form
-   controls, selects, inner scrollbars — follow.
-   ============================================================ */
-:root {
-  /* The page is the HUD's near-black (#0a0b10, same as --void), bg2 one step deeper so it
-     still reads as "below" the page. Against the previous #101422 every text pairing gains:
-     --dark-txt 17.13 -> 18.36:1, --dark-mut 9.18 -> 9.85, --dark-dim 7.04 -> 7.54,
-     --dark-blue-text 8.58 -> 9.19, and the --red border/glow 4.38 -> 4.69. Cards separate
-     more clearly too (--dark-panel on bg: 1.11 -> 1.19). */
-  --dark-bg: #0a0b10;
-  --dark-bg2: #06070b;
-  --dark-panel: #181e30;
-  --dark-panel2: #1f2639;
-
-/* The request section's three surfaces. A "material ladder" only exists if the eye can see it:
-     near black the +0.05 term in the contrast formula dominates, so --bg2 against --bg measured
-     1.02:1 and --panel against --panel2 measured 1.10:1 — four levels in the code, one on screen.
-     A first pass solved every step for 1.40:1 from --bg and overshot: the deck came out a light
-     blue-grey, the riser lavender, and the pure-black fields inside it read as holes. Separation
-     is a job for the EDGE as much as for the fill — the deck carries a 1px --line2 border and a
-     real shadow, so it does not need a big jump — while the panel keeps its own, at 1.42:1 over
-     the deck and 1.69:1 above the slots cut into it.
-     The SATURATION is tuned as deliberately as the luminance. At the site's usual 50% these
-     surfaces are large enough to read as a blue slab sitting on a near-black page; the deck is
-     down to 32.6% and the panel to 37.8%, which keeps the family without the section announcing
-     itself as blue. Every contrast pair held or improved through the change. */
-  --dark-deck: #1f232e;
-  /* The proposal panel is DARK, and that is the third answer to the same question.
-     It was near-white, then lavender, then a slate grey card — and a large flat mid-grey is the
-     least attractive value in a dark interface: it competes with the price and the CTA instead of
-     serving them. So the panel stops being the brightest FILL and becomes a recess in the deck
-     whose identity is light: a red-lit rim, a red halo, a light crossing its top rule, and the
-     price in white at 16.58:1 on it. Every text pairing improved by going dark, and so did field
-     identification — the same border measures 1.55:1 on the old panel and 2.45:1 on this one,
-     because a light panel was washing its own outlines out. */
-  --dark-riser: #151820;
-  --dark-riser-line: #5a6176;
-  /* A slot is NOT pure black. At --bg the fields inside the lit panel read as holes punched in
-     a card rather than as recesses cut into it; two values up they still sit 1.70:1 below the
-     panel, which is more separation than anything else in the section has. */
-  --dark-slot: #0d0f14;
-  --dark-line: #2c354c;
-  --dark-line2: #3b4664;
-  --dark-txt: #f6f7fb;
-  --dark-mut: #aeb8cb;
-  --dark-dim: #94a1b9;
-  --dark-wash: rgba(39, 58, 120, 0.55);
-  --dark-grid-line: rgba(255, 255, 255, 0.035);
-  /* the "inverted" blocks must stay distinguishable from the page once the page is
-     itself dark, so they lift ABOVE the surface rather than sinking below it */
-  --dark-ink: #1d2540;
-  --dark-ink2: #27314f;
-  --dark-ink-line: rgba(255, 255, 255, 0.14);
-  --dark-green: #2fd6a8;
-  --dark-amber: #f3c14b;
-  /* the small-text red, lifted for a dark surface. Same hue as --red (H354 vs H353),
-     saturation pushed to 100% so it stays a brand red rather than a dusty pink, and
-     lightness raised L54% -> L71% — only a step above --red-lift (L66%), which the CTA
-     gradient already puts on screen. Measured: --panel 6.03:1, --bg 7.15:1,
-     --panel2 5.48:1, --bg2 7.33:1, the Estimator summary tint 4.68:1. */
-  --dark-red-text: #ff6b7b;
-  --dark-blue-text: #8fb0ff;
-  /* On dark, --dark-green already clears AA (8.92:1 on --panel), so it doubles as the
-     text tone rather than adding a fourth near-identical green. */
-  --dark-green-text: var(--dark-green);
-  /* --ice and --cyan are pure text/icon tones (never fills), so they are lifted for the
-     near-black page: comfortably over 4.5:1 on --panel. --blue and --red have no --dark-
-     twin on purpose — they are brand *fills* with --on-accent text on top, and lightening
-     them would weaken that pairing instead. Small red TEXT does not use --red at all: it
-     uses --red-text, which maps onto --dark-red-text, exactly like --green and --amber. */
-  --dark-ice: #93a4f5;
-  --dark-cyan: #4fc3e8;
-  --dark-sh-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
-  --dark-sh-md: 0 10px 28px rgba(0, 0, 0, 0.5);
-  --dark-sh-lg: 0 18px 55px rgba(0, 0, 0, 0.53);
-  /* Glass is the panel colour, a little more see-through than the surface itself. Over
-     --dark-bg, --dark-txt measures 16.72:1, --dark-mut 8.97:1, --dark-red-text 6.51:1 — but
-     over a white photo only 4.39 / 2.36 / 1.71, which is why it stays decorative. The -text
-     twin (header, dropdowns) keeps --dark-mut at 5.02:1 and --dark-blue-text at 4.68:1
-     over pure white (rendered: 5.02 / 4.64; 8.59 / 8.02 over --dark-bg); the -solid one
-     7.01 / 6.54. */
-  --dark-glass-bg: rgba(24, 30, 48, 0.62);
-  --dark-glass-bg-text: rgba(24, 30, 48, 0.84);
-  --dark-glass-bg-solid: rgba(24, 30, 48, 0.94);
-  --dark-glass-line: rgba(246, 247, 251, 0.12);
-  --dark-hud-grid-line: rgba(120, 150, 255, 0.09);
-  /* the full key lights: over the near-black page the lead keeps 7:1 and more under them */
-  --dark-hero-glow-red: var(--glow-red);
-  --dark-hero-glow-blue: var(--glow);
-  /* Light strokes on the near-black page. Whole, the chip's art measured 1.6–2.1× the canvas
-     it crossfades into (0.95 against 0.58 at 390px, 1.49 against 0.69 at 320) and the hero
-     dimmed when WebGL took over; at .65, art ÷ canvas is 0.91–1.12 at 375/390/412 (1.17 at 320),
-     and the copy over it keeps ≥7.58:1 (headline ≥3.84). */
-  --dark-hero-core-phone: 0.65;
-  --dark-hero-scrim: 0.8;
-  /* Neon Cyan on the dark scale: one bright tone serves graphics and text alike. --bg 12.53,
-     --bg2 12.83, --panel 10.56, --panel2 9.60; over the worst (white) pixel under
-     --dark-glass-bg-solid 8.92 and under --dark-glass-bg-text 6.38. The hairline of the ring
-     holds 4.11–4.33 against the surfaces. Same hex as --obsidian-neon. */
-  --dark-neon-cyan: #38e1ff;
-  --dark-cyan-text: #38e1ff;
-  --dark-glow-cyan: rgba(56, 225, 255, 0.38);
-  --dark-neon-cyan-ring: 0 0 0 1px rgba(56, 225, 255, 0.55), 0 0 18px rgba(56, 225, 255, 0.4);
-}
-
 /* Phones: a lighter blur (the GPU cost of backdrop-filter scales with its radius). */
 @media (max-width: 640px) {
   :root {
@@ -376,62 +259,89 @@
   }
 }
 
-/* 641–860px (tablets, landscape phones): the chip is centred under the lead, below the scrim's
-   full pool, so a fifth of it shows through whatever --hero-scrim is — the art needs the fainter
-   strength the canvas has there (CORE_BEHIND_COPY_DIM.wide, 0.25 glow / 0.15 ink). At the phone
-   value the lead failed at 768×1024: 99.92% of its pixels ≥4.5:1 (lowest 4.28). Here every hero
-   text is 100% (lead ≥8.19) and art ÷ canvas is 0.97 at 768×1024, 1.10 at 844×390. --hero-core-phone
-   reads this through the map below. From 861px the art is whole (Hero.tsx md:opacity-100) and the
-   token is unused. */
-@media (min-width: 641px) {
-  :root {
-    --dark-hero-core-phone: 0.27;
-  }
+/* The map — the site's ONE palette, light (2026-10-28). The client-approved light values that
+   58b18ee removed, restored as the only palette: a cool, airy scale where each surface step is
+   a real elevation, so a card reads as a distinct surface against the page. The hue leans very
+   slightly blue, which is what keeps large white panels from looking grey next to --bg.
+   One block, no condition. */
+:root {
+  --bg: #f4f7ff;
+  --bg2: #e9eefc;
+  --panel: #ffffff;
+  --panel2: #f4f6fb;
+  /* The request section's surfaces (Estimator, Portfolio): the deck is a white card on the page,
+     the proposal panel (riser) a faint blue recess in it, the fields (slots) the --panel2 tone
+     with their own --riser-line edge. */
+  --deck: #ffffff;
+  --riser: #f4f7ff;
+  --riser-line: #c5d0e4;
+  --slot: #f4f6fb;
+  --line: #dbe3f1;
+  --line2: #c5d0e4;
+  /* text, measured on --panel / --bg / --bg2: --txt 17.83 / 16.63 / 15.36, --mut 5.69 / 5.31 /
+     4.91. --dim is the SAME value as --mut on purpose: the light era's #6b7891 measured 4.45 /
+     4.15 / 3.83 — under AA on every light surface — and --dim carries small text in ~20 places
+     (labels, the admin panel). Collapsing it onto the approved secondary text keeps them AA
+     without inventing a colour; the hierarchy comes from size and weight instead. */
+  --txt: #10172a;
+  --mut: #586784;
+  --dim: #586784;
+  /* the soft blue wash in the top-right of the page, and the faint page grid */
+  --wash: rgba(219, 227, 255, 0.5);
+  --grid-line: rgba(16, 23, 42, 0.04);
+  /* ink: the intentionally dark blocks on this light page */
+  --ink: #111a31;
+  --ink2: #162044;
+  --ink-line: rgba(255, 255, 255, 0.12);
+  --green: #12a37a;
+  --amber: #b3771a;
+  /* the brand red as SMALL TEXT (eyebrows, mono labels, link hovers). Same hue and saturation
+     as --red, only darker: --panel 5.38:1, --bg 5.02:1, --panel2 4.98:1, --bg2 4.64:1. Never a
+     fill — the fill is --red. */
+  --red-text: #d41026;
+  /* #3970ff is a fill (white sits on it); as 12px text on light it measures 4.05:1. */
+  --blue-text: #2a56d6;
+  /* #12a37a measures 3.21:1 on white — the weakest of the three as text. */
+  --green-text: #0b7a5a;
+  --ice: #5566c9;
+  --cyan: #0e93b9;
+  /* Neon Cyan: a GRAPHIC tone (≥3:1, never small text: --panel 3.68, --bg 3.44) and a TEXT tone
+     (--panel 5.36, --bg 5.00, --panel2 4.96, --bg2 4.62). The hairline of the ring is decoration;
+     an edge that carries meaning is a 1px --neon-cyan border. */
+  --neon-cyan: #0891b2;
+  --cyan-text: #0b7490;
+  --glow-cyan: rgba(8, 145, 178, 0.28);
+  --neon-cyan-ring: 0 0 0 1px rgba(8, 145, 178, 0.5), 0 0 16px rgba(8, 145, 178, 0.3);
+  --sh-sm: 0 2px 8px rgba(17, 24, 39, 0.06);
+  --sh-md: 0 8px 24px rgba(17, 24, 39, 0.1);
+  --sh-lg: 0 18px 44px rgba(17, 24, 39, 0.14);
+  /* Glass over a light page. --glass-bg is decorative (over --bg, --mut 5.59:1); glass that
+     carries small text over whatever scrolls by (the sticky header, its dropdowns) uses the
+     -text twin: --mut 4.54:1 and --blue-text 4.93:1 even over black. */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-bg-text: rgba(255, 255, 255, 0.9);
+  --glass-bg-solid: rgba(255, 255, 255, 0.94);
+  --glass-line: rgba(16, 23, 42, 0.12);
+  --hud-grid-line: rgba(57, 112, 255, 0.1);
+  /* The hero's key lights, faint on paper: the lead (--mut) keeps ≥4.53:1 on every pixel. */
+  --hero-glow-red: rgba(239, 38, 61, 0.08);
+  --hero-glow-blue: rgba(47, 107, 239, 0.06);
+  /* The hero chip illustration behind the copy on phones (art ÷ canvas 0.92–1.01 at 375–412px,
+     copy over it ≥4.78:1), and the phone scrim between chip and copy (lead ≥4.50 at 390px). */
+  --hero-core-phone: 0.3;
+  --hero-scrim: 0.92;
 }
 
-/* The map: every real token points at its --dark-* value. One block, no condition. */
-:root {
-  --bg: var(--dark-bg);
-  --bg2: var(--dark-bg2);
-  --panel: var(--dark-panel);
-  --panel2: var(--dark-panel2);
-  --deck: var(--dark-deck);
-  --riser: var(--dark-riser);
-  --riser-line: var(--dark-riser-line);
-  --slot: var(--dark-slot);
-  --line: var(--dark-line);
-  --line2: var(--dark-line2);
-  --txt: var(--dark-txt);
-  --mut: var(--dark-mut);
-  --dim: var(--dark-dim);
-  --wash: var(--dark-wash);
-  --grid-line: var(--dark-grid-line);
-  --ink: var(--dark-ink);
-  --ink2: var(--dark-ink2);
-  --ink-line: var(--dark-ink-line);
-  --green: var(--dark-green);
-  --amber: var(--dark-amber);
-  --red-text: var(--dark-red-text);
-  --blue-text: var(--dark-blue-text);
-  --green-text: var(--dark-green-text);
-  --ice: var(--dark-ice);
-  --cyan: var(--dark-cyan);
-  --neon-cyan: var(--dark-neon-cyan);
-  --cyan-text: var(--dark-cyan-text);
-  --glow-cyan: var(--dark-glow-cyan);
-  --neon-cyan-ring: var(--dark-neon-cyan-ring);
-  --sh-sm: var(--dark-sh-sm);
-  --sh-md: var(--dark-sh-md);
-  --sh-lg: var(--dark-sh-lg);
-  --glass-bg: var(--dark-glass-bg);
-  --glass-bg-text: var(--dark-glass-bg-text);
-  --glass-bg-solid: var(--dark-glass-bg-solid);
-  --glass-line: var(--dark-glass-line);
-  --hud-grid-line: var(--dark-hud-grid-line);
-  --hero-glow-red: var(--dark-hero-glow-red);
-  --hero-glow-blue: var(--dark-hero-glow-blue);
-  --hero-core-phone: var(--dark-hero-core-phone);
-  --hero-scrim: var(--dark-hero-scrim);
+/* 641–860px (tablets, landscape phones): the chip is centred under the lead, below the scrim's
+   full pool, so a fifth of it shows through whatever --hero-scrim is — the art needs the fainter
+   strength the canvas has there (CORE_BEHIND_COPY_DIM.wide, 0.15 ink). At .11 every hero text
+   is 100% ≥4.5:1 (lead ≥4.69) at 768×1024. From 861px the art is whole (Hero.tsx
+   md:opacity-100) and the token is unused. After the map on purpose: same specificity, so the
+   later rule wins. */
+@media (min-width: 641px) {
+  :root {
+    --hero-core-phone: 0.11;
+  }
 }
 
 /* The three element rules a Tailwind utility must be able to override. Unlayered, `a { color:
@@ -455,7 +365,7 @@
 }
 
 /* The native scrollbar stays the page's scrollbar (IT-OS decision 5: the fibre rail only draws
-   progress next to it). Thin, with a --neon-cyan thumb on a clear track: 12.53:1 against
+   progress next to it). Thin, with a --neon-cyan thumb on a clear track: 3.44:1 against
    --bg. A stylesheet rule, never an inline style on <html>.
    `scrollbar-color` is inherited, so every inner scroller that sets no colour of its own (the
    request dialog's body, the burger menu, the assistant's bubble) gets the same cyan thumb; the chat
@@ -541,7 +451,7 @@ body {
   margin: 0;
   /* one shared, viewport-fixed backdrop for the whole site so sections never jump:
      faint 56px grid + four soft colour glows (the hero's lighting) + blue base.
-     Fixed means every screenful shows the same lighting; kept readable over dark. */
+     Fixed means every screenful shows the same lighting. */
   /* One viewport-fixed backdrop for the whole site so sections never jump: a faint 56px
      grid over a single soft wash in the top right. Both layers are tokens, so a palette
      change repoints them instead of redefining this rule. */
@@ -783,20 +693,22 @@ body {
   color: var(--dim);
 }
 .sectionLabel .idx {
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 
 /* The index number is the one mark every section shares, so it carries the palette:
-   walking down the page it rotates violet → cyan → amber → blue → violet → cyan.
+   walking down the page it rotates violet → cyan → red → blue → violet → cyan (the text tones).
    Keyed off the section ids (SectionLabel itself is content-agnostic). */
 #despre .sectionLabel .idx {
   color: var(--violet);
 }
 #servicii .sectionLabel .idx {
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
+/* --amber is 3.77:1 on white — under AA for 12px — and has no text twin; the brand red's
+   text tone takes its turn in the rotation. */
 #lucrari .sectionLabel .idx {
-  color: var(--amber);
+  color: var(--red-text);
 }
 #echipa .sectionLabel .idx {
   color: var(--blue2);
@@ -805,7 +717,7 @@ body {
   color: var(--violet);
 }
 #contact .sectionLabel .idx {
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

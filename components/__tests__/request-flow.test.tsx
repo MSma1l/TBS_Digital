@@ -76,7 +76,7 @@ const ro = messages.ro;
 
 /** The CTAs, by the label a visitor actually reads. */
 const CTA = {
-  hero: "Testează ideea",
+  hero: "Cere ofertă",
   navbar: ro["nav.cta"],
   servicePage: "Cere ofertă",
   servicePageBottom: "Începe cererea",
@@ -431,13 +431,13 @@ describe("the guide's and the HUD tools' context travels with the request", () =
     // Inside the real Modal, whose own initial focus runs in the same commit: it must not win.
     await waitFor(() => expect(panel.contains(document.activeElement)).toBe(true));
 
-    await user.click(within(panel).getByRole("button", { name: "Mai mulți clienți" }));
+    await user.click(within(panel).getByRole("button", { name: "Unde pierdem clienți" }));
     await sendFrom(user, dialog);
 
     const message = sentMessage();
     expect(message).toContain("- Secțiune: lucrari");
     expect(message).toContain("- Sursă (CTA): guide");
-    expect(message).toContain("Client: Mai mulți clienți");
+    expect(message).toContain("Client: Unde pierdem clienți");
   });
 
   it("preselects the project type a tool names, over the service's own mapping", async () => {
@@ -614,7 +614,7 @@ describe("the estimator's own buttons never open a dialog", () => {
 
     await user.click(screen.getByRole("button", { name: "CRM la comandă" })); // project type
     await user.click(screen.getByRole("button", { name: "+ SEO" })); // option
-    await user.click(screen.getByRole("button", { name: "Mai mulți clienți" })); // quick reply
+    await user.click(screen.getByRole("button", { name: "Unde pierdem clienți" })); // quick reply
     await user.click(screen.getByRole("button", { name: /Trimite cererea/ })); // submit
 
     expect(dialogs()).toHaveLength(0);

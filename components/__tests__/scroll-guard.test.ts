@@ -23,7 +23,6 @@ import {
   writeWorkSpan,
 } from "@/components/scene/scrollProbe";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { coverPage } from "@/lib/scrollLock";
 import {
   INSTANT_SCROLL_ATTR,
@@ -38,7 +37,7 @@ import {
 /*
  * The interior stage's scroll glue, in jsdom:
  *   · scrollGuard.ts — ScrollTrigger's refreshes stay instant and leave no inline style on
- *     <html>; parallax never lands on an entrance marker, a scroll reveal, <html> or <body>;
+ *     <html>; parallax never lands on a scroll reveal, <html> or <body>;
  *   · scrollProbe.ts — what a refresh writes into the probe the scene reads every frame;
  *   · SceneDirector — the real gsap 3.15.0 + ScrollTrigger: what it measures, what it
  *     animates (and where), when it refreshes, and that an unmount leaves nothing behind.
@@ -281,12 +280,11 @@ describe("quietScrollTrigger / wakeScrollTrigger", () => {
 });
 
 describe("parallaxTargets", () => {
-  it("finds the layer's elements under the scope and skips markers, reveals, <html> and <body>", () => {
+  it("finds the layer's elements under the scope and skips reveals, <html> and <body>", () => {
     const scope = document.createElement("div");
     scope.innerHTML = `
-      <div data-intro-reveal="grid"><div id="backdrop" data-parallax="hero-backdrop"></div></div>
-      <div id="stats" data-parallax="hero-stats"><div data-intro-reveal="stats"></div></div>
-      <div id="marker" data-parallax="hero-stats" ${INTRO_REVEAL_ATTR}="cta"></div>
+      <div><div id="backdrop" data-parallax="hero-backdrop"></div></div>
+      <div id="stats" data-parallax="hero-stats"><div></div></div>
       <div id="reveal" data-parallax="hero-stats" data-reveal=""></div>
       <div id="other" data-parallax="work-media"></div>`;
     document.body.append(scope);
@@ -513,10 +511,10 @@ describe("SceneDirector", () => {
       <div data-scene-stage="" data-scroll-fx="off">
         <div aria-hidden="true"><div data-scene-layer=""></div></div>
         <section id="top">
-          <div ${INTRO_REVEAL_ATTR}="grid"><div id="backdrop" data-parallax="hero-backdrop"></div>
+          <div><div id="backdrop" data-parallax="hero-backdrop"></div>
             <div data-scene-anchor="hero"></div></div>
-          <div id="stats" data-parallax="hero-stats"><div ${INTRO_REVEAL_ATTR}="stats"></div></div>
-          <div id="marker" data-parallax="hero-stats" ${INTRO_REVEAL_ATTR}="cta"></div>
+          <div id="stats" data-parallax="hero-stats"><div></div></div>
+          <div id="marker" data-parallax="hero-stats" data-reveal=""></div>
         </section>
         <section id="servicii"><div data-scene-anchor="services"></div></section>
         <section id="lucrari"><div><div data-reveal=""></div><div data-work-track=""></div></div></section>
@@ -628,7 +626,7 @@ describe("SceneDirector", () => {
     expect(root().hasAttribute(INSTANT_SCROLL_ATTR)).toBe(false);
   });
 
-  it("on a capable desktop, scrubs the two hero layers — never a marker — and reverts them on unmount", () => {
+  it("on a capable desktop, scrubs the two hero layers — never a reveal — and reverts them on unmount", () => {
     const restore = matchParallaxMedia();
     try {
       const { stage, ref } = buildPage();

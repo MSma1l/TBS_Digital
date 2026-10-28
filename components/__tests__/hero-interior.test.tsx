@@ -5,8 +5,7 @@ import { act, createEvent, fireEvent, render, screen } from "@testing-library/re
 /*
  * The hero inside the interior stage (components/sections/Hero.tsx): the CTA boost signal to
  * the scene, the stat cards' tilt and holograms, and the hosts the stage and the director
- * rely on — where the core sits in the tree, what may move under the scroll parallax, and
- * that none of it disturbs the intro's entrance markers.
+ * rely on — where the core sits in the tree and what may move under the scroll parallax.
  *
  * jsdom 25 has no PointerEvent: testing-library falls back to a plain Event and drops
  * `pointerType` and the coordinates, so they are defined by hand (as in pointer-tilt.test).
@@ -25,7 +24,6 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Hero } from "@/components/sections/Hero";
 import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { PARALLAX_LAYERS, STATS_GROUP_ATTR, readSceneInput, resetSceneForTests } from "@/lib/scene";
 import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
@@ -117,11 +115,13 @@ function pointer(
   fireEvent(el, event);
 }
 
-const PRIMARY = "Testează ideea";
+const PRIMARY = "Cere ofertă";
 const SECONDARY = "Vezi serviciile ↓";
 
-const statsMarker = () =>
-  document.querySelector<HTMLElement>(`[${INTRO_REVEAL_ATTR}="stats"]`)!;
+const statsMarker = () => document.querySelector<HTMLElement>(`[${STATS_GROUP_ATTR}]`)!;
+/** The decorative backdrop layer: the parent of the backdrop's parallax layer. */
+const backdropLayer = () =>
+  document.querySelector<HTMLElement>('[data-parallax="hero-backdrop"]')!.parentElement!;
 const card = (id: string) => document.querySelector<HTMLElement>(`[data-metric="${id}"]`)!;
 
 describe("hero CTAs boost the scene", () => {
@@ -296,14 +296,14 @@ describe("stat holograms", () => {
     expect(document.querySelectorAll("[data-hologram]")).toHaveLength(1);
   });
 
-  it("spins only under a live stage with the intro gone and the hero on screen", () => {
+  it("spins only under a live stage with the hero on screen", () => {
     renderHero();
     const spinner = document.querySelector("[data-hologram] > span")!;
     const classes = spinner.getAttribute("class") ?? "";
     expect(classes).toContain("animate-holo-spin");
     expect(classes).toContain("[animation-play-state:paused]");
     expect(classes).toContain(
-      "[html:not(:has(#tbs-intro))_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running]",
+      "[html_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running]",
     );
     expect(classes).toContain("motion-reduce:animate-none");
   });
@@ -408,9 +408,9 @@ describe("the stat windows the 3D panels are drawn in", () => {
 });
 
 describe("hero hosts in the interior stage", () => {
-  it("scene-hero is inside the grid marker, before the h1, and holds the core art", () => {
+  it("scene-hero is inside the backdrop layer, before the h1, and holds the core art", () => {
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
-    const grid = document.querySelector(`[${INTRO_REVEAL_ATTR}="grid"]`)!;
+    const grid = backdropLayer();
     const host = screen.getByTestId("scene-hero");
     const h1 = document.querySelector("h1")!;
 
@@ -438,18 +438,16 @@ describe("hero hosts in the interior stage", () => {
     expect(screen.getByTestId("scene-hero").querySelector('[data-scene-anchor="hero"]')?.childElementCount).toBe(0);
   });
 
-  it("parallax layers are exactly hero-backdrop and hero-stats, once each, never a marker", () => {
+  it("parallax layers are exactly hero-backdrop and hero-stats, once each, never a reveal", () => {
     renderHero();
     const layers = Array.from(document.querySelectorAll<HTMLElement>("[data-parallax]"));
     expect(layers.map((el) => el.getAttribute("data-parallax")).sort()).toEqual(
       Object.keys(PARALLAX_LAYERS).sort(),
     );
     for (const el of layers) {
-      expect(el.hasAttribute(INTRO_REVEAL_ATTR)).toBe(false);
       expect(el.hasAttribute("data-reveal")).toBe(false);
     }
-    const backdrop = document.querySelector('[data-parallax="hero-backdrop"]')!;
-    expect(backdrop.parentElement).toBe(document.querySelector(`[${INTRO_REVEAL_ATTR}="grid"]`));
+    expect(backdropLayer()).toHaveAttribute("aria-hidden", "true");
     const stats = document.querySelector('[data-parallax="hero-stats"]')!;
     expect(stats.firstElementChild).toBe(statsMarker());
     // The copy column never moves with the scroll.
@@ -470,14 +468,14 @@ describe("hero hosts in the interior stage", () => {
       expect.arrayContaining(["absolute", "inset-0", "-z-20", "bg-bg", "pointer-events-none"]),
     );
     const grid = plate.nextElementSibling!;
-    expect(grid.getAttribute(INTRO_REVEAL_ATTR)).toBe("grid");
+    expect(grid).toBe(backdropLayer());
     const scrim = grid.nextElementSibling!;
     expect(scrim).toHaveAttribute("data-scene-scrim");
     expect(scrim).toHaveAttribute("aria-hidden", "true");
     expect(scrim.getAttribute("class")).toContain("md:hidden");
   });
 
-  it("keeps the marker contract: the hero's markers once each, none styled, one h1", async () => {
+  it("keeps one h1, and the stats group carries no inline style under a tilt", async () => {
     media.fine = true;
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
     await screen.findByLabelText("Indicatori");
@@ -485,11 +483,7 @@ describe("hero hosts in the interior stage", () => {
     pointer("pointerMove", card("automation"), "mouse", 10, 10);
     act(() => flushFrames());
 
-    for (const name of ["grid", "title", "cta", "stats"]) {
-      const found = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${name}"]`);
-      expect(found, name).toHaveLength(1);
-      expect(found[0].hasAttribute("style"), name).toBe(false);
-    }
+    expect(statsMarker().hasAttribute("style")).toBe(false);
     expect(document.querySelectorAll("h1")).toHaveLength(1);
   });
 });

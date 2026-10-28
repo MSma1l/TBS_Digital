@@ -126,7 +126,7 @@ A middleware in `backend/app/main.py` rejects request bodies larger than **1 MB*
 413 before they are parsed — **10 MB** under `/api/admin/uploads`, where the body is an
 image (see above).
 
-## The HTML CSP and the first-visit intro (2026-09-16)
+## The HTML CSP (2026-09-16)
 
 The site's HTML is served with a per-request, nonce-based policy from `proxy.ts`:
 `script-src 'self' 'nonce-…' 'strict-dynamic'`, `style-src 'self' 'unsafe-inline'`,
@@ -146,13 +146,11 @@ change.** It still holds because:
 - **All scripts are first-party chunks** loaded by Next under the nonce and `'strict-dynamic'`,
   including the lazy director and scene chunks.
 - **Styles are written through the CSSOM** (GSAP tweens, R3F's canvas sizing), which a CSP does
-  not restrict. The one inline `<style>` — `<noscript><style>#tbs-intro{display:none!important}
-  </style></noscript>` in `app/(site)/layout.tsx`, which hides the overlay when scripting is
-  off — relies on the `style-src 'unsafe-inline'` that was already there. Tailwind is a build-time
+  not restrict. The one inline `<style>` — the `<noscript><style>` in `app/(site)/layout.tsx`,
+  which shows the static service art when scripting is off — relies on the `style-src 'unsafe-inline'` that was already there. Tailwind is a build-time
   stylesheet.
 - **Measured:** 0 `securitypolicyviolation` events on a first visit, a returning visit, reduced
-  motion, a service page, the admin and the forced-WebGL scene, and `e2e/preloader.spec.ts`
-  asserts it on every run ("needs no CSP change and logs no errors").
+  motion, a service page, the admin and the forced-WebGL scene.
 
 **One class of document was being served with no policy at all, and was fixed on 2026-09-25.**
 The matcher in `proxy.ts` carried Next's own CSP-guide recipe, which excludes requests holding
@@ -160,7 +158,7 @@ The matcher in `proxy.ts` carried Next's own CSP-guide recipe, which excludes re
 this Next version's router at all — it is sent by BROWSERS, on the document they preload when the
 omnibox predicts a URL from history. Measured on the running container: `GET /` came back with a
 `content-security-policy` header, the same request with `Purpose: prefetch` came back with none
-(and with no `x-pathname`, so no intro and no canonical either). The matcher now excludes only
+(and with no `x-pathname`, so no canonical either). The matcher now excludes only
 `next-router-prefetch`, which is an RSC payload rather than a document; `Sec-Purpose:
 prefetch;prerender`, the modern header, was never excluded and still is not.
 `app/__tests__/proxy-matcher.test.ts` pins the rule so the recipe cannot come back.
@@ -170,7 +168,7 @@ prefetch;prerender`, the modern header, was never excluded and still is not.
 drei, three's loaders and decoders, physics engines and worker pools pass `tsc`, the unit tests
 and the build — and then fail only in a real browser, because they fetch from a CDN, compile
 wasm or spin up `blob:` workers. `eslint.config.mjs` bans them with `no-restricted-imports`
-**and** a `no-restricted-syntax` selector for dynamic `import()`, which the intro uses to
+**and** a `no-restricted-syntax` selector for dynamic `import()`, which the 3D stage uses to
 code-split:
 
 | Banned | Why |
@@ -187,36 +185,13 @@ Each `three/…` entry is listed under both spellings (`three/addons` and `three
 The ban list was verified by linting probe sources through stdin: every banned static and
 dynamic import reported, near-misses and allowed imports clean.
 
-### The `tbs_intro_skip` cookie — read, never written
+### The intro cookie and `x-intro` — removed (2026-10-28)
 
-**The site no longer stores an intro cookie.** It used to write `tbs_intro=seen` so the intro
-played once per browser session; it now plays on every hard load of the home page, and
-`finishIntro()` only *clears* the legacy name a browser may still be carrying
-(`INTRO_LEGACY_CLEAR_STRING`). The name was changed deliberately: honouring the old one would
-have left every browser that was open across the deploy with no intro at all.
-
-| Attribute | Value | Why |
-|-----------|-------|-----|
-| Name | `tbs_intro_skip` (`INTRO_COOKIE`) | Renamed from `tbs_intro`, which does **not** count any more (`readIntroSeen` matches the exact name) |
-| Who writes it | **nobody in the app** — the E2E suite (`seedIntroSeen`) and QA | Kept readable so a test run, or a session that needs the page without an overlay, can suppress it |
-| Value | `seen` — the only value that counts (`isIntroSeen`) | Anything else, or no cookie, just plays the intro; the value never reaches the DOM |
-| Lifetime | session, where it is seeded | Nothing in the app extends it |
-| `Path` | `/` | Read by the server gate for `/`, `/ru`, `/en`; a cookie scoped deeper would not reach it |
-| `SameSite` | `Lax` | Same as the site's other preference cookies |
-| `HttpOnly` | no | It carries no secret and gates nothing but an animation |
-| `Secure` | not set | Consistent with the other preference cookies; production is served over HTTPS with HSTS (`deploy/nginx/tbs.conf`) |
-
-Because the site stores nothing, it is **no longer listed as a cookie the site sets** in the
-cookie policy (`app/(site)/cookies/content.ts` says so in its header comment, RO/RU/EN). The
-gate compares `x-pathname` — which `proxy.ts` overwrites on every document request — only with
-`"/"`; a client that forges it on a prefetch request can only toggle the overlay in its own
-response (pages are rendered per request, and nginx does not cache them).
-
-**`x-intro` (2026-10-09).** The proxy's verdict that a URL came from an ad (`utm_*` or a click id
-such as `gclid` / `fbclid`; `fromAd` in `lib/intro.ts`), forwarded so the layout leaves the intro
-out. `proxy.ts` deletes any copy the browser sent and sets its own; only the literal `skip`
-counts, and it can only remove the overlay. Like `x-pathname`, a copy forged on a router prefetch
-(which skips the proxy) changes nothing but the sender's own response. Nothing is stored.
+The first-visit intro was removed, and with it the `tbs_intro_skip` cookie (read, never written
+by the site) and the proxy's `x-intro` ad-bypass header. `proxy.ts` still overwrites
+`x-pathname` and `x-locale` on every document request; a client that forges them on a prefetch
+request only changes its own response (pages are rendered per request, and nginx does not cache
+them).
 
 ## The interior 3D stage (2026-09-17)
 
@@ -227,7 +202,7 @@ the CSP** in `proxy.ts`. It still holds because:
 
 - **Nothing is fetched at runtime.** The hero chip and the five service models are built from
   maths in three core, with no environment map at all since the chip replaced the glass core
-  (2026-09-17; the intro keeps its procedural PMREM); the static art is inline SVG styled by CSS
+  (2026-09-17); the static art is inline SVG styled by CSS
   Modules. The cursor trail (same date) is a ring buffer filled from passive `pointermove`
   listeners — coordinates and `event.timeStamp` only, in an in-memory ring of 64 segments that
   each fade out after 0.9s; never stored, sent or written to the DOM.
@@ -287,7 +262,7 @@ attribute back; it reads no content and adds no text.
 | `gsap/dist/*` | everywhere, as `import` and `import()` | a second (UMD) copy of the core with its own ticker — two tickers, two ScrollTrigger registries |
 | `gsap/ScrollSmoother`, `gsap/ScrollSmoother.js` | everywhere, as `import` and `import()` | rewrites `<html>` / `<body>` styles and takes over scrolling |
 | `gsap-trial`, `gsap-trial/*` | everywhere, as `import` and `import()` | the trial package, never shipped |
-| a **static** value import of `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`, any subpath of them, or the site's modules that carry them (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector`, any spelling) | the files the page bundle reaches up front (`app/**`, the sections, layout, `ui`, `fx`, `SceneStage`, the art, `lib/**`, the intro's shell and both probe chunks) and, since 2026-09-17, the HUD chrome (`components/hud/**`) | ~290 KB gzip to every visitor; they load through `import()` behind the capability probe. `import type` stays allowed |
+| a **static** value import of `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`, any subpath of them, or the site's modules that carry them (`three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, any spelling) | the files the page bundle reaches up front (`app/**`, the sections, layout, `ui`, `fx`, `SceneStage`, the art, `lib/**` and the probe chunk) and, since 2026-09-17, the HUD chrome (`components/hud/**`) | ~290 KB gzip to every visitor; they load through `import()` behind the capability probe. `import type` stays allowed |
 | `lucide-react/dynamic` (`.js`, `.mjs`), `lucide-react/dynamicIconImports` (`.mjs`), `lucide-react/dist/*`; `import * as` / `export *` from `lucide-react` and `import("lucide-react")` (2026-09-17) | everywhere, as `import` and `import()` | each keeps every one of ~4,200 icons; `dist/*` is not a public API. Icons are named imports from the package root ([02](./02-tech-stack.md#the-hud-chrome-2026-09-17--lucide-react)) |
 
 That second block is not a security boundary, but it matters for one: flat config **replaces** a
@@ -306,7 +281,7 @@ several up-front files were outside the list. Fixed before release (review findi
 
 | Key | Storage | Holds | Written by | Lifetime |
 |-----|---------|-------|------------|----------|
-| `tbs_gpu_probe` | `sessionStorage` | `{"v":1,"strict":{…},"forced":{…}}`, each entry `context`, `software` and optionally `lost` / `slow` — **booleans only** | the GPU probe (`components/three/capability.ts`, called by the intro shell or the stage) and `markGpu` after a lost context or a governor bail | the tab |
+| `tbs_gpu_probe` | `sessionStorage` | `{"v":1,"strict":{…},"forced":{…}}`, each entry `context`, `software` and optionally `lost` / `slow` — **booleans only** | the GPU probe (`components/three/capability.ts`, called by the stage) and `markGpu` after a lost context or a governor bail | the tab |
 | `tbs_scene_3d` | `localStorage` | `"force"` or `"off"` | **never by the site** — QA and the E2E helpers set it; the site only reads it | until removed |
 | `tbs_hud` | `localStorage` | `"off"` | **never by the site** — QA and E2E only (`playwright.config.ts` seeds it for every context unless `E2E_HUD=on`); `lib/hud/gate.ts` only reads it | until removed |
 
@@ -325,8 +300,8 @@ several up-front files were outside the list. Fixed before release (review findi
   browser: only the literal `"off"` counts; any other value, or storage that throws, is ignored.
   A tampered value can only keep the HUD from loading there; the page itself does not change. Like
   `tbs_scene_3d` it is not a cookie-policy entry, because the site never writes it. The chrome's
-  mount (`components/hud/HudChrome.tsx`) arms only after the cookie banner is answered, a first
-  interaction, the intro gone and an idle slot, and writes no storage itself.
+  mount (`components/hud/HudChrome.tsx`) arms only after the cookie banner is answered or a first
+  interaction, then an idle slot, and writes no storage itself.
 
 ### Nothing asked of the visitor, nothing new exposed
 
@@ -335,8 +310,8 @@ several up-front files were outside the list. Fixed before release (review findi
   called.
 - **Nothing new on `window`.** The E2E specs read the scene's scroll probe through React's fiber
   props on the canvas's ancestors (`e2e/helpers.ts`, `sceneProbeVsDom`), so production exposes no
-  debug global. The two new `window` events (`tbs:intro-gone`, `tbs:page-cover`) are plain
-  `Event`s that carry no data, and so is `tbs:scene-layout` (IT-OS Phase 3), dispatched on the
+  debug global. The `tbs:page-cover` `window` event is a plain
+  `Event` that carries no data, and so is `tbs:scene-layout` (IT-OS Phase 3), dispatched on the
   stage element only.
 - **No new text reaches the DOM from data.** The tag chips split admin text on "·" and render it
   through React (escaped), exactly as the whole tag was rendered before.

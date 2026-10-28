@@ -21,38 +21,17 @@ import { TILT_MAX } from "@/lib/tilt";
     (which is typed and churny) while staying fully RO/RU/EN. */
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
+/* The wireframe's header (docs/16, "Copy framework"): what we build, how it makes life better
+   and how to get it — the headline and the two buttons, nothing else. The owner's rule: no
+   subtitle under the <h1> and no line under the buttons. */
 const TITLE = L(
-  "Testează ideea. Investește după dovezi.",
-  "Проверьте идею. Вкладывайте после подтверждения.",
-  "Test the idea. Invest when the evidence is clear.",
+  "Site-uri, aplicații și MVP cu buget mic.",
+  "Сайты, приложения и MVP с небольшим бюджетом.",
+  "Websites, apps and MVPs on a small budget.",
 );
-/** What we build and for whom, right under the headline. */
-const SUBTITLE = L(
-  "MVP concentrat, cu buget de pornire mic și clar. Testezi cu utilizatori reali, apoi investești doar în ce confirmă valoare.",
-  "Сфокусированный MVP с небольшим и понятным стартовым бюджетом. Проверяйте его на реальных пользователях, затем вкладывайтесь только в подтверждённую ценность.",
-  "A focused MVP with a small, clear starting budget. Test it with real users, then invest only in what proves valuable.",
-);
-const CTA_PRIMARY = L("Testează ideea", "Проверить идею", "Test the idea");
+/** The site's one direct CTA, in the same words everywhere (header, Stakes, footer). */
+const CTA_PRIMARY = L("Cere ofertă", "Оставить заявку", "Get a quote");
 const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
-/** The line under the CTAs: one phrase per promise, so a narrow screen breaks the line between
- *  them rather than inside one. The "·" between them is drawn where they are rendered. */
-const REASSURANCE: LocalizedText[] = [
-  L(
-    "MVP cu buget de pornire mic",
-    "MVP с небольшим стартовым бюджетом",
-    "MVP with a small starting budget",
-  ),
-  L(
-    "Începi cu ce trebuie validat",
-    "Начинаем с того, что нужно проверить",
-    "Start with what needs testing",
-  ),
-  L(
-    "Răspuns în cel mult o zi lucrătoare",
-    "Ответ не позже чем через рабочий день",
-    "Reply within one business day",
-  ),
-];
 const METRICS_LABEL = L("Indicatori", "Показатели", "Metrics");
 
 /** A metric's value is the portfolio count (digits, the same in every language) or a fixed
@@ -81,28 +60,25 @@ const FIXED_METRICS: Metric[] = [
 ];
 
 /*
- * The looping background layers stop in two situations, both CSS-only on the running
- * animation (`animation-play-state`, so each resumes where it stopped instead of jumping):
- *  - while the first-visit intro overlay (#tbs-intro, lib/intro.ts) is in the document — it
- *    covers the hero, and the header's backdrop blur would otherwise re-sample an animated
- *    grid under an overlay nobody can see through;
- *  - while the hero is scrolled out of view (`data-offscreen`, `useOffscreenAttribute`).
+ * The looping background layers stop while the hero is scrolled out of view (`data-offscreen`,
+ * `useOffscreenAttribute`) — CSS-only on the running animation (`animation-play-state`, so each
+ * resumes where it stopped instead of jumping).
  * Reduced motion removes them altogether (`motion-reduce:`, and the global kill switch in
  * globals.css).
  */
 const BG_ANIMATION_CLASSES =
-  "[html:has(#tbs-intro)_&]:[animation-play-state:paused] group-data-offscreen/hero:[animation-play-state:paused] motion-reduce:animate-none";
+  "group-data-offscreen/hero:[animation-play-state:paused] motion-reduce:animate-none";
 
 /*
  * A stat hologram turns only while all of these hold, and rests on a three-quarter pose
  * otherwise (the negative delay parks the paused spin on that same pose, so it never jumps):
  *  - the stage allows motion: `data-motion="live"` (components/scene/SceneStage.tsx — no
  *    reduced motion, Save-Data, slow network or low-tier device);
- *  - the first-visit intro is gone, and the hero is on screen.
+ *  - the hero is on screen.
  * Reduced motion drops the animation outright; the resting transform stays.
  */
 const HOLOGRAM_SPIN_CLASSES =
-  "[transform:rotateX(-20deg)_rotateY(35deg)] animate-holo-spin [animation-delay:-1.75s] [animation-play-state:paused] [html:not(:has(#tbs-intro))_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running] motion-reduce:animate-none";
+  "[transform:rotateX(-20deg)_rotateY(35deg)] animate-holo-spin [animation-delay:-1.75s] [animation-play-state:paused] [html_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running] motion-reduce:animate-none";
 
 /** The CSS length of `a`, the hologram's centre-to-vertex distance (lib/hologram.ts). */
 const HOLOGRAM_UNIT = "var(--holo-a)";
@@ -276,17 +252,14 @@ export function Hero({ coreArt }: HeroProps) {
           then the copy. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 bg-bg" />
 
-      {/* Decorative HUD backdrop. `data-intro-reveal="grid"` is the entrance target for the
-          whole layer (opacity + scale), so nothing inside it carries its own transform
-          transition. Every oversized piece is clipped by the section's overflow-hidden. */}
+      {/* Decorative HUD backdrop. Every oversized piece is clipped by the section's
+          overflow-hidden. */}
       <div
         aria-hidden="true"
-        data-intro-reveal="grid"
         className="pointer-events-none absolute inset-0 -z-10 [container-type:size]"
       >
         {/* The lit layers move together under the desktop scroll parallax (`data-parallax`,
-            driven by the stage's director). Never the marker itself: the entrance owns its
-            transform. */}
+            driven by the stage's director). */}
         <div data-parallax="hero-backdrop" className="absolute inset-0">
           {/* The two key lights have tokens of their own (--hero-glow-*): the copy sits in
               them, and the light theme needs much fainter glows to keep that text AA. */}
@@ -317,7 +290,7 @@ export function Hero({ coreArt }: HeroProps) {
             heading or has a role.
              · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded to
                match the WebGL chip it crossfades into, per theme, fainter again at 641–860px
-               where the chip sits under the subtitle).
+               where the chip sits under the headline).
              · 861–1024px: the right-hand column is narrower than the core and the stat cards
                stack in it, so the core sits on the seam between the columns, raised to the
                top: centred behind the cards they would cover most of it. The offset is 6vw,
@@ -340,11 +313,10 @@ export function Hero({ coreArt }: HeroProps) {
         <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-b from-transparent to-bg" />
       </div>
 
-      {/* Phones only: a soft pool of the page colour behind the headline and its subtitle —
+      {/* Phones only: a soft pool of the page colour behind the headline and its buttons —
           over the core (art or canvas), under the copy — so the text keeps its contrast.
-          Centred like the core it covers: the subtitle spans the full width, as the old lead
-          line did, and a pool centred on the copy's left edge left 4% of the light theme's
-          lead pixels under 4.5:1 at 390px. Its strength is a theme token (--hero-scrim,
+          Centred like the core it covers: a pool centred on the copy's left edge left 4% of
+          the light theme's text pixels under 4.5:1 at 390px. Its strength is a theme token (--hero-scrim,
           globals.css): the light page needs more of it over the WebGL core than over the
           static art. */}
       <div
@@ -355,16 +327,13 @@ export function Hero({ coreArt }: HeroProps) {
 
       {/* ≤860px one column (copy, then stats). From 861px two columns filling the first
           screen with the ticker: `content-center` keeps the row as tall as the copy and
-          centres it, `items-end` then sits the stats on the copy's last line (the reassurance
-          under the CTAs). */}
+          centres it, `items-end` then sits the stats on the copy's last line (the CTAs). */}
       <div className="relative mx-auto grid w-full max-w-(--maxw) gap-[clamp(32px,5vw,56px)] px-(--gutter) pt-[clamp(32px,7vw,88px)] pb-[clamp(48px,7vw,88px)] md:min-h-[min(860px,calc(100svh_-_var(--header-h)_-_var(--ticker-h)))] md:grid-cols-[1.3fr_.7fr] md:content-center md:items-end">
         <div className="min-w-0">
 
-          {/* The title marker wraps the headline and its subtitle, so the two come in as one.
-              The <h1> is the page's only one and its LCP element: the entrance moves and blurs
-              this wrapper, but nothing may ever hide it (no opacity / visibility, here or in
-              the intro). */}
-          <div data-intro-reveal="title">
+          {/* The <h1> is the page's only one and its LCP element: nothing may ever hide it
+              (no opacity / visibility). */}
+          <div>
             {/* The closing full stop is split off only to colour it red — a glyph, never a glow. */}
             <h1 className="mt-4 mb-0 max-w-[16ch] text-balance font-disp text-[clamp(34px,8.6vw,74px)] font-black uppercase leading-[.98] tracking-[-0.045em] text-txt [overflow-wrap:break-word] md:mt-5 md:text-[clamp(44px,5.4vw,92px)]">
               {title.endsWith(".") ? (
@@ -378,26 +347,15 @@ export function Hero({ coreArt }: HeroProps) {
                 title
               )}
             </h1>
-
-            {/* Where the lead line was, and set like it (`--mut`, 16→19px): the contrast of the
-                copy over the core (docs/04, --hero-scrim) was measured on that line. At
-                861–1024px the chip sits on the seam between the columns, raised to the top, so
-                the lines stop at 40ch there, about where the lead ended, rather than running on
-                under its left traces. */}
-            <p className="m-0 mt-5 max-w-[46ch] text-pretty font-copy text-[clamp(16px,2vw,19px)] leading-[1.6] text-mut md:mt-6 md:max-w-[40ch] lg:max-w-[46ch]">
-              {l(SUBTITLE)}
-            </p>
           </div>
 
-          {/* The entrance targets this wrapper, never the button: the button's hover lift is
-              a `translate` transition that a GSAP `transform` would fight. The reassurance
-              under the buttons comes in with them. */}
-          <div data-intro-reveal="cta" className="mt-8">
+          <div className="mt-8">
             <div className="flex flex-col items-stretch gap-3 xs:flex-row xs:flex-wrap xs:items-center xs:gap-4">
               {/* Opens the request dialog in place. A <button>, not an <a href="#contact">: it
                   no longer navigates anywhere. Its accessible name is the label alone — the
                   arrow is an aria-hidden SVG with no <title>, and there is no text-transform,
-                  so it never reads like the header's "CERE OFERTĂ ↗" (nav.cta). */}
+                  so it reads "Cere ofertă" — the same words as the header's "CERE OFERTĂ ↗"
+                  (nav.cta), the site's one direct CTA. */}
               <button
                 type="button"
                 onClick={() => openRequest({ source: "hero" })}
@@ -427,40 +385,19 @@ export function Hero({ coreArt }: HeroProps) {
                 {l(CTA_SECONDARY)}
               </a>
             </div>
-
-            {/* The three promises, joined by the copy's own "·" kept as text, so the line is
-                read exactly as written. Each phrase opens with a --sep slot that holds the "·"
-                before it (empty on the first), and the row starts one slot left of the column,
-                where the paragraph clips: a phrase that wraps to the start of a line on a phone
-                has its "·" cut off, so no line starts or ends on a separator. */}
-            <p className="m-0 mt-4 overflow-x-clip font-copy text-sm leading-normal text-mut [--sep:1.25em]">
-              <span className="-ml-(--sep) flex flex-wrap">
-                {REASSURANCE.map((phrase, i) => (
-                  <span key={i} className="relative pl-(--sep)">
-                    {i > 0 ? (
-                      <span className="absolute top-0 left-0 w-(--sep) text-center"> · </span>
-                    ) : null}
-                    {l(phrase)}
-                  </span>
-                ))}
-              </span>
-            </p>
           </div>
         </div>
 
-        {/* Metrics. The entrance moves this group as a whole (transform only), so the cards'
-            glass keeps blurring and their own hover lift (`translate`) never fights it. The
-            wrapper is the desktop scroll-parallax layer; the marker itself never moves. */}
+        {/* Metrics. The wrapper is the desktop scroll-parallax layer. */}
         <div data-parallax="hero-stats" className="min-w-0">
           <div
-            data-intro-reveal="stats"
             {...{ [STATS_GROUP_ATTR]: "" }}
             role="group"
             aria-label={l(METRICS_LABEL)}
             className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-4 lg:grid-cols-2"
           >
             {/* A card tilts under a mouse: usePointerTilt writes --tilt-rx / --tilt-ry and
-                data-tilting on the CARD, never on the marker. The tilt is a `transform`, the
+                data-tilting on the CARD, never on the group. The tilt is a `transform`, the
                 hover lift a `translate`, so the two compose. */}
             {metrics.map((m) => (
               <div

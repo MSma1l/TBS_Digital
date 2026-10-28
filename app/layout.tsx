@@ -64,6 +64,9 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  // The site's one palette is light: the browser chrome takes the page colour (--bg).
+  themeColor: "#f4f7ff",
+  colorScheme: "light",
 };
 
 export async function generateMetadata(): Promise<Metadata> {

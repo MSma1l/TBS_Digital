@@ -172,7 +172,7 @@ describe("scene tiers — governor", () => {
     expect(createFpsGovernor(sceneGovernorOptions("mid", false, true)).options.minFps).toBe(45);
   });
 
-  it("the intro's options stay untouched: no bail unless asked", () => {
+  it("the default options stay untouched: no bail unless asked", () => {
     expect(createFpsGovernor({}).options.bailFps).toBe(DEFAULT_GOVERNOR.bailFps);
     expect(DEFAULT_GOVERNOR.bailFps).toBe(0);
   });

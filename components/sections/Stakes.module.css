@@ -1,0 +1,167 @@
+/* Stakes — what it costs not to act (docs/05, "Stakes"). The gutter, rhythm, heading and card of
+   Principles (Principles.module.css), so the page reads as one family: three plain cards, each
+   with an accent edge along its top, then the closing line and the site's red CTA (WorkProof's).
+   Colours, type, radii and shadows are tokens; the literals are this layout's geometry. */
+
+.section {
+  position: relative;
+  padding: clamp(40px, 6vw, 60px) clamp(16px, 4vw, 40px);
+}
+
+.head {
+  margin-bottom: 26px;
+}
+.title {
+  margin: 0;
+  max-width: 22ch;
+  font-size: clamp(26px, 3.2vw, 40px);
+  letter-spacing: -0.04em;
+  color: var(--txt);
+  text-wrap: balance;
+}
+
+/* ---------- the three cards ----------
+   One column on a phone, three from 861px: three short problems read as one row. */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 861px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.item {
+  display: flex;
+}
+
+/* No `transition` here: the card is the `[data-reveal]` element itself, and a transition list of
+   its own would replace the reveal's in globals.css (see Principles.module.css). */
+.card {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: var(--sp-5);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+/* The accent edge: a straight bar along the card's top, the card's only colour. Decoration. */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--accent, var(--red));
+}
+
+.tag {
+  color: var(--accent-text, var(--red-text));
+  font-weight: var(--fw-extra);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.cardTitle {
+  margin: var(--sp-3) 0 8px;
+  font-size: clamp(19px, 2.4vw, 23px);
+  /* 1.2 still clears a comma-below (Ș, Ț) over a breve or circumflex (Ă, Î). */
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--txt);
+  overflow-wrap: break-word;
+}
+
+.cardText {
+  margin: 0;
+  color: var(--mut);
+  font-size: var(--fs-md);
+  line-height: 1.55;
+}
+
+/* ---------- the way out ----------
+   Phones: the line, then the CTA full width under it. From 641px: one row. */
+.close {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-top: clamp(22px, 3vw, 30px);
+}
+@media (min-width: 641px) {
+  .close {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.closeText {
+  margin: 0;
+  max-width: 58ch;
+  color: var(--txt);
+  font-size: clamp(17px, 1.8vw, var(--fs-lg));
+  font-weight: var(--fw-semi);
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+/* The site's red CTA, as in WorkProof: the label-safe gradient, `<button>`, so an explicit
+   `border: 0` and `cursor: pointer`. At least 52px tall for a coarse pointer. */
+.cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 16px 26px;
+  border: 0;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  background: var(--grad-red-cta);
+  box-shadow: var(--sh-red);
+  color: var(--on-accent);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-extra);
+  line-height: 1.55;
+  transition:
+    translate 0.15s,
+    box-shadow 0.15s;
+}
+
+/* Hover only where a hover exists: a tap would leave the lift stuck on. */
+@media (hover: hover) {
+  .cta:hover {
+    translate: 0 -2px;
+    box-shadow: var(--sh-red-strong);
+  }
+}
+
+.cta:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta {
+    transition: none;
+  }
+}
+
+/* Forced colours flatten the accent bar and the gradient: keep the bar as a system colour and
+   give the button a visible edge. */
+@media (forced-colors: active) {
+  .card::before {
+    background: CanvasText;
+  }
+  .cta {
+    border: 1px solid ButtonText;
+  }
+}

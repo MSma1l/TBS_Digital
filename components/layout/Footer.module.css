@@ -226,7 +226,7 @@
   height: 18px;
 }
 .social:hover {
-  color: var(--red);
+  color: var(--red-text);
   border-color: color-mix(in srgb, var(--red) 55%, transparent);
   background: color-mix(in srgb, var(--red) 8%, transparent);
   transform: translateY(-2px);
@@ -234,7 +234,7 @@
 .social:focus-visible {
   outline: 2px solid var(--red);
   outline-offset: 2px;
-  color: var(--red);
+  color: var(--red-text);
 }
 
 /* ---------- nav columns ---------- */

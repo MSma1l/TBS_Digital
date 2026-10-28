@@ -23,8 +23,7 @@ import { SiteContentProvider } from "@/lib/siteContent";
  * dot, the stat-note pips, the ticker's round separators, the logo's glowing halo and the
  * estimator's status dot are gone, and must not come back. Kept on purpose, and not scanned
  * here: the "TBS." and title full stops as plain red glyphs, the footer's red ".", the
- * dictation button's recording dot (a privacy indicator), ✓ list markers, every "·" in copy,
- * and the intro fallback.
+ * dictation button's recording dot (a privacy indicator), ✓ list markers and every "·" in copy.
  *
  * Two layers: the source (class strings, keyframes, art markup), and what the home page's
  * first screen and interior actually render in every locale.

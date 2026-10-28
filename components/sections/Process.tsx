@@ -11,52 +11,39 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 type Step = { title: LocalizedText; text: LocalizedText };
 
 /*
- * "Cum începem": the four steps from a hypothesis to an evidence-led next iteration, placed
- * right above the request section where the first one is taken. Step 02 promises one business
- * day and nothing faster — the reply time the estimator's sent screen (`SENT_COPY`) already
- * promises.
+ * "Cum începem": the three-step plan (docs/16, "Copy framework"), placed right above the request
+ * section where the first one is taken. Step 02 promises one business day and nothing faster —
+ * the reply time the estimator's sent screen (`SENT_COPY`) and the guide's FAQ already promise.
  */
 const STEPS: Step[] = [
   {
-    title: L("Spui ce vrei să verifici", "Рассказываете, что хотите проверить", "Tell us what you want to test"),
+    title: L("Ne spui ideea", "Рассказываете идею", "Tell us the idea"),
     text: L(
-      "Alegi punctul de start și descrii problema, utilizatorul sau fluxul care contează.",
-      "Вы выбираете точку старта и описываете важную проблему, пользователя или процесс.",
-      "Choose a starting point and describe the problem, user or workflow that matters.",
+      "Ne scrii în câteva rânduri ce vrei să rezolvi și pentru cine. Nu ai nevoie de caiet de sarcini.",
+      "Напишите в паре строк, что хотите решить и для кого. ТЗ не нужно.",
+      "Write a few lines on what you want to solve and for whom. No brief needed.",
     ),
   },
   {
-    title: L(
-      "Clarificăm MVP-ul",
-      "Уточняем MVP",
-      "We define the MVP",
-    ),
+    title: L("Primești planul și prețul", "Получаете план и цену", "Get the plan and the price"),
     text: L(
-      "Revenim în cel mult o zi lucrătoare cu întrebări concrete și stabilim ce intră în prima versiune.",
-      "Не позже чем через рабочий день возвращаемся с конкретными вопросами и определяем, что войдёт в первую версию.",
-      "Within one business day, we return with concrete questions and define what belongs in the first version.",
+      "În cel mult o zi lucrătoare revenim cu întrebări concrete și stabilim prima versiune și prețul ei.",
+      "Не позже чем через рабочий день возвращаемся с конкретными вопросами и вместе определяем первую версию и её цену.",
+      "Within one business day we come back with concrete questions and agree the first version and its price.",
     ),
   },
   {
-    title: L("Primești un plan de start", "Вы получаете план старта", "You get a starting plan"),
+    title: L("Lansezi și crești", "Запускаете и растёте", "Launch and grow"),
     text: L(
-      "Vezi scopul, investiția inițială și pașii prin care validăm ipoteza.",
-      "Вы видите объём, начальную инвестицию и шаги проверки гипотезы.",
-      "See the scope, initial investment and the steps for validating the hypothesis.",
-    ),
-  },
-  {
-    title: L("Lansăm, învățăm, dezvoltăm", "Запускаем, учимся, развиваем", "Launch, learn, develop"),
-    text: L(
-      "Lansăm prima versiune, folosim feedback-ul real și alegem următoarea îmbunătățire.",
-      "Запускаем первую версию, используем реальную обратную связь и выбираем следующее улучшение.",
-      "Launch the first version, use real feedback and choose the next improvement.",
+      "Lansăm prima versiune, o testezi cu clienți reali și dezvoltăm doar ce funcționează.",
+      "Запускаем первую версию, вы проверяете её на реальных клиентах, а мы развиваем только то, что работает.",
+      "We launch the first version, you test it with real customers and we develop only what works.",
     ),
   },
 ];
 
 const SECTION = {
-  title: L("De la ipoteză la următoarea versiune.", "От гипотезы к следующей версии.", "From hypothesis to the next version."),
+  title: L("Un plan simplu, în trei pași.", "Простой план из трёх шагов.", "A simple plan in three steps."),
 };
 
 /*
@@ -72,10 +59,10 @@ const CHIP_STEP = 1;
  * An ordered list, because the order is the content, hung on ONE circuit trace that the
  * stylesheet draws: a square pad for each step, the runs between them, and past the last pad a
  * drop that ends in an arrowhead pointing down at the request form. "De ce TBS" right above is a
- * row of four cards; this section was a second one, and the two read as the same thing twice.
+ * row of four cards; this section was once a second one, and the two read as the same thing twice.
  *
  * All of the circuit is decoration — pseudo-elements, or empty elements under one `aria-hidden` —
- * so a listener gets four plain steps. The number is text, not decoration: `list-style: none`
+ * so a listener gets three plain steps. The number is text, not decoration: `list-style: none`
  * hides the list's own numbering, and VoiceOver drops the list role along with it, so "01" is what
  * tells a listener which step this is, and it is read once, since no marker is drawn beside it.
  */

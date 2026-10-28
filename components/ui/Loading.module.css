@@ -48,7 +48,7 @@
   animation-play-state: var(--loading-play, running); /* resting on a scene host that is down: SceneLoading.module.css */
 }
 
-/* The bar that sweeps between them — a scan, the same gesture the intro and the cards use. */
+/* The bar that sweeps between them — a scan, the same gesture the cards use. */
 .scan {
   stroke: currentColor;
   stroke-width: 2;

@@ -1,9 +1,7 @@
 import {
   expect,
-  test,
   type BrowserContext,
   type BrowserContextOptions,
-  type Cookie,
   type Locator,
   type Page,
 } from "@playwright/test";
@@ -17,7 +15,6 @@ import { messages } from "@/lib/i18n/messages";
 import { DIRECTIONS_BASE, directions } from "@/lib/directions";
 import { solUI } from "@/lib/solutions";
 import { CONSENT_KEY } from "@/lib/consent";
-import { INTRO_COOKIE, INTRO_FORCE_3D_KEY, INTRO_SEEN } from "@/lib/intro";
 import { HUD_FLAG_KEY } from "@/lib/hud/gate";
 import {
   GPU_PROBE_CACHE_KEY,
@@ -98,17 +95,6 @@ export const seedConsent = (
   value: "accepted" | "rejected" = "rejected",
 ) => seedCookie(context, CONSENT_KEY, value, baseURL);
 
-/**
- * Arrive as a visitor who has already seen the home-page intro this session, so the page is
- * the plain, static site from the first byte: no overlay, no three.js, no GSAP.
- *
- * Seeded at the ORIGIN, never at the page URL: Playwright derives a cookie's path from the
- * directory of the `url` it is given, so seeding with `/servicii/e-commerce` would scope the
- * cookie to `/servicii/` and `/` would still play the intro.
- */
-export const seedIntroSeen = (context: BrowserContext, baseURL: string) =>
-  seedCookie(context, INTRO_COOKIE, INTRO_SEEN, new URL("/", baseURL).href);
-
 // --- HUD chrome ------------------------------------------------------------------------
 
 /** A context's storage in the object form `use.storageState` / `browser.newContext` take. */
@@ -124,7 +110,7 @@ export const HUD_ON: StorageState = { cookies: [], origins: [] };
 /**
  * Arm the HUD chrome the way a visitor does — pointer moves — and wait until one of its parts
  * (`[data-hud]`) is in the DOM. The HUD also needs an answered cookie banner
- * (`seedConsent`) and no intro on screen (`gotoHydrated` seeds the intro as seen).
+ * (`seedConsent`).
  */
 export async function armHud(page: Page): Promise<void> {
   const flag = await page.evaluate((key) => {
@@ -184,33 +170,7 @@ export async function cookieValue(
   return all.find((c) => c.name === name)?.value;
 }
 
-/**
- * The whole skip cookie, not just its value. The site never writes it — the intro plays on every
- * hard load of `/` — so the preloader spec uses this to assert it is ABSENT after an intro, and
- * every other spec seeds it (`seedIntroSeen`) to skip the intro it is not testing.
- */
-export async function introCookie(context: BrowserContext): Promise<Cookie | undefined> {
-  const all = await context.cookies();
-  return all.find((c) => c.name === INTRO_COOKIE);
-}
-
 // --- navigation ------------------------------------------------------------------------
-
-/**
- * The origin a cookie for `url` belongs to: `url` itself when absolute, otherwise the
- * project's `baseURL` (the config's `use` block is merged into the project).
- */
-function baseFor(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  const base = test.info().project.use.baseURL;
-  if (!base) {
-    throw new Error(
-      `gotoHydrated("${url}"): a relative URL needs use.baseURL in playwright.config.ts — ` +
-        "pass an absolute URL or configure one",
-    );
-  }
-  return base;
-}
 
 /**
  * Navigate and wait until React has actually hydrated the markup.
@@ -224,12 +184,9 @@ function baseFor(url: string): string {
  * each host element. It is an internal name, but a stable one across React 18/19 and the
  * only honest "the page is interactive now" marker the App Router exposes.
  *
- * Every spec is a RETURNING visitor unless it says otherwise: the intro cookie is seeded
- * first, so no full-screen overlay sits over the controls a test is about to press.
- * `preloader.spec.ts` passes `{ seedIntro: false }` to exercise the real first visit.
- *
- * A returning visitor also arrives with the GPU probe already answered for the session
- * (`seedGpuProbe`, on by default with `seedIntro`): the interior stage then settles on its
+ * Every spec is a RETURNING visitor unless it says otherwise: it arrives with the GPU probe
+ * already answered for the session (`seedGpuProbe`, on by default): the interior stage then
+ * settles on its
  * static art without creating a throwaway SwiftShader context about a second after idle —
  * CPU time that used to land inside other specs' timing windows. A spec that is about the
  * probe itself passes `{ seedGpuProbe: false }`; one that seeds its own answer
@@ -238,12 +195,8 @@ function baseFor(url: string): string {
 export async function gotoHydrated(
   page: Page,
   url: string,
-  {
-    seedIntro = true,
-    seedGpuProbe: seedProbe = seedIntro,
-  }: { seedIntro?: boolean; seedGpuProbe?: boolean } = {},
+  { seedGpuProbe: seedProbe = true }: { seedGpuProbe?: boolean } = {},
 ): Promise<void> {
-  if (seedIntro) await seedIntroSeen(page.context(), baseFor(url));
   if (seedProbe) await seedGpuProbe(page, SOFTWARE_GPU_PROBE);
   await page.goto(url);
   await page.waitForFunction(
@@ -517,35 +470,7 @@ export const estimatorForm = (page: Page): Locator =>
     .locator("form")
     .filter({ has: page.locator('input[type="email"]') });
 
-// --- the intro preloader -----------------------------------------------------------------
-
-/*
- * The first-visit overlay (`components/intro/`), addressed through the hooks its markup
- * declares — `data-testid`, `role="progressbar"`, the catalog's `intro.*` keys — never
- * through CSS-module class names. `gotoHydrated` seeds it away; only a spec that passes
- * `{ seedIntro: false }` (or uses a raw `page.goto` without `seedIntroSeen`) ever sees it.
- */
-
-/** The overlay root. Selector shared with the init-script probes below. */
-const INTRO_SELECTOR = '[data-testid="intro"]';
-
-export const introOverlay = (page: Page): Locator => page.locator(INTRO_SELECTOR);
-
-/** The HUD readout. Its children are presentational, which is why skip sits beside it. */
-export const introProgress = (page: Page): Locator =>
-  introOverlay(page).getByRole("progressbar");
-
-/** The visible `NN` counter the director writes through `textContent`. */
-export const introCounter = (page: Page): Locator =>
-  introOverlay(page).locator('[data-testid="intro-counter"]');
-
-/** Where the WebGL canvas mounts (only when `data-renderer="webgl"`). */
-export const introScene = (page: Page): Locator =>
-  introOverlay(page).locator('[data-testid="intro-scene"]');
-
-/** The skip button, by its catalog label in `locale`. */
-export const introSkip = (page: Page, locale: Locale = "ro"): Locator =>
-  introOverlay(page).getByRole("button", { name: messages[locale]["intro.skip"], exact: true });
+// --- the cookie banner and page probes ------------------------------------------------
 
 /**
  * The cookie banner. `aria-modal="false"` is what tells it apart from the request dialog —
@@ -555,42 +480,7 @@ export const cookieBanner = (page: Page): Locator =>
   page.locator('[role="dialog"][aria-modal="false"]');
 
 /**
- * Record every value the intro's progress bar announces, in order, from the server-rendered
- * one onwards. Consecutive repeats are dropped, so the spec can assert the sequence never
- * goes backwards and ends at exactly 100. Read it with `introProgressValues(page)`.
- */
-export async function recordIntroProgress(page: Page): Promise<void> {
-  await page.addInitScript((selector) => {
-    const w = window as unknown as { __introProgress?: number[] };
-    const values: number[] = [];
-    w.__introProgress = values;
-
-    const record = (node: Node) => {
-      if (!(node instanceof Element) || node.getAttribute("role") !== "progressbar") return;
-      if (!node.closest(selector)) return;
-      const raw = node.getAttribute("aria-valuenow");
-      const value = raw === null || raw.trim() === "" ? Number.NaN : Number(raw);
-      if (Number.isFinite(value) && values[values.length - 1] !== value) values.push(value);
-    };
-
-    new MutationObserver((mutations) => mutations.forEach((m) => record(m.target))).observe(
-      document,
-      { subtree: true, attributes: true, attributeFilter: ["aria-valuenow"] },
-    );
-    // The first value is parsed, not mutated — pick it up once the markup is in.
-    document.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll('[role="progressbar"][aria-valuenow]').forEach(record);
-    });
-  }, INTRO_SELECTOR);
-}
-
-export const introProgressValues = (page: Page): Promise<number[]> =>
-  page.evaluate(
-    () => (window as unknown as { __introProgress?: number[] }).__introProgress ?? [],
-  );
-
-/**
- * Collect Content-Security-Policy violations as `"<directive> <blocked URI>"`. The intro
+ * Collect Content-Security-Policy violations as `"<directive> <blocked URI>"`. The scenes
  * must not need a CSP change: no CDN assets, workers, wasm or eval. Read with `cspViolations`.
  */
 export async function watchCsp(page: Page): Promise<void> {
@@ -644,7 +534,7 @@ export async function countWebGLContexts(page: Page): Promise<void> {
 export const webglContextCount = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { __webgl?: { count: number } }).__webgl?.count ?? 0);
 
-/** A browser with no WebGL at all: the capability probe must fall back to the SVG intro. */
+/** A browser with no WebGL at all: the stage's probe must fall back to its static art. */
 export async function forceNoWebGL(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const proto = HTMLCanvasElement.prototype as unknown as { getContext: AnyGetContext };
@@ -659,7 +549,7 @@ export async function forceNoWebGL(page: Page): Promise<void> {
  * WebGL that passes the probe but fails the real renderer. The probe uses a DETACHED
  * canvas; R3F's canvas is in the document — so only connected canvases get `null`, and
  * three.js throws "Error creating WebGL context" inside the scene. The error boundary must
- * turn that into the SVG fallback.
+ * turn that into the static art.
  */
 export async function breakRendererWebGL(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -670,43 +560,6 @@ export async function breakRendererWebGL(page: Page): Promise<void> {
     };
   });
 }
-
-/**
- * Watch the overlay every animation frame for `durationMs` and remember whether it was EVER
- * actually visible (displayed, not `visibility:hidden`, opacity above 0) — `toBeHidden`
- * alone ignores opacity and can't see a one-frame flash. Read with `introEverVisible`.
- */
-export async function sampleIntroVisibility(page: Page, durationMs = 5_000): Promise<void> {
-  await page.addInitScript(
-    ({ selector, duration }) => {
-      const w = window as unknown as { __introEverVisible?: boolean };
-      w.__introEverVisible = false;
-      const start = performance.now();
-      const sample = () => {
-        const el = document.querySelector(selector);
-        if (el) {
-          const style = getComputedStyle(el);
-          if (
-            style.display !== "none" &&
-            style.visibility !== "hidden" &&
-            Number(style.opacity) > 0
-          ) {
-            w.__introEverVisible = true;
-            return;
-          }
-        }
-        if (performance.now() - start < duration) requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    },
-    { selector: INTRO_SELECTOR, duration: durationMs },
-  );
-}
-
-export const introEverVisible = (page: Page): Promise<boolean> =>
-  page.evaluate(
-    () => (window as unknown as { __introEverVisible?: boolean }).__introEverVisible ?? false,
-  );
 
 /**
  * Has three.js been evaluated in this page? Its core module sets `window.__THREE__` to the
@@ -722,74 +575,6 @@ export const threeLoaded = (page: Page): Promise<boolean> =>
  */
 export const gsapLoaded = (page: Page): Promise<boolean> =>
   page.evaluate(() => "gsapVersions" in window);
-
-/**
- * Ask for the WebGL scene even on a software renderer (SwiftShader in this container), the
- * QA switch `components/intro/capability.ts` reads. Set from an init script so it is in
- * localStorage before the app's first line runs.
- */
-export async function forceIntro3d(page: Page): Promise<void> {
-  await page.addInitScript(
-    ({ key }) => {
-      try {
-        window.localStorage.setItem(key, "force");
-      } catch {
-        /* storage blocked: the spec's own assertions will say so */
-      }
-    },
-    { key: INTRO_FORCE_3D_KEY },
-  );
-}
-
-/**
- * Record every value the overlay root's `data-phase` and `data-renderer` take, in order
- * (server-rendered values included, consecutive repeats dropped). A renderer that was
- * "webgl" for a moment and fell back stays visible in the record, which a single read
- * after the fact could never show. Read with `introAttributeValues(page)`.
- */
-export async function recordIntroAttributes(page: Page): Promise<void> {
-  await page.addInitScript((selector) => {
-    const w = window as unknown as { __introAttrs?: Record<string, string[]> };
-    const record: Record<string, string[]> = { "data-phase": [], "data-renderer": [] };
-    w.__introAttrs = record;
-    const add = (name: string, value: string | null) => {
-      const list = record[name];
-      if (value !== null && list && list[list.length - 1] !== value) list.push(value);
-    };
-    const push = (el: Element, name: string) => add(name, el.getAttribute(name));
-    // Old values first, then the value at callback time: two changes inside one batch
-    // (webgl → fallback in the same frame) would otherwise collapse into the last one.
-    new MutationObserver((mutations) => {
-      const touched = new Map<Element, Set<string>>();
-      for (const m of mutations) {
-        if (!(m.target instanceof Element) || !m.attributeName || !m.target.matches(selector)) {
-          continue;
-        }
-        add(m.attributeName, m.oldValue);
-        if (!touched.has(m.target)) touched.set(m.target, new Set());
-        touched.get(m.target)!.add(m.attributeName);
-      }
-      touched.forEach((names, el) => names.forEach((name) => push(el, name)));
-    }).observe(document, {
-      subtree: true,
-      attributes: true,
-      attributeOldValue: true,
-      attributeFilter: ["data-phase", "data-renderer"],
-    });
-    document.addEventListener("DOMContentLoaded", () => {
-      const root = document.querySelector(selector);
-      if (root) Object.keys(record).forEach((name) => push(root, name));
-    });
-  }, INTRO_SELECTOR);
-}
-
-export const introAttributeValues = (
-  page: Page,
-): Promise<{ phase: string[]; renderer: string[] }> =>
-  page.evaluate(() => {
-    const r = (window as unknown as { __introAttrs?: Record<string, string[]> }).__introAttrs;
-    return { phase: r?.["data-phase"] ?? [], renderer: r?.["data-renderer"] ?? [] };
-  });
 
 // --- the interior stage (components/scene/) --------------------------------------------
 
@@ -981,26 +766,23 @@ export const resetDrawCalls = (page: Page): Promise<void> =>
     if (tally) tally.frames.length = 0;
   });
 
-export type SceneRecord = { renderer: string; introPresent: boolean };
+export type SceneRecord = { renderer: string };
 
 /**
- * Record every `data-renderer` the stage takes, in order, with whether the intro overlay was
- * in the document at that moment (the server value first, consecutive repeats dropped).
- * "Never webgl while the intro covers the page" needs the pairing, not two separate lists.
- * Read with `sceneAttributeValues(page)`.
+ * Record every `data-renderer` the stage takes, in order (the server value first, consecutive
+ * repeats dropped). Read with `sceneAttributeValues(page)`.
  */
 export async function recordSceneAttributes(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ stage, intro }) => {
+    ({ stage }) => {
       const w = window as unknown as { __sceneAttrs?: SceneRecord[] };
       const values: SceneRecord[] = [];
       w.__sceneAttrs = values;
       const add = (renderer: string | null) => {
         if (renderer === null) return;
-        const introPresent = document.querySelector(intro) !== null;
         const last = values[values.length - 1];
-        if (last && last.renderer === renderer && last.introPresent === introPresent) return;
-        values.push({ renderer, introPresent });
+        if (last && last.renderer === renderer) return;
+        values.push({ renderer });
       };
       new MutationObserver((mutations) => {
         for (const m of mutations) {
@@ -1018,7 +800,7 @@ export async function recordSceneAttributes(page: Page): Promise<void> {
         add(document.querySelector(stage)?.getAttribute("data-renderer") ?? null);
       });
     },
-    { stage: `[data-testid="${SCENE_TESTID.stage}"]`, intro: INTRO_SELECTOR },
+    { stage: `[data-testid="${SCENE_TESTID.stage}"]` },
   );
 }
 

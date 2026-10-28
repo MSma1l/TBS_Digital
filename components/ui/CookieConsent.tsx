@@ -4,45 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { getConsent, setConsent } from "@/lib/consent";
-import {
-  INTRO_OVERLAY_ID,
-  INTRO_TIMING,
-  isIntroPending,
-  onIntroDone,
-  type IntroDoneDetail,
-} from "@/lib/intro";
-import { visibleTimeout } from "@/lib/visibleTimeout";
-
-/**
- * Longest the banner waits behind a first-visit intro that never reports back, in VISIBLE
- * time (a background tab does not use it up — the intro's clock and watchdog stop there
- * too). The intro's own watchdog forces it out at WATCHDOG_MS; one more second lets its fade
- * finish, so this only ever fires when the intro is truly broken.
- */
-const INTRO_MAX_WAIT_MS = INTRO_TIMING.WATCHDOG_MS + 1000;
-
-/**
- * After an intro that PLAYED, Escape is ignored for this long once the banner shows. The
- * visitor was pressing Escape to skip the intro, and the banner takes focus a few hundred
- * milliseconds later: a quick second tap must not land on a banner they have not even seen
- * yet and store "rejected" for six months. (A held key is covered separately: its repeats
- * are never an answer.) The buttons work at once.
- */
-const ESCAPE_GUARD_MS = 700;
-
-/**
- * Is an intro overlay still on screen AND driven by JavaScript? `[data-live]` is what the
- * preloader shell (components/intro/IntroPreloader.tsx) stamps on its root when it takes
- * over; from then on its own visible-time watchdog guarantees `finishIntro`, so there is
- * always a done event still to come. An overlay that never went live is the pre-hydration
- * markup whose CSS failsafe has long since faded it out and made it click-through.
- */
-function isIntroRunning(): boolean {
-  return (
-    isIntroPending() &&
-    document.getElementById(INTRO_OVERLAY_ID)?.hasAttribute("data-live") === true
-  );
-}
 
 /**
  * GDPR / Legea 133 cookie-consent banner.
@@ -54,10 +15,6 @@ function isIntroRunning(): boolean {
  * Accessibility: a labelled dialog region, focus moved to it on show, Escape = essential
  * only (the privacy-preserving default; a held key's repeats never count), and
  * reduced-motion honoured in CSS.
- *
- * On a first visit to the home page it waits for the intro (lib/intro.ts): taking focus
- * under a full-screen overlay would strand a keyboard user behind it. Everywhere else —
- * no overlay, or one that already finished — it shows in the same effect as it always did.
  */
 export function CookieConsent() {
   // `null` until we've read storage on the client — avoids an SSR/first-paint flash of the
@@ -65,10 +22,6 @@ export function CookieConsent() {
   const [visible, setVisible] = useState(false);
   const [ready, setReady] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  /** Shown because an intro that played just finished (see ESCAPE_GUARD_MS). */
-  const afterPlayedIntro = useRef(false);
-  /** `performance.now()` before which Escape is ignored; 0 = never. */
-  const escapeGuardUntil = useRef(0);
   const t = useT();
 
   useEffect(() => {
@@ -77,42 +30,11 @@ export function CookieConsent() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setReady(true);
     if (getConsent() !== null) return;
-
-    // No intro pending (every page but a first-visit home page, or an intro that already
-    // finished): `onIntroDone` calls back synchronously, so the banner is on screen and
-    // focused as soon as this effect has run — no timer, no added tick, no Escape guard.
-    if (!isIntroPending()) return onIntroDone(() => setVisible(true));
-
-    // Behind the intro: show when it reports done, or after the backstop for one that never
-    // does. Each path cancels the other, so neither can bring back a banner the visitor has
-    // already answered.
-    //
-    // The backstop re-checks when it fires. An intro that is still pending AND live is not
-    // stuck: the shell's own visible-time watchdog is armed and will end it (it only ever
-    // outlasts this backstop when it started later), so the banner keeps waiting for that
-    // event rather than take focus under the overlay. Only an overlay JS never took over —
-    // its CSS failsafe has already faded it out and made it click-through — lets the
-    // backstop show the banner. Should a live intro truly never end, the banner stays away
-    // for this page view: no choice means no analytics, and the next page load asks again.
-    const stopMaxWait = visibleTimeout(INTRO_MAX_WAIT_MS, () => {
-      if (isIntroRunning()) return;
-      unsubscribe();
-      setVisible(true);
-    });
-    const unsubscribe = onIntroDone(({ played }: IntroDoneDetail) => {
-      stopMaxWait();
-      afterPlayedIntro.current = played;
-      setVisible(true);
-    });
-    return () => {
-      unsubscribe();
-      stopMaxWait();
-    };
+    setVisible(true);
   }, []);
 
   useEffect(() => {
     if (!visible) return;
-    if (afterPlayedIntro.current) escapeGuardUntil.current = performance.now() + ESCAPE_GUARD_MS;
     // preventScroll: the banner is fixed to the viewport, so focusing it must not move the page.
     ref.current?.focus({ preventScroll: true });
   }, [visible]);
@@ -143,7 +65,6 @@ export function CookieConsent() {
       className="fixed inset-x-3 bottom-3 z-(--z-cookie) rounded-lg border border-glass-line bg-glass-solid p-4 shadow-lg outline-none animate-cookie-rise motion-reduce:animate-none max-sm:bg-panel max-sm:backdrop-filter-none sm:inset-x-auto sm:right-5 sm:bottom-5 sm:w-[calc(100%_-_40px)] sm:max-w-[460px] sm:p-5 [backdrop-filter:blur(var(--glass-blur))_saturate(1.4)] before:pointer-events-none before:absolute before:inset-x-5 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-red/80 before:to-transparent before:content-['']"
       onKeyDown={(e) => {
         if (e.key !== "Escape" || e.repeat) return;
-        if (performance.now() < escapeGuardUntil.current) return;
         choose("rejected");
       }}
     >

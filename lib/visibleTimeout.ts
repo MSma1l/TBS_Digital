@@ -1,9 +1,8 @@
 /**
  * `setTimeout` that only counts while the tab is visible.
  *
- * The intro's clock stops with requestAnimationFrame in a hidden tab, so a plain timer would
- * "rescue" an intro nobody was watching (the shell's watchdog) or pop the cookie banner up
- * underneath an intro that has not played yet (its max-wait). Both use this instead.
+ * A plain timer keeps counting in a hidden tab; this one does not, so heavy work deferred by
+ * `afterIdle` (lib/idle.ts) starts only once someone is looking at the page.
  *
  * Returns a cancel function; it is safe to call more than once. The callback fires at most
  * once: firing also drops the visibility listener, so a later hide/show cannot re-arm it.

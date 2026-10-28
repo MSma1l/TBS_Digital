@@ -1,6 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
-import { INTRO_COOKIE, INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
-import { SCENE_SHAPES } from "@/lib/scene";
+import { expect, test } from "@playwright/test";
+import { SCENE_SHAPES, STATS_GROUP_ATTR } from "@/lib/scene";
 import {
   computedTransform,
   consoleErrors,
@@ -27,28 +26,18 @@ import {
  * The interior stage on the DEFAULT path (components/scene/): a returning visitor in headless
  * Chromium, whose SwiftShader GPU the stage's strict probe refuses — so the page settles on the
  * static art. What must hold without WebGL: the art is there and still, no three.js or GSAP is
- * ever evaluated, the entrance markers stay untouched, no decorative dot came back, the
+ * ever evaluated, no decorative dot came back, the
  * direction pills drive the services screen (hover, keyboard, first tap on touch), the cards
  * tilt only under a mouse, and reduced motion / Save-Data / the off flag switch it all off.
  * The forced-WebGL half is interior-webgl.spec.ts (@webgl).
  */
-
-/** The entrance markers the intro drives (and nothing else may style). */
-const MARKERS = `[${INTRO_REVEAL_ATTR}]`;
-
-async function markerState(page: Page) {
-  return page.evaluate((selector) => ({
-    count: document.querySelectorAll(selector).length,
-    styled: document.querySelectorAll(`${selector}[style]`).length,
-  }), MARKERS);
-}
 
 test.describe("interior stage — default path (no usable GPU)", () => {
   test.beforeEach(async ({ context, baseURL }) => {
     await seedConsent(context, baseURL!);
   });
 
-  test("E1 settles on the static art: no canvas, no three.js, no GSAP, markers untouched @smoke", async ({
+  test("E1 settles on the static art: no canvas, no three.js, no GSAP @smoke", async ({
     page,
   }) => {
     await watchCsp(page);
@@ -76,7 +65,6 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     expect(await threeLoaded(page)).toBe(false);
     expect(await gsapLoaded(page)).toBe(false);
     expect(await webglContextCount(page)).toBe(0);
-    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
     // Work is inside the stage now, and without the scene its cards are exactly as React rendered
     // them: two colours inline, no layout (the spiral is the WebGL path's), no helix mode.
     const work = await page.evaluate(() => ({
@@ -205,12 +193,12 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await page.waitForURL(`**/servicii/${SCENE_SHAPES[last]}`);
   });
 
-  test("E7 a stats card tilts under the mouse and settles back; the stats marker is never styled", async ({
+  test("E7 a stats card tilts under the mouse and settles back; the stats group is never styled", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
     const card = page.locator('[data-metric="projects"]');
-    const marker = page.locator(`[${INTRO_REVEAL_ATTR}="stats"]`);
+    const marker = page.locator(`[${STATS_GROUP_ATTR}]`);
     await expect(card).toHaveAttribute("data-tilt", "on");
 
     const box = (await card.boundingBox())!;
@@ -225,7 +213,6 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await expect(card).not.toHaveAttribute("data-tilting", /.*/);
     await expect.poll(() => card.getAttribute("style")).toBeNull();
     expect(await marker.getAttribute("style")).toBeNull();
-    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
   });
 
   test("E8 a project card tilts and keeps its --p1/--p2; its screenshot drifts on the section's view timeline", async ({
@@ -277,7 +264,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
   }) => {
     const html = await (
       await request.get("/", {
-        headers: { cookie: `${INTRO_COOKIE}=seen; tbs_cookie_consent=rejected` },
+        headers: { cookie: "tbs_cookie_consent=rejected" },
       })
     ).text();
     // Its markup, and the server slot's copy in the RSC payload — not all five drawings.

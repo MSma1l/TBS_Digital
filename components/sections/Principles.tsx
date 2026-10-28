@@ -34,16 +34,16 @@ type Why = {
    the bento's two rows, amber beside green between the two wide cards from 641px. */
 const WHY: Why[] = [
   {
-    number: L("01 / IPOTEZĂ", "01 / ГИПОТЕЗА", "01 / HYPOTHESIS"),
+    number: L("01 / IDEEA", "01 / ИДЕЯ", "01 / THE IDEA"),
     title: L(
-      "Începem cu ipoteza, nu cu lista de funcții",
-      "Начинаем с гипотезы, а не со списка функций",
-      "We start with the hypothesis, not a feature list",
+      "Pornim de la problema ta, nu de la o listă de funcții",
+      "Начинаем с вашей задачи, а не со списка функций",
+      "We start with your problem, not a feature list",
     ),
     text: L(
-      "Clarificăm ce vrei să afli de la utilizatori înainte să investești într-un produs mai mare.",
-      "Уточняем, что вы хотите узнать от пользователей, прежде чем вкладываться в большой продукт.",
-      "We clarify what you need to learn from users before investing in a larger product.",
+      "Ascultăm ce vrei să rezolvi și ce vrei să afli de la clienți, înainte să construim ceva mai mare.",
+      "Слушаем, что вы хотите решить и что узнать от клиентов, прежде чем строить что-то большее.",
+      "We listen to what you want to solve and learn from customers before we build anything bigger.",
     ),
     mark: "rezultat",
     accent: "var(--blue)",
@@ -51,16 +51,16 @@ const WHY: Why[] = [
     wide: true,
   },
   {
-    number: L("02 / FOCUS", "02 / ФОКУС", "02 / FOCUS"),
+    number: L("02 / BUGET", "02 / БЮДЖЕТ", "02 / BUDGET"),
     title: L(
-      "Investiție inițială controlată",
-      "Контролируемая начальная инвестиция",
-      "A controlled initial investment",
+      "Buget de pornire mic și clar",
+      "Небольшой и понятный стартовый бюджет",
+      "A small, clear starting budget",
     ),
     text: L(
-      "Prima versiune are un scop clar, iar prețul de pornire îl vezi înainte să decizi.",
-      "У первой версии есть ясная цель, а стартовую цену вы видите до решения.",
-      "The first version has a clear purpose, and you see the starting price before deciding.",
+      "Alegi ce construim și vezi prețul de pornire înainte de orice discuție.",
+      "Вы выбираете, что строим, и видите стартовую цену ещё до разговора.",
+      "You choose what we build and see the starting price before any call.",
     ),
     mark: "pret",
     accent: "var(--amber)",
@@ -68,16 +68,16 @@ const WHY: Why[] = [
     wide: false,
   },
   {
-    number: L("03 / DOVEZI", "03 / ДОКАЗАТЕЛЬСТВА", "03 / EVIDENCE"),
+    number: L("03 / REZULTATE", "03 / РЕЗУЛЬТАТ", "03 / RESULTS"),
     title: L(
-      "Creștem după dovezi",
-      "Растём на основе доказательств",
-      "We grow on evidence",
+      "Dezvoltăm doar ce funcționează",
+      "Развиваем только то, что работает",
+      "We develop only what works",
     ),
     text: L(
-      "Lansăm, urmărim feedbackul și alegem împreună următoarea etapă care merită construită.",
-      "Запускаем, смотрим на обратную связь и вместе выбираем следующий этап, который стоит создавать.",
-      "We launch, review feedback and choose together the next stage worth building.",
+      "Vezi produsul la fiecare etapă, în demo-uri. După lansare ascultăm clienții tăi și dezvoltăm doar ce merită.",
+      "Вы видите продукт на каждом этапе, в демо. После запуска слушаем ваших клиентов и развиваем только то, что того стоит.",
+      "You see the product at every stage, in demos. After launch we listen to your customers and develop only what's worth it.",
     ),
     mark: "proces",
     accent: "var(--green)",
@@ -88,9 +88,9 @@ const WHY: Why[] = [
     number: L("04 / CONTINUITATE", "04 / НЕПРЕРЫВНОСТЬ", "04 / CONTINUITY"),
     title: L("Aceeași echipă, de la MVP la produs", "Одна команда — от MVP до продукта", "One team, from MVP to product"),
     text: L(
-      "Păstrăm contextul, codul și deciziile, astfel încât produsul să poată evolua fără reluări inutile.",
-      "Мы сохраняем контекст, код и решения, чтобы продукт развивался без лишних повторов.",
-      "We retain the context, code and decisions so the product can evolve without needless restarts.",
+      "Oamenii care fac prima versiune o duc mai departe. Păstrăm contextul, codul și deciziile, fără să o luăm de la capăt.",
+      "Те же люди, что делают первую версию, ведут продукт дальше. Сохраняем контекст, код и решения — без старта с нуля.",
+      "The people who build the first version take it further. We keep the context, code and decisions, with no starting over.",
     ),
     mark: "echipa",
     accent: "var(--red)",
@@ -100,7 +100,13 @@ const WHY: Why[] = [
 ];
 
 const SECTION = {
-  title: L("De ce TBS pentru prima versiune.", "Почему TBS для первой версии.", "Why TBS for the first version."),
+  /* The guide's empathy (docs/16, "Copy framework"): the visitor's risk named first; the cards
+     under it are the authority, each with its real proof. */
+  title: L(
+    "Înțelegem ce riști când pornești ceva nou.",
+    "Мы понимаем, чем вы рискуете, начиная новое.",
+    "We understand what's at stake when you start something new.",
+  ),
 };
 
 /*
@@ -189,15 +195,15 @@ function CardMark({ kind }: { kind: MarkKind }) {
  * `role="list"` on every list below: `list-style: none` costs a list its role in VoiceOver.
  */
 
-/* ---------- 01 / IPOTEZĂ: the goals a client brings ----------
+/* ---------- 01 / IDEEA: the goals a client brings ----------
    Word for word the three quick replies the request's assistant opens with (`TREE.start` in
    components/sections/Estimator.tsx), written out again rather than imported: importing them
    would pull the whole estimator into the page, which RequestFlowProvider loads on demand on
    purpose. Change the two together. */
 const GOALS: { id: string; label: LocalizedText }[] = [
-  { id: "growth", label: L("Mai mulți clienți", "Больше клиентов", "More clients") },
-  { id: "routine", label: L("Mai puțină rutină", "Меньше рутины", "Less routine") },
-  { id: "product", label: L("Un produs nou", "Новый продукт", "A new product") },
+  { id: "growth", label: L("Unde pierdem clienți", "Где мы теряем клиентов", "Where customers drop off") },
+  { id: "routine", label: L("Ce proces merită automatizat", "Какой процесс стоит автоматизировать", "Which process is worth automating") },
+  { id: "product", label: L("Dacă există cerere", "Есть ли спрос", "Whether there is demand") },
 ];
 
 /*

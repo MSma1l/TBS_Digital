@@ -61,7 +61,7 @@ describe("Services section", () => {
     expect(screen.getByText("Magazin online")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Alege un serviciu sau combină mai multe într-un produs complet.",
+        "Alege ce îți trebuie acum. Pornim mic și adăugăm doar ce aduce rezultat.",
       ),
     ).toBeInTheDocument();
     // "Automatizare cu IA" is estimatorOnly → no card on the /03 grid.
@@ -76,7 +76,7 @@ describe("Team section", () => {
   it("renders its heading and no kicker", async () => {
     withProvider(<Team />);
 
-    expect(await screen.findByText("Oamenii din spatele produsului.")).toBeInTheDocument();
+    expect(await screen.findByText("Echipa care îți construiește produsul.")).toBeInTheDocument();
     expect(screen.queryByText("ECHIPA TBS")).toBeNull();
   });
 
@@ -87,7 +87,7 @@ describe("Team section", () => {
    */
   it("projects the photograph without taking the picture away from anybody", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findByText("Oamenii din spatele produsului.");
+    await screen.findByText("Echipa care îți construiește produsul.");
 
     const holo = container.querySelector('[class*="holo"]');
     expect(holo).not.toBeNull();
@@ -107,7 +107,7 @@ describe("Team section", () => {
 
   it("defines the key and the tint ONCE for the section, not once per card", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findByText("Oamenii din spatele produsului.");
+    await screen.findByText("Echipa care îți construiește produsul.");
     const filters = container.querySelectorAll("filter#tbs-holo-key");
     expect(filters).toHaveLength(1);
     // sRGB, because the key's thresholds were measured in sRGB and the SVG default is linearRGB —
@@ -125,7 +125,7 @@ describe("Team section", () => {
 
   it("invents no projection for a member who has no photograph", async () => {
     const { container } = withProvider(<Team />);
-    await screen.findByText("Oamenii din spatele produsului.");
+    await screen.findByText("Echipa care îți construiește produsul.");
     expect(container.querySelectorAll('[class*="holo"]')).toHaveLength(1);
     expect(container.querySelectorAll('[class*="avatar"]').length).toBeGreaterThan(0);
   });
@@ -139,7 +139,7 @@ describe("Team section", () => {
       JSON.stringify({ team: [{ ...defaultSiteData.team[0], photo: "" }] }),
     );
     const { container } = withProvider(<Team />);
-    await screen.findByText("Oamenii din spatele produsului.");
+    await screen.findByText("Echipa care îți construiește produsul.");
     expect(container.querySelector("img")).toHaveAttribute("src", "/team/maxim.webp");
   });
 });
@@ -161,14 +161,14 @@ describe("Principles section", () => {
   it("renders the four rationale cards with their numbers and titles", async () => {
     withPrinciples();
 
-    expect(await screen.findByText("01 / IPOTEZĂ")).toBeInTheDocument();
-    expect(screen.getByText("02 / FOCUS")).toBeInTheDocument();
-    expect(screen.getByText("03 / DOVEZI")).toBeInTheDocument();
+    expect(await screen.findByText("01 / IDEEA")).toBeInTheDocument();
+    expect(screen.getByText("02 / BUGET")).toBeInTheDocument();
+    expect(screen.getByText("03 / REZULTATE")).toBeInTheDocument();
     expect(screen.getByText("04 / CONTINUITATE")).toBeInTheDocument();
 
-    expect(screen.getByText("Începem cu ipoteza, nu cu lista de funcții")).toBeInTheDocument();
-    expect(screen.getByText("Investiție inițială controlată")).toBeInTheDocument();
-    expect(screen.getByText(/Clarificăm ce vrei să afli/)).toBeInTheDocument();
+    expect(screen.getByText("Pornim de la problema ta, nu de la o listă de funcții")).toBeInTheDocument();
+    expect(screen.getByText("Buget de pornire mic și clar")).toBeInTheDocument();
+    expect(screen.getByText(/Ascultăm ce vrei să rezolvi/)).toBeInTheDocument();
   });
 });
 
@@ -182,7 +182,7 @@ describe("Principles section", () => {
 describe("The principles' card marks", () => {
   it("gives every card a mark, and gives them all the same one", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / IPOTEZĂ");
+    await screen.findByText("01 / IDEEA");
 
     // `[data-mark]`: the track in card 03 draws its ticks as line art of its own.
     const marks = Array.from(container.querySelectorAll("svg[data-mark]"));
@@ -203,7 +203,7 @@ describe("The principles' card marks", () => {
 
   it("keeps the marks silent and out of the accessibility tree", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / IPOTEZĂ");
+    await screen.findByText("01 / IDEEA");
 
     for (const mark of Array.from(container.querySelectorAll("svg[data-mark]"))) {
       // The sentence beside a mark is the claim; the mark is only that claim drawn. Repeating
@@ -217,7 +217,7 @@ describe("The principles' card marks", () => {
 
   it("draws no circle and no round cap anywhere", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / IPOTEZĂ");
+    await screen.findByText("01 / IDEEA");
 
     // The house rule for line art in this repo (docs/07): straight strokes, square caps, no
     // circles, no decorative dots. `decorative-dots.test.tsx` scans the sections it covers; this
@@ -229,7 +229,7 @@ describe("The principles' card marks", () => {
 
   it("shows no reading anywhere, and keeps the deleted stat literals gone", async () => {
     const { container } = withPrinciples();
-    await screen.findByText("01 / IPOTEZĂ");
+    await screen.findByText("01 / IDEEA");
 
     // Card 01's mark is a sight, not a readout: the only indicator it could display is one it
     // invented. "50+", "98% clienti multumiti" and "24/7" were deleted from the team card for
@@ -263,7 +263,7 @@ describe("Team stats come from real data, or not at all", () => {
     withProvider(<Team />);
 
     // The team itself renders, so this is 'no stats', not 'nothing rendered'.
-    expect(await screen.findByText("Oamenii din spatele produsului.")).toBeInTheDocument();
+    expect(await screen.findByText("Echipa care îți construiește produsul.")).toBeInTheDocument();
     expect(screen.queryByText("50+")).not.toBeInTheDocument();
     expect(screen.queryByText("98%")).not.toBeInTheDocument();
     expect(screen.queryByText(/clienți mulțumiți/)).not.toBeInTheDocument();

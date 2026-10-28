@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type Re
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
 import { detectSceneTier, readDeviceProfile } from "@/lib/device";
 import { afterIdle } from "@/lib/idle";
-import { isIntroOnScreen, onIntroGone } from "@/lib/intro";
 import {
   SCENE_ATTR,
   SCENE_TESTID,
@@ -37,9 +36,7 @@ import { REDUCED_MOTION_QUERY } from "@/lib/tilt";
  * The two heavy halves, each its own async chunk: three.js + R3F (the scene) and GSAP +
  * ScrollTrigger (the director). They mount in the SAME commit, so both requests start
  * together; there is no warm-up `import()` (it would give Turbopack another chunk group).
- * The scene comes through the shared 3D runtime module, the same `import()` target the intro
- * uses, so a first visitor who already downloaded three.js for the intro gets it from cache
- * (components/three/runtime.tsx).
+ * The scene comes through the shared 3D runtime module (components/three/runtime.tsx).
  */
 const SceneCanvas = dynamic(() => import("@/components/three/runtime").then((m) => m.SceneCanvas), {
   ssr: false,
@@ -55,7 +52,7 @@ const SceneDirector = dynamic(() => import("./SceneDirector").then((m) => m.Scen
 type Phase =
   /** Server render and hydration: nothing decided yet. */
   | { kind: "boot" }
-  /** The gates passed; waiting for the intro to leave, an idle slot and the GPU answer. */
+  /** The gates passed; waiting for an idle slot and the GPU answer. */
   | { kind: "waiting" }
   /** The scene and the director are mounted (attempt n: remounts get a fresh key). */
   | { kind: "loading"; attempt: number }
@@ -74,9 +71,6 @@ type StageState = {
 };
 
 const SERVER_STATE: StageState = { phase: { kind: "boot" }, motion: "static", force: false };
-
-/** A rejected warm-up import is not a failure: the real `import()` below reports for itself. */
-const noop = () => {};
 
 /** The live gates' answer, as a settled phase (null when every gate is open). */
 function gatePhase(gate: MotionGate): Phase | null {
@@ -136,10 +130,7 @@ function readEntry(): StageState {
  *     no ResizeObserver → fallback; reduced motion / Save-Data / 2G → off; the low tier →
  *     fallback (unless forced). `data-motion` is `live` only with every gate open and a tier
  *     above low — the CSS motion (holograms) keys off it;
- *  2. under an intro, at `WARM_MS`, the two chunks are fetched behind the film — never the
- *     context, never a probe (see the effect). Then, once the overlay has left, `afterIdle`
- *     (a warmed stage waits only for R3F to release the intro's context; an unwarmed one also
- *     takes the settle) and the GPU facts: the session's cached answer, else the probe chunk;
+ *  2. `afterIdle`, then the GPU facts: the session's cached answer, else the probe chunk;
  *  3. WebGL decided → the scene and the director mount; `data-renderer="webgl"` once the
  *     scene compiled and drew (`onReady`) and the director measured (`onLive`) — the art
  *     crossfades out over 500ms (CSS);
@@ -148,7 +139,7 @@ function readEntry(): StageState {
  *     (iOS backgrounding) → pending, one remount when visible; a render error → fallback.
  *
  * Paused (`frameloop="never"`, context kept) while the stage is off screen, the tab hidden
- * or something full-screen covers the page (burger, intro, dialog). `data-boost`,
+ * or something full-screen covers the page (burger, dialog). `data-boost`,
  * `data-quality`, `data-morph`, `data-entry`, `data-helix` (and the director's `data-scroll-fx`)
  * are written straight to the DOM, never through React state. `data-entry` (`idle|burst|formed`,
  * the services entrance as the ready scene draws it) and `data-helix` (`spiral|ambient`, the
@@ -162,17 +153,13 @@ export function SceneStage({ children }: { children: ReactNode }) {
   /*
    * A stage that hydrates starts where the server left it, `boot` (`pending`), and decides in
    * the effect below. A stage that MOUNTS on the client — a navigation from another page — starts
-   * from the gates' answer instead. `pending` is what raises the full-window loading cover
-   * (components/ui/PageLoading.module.css), and the cover now comes up in one frame: a stage the
-   * gates settle (the off flag, reduced motion, Save-Data, a low-tier phone) would otherwise
-   * raise it for the one frame before its effect, then fade it out — a loading flash on every
-   * click for exactly the devices that have nothing to load.
+   * from the gates' answer instead, so a stage the gates settle (the off flag, reduced motion,
+   * Save-Data, a low-tier phone) never shows `pending` for the one frame before its effect.
    *
    * The gates are read ONCE per mount: here for a client mount (`mountEntry`), in the effect for
    * a hydrated one. Read in both places, a gate that closed between the render and the effect
    * (reduced motion switched on, a connection dropping to 2G) left the state at the render's
-   * `waiting` while the effect, reading it settled, skipped the pipeline — `pending`, and the
-   * cover, for good. A gate that closes after the one read is still caught: `decide()` reads it
+   * `waiting` while the effect, reading it settled, skipped the pipeline — `pending` for good. A gate that closes after the one read is still caught: `decide()` reads it
    * again when its idle slot fires.
    */
   const clientMount = useSyncExternalStore(subscribeNothing, clientTrue, serverFalse);
@@ -182,17 +169,6 @@ export function SceneStage({ children }: { children: ReactNode }) {
   const [readyAttempt, setReadyAttempt] = useState(-1);
   const [liveAttempt, setLiveAttempt] = useState(-1);
   const [onscreen, setOnscreen] = useState(true);
-  /*
-   * Has the stage left the window since it mounted? The full-window loading cover
-   * (components/ui/PageLoading.module.css) hides a stage that is still deciding — and one the
-   * visitor has scrolled away from, or been sent away from (a `/#echipa` link from a service
-   * page lands BELOW the stage), is in front of nobody. Worse, an off-screen stage is paused, so
-   * it never draws its first frame and never answers: the cover stayed up until its 6s failsafe.
-   * So `data-cover` holds the cover only until the first time the stage is off screen, and never
-   * again in this mount — scrolling back into a stage that is still deciding shows it as a late
-   * arrival, the way every visit after an intro already does.
-   */
-  const [leftScreen, setLeftScreen] = useState(false);
   const tabHidden = useSyncExternalStore(subscribeVisibility, readTabHidden, serverFalse);
   const covered = useSyncExternalStore(subscribePageCover, isPageCovered, serverFalse);
 
@@ -209,7 +185,6 @@ export function SceneStage({ children }: { children: ReactNode }) {
 
     const mode: GpuMode = force ? "forced" : "strict";
     let cancelled = false;
-    let cancelIdle = () => {};
 
     const decide = (facts: GpuFacts) => {
       if (cancelled) return;
@@ -222,78 +197,27 @@ export function SceneStage({ children }: { children: ReactNode }) {
       setState((s) => (s.phase.kind === "waiting" ? { ...s, phase: next } : s));
     };
 
-    const overlay = isIntroOnScreen();
-
-    /*
-     * WHILE THE INTRO PLAYS, THE STAGE GETS READY BEHIND IT — but only as far as it safely can.
-     *
-     * Everything here is network and parse: the shared 3D runtime (already in cache if the intro
-     * took the WebGL path, since both reach three.js through the same `import()` target) and the
-     * director's own chunk, which is GSAP + ScrollTrigger and is NOT shared — Turbopack gives
-     * each `import()` target its own chunk group. On the measured load that download, the probe
-     * and the mount together cost 2.4s AFTER the overlay had already gone.
-     *
-     * What is deliberately NOT done here is the WebGL context and the shader compile. The intro
-     * is drawing its own scene until the end of the burst, and a compile stall there lands on the
-     * frames of the film the whole opening is built around. That part still waits for the overlay
-     * to leave, and for R3F to hand the context back.
-     *
-     * The GPU answer is READ, never probed: the intro's own capability probe wrote it to the
-     * tab's session cache (components/three/capability.ts). No cached answer means either a QA
-     * flag put the two on different modes or the intro never probed — and a second live context
-     * under the film to find out is exactly what this is trying to avoid, so it warms nothing and
-     * the old path runs unchanged. A device the answer sends to the static art warms nothing
-     * either: it is never going to load either chunk.
-     */
-    let warmed = false;
-    let cancelWarm = () => {};
-    if (overlay) {
-      cancelWarm = afterIdle(SCENE_TIMING.WARM_MS, () => {
-        const facts = readGpuFacts(mode);
-        if (cancelled || !facts || !decideWebGL(facts, force)) return;
-        warmed = true;
-        void import("@/components/three/runtime").catch(noop);
-        void import("./SceneDirector").catch(noop);
-      });
-    }
-
-    const stopWaitingForIntro = onIntroGone(() => {
-      if (cancelled) return;
-      cancelWarm();
-      /*
-       * A WARMED STAGE HAS ONE THING LEFT TO WAIT FOR, and it is not the idle slot. The 1500ms
-       * settle is there so the chunk requests never compete with the first paint, hydration or a
-       * first tap — none of which is still happening eight seconds into a visit spent watching a
-       * film. What remains is the one real constraint: R3F releases the intro's context 500ms
-       * after its canvas unmounts, and two scenes must never hold one at the same time.
-       */
-      const delay = warmed
-        ? SCENE_TIMING.AFTER_INTRO_MS
-        : SCENE_TIMING.IDLE_TIMEOUT_MS + (overlay ? SCENE_TIMING.AFTER_INTRO_MS : 0);
-      cancelIdle = afterIdle(delay, () => {
-        const cached = readGpuFacts(mode);
-        if (cached) {
-          decide(cached);
-          return;
-        }
-        import("@/components/three/capability").then(
-          ({ probeGpu }) => {
-            if (!cancelled) decide(probeGpu(mode));
-          },
-          () => {
-            if (cancelled) return;
-            setState((s) =>
-              s.phase.kind === "waiting" ? { ...s, phase: { kind: "fallback", reason: "error" } } : s,
-            );
-          },
-        );
-      });
+    const cancelIdle = afterIdle(SCENE_TIMING.IDLE_TIMEOUT_MS, () => {
+      const cached = readGpuFacts(mode);
+      if (cached) {
+        decide(cached);
+        return;
+      }
+      import("@/components/three/capability").then(
+        ({ probeGpu }) => {
+          if (!cancelled) decide(probeGpu(mode));
+        },
+        () => {
+          if (cancelled) return;
+          setState((s) =>
+            s.phase.kind === "waiting" ? { ...s, phase: { kind: "fallback", reason: "error" } } : s,
+          );
+        },
+      );
     });
 
     return () => {
       cancelled = true;
-      stopWaitingForIntro();
-      cancelWarm();
       cancelIdle();
     };
     // `mountEntry` is state without a setter: it never changes, so this still runs once.
@@ -348,7 +272,6 @@ export function SceneStage({ children }: { children: ReactNode }) {
       const newest = entries[entries.length - 1];
       if (!newest) return;
       setOnscreen(newest.isIntersecting);
-      if (!newest.isIntersecting) setLeftScreen(true);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -449,7 +372,6 @@ export function SceneStage({ children }: { children: ReactNode }) {
       data-scene-stage=""
       data-testid={SCENE_TESTID.stage}
       data-renderer={renderer}
-      data-cover={renderer === "pending" && !leftScreen ? "" : undefined}
       data-reason={reason}
       data-tier={tier}
       data-paused={renderer === "webgl" ? String(paused) : undefined}

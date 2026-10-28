@@ -1,7 +1,6 @@
 /**
  * Can this device draw WebGL at all, and on what? The one GPU probe for the whole site —
- * the intro shell and the interior stage both ask it, and whatever one learned the other
- * reuses for the rest of the tab (`sessionStorage`, see `GPU_PROBE_CACHE_KEY` in lib/gpuProbe).
+ * whatever it learned is reused for the rest of the tab (`sessionStorage`, see `GPU_PROBE_CACHE_KEY` in lib/gpuProbe).
  *
  * No three.js here, and nothing runs at import: callers decide between WebGL and their
  * static fallback BEFORE any scene chunk is requested. The live gates (ResizeObserver,

@@ -21,17 +21,15 @@ import {
 import { MAX_FRAME_STEP, clamp, damp, lerp } from "@/components/three/motion";
 import { isParsableTokenColor, readTokenColors } from "@/components/three/palette";
 import { contextAttributes } from "@/components/three/renderer";
-import { clampDpr, HIGH_TIER_PIXEL_BUDGET, TIER_CONFIG } from "@/components/intro/capability";
 
 /*
- * The 3D helpers the intro and the interior share (components/three/*), without a WebGL
- * context: the governor's bail, the damping, the DPR clamp, the token reader, the context
- * attributes and the transmission clear's colour space. The intro's own governor and DPR tables (intro-scene-math, intro-math) must
- * keep passing unchanged through the re-exports.
+ * The shared 3D helpers (components/three/*), without a WebGL context: the governor's bail,
+ * the damping, the DPR clamp, the token reader, the context attributes and the transmission
+ * clear's colour space.
  */
 
 describe("FPS governor — bail (opt-in)", () => {
-  /* Frame rates are powers of two, as in intro-scene-math: 1s windows close exactly. A slow
+  /* Frame rates are powers of two: 1s windows close exactly. A slow
      device delivers uneven frames (half and one and a half of the mean interval). */
   type Rate = number | { fps: number; uneven: true };
 
@@ -59,7 +57,7 @@ describe("FPS governor — bail (opt-in)", () => {
     return gov;
   }
 
-  it("is off by default: the intro's lite stays terminal and never bails", () => {
+  it("is off by default: lite stays terminal and never bails", () => {
     expect(DEFAULT_GOVERNOR.bailFps).toBe(0);
     const gov = liteGovernor({});
     expect(run(gov, SLOW_16, 20)).toEqual([]);
@@ -160,24 +158,6 @@ describe("clampDprRange", () => {
     expect(clampDprRange([1, 1.5], 390, 844, Number.NaN)).toEqual([1, 1]);
     expect(clampDprRange([1, 1.5], 0, 0, 0, 1.25e6)).toEqual([1, 1]);
   });
-
-  it("is exactly what the intro's clampDpr used to compute", () => {
-    for (const tier of ["high", "mid", "low"] as const) {
-      for (const [w, h] of [[320, 568], [390, 844], [1280, 800], [2560, 1440], [0, 0]]) {
-        for (const dpr of [0.5, 1, 1.5, 2, 3, Number.NaN]) {
-          expect(clampDpr(tier, w, h, dpr)).toEqual(
-            clampDprRange(
-              TIER_CONFIG[tier].dpr,
-              w,
-              h,
-              dpr,
-              tier === "high" ? HIGH_TIER_PIXEL_BUDGET : undefined,
-            ),
-          );
-        }
-      }
-    }
-  });
 });
 
 describe("readTokenColors", () => {
@@ -214,7 +194,7 @@ describe("readTokenColors", () => {
 });
 
 describe("contextAttributes", () => {
-  it("keeps the intro's attributes: transparent, premultiplied, default power, caveat unless forced", () => {
+  it("keeps its attributes: transparent, premultiplied, default power, caveat unless forced", () => {
     expect(contextAttributes({ antialias: true, force3d: false })).toEqual({
       alpha: true,
       antialias: true,

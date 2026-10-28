@@ -2,24 +2,37 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SCENE_TOKENS,
   parseTokenColor,
+  glowPalette,
   pickSceneRoles,
   readScenePalette,
   type SceneTokenValues,
 } from "@/components/scene/three/palette";
 
 /*
- * The interior scene's colours come from the site's tokens, never literals. There is ONE mode:
- * the page is always near-black, so the scene always draws in "glow" — light added to it, neon
- * on dark. The light theme and everything that watched for a theme switch went with it
- * (58b18ee "Removed: sunetul si tema deschisa"); `uInk` survives in the shaders, permanently 0.
- * The palette module is pure — no three.js — so the role table is pinned here.
+ * The interior scene's colours come from the site's tokens, never literals. The page colour picks
+ * the mode: on a dark page the scene draws in "glow" (light added, neon on dark); on the light
+ * page — the site's only palette since 2026-10-28 — it draws in "ink" (premultiplied "over",
+ * the darker text tones), so `uInk` is 1. The palette module is pure — no three.js — so the
+ * role table is pinned here.
  */
 
-/** The token values of globals.css. */
-const DARK: SceneTokenValues = {
-  cyan: "#4fc3e8",
+/** The token values of globals.css (light, the live palette). */
+const LIGHT: SceneTokenValues = {
+  cyan: "#0e93b9",
   blue: "#3970ff",
+  blueText: "#2a56d6",
   redLift: "#ff5362",
+  redText: "#d41026",
+  txt: "#10172a",
+  bg: "#f4f7ff",
+  ink: "#111a31",
+  onInk: "#dbe5ff",
+};
+
+/** A near-black page, to pin the glow branch. */
+const DARK: SceneTokenValues = {
+  ...LIGHT,
+  cyan: "#4fc3e8",
   txt: "#f6f7fb",
   bg: "#0a0b10",
 };
@@ -51,14 +64,39 @@ describe("pickSceneRoles", () => {
     expect(palette.hot).toEqual(rgb(DARK.txt));
     expect(palette.bg).toEqual(rgb(DARK.bg));
     // The glass core's roles (tint, attenuation) left with it: nothing reads --on-accent.
-    expect(Object.keys(palette).sort()).toEqual(["bg", "blue", "cyan", "hot", "mode", "red"]);
+    expect(Object.keys(palette).sort()).toEqual(["bg", "blue", "cyan", "glow", "hot", "mode", "panel", "red"]);
+    // On a dark page the glow tones ARE the roles: the hologram draws exactly as everything else.
+    expect(palette.glow).toEqual({ cyan: palette.cyan, blue: palette.blue, red: palette.red, hot: palette.hot });
+    expect(glowPalette(palette)).toBe(palette);
     expect(Object.values(SCENE_TOKENS)).not.toContain("--on-accent");
   });
 
-  it("reads five tokens and no theme-dependent one: --blue-text and --red-text left with the light theme", () => {
-    expect(Object.keys(SCENE_TOKENS).sort()).toEqual(["bg", "blue", "cyan", "redLift", "txt"]);
-    expect(Object.values(SCENE_TOKENS)).not.toContain("--blue-text");
-    expect(Object.values(SCENE_TOKENS)).not.toContain("--red-text");
+  it("the light page → ink: the darker text tones, the text colour as the highlight", () => {
+    const palette = pickSceneRoles(LIGHT);
+    expect(palette.mode).toBe("ink");
+    expect(palette.blue).toEqual(rgb(LIGHT.blueText));
+    expect(palette.red).toEqual(rgb(LIGHT.redText));
+    expect(palette.hot).toEqual(rgb(LIGHT.txt));
+  });
+
+  it("the light page keeps the glow tones and the --ink panel for the Work hologram's dark screen", () => {
+    const palette = pickSceneRoles(LIGHT);
+    expect(palette.panel).toEqual(rgb(LIGHT.ink));
+    // The neon fills, the lifted red and a light highlight (--on-ink: text on the ink island).
+    expect(palette.glow).toEqual({ cyan: rgb(LIGHT.cyan), blue: rgb(LIGHT.blue), red: rgb(LIGHT.redLift), hot: rgb(LIGHT.onInk) });
+    const glow = glowPalette(palette);
+    expect(glow.mode).toBe("glow");
+    expect([glow.cyan, glow.blue, glow.red, glow.hot]).toEqual([palette.glow.cyan, palette.glow.blue, palette.glow.red, palette.glow.hot]);
+    expect(glow.panel).toEqual(palette.panel);
+    // Pure: the ink palette itself is untouched.
+    expect(palette.mode).toBe("ink");
+    expect(palette.hot).toEqual(rgb(LIGHT.txt));
+  });
+
+  it("reads nine tokens, the text tones and the ink island included", () => {
+    expect(Object.keys(SCENE_TOKENS).sort()).toEqual(["bg", "blue", "blueText", "cyan", "ink", "onInk", "redLift", "redText", "txt"]);
+    expect(SCENE_TOKENS.ink).toBe("--ink");
+    expect(SCENE_TOKENS.onInk).toBe("--on-ink");
   });
 
   it("an unparsable token throws a descriptive error naming it", () => {
@@ -82,8 +120,8 @@ describe("readScenePalette — from the document", () => {
   }
 
   it("reads every role's custom property from <html>", () => {
-    stubTokens(DARK);
-    expect(readScenePalette()).toEqual(pickSceneRoles(DARK));
+    stubTokens(LIGHT);
+    expect(readScenePalette()).toEqual(pickSceneRoles(LIGHT));
     expect(window.getComputedStyle).toHaveBeenCalledWith(document.documentElement);
   });
 

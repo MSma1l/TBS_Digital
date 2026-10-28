@@ -9,7 +9,7 @@ import {
 } from "@/lib/scrollLock";
 
 /*
- * The shared page scroll lock (burger menu + intro). It owns three inline styles and
+ * The shared page scroll lock (burger menu and any other full-screen layer). It owns three inline styles and
  * nothing else; `<body>`'s position belongs to Modal.
  */
 
@@ -88,9 +88,9 @@ describe("lockRootScroll", () => {
     // With overflow hidden the scrollbar is gone and the root reads as wide as the window;
     // a nested lock must not undo the reservation because of that.
     scrollbar("overlay");
-    const unlockIntro = lockRootScroll();
+    const unlockSecond = lockRootScroll();
     expect(root().scrollbarGutter).toBe("stable");
-    unlockIntro();
+    unlockSecond();
     expect(root().scrollbarGutter).toBe("stable");
     unlockMenu();
     expect(root().scrollbarGutter).toBe("");
@@ -123,13 +123,13 @@ describe("lockRootScroll", () => {
   it("stays locked until the last of several overlapping locks is released", () => {
     root().overflow = "clip";
     const unlockMenu = lockRootScroll();
-    const unlockIntro = lockRootScroll();
+    const unlockSecond = lockRootScroll();
 
     unlockMenu();
     expect(root().overflow).toBe("hidden");
     expect(body().overflowX).toBe("visible");
 
-    unlockIntro();
+    unlockSecond();
     expect(root().overflow).toBe("clip");
     expect(body().overflowX).toBe("");
   });
@@ -176,12 +176,12 @@ describe("lockRootScroll", () => {
   it("covers the page for as long as any lock is held", () => {
     expect(isPageCovered()).toBe(false);
     const unlockMenu = lockRootScroll();
-    const unlockIntro = lockRootScroll();
+    const unlockSecond = lockRootScroll();
     expect(isPageCovered()).toBe(true);
     unlockMenu();
     unlockMenu();
     expect(isPageCovered()).toBe(true);
-    unlockIntro();
+    unlockSecond();
     expect(isPageCovered()).toBe(false);
   });
 

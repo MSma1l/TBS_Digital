@@ -1,7 +1,6 @@
 /**
- * Freeze page scrolling while a full-screen layer is up — the burger menu overlay and the
- * intro preloader. Reference-counted, so the two can overlap and the page only unlocks when
- * the LAST one lets go.
+ * Freeze page scrolling while a full-screen layer is up — the burger menu overlay.
+ * Reference-counted, so layers can overlap and the page only unlocks when the LAST one lets go.
  *
  * It locks `<html>`, never `<body>`: `components/ui/Modal.tsx` owns the body lock
  * (`position: fixed` + scroll restore), and two owners of one element's inline styles would
@@ -30,8 +29,7 @@
  */
 
 /* ---- page cover ------------------------------------------------------------------------
-   "Something full-screen is over the page right now" — the burger overlay, the intro, a
-   dialog. Reference-counted like the lock; `PAGE_COVER_EVENT` fires on `window` only when
+   "Something full-screen is over the page right now" — the burger overlay, a dialog. Reference-counted like the lock; `PAGE_COVER_EVENT` fires on `window` only when
    the count crosses 0 ↔ 1, so nested covers never re-announce. */
 
 /** Fired on `window` when the page becomes covered, and when the last cover lets go. */

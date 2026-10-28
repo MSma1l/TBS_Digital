@@ -8,7 +8,6 @@ import {
   SCENE_LAYOUT_EVENT,
   SCENE_SHAPES,
   SCENE_TESTID,
-  SCENE_TIMING,
   SERVICE_MODEL,
   WORK_ID,
   WORK_TRACK_ATTR,
@@ -402,7 +401,6 @@ describe("the DOM contract", () => {
     // The scene tells the director it changed the layout itself (on the stage root).
     expect(SCENE_LAYOUT_EVENT).toBe("tbs:scene-layout");
     expect(Object.keys(PARALLAX_LAYERS)).toEqual(["hero-backdrop", "hero-stats"]);
-    expect(SCENE_TIMING.AFTER_INTRO_MS).toBeGreaterThan(500);
   });
 });
 
@@ -434,7 +432,7 @@ describe("lib/scene without a DOM", () => {
 });
 
 describe("lib/gpuProbe — the cache on its own", () => {
-  it("imports nothing, so the intro's capability chunk never carries the stage contract", async () => {
+  it("imports nothing, so the capability chunk never carries the stage contract", async () => {
     const { readFileSync } = await import("node:fs");
     const { resolve } = await import("node:path");
     const source = readFileSync(resolve(__dirname, "../gpuProbe.ts"), "utf8");

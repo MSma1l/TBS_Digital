@@ -6,7 +6,7 @@
  * the driver that turns the project cards round it), drawn on the stage's one sticky canvas.
  *
  * Reached only through `next/dynamic` from the stage, via the shared 3D runtime module
- * (components/three/runtime.tsx, the intro's import target too), so three.js and R3F never
+ * (components/three/runtime.tsx), so three.js and R3F never
  * reach a visitor without a capable GPU. The canvas never takes a pointer event
  * (`pointer-events: none`, R3F events unused): tilt comes from passive window listeners
  * (./input.ts).

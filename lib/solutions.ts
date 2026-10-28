@@ -56,39 +56,46 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 export const solutions: Record<string, Solution> = {
   "produs-digital": {
     accent: "#3970ff",
-    title: L("Produs digital", "Цифровой продукт", "Digital product"),
+    /* The H1 carries the search phrase the page answers ("creare site-uri / aplicații / MVP");
+       the menu name (`dir.digital`) and the meta title say the same thing in short. */
+    title: L(
+      "Creare site-uri, aplicații și MVP",
+      "Создание сайтов, приложений и MVP",
+      "Website, app and MVP development",
+    ),
     pitch: {
       title: L(
         "Testează ideea înainte să construiești tot produsul",
         "Проверьте идею до того, как создавать весь продукт",
-        "Test the idea before building the whole product",
+        "Test the idea before you build the whole product",
       ),
+      /* Also the page's meta description: problem → what we do → result, 140–160 characters. */
       text: L(
-        "Pornim cu un MVP concentrat — site, platformă web sau aplicație mobilă — suficient pentru a testa ipoteza cu utilizatori reali. După feedback, îl dezvoltăm etapizat.",
-        "Начинаем со сфокусированного MVP — сайта, веб-платформы или мобильного приложения, — которого достаточно, чтобы проверить гипотезу на реальных пользователях. После обратной связи развиваем продукт поэтапно.",
-        "We start with a focused MVP — a website, web platform or mobile app — enough to test the hypothesis with real users. After feedback, we develop it in stages.",
+        "Nu vrei să riști tot bugetul pe o idee netestată? Facem un MVP (site, platformă web sau aplicație mobilă), îl testezi cu oameni reali și dezvolți ce merge.",
+        "Не хотите рисковать всем бюджетом? Сделаем MVP — сайт, веб-платформу или мобильное приложение. Вы проверите его на людях и будете развивать то, что работает.",
+        "Don't want to risk your budget on an untested idea? We build an MVP — a website, web platform or mobile app — you test it with real people and grow what works.",
       ),
       points: [
-        L("Ipoteză și public", "Гипотеза и аудитория", "Hypothesis and audience"),
-        L("Versiune de test", "Версия для теста", "Test version"),
-        L("Feedback și etapa următoare", "Обратная связь и следующий этап", "Feedback and the next stage"),
+        L("Ideea și publicul", "Идея и аудитория", "The idea and the audience"),
+        L("Prima versiune, gata de test", "Первая версия для теста", "A first version, ready to test"),
+        L("Feedback și pasul următor", "Обратная связь и следующий шаг", "Feedback and the next step"),
       ],
     },
-    cardTitle: L("Ipoteză → MVP → dezvoltare", "Гипотеза → MVP → развитие", "Hypothesis → MVP → development"),
+    cardTitle: L("Idee → MVP → dezvoltare", "Идея → MVP → развитие", "Idea → MVP → development"),
     cardText: L(
-      "Începi cu ce trebuie testat, apoi investești în ce confirmă valoare.",
-      "Начинаете с того, что нужно проверить, и вкладываетесь в то, что подтверждает ценность.",
-      "Start with what needs testing, then invest in what proves valuable.",
+      "Începi cu ce trebuie testat, apoi investești doar în ce funcționează.",
+      "Начинаете с того, что нужно проверить, и вкладываетесь только в то, что работает.",
+      "Start with what needs testing, then invest only in what works.",
     ),
     items: [
-      { title: L("Ipoteza", "Гипотеза", "The hypothesis"), desc: L("Clarificăm problema, publicul și ce trebuie să afli din prima versiune.", "Уточняем задачу, аудиторию и то, что нужно узнать из первой версии.", "We clarify the problem, the audience and what the first version needs to teach you.") },
-      { title: L("MVP concentrat", "Сфокусированный MVP", "Focused MVP"), desc: L("Construim minimumul necesar pentru un test real, fără funcții care pot aștepta.", "Создаём минимум для реального теста — без функций, которые могут подождать.", "We build the minimum needed for a real test, without features that can wait.") },
-      { title: L("Etapa următoare", "Следующий этап", "The next stage"), desc: L("După feedback, alegem ce merită extins și ce nu.", "После обратной связи выбираем, что стоит расширять, а что нет.", "After feedback, we choose what is worth expanding and what is not.") },
+      { title: L("Ideea", "Идея", "The idea"), desc: L("Clarificăm problema, publicul și ce vrei să afli din prima versiune.", "Уточняем задачу, аудиторию и то, что вы хотите узнать из первой версии.", "We clarify the problem, the audience and what you want the first version to tell you.") },
+      { title: L("MVP concentrat", "Сфокусированный MVP", "Focused MVP"), desc: L("Construim doar ce trebuie pentru un test real. Restul funcțiilor pot aștepta.", "Создаём только то, что нужно для реального теста. Остальные функции подождут.", "We build only what a real test needs. The other features can wait.") },
+      { title: L("Pasul următor", "Следующий шаг", "The next step"), desc: L("După feedback, alegem împreună ce merită extins și ce nu.", "После обратной связи вместе решаем, что стоит расширять, а что нет.", "After feedback, we decide together what is worth expanding and what is not.") },
     ],
     steps: [
-      L("Stabilim ipoteza și publicul primei versiuni.", "Определяем гипотезу и аудиторию первой версии.", "We define the hypothesis and audience for the first version."),
+      L("Stabilim ideea de testat și cine o va folosi primul.", "Определяем, что проверяем и кто воспользуется первым.", "We agree what to test and who will use it first."),
       L("Construim MVP-ul cu funcțiile esențiale.", "Создаём MVP с ключевыми функциями.", "We build the MVP with the essential features."),
-      L("Testăm, învățăm și prioritizăm următoarea etapă.", "Тестируем, учимся и определяем следующий этап.", "We test, learn and prioritize the next stage."),
+      L("Îl lansăm, ascultăm utilizatorii și alegem pasul următor.", "Запускаем, слушаем пользователей и выбираем следующий шаг.", "We launch it, listen to users and choose the next step."),
     ],
   },
   /* Sold as a CAPABILITY, not as a case study: nothing in the portfolio is a shop, so every
@@ -98,20 +105,20 @@ export const solutions: Record<string, Solution> = {
   "e-commerce": {
     accent: "#ff7268",
     title: L(
-      "E-commerce pentru produse, rapoarte și acces digital",
-      "E-commerce для продуктов, отчётов и цифрового доступа",
-      "E-commerce for products, reports and digital access",
+      "Magazin online pentru produse, rapoarte și acces digital",
+      "Интернет-магазин для товаров, отчётов и цифрового доступа",
+      "Online store for products, reports and digital access",
     ),
     pitch: {
       title: L(
-        "Testează oferta înainte de un magazin complex",
-        "Проверьте предложение до сложного магазина",
-        "Test the offer before building a complex store",
+        "Vinde online fără un magazin complicat",
+        "Продавайте онлайн без сложного магазина",
+        "Sell online without a complicated store",
       ),
       text: L(
-        "Începem cu traseul care contează: oferta, plata și livrarea. Apoi îmbunătățim catalogul, contul și automatizările pe baza comenzilor reale.",
-        "Начинаем с важного пути: предложения, оплаты и доставки. Затем улучшаем каталог, кабинет и автоматизацию на основе реальных заказов.",
-        "We start with the journey that matters: the offer, payment and delivery. Then we improve the catalogue, account and automation from real orders.",
+        "Vrei să vinzi online fără un magazin complicat și scump? Lansăm întâi oferta, plata și livrarea, apoi extindem catalogul și automatizările după comenzile reale.",
+        "Хотите продавать онлайн без сложного и дорогого магазина? Сначала запускаем предложение, оплату и выдачу, потом расширяем каталог по реальным заказам.",
+        "Want to sell online without a complex, costly store? We launch the offer, payment and delivery first, then grow the catalogue and automation from real orders.",
       ),
       points: [
         L("Checkout cu plățile potrivite", "Оплата удобными способами", "Checkout with the right payments"),
@@ -188,17 +195,21 @@ export const solutions: Record<string, Solution> = {
   },
   "automatizare-api": {
     accent: "#12ae9e",
-    title: L("Automatizare & API", "Автоматизация и API", "Automation & API"),
+    title: L(
+      "Automatizare procese, CRM și integrări API",
+      "Автоматизация процессов, CRM и интеграции API",
+      "Process automation, CRM and API integrations",
+    ),
     pitch: {
       title: L(
-        "Automatizează mai întâi blocajul care costă timp",
-        "Сначала автоматизируйте узкое место, которое отнимает время",
-        "Automate the bottleneck that costs time first",
+        "Scapă întâi de munca manuală care te costă cel mai mult",
+        "Сначала уберите ручную работу, которая стоит дороже всего",
+        "First remove the manual work that costs you most",
       ),
       text: L(
-        "Alegem un flux repetitiv, îl conectăm corect și măsurăm schimbarea. După ce funcționează, extindem automatizarea către restul operațiunii.",
-        "Выбираем повторяющийся процесс, правильно его подключаем и измеряем изменения. Когда он работает, расширяем автоматизацию на остальную операцию.",
-        "We choose one repeatable workflow, connect it correctly and measure the change. Once it works, we extend automation across the operation.",
+        "Pierzi ore cu date copiate, tabele și rapoarte făcute de mână? Automatizăm întâi fluxul care te costă cel mai mult, conectăm CRM-ul și datele, apoi extindem.",
+        "Тратите часы на копирование данных, таблицы и ручные отчёты? Сначала автоматизируем самый затратный процесс, связываем CRM и данные, затем расширяем.",
+        "Losing hours to copied data, spreadsheets and manual reports? We automate the costliest workflow first, connect your CRM and data, then extend what works.",
       ),
       points: [
         L("Audit de procese", "Аудит процессов", "Process audit"),
@@ -229,20 +240,20 @@ export const solutions: Record<string, Solution> = {
   "asistenti-ia": {
     accent: "#9b72ff",
     title: L(
-      "Asistenți și boți conectați la conversații reale",
-      "Ассистенты и боты, подключённые к реальным разговорам",
-      "Assistants and bots connected to real conversations",
+      "Chat, asistenți și boți Telegram pentru cereri",
+      "Чат, ассистенты и Telegram-боты для заявок",
+      "Chat, assistants and Telegram bots for requests",
     ),
     pitch: {
       title: L(
-        "Începe cu conversația în care pierzi cereri",
-        "Начните с разговора, в котором теряете заявки",
-        "Start with the conversation where you lose requests",
+        "Nu mai pierde cereri în mesaje",
+        "Перестаньте терять заявки в переписке",
+        "Stop losing requests in your messages",
       ),
       text: L(
-        "Punem un asistent sau bot într-un punct concret: răspuns, calificare ori rutare. Îl ajustăm după conversațiile reale, nu după presupuneri.",
-        "Ставим ассистента или бота в конкретную точку: ответ, квалификация или маршрутизация. Настраиваем его по реальным разговорам, а не по предположениям.",
-        "We place an assistant or bot at one concrete point: response, qualification or routing. We refine it from real conversations, not assumptions.",
+        "Cererile se pierd în mesaje și răspunzi prea târziu? Punem un chat, un asistent sau un bot Telegram unde pierzi clienți și îl ajustăm după conversațiile reale.",
+        "Заявки теряются в переписке, а ответ приходит поздно? Ставим чат, ассистента или Telegram-бота там, где уходят клиенты, и настраиваем по реальным диалогам.",
+        "Requests get lost in messages and replies come too late? We place a chat, an assistant or a Telegram bot where you lose customers and tune it on real chats.",
       ),
       points: [
         L("Chat live", "Живой чат", "Live chat"),
@@ -347,17 +358,21 @@ export const solutions: Record<string, Solution> = {
   },
   "brand-ui": {
     accent: "#3970ff",
-    title: L("Brand & UI", "Бренд и интерфейс", "Brand & UI"),
+    title: L(
+      "Brand și design UI pentru site-uri și aplicații",
+      "Бренд и UI-дизайн для сайтов и приложений",
+      "Brand and UI design for websites and apps",
+    ),
     pitch: {
       title: L(
-        "Testează mesajul și experiența înainte de o schimbare mare",
-        "Проверьте сообщение и опыт до большого изменения",
-        "Test the message and experience before a big change",
+        "Clienții trebuie să înțeleagă din prima ce oferi",
+        "Клиенты должны с первого взгляда понять, что вы предлагаете",
+        "Customers should get your offer at first glance",
       ),
       text: L(
-        "Clarificăm mesajul, proiectăm ecranul sau pagina care contează și observăm reacția. Apoi extindem sistemul vizual cu decizii validate.",
-        "Проясняем сообщение, проектируем важный экран или страницу и наблюдаем реакцию. Затем расширяем визуальную систему на основе проверенных решений.",
-        "We clarify the message, design the screen or page that matters and observe the response. Then we extend the visual system with validated decisions.",
+        "Clienții nu înțeleg repede ce oferi? Clarificăm mesajul, proiectăm pagina sau ecranul care contează, urmărim reacția oamenilor și extindem ce funcționează.",
+        "Клиенты не сразу понимают, что вы предлагаете? Проясняем посыл, проектируем ключевую страницу или экран, смотрим на реакцию и развиваем то, что работает.",
+        "Customers don't quickly see what you offer? We sharpen the message, design the page or screen that matters, watch how people respond and extend what works.",
       ),
       points: [
         L("Poziționare și mesaj", "Позиционирование и посыл", "Positioning and message"),
@@ -554,11 +569,13 @@ export const solUI = {
   /* --- labelled cases (only where a direction has them) --- */
   caseLink: L("Deschide site-ul ↗", "Открыть сайт ↗", "Open the site ↗"),
   projectsTitle: L("Proiecte relevante", "Релевантные проекты", "Relevant projects"),
-  bottomTitle: L("Ai un proiect în minte?", "Есть проект на примете?", "Got a project in mind?"),
+  bottomTitle: L("Gata să faci primul pas?", "Готовы сделать первый шаг?", "Ready to take the first step?"),
+  /* The reply time is the estimator's `SENT_COPY` promise; the starting price is the one the
+     request already shows. Nothing faster, nothing new. */
   bottomLead: L(
-    "Spune-ne ce vrei să obții. Revenim cu următorul pas potrivit.",
-    "Расскажите, чего хотите достичь — вернёмся со следующим шагом.",
-    "Tell us what you want to achieve. We'll come back with the right next step.",
+    "Spune-ne ce vrei să testezi. Prețul de pornire îl vezi chiar în cerere, iar noi revenim în cel mult o zi lucrătoare.",
+    "Расскажите, что хотите проверить. Стартовую цену вы увидите прямо в заявке, а мы ответим не позже чем через рабочий день.",
+    "Tell us what you want to test. You see the starting price right in the request, and we reply within one business day.",
   ),
   start: L("Începe cererea", "Начать заявку", "Start a request"),
 };

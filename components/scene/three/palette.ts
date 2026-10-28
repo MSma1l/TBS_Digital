@@ -6,9 +6,15 @@
  * token in a format this cannot parse throws a descriptive error: on mount that reaches the
  * stage's error boundary and the static art stays.
  *
- * One mode. The page is always near-black, so the scene always draws in "glow": light is
- * ADDED to it, neon on dark. The `SceneMode` union and the shaders' `uInk` uniform survive
- * this — `uInk` is simply always 0 — rather than being cut out of every model file.
+ * Two modes, picked by the page colour's luminance. Dark ("glow"): light is ADDED to the page,
+ * neon on near-black. Light ("ink"): an additive glow vanishes on a pale page, so every
+ * material switches its blend factors to premultiplied "over" (`uInk` = 1) and draws with the
+ * darker text tones (--blue-text, --red-text) and --txt as its highlight — never a shader
+ * recompile. The site's one palette is light (2026-10-28), so in practice the scene draws in ink.
+ *
+ * One exception to ink: the Work hologram (models/helix.ts) is a screen. In ink it stands on a
+ * dark backing panel (`panel`, the site's --ink island) and keeps drawing as light — additive,
+ * in the `glow` tones — so it reads exactly as it did on the dark page (`glowPalette`).
  */
 
 /** sRGB, each channel 0..1. */
@@ -21,19 +27,32 @@ export type ScenePalette = {
   cyan: Rgb;
   blue: Rgb;
   red: Rgb;
-  /** The white-hot core of a highlight. */
+  /** The white-hot core of a highlight (glow), the text colour (ink). */
   hot: Rgb;
-  /** The page behind the canvas. */
+  /** The page behind the canvas (its luminance picks the mode). */
   bg: Rgb;
+  /** The dark screen behind the Work hologram in ink: --ink, the site's deliberate dark island. */
+  panel: Rgb;
+  /**
+   * The glow tones whatever the mode — --cyan, --blue, --red-lift and a light highlight (--txt on
+   * a dark page, --on-ink on a light one): what the hologram draws with on its dark panel.
+   */
+  glow: GlowTones;
 };
+
+export type GlowTones = { cyan: Rgb; blue: Rgb; red: Rgb; hot: Rgb };
 
 /** Every CSS custom property the scene reads (they must stay hex or rgb()). */
 export const SCENE_TOKENS = {
   cyan: "--cyan",
   blue: "--blue",
+  blueText: "--blue-text",
   redLift: "--red-lift",
+  redText: "--red-text",
   txt: "--txt",
   bg: "--bg",
+  ink: "--ink",
+  onInk: "--on-ink",
 } as const;
 
 export type SceneTokenRole = keyof typeof SCENE_TOKENS;
@@ -60,9 +79,19 @@ export function parseTokenColor(value: string): Rgb | null {
   return null;
 }
 
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+/** WCAG relative luminance of an sRGB colour. */
+export function relativeLuminance([r, g, b]: Rgb): number {
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** A page lighter than this is a light page: the scene draws in ink. */
+export const INK_LUMINANCE = 0.4;
+
 /**
- * Pure. The scene's roles from raw token values. Throws when a token is missing or
- * unparsable.
+ * Pure. The scene's roles from raw token values. The page colour decides the mode. Throws
+ * when a token is missing or unparsable.
  */
 export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
   const parsed = {} as Record<SceneTokenRole, Rgb>;
@@ -75,14 +104,25 @@ export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
     }
     parsed[role] = color;
   }
+  const ink = relativeLuminance(parsed.bg) > INK_LUMINANCE;
   return {
-    mode: "glow",
+    mode: ink ? "ink" : "glow",
     cyan: parsed.cyan,
-    blue: parsed.blue,
-    red: parsed.redLift,
+    blue: ink ? parsed.blueText : parsed.blue,
+    red: ink ? parsed.redText : parsed.redLift,
     hot: parsed.txt,
     bg: parsed.bg,
+    panel: parsed.ink,
+    glow: { cyan: parsed.cyan, blue: parsed.blue, red: parsed.redLift, hot: ink ? parsed.onInk : parsed.txt },
   };
+}
+
+/**
+ * Pure. `palette` with its glow tones as the roles and the mode forced to glow: what a draw that
+ * stays light on a dark panel paints with (the Work hologram). A glow palette is returned as is.
+ */
+export function glowPalette(palette: ScenePalette): ScenePalette {
+  return palette.mode === "glow" ? palette : { ...palette, ...palette.glow, mode: "glow" };
 }
 
 /** Client only. The palette from `root`'s computed tokens (throws like `pickSceneRoles`). */

@@ -57,7 +57,7 @@
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--cyan);
+  color: var(--cyan-text);
   flex-shrink: 0;
 }
 
@@ -94,5 +94,5 @@
 }
 .p a:hover,
 .list a:hover {
-  color: var(--cyan);
+  color: var(--cyan-text);
 }

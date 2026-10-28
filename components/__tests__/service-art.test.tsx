@@ -288,7 +288,6 @@ describe("service art — styles and pure source", () => {
     expect(rules).not.toMatch(/\b(?:rgba?|hsla?|oklch|oklab|hwb)\(/);
     expect(rules).toMatch(/vector-effect:\s*non-scaling-stroke/);
     expect(rules).not.toMatch(/stroke-linecap:\s*round|stroke-linejoin:\s*round|border-radius/);
-    expect(rules).not.toMatch(/data-intro-reveal/);
     for (const m of rules.matchAll(/(?:stroke|fill):\s*([^;]+);/g)) {
       if (m[1].trim() === "none") continue;
       expect(m[1], m[0]).toMatch(/var\(--/);

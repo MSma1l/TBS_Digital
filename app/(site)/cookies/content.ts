@@ -10,10 +10,6 @@ import type { LegalContent } from "../confidentialitate/LegalDoc";
  * and the consent-gated first-party analytics pixel (statistica.tbs.md). No third-party
  * marketing cookies.
  *
- * `tbs_intro` was listed here while the intro played once per browser session. The intro now
- * plays on every hard load of the home page and the site never writes that cookie, so it is no
- * longer a cookie this site stores; it is only still *read*, so that a test run which seeds it
- * can skip the intro.
  * Controller: TBS Digital · office@crowe-tm.md.
  */
 export const cookieContent: Record<Locale, LegalContent> = {

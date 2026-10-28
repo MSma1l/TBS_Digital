@@ -2,7 +2,6 @@ import { expect, test, type Page } from "@playwright/test";
 import { CONSENT_KEY } from "@/lib/consent";
 import { LOCALES } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
-import { INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
 import { navMenu } from "@/lib/content";
 import {
   MIN_TAP_TARGET,
@@ -19,7 +18,7 @@ import {
 } from "./helpers";
 
 /*
- * The HUD first screen for a RETURNING visitor (gotoHydrated seeds the intro away): the
+ * The HUD first screen for a RETURNING visitor: the
  * header and its Chișinău clock, the static hero, the restyled cookie banner (unblurred and
  * opaque on phones), the neon CTAs' focus ring, the ticker, the burger menu's scroll lock
  * and the desktop dropdowns (Escape closes a hover-opened one too).
@@ -70,7 +69,7 @@ test.describe("returning visit", () => {
     await seedConsent(context, baseURL!);
   });
 
-  test("is static: header and headline don't move after hydration, and nothing is styled", async ({
+  test("is static: header and headline don't move after hydration, and the headline is opaque", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
@@ -82,9 +81,6 @@ test.describe("returning visit", () => {
     expect(await header(page).boundingBox()).toEqual(first.header);
     expect(await h1.boundingBox()).toEqual(first.h1);
     await expect(h1).toHaveCSS("opacity", "1");
-    expect(await page.locator(`[${INTRO_REVEAL_ATTR}][style]`).count()).toBe(0);
-    // From the contract, not a literal (see the note in preloader.spec.ts).
-    expect(await page.locator(`[${INTRO_REVEAL_ATTR}]`).count()).toBe(INTRO_REVEAL_ORDER.length);
   });
 });
 

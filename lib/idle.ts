@@ -50,8 +50,7 @@ function afterLoad(run: () => void): () => void {
  *     browser has none, `LOAD_SETTLE_MS` after `load`;
  *  3. a visible tab at that moment — hidden by then, it waits for the next `visibilitychange`.
  *
- * The delay is a real minimum on purpose: after the intro, the stage adds the time R3F takes
- * to release the intro's WebGL context, so two scenes never hold a context at once.
+ * The delay is a real minimum on purpose: the stage's settle before its chunk requests.
  *
  * Client only (a no-op on the server). Returns a cancel that is safe to call more than once,
  * at any step, and after the callback ran.

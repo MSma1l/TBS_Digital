@@ -81,7 +81,7 @@ export function createRenderer(
 }
 
 /**
- * The intro's governor "lite" step, renderer side: the transmission pass (a second render of
+ * The governor's "lite" step, renderer side: the transmission pass (a second render of
  * the scene into a multisampled, mipmapped target every frame) drops to half resolution. A
  * renderer setting, not a material change, so nothing recompiles.
  */

@@ -24,7 +24,7 @@ import {
 /*
  * The fibre-optic scroll rail (IT-OS Phase 5): components/hud/rail/ScrollRail.tsx, a desktop-only
  * HUD part mounted by components/hud/HudChrome.tsx once the gate opens (consent answered, an
- * interaction, the intro gone, an idle slot) and only while `(min-width: 861px)` matches. What
+ * interaction, an idle slot) and only while `(min-width: 861px)` matches. What
  * must hold in a real browser:
  *   - a real `<nav aria-label="Secțiunile paginii">` of 44×44 buttons, one per section, over a
  *     decorative fibre that takes no pointer;

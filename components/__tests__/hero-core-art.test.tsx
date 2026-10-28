@@ -465,7 +465,6 @@ describe("HeroCoreArt.module.css — static, tokens only", () => {
     }
     expect(declared("line", "vector-effect")).toEqual(["non-scaling-stroke"]);
     expect(declared("die", "vector-effect")).toEqual(["non-scaling-stroke"]);
-    expect(cssNoComments).not.toMatch(/\[data-intro-reveal/);
   });
 
   it("draws the structure heavier on phones", () => {

@@ -101,12 +101,11 @@
   padding: clamp(20px, 2.6vw, 28px);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, var(--txt) 9%, transparent),
-    0 24px 60px rgb(0 0 0 / 45%);
+    var(--sh-lg);
 }
 
-/* The deck's floor. On a LIGHTER deck the scoring has to be DARK — the old white --grid-line at
-   3.5% was built for near-black and measures 1.11:1 here, i.e. nothing. Masked away from the
-   middle so it never sits under a glyph. */
+/* The deck's floor: a faint --txt scoring on the white deck (the site is light), the page grid's
+   tone a step stronger. Masked away from the middle so it never sits under a glyph. */
 .box::before {
   content: "";
   position: absolute;
@@ -115,8 +114,8 @@
   pointer-events: none;
   border-radius: inherit;
   background-image:
-    linear-gradient(to right, rgb(0 0 0 / 26%) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(0 0 0 / 26%) 1px, transparent 1px);
+    linear-gradient(to right, color-mix(in srgb, var(--txt) 6%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--txt) 6%, transparent) 1px, transparent 1px);
   background-size: 28px 28px;
   -webkit-mask-image: radial-gradient(ellipse 78% 62% at 50% 0%, #000 14%, transparent 100%);
   mask-image: radial-gradient(ellipse 78% 62% at 50% 0%, #000 14%, transparent 100%);
@@ -925,8 +924,9 @@
 .resultCopy {
   font-size: var(--fs-md);
   line-height: 1.5;
-  /* --mut measures 4.83:1 on the riser, which passes and only just; this is 5.19:1. */
-  color: var(--on-ink-mut);
+  /* On the light riser (#f4f7ff) --mut measures 5.6:1. (It was --on-ink-mut while the riser
+     was a dark panel; on a light one that would be ~1.9:1.) */
+  color: var(--mut);
   margin: var(--sp-2) 0 0;
 }
 /* What the calculator already chose, stated under the price it produced. Only ever rendered

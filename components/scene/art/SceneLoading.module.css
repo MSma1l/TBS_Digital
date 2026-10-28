@@ -13,8 +13,7 @@
  * `visibility` is a DISCRETE transition, which is what makes this free: on the way down it holds
  * `visible` for the entire 0.35s and flips exactly when the fade reaches 0; on the way up the
  * raised rule below carries no delay, so it is `visible` on the first frame of the fade in. Not
- * one frame of the fade differs from before — the same trick, and the same reasoning, as the
- * page cover in components/ui/PageLoading.module.css:14-20.
+ * one frame of the fade differs from before.
  *
  * The 0.35s in the delay must stay equal to the 0.35s of the fade; they are one duration written
  * twice, and splitting them would strand the mark visible or cut the fade short.
@@ -56,13 +55,6 @@
   visibility: visible;
   transition: opacity 0.35s var(--motion-ease-out);
   --loading-play: running;
-}
-
-/* Raised but behind the intro's film: the stage waits for the overlay, so the marks stay raised under
-   its opaque cover for the whole film. They rest there, and run from the first frame the reveal can
-   show them (the rule stops matching in the same style change). */
-:global(html:not([data-intro-played]):has(#tbs-intro[data-phase="run"])) .host {
-  --loading-play: paused;
 }
 
 /* Work's cards are the portfolio, not a fallback: the scene RE-PLACES them onto the spiral rather

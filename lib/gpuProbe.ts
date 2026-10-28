@@ -1,10 +1,9 @@
 /**
  * The site's GPU probe cache: what probing a WebGL2 context answered, per mode, and the pure
- * WebGL decision made from it. Shared by the intro's capability probe, the interior stage and
+ * WebGL decision made from it. Shared by the interior stage and
  * `components/three/capability.ts`.
  *
- * Its own module, with no imports, so the intro's first-visit capability chunk (loaded from
- * the layout, where lib/scene.ts is not already on the page) does not carry the whole stage
+ * Its own module, with no imports, so the capability chunk does not carry the whole stage
  * contract and lib/directions.ts along with the probe. lib/scene.ts re-exports all of it: the
  * contract's names are unchanged.
  *
@@ -13,8 +12,7 @@
 
 /**
  * `sessionStorage[GPU_PROBE_CACHE_KEY]`: what probing a WebGL2 context answered, per mode,
- * for the rest of the tab's life. The intro's first-visit probe fills it, so a reload (and
- * the interior stage) never creates a throwaway context again. Booleans only — never the
+ * for the rest of the tab's life, so a reload never creates a throwaway context again. Booleans only — never the
  * renderer string, which would be a fingerprint.
  */
 export const GPU_PROBE_CACHE_KEY = "tbs_gpu_probe";

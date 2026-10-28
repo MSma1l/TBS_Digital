@@ -2,7 +2,7 @@
 
 Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
 owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
-overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
+overlay and the dialog, which cover them with no hide logic). The literal boxes
 below ARE that contract, not a local choice.
 
 THE BOX IS SQUARE, AND IT GREW TWICE (2026-09-24): 52 / 64×72 / 88, then 72 / 88 / 120, now
@@ -57,7 +57,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   
   Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
   owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
-  overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
+  overlay and the dialog, which cover them with no hide logic). The literal boxes
   below ARE that contract, not a local choice.
   
   THE BOX IS SQUARE, AND IT GREW TWICE (2026-09-24): 52 / 64×72 / 88, then 72 / 88 / 120, now
@@ -103,7 +103,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   
   Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
   owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
-  overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
+  overlay and the dialog, which cover them with no hide logic). The literal boxes
   below ARE that contract, not a local choice.
   
   THE BOX IS SQUARE, AND IT GREW TWICE (2026-09-24): 52 / 64×72 / 88, then 72 / 88 / 120, now
@@ -144,7 +144,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   
   Placement is the HUD contract in docs/04 ("Stacking and placement", critique R2): the avatar
   owns the bottom-right corner, the tip sits above it, both at --z-guide (under the burger
-  overlay, the dialog and the intro, which cover them with no hide logic). The literal boxes
+  overlay and the dialog, which cover them with no hide logic). The literal boxes
   below ARE that contract, not a local choice.
   
   THE BOX IS SQUARE, AND IT GREW TWICE (2026-09-24): 52 / 64×72 / 88, then 72 / 88 / 120, now

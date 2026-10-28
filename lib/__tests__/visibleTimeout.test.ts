@@ -2,10 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { visibleTimeout } from "@/lib/visibleTimeout";
 
 /*
- * The visibility-aware timer behind the intro watchdog and the cookie banner's max-wait
- * (lib/visibleTimeout.ts). A hidden tab must not use up the time: a visitor who opens the
- * home page in a background tab gets the whole intro, and the banner does not show up under
- * it while nobody is looking.
+ * The visibility-aware timer behind `afterIdle` (lib/visibleTimeout.ts). A hidden tab must not
+ * use up the time: heavy work deferred on a page opened in a background tab waits until someone
+ * looks at it.
  *
  * `performance` is faked together with the timers, because the time left over after a pause
  * is measured with `performance.now()`.

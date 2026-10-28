@@ -3,7 +3,7 @@
  * request flow on the guided chat, and the tip it offers when a visitor lingers on a topic.
  *
  * What is pinned here:
- *   1. when it renders at all — an answered cookie question, no intro overlay on screen;
+ *   1. when it renders at all — an answered cookie question;
  *   2. its markup — a real button with `aria-haspopup="dialog"`, a decorative `aria-hidden`
  *      droid, and a tip that is described, not announced (no role, no live region);
  *   3. the linger engine wired to the page — the centre-line observer, 5 s of visible time,
@@ -60,7 +60,6 @@ import { GuideAssistant, resetGuideMemoryForTests } from "@/components/hud/guide
 import { GUIDE_COPY, GUIDE_FAQ } from "@/components/hud/guide/copy";
 import { CONSENT_KEY, setConsent } from "@/lib/consent";
 import { resetHudBusyForTests } from "@/lib/hud/busy";
-import { INTRO_OVERLAY_ID, markIntroGone, resetIntroForTests } from "@/lib/intro";
 import { RequestFlowProvider, useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { defaultSiteData, SiteContentProvider } from "@/lib/siteContent";
 
@@ -223,8 +222,6 @@ beforeEach(() => {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
   localStorage.clear();
   document.cookie = `${CONSENT_KEY}=;path=/;max-age=0`;
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
-  resetIntroForTests();
   resetGuideMemoryForTests();
   resetHudBusyForTests();
   h.pathname = "/";
@@ -236,7 +233,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   Reflect.deleteProperty(document, "visibilityState");
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
   localStorage.clear();
 });
 
@@ -255,20 +251,6 @@ describe("when the guide renders", () => {
     act(() => setConsent("accepted"));
     expect(guideRoot()).not.toBeNull();
     expect(avatar()).toBeInTheDocument();
-  });
-
-  it("renders nothing while the intro overlay is on screen, and appears once it is gone", () => {
-    answerConsent();
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.appendChild(overlay);
-
-    renderGuide();
-    expect(guideRoot()).toBeNull();
-
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(guideRoot()).not.toBeNull();
   });
 });
 
