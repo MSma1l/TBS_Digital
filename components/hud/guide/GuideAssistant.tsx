@@ -17,7 +17,6 @@ import { directions } from "@/lib/directions";
 import { overlaps } from "@/lib/hud/obscure";
 import { useLoc } from "@/lib/i18n/content";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { INTRO_GONE_EVENT, isIntroOnScreen } from "@/lib/intro";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
 import { isPageCovered, subscribePageCover } from "@/lib/scrollLock";
 import { GUIDE_COPY, GUIDE_FAQ } from "./copy";
@@ -46,8 +45,8 @@ import styles from "./GuideAssistant.module.css";
  * pressed her for it.
  *
  * Mounted by `components/hud/HudChrome.tsx` (a lazy part, after consent, the first
- * interaction, the intro and an idle slot), but correct on its own: nothing renders while the
- * cookie question is unanswered or the intro overlay is on screen.
+ * interaction and an idle slot), but correct on its own: nothing renders while the cookie
+ * question is unanswered.
  *
  * Visibility (docs/04, "When the chrome shows"):
  *   - away: while the home page's own request form is in view, the avatar and bubble fade to
@@ -188,7 +187,7 @@ function paintMouth(layers: readonly HTMLElement[], pose: MouthPose): void {
  * The assistant herself: a cutout portrait, her eyelids, and the wash that makes it a hologram.
  *
  * ONE element carries the breathing (`.figure`) and the treatment sits on the leaves below it.
- * That is not tidiness — this widget sits over the live WebGL canvas and the file's own rule is
+ * That is not tidiness — the file's own rule is
  * that no ANCESTOR may take a filter, because it would flatten the `preserve-3d` the orbit rings
  * are drawn in. A filter on `.portrait`, which nothing is drawn inside, groups only itself.
  *
@@ -278,18 +277,14 @@ function decoded(src: string): Promise<unknown> {
 /** A service page, with or without the /ru or /en prefix (the proxy rewrites onto one tree). */
 const SERVICE_PATH = /(?:^|\/)servicii\/([^/?#]+)/;
 
-/* ---- readiness: consent answered, intro gone ------------------------------------------- */
+/* ---- readiness: consent answered -------------------------------------------------------- */
 
 function subscribeReady(onChange: () => void): () => void {
   window.addEventListener(CONSENT_EVENT, onChange);
-  window.addEventListener(INTRO_GONE_EVENT, onChange);
-  return () => {
-    window.removeEventListener(CONSENT_EVENT, onChange);
-    window.removeEventListener(INTRO_GONE_EVENT, onChange);
-  };
+  return () => window.removeEventListener(CONSENT_EVENT, onChange);
 }
 
-const readReady = () => getConsent() !== null && !isIntroOnScreen();
+const readReady = () => getConsent() !== null;
 
 /* ---- page reads ------------------------------------------------------------------------- */
 
@@ -308,7 +303,7 @@ function serviceSlugOf(pathname: string | null): string | undefined {
 
 /* ---- the component ---------------------------------------------------------------------- */
 
-/** The assistant, or nothing while the cookie question is open or the intro is on screen. */
+/** The assistant, or nothing while the cookie question is open. */
 export function GuideAssistant() {
   const ready = useSyncExternalStore(subscribeReady, readReady, () => false);
   return ready ? <Guide /> : null;

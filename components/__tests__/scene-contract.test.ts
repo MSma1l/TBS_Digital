@@ -14,7 +14,7 @@
  *      no normalizeScroll / ScrollSmoother, no markers, no custom scroller, no lagSmoothing (the
  *      intro director owns GSAP's ticker);
  *   3. the stage is in Tailwind's @source and no art file is (the art is a CSS Module);
- *   4. the art carries no directive: no "use client" in components/scene/art/**. The page
+ *   4. the art carries no directive: no "use client" in components/art/**. The page
  *      server-renders the hero core and the first direction's drawing; Directions loads
  *      ServiceArt in the browser (next/dynamic) for the other directions, so the same pure
  *      module renders on both sides;
@@ -51,14 +51,9 @@ const PAGE_BUNDLE_ROOTS = [
   "components/fx",
   "components/hud",
   "components/scene/SceneStage.tsx",
-  "components/scene/art",
-  "components/scene/shapes.ts",
+  "components/art",
   "components/three/RenderErrorBoundary.tsx",
   "components/three/capability.ts",
-  "components/intro/IntroPreloader.tsx",
-  "components/intro/IntroFallback.tsx",
-  "components/intro/capability.ts",
-  "components/intro/tiers.ts",
   "lib",
 ];
 
@@ -66,7 +61,7 @@ const HEAVY = ["three", "@react-three/fiber", "gsap", "gsap/ScrollTrigger", "@gs
 /** Every subpath of a heavy package (eslint.config.mjs `HEAVY_SUBPATHS`). */
 const HEAVY_SUBPATHS = ["three/*", "@react-three/fiber/*", "gsap/*", "@gsap/react/*"];
 /** The site's own modules that carry them (eslint.config.mjs `HEAVY_MODULES_REGEX`). */
-const HEAVY_MODULES = ["three/runtime", "SceneCanvas", "SceneWorld", "SceneDirector", "IntroScene", "IntroDirector"];
+const HEAVY_MODULES = ["three/runtime", "SceneCanvas", "SceneWorld", "SceneDirector"];
 const HEAVY_MODULE_PATTERN = new RegExp(`(^|/)(${HEAVY_MODULES.join("|")})(\\.(tsx?|jsx?|mjs))?$`);
 
 function isHeavy(specifier: string): boolean {
@@ -112,7 +107,7 @@ describe("interior stage — lazy heavy libraries", () => {
       "app/(site)/page.tsx",
       "components/sections/Hero.tsx",
       "components/scene/SceneStage.tsx",
-      "components/scene/shapes.ts",
+      "components/art/shapes.ts",
       "components/fx/usePointerTilt.ts",
       "lib/scene.ts",
     ]) {
@@ -145,7 +140,7 @@ describe("interior stage — lazy heavy libraries", () => {
       "@/components/scene/SceneDirector",
     ]);
     expect(staticHeavyImports(`import { SceneWorld } from "../scene/SceneWorld";`)).toEqual(["../scene/SceneWorld"]);
-    expect(staticHeavyImports(`export { IntroDirector } from "./IntroDirector.tsx";`)).toEqual(["./IntroDirector.tsx"]);
+    expect(staticHeavyImports(`export { SceneDirector } from "./SceneDirector.tsx";`)).toEqual(["./SceneDirector.tsx"]);
     // …but not a module that merely shares a prefix, a type-only import, or an import().
     expect(staticHeavyImports(`import { x } from "three-stdlib-free";`)).toEqual([]);
     expect(staticHeavyImports(`import { x } from "@/lib/SceneCanvasProps";`)).toEqual([]);
@@ -188,28 +183,24 @@ const SCROLL_SCAN_ROOTS = ["components/scene", "components/hud", "lib/hud"];
 
 describe("interior stage — ScrollTrigger stays harmless", () => {
   const sceneFiles = SCROLL_SCAN_ROOTS.flatMap((root) => listFiles(root, CODE));
-  /* The GPU subtree is carved out of the scan, and the test below earns that: the detector is a
-     text match on option names, and those names are ordinary English. `PART.snap` in
-     models/brandBoard.ts is the designer's snapping cursor — an index into that model's own parts
-     — and reads as ScrollTrigger's `snap:` to a regex. A model file cannot configure a
-     ScrollTrigger anyway, and the next test proves the only way it could (naming GSAP at all) is
-     shut. Everything else under the roots is still read in full. */
+  /* The GPU subtree used to be carved out of the scan (a service model's `PART.snap` read as
+     ScrollTrigger's `snap:` to the regex); since 2026-10-28 it holds only Work's helix, so every
+     file under the roots is read in full. The test below still proves nothing there names GSAP. */
   const GPU_SUBTREE = "components/scene/three/";
-  const scrollFiles = sceneFiles.filter((file) => !file.startsWith(GPU_SUBTREE));
+  const scrollFiles = sceneFiles;
 
-  it("scans the stage's own files and the HUD chrome's, all but the three.js models", () => {
+  it("scans the stage's own files, its three.js helix and the HUD chrome's", () => {
     expect(sceneFiles).toContain("components/scene/SceneStage.tsx");
     expect(sceneFiles).toContain("components/hud/HudChrome.tsx");
     expect(sceneFiles).toContain("lib/hud/gate.ts");
-    expect(sceneFiles).toContain("components/scene/three/models/brandBoard.ts");
     expect(scrollFiles).toContain("components/scene/SceneDirector.tsx");
     expect(scrollFiles).toContain("components/scene/choreography.ts");
-    expect(scrollFiles).not.toContain("components/scene/three/models/brandBoard.ts");
+    expect(scrollFiles).toContain("components/scene/three/models/helix.ts");
   });
 
   it("nothing under components/scene/three names GSAP, so nothing there can reach a ScrollTrigger", () => {
     const gpuFiles = sceneFiles.filter((file) => file.startsWith(GPU_SUBTREE));
-    expect(gpuFiles.length).toBeGreaterThan(10);
+    expect(gpuFiles.length).toBeGreaterThanOrEqual(5);
     const naming = gpuFiles.filter((file) => /gsap|ScrollTrigger/i.test(withoutComments(read(file))));
     expect(naming).toEqual([]);
   });
@@ -247,7 +238,7 @@ describe("interior stage — Tailwind and the directive-free art", () => {
   const sources = [...read("app/tailwind.css").replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/@source\s+["']([^"']+)["']\s*;/g)].map(
     (m) => posix.normalize(posix.join("app", m[1])),
   );
-  const artFiles = listFiles("components/scene/art", /\.(?:ts|tsx|css)$/);
+  const artFiles = listFiles("components/art", /\.(?:ts|tsx|css)$/);
 
   it("the stage shell is scanned by Tailwind", () => {
     expect(sources).toContain("components/scene/SceneStage.tsx");
@@ -255,7 +246,7 @@ describe("interior stage — Tailwind and the directive-free art", () => {
 
   it("no art file is (its styles are a CSS Module)", () => {
     expect(artFiles.length).toBeGreaterThan(0);
-    expect(sources.filter((path) => path.startsWith("components/scene/art"))).toEqual([]);
+    expect(sources.filter((path) => path.startsWith("components/art"))).toEqual([]);
   });
 
   it("the art has no client directive", () => {

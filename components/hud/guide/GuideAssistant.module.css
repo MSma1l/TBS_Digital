@@ -17,7 +17,7 @@ step — measured at 1400×900, 28px vertically and 24px horizontally, because `
 112 — but nothing painted does.
 
 Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
-filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
+filter: a blurred ancestor would flatten the
 CSS preserve-3d cube.
 
 Shapes: bars, streaks, squares and rings of 38px and more — no dots (decorative-dots rule).
@@ -72,7 +72,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   112 — but nothing painted does.
   
   Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
-  filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
+  filter: a blurred ancestor would flatten the
   CSS preserve-3d cube.
   
   Shapes: bars, streaks, squares and rings of 38px and more — no dots (decorative-dots rule).
@@ -118,7 +118,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   112 — but nothing painted does.
   
   Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
-  filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
+  filter: a blurred ancestor would flatten the
   CSS preserve-3d cube.
   
   Shapes: bars, streaks, squares and rings of 38px and more — no dots (decorative-dots rule).
@@ -159,7 +159,7 @@ tip is `position: fixed` against the viewport, not against this box. */
   112 — but nothing painted does.
   
   Material: --glass-bg-solid composited over --bg (opaque) plus the Neon Cyan border and ring. Never backdrop-filter or any
-  filter: the guide sits over the live WebGL canvas, and a blurred ancestor would flatten the
+  filter: a blurred ancestor would flatten the
   CSS preserve-3d cube.
   
   Shapes: bars, streaks, squares and rings of 38px and more — no dots (decorative-dots rule).
@@ -410,7 +410,7 @@ answer asked before they are in is said with her mouth at rest). */
 *
 * The rule at the top of this module is not decoration: a filter makes its element a containing
 * block and flattens its own `transform-style: preserve-3d`, and this widget draws orbit rings in
-* 3D over a live WebGL canvas. Two test files enforce it across every HUD module.
+* 3D. Two test files enforce it across every HUD module.
 *
 * So the desaturation and the lift that turn a photograph into a projection are BAKED INTO THE
 * FILE at build time (saturation 0.58, brightness 1.07, a 1.06 linear contrast), and the rim

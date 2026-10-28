@@ -5,10 +5,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import {
-  HERO_ID,
-  PARALLAX_LAYERS,
-  PARALLAX_MEDIA,
-  SCENE_ANCHOR_ATTR,
   SCENE_ATTR,
   SCENE_LAYOUT_EVENT,
   SCENE_TIMING,
@@ -17,21 +13,12 @@ import {
 } from "@/lib/scene";
 import {
   guardSmoothScroll,
-  parallaxTargets,
   quietScrollTrigger,
   wakeScrollTrigger,
   withInstantScroll,
 } from "./scrollGuard";
 import { isPageCovered, subscribePageCover } from "@/lib/scrollLock";
-import {
-  readHeaderHeight,
-  releaseProbe,
-  writeAnchors,
-  writeEntrySpan,
-  writeHelixSpan,
-  writeHeroSpan,
-  writeWorkSpan,
-} from "./scrollProbe";
+import { readHeaderHeight, releaseProbe, writeAnchors, writeHelixSpan, writeWorkSpan } from "./scrollProbe";
 
 /*
  * Registered when this chunk evaluates — outside any GSAP context, so ScrollTrigger's own
@@ -40,36 +27,32 @@ import {
  */
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-const PARALLAX_KEYS = Object.keys(PARALLAX_LAYERS) as Array<keyof typeof PARALLAX_LAYERS>;
-
 /**
  * The interior stage's GSAP half, loaded with the scene (next/dynamic) and only on the WebGL
- * path. It draws nothing and animates nothing the scene reads. It:
- *  · MEASURES — four animation-free ScrollTriggers give the scroll spans (`heroExit`: `#top`
- *    "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%", the band
- *    over which the scene's timed entry gate arms and disarms; `workSpan`: Work's card track
- *    "top 70%" → "top 55%", the same kind of band for the Work gate; `helix`: the track "top top"
- *    less the header → "bottom bottom", the scroll the spiral turns over), and every refresh
- *    re-reads the anchors' and the track's document boxes, the stage's top/bottom, the layer's
- *    height and the header height into `probe`. The scene reads `window.scrollY` against them
- *    every frame — no scrub drives the scene, so it never lags a frame behind the page. It only
- *    knows the thresholds: whether the services model has formed, or the helix, is the scene's
- *    to say (`data-entry`, `data-helix`, written by the stage);
+ * path. Since 2026-10-28 the stage wraps Work alone (Hero, Ticker and Directions sit above it with
+ * static SVG art, and there is no hero parallax any more). It draws nothing and animates nothing
+ * the scene reads. It:
+ *  · MEASURES — two animation-free ScrollTriggers on Work's card track give the scroll spans
+ *    (`workSpan`: "top 70%" → "top 55%", the band over which the scene's timed Work gate arms
+ *    and disarms; `helix`: "top top" less the header → "bottom bottom", the scroll the spiral
+ *    turns over), and every refresh re-reads the track's, the heading's and the band's document
+ *    boxes, the stage's top/bottom, the layer's height and the header height into `probe`. The
+ *    scene reads `window.scrollY` against them every frame — no scrub drives the scene, so it
+ *    never lags a frame behind the page. It only knows the thresholds: whether the helix has
+ *    formed is the scene's to say (`data-helix`, written by the stage);
  *  · keeps refreshes harmless — the smooth-scroll guard (scrollGuard.ts), a refresh when the
- *    stage changes height (admin content, images, a font swap; deferred while the visitor is
- *    scrolling, because a refresh jumps the page and would kill a touch fling) and on a
- *    bfcache restore;
+ *    stage OR A SECTION ABOVE IT changes height (admin content, images, a font swap, Directions
+ *    switching its art; deferred while the visitor is scrolling, because a refresh jumps the
+ *    page and would kill a touch fling) and on a bfcache restore;
  *  · re-reads the boxes at once (no refresh) when the scene says it changed the layout itself
  *    (`SCENE_LAYOUT_EVENT`: Work's spiral switching the card track on or off);
  *  · keeps no measurement taken while something covers the page (a dialog pins <body>, so
- *    every box reads `scrollY` too high), and measures again once the cover lifts;
- *  · moves the hero's two parallax layers — capable desktops only (`PARALLAX_MEDIA`), scrubbed,
- *    the identity at scroll 0.
+ *    every box reads `scrollY` too high), and measures again once the cover lifts.
  *
  * Never: pinning, snapping, smoothing, markers, a custom scroll container, GSAP's lag
- * smoothing (the intro director owns the ticker), or a style on <html>/<body>/an entrance
- * marker (scene-contract.test.ts). Everything lives in one `useGSAP` context scoped to the
- * stage, so an unmount (leaving the home page) reverts every trigger and tween.
+ * smoothing, or a style on <html>/<body>/an entrance marker (scene-contract.test.ts).
+ * Everything lives in one `useGSAP` context scoped to the stage, so an unmount (leaving the
+ * home page) reverts every trigger.
  */
 export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
   // The context outlives the render that created it; call the latest `onLive`.
@@ -103,8 +86,8 @@ export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
        * (Modal.tsx: `position: fixed`, `top: -scrollY`), so `scrollY` reads 0 while every box
        * sits scrollY higher than it really is: a refresh then — ScrollTrigger's own after a
        * desktop resize or Android's keyboard resizing the viewport, or this mount — would store
-       * every span and anchor wrong by the scroll offset, and nothing would measure again after
-       * the dialog closed (the core vanished at the top of the page; the models sat Y px off).
+       * every span and box wrong by the scroll offset, and nothing would measure again after
+       * the dialog closed (the helix and the spiral's cards would sit Y px off).
        * So under a cover the probe keeps its last good values, the director's own refreshes
        * wait, and a refresh ScrollTrigger ran anyway is redone the frame after the cover lifts
        * — every cover is released only once the page is back in place (lib/scrollLock.ts).
@@ -132,28 +115,6 @@ export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
       // gsap records `<html>` as an instant scroller from its very first scroll function.
       const releaseGuard = withInstantScroll(root, () => {
         const release = guardSmoothScroll(ScrollTrigger, root);
-        const hero = el.querySelector<HTMLElement>(`#${HERO_ID}`);
-        if (hero) {
-          ScrollTrigger.create({
-            trigger: hero,
-            start: "top top",
-            end: "bottom 35%",
-            onRefresh: (self) => {
-              if (uncovered()) writeHeroSpan(probe, self);
-            },
-          });
-        }
-        const services = el.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="services"]`);
-        if (services) {
-          ScrollTrigger.create({
-            trigger: services,
-            start: "top 90%",
-            end: "top 75%",
-            onRefresh: (self) => {
-              if (uncovered()) writeEntrySpan(probe, self);
-            },
-          });
-        }
         const track = el.querySelector<HTMLElement>(`[${WORK_TRACK_ATTR}]`);
         if (track) {
           ScrollTrigger.create({
@@ -185,22 +146,6 @@ export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
       };
       el.addEventListener(SCENE_LAYOUT_EVENT, onLayout);
       el.setAttribute(SCENE_ATTR.scrollFx, "on");
-
-      // Recorded in this context (gsap.matchMedia joins the running one), reverted with it.
-      gsap.matchMedia().add(PARALLAX_MEDIA, () => {
-        const hero = el.querySelector<HTMLElement>(`#${HERO_ID}`);
-        if (!hero) return;
-        for (const layer of PARALLAX_KEYS) {
-          const targets = parallaxTargets(el, layer);
-          if (targets.length === 0) continue;
-          gsap.to(targets, {
-            yPercent: PARALLAX_LAYERS[layer].yPercent,
-            ease: "none",
-            immediateRender: false,
-            scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true },
-          });
-        }
-      });
 
       /*
        * Refresh for a change seen when `measurements` was `since` — unless a full refresh has
@@ -264,25 +209,33 @@ export function SceneDirector({ stage, probe, onLive }: SceneDirectorProps) {
       let debounce: number | undefined;
       let observer: ResizeObserver | undefined;
       if (typeof window.ResizeObserver === "function") {
-        // The height the triggers were last measured at; sub-pixel drift adds up against it.
-        let measured: number | null = null;
+        // Each element's height the triggers were last measured at; sub-pixel drift adds up against it.
+        const measured = new Map<Element, number>();
         observer = new ResizeObserver((entries) => {
-          const next = entries[entries.length - 1]?.contentRect.height;
-          if (next === undefined) return;
-          if (measured !== null && Math.abs(next - measured) < 1) return;
-          const first = measured === null;
-          measured = next;
-          // The first report is the size at observe time, not a change.
-          if (first) return;
+          let changed = false;
+          for (const entry of entries) {
+            const next = entry.contentRect.height;
+            const last = measured.get(entry.target);
+            if (last !== undefined && Math.abs(next - last) < 1) continue;
+            measured.set(entry.target, next);
+            // The first report is the size at observe time, not a change.
+            if (last !== undefined) changed = true;
+          }
+          if (!changed) return;
           const since = measurements;
           window.clearTimeout(debounce);
           debounce = window.setTimeout(() => refreshSince(since), SCENE_TIMING.REFRESH_DEBOUNCE_MS);
         });
-        /* The stage, not <main>: everything the probe holds (the stage's box, both anchors, Work's
-           track, the spans) is inside it or its own edge, and nothing above it on the page changes
-           height — so a change below it (the estimator's steps, the chat panel, a form's
-           validation messages) never costs a full refresh. */
+        /* The stage and every section before it in its parent (Hero, Ticker, Directions), not
+           <main>: everything the probe holds (the stage's box, Work's track, heading and band, the
+           spans) is inside the stage or its own edge, and only a section ABOVE it can move it —
+           a font swap or an image in the hero, Directions switching its art. So a change above
+           the stage costs the same debounced refresh as one inside it, and a change below it (the
+           estimator's steps, the chat panel, a form's validation messages) never costs one. */
         observer.observe(el);
+        for (let above = el.previousElementSibling; above; above = above.previousElementSibling) {
+          observer.observe(above);
+        }
       }
 
       // Back/forward cache: the layout may have changed while the page was frozen.

@@ -10,16 +10,20 @@ import type { LocalizedText } from "@/lib/i18n/content";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const COPY = {
-  eyebrow: L("MVP · WEB · SOFTWARE · AI", "MVP · WEB · SOFTWARE · AI", "MVP · WEB · SOFTWARE · AI"),
+  eyebrow: L(
+    "SITE-URI · APLICAȚII · MVP · AUTOMATIZĂRI",
+    "САЙТЫ · ПРИЛОЖЕНИЯ · MVP · АВТОМАТИЗАЦИЯ",
+    "WEBSITES · APPS · MVPS · AUTOMATION",
+  ),
   tagline: L(
-    "MVP-uri, site-uri, CRM și automatizări AI — de la primul test la următoarea etapă.",
-    "MVP, сайты, CRM и ИИ-автоматизация — от первого теста к следующему этапу.",
-    "MVPs, websites, CRM & AI automation — from the first test to the next stage.",
+    "Testează ideea înainte să investești în tot produsul.",
+    "Проверьте идею, прежде чем вкладываться во весь продукт.",
+    "Test the idea before you invest in the whole product.",
   ),
   alt: L(
-    "TBS Digital — MVP-uri, site-uri, CRM și automatizări AI",
-    "TBS Digital — MVP, сайты, CRM и ИИ-автоматизация",
-    "TBS Digital — MVPs, websites, CRM and AI automation",
+    "TBS Digital — site-uri, aplicații și MVP cu buget de pornire mic",
+    "TBS Digital — сайты, приложения и MVP с небольшим стартовым бюджетом",
+    "TBS Digital — websites, apps and MVPs on a small starting budget",
   ),
 };
 

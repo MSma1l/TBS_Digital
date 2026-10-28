@@ -1,5 +1,5 @@
-/* The one loading mark. Used for anything that is not ready yet — data in flight, a scene still
-   compiling, a panel waiting on a fetch. HUD vocabulary, like the rest of the site: four corner
+/* The one loading mark. Used for anything that is not ready yet — data in flight, a panel
+   waiting on a fetch. HUD vocabulary, like the rest of the site: four corner
    brackets, a bar scanning between them, a core that breathes. No text of its own, nothing round,
    nothing that needs a font.
 
@@ -45,7 +45,7 @@
   stroke-opacity: 0.85;
   animation: bracket 1.8s var(--motion-ease-out) infinite;
   animation-delay: calc(var(--i) * 0.12s);
-  animation-play-state: var(--loading-play, running); /* resting on a scene host that is down: SceneLoading.module.css */
+  animation-play-state: var(--loading-play, running); /* a caller may rest it with --loading-play */
 }
 
 /* The bar that sweeps between them — a scan, the same gesture the intro and the cards use. */

@@ -2,13 +2,13 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { RAIL_COPY, RAIL_HOME_SECTIONS } from "@/components/hud/rail/copy";
 import { LOCALE_LABELS } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
-import type { GpuProbeCache } from "@/lib/scene";
 import {
   HUD_ON,
   armHud,
   expectNoHorizontalScroll,
   expectRootUntouched,
   expectTappable,
+  FORCED_GPU_PROBE,
   forceScene3d,
   gotoHydrated,
   guideAvatar,
@@ -24,7 +24,7 @@ import {
 /*
  * The fibre-optic scroll rail (IT-OS Phase 5): components/hud/rail/ScrollRail.tsx, a desktop-only
  * HUD part mounted by components/hud/HudChrome.tsx once the gate opens (consent answered, an
- * interaction, the intro gone, an idle slot) and only while `(min-width: 861px)` matches. What
+ * interaction, an idle slot) and only while `(min-width: 861px)` matches. What
  * must hold in a real browser:
  *   - a real `<nav aria-label="Secțiunile paginii">` of 44×44 buttons, one per section, over a
  *     decorative fibre that takes no pointer;
@@ -33,7 +33,6 @@ import {
  *   - it writes nothing on <html>/<body>, pushes nothing sideways, and hides the top progress bar
  *     only while it exists; below 861px there is no rail and the top bar is the fibre;
  *   - reduced motion: nothing in it animates; a service page gets its own markers and no canvas;
- *   - the Phase 3 spiral grows Work's track, and the markers re-measure.
  */
 
 test.use({ storageState: HUD_ON });
@@ -307,13 +306,6 @@ test.describe("fibre rail on a service page", () => {
 
 /* ---- with the Phase 3 spiral (forced WebGL) ---------------------------------------------------- */
 
-/** SwiftShader's answer for both probe modes: forced visits skip the throwaway context. */
-const FORCED_PROBE: GpuProbeCache = {
-  v: 1,
-  strict: { context: true, software: true },
-  forced: { context: true, software: true },
-};
-
 test.describe("fibre rail with Work's spiral (forced WebGL) @webgl", () => {
   test.describe.configure({ timeout: 150_000 });
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -325,11 +317,13 @@ test.describe("fibre rail with Work's spiral (forced WebGL) @webgl", () => {
   }) => {
     await seedConsent(context, baseURL!);
     await forceScene3d(page);
-    await seedGpuProbe(page, FORCED_PROBE);
+    await seedGpuProbe(page, FORCED_GPU_PROBE);
     await gotoHydrated(page, "/");
     await armRail(page);
     const stage = sceneStage(page);
     const labels = { team: homeLabel("echipa"), contact: homeLabel("contact") };
+    // The stage loads nothing until Work comes within a viewport (2026-10-28): go there first.
+    await scrollToY(page, await page.evaluate(() => document.querySelector("#lucrari")!.getBoundingClientRect().top + window.scrollY));
 
     // Read before the spiral when the race allows it (SwiftShader builds the helix slowly).
     const early = (await stage.getAttribute("data-helix")) === "spiral" ? null : await markerOffsets(page);

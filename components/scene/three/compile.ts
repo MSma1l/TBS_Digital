@@ -1,12 +1,12 @@
 /**
- * Getting the interior scene on screen without one long main-thread task: the world is BUILT
- * one part per idle slice (the core, the swarm, each service model), then COMPILED one draw
- * object per idle slice (Safari has no `KHR_parallel_shader_compile`, and a phone compiling
- * every program plus uploading every buffer in one go is a visible hitch), and only READY once
- * R3F has actually drawn the compiled scene.
+ * Getting the interior scene on screen without one long main-thread task: Work's helix (the
+ * scene's one part since 2026-10-28) is BUILT in an idle slice of its own (world.ts
+ * `stageHelix`), then COMPILED one draw object per idle slice (Safari has no
+ * `KHR_parallel_shader_compile`, and a phone compiling every program plus uploading every buffer
+ * in one go is a visible hitch), and only READY once R3F has actually drawn the compiled helix.
  *
- * Each compiled stage (a part) asks the world to draw its objects once more at reveal 0 on the
- * next frame (the buffers upload while every fragment discards).
+ * Each compiled stage asks the world to draw its objects once more at reveal 0 on the next frame
+ * (the buffers upload while every fragment discards).
  */
 
 import type { Camera, Object3D, Scene, WebGLRenderer } from "three";
@@ -33,23 +33,6 @@ export type StagedOptions = {
   /** Yield between two pieces of work (tests pass their own). */
   idle?: () => Promise<void>;
 };
-
-/** What `buildStaged` needs of the world. */
-export type StagedBuild = { buildNext(): void; complete(): boolean };
-
-/**
- * Build `world` one part per idle slice, each part in a task of its own. Resolves `true` once
- * every part exists, `false` when cancelled part-way (unmounted).
- */
-export async function buildStaged(world: StagedBuild, options: StagedOptions): Promise<boolean> {
-  const idle = options.idle ?? (() => nextIdle());
-  while (!world.complete()) {
-    await idle();
-    if (options.cancelled()) return false;
-    world.buildNext();
-  }
-  return !options.cancelled();
-}
 
 export type CompileOptions = StagedOptions & {
   /** Called once every object of a stage compiled (the world pre-warms them). */
@@ -81,11 +64,12 @@ export async function compileStaged(
 }
 
 /**
- * "Ready" in frames R3F really drew. Armed once the scene compiled; `tickReady`, called from
+ * "Ready" in frames R3F really drew. Armed once the helix compiled (or at once on a page with
+ * nothing to stage); `tickReady`, called from
  * `useFrame` (which runs before that frame renders), answers true exactly once: on the first
  * frame after `READY_AFTER_FRAMES` armed frames were drawn. A paused canvas
- * (`frameloop="never"`) runs no frame, so it stays not-ready — and the stage keeps its art —
- * until it draws again.
+ * (`frameloop="never"`) runs no frame, so it stays not-ready — and Work keeps its flat card grid
+ * — until it draws again.
  */
 export type ReadySignal = { armed: boolean; drawn: number; fired: boolean };
 

@@ -6,9 +6,10 @@
  * token in a format this cannot parse throws a descriptive error: on mount that reaches the
  * stage's error boundary and the static art stays.
  *
- * One mode. The page is always near-black, so the scene always draws in "glow": light is
- * ADDED to it, neon on dark. The `SceneMode` union and the shaders' `uInk` uniform survive
- * this — `uInk` is simply always 0 — rather than being cut out of every model file.
+ * The page colour picks the mode. Dark ("glow"): light is ADDED to the page, neon on near-black.
+ * Light ("ink" — the site's only palette since 2026-10-28): an additive glow vanishes on a pale
+ * page, so every material switches its blend factors to premultiplied "over" and draws with the
+ * darker text tones — never a shader recompile.
  */
 
 /** sRGB, each channel 0..1. */
@@ -21,9 +22,9 @@ export type ScenePalette = {
   cyan: Rgb;
   blue: Rgb;
   red: Rgb;
-  /** The white-hot core of a highlight. */
+  /** The white-hot core of a highlight (glow), the text colour (ink). */
   hot: Rgb;
-  /** The page behind the canvas. */
+  /** The page behind the canvas (its luminance picks the mode). */
   bg: Rgb;
 };
 
@@ -31,7 +32,9 @@ export type ScenePalette = {
 export const SCENE_TOKENS = {
   cyan: "--cyan",
   blue: "--blue",
+  blueText: "--blue-text",
   redLift: "--red-lift",
+  redText: "--red-text",
   txt: "--txt",
   bg: "--bg",
 } as const;
@@ -60,9 +63,19 @@ export function parseTokenColor(value: string): Rgb | null {
   return null;
 }
 
+const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+/** WCAG relative luminance of an sRGB colour. */
+export function relativeLuminance([r, g, b]: Rgb): number {
+  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+}
+
+/** A page lighter than this draws the scene in ink. */
+export const INK_LUMINANCE = 0.4;
+
 /**
- * Pure. The scene's roles from raw token values. Throws when a token is missing or
- * unparsable.
+ * Pure. The scene's roles from raw token values. The page colour decides the mode. Throws when
+ * a token is missing or unparsable.
  */
 export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
   const parsed = {} as Record<SceneTokenRole, Rgb>;
@@ -75,11 +88,12 @@ export function pickSceneRoles(values: SceneTokenValues): ScenePalette {
     }
     parsed[role] = color;
   }
+  const ink = relativeLuminance(parsed.bg) > INK_LUMINANCE;
   return {
-    mode: "glow",
+    mode: ink ? "ink" : "glow",
     cyan: parsed.cyan,
-    blue: parsed.blue,
-    red: parsed.redLift,
+    blue: ink ? parsed.blueText : parsed.blue,
+    red: ink ? parsed.redText : parsed.redLift,
     hot: parsed.txt,
     bg: parsed.bg,
   };

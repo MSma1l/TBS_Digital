@@ -9,7 +9,6 @@ vi.mock("@/lib/api", () => ({
 
 import * as api from "@/lib/api";
 import { Navbar } from "@/components/layout/Navbar";
-import { SceneStage } from "@/components/scene/SceneStage";
 import { Directions } from "@/components/sections/Directions";
 import { Hero } from "@/components/sections/Hero";
 import { Ticker } from "@/components/sections/Ticker";
@@ -24,7 +23,7 @@ import { SiteContentProvider } from "@/lib/siteContent";
  * estimator's status dot are gone, and must not come back. Kept on purpose, and not scanned
  * here: the "TBS." and title full stops as plain red glyphs, the footer's red ".", the
  * dictation button's recording dot (a privacy indicator), ✓ list markers, every "·" in copy,
- * and the intro fallback.
+ * and nothing else.
  *
  * Two layers: the source (class strings, keyframes, art markup), and what the home page's
  * first screen and interior actually render in every locale.
@@ -40,9 +39,8 @@ const SCANNED_SOURCES = [
   "components/sections/Ticker.tsx",
   "components/sections/Directions.tsx",
   "components/sections/Work.tsx",
-  "components/scene/SceneStage.tsx",
-  "components/scene/art/HeroCoreArt.tsx",
-  "components/scene/art/ServiceArt.tsx",
+  "components/art/HeroCoreArt.tsx",
+  "components/art/ServiceArt.tsx",
   "components/hud/guide/GuideAssistant.tsx",
   "components/hud/rail/ScrollRail.tsx",
 ];
@@ -55,7 +53,7 @@ const HUD_STYLES = [
   "components/hud/guide/GuideAssistant.module.css",
   "components/hud/rail/ScrollRail.module.css",
   /* The service page's own module: it now draws the projects grid's frame and the
-     window on every card, in the interior scene's material language — 1px edges, square
+     window on every card, in the HUD's material language — 1px edges, square
      rings and added light. Nothing round, nothing blurred. */
   "components/sections/DirectionPage.module.css",
 ];
@@ -93,10 +91,10 @@ function cssDots(css: string): string[] {
 }
 
 /** The art's CSS Modules, whichever exist yet. */
-const ART_STYLES = existsSync(resolve(ROOT, "components/scene/art"))
-  ? readdirSync(resolve(ROOT, "components/scene/art"))
+const ART_STYLES = existsSync(resolve(ROOT, "components/art"))
+  ? readdirSync(resolve(ROOT, "components/art"))
       .filter((name) => name.endsWith(".module.css"))
-      .map((name) => posix.join("components/scene/art", name))
+      .map((name) => posix.join("components/art", name))
   : [];
 
 /** Every string and template literal in a source file, one entry each. */
@@ -231,7 +229,7 @@ describe("decorative dots — source", () => {
   });
 
   it("the art draws no small circles and no round line caps", () => {
-    for (const file of ["components/scene/art/HeroCoreArt.tsx", "components/scene/art/ServiceArt.tsx"]) {
+    for (const file of ["components/art/HeroCoreArt.tsx", "components/art/ServiceArt.tsx"]) {
       const src = read(file);
       for (const m of src.matchAll(/<circle\b[^>]*\br=\{?["']?(-?[\d.]+)/g)) {
         expect(Number(m[1]), `${file}: <circle r=${m[1]}>`).toBeGreaterThanOrEqual(12);
@@ -267,11 +265,9 @@ function renderHome(locale: "ro" | "ru" | "en") {
         <RequestFlowProvider>
           <Navbar />
           <main>
-            <SceneStage>
-              <Hero />
-              <Ticker />
-              <Directions />
-            </SceneStage>
+            <Hero />
+            <Ticker />
+            <Directions />
             <Work />
           </main>
         </RequestFlowProvider>
@@ -299,7 +295,7 @@ describe("decorative dots — rendered", () => {
         roundDots(el.getAttribute("class") ?? "").map((token) => `<${el.tagName.toLowerCase()}> ${token}`),
       );
       expect(dots).toEqual([]);
-      expect(container.querySelector("[data-scene-stage]")).not.toBeNull();
+      expect(container.querySelector("[data-scene-stage]")).toBeNull();
     });
   }
 

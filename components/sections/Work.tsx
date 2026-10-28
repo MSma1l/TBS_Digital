@@ -3,7 +3,6 @@
 import { Fragment, type CSSProperties } from "react";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
 import { Reveal } from "@/components/ui/Reveal";
-import { SceneLoading } from "@/components/scene/art/SceneLoading";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { projectGradient } from "@/lib/projectAccent";
 import { useSiteContent } from "@/lib/siteContent";
@@ -202,11 +201,6 @@ export function Work() {
         </Reveal>
 
         <div className={GRID_CLASSES} data-work-track="">
-          {/* Inside the track, not around it: `workHead` is measured as the track's PREVIOUS
-              SIBLING (lib/scene.ts), so a wrapper here would hand the ambient helix the loader's
-              box instead of the heading's. Absolutely positioned, so it is out of the grid's
-              flow and the cards below still tile exactly as they did. */}
-          <SceneLoading />
           {projects.map((p, i) => {
             const [p1, p2] = projectGradient(p, i);
             const style = { "--p1": p1, "--p2": p2 } as CSSProperties;

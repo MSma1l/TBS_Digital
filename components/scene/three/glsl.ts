@@ -1,5 +1,6 @@
 /**
- * GLSL shared by the interior scene's shader families (materials.ts). Strings only.
+ * GLSL shared by the interior scene's shader families (materials.ts). Strings only. (The
+ * rotation, easing, mesh-wave and sprite snippets went with the models that drew them, 2026-10-28.)
  *
  * Output: every scene shader returns PREMULTIPLIED, already-encoded colour through
  * `sceneOutput` and skips `colorspace_fragment`. The same program draws both themes; only the
@@ -7,8 +8,6 @@
  *  · glow (dark): colour × strength, alpha = its brightest channel, added to the page;
  *  · ink (light): colour at `strength` coverage, composited "over" the page.
  */
-
-import { MESH_WAVE } from "./samples";
 
 export const SCENE_OUTPUT_GLSL = /* glsl */ `
 uniform float uInk;
@@ -46,44 +45,5 @@ float dissolve(vec3 local) {
   float r = uReveal * 1.08;
   if (n > r) discard;
   return 1.0 - smoothstep(0.0, 0.08, r - n);
-}
-`;
-
-export const ROTATE_Y_GLSL = /* glsl */ `
-vec3 rotY(vec3 p, float a) {
-  float c = cos(a);
-  float s = sin(a);
-  return vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
-}
-`;
-
-export const EASE_GLSL = /* glsl */ `
-float easeInOut(float x) {
-  return x < 0.5 ? 4.0 * x * x * x : 1.0 - pow(-2.0 * x + 2.0, 3.0) / 2.0;
-}
-`;
-
-/** The mesh wave's height — the GLSL twin of `waveHeight` in samples.ts. */
-export const WAVE_GLSL = /* glsl */ `
-uniform float uWaveTime;
-uniform float uPulseR;
-uniform vec2 uOrigin;
-float waveHeight(vec2 q, out float ring) {
-  float d = length(q - uOrigin);
-  ring = exp(-pow((d - uPulseR) * 5.0, 2.0));
-  return ${MESH_WAVE.amp.toFixed(3)} * (0.22 * sin(1.6 * q.x + 1.1 * uWaveTime)
-    + 0.16 * sin(2.3 * q.y - 0.8 * uWaveTime + 0.5 * q.x)
-    + 0.35 * ring);
-}
-`;
-
-/** Soft-edged round sprite coverage from `gl_PointCoord` (0 outside the disc). */
-export const SPRITE_GLSL = /* glsl */ `
-float spriteCoverage(float hardness) {
-  float d = length(gl_PointCoord - 0.5) * 2.0;
-  if (d > 1.0) discard;
-  float soft = 1.0 - smoothstep(0.0, 1.0, d);
-  float hard = 1.0 - smoothstep(0.55, 1.0, d);
-  return mix(soft * soft, hard, hardness);
 }
 `;

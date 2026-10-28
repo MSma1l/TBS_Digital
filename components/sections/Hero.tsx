@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
 import {
@@ -12,8 +12,6 @@ import {
 } from "@/lib/hologram";
 import { useLoc, type LocalizedText, type MaybeLocalized } from "@/lib/i18n/content";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
-import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
-import { setSceneBoost, STATS_GROUP_ATTR, type SceneBoostSource } from "@/lib/scene";
 import { useSiteContent } from "@/lib/siteContent";
 import { TILT_MAX } from "@/lib/tilt";
 
@@ -22,37 +20,12 @@ import { TILT_MAX } from "@/lib/tilt";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const TITLE = L(
-  "Testează ideea. Investește după dovezi.",
-  "Проверьте идею. Вкладывайте после подтверждения.",
-  "Test the idea. Invest when the evidence is clear.",
+  "Site-uri, aplicații și MVP cu buget mic: testezi ideea înainte să investești tot.",
+  "Сайты, приложения и MVP с небольшим бюджетом: проверьте идею, прежде чем вкладывать всё.",
+  "Websites, apps and MVPs on a small budget: test the idea before you invest it all.",
 );
-/** What we build and for whom, right under the headline. */
-const SUBTITLE = L(
-  "MVP concentrat, cu buget de pornire mic și clar. Testezi cu utilizatori reali, apoi investești doar în ce confirmă valoare.",
-  "Сфокусированный MVP с небольшим и понятным стартовым бюджетом. Проверяйте его на реальных пользователях, затем вкладывайтесь только в подтверждённую ценность.",
-  "A focused MVP with a small, clear starting budget. Test it with real users, then invest only in what proves valuable.",
-);
-const CTA_PRIMARY = L("Testează ideea", "Проверить идею", "Test the idea");
+const CTA_PRIMARY = L("Cere ofertă", "Оставить заявку", "Get a quote");
 const CTA_SECONDARY = L("Vezi serviciile ↓", "Смотреть услуги ↓", "See the services ↓");
-/** The line under the CTAs: one phrase per promise, so a narrow screen breaks the line between
- *  them rather than inside one. The "·" between them is drawn where they are rendered. */
-const REASSURANCE: LocalizedText[] = [
-  L(
-    "MVP cu buget de pornire mic",
-    "MVP с небольшим стартовым бюджетом",
-    "MVP with a small starting budget",
-  ),
-  L(
-    "Începi cu ce trebuie validat",
-    "Начинаем с того, что нужно проверить",
-    "Start with what needs testing",
-  ),
-  L(
-    "Răspuns în cel mult o zi lucrătoare",
-    "Ответ не позже чем через рабочий день",
-    "Reply within one business day",
-  ),
-];
 const METRICS_LABEL = L("Indicatori", "Показатели", "Metrics");
 
 /** A metric's value is the portfolio count (digits, the same in every language) or a fixed
@@ -81,28 +54,23 @@ const FIXED_METRICS: Metric[] = [
 ];
 
 /*
- * The looping background layers stop in two situations, both CSS-only on the running
- * animation (`animation-play-state`, so each resumes where it stopped instead of jumping):
- *  - while the first-visit intro overlay (#tbs-intro, lib/intro.ts) is in the document — it
- *    covers the hero, and the header's backdrop blur would otherwise re-sample an animated
- *    grid under an overlay nobody can see through;
- *  - while the hero is scrolled out of view (`data-offscreen`, `useOffscreenAttribute`).
+ * The looping background layers stop while the hero is scrolled out of view
+ * (`data-offscreen`, `useOffscreenAttribute`), CSS-only on the running animation
+ * (`animation-play-state`, so each resumes where it stopped instead of jumping).
  * Reduced motion removes them altogether (`motion-reduce:`, and the global kill switch in
  * globals.css).
  */
 const BG_ANIMATION_CLASSES =
-  "[html:has(#tbs-intro)_&]:[animation-play-state:paused] group-data-offscreen/hero:[animation-play-state:paused] motion-reduce:animate-none";
+  "group-data-offscreen/hero:[animation-play-state:paused] motion-reduce:animate-none";
 
 /*
- * A stat hologram turns only while all of these hold, and rests on a three-quarter pose
- * otherwise (the negative delay parks the paused spin on that same pose, so it never jumps):
- *  - the stage allows motion: `data-motion="live"` (components/scene/SceneStage.tsx — no
- *    reduced motion, Save-Data, slow network or low-tier device);
- *  - the first-visit intro is gone, and the hero is on screen.
- * Reduced motion drops the animation outright; the resting transform stays.
+ * A stat hologram turns slowly (CSS 3D, transform only — no WebGL), and rests on a
+ * three-quarter pose while the hero is scrolled out of view (`data-offscreen`; the negative
+ * delay parks the paused spin on that same pose, so it never jumps). Reduced motion drops the
+ * animation outright; the resting transform stays.
  */
 const HOLOGRAM_SPIN_CLASSES =
-  "[transform:rotateX(-20deg)_rotateY(35deg)] animate-holo-spin [animation-delay:-1.75s] [animation-play-state:paused] [html:not(:has(#tbs-intro))_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running] motion-reduce:animate-none";
+  "[transform:rotateX(-20deg)_rotateY(35deg)] animate-holo-spin [animation-delay:-1.75s] group-data-offscreen/hero:[animation-play-state:paused] motion-reduce:animate-none";
 
 /** The CSS length of `a`, the hologram's centre-to-vertex distance (lib/hologram.ts). */
 const HOLOGRAM_UNIT = "var(--holo-a)";
@@ -141,85 +109,8 @@ function MetricHologram({ shape }: { shape: HologramShape }) {
   );
 }
 
-type PointerLike = { pointerType: string };
-type FocusLike = { currentTarget: Element };
-
-/** Whether a focus is one the visitor can see (a keyboard's), not a script's or a click's. */
-function focusVisible(element: Element): boolean {
-  try {
-    return element.matches(":focus-visible");
-  } catch {
-    // An engine without the selector: treat the focus as a keyboard's, as before.
-    return true;
-  }
-}
-
-/*
- * The CTAs brighten the 3D core while hovered by a real pointer (never a finger: a tap has
- * no hover to end it) or while keyboard-focused. Only a signal to the scene (lib/scene.ts) —
- * the click itself keeps its own feedback in the request flow.
- *
- * Hover and focus are two separate reasons per CTA, and the scene hears their OR: moving the
- * mouse off a keyboard-focused CTA keeps its boost, and a blur while still hovered keeps it too.
- * A focus that is not `:focus-visible` never boosts — the request dialog hands focus back to the
- * CTA with `focus()` when it closes, and after a mouse close that is not a keyboard focus (the
- * boost used to stay on until something else took focus).
- */
-function boostHandlers(source: SceneBoostSource) {
-  const reasons = { hover: false, focus: false };
-  const apply = () => setSceneBoost(source, reasons.hover || reasons.focus);
-  return {
-    onPointerEnter: (event: PointerLike) => {
-      if (event.pointerType === "touch") return;
-      reasons.hover = true;
-      apply();
-    },
-    onPointerLeave: (event: PointerLike) => {
-      if (event.pointerType === "touch") return;
-      reasons.hover = false;
-      apply();
-    },
-    onFocus: (event: FocusLike) => {
-      reasons.focus = focusVisible(event.currentTarget);
-      apply();
-    },
-    onBlur: () => {
-      reasons.focus = false;
-      apply();
-    },
-    /** Unmount: neither reason survives the page. */
-    release: () => {
-      reasons.hover = false;
-      reasons.focus = false;
-      setSceneBoost(source, false);
-    },
-  };
-}
-
-/* The stat windows are desktop-only, and the anchor is not written below 861px rather than being
-   hidden with CSS: the scene measures what carries it, and a card that is a painted card must not
-   be measured at all. The paint itself is swapped in `app/globals.css`
-   (`[data-scene-stage][data-renderer="webgl"] [data-scene-anchor="stat"]`), which also has to
-   agree about the RENDERER — this store answers the width, that block answers the rest. Same
-   external-store shape as `HudChrome`'s `DesktopOnly` and `DirectionPage`'s, and the same
-   breakpoint. */
-function desktopQuery(): MediaQueryList | null {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
-  return window.matchMedia(HUD_DESKTOP_MEDIA);
-}
-function subscribeDesktop(onChange: () => void): () => void {
-  const query = desktopQuery();
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
-const isDesktop = () => desktopQuery()?.matches ?? false;
-const isDesktopOnServer = () => false;
-
-const { release: releasePrimary, ...PRIMARY_BOOST } = boostHandlers("hero-primary");
-const { release: releaseSecondary, ...SECONDARY_BOOST } = boostHandlers("hero-secondary");
-
 export type HeroProps = {
-  /** The interior stage's static core illustration (components/scene/art/HeroCoreArt.tsx),
+  /** The hero's static core illustration (components/art/HeroCoreArt.tsx),
    *  a server-rendered slot from app/(site)/page.tsx. Bare renders simply get none. */
   coreArt?: ReactNode;
 };
@@ -250,44 +141,24 @@ export function Hero({ coreArt }: HeroProps) {
   // Off-screen pause (see BG_ANIMATION_CLASSES and HOLOGRAM_SPIN_CLASSES).
   useOffscreenAttribute(sectionRef);
 
-  // Leaving the page while a CTA is hovered or focused must not leave the scene boosted.
-  useEffect(
-    () => () => {
-      releasePrimary();
-      releaseSecondary();
-    },
-    [],
-  );
-
   // One hook for both cards: a pointer is over one card at a time.
   const tilt = usePointerTilt(TILT_MAX.metric);
-
-  // Whether a card may be a window for the 3D panels at this width (see the store above).
-  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
 
   const title = l(TITLE);
 
   return (
     <section ref={sectionRef} id="top" className="group/hero relative overflow-hidden">
-      {/* Paint order. The interior stage (components/scene/SceneStage.tsx) is the stacking
-          context, not this section — `isolate` here would lift the plate and the backdrop
-          ABOVE the stage's canvas. Back to front: this opaque plate (-20; it hides the body's
-          page grid), the backdrop marker (-10), the stage's canvas layer, the phone scrim,
-          then the copy. */}
+      {/* Paint order, back to front: this opaque plate (-20; it hides the body's page grid),
+          the backdrop (-10), the phone scrim, then the copy. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-20 bg-bg" />
 
-      {/* Decorative HUD backdrop. `data-intro-reveal="grid"` is the entrance target for the
-          whole layer (opacity + scale), so nothing inside it carries its own transform
-          transition. Every oversized piece is clipped by the section's overflow-hidden. */}
+      {/* Decorative HUD backdrop. Every oversized piece is clipped by the section's
+          overflow-hidden. */}
       <div
         aria-hidden="true"
-        data-intro-reveal="grid"
         className="pointer-events-none absolute inset-0 -z-10 [container-type:size]"
       >
-        {/* The lit layers move together under the desktop scroll parallax (`data-parallax`,
-            driven by the stage's director). Never the marker itself: the entrance owns its
-            transform. */}
-        <div data-parallax="hero-backdrop" className="absolute inset-0">
+        <div className="absolute inset-0">
           {/* The two key lights have tokens of their own (--hero-glow-*): the copy sits in
               them, and the light theme needs much fainter glows to keep that text AA. */}
           {/* red key light, low left — behind the headline */}
@@ -312,12 +183,10 @@ export function Hero({ coreArt }: HeroProps) {
           />
         </div>
 
-        {/* The core's host, outside the parallax layer: the WebGL core follows this anchor,
-            the static art sits in it. Decorative only — nothing in here is text, focusable, a
-            heading or has a role.
-             · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded to
-               match the WebGL chip it crossfades into, per theme, fainter again at 641–860px
-               where the chip sits under the subtitle).
+        {/* The core's host: the static chip illustration sits in it. Decorative only —
+            nothing in here is text, focusable, a heading or has a role.
+             · Phones: centred behind the headline, at --hero-core-phone (globals.css: faded,
+               fainter again at 641–860px).
              · 861–1024px: the right-hand column is narrower than the core and the stat cards
                stack in it, so the core sits on the seam between the columns, raised to the
                top: centred behind the cards they would cover most of it. The offset is 6vw,
@@ -325,11 +194,10 @@ export function Hero({ coreArt }: HeroProps) {
                1.22:1 at 1024×768); at 6vw the hero text is 100% ≥ 4.5:1 at 900 and 1024.
              · From 1025px: the right-hand column, centred, at full strength. */}
         <div
-          data-testid="scene-hero"
+          data-testid="hero-core"
           className="absolute inset-0 mx-auto max-w-(--maxw) px-(--gutter)"
         >
           <div
-            data-scene-anchor="hero"
             className="absolute left-1/2 top-[clamp(12px,6vw,40px)] aspect-square w-[min(92vw,480px)] -translate-x-1/2 opacity-(--hero-core-phone) md:left-auto md:right-[calc(var(--gutter)+6vw)] md:top-[clamp(8px,1.5vw,16px)] md:w-[min(38vw,420px)] md:translate-x-0 md:opacity-100 lg:right-(--gutter) lg:top-1/2 lg:w-[min(42vw,600px)] lg:-translate-y-1/2"
           >
             {coreArt}
@@ -345,11 +213,9 @@ export function Hero({ coreArt }: HeroProps) {
           Centred like the core it covers: the subtitle spans the full width, as the old lead
           line did, and a pool centred on the copy's left edge left 4% of the light theme's
           lead pixels under 4.5:1 at 390px. Its strength is a theme token (--hero-scrim,
-          globals.css): the light page needs more of it over the WebGL core than over the
-          static art. */}
+          globals.css). */}
       <div
         aria-hidden="true"
-        data-scene-scrim=""
         className="pointer-events-none absolute inset-x-0 top-0 h-[75%] bg-[radial-gradient(125%_70%_at_50%_40%,var(--bg)_30%,transparent_78%)] opacity-(--hero-scrim) md:hidden"
       />
 
@@ -360,11 +226,9 @@ export function Hero({ coreArt }: HeroProps) {
       <div className="relative mx-auto grid w-full max-w-(--maxw) gap-[clamp(32px,5vw,56px)] px-(--gutter) pt-[clamp(32px,7vw,88px)] pb-[clamp(48px,7vw,88px)] md:min-h-[min(860px,calc(100svh_-_var(--header-h)_-_var(--ticker-h)))] md:grid-cols-[1.3fr_.7fr] md:content-center md:items-end">
         <div className="min-w-0">
 
-          {/* The title marker wraps the headline and its subtitle, so the two come in as one.
-              The <h1> is the page's only one and its LCP element: the entrance moves and blurs
-              this wrapper, but nothing may ever hide it (no opacity / visibility, here or in
-              the intro). */}
-          <div data-intro-reveal="title">
+          {/* The wrapper holds the headline and its subtitle. The <h1> is the page's only one
+              and its LCP element: nothing may ever hide it (no opacity / visibility). */}
+          <div>
             {/* The closing full stop is split off only to colour it red — a glyph, never a glow. */}
             <h1 className="mt-4 mb-0 max-w-[16ch] text-balance font-disp text-[clamp(34px,8.6vw,74px)] font-black uppercase leading-[.98] tracking-[-0.045em] text-txt [overflow-wrap:break-word] md:mt-5 md:text-[clamp(44px,5.4vw,92px)]">
               {title.endsWith(".") ? (
@@ -379,29 +243,20 @@ export function Hero({ coreArt }: HeroProps) {
               )}
             </h1>
 
-            {/* Where the lead line was, and set like it (`--mut`, 16→19px): the contrast of the
-                copy over the core (docs/04, --hero-scrim) was measured on that line. At
-                861–1024px the chip sits on the seam between the columns, raised to the top, so
-                the lines stop at 40ch there, about where the lead ended, rather than running on
-                under its left traces. */}
-            <p className="m-0 mt-5 max-w-[46ch] text-pretty font-copy text-[clamp(16px,2vw,19px)] leading-[1.6] text-mut md:mt-6 md:max-w-[40ch] lg:max-w-[46ch]">
-              {l(SUBTITLE)}
-            </p>
           </div>
 
-          {/* The entrance targets this wrapper, never the button: the button's hover lift is
-              a `translate` transition that a GSAP `transform` would fight. The reassurance
-              under the buttons comes in with them. */}
-          <div data-intro-reveal="cta" className="mt-8">
+          {/* The CTA group. */}
+          <div className="mt-8">
             <div className="flex flex-col items-stretch gap-3 xs:flex-row xs:flex-wrap xs:items-center xs:gap-4">
               {/* Opens the request dialog in place. A <button>, not an <a href="#contact">: it
                   no longer navigates anywhere. Its accessible name is the label alone — the
                   arrow is an aria-hidden SVG with no <title>, and there is no text-transform,
-                  so it never reads like the header's "CERE OFERTĂ ↗" (nav.cta). */}
+                  so it reads "Cere ofertă" — the same words as the header's "CERE OFERTĂ ↗"
+                  (nav.cta), never the same accessible name. */}
               <button
                 type="button"
                 onClick={() => openRequest({ source: "hero" })}
-                {...PRIMARY_BOOST}
+                data-hero-cta=""
                 className="cta-neon group/cta inline-flex min-h-14 items-center justify-center gap-2.5 rounded-md px-6.5 py-4 font-copy text-base font-bold leading-[1.55] shadow-neon-red-strong"
               >
                 {l(CTA_PRIMARY)}
@@ -421,40 +276,19 @@ export function Hero({ coreArt }: HeroProps) {
               </button>
               <a
                 href="#servicii"
-                {...SECONDARY_BOOST}
+                data-hero-cta=""
                 className="relative inline-flex min-h-14 items-center justify-center rounded-md border border-glass-line bg-glass px-6 py-3 font-hud text-sm font-bold uppercase leading-[1.4] tracking-[.08em] text-txt no-underline transition-[border-color,color,box-shadow] duration-200 hover:border-blue hover:text-blue-text hover:shadow-neon-blue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan motion-reduce:transition-none"
               >
                 {l(CTA_SECONDARY)}
               </a>
             </div>
 
-            {/* The three promises, joined by the copy's own "·" kept as text, so the line is
-                read exactly as written. Each phrase opens with a --sep slot that holds the "·"
-                before it (empty on the first), and the row starts one slot left of the column,
-                where the paragraph clips: a phrase that wraps to the start of a line on a phone
-                has its "·" cut off, so no line starts or ends on a separator. */}
-            <p className="m-0 mt-4 overflow-x-clip font-copy text-sm leading-normal text-mut [--sep:1.25em]">
-              <span className="-ml-(--sep) flex flex-wrap">
-                {REASSURANCE.map((phrase, i) => (
-                  <span key={i} className="relative pl-(--sep)">
-                    {i > 0 ? (
-                      <span className="absolute top-0 left-0 w-(--sep) text-center"> · </span>
-                    ) : null}
-                    {l(phrase)}
-                  </span>
-                ))}
-              </span>
-            </p>
           </div>
         </div>
 
-        {/* Metrics. The entrance moves this group as a whole (transform only), so the cards'
-            glass keeps blurring and their own hover lift (`translate`) never fights it. The
-            wrapper is the desktop scroll-parallax layer; the marker itself never moves. */}
-        <div data-parallax="hero-stats" className="min-w-0">
+        {/* Metrics. */}
+        <div className="min-w-0">
           <div
-            data-intro-reveal="stats"
-            {...{ [STATS_GROUP_ATTR]: "" }}
             role="group"
             aria-label={l(METRICS_LABEL)}
             className="grid grid-cols-2 gap-3 md:grid-cols-1 md:gap-4 lg:grid-cols-2"
@@ -466,14 +300,11 @@ export function Hero({ coreArt }: HeroProps) {
               <div
                 key={m.id}
                 data-metric={m.id}
-                data-scene-anchor={desktop ? "stat" : undefined}
                 data-tilt={tilt.enabled ? "on" : "off"}
                 {...tilt.handlers}
                 className={`relative overflow-hidden rounded-lg border border-glass-line p-4 shadow-lg transition-[translate,border-color,transform] duration-300 ease-(--motion-ease-out) hover:-translate-y-1 hover:border-(--accent) max-md:bg-glass-solid motion-reduce:transition-none motion-reduce:hover:translate-none sm:p-5 md:glass data-tilting:duration-150 data-tilting:[transform:perspective(900px)_rotateX(var(--tilt-rx))_rotateY(var(--tilt-ry))] before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${
                   /* `--accent` is the card's own hairline colour; `--accent-text` is the tone of
-                     it that is legible as TYPE on this background. The 3D panel's face reads both
-                     off the card (three/statFace.ts) — the card states its colour once, and the
-                     hologram does not hard-code a second copy of it. */
+                     it that is legible as TYPE on this background. */
                   m.id === "projects"
                     ? "[--accent:var(--red)] [--accent-text:var(--red-text)]"
                     : "[--accent:var(--blue)] [--accent-text:var(--blue-text)]"

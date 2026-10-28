@@ -7,20 +7,10 @@ import {
   useId,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from "react";
 import { usePointerTilt } from "@/components/fx/usePointerTilt";
-import { SceneLoading } from "@/components/scene/art/SceneLoading";
-import {
-  LAPTOP_BOOT,
-  LAPTOP_BOOT_GATE,
-  laptopScreenBox,
-  type ScreenBox,
-} from "@/components/scene/choreography";
-import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
-import { selectSceneShape, selectServiceStage } from "@/lib/scene";
 import { TILT_MAX } from "@/lib/tilt";
 import { useT } from "@/lib/i18n/LanguageProvider";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
@@ -38,22 +28,6 @@ import styles from "./DirectionPage.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-/* The steps section's corner host is desktop-only, and it is not rendered at all below
-   861px rather than hidden with CSS: a host that is in the DOM but measures 0 wide would
-   have the scene scale the model down to nothing. Same external-store shape as
-   `HudChrome`'s `DesktopOnly`, and the same breakpoint. */
-function desktopQuery(): MediaQueryList | null {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
-  return window.matchMedia(HUD_DESKTOP_MEDIA);
-}
-function subscribeDesktop(onChange: () => void): () => void {
-  const query = desktopQuery();
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
-const isDesktop = () => desktopQuery()?.matches ?? false;
-const isDesktopOnServer = () => false;
-
 /** Copy this section owns. Everything else comes from `solUI` / `solutions` — nothing here
  *  is hardcoded in one language (docs/16-i18n-seo.md). */
 const pageUI = {
@@ -61,33 +35,7 @@ const pageUI = {
      screen reader gets after it, and the hint a sighted visitor reads under the name. */
   caseOpen: L("Vezi detaliile", "Смотреть детали", "See the details"),
   caseClose: L("Ascunde detaliile", "Скрыть детали", "Hide the details"),
-  /* ---- the projects reel: the shape "Proiecte relevante" takes where the 3D laptop is live ---- */
-  /* The heading of the list that stands in for the machine wherever a picture cannot be seen —
-     assistive technology, a search engine, a text browser. It is the section's alt text. */
-  reelListTitle: L(
-    "Proiectele care rulează pe ecran",
-    "Проекты, которые идут на экране",
-    "The projects playing on the screen",
-  ),
 };
-
-/**
- * Milliseconds one project holds the laptop's display before the reel moves on.
- *
- * It runs only while the stage is on screen, and it stops under the pointer or a focus inside the
- * stage — that pause is the mechanism WCAG 2.2.2 asks for (auto-updating information, presented in
- * parallel with other content, needs a way to pause or stop it), reachable with a pointer by
- * moving onto the machine and from the keyboard by focusing the screen's own link.
- */
-const PROJECT_DWELL_MS = 2000;
-
-/**
- * …and the machine boots before any of that. The reel is held for the arrival plus one full dwell,
- * so the project the boot lands on is read for as long as every other one rather than being swept
- * away a moment after it arrives. Both numbers come from the scene's own table — the sequence and
- * the page cannot drift apart.
- */
-const PROJECT_BOOT_HOLD_MS = LAPTOP_BOOT.swap * 1000 + PROJECT_DWELL_MS;
 
 /** One frozen empty set, so "nothing is open" is the same value at every render. */
 const NO_CASES: readonly string[] = Object.freeze([]);
@@ -100,11 +48,8 @@ const NO_CASES: readonly string[] = Object.freeze([]);
  * directly under the hero with the request flow (carrying this service), the direction's
  * real projects, and the reference project's link when there is one to give.
  *
- * The 3D model: the route wraps this section in the interior stage and hands down `modelArt`,
- * the static drawing of this direction (`app/(site)/servicii/[slug]/page.tsx`). Everything the
- * scene needs from here is the slug — written once into the scene's input store below, where
- * the world reads it every frame and morphs to that direction's model. There is no per-slug
- * branch anywhere in this file: the mapping lives in `lib/scene.ts`. `modelArt` is optional,
+ * The hero's drawing: the route hands down `modelArt`, the static illustration of this
+ * direction (`app/(site)/servicii/[slug]/page.tsx`, components/art/ServiceArt). It is optional,
  * so the section still renders on its own, with the drawing simply absent.
  *
  * The hero is the model and the copy, nothing else — the title, then the direction's pitch and
@@ -125,21 +70,14 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      (Brand & UI has no service of its own). */
   const price = directionPrice(slug, services, l);
 
-  /* Which of the five models the scene draws. An unknown slug changes nothing, and the store
-     is module-level, so this survives a client navigation between two service pages. */
-  useEffect(() => selectSceneShape(slug), [slug]);
-
   /* ---- the benefit panels: the HUD entrance, then a lean under a mouse ----
      Same vocabulary as the home page's Directions panel (`entry-glow` / `entry-sweep` in
      app/tailwind.css), re-expressed in this module because service pages are CSS Modules.
      The tilt is the site's shared one: fine pointers only, never under reduced motion, and
-     it writes transforms — no blur, nothing over the canvas. */
+     it writes transforms — no blur. */
   const tilt = usePointerTilt(TILT_MAX.project);
   const highlightsRef = useRef<HTMLElement | null>(null);
   const projectsRef = useRef<HTMLDivElement | null>(null);
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  const screenRef = useRef<HTMLDivElement | null>(null);
-  const desktop = useSyncExternalStore(subscribeDesktop, isDesktop, isDesktopOnServer);
 
   useEffect(() => {
     const root = highlightsRef.current;
@@ -190,7 +128,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     });
   }, [slug]);
 
-  /* ---- the steps: which one is being read, and the model's matching moment ---- */
+  /* ---- the steps: which one is being read ---- */
   const stepsRef = useRef<HTMLElement | null>(null);
 
   /*
@@ -251,7 +189,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
      * Root margin, not a scroll handler: nothing here runs while the section is off screen.
      */
     const READING_LINE = 0.45;
-    let reported = -1;
 
     const apply = () => {
       const line = window.innerHeight * READING_LINE;
@@ -278,12 +215,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
        * live.
        */
       section.dataset.active = ended ? "done" : String(doneCount);
-      /* The point of the whole feature: the world holds the model on this step's moment.
-         Once per change of value — never once per intersection callback. */
-      if (current !== reported) {
-        reported = current;
-        selectServiceStage(current);
-      }
     };
 
     const observer = new IntersectionObserver(
@@ -308,8 +239,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
       observer.disconnect();
       section.style.removeProperty("--steps-progress");
       delete section.dataset.active;
-      /* Leaving the page releases the model: no page holds a stage it is not showing. */
-      selectServiceStage(-1);
     };
   }, [slug, stepCount]);
 
@@ -348,9 +277,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     const watch = (target: HTMLElement | null, opened: HTMLElement | null = target) => {
       if (target && opened && !opened.hasAttribute("data-entered")) opens.set(target, opened);
     };
-    // The stage rides the same observer: whichever of the two shapes the page laid out is the one
-    // that ever intersects, so each gets its entrance exactly once and the other costs nothing.
-    watch(stageRef.current);
     watch(root.parentElement instanceof HTMLElement ? root.parentElement : root, root);
     for (const card of Array.from(root.children)) {
       watch(card instanceof HTMLElement ? card : null);
@@ -372,112 +298,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
     for (const target of opens.keys()) observer.observe(target);
     return () => observer.disconnect();
   }, [slug, relatedKey]);
-
-  /* ---- the reel: which project is on the laptop's display ----
-     The page owns this number, not the scene. It picks the card the hologram is composed from
-     (`data-project-index` on the grid, read by components/scene/projectsReel.ts) and the project
-     the screen's own link opens. The machine runs on its own and there is nothing to press to
-     change it — that is the whole design now, and the list below the stage is what carries the
-     same projects for anyone who cannot see a picture.
-
-     `active` may outrun the list (a content swap can shorten it), so the index the page uses is
-     derived and clamped rather than corrected in an effect — and it is keyed by the direction it
-     was counted on, for the same reason the open cases are: a client navigation to another service
-     reuses this component, and the index belongs to the page it was counted on. Both the reset and
-     the clamp are read during render, so the new direction's first paint is already its own. */
-  const [active, setActive] = useState<{ slug: string; at: number }>({ slug, at: 0 });
-  const activeAt = active.slug === slug ? active.at : 0;
-  /** The one way this index moves. Returns the same object when nothing changed: no render. */
-  const moveReel = useCallback(
-    (next: (at: number) => number) =>
-      setActive((current) => {
-        const at = current.slug === slug ? current.at : 0;
-        const to = next(at);
-        return current.slug === slug && current.at === to ? current : { slug, at: to };
-      }),
-    [slug],
-  );
-  /* The visitor is MOVING a pointer over the stage, or the focus is inside it: the reel is paused
-     while they are. That IS the mechanism WCAG 2.2.2 asks for — auto-updating content that starts
-     by itself and runs beside other content needs a way to pause or stop it. It is reachable both
-     ways: with a pointer by moving onto the machine, and from the keyboard by focusing the
-     screen's own link, which is the first thing Tab reaches in this section.
-
-     MOVING, not merely "the pointer is over it", and that distinction is the whole bug this
-     replaced. A visitor scrolls the machine into the middle of the screen — which is where a
-     cursor already is — and the browser hands the stage a `pointerover`/`pointerenter` for a
-     pointer that never moved (measured: no `pointermove` in the sequence), with no `pointerleave`
-     until they move the mouse off. Latching on enter therefore paused the reel for a visitor who
-     had not asked for it and could not see why, for as long as they sat still: the projects never
-     changed until they happened to jog the mouse. A pause has to be something the visitor DOES. */
-  const [reelHeld, setReelHeld] = useState(false);
-  /* The stage is on screen, by the very share that arms the machine's arrival in the scene
-     (`LAPTOP_BOOT_GATE.on`) — one number, so the boot and the reel start on the same beat and the
-     sequence lands on the FIRST project rather than on whichever one the clock had reached. It
-     never becomes true where the stage is not laid out (below 861px, `fallback`, `off`, reduced
-     motion), so no timer runs for a visitor who is reading the grid. */
-  const [reelOnScreen, setReelOnScreen] = useState(false);
-  /* …and the machine has finished booting. */
-  const [booted, setBooted] = useState(false);
-  /* Where the display lands inside the window, so the thing a visitor presses sits on the screen
-     they are looking at. Measured off the window itself and put through the same arithmetic the
-     scene fits the machine with (components/scene/choreography.ts), so the two cannot drift. */
-  const [screenBox, setScreenBox] = useState<ScreenBox | null>(null);
-  const reelCount = related.length;
-  const reelIndex = reelCount > 0 ? Math.min(activeAt, reelCount - 1) : 0;
-  const onScreenProject = related[reelIndex];
-
-  /* The stage crossing the gate is an EXTERNAL system reporting a change, so everything that
-     follows from it is written here, in the observer's own callback, rather than in an effect
-     watching `reelOnScreen` — an effect would run a whole render behind the crossing, showing one
-     frame of the previous state. Arriving puts the reel back to the first project; leaving stows
-     the boot, so what a visitor finds on the way back is a fresh arrival and not a half-built
-     machine. Both writes are guarded, so a repeated observation costs no render. */
-  useEffect(() => {
-    const stage = stageRef.current;
-    if (!stage || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const on = entries.some((entry) => entry.intersectionRatio >= LAPTOP_BOOT_GATE.on);
-        setReelOnScreen(on);
-        if (on) moveReel(() => 0);
-        else setBooted((done) => (done ? false : done));
-      },
-      { threshold: LAPTOP_BOOT_GATE.on },
-    );
-    observer.observe(stage);
-    return () => observer.disconnect();
-  }, [slug, moveReel]);
-
-  /* …and the machine is booted a fixed time after it arrived: the arrival plus one full dwell, so
-     the project the boot lands on is read for as long as every other one. The timer is the whole
-     of this effect — nothing is set from its body. */
-  useEffect(() => {
-    if (!reelOnScreen) return;
-    const id = window.setTimeout(() => setBooted(true), PROJECT_BOOT_HOLD_MS);
-    return () => window.clearTimeout(id);
-  }, [reelOnScreen]);
-
-  useEffect(() => {
-    if (!booted || reelHeld || !reelOnScreen || reelCount < 2) return;
-    const id = window.setInterval(() => moveReel((at) => (at + 1) % reelCount), PROJECT_DWELL_MS);
-    return () => window.clearInterval(id);
-  }, [booted, reelHeld, reelOnScreen, reelCount, moveReel]);
-
-  /* The window's box is the only thing the hit area needs: `laptopScreenBox` runs the very fit the
-     scene runs. A ResizeObserver delivers its first observation on `observe`, so nothing is set
-     from the effect's own body. */
-  useEffect(() => {
-    const el = screenRef.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      const rect = el.getBoundingClientRect();
-      const box = laptopScreenBox(rect.width, rect.height);
-      setScreenBox(box ? { ...box } : null);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [slug]);
 
   if (!sol) {
     const dir = directions.find((d) => d.slug === slug);
@@ -521,13 +341,10 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             {price ? <p className={styles.price}>{price}</p> : null}
           </div>
 
-          {/* The model's host, and the whole of the hero's right column since the reference
-              card moved out. A transparent slot: the canvas is not in here — it draws on the
-              stage's sticky layer and is aimed at this box, which the director measures by its
-              `data-scene-anchor`, so the host must keep a real width. Decorative and
-              heading-less: nothing focusable, and no section marker for the HUD rail. */}
-          <div className={styles.modelHost} data-scene-anchor="services" aria-hidden="true">
-            <SceneLoading />
+          {/* The drawing's host, and the whole of the hero's right column since the reference
+              card moved out. Decorative and heading-less: nothing focusable, and no section
+              marker for the HUD rail. */}
+          <div className={styles.modelHost} aria-hidden="true">
             {modelArt}
           </div>
         </section>
@@ -576,18 +393,8 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             markup has to say about that; every delay is derived from it in CSS, so the
             stacked layout can flatten the whole sequence with one rule.
             Everything added here is decoration: shapes, light and motion, no numbers about
-            the business. Every span below is `aria-hidden` and carries no copy.
-
-            ONE anchor for the whole row, not one per panel: the scene fits thirds of this
-            rect (components/scene/choreography.ts), and three equal columns with one gap
-            make those thirds predictable. It is only written from 861px up — the same gate
-            as the steps corner and as the windows below — because under it the row stacks
-            into one column and "thirds of the row" would mean nothing. */}
-        <section
-          className={styles.highlights}
-          ref={highlightsRef}
-          data-scene-anchor={desktop ? "panels" : undefined}
-        >
+            the business. Every span below is `aria-hidden` and carries no copy. */}
+        <section className={styles.highlights} ref={highlightsRef}>
           {sol.items.map((it, i) => (
             <article
               key={i}
@@ -596,11 +403,8 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               data-tilt={tilt.enabled ? "on" : "off"}
               {...tilt.handlers}
             >
-              {/* The painted part of the panel. `--panel`, the padding and the copy all live
-                  HERE rather than on the article, so the instrument window below has nothing
-                  opaque between it and the scene's canvas — the same move the steps card
-                  made for its corner host. The article keeps the border, the radius and the
-                  entrance glow, so the panel is still one framed object. */}
+              {/* The painted part of the panel: `--panel`, the padding and the copy. The article
+                  keeps the border, the radius and the entrance glow. */}
               <div className={styles.hlBody}>
                 {/* The circuit the pulse travels, and the node it ends in. Both pulses live on
                     this span's two pseudo-elements — the entrance on one, the hover replay on
@@ -619,12 +423,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                 <h2>{l(it.title)}</h2>
                 <p>{l(it.desc)}</p>
               </div>
-              {/* The instrument window: the panel's bottom bay, see-through down to the
-                  canvas, with its own chrome (a rule across its head, two guide rails and two
-                  corner brackets, all in the panel's accent). Its own box, so on `fallback` /
-                  `off` — and below 861px — it is simply not laid out and the panel closes up
-                  into the plain card it has always been. */}
-              <div aria-hidden="true" className={styles.hlWindow} />
             </article>
           ))}
         </section>
@@ -693,121 +491,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               <h2 className="disp">{l(solUI.projectsTitle)}</h2>
             </div>
 
-            {/* ---- the shape this section takes where the 3D laptop is live ----
-                The section IS the machine. The projects run on its display on their own, and
-                pressing the display opens the project that is on it. There is no side column and
-                no control row: everything a visitor reads is drawn INTO the screen's texture
-                (components/scene/three/hologram.ts `composeLaptopScreen`), which is the one way to
-                make it legible that does not raise the 384 x 240 cap — the cap being the only
-                reason a real e-mail address inside a screenshot stays unreadable.
-
-                Both shapes are always in the DOM and CSS chooses, exactly as the panels' bay and
-                the steps corner do: from 861px up, on a renderer that really draws, this stage is
-                laid out and the grid below is not; everywhere else — a phone, `fallback`, `off`,
-                reduced motion — the stage is `display: none` and the grid is the one we shipped,
-                untouched.
-
-                `.projScreen` is the window the machine stands in: see-through, painting no fill,
-                nothing at all between it and the canvas behind the page, and no transform,
-                perspective, filter, `contain` or clipping overflow here or above it. The scene
-                MEASURES this box (components/scene/scrollProbe.ts) rather than assuming it.
-
-                The reel pauses while a pointer MOVES over the stage and while the focus is
-                inside it — never on a bare `pointerenter`, which a scroll fires for a cursor
-                that never moved. */}
-            <div
-              className={styles.projStage}
-              ref={stageRef}
-              onPointerMove={() => {
-                // Only the first move of a visit costs a render: after that the state is already true.
-                if (!reelHeld) setReelHeld(true);
-              }}
-              onPointerLeave={() => setReelHeld(false)}
-              onPointerCancel={() => setReelHeld(false)}
-              onFocus={() => setReelHeld(true)}
-              onBlur={() => setReelHeld(false)}
-            >
-              <div
-                className={styles.projScreen}
-                ref={screenRef}
-                data-scene-anchor={desktop ? "projects" : undefined}
-              >
-                {/* The display's own hit area. It is a real element over the part of the window the
-                    screen is drawn in — never the whole window — sized from the same fit the scene
-                    uses, so it follows the machine at every width. Transparent: it paints nothing
-                    between the window and the canvas, and it carries the project's name, so a
-                    screen reader hears what pressing it opens.
-
-                    A project with a public page gets a link. One without gets a labelled, focusable
-                    image rather than a link that goes nowhere — and it still stops the reel, which
-                    is what makes the pause reachable from the keyboard on every project. */}
-                {screenBox ? (
-                  onScreenProject.url ? (
-                    <a
-                      className={styles.projHit}
-                      href={onScreenProject.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        left: `${Math.round(screenBox.x)}px`,
-                        top: `${Math.round(screenBox.y)}px`,
-                        width: `${Math.round(screenBox.w)}px`,
-                        height: `${Math.round(screenBox.h)}px`,
-                      }}
-                    >
-                      <span className={styles.srOnly}>
-                        {`${l(solUI.actionProject)} — ${onScreenProject.name}`}
-                      </span>
-                    </a>
-                  ) : (
-                    <span
-                      className={styles.projHit}
-                      role="img"
-                      tabIndex={0}
-                      aria-label={`${onScreenProject.name} — ${l(solUI.actionProjectPrivate)}`}
-                      style={{
-                        left: `${Math.round(screenBox.x)}px`,
-                        top: `${Math.round(screenBox.y)}px`,
-                        width: `${Math.round(screenBox.w)}px`,
-                        height: `${Math.round(screenBox.h)}px`,
-                      }}
-                    />
-                  )
-                ) : null}
-              </div>
-
-              {/* The same projects, in reading order, for everyone the picture cannot reach: a
-                  screen reader, a search engine, a text browser. This is the machine's alt text,
-                  and it is why nothing was deleted from the page when the cards stopped being
-                  laid out.
-
-                  Visually hidden the standard way — a 1px box with `clip-path: inset(50%)`, NEVER
-                  `display: none`, which would take it out of the accessibility tree as well — and
-                  it un-hides itself on `:focus-within`, so a sighted visitor who tabs into it sees
-                  where they are instead of chasing an invisible focus ring. */}
-              <div className={styles.projList}>
-                <h3>{l(pageUI.reelListTitle)}</h3>
-                <ul>
-                  {related.map((p) => (
-                    <li key={p.id}>
-                      <b>{p.name}</b> <span className="mono">{l(p.tag)}</span>
-                      <span> — {l(p.desc)}</span>
-                      {p.url ? (
-                        <>
-                          {" "}
-                          <a href={p.url} target="_blank" rel="noopener noreferrer">
-                            {l(solUI.actionProject)}
-                          </a>
-                        </>
-                      ) : (
-                        <span className="mono"> ({l(solUI.actionProjectPrivate)})</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
             {/* On a phone the cards run sideways instead of stacking (max-width: 760px in
                 the module). The strip has to CLIP to scroll, and the shelf's frame hangs 6px
                 outside the grid on its own pseudo-elements — so the scroll box is this wrapper
@@ -818,10 +501,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               <div
                 className={styles.projectGrid}
                 ref={projectsRef}
-                data-projects-track=""
-                data-project-index={reelIndex}
-                data-cta-link={l(solUI.actionProject)}
-                data-cta-private={l(solUI.actionProjectPrivate)}
                 style={{ "--card-count": related.length } as CSSProperties}
               >
                 {related.map((p, i) => {
@@ -900,9 +579,8 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
           </section>
         )}
 
-        {/* The rail on the left fills as the section is read, the number of the step in the
-            middle third of the viewport lights, and the same index is handed to the scene, so
-            the model in the hero holds on that step's moment. */}
+        {/* The rail on the left fills as the section is read, and the number of the step in
+            the middle third of the viewport lights. */}
         <section className={styles.steps} ref={stepsRef}>
           {/*
             * THE READING MARKS, and they are why the panels can sit side by side.
@@ -932,13 +610,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               }}
             />
           ))}
-          {/* The painted card. The section itself carries no background at all: the scene's
-              canvas draws BEHIND the page, so anything opaque over the corner host hides the
-              model that is aimed at it. Everything the card is — the ink surface, the radius,
-              the 36px padding, the white copy — lives on this wrapper, which covers the copy
-              column only; the host's column beside it stays transparent, and the model shows
-              through the page. Below 861px, and on every renderer but WebGL, the wrapper is
-              the section's only child and fills it edge to edge, exactly as before. */}
+          {/* The painted card: the ink surface, the radius, the 36px padding, the white copy. */}
           <div className={styles.stepsCard}>
             <h2 className="disp">{l(solUI.stepsTitle)}</h2>
             <div className={styles.stepsBody} data-flow={sol.flow?.length ? "on" : undefined}>
@@ -984,20 +656,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
               ) : null}
             </div>
           </div>
-
-          {/* The model's second home. The steps are ~1000px below the hero, so the model the
-              active step drives is off the top of the screen while they are read; this is the
-              corner it appears in for the length of the section (the scene fits it into this
-              box and takes it back to the hero once the section is past). Sticky INSIDE the
-              section — nothing is written onto html or body, and no ancestor takes a
-              transform, a filter, `contain` or a clipping overflow, which would break both
-              this sticky and the stage's own (docs/07-conventions.md).
-              Empty, decorative and heading-less: no marker for the fibre rail, nothing
-              focusable, and no pointer target. Desktop only: below 861px it is not in the DOM
-              at all, so the scene can never measure a zero-wide host. */}
-          {desktop ? (
-            <div className={styles.stepsModelHost} data-scene-anchor="steps" aria-hidden="true" />
-          ) : null}
         </section>
 
         <section className={styles.bottom}>

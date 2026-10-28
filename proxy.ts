@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { DEFAULT_LOCALE, splitLocalePath } from "@/lib/i18n/locales";
-import { INTRO_HEADER, INTRO_SKIP, fromAd } from "@/lib/intro";
 
 /*
  * Per-request Content-Security-Policy (Next 16 "Proxy" — the renamed Middleware).
@@ -87,14 +86,6 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("x-pathname", localeStrippedPath);
   if (urlLocale !== DEFAULT_LOCALE) requestHeaders.set("x-locale", urlLocale);
 
-  // The intro's ad bypass (lib/intro.ts `fromAd`), on the same channel and for the same reason:
-  // the `(site)` layout that gates the first-visit intro cannot read the query string. A URL
-  // carrying a `utm_*` tag or an ad platform's click id (gclid, fbclid, …) goes through as
-  // `x-intro: skip`, and the layout renders no overlay. Deleted first: the header is this
-  // function's verdict, so a copy the browser sent with the request must never reach the layout.
-  requestHeaders.delete(INTRO_HEADER);
-  if (fromAd(request.nextUrl.searchParams)) requestHeaders.set(INTRO_HEADER, INTRO_SKIP);
-
   const response = NextResponse.next({
     request: { headers: requestHeaders },
   });
@@ -116,15 +107,13 @@ export const config = {
      * **`{ key: "purpose", value: "prefetch" }` is deliberately NOT here** (2026-09-25),
      * although Next's own CSP guide lists it. That recipe assumes this function only adds a
      * nonce; here it also carries `x-pathname`, which the root layout turns into the
-     * self-canonical, the hreflang set AND the first-visit intro's gate (`shouldPlayIntro`).
+     * self-canonical and the hreflang set.
      * The legacy `Purpose: prefetch` header is sent by BROWSERS, not by this Next version's
      * router (which sends `next-router-prefetch` and nothing else — checked in
      * `next/dist/client/components/app-router-headers.js`), and Chrome sends it when it
      * preloads a URL it predicted from that profile's own history. So the visitor who comes
      * back most often — the owner typing the address and pressing Enter — was being served a
-     * document with no `x-pathname`: no intro, no canonical, and no CSP header at all.
-     * Measured on the running container: `GET /` carried `id="tbs-intro"` once, the same
-     * request with `Purpose: prefetch` carried it zero times.
+     * document with no `x-pathname`: no canonical, and no CSP header at all.
      */
     {
       source: "/((?!api|_next/static|_next/image|icon.svg).*)",

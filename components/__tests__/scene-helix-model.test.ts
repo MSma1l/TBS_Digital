@@ -16,7 +16,7 @@ import {
   type Object3D,
   type ShaderMaterial,
 } from "three";
-import { HELIX, HELIX_ANGLE, MODEL_RADIUS, type Vec3 } from "@/components/scene/shapes";
+import { HELIX, HELIX_ANGLE, type Vec3 } from "@/components/art/shapes";
 import { HELIX_REACH } from "@/components/scene/choreography";
 import { SCENE_TIER_CONFIG, type SceneCanvasTier } from "@/components/scene/tiers";
 import { LINE_MODE, SURFACE_MODE, TUBE_MODE, toColor } from "@/components/scene/three/materials";
@@ -25,7 +25,6 @@ import {
   HELIX_PARTS,
   helixChips,
   helixRungs,
-  helixSamples,
   helixStrandPoint,
   helixStrandTangent,
   type HelixSegment,
@@ -45,7 +44,6 @@ import {
   helixDim,
   helixExitPose,
   helixFrontFlare,
-  helixLandingMatrix,
   helixRungSweep,
   layoutHelixHologram,
   type HelixFrame,
@@ -53,8 +51,8 @@ import {
 } from "@/components/scene/three/models/helix";
 
 /*
- * The Work DNA helix (three/models/helix.ts) and the swarm's slot 0 that lands on it
- * (three/samples.ts `helixSamples`): the draws each tier builds, the geometry of every part —
+ * The Work DNA helix (three/models/helix.ts), the scene's only model since 2026-10-28, and its
+ * geometry (three/samples.ts): the draws each tier builds, the geometry of every part —
  * strands, chips, rungs with square nodes, seven-segment bits, no sprite anywhere — and how the
  * model turns, lies down, recolours, glitches and dissolves. three.js runs in jsdom for
  * everything but a WebGL context (the shaders compile in the lab, not here).
@@ -63,7 +61,9 @@ import {
 const PALETTE = pickSceneRoles({
   cyan: "#4fc3e8",
   blue: "#3970ff",
+  blueText: "#2a56d6",
   redLift: "#ff5362",
+  redText: "#d41026",
   txt: "#f6f7fb",
   bg: "#0a0b10",
 });
@@ -82,7 +82,6 @@ const frame = (over: Partial<HelixFrame> = {}): HelixFrame => ({
 });
 
 const TIERS: SceneCanvasTier[] = ["high", "mid"];
-const EPS = 1e-5;
 
 type Parts = {
   strands: Mesh;
@@ -492,21 +491,18 @@ describe("helix model — behaviour", () => {
     model.update(frame({ focus: 1 }));
     expect(axis().y).toBeCloseTo(1, 12);
     expect(hologram.visible).toBe(true);
-    // The swarm's landing matrix follows: upright samples land along the helix as it is drawn.
+    // Placed by the world: upright, the tip is above the placement; lying, it is beside it.
     model.group.position.set(1, 2, 0);
     model.group.scale.setScalar(0.5);
+    model.update(frame({ focus: 0 }));
     model.group.updateMatrixWorld(true);
-    const landing = new Matrix4();
-    const tip = new Vector3(0, HELIX.height / 2, 0);
-    const upright = tip.clone().applyMatrix4(helixLandingMatrix(model.group, "spiral", landing));
-    expect(upright.distanceTo(new Vector3(1, 2 + HELIX.height / 4, 0))).toBeLessThan(1e-9);
+    const tip = () => new Vector3(0, HELIX.height / 2, 0).applyMatrix4(strands.matrixWorld);
+    expect(tip().distanceTo(new Vector3(1, 2 + HELIX.height / 4, 0))).toBeLessThan(1e-6);
     model.setMode("ambient");
     model.update(frame({ focus: 0 }));
     model.group.updateMatrixWorld(true);
-    const lying = tip.clone().applyMatrix4(helixLandingMatrix(model.group, "ambient", landing));
-    const drawn = new Vector3(0, HELIX.height / 2, 0).applyMatrix4(strands.matrixWorld);
-    expect(lying.distanceTo(drawn)).toBeLessThan(1e-9);
-    expect(lying.x).toBeCloseTo(1 - HELIX.height / 4, 9);
+    expect(Math.abs(tip().x - 1)).toBeCloseTo(HELIX.height / 4, 6);
+    expect(tip().y).toBeCloseTo(2, 6);
     model.setMode("spiral");
     // No texture: nothing to show.
     model.setHologram(null);
@@ -882,7 +878,7 @@ describe("helix model — behaviour", () => {
     model.dispose();
   });
 
-  it("packets, the rung sweep and the bits run on the step: a held step (the swarm landing) holds them", () => {
+  it("packets, the rung sweep and the bits run on the step: a held step holds them", () => {
     const model = createHelixModel(SCENE_TIER_CONFIG.high, PALETTE);
     const { strands, rungs, bits } = parts(model);
     model.update(frame({ time: 5, step: 0 }));
@@ -923,83 +919,5 @@ describe("helix model — behaviour", () => {
     expect(freed.size).toBe(10);
     expect(textureFreed).toBe(false);
     texture.dispose();
-  });
-});
-
-describe("helixSamples — the swarm's slot 0", () => {
-  /** Which part a sample lies on (within `EPS`), or null. */
-  function partOf(p: Vec3, tier: { helixChips: number; helixRungs: number }): "strand" | "chip" | "rung" | "node" | null {
-    const t = p[1] / HELIX.height + 0.5;
-    for (const strand of [0, 1]) {
-      if (t >= -EPS && t <= 1 + EPS && length3(sub3(p, helixStrandPoint(strand, Math.min(1, Math.max(0, t))))) < EPS) {
-        return "strand";
-      }
-    }
-    for (const rung of helixRungs(tier.helixRungs)) {
-      for (const half of rung.halves) {
-        if (distanceToSegment(p, half.line) < EPS) return "rung";
-        if (half.node.some((side) => distanceToSegment(p, side) < EPS)) return "node";
-      }
-    }
-    const half = [HELIX_PARTS.chip.length / 2, HELIX_PARTS.chip.width / 2, HELIX_PARTS.chip.thickness / 2];
-    for (const chip of helixChips(tier.helixChips)) {
-      const d = sub3(p, chip.centre);
-      const local = [dot3(d, chip.along), dot3(d, chip.across), dot3(d, chip.out)];
-      const inside = local.every((value, k) => Math.abs(value) <= half[k] + EPS);
-      const onFaces = local.filter((value, k) => Math.abs(Math.abs(value) - half[k]) < EPS).length;
-      if (inside && onFaces >= 2) return "chip";
-    }
-    return null;
-  }
-
-  for (const tier of TIERS) {
-    const config = SCENE_TIER_CONFIG[tier];
-    it(`${tier}: every sample lies on a strand, a chip's box edge, a rung's half or a node square of the tier's helix`, () => {
-      const samples = helixSamples(config.swarm, undefined, config);
-      expect(samples).toHaveLength(config.swarm * 3);
-      for (let i = 0; i < config.swarm; i += 1) {
-        const p: Vec3 = [samples[i * 3], samples[i * 3 + 1], samples[i * 3 + 2]];
-        expect(partOf(p, config), `sample ${i}`).not.toBeNull();
-        // Inside the helix's own bounds.
-        expect(Math.hypot(p[0], p[2])).toBeLessThanOrEqual(HELIX.radius + HELIX_PARTS.chip.lift + 0.1);
-        expect(Math.abs(p[1])).toBeLessThanOrEqual(HELIX.height / 2 + HELIX_PARTS.chip.length);
-      }
-    });
-  }
-
-  it("the high tier is the default, and the same seed gives the same buffer", () => {
-    expect(helixSamples(300)).toEqual(helixSamples(300, undefined, SCENE_TIER_CONFIG.high));
-    expect(helixSamples(300, 7)).not.toEqual(helixSamples(300));
-  });
-
-  it("50% strands, 25% chips, 19% rungs, 6% nodes — and any half of the buffer keeps that mix (the lite prefix)", () => {
-    const config = SCENE_TIER_CONFIG.high;
-    const samples = helixSamples(config.swarm, undefined, config);
-    const share = (from: number, to: number) => {
-      const counts = { strand: 0, chip: 0, rung: 0, node: 0 };
-      for (let i = from; i < to; i += 1) {
-        const part = partOf([samples[i * 3], samples[i * 3 + 1], samples[i * 3 + 2]], config);
-        if (part) counts[part] += 1;
-      }
-      const n = to - from;
-      return [counts.strand / n, counts.chip / n, counts.rung / n, counts.node / n];
-    };
-    const whole = share(0, config.swarm);
-    [0.5, 0.25, 0.19, 0.06].forEach((expected, k) => expect(whole[k]).toBeCloseTo(expected, 2));
-    for (const half of [share(0, config.swarm / 2), share(config.swarm / 2, config.swarm)]) {
-      [0.5, 0.25, 0.19, 0.06].forEach((expected, k) => expect(Math.abs(half[k] - expected)).toBeLessThan(0.08));
-    }
-  });
-
-  it("fits the services' model radius sideways (the swarm's cloud is sized from it), and is taller than wide", () => {
-    const samples = helixSamples(720);
-    let wide = 0;
-    let tall = 0;
-    for (let i = 0; i < 720; i += 1) {
-      wide = Math.max(wide, Math.hypot(samples[i * 3], samples[i * 3 + 2]));
-      tall = Math.max(tall, Math.abs(samples[i * 3 + 1]));
-    }
-    expect(wide).toBeLessThan(MODEL_RADIUS);
-    expect(tall).toBeGreaterThan(wide);
   });
 });

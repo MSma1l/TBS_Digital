@@ -225,7 +225,8 @@
 .ctaLabel {
   font-size: var(--fs-xs);
   letter-spacing: 0.1em;
-  color: var(--amber);
+  /* small text on a light card: --amber is 3.77:1, the red text tone 5.38:1 */
+  color: var(--red-text);
 }
 
 .ctaTitle {

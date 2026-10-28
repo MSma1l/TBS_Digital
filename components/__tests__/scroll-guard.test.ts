@@ -6,7 +6,6 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SceneDirector } from "@/components/scene/SceneDirector";
 import {
   guardSmoothScroll,
-  parallaxTargets,
   quietScrollTrigger,
   resetScrollTriggerQuietForTests,
   wakeScrollTrigger,
@@ -17,17 +16,13 @@ import {
   releaseProbe,
   translateYOf,
   writeAnchors,
-  writeEntrySpan,
   writeHelixSpan,
-  writeHeroSpan,
   writeWorkSpan,
 } from "@/components/scene/scrollProbe";
 import { RenderErrorBoundary } from "@/components/three/RenderErrorBoundary";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { coverPage } from "@/lib/scrollLock";
 import {
   INSTANT_SCROLL_ATTR,
-  PARALLAX_MEDIA,
   SCENE_ATTR,
   SCENE_LAYOUT_EVENT,
   SCENE_TIMING,
@@ -38,10 +33,12 @@ import {
 /*
  * The interior stage's scroll glue, in jsdom:
  *   · scrollGuard.ts — ScrollTrigger's refreshes stay instant and leave no inline style on
- *     <html>; parallax never lands on an entrance marker, a scroll reveal, <html> or <body>;
+ *     <html>;
  *   · scrollProbe.ts — what a refresh writes into the probe the scene reads every frame;
- *   · SceneDirector — the real gsap 3.15.0 + ScrollTrigger: what it measures, what it
- *     animates (and where), when it refreshes, and that an unmount leaves nothing behind.
+ *   · SceneDirector — the real gsap 3.15.0 + ScrollTrigger: what it measures (Work's track
+ *     only: since 2026-10-28 the stage wraps Work alone and nothing is animated — no hero
+ *     parallax), when it refreshes (the stage or a section above it changing height), and that
+ *     an unmount leaves nothing behind.
  * jsdom has no layout, so boxes are stubbed where a number matters.
  */
 
@@ -280,50 +277,9 @@ describe("quietScrollTrigger / wakeScrollTrigger", () => {
   });
 });
 
-describe("parallaxTargets", () => {
-  it("finds the layer's elements under the scope and skips markers, reveals, <html> and <body>", () => {
-    const scope = document.createElement("div");
-    scope.innerHTML = `
-      <div data-intro-reveal="grid"><div id="backdrop" data-parallax="hero-backdrop"></div></div>
-      <div id="stats" data-parallax="hero-stats"><div data-intro-reveal="stats"></div></div>
-      <div id="marker" data-parallax="hero-stats" ${INTRO_REVEAL_ATTR}="cta"></div>
-      <div id="reveal" data-parallax="hero-stats" data-reveal=""></div>
-      <div id="other" data-parallax="work-media"></div>`;
-    document.body.append(scope);
-    try {
-      expect(parallaxTargets(scope, "hero-backdrop").map((el) => el.id)).toEqual(["backdrop"]);
-      expect(parallaxTargets(scope, "hero-stats").map((el) => el.id)).toEqual(["stats"]);
-      expect(parallaxTargets(scope, "missing")).toEqual([]);
-
-      root().setAttribute(SCENE_ATTR.parallax, "page");
-      document.body.setAttribute(SCENE_ATTR.parallax, "page");
-      expect(parallaxTargets(document, "page")).toEqual([]);
-    } finally {
-      root().removeAttribute(SCENE_ATTR.parallax);
-      document.body.removeAttribute(SCENE_ATTR.parallax);
-      scope.remove();
-    }
-  });
-});
-
 /* ---- scrollProbe.ts -------------------------------------------------------------------- */
 
 describe("scroll probe writes", () => {
-  it("copies a trigger's start/end into heroExit and entry, never a non-finite number", () => {
-    const probe = createScrollProbe();
-    const heroExit = probe.heroExit;
-    const entry = probe.entry;
-    writeHeroSpan(probe, { start: 0, end: 812.5 } as ScrollTrigger);
-    writeEntrySpan(probe, { start: 1400, end: 1520 } as ScrollTrigger);
-    expect(probe.heroExit).toEqual({ start: 0, end: 812.5 });
-    expect(probe.entry).toEqual({ start: 1400, end: 1520 });
-    expect(probe.heroExit).toBe(heroExit);
-    expect(probe.entry).toBe(entry);
-
-    writeEntrySpan(probe, { start: Number.NaN, end: Number.POSITIVE_INFINITY } as ScrollTrigger);
-    expect(probe.entry).toEqual({ start: 0, end: 0 });
-  });
-
   it("copies Work's two spans: the work band as measured, the helix span's start moved up by the header", () => {
     const probe = createScrollProbe();
     const workSpan = probe.workSpan;
@@ -356,9 +312,9 @@ describe("scroll probe writes", () => {
 
   function buildStage(work = false) {
     const stage = document.createElement("div");
+    stage.setAttribute("data-scene-stage", "");
     stage.innerHTML = `
-      <div aria-hidden="true"><div data-scene-layer="" style="top: 72px"></div></div>
-      <div data-scene-anchor="hero"></div>`;
+      <div aria-hidden="true"><div data-scene-layer="" style="top: 72px"></div></div>`;
     if (work) {
       // Work.tsx: the heading block (a scroll reveal) right before the card track.
       stage.insertAdjacentHTML(
@@ -370,23 +326,19 @@ describe("scroll probe writes", () => {
     return stage;
   }
 
-  it("writes the stage and anchors in document pixels, then version++ and live", () => {
+  it("writes the stage in document pixels, then version++ and live", () => {
     const stage = buildStage();
     const probe = createScrollProbe();
     root().style.setProperty("--header-h", "71px");
     setScroll(3, 250);
     stubBox(stage, { left: 0, top: 100, width: 1280, height: 1600 });
-    stubBox(stage.querySelector('[data-scene-anchor="hero"]')!, {
-      left: 600,
-      top: -50,
-      width: 480,
-      height: 480,
-    });
     try {
       writeAnchors(probe, stage);
       expect(probe.stage).toEqual({ top: 350, bottom: 1950 });
-      expect(probe.hero).toEqual({ x: 603, y: 200, w: 480, h: 480 });
-      expect(probe.services).toBeNull();
+      // The probe holds Work's boxes and nothing else: no hero, services or service-page anchor.
+      expect(Object.keys(probe).sort()).toEqual(
+        ["headerH", "helix", "layerH", "live", "stage", "version", "work", "workGap", "workHead", "workSpan"].sort(),
+      );
       // No Work on this page: no track, no heading, no band above it.
       expect(probe.work).toBeNull();
       expect(probe.workHead).toBeNull();
@@ -396,11 +348,11 @@ describe("scroll probe writes", () => {
       expect(probe.live).toBe(true);
 
       // A second refresh updates the same box in place.
-      const hero = probe.hero;
+      const box = probe.stage;
       setScroll(3, 0);
       writeAnchors(probe, stage);
-      expect(probe.hero).toBe(hero);
-      expect(probe.hero).toEqual({ x: 603, y: -50, w: 480, h: 480 });
+      expect(probe.stage).toBe(box);
+      expect(probe.stage).toEqual({ top: 100, bottom: 1700 });
       expect(probe.version).toBe(2);
 
       releaseProbe(probe);
@@ -460,6 +412,43 @@ describe("scroll probe writes", () => {
     }
   });
 
+  it("measures the band above Work from the section before the STAGE when Work's own previous sibling is the canvas track", () => {
+    // The home page since 2026-10-28: main > Directions + stage > (canvas track, Work).
+    const main = document.createElement("main");
+    const directions = document.createElement("section");
+    directions.id = "servicii";
+    directions.style.paddingBottom = "36px";
+    main.append(directions);
+    const stage = buildStage(true);
+    main.append(stage);
+    document.body.append(main);
+    const probe = createScrollProbe();
+    root().style.setProperty("--header-h", "71px");
+    setScroll(0, 2000);
+    const head = stage.querySelector("#head")!;
+    const section = stage.querySelector("#lucrari")!;
+    // The canvas track is absolutely positioned over the whole stage: its bottom is the stage's.
+    stubBox(stage.firstElementChild!, { left: 0, top: 282, width: 1280, height: 3400 });
+    stubBox(stage, { left: 0, top: 282, width: 1280, height: 3400 });
+    stubBox(stage.querySelector("[data-work-track]")!, { left: 64, top: 540, width: 1152, height: 3100 });
+    stubBox(head, { left: 64, top: 330, width: 1152, height: 150 });
+    stubBox(directions, { left: 0, top: -800, width: 1280, height: 1034 });
+    stubBox(section, { left: 0, top: 282, width: 1280, height: 3400 });
+    try {
+      writeAnchors(probe, stage);
+      // From Directions' content end (2234 − 36) to the heading's top — not from Work's own top
+      // (2282), which is all the canvas track (whose bottom is the stage's) would have given.
+      expect(probe.workGap).toEqual({ x: 0, y: 2198, w: 1280, h: 132 });
+
+      // A stage with nothing before it: the band starts at Work's own top.
+      directions.remove();
+      writeAnchors(probe, stage);
+      expect(probe.workGap).toEqual({ x: 0, y: 2282, w: 1280, h: 48 });
+    } finally {
+      main.remove();
+    }
+  });
+
   it("reads the header height off the sticky layer when --header-h is not a plain px length", () => {
     const stage = buildStage();
     const probe: ScrollProbe = createScrollProbe();
@@ -467,7 +456,6 @@ describe("scroll probe writes", () => {
     try {
       writeAnchors(probe, stage);
       expect(probe.headerH).toBe(72);
-      expect(probe.hero).toEqual({ x: 0, y: 0, w: 0, h: 0 });
     } finally {
       stage.remove();
     }
@@ -476,7 +464,8 @@ describe("scroll probe writes", () => {
 
 /* ---- SceneDirector (real gsap + ScrollTrigger) ------------------------------------------ */
 
-type ResizeCallback = (entries: Array<{ contentRect: { height: number } }>) => void;
+/** A ResizeObserver report. `target` left out is one element of the test's choosing (the stage). */
+type ResizeCallback = (entries: Array<{ target?: Element; contentRect: { height: number } }>) => void;
 
 describe("SceneDirector", () => {
   let resize: ResizeCallback | null = null;
@@ -506,46 +495,30 @@ describe("SceneDirector", () => {
     vi.useRealTimers();
   });
 
-  /** The page around the stage: main > stage > (track > layer), #top with the hero layers, the services anchor. */
+  /**
+   * The home page around the stage (2026-10-28): main > Hero, Ticker, Directions — static art,
+   * OUTSIDE the stage — then the stage > (track > layer, Work), then a section below it.
+   */
   function buildPage() {
     const main = document.createElement("main");
     main.innerHTML = `
+      <section id="top"><div data-parallax="hero-backdrop"></div></section>
+      <div id="ticker"></div>
+      <section id="servicii"></section>
       <div data-scene-stage="" data-scroll-fx="off">
         <div aria-hidden="true"><div data-scene-layer=""></div></div>
-        <section id="top">
-          <div ${INTRO_REVEAL_ATTR}="grid"><div id="backdrop" data-parallax="hero-backdrop"></div>
-            <div data-scene-anchor="hero"></div></div>
-          <div id="stats" data-parallax="hero-stats"><div ${INTRO_REVEAL_ATTR}="stats"></div></div>
-          <div id="marker" data-parallax="hero-stats" ${INTRO_REVEAL_ATTR}="cta"></div>
-        </section>
-        <section id="servicii"><div data-scene-anchor="services"></div></section>
         <section id="lucrari"><div><div data-reveal=""></div><div data-work-track=""></div></div></section>
-      </div>`;
+      </div>
+      <section id="after"></section>`;
     document.body.append(main);
     const stage = main.querySelector<HTMLDivElement>("[data-scene-stage]")!;
-    return { main, stage, ref: { current: stage } };
+    const above = ["#servicii", "#ticker", "#top"].map((selector) => main.querySelector(selector)!);
+    return { main, stage, above, after: main.querySelector("#after")!, ref: { current: stage } };
   }
 
   function mountDirector(stage: { current: HTMLDivElement }, probe: ScrollProbe, onLive = vi.fn()) {
     const view = render(createElement(SceneDirector, { stage, probe, onLive }));
     return { ...view, onLive };
-  }
-
-  function matchParallaxMedia() {
-    const real = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: query === PARALLAX_MEDIA,
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    })) as typeof window.matchMedia;
-    return () => {
-      window.matchMedia = real;
-    };
   }
 
   it("measures on mount, announces live once, turns data-scroll-fx on, and leaves <html>/<body> unstyled", () => {
@@ -556,26 +529,21 @@ describe("SceneDirector", () => {
     expect(onLive).toHaveBeenCalledTimes(1);
     expect(probe.live).toBe(true);
     expect(probe.version).toBe(1);
-    expect(probe.hero).not.toBeNull();
-    expect(probe.services).not.toBeNull();
     expect(probe.work).not.toBeNull();
     expect(probe.workHead).not.toBeNull();
     expect(probe.workGap).not.toBeNull();
     expect(stage.getAttribute(SCENE_ATTR.scrollFx)).toBe("on");
-    // Four measurement triggers, no parallax (the media query does not match in jsdom): the hero
-    // exit, the services entry band the scene's timed gate arms over, Work's band (the work gate)
-    // and the span Work's spiral turns over.
+    // Two measurement triggers, both on Work's track: its band (the work gate) and the span the
+    // spiral turns over. Nothing on the hero (outside the stage, static art, no parallax).
     const triggers = ScrollTrigger.getAll();
-    expect(triggers).toHaveLength(4);
+    expect(triggers).toHaveLength(2);
     const track = stage.querySelector("[data-work-track]");
     expect(triggers.map((st) => [st.trigger, st.vars.start, st.vars.end])).toEqual([
-      [stage.querySelector("#top"), "top top", "bottom 35%"],
-      [stage.querySelector('[data-scene-anchor="services"]'), "top 90%", "top 75%"],
       [track, "top 70%", "top 55%"],
       [track, "top top", "bottom bottom"],
     ]);
     for (const st of triggers) expect(st.animation).toBeUndefined();
-    expect(gsap.getTweensOf("#backdrop, #stats")).toHaveLength(0);
+    expect(gsap.getTweensOf("[data-parallax]")).toHaveLength(0);
     expect(root().hasAttribute(INSTANT_SCROLL_ATTR)).toBe(false);
     expect(root().getAttribute("style")).toBeNull();
     expect(document.body.getAttribute("style")).toBeNull();
@@ -606,7 +574,7 @@ describe("SceneDirector", () => {
     const probe = createScrollProbe();
     const second = mountDirector(ref, probe);
     expect(start.mock.calls.some(([, ms]) => ms === 250)).toBe(true);
-    expect(ScrollTrigger.getAll()).toHaveLength(4);
+    expect(ScrollTrigger.getAll()).toHaveLength(2);
     expect(probe.live).toBe(true);
     act(() => ScrollTrigger.refresh());
     expect(probe.version).toBe(2);
@@ -628,44 +596,16 @@ describe("SceneDirector", () => {
     expect(root().hasAttribute(INSTANT_SCROLL_ATTR)).toBe(false);
   });
 
-  it("on a capable desktop, scrubs the two hero layers — never a marker — and reverts them on unmount", () => {
-    const restore = matchParallaxMedia();
-    try {
-      const { stage, ref } = buildPage();
-      const { unmount } = mountDirector(ref, createScrollProbe());
-
-      const backdrop = stage.querySelector("#backdrop")!;
-      const stats = stage.querySelector("#stats")!;
-      const marker = stage.querySelector("#marker")!;
-      const [backdropTween] = gsap.getTweensOf(backdrop);
-      const [statsTween] = gsap.getTweensOf(stats);
-      expect(gsap.getTweensOf(marker)).toHaveLength(0);
-      expect(backdropTween.vars).toMatchObject({ yPercent: 12, ease: "none", immediateRender: false });
-      expect(statsTween.vars).toMatchObject({ yPercent: -8, ease: "none", immediateRender: false });
-      for (const tween of [backdropTween, statsTween]) {
-        const trigger = tween.scrollTrigger!;
-        expect(trigger.trigger).toBe(stage.querySelector("#top"));
-        expect(trigger.vars).toMatchObject({ start: "top top", end: "bottom top", scrub: true });
-      }
-      expect(ScrollTrigger.getAll()).toHaveLength(6);
-      expect(marker.getAttribute("style")).toBeNull();
-
-      unmount();
-      expect(ScrollTrigger.getAll()).toHaveLength(0);
-      expect(gsap.getTweensOf([backdrop, stats])).toHaveLength(0);
-    } finally {
-      restore();
-    }
-  });
-
   it("refreshes when the stage changes height by 1px or more, debounced, and never on the first report", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const { main, stage, ref } = buildPage();
+    const { main, stage, above, after, ref } = buildPage();
     mountDirector(ref, createScrollProbe());
     const refresh = vi.spyOn(ScrollTrigger, "refresh").mockImplementation(() => {});
-    // The stage itself — never <main>, whose height also changes below the stage (review perf #4).
-    expect(observed).toEqual([stage]);
+    // The stage and every section before it — never <main>, whose height also changes below the
+    // stage (review perf #4), nor a section after the stage.
+    expect(observed).toEqual([stage, ...above]);
     expect(observed).not.toContain(main);
+    expect(observed).not.toContain(after);
 
     resize?.([{ contentRect: { height: 4000 } }]);
     vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS * 5);
@@ -682,6 +622,58 @@ describe("SceneDirector", () => {
     expect(refresh).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshes, debounced, when a section ABOVE the stage changes height — each element's first report is no change", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const { stage, above, ref } = buildPage();
+    const [directions, ticker, hero] = above;
+    mountDirector(ref, createScrollProbe());
+    const refresh = vi.spyOn(ScrollTrigger, "refresh").mockImplementation(() => {});
+
+    // The first report of every observed element is its size at observe time, even in one batch.
+    resize?.([
+      { target: stage, contentRect: { height: 4000 } },
+      { target: directions, contentRect: { height: 900 } },
+      { target: ticker, contentRect: { height: 60 } },
+      { target: hero, contentRect: { height: 800 } },
+    ]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS * 5);
+    expect(refresh).not.toHaveBeenCalled();
+
+    // Heights are kept per element: the stage's own 4000 does not make Directions' 900 a change,
+    // and sub-pixel drift of either is none.
+    resize?.([
+      { target: directions, contentRect: { height: 900.4 } },
+      { target: stage, contentRect: { height: 4000.6 } },
+    ]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS * 5);
+    expect(refresh).not.toHaveBeenCalled();
+
+    // Directions switched its art and grew 40px: Work moved down without the stage changing size.
+    resize?.([{ target: directions, contentRect: { height: 940 } }]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS - 1);
+    // …and the hero's font swap lands inside the same debounce: still one refresh.
+    resize?.([{ target: hero, contentRect: { height: 812 } }]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS - 1);
+    expect(refresh).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    // An element reporting for the first time after the others is no change either.
+    const late = document.createElement("div");
+    resize?.([{ target: late, contentRect: { height: 300 } }]);
+    vi.advanceTimersByTime(SCENE_TIMING.REFRESH_DEBOUNCE_MS * 5);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("a stage with nothing before it observes the stage alone", () => {
+    const main = document.createElement("main");
+    main.innerHTML = `<div data-scene-stage=""></div><section id="after"></section>`;
+    document.body.append(main);
+    const stage = main.querySelector<HTMLDivElement>("[data-scene-stage]")!;
+    mountDirector({ current: stage }, createScrollProbe());
+    expect(observed).toEqual([stage]);
   });
 
   it("skips that refresh when ScrollTrigger refreshed on its own after the change (a window resize)", () => {
@@ -842,7 +834,7 @@ describe("SceneDirector", () => {
     const onError = vi.fn();
     const props = { stage: ref, live: true, broken: false, onError };
     const view = render(createElement(StageHost, props));
-    expect(ScrollTrigger.getAll()).toHaveLength(4);
+    expect(ScrollTrigger.getAll()).toHaveLength(2);
     // Awake: ScrollTrigger's repaint loop asks for a frame every frame.
     expect(await framesRequestedOver(150)).toBeGreaterThan(2);
 
@@ -859,7 +851,7 @@ describe("SceneDirector", () => {
     // Back on the home page: awake again.
     view.unmount();
     const again = render(createElement(StageHost, props));
-    expect(ScrollTrigger.getAll()).toHaveLength(4);
+    expect(ScrollTrigger.getAll()).toHaveLength(2);
     expect(await framesRequestedOver(150)).toBeGreaterThan(2);
     again.unmount();
     await act(() => Promise.resolve());
@@ -890,8 +882,6 @@ describe("SceneDirector", () => {
     mountDirector(ref, probe);
     expect(probe.stage).toEqual({ top: 71, bottom: 1671 });
     const version = probe.version;
-    const heroExit = { ...probe.heroExit };
-    const entry = { ...probe.entry };
     const workSpan = { ...probe.workSpan };
     const helix = { ...probe.helix };
     const work = { ...probe.work! };
@@ -906,8 +896,6 @@ describe("SceneDirector", () => {
       act(() => ScrollTrigger.refresh());
       expect(probe.version).toBe(version);
       expect(probe.stage).toEqual({ top: 71, bottom: 1671 });
-      expect(probe.heroExit).toEqual(heroExit);
-      expect(probe.entry).toEqual(entry);
       expect(probe.workSpan).toEqual(workSpan);
       expect(probe.helix).toEqual(helix);
       expect(probe.work).toEqual(work);
@@ -1001,7 +989,7 @@ describe("SceneDirector", () => {
     }
   });
 
-  it("a page without the anchors still mounts: no triggers, the stage measured, live announced", () => {
+  it("a stage without Work's track still mounts: no triggers, the stage measured, live announced", () => {
     const main = document.createElement("main");
     main.innerHTML = `<div data-scene-stage=""></div>`;
     document.body.append(main);
@@ -1010,12 +998,9 @@ describe("SceneDirector", () => {
     const { onLive } = mountDirector({ current: stage }, probe);
 
     expect(ScrollTrigger.getAll()).toHaveLength(0);
-    expect(probe.hero).toBeNull();
-    expect(probe.services).toBeNull();
     expect(probe.work).toBeNull();
     expect(probe.workHead).toBeNull();
     expect(probe.workGap).toBeNull();
-    expect(probe.heroExit).toEqual({ start: 0, end: 0 });
     expect(probe.workSpan).toEqual({ start: 0, end: 0 });
     expect(probe.helix).toEqual({ start: 0, end: 0 });
     expect(onLive).toHaveBeenCalledTimes(1);

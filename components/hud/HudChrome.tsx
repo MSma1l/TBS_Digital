@@ -5,7 +5,6 @@ import { useEffect, useState, useSyncExternalStore, type ComponentType } from "r
 import { CONSENT_EVENT, getConsent } from "@/lib/consent";
 import { HUD_ARM_EVENTS, HUD_DESKTOP_MEDIA, readHudFlag } from "@/lib/hud/gate";
 import { afterIdle } from "@/lib/idle";
-import { onIntroGone } from "@/lib/intro";
 
 /**
  * The assistant (components/hud/guide): the avatar in the bottom-right corner, her greeting and
@@ -72,22 +71,16 @@ const ARM_LISTENER = { capture: true, passive: true } as const;
  *     `CONSENT_EVENT` instead, and that answer IS the interaction, so step 3 is skipped;
  *  3. the visitor's first `HUD_ARM_EVENTS` event on `window` (passive, capture). The listeners
  *     are removed the moment one fires;
- *  4. the intro overlay is gone (`onIntroGone`);
- *  5. an idle slot (`afterIdle(0)`).
+ *  4. an idle slot (`afterIdle(0)`).
  *
  * Returns the cancel: safe at any step, after `onArmed` ran, and twice.
  */
 function whenHudArmed(onArmed: () => void): () => void {
   if (readHudFlag() === "off") return () => {};
 
-  let stopIntro: () => void = () => {};
   let stopIdle: () => void = () => {};
-  // Two variables, not one: `onIntroGone` calls back synchronously when no intro is on screen,
-  // so the idle cancel is stored before the intro's (no-op) unsubscribe is returned.
   const afterInteraction = () => {
-    stopIntro = onIntroGone(() => {
-      stopIdle = afterIdle(0, onArmed);
-    });
+    stopIdle = afterIdle(0, onArmed);
   };
 
   const stopListening = () => {
@@ -114,7 +107,6 @@ function whenHudArmed(onArmed: () => void): () => void {
   return () => {
     window.removeEventListener(CONSENT_EVENT, onConsent);
     stopListening();
-    stopIntro();
     stopIdle();
   };
 }

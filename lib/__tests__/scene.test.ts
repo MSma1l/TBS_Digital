@@ -1,15 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { directions } from "@/lib/directions";
 import {
   GPU_PROBE_CACHE_KEY,
-  PARALLAX_LAYERS,
   SCENE_3D_KEY,
   SCENE_ATTR,
   SCENE_LAYOUT_EVENT,
-  SCENE_SHAPES,
   SCENE_TESTID,
-  SCENE_TIMING,
-  SERVICE_MODEL,
   WORK_ID,
   WORK_TRACK_ATTR,
   createScrollProbe,
@@ -19,22 +14,16 @@ import {
   readGpuFacts,
   readMotionGate,
   readSceneFlag,
-  readSceneInput,
   reasonFor,
-  resetSceneForTests,
   scrollProgress,
-  selectSceneShape,
-  selectServiceStage,
-  setSceneBoost,
-  shapeIndex,
-  subscribeSceneInput,
   writeGpuFacts,
   type GpuFacts,
 } from "@/lib/scene";
 
 /*
- * The interior stage contract (lib/scene.ts): storage, the WebGL decision, the scroll maths
- * and the page → scene input store. Pure or storage-only — no WebGL anywhere.
+ * The interior stage contract (lib/scene.ts): storage, the WebGL decision and the scroll maths.
+ * Pure or storage-only — no WebGL anywhere. (The page → scene input store went with the hero,
+ * Directions and service-page scene on 2026-10-28.)
  */
 
 const realMatchMedia = window.matchMedia;
@@ -59,7 +48,6 @@ class StubResizeObserver {
 }
 
 beforeEach(() => {
-  resetSceneForTests();
   sessionStorage.clear();
   localStorage.removeItem(SCENE_3D_KEY);
 });
@@ -255,19 +243,9 @@ describe("scrollProgress", () => {
       headerH: 0,
       layerH: 0,
       stage: { top: 0, bottom: 0 },
-      hero: null,
-      services: null,
       work: null,
       workHead: null,
       workGap: null,
-      panels: null,
-      panelsPitch: 0,
-      stats: [],
-      projects: null,
-      steps: null,
-      stepsPin: { start: 0, end: 0 },
-      heroExit: { start: 0, end: 0 },
-      entry: { start: 0, end: 0 },
       workSpan: { start: 0, end: 0 },
       helix: { start: 0, end: 0 },
     });
@@ -275,134 +253,19 @@ describe("scrollProgress", () => {
   });
 });
 
-describe("directions → models", () => {
-  it("SCENE_SHAPES are the direction slugs, in the Directions order", () => {
-    expect([...SCENE_SHAPES]).toEqual(directions.map((d) => d.slug));
-  });
-
-  it("maps every direction to its own model", () => {
-    expect(Object.keys(SERVICE_MODEL).sort()).toEqual([...SCENE_SHAPES].sort());
-    expect(new Set(Object.values(SERVICE_MODEL)).size).toBe(SCENE_SHAPES.length);
-    expect(SERVICE_MODEL).toEqual({
-      "produs-digital": "cubes",
-      "e-commerce": "commerce-loop",
-      "automatizare-api": "integration-hub",
-      "asistenti-ia": "neural",
-      "brand-ui": "mesh-wave",
-    });
-  });
-
-  it("shapeIndex takes current and legacy slugs, and -1 for anything else", () => {
-    SCENE_SHAPES.forEach((slug, i) => expect(shapeIndex(slug)).toBe(i));
-    expect(shapeIndex("ecommerce")).toBe(1);
-    expect(shapeIndex("ai")).toBe(3);
-    expect(shapeIndex("nope")).toBe(-1);
-    expect(shapeIndex("")).toBe(-1);
-  });
-});
-
-describe("the input store", () => {
-  it("starts idle on the first direction", () => {
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0, stage: -1 });
-  });
-
-  it("boosts while any CTA is active, and counts a wave on the rising edge only", () => {
-    setSceneBoost("hero-primary", true);
-    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0, stage: -1 });
-
-    // Moving to the other CTA without leaving the boost: no second wave.
-    setSceneBoost("hero-secondary", true);
-    setSceneBoost("hero-primary", false);
-    expect(readSceneInput()).toEqual({ boost: 1, waveSeq: 1, shape: 0, stage: -1 });
-
-    setSceneBoost("hero-secondary", false);
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 1, shape: 0, stage: -1 });
-
-    setSceneBoost("hero-primary", true);
-    expect(readSceneInput().waveSeq).toBe(2);
-  });
-
-  it("a repeated enter or leave from the same source changes nothing", () => {
-    setSceneBoost("hero-primary", true);
-    setSceneBoost("hero-primary", true);
-    expect(readSceneInput().waveSeq).toBe(1);
-    setSceneBoost("hero-secondary", false);
-    expect(readSceneInput().boost).toBe(1);
-  });
-
-  it("selects a shape by current or legacy slug, and ignores an unknown one", () => {
-    selectSceneShape("asistenti-ia");
-    expect(readSceneInput().shape).toBe(3);
-    selectSceneShape("brand");
-    expect(readSceneInput().shape).toBe(4);
-    selectSceneShape("nope");
-    expect(readSceneInput().shape).toBe(4);
-  });
-
-  it("holds the model on the step being read, and −1 releases it (a non-finite or negative step is none)", () => {
-    selectServiceStage(2);
-    expect(readSceneInput().stage).toBe(2);
-    // Floored, so a fractional step from a measurement never lands between two stages.
-    selectServiceStage(3.7);
-    expect(readSceneInput().stage).toBe(3);
-    for (const none of [-1, -5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      selectServiceStage(3);
-      selectServiceStage(none);
-      expect(readSceneInput().stage, String(none)).toBe(-1);
-    }
-  });
-
-  it("publishes a new frozen snapshot per change and notifies only on a change", () => {
-    const listener = vi.fn();
-    const unsubscribe = subscribeSceneInput(listener);
-    const before = readSceneInput();
-
-    selectSceneShape("produs-digital");
-    expect(listener).not.toHaveBeenCalled();
-    expect(readSceneInput()).toBe(before);
-
-    selectSceneShape("e-commerce");
-    expect(listener).toHaveBeenCalledTimes(1);
-    const after = readSceneInput();
-    expect(after).not.toBe(before);
-    expect(Object.isFrozen(after)).toBe(true);
-
-    unsubscribe();
-    setSceneBoost("hero-primary", true);
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-
-  it("resetSceneForTests forgets boosts, shape and subscribers", () => {
-    const listener = vi.fn();
-    subscribeSceneInput(listener);
-    setSceneBoost("hero-primary", true);
-    selectSceneShape("brand-ui");
-    resetSceneForTests();
-    expect(readSceneInput()).toEqual({ boost: 0, waveSeq: 0, shape: 0, stage: -1 });
-    setSceneBoost("hero-primary", true);
-    expect(listener).toHaveBeenCalledTimes(2);
-  });
-});
-
 describe("the DOM contract", () => {
   it("names the hooks the stage, the sections and the E2E suite share", () => {
-    expect(SCENE_TESTID).toEqual({
-      stage: "scene-stage",
-      hero: "scene-hero",
-      services: "scene-services",
-    });
+    expect(SCENE_TESTID).toEqual({ stage: "scene-stage" });
     expect(Object.values(SCENE_ATTR).every((name) => name.startsWith("data-"))).toBe(true);
     expect(new Set(Object.values(SCENE_ATTR)).size).toBe(Object.values(SCENE_ATTR).length);
-    // The services entrance as the scene draws it (the Directions panel's glow keys off it).
-    expect(SCENE_ATTR.entry).toBe("data-entry");
+    // The stage's contract: no hero, services or service-page hook is left on it.
+    expect(Object.keys(SCENE_ATTR)).toEqual(["renderer", "reason", "tier", "paused", "motion", "quality", "helix", "scrollFx"]);
     // Work's helix mode (spiral | ambient) and the card track the director measures it against.
     expect(SCENE_ATTR.helix).toBe("data-helix");
     expect(WORK_TRACK_ATTR).toBe("data-work-track");
     expect(WORK_ID).toBe("lucrari");
     // The scene tells the director it changed the layout itself (on the stage root).
     expect(SCENE_LAYOUT_EVENT).toBe("tbs:scene-layout");
-    expect(Object.keys(PARALLAX_LAYERS)).toEqual(["hero-backdrop", "hero-stats"]);
-    expect(SCENE_TIMING.AFTER_INTRO_MS).toBeGreaterThan(500);
   });
 });
 
@@ -428,8 +291,6 @@ describe("lib/scene without a DOM", () => {
     expect(() => scene.writeGpuFacts("strict", { context: true, software: false })).not.toThrow();
     expect(() => scene.markGpu("lost", "strict")).not.toThrow();
     expect(scene.readMotionGate()).toBe("unsupported");
-    expect(() => scene.setSceneBoost("hero-primary", true)).not.toThrow();
-    expect(scene.readSceneInput().boost).toBe(1);
   });
 });
 

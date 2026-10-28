@@ -1,38 +1,31 @@
 "use client";
 
 /**
- * The R3F side of the interior scene: creates the world once, builds and then compiles it in
- * idle slices, reports ready once the compiled scene has drawn two frames, and drives the world
- * every frame. After ready it builds Work's helix the same way (one slice, then one compile slice
- * per draw object) and hands the world Work's spiral driver (`workHelix.ts`), which lays the
- * project cards out round that helix. Everything imperative lives in `./three/*`, `./fx.ts` and
- * `./workHelix.ts`; this component only wires it to R3F and to the canvas's callbacks.
+ * The R3F side of the interior scene — since 2026-10-28 only Work's DNA helix: creates the world
+ * once, stages the helix (one idle slice to build it, then one compile slice per draw object),
+ * reports ready once the compiled helix has drawn two frames, and drives the world every frame. It
+ * hands the world Work's spiral driver (`workHelix.ts`), which lays the project cards out round
+ * that helix. Everything imperative lives in `./three/*`, `./fx.ts` and `./workHelix.ts`; this
+ * component only wires it to R3F and to the canvas's callbacks.
  */
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import { createFpsGovernor, sampleFrame, type GovernorStep } from "@/components/three/governor";
 import { useRetainedRenderer } from "@/components/three/hooks";
-import { mediaMatches } from "@/lib/device";
 import {
-  PROJECTS_TRACK_ATTR,
   SCENE_LAYOUT_EVENT,
-  STATS_GROUP_ATTR,
   SCENE_STAGE_ATTR,
   WORK_ID,
   WORK_TRACK_ATTR,
-  readSceneInput,
-  type SceneEntry,
   type SceneHelix,
   type ScrollProbe,
 } from "@/lib/scene";
-import { createChangeSignal, entryState, reportChange, type SceneFx } from "./fx";
-import { armReady, buildStaged, compileStaged, createReadySignal, tickReady } from "./three/compile";
+import type { SceneFx } from "./fx";
+import { armReady, createReadySignal, tickReady } from "./three/compile";
 import type { ScenePalette } from "./three/palette";
 import { createSceneWorld, stageHelix } from "./three/world";
 import { sceneGovernorOptions, type SceneCanvasTier } from "./tiers";
-import { createProjectsReel } from "./projectsReel";
-import { createStatCards } from "./statCards";
 import { createWorkHelixDriver } from "./workHelix";
 
 export type SceneWorldProps = {
@@ -46,82 +39,59 @@ export type SceneWorldProps = {
   fx: SceneFx;
   onReady(): void;
   onStep(step: GovernorStep): void;
-  onMorph(running: boolean): void;
-  /** Only on a change, from the first frame after ready (the first report is the current state). */
-  onEntry(state: SceneEntry): void;
   /** `built` once the helix compiled, then every mode the driver applies (`off` last). */
   onHelix(state: SceneHelix): void;
 };
 
-export function SceneWorld({
-  tier,
-  force3d,
-  palette,
-  lite,
-  skipDpr,
-  probe,
-  fx,
-  onReady,
-  onStep,
-  onMorph,
-  onEntry,
-  onHelix,
-}: SceneWorldProps) {
+export function SceneWorld({ tier, force3d, palette, lite, skipDpr, probe, fx, onReady, onStep, onHelix }: SceneWorldProps) {
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const camera = useThree((state) => state.camera);
 
   // Created once for the canvas's life (the tier never changes, a new palette is applied in
-  // place) as an empty root: its parts are built one idle slice at a time below.
+  // place) as an empty root: the helix is built into it in an idle slice below.
   const [world] = useState(() => createSceneWorld(tier, palette));
   const [ready] = useState(createReadySignal);
   const [governor] = useState(() => createFpsGovernor(sceneGovernorOptions(tier, force3d, skipDpr)));
-  const [morphSignal] = useState(() => createChangeSignal(false));
-  // Null: nothing reported yet, so the first frame after ready always says where the entrance is.
-  const [entrySignal] = useState(() => createChangeSignal<SceneEntry | null>(null));
-  const [coarse] = useState(() => mediaMatches("(pointer: coarse)"));
+  // A staging that threw is rethrown from render, so the stage's error boundary takes the scene
+  // down to the flat card grid: the helix is the only thing this canvas could have shown.
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
 
-  const callbacks = useRef({ onReady, onStep, onMorph, onEntry, onHelix });
+  const callbacks = useRef({ onReady, onStep, onHelix });
   useEffect(() => {
-    callbacks.current = { onReady, onStep, onMorph, onEntry, onHelix };
-  }, [onReady, onStep, onMorph, onEntry, onHelix]);
+    callbacks.current = { onReady, onStep, onHelix };
+  }, [onReady, onStep, onHelix]);
 
   useEffect(() => () => world.dispose(), [world]);
   useEffect(() => world.setPalette(palette), [world, palette]);
   useEffect(() => world.setLite(lite), [world, lite]);
   useRetainedRenderer(gl);
 
-  // Build, then compile, one piece per idle slice; then count drawn frames (below). Once the
-  // scene is ready to draw, the helix — never before, so it never delays the first picture.
+  /*
+   * The staged build IS the helix: built in an idle slice, compiled one draw object per slice and
+   * queued for its pre-warm frame — and only then is ready armed, so `onReady` means "the helix
+   * compiled and the canvas drew it twice". A page without Work's track (no projects to turn round
+   * it) has nothing to build: ready is armed at once and the canvas draws an empty root, which
+   * keeps the stage's pipeline (`data-renderer`) the same on every page.
+   */
   useEffect(() => {
     let cancelled = false;
     const options = { cancelled: () => cancelled };
-    void buildStaged(world, options)
-      .then((built) =>
-        built
-          ? compileStaged(gl, scene, camera, world.compileStages(), {
-              ...options,
-              compiled: (objects) => world.prewarm(objects),
-            })
-          : false,
-      )
-      .then((compiled) => {
-        if (!compiled || cancelled) return false;
+    // The same query as the driver effect below: no track, no driver, no helix to show.
+    const hasTrack = document.querySelector(`[${WORK_TRACK_ATTR}]`) !== null;
+    const staged = hasTrack ? stageHelix(world, gl, scene, camera, options) : Promise.resolve(true);
+    staged.then(
+      (built) => {
+        if (!built || cancelled) return;
         armReady(ready);
-        // no Work track on this page (a service page): no driver will ever show a helix, so it is
-        // neither built, compiled nor pre-warmed (the same query as the driver effect below)
-        if (!document.querySelector(`[${WORK_TRACK_ATTR}]`)) return false;
-        return stageHelix(world, gl, scene, camera, options);
-      })
-      .then(
-        (helixBuilt) => {
-          if (helixBuilt && !cancelled) callbacks.current.onHelix("built");
-        },
-        (error: unknown) => {
-          // The helix (or a part after ready) failed to build: the cards stay as they are.
-          if (!cancelled) console.error("3D scene: the Work helix was not built", error);
-        },
-      );
+        if (hasTrack) callbacks.current.onHelix("built");
+      },
+      (error: unknown) => {
+        if (cancelled) return;
+        console.error("3D scene: the Work helix was not built", error);
+        setFailure({ error });
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -150,45 +120,17 @@ export function SceneWorld({
     return () => world.attachWork(null);
   }, [world, probe]);
 
-  // A service page's projects reel, for the scene's whole life: it turns the number the page
-  // wrote on the grid into the card the display is composed from, and the world disposes it. It
-  // never lays a card out differently — the grid stays exactly what React rendered, which is what
-  // keeps it the fallback wherever the machine is not there.
-  useEffect(() => {
-    const grid = document.querySelector<HTMLElement>(`[${PROJECTS_TRACK_ATTR}]`);
-    if (!grid) return;
-    world.attachProjects(createProjectsReel({ grid }));
-    return () => world.attachProjects(null);
-  }, [world]);
-
-  // The hero's metric cards, for the scene's whole life: the stat panels compose their faces from
-  // the cards the page rendered, so the number in the scene is the number in the DOM — counted
-  // from the real portfolio, in the visitor's language — and nothing is written twice. The cards
-  // are never laid out differently; `app/globals.css` only takes their paint away where a panel
-  // is really drawn, which is what keeps them the fallback everywhere else.
-  useEffect(() => {
-    const group = document.querySelector<HTMLElement>(`[${STATS_GROUP_ATTR}]`);
-    if (!group) return;
-    world.attachStats(createStatCards({ group }));
-    return () => world.attachStats(null);
-  }, [world]);
-
   useFrame((state, dt) => {
-    // Ready from inside the frame loop: the canvas really drew the compiled scene — never from
+    // Ready from inside the frame loop: the canvas really drew the compiled helix — never from
     // a timer that also ticks while the canvas is paused off screen.
     if (tickReady(ready)) callbacks.current.onReady();
-    if (!world.complete()) return;
-    world.update(dt, window.scrollY, state, coarse, probe, readSceneInput(), fx);
-    const morph = reportChange(morphSignal, world.morphRunning());
-    if (morph !== null) callbacks.current.onMorph(morph);
-    // The entrance as drawn — only once the scene is ready, so no glow keys off an invisible canvas.
-    if (ready.fired) {
-      const entry = reportChange(entrySignal, entryState(fx.entry.value));
-      if (entry !== null) callbacks.current.onEntry(entry);
-    }
+    world.update(dt, window.scrollY, state, probe, fx);
+    // The governor judges the scene once it is staged: the compile slices are not its frames.
+    if (!ready.armed) return;
     const next = sampleFrame(governor, dt);
     if (next) callbacks.current.onStep(next);
   });
 
+  if (failure) throw failure.error;
   return <primitive object={world.root} />;
 }

@@ -5,18 +5,16 @@ import { renderToString } from "react-dom/server";
 import { HudChrome, useHudArmed } from "@/components/hud/HudChrome";
 import { CONSENT_EVENT, CONSENT_KEY, setConsent } from "@/lib/consent";
 import { HUD_ARM_EVENTS, HUD_DESKTOP_MEDIA, HUD_FLAG_KEY } from "@/lib/hud/gate";
-import { INTRO_OVERLAY_ID, markIntroGone, resetIntroForTests } from "@/lib/intro";
 
 /*
  * The HUD chrome's single mount (components/hud/HudChrome.tsx) and its arming gate, in order:
  * the tbs_hud QA switch → an answered cookie banner (its answer counts as the interaction) →
- * the first interaction on window → the intro overlay gone → an idle slot. Nothing renders
+ * the first interaction on window → an idle slot. Nothing renders
  * before that; after it, the parts do (Phase 4: the Ghid TBS guide; Phase 5: the fibre rail,
  * only while the desktop media query matches).
  *
  * `afterIdle` is mocked to a manual queue, so a test sees exactly when the gate asked for the
- * idle slot and opens it by hand. The intro is the real lib/intro.ts: "on screen" is the
- * overlay root in the document until `markIntroGone`. The guide and the rail are stub parts
+ * idle slot and opens it by hand. The guide and the rail are stub parts
  * (their own behaviour is guide-assistant.test.tsx and scroll-rail.test.tsx): what is pinned here
  * is that HudChrome mounts them through `next/dynamic` once the gate is open, and never before.
  */
@@ -122,13 +120,6 @@ function runIdle() {
 
 const answerConsent = () => localStorage.setItem(CONSENT_KEY, "rejected");
 
-function mountIntroOverlay(): HTMLElement {
-  const el = document.createElement("div");
-  el.id = INTRO_OVERLAY_ID;
-  document.body.appendChild(el);
-  return el;
-}
-
 function fire(type: string, target: EventTarget = window) {
   act(() => {
     target.dispatchEvent(new Event(type));
@@ -144,12 +135,9 @@ beforeEach(() => {
   h.railUnmounts = 0;
   localStorage.clear();
   document.cookie = `${CONSENT_KEY}=;path=/;max-age=0`;
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
-  resetIntroForTests();
 });
 
 afterEach(() => {
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
   localStorage.clear();
 });
 
@@ -394,35 +382,6 @@ describe("the gate, in order", () => {
     }
   });
 
-  it("intro overlay on screen: the interaction waits for it to be gone", () => {
-    answerConsent();
-    const overlay = mountIntroOverlay();
-    const { result } = renderHook(() => useHudArmed());
-
-    fire("pointerdown");
-    expect(h.idle, "no idle slot while the intro covers the page").toHaveLength(0);
-
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(h.idle.map((entry) => entry.ms)).toEqual([0]);
-    expect(result.current).toBe(false);
-
-    runIdle();
-    expect(result.current).toBe(true);
-  });
-
-  it("the consent path waits for the intro too", () => {
-    const overlay = mountIntroOverlay();
-    const { result } = renderHook(() => useHudArmed());
-
-    act(() => setConsent("rejected"));
-    expect(h.idle).toHaveLength(0);
-
-    overlay.remove();
-    act(() => markIntroGone());
-    runIdle();
-    expect(result.current).toBe(true);
-  });
 });
 
 describe("listeners", () => {
@@ -469,16 +428,8 @@ describe("listeners", () => {
     expect(h.idle).toHaveLength(0);
   });
 
-  it("unmounting while the intro is on screen, or before the idle slot, cancels that step", () => {
+  it("unmounting before the idle slot cancels that step", () => {
     answerConsent();
-    const overlay = mountIntroOverlay();
-    const first = renderHook(() => useHudArmed());
-    fire("pointermove");
-    first.unmount();
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(h.idle, "the intro listener went with the unmount").toHaveLength(0);
-
     const second = renderHook(() => useHudArmed());
     fire("pointermove");
     expect(h.idle).toHaveLength(1);

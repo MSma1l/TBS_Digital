@@ -2,12 +2,6 @@
   /* Side padding matches the site-wide `.section` rule. Without it the hero copy, the
      action bar and the project cards touched the viewport edge on phones. */
   padding: clamp(28px, 4vw, 52px) clamp(16px, 4vw, 40px) clamp(60px, 8vw, 100px);
-  /* The interior stage (components/scene/SceneStage.tsx) wraps this page, and its canvas
-     track is an absolutely positioned first child. A positioned `z-index: auto` element
-     paints above the in-flow content of NON-positioned siblings, so without this the model
-     would be drawn over the h1 and the copy. Positioned, the page paints above the track.
-     Position only — a transform, filter, contain or overflow here would break the stage's
-     sticky layer and flatten its depth (docs/07-conventions.md). */
   position: relative;
 }
 
@@ -41,9 +35,6 @@
      as the taller of the two columns. The two columns never overlap horizontally, and the
      model's vertical overhang has the hero's own padding to spill into. */
   align-items: center;
-  /* The bottom padding is the old value plus the room the card used to give the model's
-     overhang; the model is drawn bigger than its host and lifted (components/scene/
-     choreography.ts), and without it the action bar's hairline ran through the model. */
   padding: clamp(36px, 6vw, 72px) 0 clamp(44px, 5vw, 72px);
 }
 
@@ -182,13 +173,10 @@
   font-size: var(--fs-md);
 }
 
-/* ---------- hero right column: the 3D model ----------
-   The slot the WebGL canvas is aimed at (`data-scene-anchor="services"`), and the box the
-   static drawing fills (ServiceArt's svg is `position: absolute; inset: 0`). Transparent by
-   design: the canvas draws on the stage's sticky layer BEHIND the page, so any background
-   here would hide the model. No overflow — the model may spill past this box. Since the
-   reference card moved out it is the hero's whole right column, and its WIDTH is what sizes
-   the model, so it must keep measuring a real box. */
+/* ---------- hero right column: the direction's drawing ----------
+   The box the static drawing fills (components/art/ServiceArt — its svg is `position:
+   absolute; inset: 0`). Since the reference card moved out it is the hero's whole right
+   column. */
 .modelHost {
   position: relative;
   min-height: clamp(240px, 26vw, 320px);
@@ -199,25 +187,16 @@
    The home page's Directions panel, in a CSS Module: the edge lights in the direction's
    accent the first time the panel is seen, and one band of light crosses it, once. Both
    hang off `data-entered`, which an IntersectionObserver writes on the panel and never
-   takes away (DirectionPage.tsx) — nothing here is tied to the scene, because a service
-   page's panels are read long after the model has formed.
-   No `backdrop-filter`, no blur, no `filter`: the stage's canvas is under this page. */
-/* Three equal columns and one gap, at every width down to the stacking breakpoint: the row
-   carries `data-scene-anchor="panels"` and the scene fits THIRDS of this one rect, so the
-   columns must stay equal. With `gap: 14px` a third of the row is 14/3 ≈ 4.67px wider than a
-   panel, which is the only offset between a third's centre and its panel's centre. */
+   takes away (DirectionPage.tsx).
+   No `backdrop-filter`, no blur, no `filter`. */
+/* Three equal columns and one gap, at every width down to the stacking breakpoint. */
 .highlights {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
 /* The panel is the FRAME: the border, the radius, the entrance glow, the hover lift and the
-   pointer lean. It paints no fill of its own any more — `--panel` moved down to `.hlBody`,
-   so the instrument window at the bottom has nothing opaque between it and the scene's
-   canvas, which draws BEHIND the page (same move as `.steps` / `.stepsCard`).
-   `overflow: clip` moved down with the fill, for the same reason: it was clipping the sweep
-   band (which travels a full panel width either side) and the ghost index, and both live in
-   the body — while a clipping ancestor of the window is exactly what must not exist. */
+   pointer lean. Its fill, padding and `overflow: clip` live on `.hlBody`. */
 .highlight {
   position: relative;
   display: flex;
@@ -440,88 +419,6 @@
   opacity: 1;
 }
 
-/* ---------- the instrument window ----------
-   The panel's bottom bay, and the row's one see-through surface. The scene's canvas draws
-   BEHIND the page, so a window here is simply a box that paints no fill: `.hlBody` keeps
-   `--panel` above it, the article's border frames it, and between this box and the canvas
-   there is nothing at all.
-   It is flush to the panel's inner edges — left, right and foot — and exactly 96px tall, so
-   the three windows are the bottom 96px of the row's rect (inside its 1px border) and the
-   scene can find them from the row's one anchor.
-   It is its own box with its own chrome, so it reads as an instrument window and not as a
-   hole the background leaks through — the same treatment as the home page's HUD screen
-   (components/sections/Directions.tsx): a rule across its head, brightest at the middle, two
-   guide rails hanging off its ends, and two corner brackets at its foot in the same language
-   as the panel's own. Every one of them is a 1px line and the interior is never painted.
-   No transform, no filter, no `contain`, no clipping overflow — here or on anything between
-   here and the stage (docs/07-conventions.md). */
-.hlWindow {
-  /* Laid out only where a model can really arrive — the gate is at the bottom of the file,
-     with the rest of the responsive rules. */
-  display: none;
-  position: relative;
-  /* 96px, not the 62px this bay opened at. These objects are drawn ADDITIVELY and their glow
-     carries about half as far again as their geometry — the lit box is ±0.65 model units
-     against the ±0.42 they are authored to — so the fit has to be made against the lit
-     pixels, not the bounds, or the light spills past the bay's outline. Fitted that way a
-     62px bay only buys 38.5px per model unit; 96px buys 65px/unit, which is the size the
-     objects were approved at, and still leaves ~6px of air for the glow at the top and foot.
-     It costs the panel 34px of height and nothing else: the copy's own box is untouched, and
-     the row's spacing comes from the action bar above and `.cases` below, neither of which
-     is keyed to the panel's height. */
-  flex: 0 0 96px;
-  height: 96px;
-  /* the panel's inner radius, so the bay's foot follows the card's corners */
-  border-radius: 0 0 18px 18px;
-  /* Three 1px lines as background LAYERS rather than elements: the head rule at full width,
-     and a guide rail under each of its ends. Every layer is `no-repeat` with an explicit 1px
-     side, so no layer is ever a fill. The rails are 20px in a 96px bay (they were 14px in a
-     62px one): the same fifth of its height, so the bay still reads as an instrument frame
-     rather than an empty tray. */
-  background:
-    linear-gradient(90deg, transparent, var(--sol-accent, var(--blue)), transparent) no-repeat
-      top center / 100% 1px,
-    linear-gradient(
-        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
-        transparent
-      )
-      no-repeat top left 11px / 1px 20px,
-    linear-gradient(
-        color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent),
-        transparent
-      )
-      no-repeat top right 11px / 1px 20px;
-  opacity: 0;
-  transition: opacity 0.5s var(--motion-ease-out);
-  /* on the beat: the bay opens with this panel's pulse, not with the row */
-  transition-delay: calc(var(--step) * 620ms + 120ms);
-}
-/* The brackets at the window's foot, on the same 11px gutter as the guide rails above them,
-   so the two read as one frame the eye completes down the bay's sides. 16px arms in a 96px
-   bay (13px in the 62px one), nowhere near the 8px the dot rule is about, and no radius on
-   either of them. */
-.hlWindow::before,
-.hlWindow::after {
-  content: "";
-  position: absolute;
-  bottom: 11px;
-  width: 16px;
-  height: 18px;
-  border: 0 solid color-mix(in srgb, var(--sol-accent, var(--blue)) 55%, transparent);
-  border-bottom-width: 1px;
-}
-.hlWindow::before {
-  left: 11px;
-  border-left-width: 1px;
-}
-.hlWindow::after {
-  right: 11px;
-  border-right-width: 1px;
-}
-.highlight[data-entered] .hlWindow {
-  opacity: 1;
-}
-
 @media (prefers-reduced-motion: no-preference) {
   .highlight[data-entered] .hlCircuit::before,
   .highlight[data-entered] .hlCorner,
@@ -614,8 +511,7 @@
   }
 }
 /* The lean: `usePointerTilt` writes the angles and `data-tilting` on the panel itself, for a
-   mouse on a fine pointer only. Transform only — nothing blurs, nothing re-samples the
-   canvas. Declared after `:hover` (equal specificity) so a tilting panel keeps its lean. */
+   mouse on a fine pointer only. Transform only — nothing blurs. Declared after `:hover` (equal specificity) so a tilting panel keeps its lean. */
 .highlight[data-tilting] {
   transition-duration: 0.15s;
   transform: perspective(1000px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
@@ -630,33 +526,6 @@
   color: var(--mut);
   line-height: 1.5;
   margin: 0;
-}
-
-/* ---------- where the bay is actually opened ----------
-   Two conditions, both of them layout facts rather than cues.
-
-   861px, the site's desktop breakpoint: below it the row stacks into ONE column (the rule at
-   the bottom of this file), and a scene that fits thirds of the row's rect has nothing to
-   fit — so the anchor is not written either (DirectionPage.tsx), and the panels close up.
-
-   The renderer, gated exactly as the steps corner is, `:global()` shape included, and with
-   the same call on `pending`: reserving the bay while WebGL is still being decided costs
-   nothing on the path that ends up using it (`pending` → `webgl` is byte-identical), while
-   `fallback` and `off` — no usable WebGL, the QA flag off, reduced motion — never get an
-   empty frame with nothing behind it. Closed up the panel is 96px shorter and is exactly the
-   card it has always been: the circuit, the node, both brackets and the ghost index are all
-   still there, so nothing reads as a picture that failed to load. */
-@media (min-width: 861px) {
-  :global([data-scene-stage][data-renderer="webgl"]) .hlWindow,
-  :global([data-scene-stage][data-renderer="pending"]) .hlWindow {
-    display: block;
-  }
-  /* The body's foot goes square where the bay starts, so the two boxes meet on one line and
-     the panel still has exactly four rounded corners. */
-  :global([data-scene-stage][data-renderer="webgl"]) .hlBody,
-  :global([data-scene-stage][data-renderer="pending"]) .hlBody {
-    border-radius: 18px 18px 0 0;
-  }
 }
 
 /* ---------- labelled cases ----------
@@ -841,8 +710,7 @@
 /* ---------- the shelf's frame ----------
    The section read as ONE object rather than N decorated slabs: a rule across its head with a
    guide rail hanging off each end, and a bracket at the bottom right that closes only after
-   the last window has landed (`--card-count` below). Built from `.hlWindow`'s own recipe
-   (:466-468) — 1px background LAYERS, each `no-repeat` with an explicit 1px side, so no layer
+   the last window has landed (`--card-count` below). Built from 1px background LAYERS, each `no-repeat` with an explicit 1px side, so no layer
    is ever a fill — and animated with `corner-tl` / `corner-br`, already declared at :570/:580.
    The head rule lives on `::before` rather than on `.projectGrid`'s own background: a
    background paints inside the border box only, so a layer at `top -10px` would be clipped
@@ -920,13 +788,7 @@ a.project:hover {
    a 28px title bar carrying the project's own tag, a 12px square ring for its mark, and the
    capture itself as the glass — never a picture with a frame drawn over it.
 
-   It is drawn in the INTERIOR SCENE'S material language, in CSS. What that language actually
-   is, read off the models: every solid in the scene is a box drawn by `SURFACE_MODE.edges`
-   (components/scene/three/materials.ts) — a lit 1px edge, a face at 0.035 strength, a 0.05
-   fresnel rim, no radius, no light and no shadow, composited ADDITIVELY on near-black; and the
-   scene's one screenshot surface, the Work hologram, is the capture under a square-wave
-   scanline comb inside a hairline frame (the `holo` branch of the same shader).
-   So, here: a 1px accent ring and a halo of ADDED light instead of a drop shadow, hard corners
+   The HUD's material language, in CSS: a 1px accent ring and a halo of ADDED light instead of a drop shadow, hard corners
    instead of a fillet (a BoxGeometry has no fillet, and every bracket in this module is drawn
    square), flat token fills instead of any gradient pretending to be a surface, and the glass
    under a scanline comb. No texture image, no metal, no bevel, no blur, no `filter`. */
@@ -945,9 +807,7 @@ a.project:hover {
   overflow: clip;
   border-radius: 0;
   background: var(--panel2);
-  /* The edge and its halo: light ADDED to the page, the way the scene draws. Deliberately not
-     `--sh-md` — the scene carries no lights and casts no shadows, so a soft drop shadow would
-     be the one realistic thing in the whole object. */
+  /* The edge and its halo: light ADDED to the page, deliberately not `--sh-md`. */
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--sol-accent, var(--blue)) 34%, transparent),
     0 0 22px color-mix(in srgb, var(--sol-accent, var(--blue)) 10%, transparent);
@@ -1143,179 +1003,16 @@ a.project:hover {
   overflow: hidden;
 }
 
-/* ---------- the machine's stage ----------
-   Where the 3D laptop can really arrive, "Proiecte relevante" is not a grid of cards and not a
-   machine with a caption beside it: it IS the machine. The projects run on its display on their
-   own and everything a visitor reads is drawn into the screen's own texture, at the texture's
-   native resolution, by components/scene/three/hologram.ts `composeLaptopScreen`.
-
-   The grid below is still rendered and still the content — CSS chooses which of the two shapes is
-   laid out, the same way the panels' bay and the steps corner are chosen (:637-648, :1203-1213).
-   Below 861px and on `fallback` / `off` this stage is `display: none` and the grid is exactly the
-   one we shipped.
-
-   The window has no fill and no chrome that paints: the canvas draws behind the page, and between
-   this box and it there is nothing. `aspect-ratio` rather than a height, because the object the
-   scene fits is 1.82 x 1.30 in model units (components/scene/choreography.ts `LAPTOP_LIT`) and a
-   1.42 : 1 box is the one where the width and the height run out at the same moment. With the
-   copy column gone the window can take the section's whole width; `max-width` stops it before the
-   height (which is what a viewport really limits) leaves half of it empty. */
-.projStage {
-  /* Laid out only where the machine can really arrive — the gate is at the foot of this block. */
-  display: none;
-  justify-items: center;
-}
-.projScreen {
-  position: relative;
-  width: 100%;
-  max-width: 860px;
-  aspect-ratio: 1.42 / 1;
-  max-height: 72vh;
-  margin-inline: auto;
-  /* No chrome. The window carried a head rule and four bracket arms in the module's usual recipe;
-     the client asked for them off, and they were the one thing framing a machine that already
-     draws its own edges. The box still exists — it is what the scene measures and what the
-     screen's hit area is derived from — it simply paints nothing. Do not give it a background,
-     a border or a shadow: anything opaque here would hide the canvas behind it. */
-  opacity: 0;
-  transition: opacity 0.6s var(--motion-ease-out);
-}
-.projStage[data-entered] .projScreen {
-  opacity: 1;
-}
-
-/* ---------- the display's hit area ----------
-   A real element over the part of the window the screen is drawn in — the box comes from
-   `laptopScreenBox`, the same fit the scene places the machine with, so it follows the display at
-   every width instead of guessing at it. It paints NOTHING: the canvas is behind this box and an
-   opaque target would hide the very screen it is on. The only thing it ever draws is a FOCUS RING:
-   a hover line over the display read as a blue box floating on the picture, so the affordance is
-   the pointer and the call the screen itself draws in its footer, not a rule around the glass. */
-.projHit {
-  position: absolute;
-  display: block;
-  min-width: 44px;
-  min-height: 44px;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  outline-offset: 4px;
-  -webkit-tap-highlight-color: transparent;
-}
-a.projHit {
-  cursor: pointer;
-}
-a.projHit:focus-visible,
-span.projHit:focus-visible {
-  outline: 2px solid var(--cyan);
-}
-
-/* ---------- the same projects, for everyone the picture cannot reach ----------
-   The machine's alt text: the names, the tags, the descriptions and the links, in reading order,
-   for a screen reader, a search engine or a text browser. Hidden the standard way — a 1px box the
-   painter clips away — and NEVER with `display: none`, which would take it out of the
-   accessibility tree too and leave the section with no content at all.
-
-   It un-hides itself on `:focus-within`, so a visitor who tabs into it sees where they are rather
-   than chasing a focus ring around an invisible list. */
-.projList {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-.projList:focus-within {
-  position: static;
-  width: 100%;
-  max-width: 860px;
-  height: auto;
-  margin: var(--sp-4) 0 0;
-  overflow: visible;
-  clip-path: none;
-  white-space: normal;
-}
-.projList h3 {
-  font-size: var(--fs-md);
-  color: var(--txt);
-  margin: 0 0 var(--sp-2);
-}
-.projList ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--mut);
-  line-height: 1.6;
-  font-size: var(--fs-md);
-}
-.projList li + li {
-  margin-top: var(--sp-2);
-}
-.projList b {
-  color: var(--txt);
-}
-.projList a {
-  color: var(--txt);
-  text-decoration: underline;
-}
-.projList a:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 2px;
-}
-
-/* The accessible name of the display's link: read, never painted. Same recipe as the list. */
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* A laptop screen and a laptop-sized viewport are the same thing: leave the page some room. */
-@media (max-width: 1024px) {
-  .projScreen {
-    max-height: 58vh;
-  }
-}
-
-/* ---------- where the stage is actually opened ----------
-   The two conditions the panels' bay uses, unchanged: the site's desktop breakpoint (the
-   `data-scene-anchor` is not written below it either) and a renderer that really draws. `pending`
-   is deliberately NOT here — unlike an empty bay, swapping the section's whole shape before WebGL
-   is certain would take the cards away and hand them back. */
-@media (min-width: 861px) {
-  :global([data-scene-stage][data-renderer="webgl"]) .projStage {
-    display: grid;
-  }
-  :global([data-scene-stage][data-renderer="webgl"]) .projectGrid {
-    display: none;
-  }
-}
-
 /* ---------- steps ----------
-   The section the visitor reads to understand how the work runs — and, since 2026-09-18, the
-   section that drives the model in the hero: the row in the middle third of the viewport is
-   the stage the world holds (DirectionPage.tsx reports its index to `selectServiceStage`). */
-/* The section is LAYOUT ONLY — no background, no padding, nothing painted. The scene's canvas
-   draws behind the page, so an opaque fill here would cover the corner host's column and the
-   model aimed at it (an `elementsFromPoint` at the host's centre used to come back with this
-   section on top). Everything visible is on `.stepsCard`. */
+   The section the visitor reads to understand how the work runs: the row crossing the reading
+   line lights (DirectionPage.tsx). The section is layout only; everything visible is on
+   `.stepsCard`. */
 .steps {
   position: relative;
   margin-top: 60px;
 }
-/* The card itself, unchanged in every respect that was measured: the `--ink` surface, the
-   24px radius, the 36px padding and the white copy on it. It simply no longer spans the
-   host's column on a WebGL desktop — it is the section's only child, full width, everywhere
-   else. */
+/* The card itself: the `--ink` surface, the 24px radius, the 36px padding and the white copy
+   on it — the section's only child, full width. */
 .stepsCard {
   position: relative;
   overflow: hidden;
@@ -1341,55 +1038,6 @@ span.projHit:focus-visible {
   align-items: start;
 }
 
-/* ---------- the corner the model comes to while the steps are read ----------
-   `data-scene-anchor="steps"`: an empty box the scene fits the model into, in its own grid
-   column, so it covers no step at any width. It sticks under the header for the length of
-   the section — its sticky containing block is its grid area, which spans the heading and
-   the rows, so it travels exactly as far as there is a step left to read and leaves with the
-   section. It is only in the DOM from 861px up (DirectionPage.tsx), and the column is
-   reserved at that width whether or not it has been rendered yet, so nothing shifts when it
-   appears. Square, 200–260px, and it must keep measuring a real box: the scene scales the
-   model to its short side. */
-/* The corner is only laid out where a model can really arrive: on the `fallback` and `off`
-   renderers — no usable WebGL, the QA flag off — the host is not laid out at all and the
-   steps keep the panel's full width. Same gate, and the same `:global()` shape, as
-   `ServiceArt.module.css` uses to cross-fade the static drawing out.
-
-   `pending` is on the RESERVED side on purpose, and it is the opposite call from the entry
-   glow (docs/04: a glow must never light under `pending`, which may still be taken away).
-   The difference is that this is a layout guess, not a cue: measured on the real page at
-   1280 and 1024 with the section already in view, gating on `webgl` alone moved the steps
-   282px wide the moment the stage resolved — a visible reflow on the path that ends up
-   using the column. Guessing "reserved" costs nothing on that path (`pending` → `webgl` is
-   now byte-identical), and the devices that will never draw a model still get their full
-   width back when the stage settles on `fallback`/`off`. Nothing is shown early either way:
-   the host is empty until the scene puts something in it. */
-.stepsModelHost {
-  display: none;
-}
-@media (min-width: 861px) {
-  /* Two columns: the card, and the transparent window the model is drawn in. The window is a
-     real grid column rather than a hole cut in the card, so the card keeps one unbroken
-     rounded edge and there is no seam to hide when the column is not there. */
-  :global([data-scene-stage][data-renderer="webgl"]) .steps,
-  :global([data-scene-stage][data-renderer="pending"]) .steps {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(200px, 19vw, 260px);
-    column-gap: clamp(24px, 3vw, 44px);
-    align-items: start;
-  }
-  :global([data-scene-stage][data-renderer="webgl"]) .stepsModelHost,
-  :global([data-scene-stage][data-renderer="pending"]) .stepsModelHost {
-    display: block;
-    grid-column: 2;
-    align-self: start;
-    position: sticky;
-    top: calc(var(--header-h) + var(--sp-5));
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    pointer-events: none;
-  }
-}
 /*
  * THREE PANELS ABREAST, not a list of three lines.
  *
@@ -1885,14 +1533,9 @@ span.projHit:focus-visible {
   .hero {
     grid-template-columns: 1fr;
     padding: 40px 0;
-    /* Stacked, the model's host sits directly under the intro — and the scene draws the model
-       BIGGER than its host and lifted towards the canvas centre (components/scene/choreography.ts:
-       the box is the host's short side against `SERVICES_BOX_ASPECT`, then the services parallax
-       moves it), so it overhangs the host's top edge by ~60px on a phone. Measured at 390px on
-       the tallest of the five intros: at the 50px desktop gap the model painted over the last
-       lines of the copy. This gap is the room that overhang needs — it is not empty space, it
-       is where the top of the model floats. */
-    gap: clamp(104px, 30vw, 136px);
+    /* Stacked, the drawing's host sits directly under the intro. The static drawing stays
+       inside its box (the 3D model it stood in for overhung it), so a normal gap will do. */
+    gap: 32px;
     /* Stacked there is no shorter column to centre against, and `center` on a single-column
        grid would only fight the gap above. */
     align-items: start;
@@ -1986,11 +1629,9 @@ span.projHit:focus-visible {
     padding: 26px 20px;
   }
   .modelHost {
-    /* The host's width is what sizes the model, its height how much of the overhang it absorbs.
-       Capped and centred so a phone-wide column does not blow the model up into the copy.
-       `justify-self`, not `margin-inline: auto` — an auto inline margin makes a grid item
-       shrink-to-fit, and the host's only child is absolutely positioned, so it would measure
-       zero wide and the scene would scale the model to nothing. */
+    /* Capped and centred so a phone-wide column does not blow the drawing up. `justify-self`,
+       not `margin-inline: auto` — an auto inline margin makes a grid item shrink-to-fit, and
+       the host's only child is absolutely positioned, so it would measure zero wide. */
     width: 100%;
     max-width: 320px;
     min-height: 260px;
@@ -2039,11 +1680,8 @@ span.projHit:focus-visible {
     transition: none;
   }
   /* The panels are simply lit: no entrance to wait for, no band crossing them, and no pulse
-     running the row. The circuit, the node, the brackets, the ghost index and the window's
-     own chrome are all present and static from the first paint — they are shapes, not
-     motion, so reduce keeps them. (The window itself is usually not laid out under reduce at
-     all: reduced motion puts the stage on the `off` renderer. This is what it looks like if
-     a visitor turns reduce on while the scene is already running.) */
+     running the row. The circuit, the node, the brackets and the ghost index are all present
+     and static from the first paint — they are shapes, not motion, so reduce keeps them. */
   .hlBody::after,
   .hlCircuit::before,
   .hlCircuit::after {
@@ -2052,9 +1690,7 @@ span.projHit:focus-visible {
   .hlCircuit,
   .hlNode,
   .hlCorner,
-  .hlIndex,
-  .hlWindow,
-  .projScreen {
+  .hlIndex {
     opacity: 1;
     transition: none;
   }

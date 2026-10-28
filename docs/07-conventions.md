@@ -101,8 +101,8 @@ such at the top of the file.
   rect, the whole Work spiral above it.
 - **An invisible loop is still a running loop.** `opacity: 0` and `visibility: hidden` stop the
   paint, not the animation: the browser restyles it every frame (and an SVG child's `transform`
-  costs a layout too). A loop inside something that FADES OUT (the page cover's BootCore, a scene
-  host's loading mark) rests once the fade has ended, never before: a custom property read into
+  costs a layout too). A loop inside something that FADES OUT (a loading mark)
+  rests once the fade has ended, never before: a custom property read into
   `animation-play-state: var(--x, running)` flips to `paused` by a **discrete transition** delayed
   by the fade's own duration (`transition: …, --x 0s linear <fade>; transition-behavior:
   allow-discrete`, inside `@supports (transition-behavior: allow-discrete)`), and the raised rule
@@ -147,13 +147,11 @@ Tailwind CSS v4 is used by **exactly eight files**, the ones listed in `@source`
 `components/sections/Directions.tsx`, `components/sections/Work.tsx`,
 `components/scene/SceneStage.tsx` and `components/ui/CookieConsent.tsx` (Directions, Work and the
 stage joined on 2026-09-17, and `Directions.module.css` / `Work.module.css` were deleted).
-Everything else stays on CSS Modules. Two things are deliberately **not** Tailwind:
+Everything else stays on CSS Modules. One thing is deliberately **not** Tailwind:
 
-- the intro overlay — nearly every rule there is a keyframe, a state selector or a
-  pre-hydration failsafe, which a CSS Module expresses better;
-- the interior's static art (`components/scene/art/`) — SVG strokes, gradient stops and the
-  selectors that hide it under WebGL, one CSS Module per drawing. It is not in `@source`, and
-  `scene-contract.test.ts` checks that it stays out.
+- the static art (`components/art/`) — SVG strokes, gradient stops and its one-shot entrances,
+  one CSS Module per drawing. It is not in `@source`, and `scene-contract.test.ts` checks that it
+  stays out.
 
 **Why utilities lose to module CSS, on purpose.** Tailwind's output is layered
 (`theme`, `utilities`); `globals.css` and every `*.module.css` are **unlayered**, and unlayered
@@ -196,188 +194,156 @@ Rules, enforced by `components/__tests__/tailwind-contract.test.ts`:
   outline or ring that actually draws something — `focus-visible:outline-transparent`,
   `focus-visible:ring-0` or an offset alone do not count. The one exception is an element that
   only takes programmatic focus (`tabIndex={-1}` on the same tag, e.g. the cookie card).
-- **The services glass reveal keys off the stage root** (`entry-glow`, `entry-sweep`): the glow
-  under `[data-renderer="webgl"][data-entry="formed"]` and statically on the `fallback` / `off` renderers, never
-  `pending`; its one transition only on the WebGL path; `color-mix` only inside its own
-  `@supports`; the sweep animated only under `[data-renderer="webgl"][data-entry="burst"]` with motion allowed, by the
-  top-level `hud-glass-sweep` (transform and opacity only, opacity ≤ .12); nothing on
-  `[data-reveal]` or the intro, no filter, blur or radius. Why: [04](./04-design-system.md#directions--the-hud-screen).
+- **The services panel's lit edge** (`entry-glow`) is static since 2026-10-28: the accent edge,
+  keyed off nothing (no stage, renderer or entry state), no transition or animation, `color-mix`
+  only inside its own `@supports`, no filter, blur or radius; `entry-sweep` is gone. Why:
+  [04](./04-design-system.md#directions--the-hud-screen).
 
 Not enforced by the test, but part of the convention:
 
 - `text-*` sizes carry **no line-height**; add `leading-*`.
 - A custom `@utility` that owns `transform` (`cyber-floor`) cannot also run a keyframe that
   animates `transform`: put the animation on a child.
-- Hover lifts on anything the intro's entrance moves use the `translate` property, not
-  `transform`, so a GSAP `transform` on a wrapper never fights them.
 - Avoid opacity modifiers (`bg-red/50`) on anything that carries meaning: without
   `color-mix()` (Firefox 111–112) they fall back to the **full** colour. Prefer a token
   (`bg-glass`, `bg-panel2`, `var(--glow)`); the remaining ones are decorative only.
 
 ## 3D, GSAP and the interior stage
 
-Two parts of the site draw with WebGL and run GSAP: the first-visit intro (`components/intro/`)
-and, since 2026-09-17, the home page's interior stage (`components/scene/`). They share their
-generic helpers in `components/three/`. These conventions exist because each one was either a
-real failure, a CSP violation or a weight regression waiting to happen.
+Since 2026-10-28 one part of the site draws with WebGL and runs GSAP: **Work's DNA helix**
+(`#lucrari`), drawn by the stage in `components/scene/` that wraps `<Work />` alone in
+`app/(site)/page.tsx`, on the generic helpers in `components/three/`. Hero, Ticker and Directions
+draw static SVG (`components/art/`), and service pages have no stage. The intro, the hero chip, the
+services swarm and models, the cursor trail, the stat panels, the laptop reel and the hero parallax
+went that day (see the [CHANGELOG](../CHANGELOG.md)). These conventions exist because each one was
+either a real failure, a CSP violation or a weight regression waiting to happen.
 
-**No network, no loaders, no drei.** Both scenes are built procedurally from three core: geometry
-from math (`components/intro/three/laptop.ts` and `cameraPath.ts`, `components/scene/shapes.ts` and
-`components/scene/three/*`), for the intro's glass a PMREM environment rendered from emissive strips
-(`components/three/environment.ts`; the interior has used no environment since the hero became a
-chip, 2026-09-17), a seeded PRNG for particles (`components/three/random.ts`). Nothing is
-fetched — no HDRs, fonts, GLTF, Draco/KTX2/Basis decoders, no wasm, no workers — because the
-nonce-based CSP in `proxy.ts` would block them, and they would pass every local check and fail
-only in the browser. ESLint (`eslint.config.mjs`) therefore **bans**, both as `import` and as
-`import()`: `@react-three/drei`, three's `loaders/*`, `libs/*`, `physics/*`,
-`utils/WorkerPool(.js)` and the `Addons(.js)` barrel (in both `three/addons` and
-`three/examples/jsm` spellings, plus the bare `three/addons`), `three-stdlib`,
-`troika-three-text` and `@dimforge/*`. The rule's option is set globally, so any future
-`no-restricted-imports` / `no-restricted-syntax` rule must be merged into that block — flat
+**No network, no loaders, no drei.** The helix is built procedurally from three core: geometry from
+math (`components/art/shapes.ts` for the shared constants, `components/scene/three/*`), a seeded
+PRNG where randomness is needed (`components/three/random.ts`), the hologram composed on a canvas
+from the card's own same-origin screenshot. Nothing is fetched — no HDRs, fonts, GLTF,
+Draco/KTX2/Basis decoders, no wasm, no workers — because the nonce-based CSP in `proxy.ts` would
+block them, and they would pass every local check and fail only in the browser. ESLint
+(`eslint.config.mjs`) therefore **bans**, both as `import` and as `import()`: `@react-three/drei`,
+three's `loaders/*`, `libs/*`, `physics/*`, `utils/WorkerPool(.js)` and the `Addons(.js)` barrel
+(in both `three/addons` and `three/examples/jsm` spellings, plus the bare `three/addons`),
+`three-stdlib`, `troika-three-text` and `@dimforge/*`. The rule's option is set globally, so any
+future `no-restricted-imports` / `no-restricted-syntax` rule must be merged into that block — flat
 config replaces the whole option.
 
 **Per-frame writes live in plain `.ts` modules, not in components.** The React Compiler lint
-(`react-hooks/immutability`) flags assignments to objects a hook returned; plain TypeScript
-helpers called from `useFrame` keep the components to "create once, call per frame, dispose":
-`components/intro/three/{rig,laptop,particles}.ts` for the intro; `components/scene/three/world.ts`
-(which composes the frame), `components/scene/fx.ts`, `input.ts` (the tilt listeners, which also
-lay the cursor trail), `trail.ts` (the trail's ring buffer; `three/trail.ts` uploads what it
-wrote), `workHelix.ts` (Work's spiral driver, which writes the project cards' inline layout) and
-`scrollProbe.ts` (the director's writes into the probe) for the interior. The intro director
-never re-renders React per frame either: it writes `textContent`, attributes and `quickSetter` values straight to the DOM,
-and tweens a plain `fx` object the scene reads.
+(`react-hooks/immutability`) flags assignments to objects a hook returned; plain TypeScript helpers
+called from `useFrame` keep the components to "create once, call per frame, dispose":
+`components/scene/three/world.ts` (which composes the frame), `components/scene/fx.ts`, `input.ts`
+(the tilt listeners), `workHelix.ts` (Work's spiral driver, which writes the project cards' inline
+layout) and `scrollProbe.ts` (the director's writes into the probe).
 
-**Dispose everything you create.** Geometries and materials are disposed by the modules that
-build them (`laptop.ts` / `particles.ts` in the intro, `world.dispose()` in the interior), the intro's
-PMREM generator and its render target in `environment.ts`. R3F 9.7 calls `forceContextLoss()` 500ms
-after unmount but never `renderer.dispose()`; `components/three/renderer.ts` (`retainRenderer`)
-adds it (deferred one tick so StrictMode's remount doesn't dispose a live renderer) and guards
-against losing an already-lost context. The renderer is created up front by that module
-(`useRendererFactory` in `components/three/hooks.ts`), because a failing `new WebGLRenderer()`
-inside R3F becomes an unhandled rejection that never reaches an error boundary.
+**Dispose everything you create.** Geometries and materials are disposed by the modules that build
+them (`world.dispose()`). R3F 9.7 calls `forceContextLoss()` 500ms after unmount but never
+`renderer.dispose()`; `components/three/renderer.ts` (`retainRenderer`) adds it (deferred one tick
+so StrictMode's remount doesn't dispose a live renderer) and guards against losing an already-lost
+context. The renderer is created up front by that module (`useRendererFactory` in
+`components/three/hooks.ts`), because a failing `new WebGLRenderer()` inside R3F becomes an
+unhandled rejection that never reaches an error boundary.
 
-**Colour tokens read at runtime must stay hex or `rgb()`.** The intro reads `--red`,
-`--red-lift`, `--blue`, `--dark-cyan`, `--dark-txt` and `--void` (`components/intro/three/materials.ts`,
-`PALETTE_TOKENS`); the interior reads `--cyan`, `--blue`, `--blue-text`, `--red-lift`,
-`--red-text`, `--txt` and `--bg` (`components/scene/three/palette.ts`, `SCENE_TOKENS`; `--on-accent`
-left with the glass core), and re-reads them when `data-theme` or `prefers-color-scheme` changes.
-`THREE.Color` cannot parse `color-mix()` or `oklch()`. Changing one of these tokens to another
-format throws a descriptive error: the intro falls back to the SVG, the interior's error boundary
-keeps the static art (a later theme change that cannot be read keeps the previous palette).
+**Colour tokens read at runtime must stay hex or `rgb()`.** The scene reads `--cyan`, `--blue`,
+`--red-lift`, `--txt` and `--bg` (`components/scene/three/palette.ts`, `SCENE_TOKENS`), and re-reads
+them when `data-theme` or `prefers-color-scheme` changes. `THREE.Color` cannot parse `color-mix()`
+or `oklch()`. Changing one of these tokens to another format throws a descriptive error: the
+stage's error boundary keeps the flat card grid (a later theme change that cannot be read keeps the
+previous palette).
 
 **The FPS governor replaces drei's `PerformanceMonitor`** (`components/three/governor.ts`,
-re-exported by the intro's `three/rig.ts`, unit-tested): ~1s windows; two slow ones step the DPR
-down to 1×, then to "lite" (terminal); three fast ones step back up; a flip budget stops
-oscillation; frame gaps over 0.5s are stalls, not a measure; a steady cadence ≥24 fps counts as a
-refresh cap (`CAP_STEADINESS` 1.25, `CAP_SLACK` 0.8, `CAP_MIN_FPS` 24). **`bail` is opt-in**
-(`bailFps` > 0): once lite, `bailWindows` slow windows in a row return `"bail"`, which is terminal.
-The intro passes no bail options; the interior passes 28 fps × 4 windows unless the scene is
-forced (QA and E2E must stay deterministic on SwiftShader). Materials are never swapped mid-scene
-— that would recompile shaders; the interior's light/dark switch changes blend factors only
-(every material is `CustomBlending`, so three's program cache key does not change).
+unit-tested): ~1s windows; two slow ones step the DPR down to 1×, then to "lite" (terminal); three
+fast ones step back up; a flip budget stops oscillation; frame gaps over 0.5s are stalls, not a
+measure; a steady cadence ≥24 fps counts as a refresh cap (`CAP_STEADINESS` 1.25, `CAP_SLACK` 0.8,
+`CAP_MIN_FPS` 24). **`bail` is opt-in** (`bailFps` > 0): once lite, `bailWindows` slow windows in a
+row return `"bail"`, which is terminal. The scene passes 28 fps × 4 windows unless it is forced (QA
+and E2E must stay deterministic on SwiftShader). Materials are never swapped mid-scene — that would
+recompile shaders; the light/dark switch changes blend factors only (every material is
+`CustomBlending`, so three's program cache key does not change).
 
 **GSAP rules.** Import `gsap` and `gsap/ScrollTrigger` only (ESLint bans `gsap/all`,
 `gsap/dist/*`, ScrollSmoother and `gsap-trial`, as `import` and as `import()`). Everything is
-created inside `useGSAP`'s context, so unmounting reverts every tween and inline style. The intro
-director sets `gsap.ticker.lagSmoothing(0)` for its lifetime (restored to `(500, 33)`): the intro
-is a wall-clock sequence, and a stretched burst could outlive the watchdog; nothing else touches
-the ticker. A director only tweens elements that have **no** CSS animation or transition on the
-same property.
-
-**Keep the static drawing cheap — it is not a fallback path any more.** It carries the whole
-intro on devices without a usable GPU, **and beats 1–2 on every device**, because the 3D canvas
-is transparent until the scene signals ready and the progress cannot pass 0.60 without that
-signal ([05](./05-page-sections.md#the-six-beats-and-who-draws-them)). So: no CSS `filter` on
-anything that moves (the halo's blur is an SVG `feGaussianBlur`, rasterised once), transform and
-opacity only in its burst, at most two `feGaussianBlur` and two filtered elements, its animations
-pause while the WebGL scene draws, and its resting pose — the first thing painted on the page —
-stays inside its node ceiling so the `<h1>` underneath keeps the LCP. Its windows are scrubbed
-from **one** custom property (`FB_PROGRESS_PROP`, `--fb-p`) written once a frame on one element;
-a new part cuts its own window out of that in CSS rather than earning a second write.
-
-**The overlay's hooks are a contract.** `#tbs-intro[data-testid="intro"]` with `data-phase`,
-`data-renderer` and `data-live`; `data-part="…"` on everything the director drives;
-`role="progressbar"`; the skip button's name is exactly the `intro.skip` key. Tests and the
-cookie banner (which reads `data-live`) depend on them — don't rename them in passing.
+created inside `useGSAP`'s context, so unmounting reverts every tween and inline style. Nothing
+touches the ticker (`lagSmoothing` is never called). A director only tweens elements that have
+**no** CSS animation or transition on the same property.
 
 ### Lazy by construction — the heavy-import ban
 
-three.js + R3F (~240 KB gzip) and GSAP load only behind the capability probe, through
-`next/dynamic` or `import()`. A static import in a module the page bundle reaches would ship them
-to every visitor, and nothing but a weight measurement would notice — so it fails lint.
-`eslint.config.mjs` has a file-scoped block over `app/**`, `components/sections/**`,
-`components/layout/**`, `components/ui/**`, `components/fx/**`, `components/hud/**` (the HUD
-chrome's mount and its lazy parts), `components/scene/SceneStage.tsx`,
-`components/scene/art/**`, `components/scene/shapes.ts`, `components/three/RenderErrorBoundary.tsx`,
-`components/three/capability.ts`, the intro's up-front files (`IntroPreloader.tsx`,
-`IntroFallback.tsx`, `capability.ts`, `tiers.ts`) and `lib/**` (tests excluded).
-In those files a **static value import** of any of these is an error:
+three.js + R3F and GSAP load only once Work comes near and the gates pass, through `next/dynamic`
+or `import()`: the stage requests nothing — no probe, no three/R3F chunk, no GSAP chunk, no
+context — until Work is within one viewport (an IntersectionObserver with
+`SCENE_NEAR_ROOT_MARGIN`, `lib/scene.ts`). The homepage's initial chunks carry neither (measured
+2026-10-28: 16 chunks, ~268 KB gzip; the lazy three + scene chunk ~253 KB gzip, GSAP ~46 KB gzip).
+A static import in a module the page bundle reaches would ship them to every visitor, and nothing
+but a weight measurement would notice — so it fails lint. `eslint.config.mjs` has a file-scoped
+block over `app/**`, `components/sections/**`, `components/layout/**`, `components/ui/**`,
+`components/fx/**`, `components/hud/**` (the HUD chrome's mount and its lazy parts),
+`components/scene/SceneStage.tsx`, `components/art/**`, `components/three/RenderErrorBoundary.tsx`,
+`components/three/capability.ts` and `lib/**` (tests excluded). In those files a **static value
+import** of any of these is an error:
 
 - the packages `three`, `@react-three/fiber`, `gsap`, `gsap/ScrollTrigger`, `@gsap/react`;
 - **any subpath** of them (`three/*`, `@react-three/fiber/*`, `gsap/*`, `@gsap/react/*` — e.g.
   `gsap/ScrollTrigger.js`, `gsap/Observer`, `three/webgpu`);
 - **the site's own modules that carry them**, in any spelling (`HEAVY_MODULES_REGEX`):
-  `three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector`, `IntroScene`, `IntroDirector` —
-  `@/components/three/runtime`, `../scene/SceneWorld` and `./IntroDirector.tsx` all match.
+  `three/runtime`, `SceneCanvas`, `SceneWorld`, `SceneDirector` — `@/components/three/runtime`,
+  `../scene/SceneWorld` and `./SceneDirector.tsx` all match.
 
-`import type` is erased at build time and stays allowed; `import()` stays allowed (that is how
-they load). Flat config **replaces** a rule's options per matching block, so this block repeats
-the CSP and GSAP bans (`restrictedImports({ heavy })`); any new `no-restricted-imports` entry
-goes into that helper. `components/__tests__/scene-contract.test.ts` mirrors the file list, the
-subpaths and the regex, and reads them straight out of the source. A module added to the page
-bundle's up-front path goes into both lists.
+`import type` is erased at build time and stays allowed; `import()` stays allowed (that is how they
+load). Flat config **replaces** a rule's options per matching block, so this block repeats the CSP,
+GSAP and lucide bans (`restrictedImports({ heavy })`); any new `no-restricted-imports` entry goes
+into that helper. `components/__tests__/scene-contract.test.ts` mirrors the file list, the subpaths
+and the regex, and reads them straight out of the source. A module added to the page bundle's
+up-front path goes into both lists.
 
 **A deleted file has to leave both lists too.** The test walks each root with a `listFiles` that
 returns `[]` for a path that does not exist — so a root naming a file that was removed stops
-checking anything at all, silently, and stays green. `components/intro/lemniscate.ts` was taken
-out of both lists on 2026-09-20 for exactly that reason when the ∞ was deleted;
-`IntroFallback.tsx` is still there and still what keeps three.js out of the static drawing.
+checking anything at all, silently, and stays green. On 2026-10-28 the intro's files,
+`components/scene/art/**` and `components/scene/shapes.ts` left both lists, and `components/art/**`
+took their place.
 
 ### The 3D runtime module
 
-**A three.js scene is reached only through `components/three/runtime.tsx`**, and only with a
-dynamic `import()` (`next/dynamic` for a component). It re-exports `IntroScene` and
-`SceneCanvas`. Turbopack builds a chunk group per `import()` target and does not share a vendor
-chunk between groups: two targets that each import three.js shipped two byte-identical copies
-of three + R3F. One target means one chunk, downloaded once and served from cache to the other
-scene. A new scene is exported from the runtime module, never given an `import()` of its own.
-Nothing may import the runtime statically (the ban above).
+**The three.js scene is reached only through `components/three/runtime.tsx`**, and only with a
+dynamic `import()` (`next/dynamic` for a component). It re-exports `SceneCanvas`. Turbopack builds
+a chunk group per `import()` target and does not share a vendor chunk between groups: two targets
+that each imported three.js once shipped two byte-identical copies of three + R3F. A new scene is
+exported from the runtime module, never given an `import()` of its own. Nothing may import the
+runtime statically (the ban above).
 
 ### GSAP and ScrollTrigger
 
 The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's only user.
 
-- **Measure, don't drive.** Four animation-free triggers give the scroll spans (`heroExit`:
-  `#top` "top top" → "bottom 35%"; `entry`: the services anchor "top 90%" → "top 75%";
-  `workSpan`: Work's track (`[data-work-track]`) "top 70%" → "top 55%"; `helix`: the track "top
-  top" less the header → "bottom bottom"), and every refresh re-reads the anchors' and the
-  track's document boxes, Work's heading block, the stage's top/bottom, the layer's height and
-  `--header-h` into the probe (`scrollProbe.ts`). The scene reads `window.scrollY` against them
-  every frame. No scrub drives the scene — it would lag the page by a frame. A measuring trigger
-  has no `animation` and reads its span in `onRefresh` (`scroll-guard.test.ts` pins exactly these
-  four, with their start and end).
+- **Measure, don't drive.** Two animation-free triggers on Work's track (`[data-work-track]`) give
+  the scroll spans (`workSpan`: "top 70%" → "top 55%"; `helix`: "top top" less the header →
+  "bottom bottom"), and every refresh re-reads the track's document box, Work's heading block, the
+  band above it, the stage's top/bottom, the layer's height and `--header-h` into the probe
+  (`scrollProbe.ts`). The scene reads `window.scrollY` against them every frame. No scrub drives
+  the scene — it would lag the page by a frame. A measuring trigger has no `animation` and reads
+  its span in `onRefresh` (`scroll-guard.test.ts` pins these, with their start and end).
 - **A picture that must not rest half-way runs on a timed gate, not a scroll progress.** The
-  director only measures the band; the scene's `stepGate` (`fx.ts`) arms at its end, disarms
-  above its start (hysteresis) and runs the value in time on the clamped frame step. There are two:
-  the services entrance (`fx.entry`, `ENTRY_SECONDS`) and the Work handoff to the helix
-  (`fx.work`, `WORK_SECONDS`). A new threshold effect gets its own `Gate` in `SceneFx` and its own
-  branch in `composeScene`, never a scrubbed progress. Whether it has finished is the scene's to
-  report (`onEntry` → `data-entry`, `onHelix` → `data-helix`), never the director's.
+  director only measures the band; the scene's `stepGate` (`fx.ts`) arms at its end, disarms above
+  its start (hysteresis) and runs the value in time on the clamped frame step — the Work handoff to
+  the helix (`fx.work`, `WORK_SECONDS`). A new threshold effect gets its own `Gate` in `SceneFx`,
+  never a scrubbed progress. Whether it has finished is the scene's to report (`onHelix` →
+  `data-helix`), never the director's.
 - **The work gate only opens onto a helix that can be drawn.** The world passes `stepSceneFx` the
   `workSpan` band only while the helix is built, the spiral driver's mode is not `off` and the
   track is measured; otherwise the gate gets no band (it stays shut, and an open one closes in
-  time). Two gates never run against each other: while the Work gate is armed the entry gate sits
-  on its armed value, and an entry gate disarmed above the services snaps the Work gate shut.
-- **The scene may change the page's layout in one place only — Work's spiral — and says so.**
-  When the driver switches mode the track's height changes at once; `SceneWorld` dispatches
+  time).
+- **The scene may change the page's layout in one place only — Work's spiral — and says so.** When
+  the driver switches mode the track's height changes at once; `SceneWorld` dispatches
   `SCENE_LAYOUT_EVENT` (`tbs:scene-layout`) on the stage root, and the director re-reads the boxes
-  into the probe right then (never under a cover), without a ScrollTrigger refresh (a refresh
-  would stop a touch fling). The stage's own resize refresh still follows for the spans. Any
-  future layout change the scene makes goes through the same event.
+  into the probe right then (never under a cover), without a ScrollTrigger refresh (a refresh would
+  stop a touch fling). The stage's own resize refresh still follows for the spans. Any future
+  layout change the scene makes goes through the same event.
 - **Never** (`scene-contract.test.ts` scans `components/scene/**`): `pin`, `pinSpacing`,
   `pinReparent`, `anticipatePin` (spacers shift every anchor), `snap` (inline `scroll-behavior` on
-  html/body), `normalizeScroll`, ScrollSmoother, `markers`, a custom `scroller`, `lagSmoothing`.
-  No inline style on `<html>`, `<body>` or an entrance marker, ever — the forced-WebGL E2E checks.
+  html/body), `normalizeScroll`, ScrollSmoother, `markers`, a custom `scroller`, `lagSmoothing`. No
+  inline style on `<html>` or `<body>`, ever — the E2E `expectRootUntouched` checks.
 - **Register when the chunk evaluates**, outside any GSAP context, so a director unmounting never
   reverts ScrollTrigger's own one-time setup. Everything the director creates lives in one
   `useGSAP({ scope: stage, dependencies: [] })` context.
@@ -386,157 +352,116 @@ The interior director (`components/scene/SceneDirector.tsx`) is ScrollTrigger's 
   functions non-smooth and holds `html[data-scroll-measure]` (`scroll-behavior: auto` in
   `globals.css`) from `refreshInit` to `refresh`. It relies on gsap 3.15.0's order of events — gsap
   is pinned exactly for this.
-- **When to refresh:** a `ResizeObserver` on the **stage** (not `<main>`: a height change below
-  the stage cannot move anything the probe holds), debounced 200ms, only for a change of 1px or
-  more, **deferred while the visitor is scrolling** (a refresh would stop a touch fling), and
-  skipped if ScrollTrigger's own refresh already measured since; plus `pageshow` with `persisted`.
+- **When to refresh:** a `ResizeObserver` on the **stage** and on the sections above it (not
+  `<main>`: a height change below the stage cannot move anything the probe holds), debounced, only
+  for a change of 1px or more, **deferred while the visitor is scrolling** (a refresh would stop a
+  touch fling), and skipped if ScrollTrigger's own refresh already measured since; plus `pageshow`
+  with `persisted`.
 - **Never measure under a cover.** A dialog pins `<body>` (`position: fixed; top: -scrollY`), so
   `scrollY` reads 0 and every box reads the scroll offset too high. While `isPageCovered()` the
   probe keeps its last good values and the director's own refreshes wait; a refresh ScrollTrigger
-  ran anyway is redone one frame after the cover lifts. **Every page lock releases its cover
-  last** (`Modal`'s body lock after restoring the body styles and `scrollTo({ behavior:
-  "instant" })`; `lockRootScroll` after its own restore), so whoever hears it lift finds the page
-  in place.
+  ran anyway is redone one frame after the cover lifts. **Every page lock releases its cover last**
+  (`Modal`'s body lock after restoring the body styles and `scrollTo({ behavior: "instant" })`;
+  `lockRootScroll` after its own restore), so whoever hears it lift finds the page in place.
 - **Quiet while unused.** ScrollTrigger runs a rAF loop and a 250ms interval for as long as it is
   enabled, triggers or not. A layout effect declared **before** `useGSAP` wakes it on mount
   (`wakeScrollTrigger`) and quiets it a microtask after unmount (`quietScrollTrigger`, only when no
   trigger is left). A wake records the gsap listeners and matchMedia that `enable()` adds, and the
   next quiet removes them, so navigating back and forth never stacks them.
-- **Parallax targets** (`parallaxTargets`): any `[data-parallax="<layer>"]` under the stage,
-  **except** an element that is itself an intro entrance marker (`[data-intro-reveal]`), a
-  scroll-reveal element (`[data-reveal]`, whose transition owns `transform`), `<html>` or `<body>`.
-  Wrap the marker instead (`hero-backdrop` and `hero-stats` are wrappers). Desktop only
-  (`PARALLAX_MEDIA`), inside `gsap.matchMedia()` so it reverts with the context.
 
 ### The interior stage's contracts
 
-- **The stage DOM** (`SceneStage.tsx`): no `transform`, `filter`, `contain` or `overflow` on the
-  stage, on any ancestor of the sticky layer or on any ancestor of Work's cards (each card is
-  `sticky` in the spiral, and its negative `z-index` must reach the stage's stacking context); the
-  canvas is `pointer-events: none`; no new z-index token. Details in
-  [03 — Architecture](./03-architecture.md#the-interior-stage).
-- **The `data-*` contract** (names in `SCENE_ATTR`, `lib/scene.ts`): React writes
-  `data-renderer`, `data-reason`, `data-tier`, `data-paused` (only while `webgl`) and
-  `data-motion`; `data-boost`, `data-quality`, `data-morph`, `data-entry` (`idle|burst|formed`,
-  only while a scene is mounted), `data-helix` (`spiral|ambient`, likewise; never `off` or
-  `built` — those remove it) and the director's `data-scroll-fx` are written **straight to
-  the DOM**, never through React state. On Work: `data-work-track` (the card grid,
-  `WORK_TRACK_ATTR`) and the driver's `data-helix-front` on one card (`HELIX_FRONT_ATTR`,
-  `helix.ts`). Test ids `scene-stage`,
-  `scene-hero`, `scene-services`; anchors `data-scene-anchor="hero|services"`; art roots
-  `data-core-art` / `data-shape-art="<slug>"`; `data-hologram`, `data-metric`, `data-tilt`,
-  `data-tilting`, `data-parallax`, `data-shape`. Tests and CSS selectors read these — don't rename
-  them in passing.
+- **The stage DOM** (`SceneStage.tsx`): it wraps Work only — the first screen is outside it. No
+  `transform`, `filter`, `contain` or `overflow` on the stage, on any ancestor of the sticky layer
+  or on any ancestor of Work's cards (each card is `sticky` in the spiral, and its negative
+  `z-index` must reach the stage's stacking context); the canvas is `pointer-events: none`; no new
+  z-index token. Details in [03 — Architecture](./03-architecture.md#the-interior-stage).
+- **The gates, in order:** the `tbs_scene_3d` QA flag (`force` / `off`); reduced motion, Save-Data
+  and a 2G connection → `off`; a low tier → `fallback`; the session's GPU answer in
+  `tbs_gpu_probe` (one probe per tab); a governor bail or a lost context → `fallback`, remembered
+  for the session. Every non-WebGL path is the flat card grid.
+- **The `data-*` contract** (names in `SCENE_ATTR`, `lib/scene.ts`): React writes `data-renderer`,
+  `data-reason`, `data-tier`, `data-paused` (only while `webgl`) and `data-motion`; `data-quality`,
+  `data-helix` (`spiral|ambient`, only while a scene is mounted; never `off` or `built` — those
+  remove it) and the director's `data-scroll-fx` are written **straight to the DOM**, never through
+  React state. On Work: `data-work-track` (the card grid, `WORK_TRACK_ATTR`) and the driver's
+  `data-helix-front` on one card (`HELIX_FRONT_ATTR`, `helix.ts`). Test id `scene-stage`; the
+  stage root `data-scene-stage`, its layer `data-scene-layer`; art roots `data-core-art` /
+  `data-shape-art="<slug>"`; `data-hologram`, `data-metric`, `data-tilt`, `data-tilting`,
+  `data-parallax`, `data-shape`. `data-morph`, `data-entry` and `data-boost` are gone (2026-10-28).
+  Tests and CSS selectors read these — don't rename them in passing.
 - **`lib/scene.ts` stays DOM-free at import and has no `"use client"`**: server components and
   `e2e/helpers.ts` import it. Anything that needs `window` checks for it first.
 - **Work's cards belong to React; their layout, in the spiral, to the scene chunk's driver**
   (`workHelix.ts`, see [03](./03-architecture.md#the-project-dna-helix-it-os-phase-3-2026-09-17)).
   The rules it keeps, and that anything else touching those cards must keep with it:
   - **it only switches into the spiral while Work is below the viewport** (the section's rect,
-    read in the frame that lays it out; an IntersectionObserver may only veto) — the track grows
-    by thousands of px, so doing it on screen would jump the page. It leaves the spiral at once,
-    and then puts the scroll back under the visitor;
+    read in the frame that lays it out; an IntersectionObserver may only veto) — the track grows by
+    thousands of px, so doing it on screen would jump the page. It leaves the spiral at once, and
+    then puts the scroll back under the visitor;
   - **the restore contract**: every property it writes is inline and listed (`CARD_PROPS`,
     `TRACK_PROPS`, and `READER_PROPS` for `--helix-wipe` on each card's two readers); a custom
     property written every frame goes on the elements that read it, never on the card (inherited,
     it restyles the card's whole subtree), while one written once per layout may go on the card
-    (`--helix-parallax`, read by the screenshot's wrapper); the original `style` attribute comes back byte for byte when nobody else
-    touched the style meanwhile, otherwise only its own properties are removed. Read the `style`
-    attribute before removing it (Blink serializes a CSSOM-written style lazily and would leave
-    `style=""`). The E2E checks the round trip (W15);
+    (`--helix-parallax`, read by the screenshot's wrapper); the original `style` attribute comes
+    back byte for byte when nobody else touched the style meanwhile, otherwise only its own
+    properties are removed. Read the `style` attribute before removing it (Blink serializes a
+    CSSOM-written style lazily and would leave `style=""`);
   - Work itself renders only `--p1` / `--p2` inline and no card `transform` or `position`
     (`work.test.tsx`); a CSS rule for the grid that must not apply in the spiral keys off
     `[data-scene-stage][data-helix=spiral]` (the odd last card's screenshot shift does);
   - **a card is never capped below its content**: the spiral writes `min-height`, never `height`
     (a card clips with `overflow: hidden`, and its description may be showing), and centres each
-    card's measured box under the header — a ResizeObserver re-centres it when the content changes.
-    Work's own description cap (`max-h-35`, the reveal's transition) is lifted inside the spiral
-    (`[data-scene-stage][data-helix=spiral] …:max-h-none`, only where the description is shown):
-    at a spiral card's 240px a long description runs past 140px;
+    card's measured box under the header — a ResizeObserver re-centres it when the content
+    changes. Work's own description cap (`max-h-35`, the reveal's transition) is lifted inside the
+    spiral (`[data-scene-stage][data-helix=spiral] …:max-h-none`, only where the description is
+    shown): at a spiral card's 240px a long description runs past 140px;
   - never touch tab order, `inert` or `aria-hidden`; focus scrolls a card to the front.
 - **Decoration never sits behind copy it could make unreadable.** The ambient helix first lay
   behind Work's heading; its flares saturate towards white, and keeping the heading's contrast left
   it invisible. It now lies in the measured empty band above the heading (`probe.workGap`, clear of
   the band's edges by `HELIX_AMBIENT.clear`). A new scene part next to text gets a band of its own,
   measured into the probe, before it gets a dim.
-- **Nothing heavy up front on the WebGL path either**: the scene is **built** one part per idle
-  slice (core, swarm, each model) and **compiled** one draw object per idle slice
-  (`components/scene/three/compile.ts`); it is **ready** only once R3F has drawn two frames of the
-  compiled scene, counted from `useFrame` — never from a timer, which also ticks while the canvas
-  is paused. A part that is not needed for the first picture is built **after ready**, the same
-  way (Work's helix: `stageHelix`, one build slice, one compile slice per draw object).
+- **Nothing heavy up front on the WebGL path either**: the helix is **built** in an idle slice of
+  its own and **compiled** one draw object per idle slice (`components/scene/three/compile.ts`);
+  the scene is **ready** only once R3F has drawn two frames, counted from `useFrame` — never from a
+  timer, which also ticks while the canvas is paused.
 - **A program three would link inside `render()` is linked first, in parallel.** three reads a
-  program's link status back on its first use, so a program met for the first time inside a
-  render or a `PMREMGenerator.fromScene` holds the main thread for its whole link. Compile it
-  beforehand through `compileAsync` (`compileScene` / `compileObject` in
-  `components/three/renderer.ts`), with the same key: the same geometry, the same lights, a
-  render target bound when the real draw has one (colour space and tone mapping are in the key).
-  `createStripEnvironment` does this for the PMREM pre-filter's four programs, and a development
-  build warns if `fromScene` still linked one. Nothing is drawn before then either: the intro's
-  canvas stays `frameloop="never"` until its compile has been issued.
-- **The transmission clear is compensated in one place** — the intro's glass only: since the hero
-  became a chip (2026-09-17) the interior has no transmission pass. `installTransmissionClear`
-  (`components/three/environment.ts`) pre-compensates three's output-space conversion of the clear
-  colour while the canvas is bound (`linearTargetClearColor`), so the linear transmission target
-  really gets the page colour. A scene passes the **plain** page colour; converting it itself
-  applies the compensation twice.
-- **The interior draws with five programs (P2–P6), and new parts reuse them** (`three/materials.ts`).
-  The hero chip and the cursor trail added none: they are box edges, a plasma surface, lines and
-  flat ribbons like the service models. A mode is a `uMode` branch, and a retired mode keeps the
-  others' numbers: `TUBE_MODE` has had no 0 since the core's rings left; `POINTS_MODE` has no 0
-  since the core's cloud left, and no 3 since the mesh wave's nodes became `+` lines in P4
-  (2026-09-17, the brand-ui grid: `swarm` 1 and `pulses` 2 remain). Work's helix added no program
-  either, only two modes: `SURFACE_MODE.holo` (4; 3 was the glass shell's) for the hologram and
-  `LINE_MODE.bits` (4) for its 0/1 glyphs. The Team Lead's projection (2026-09-23) added one more,
-  `POINTS_MODE.figure` (4), and reuses `LINE_MODE.synapse` unchanged for its projector rig.
-  **Adding it meant CLOSING a catch-all `else`:** `pulses` was the points shader's bare final
-  branch, so mode 4 would silently have been drawn as synapse pulse heads. Any new mode in any of
-  these families has to check for that first — a bare `else` is a trap, not a default.
-- **The static art** (`components/scene/art/`): no `"use client"`, tokens only, no infinite
+  program's link status back on its first use, so a program met for the first time inside a render
+  holds the main thread for its whole link. Compile it beforehand through `compileAsync`
+  (`compileScene` / `compileObject` in `components/three/renderer.ts`), with the same key: the same
+  geometry, the same lights, a render target bound when the real draw has one (colour space and
+  tone mapping are in the key).
+- **The helix draws with four programs (P2–P5), and new parts reuse them**
+  (`components/scene/three/materials.ts`; the numbering is historical — P1, the glass core, and P6,
+  the swarm's points, are gone). A mode is a `uMode` branch, and a retired mode keeps the others'
+  numbers: `SURFACE_MODE` is `edges` 2 / `holo` 4, `LINE_MODE` `synapse` 2 / `bits` 4, `TUBE_MODE`
+  `links` 3. **A bare `else` is a trap, not a default:** a new mode in any of these families checks
+  first that no final branch would silently draw it as another mode.
+
+## Static art, dots and tilt
+
+- **The static art** (`components/art/`): no `"use client"`, tokens only, no infinite
   animation, nothing animated on `stroke-dashoffset` or `filter`, no `circle` under r=12, no round
-  line caps, `aria-hidden` with no text; hidden under `[data-renderer="webgl"]`. Only the first
+  line caps, `aria-hidden` with no text; always shown. Its only motion is one-shot and CSS-only
+  under `prefers-reduced-motion: no-preference` (ServiceArt's `materialize` entrance; the hero
+  core's boost wave on `#top:has([data-hero-cta]:hover)` under `(hover: hover)`, or on
+  `:focus-visible`). Only the first
   direction's drawing is passed from `page.tsx` (a prop is serialised into the RSC payload); the
   others load with `next/dynamic` on first selection. See
-  [04 — Design System](./04-design-system.md#static-art-componentssceneart).
+  [04 — Design System](./04-design-system.md#static-art-componentsart).
+- **Lightweight CSS 3D stays CSS.** The hero stat cards' wireframe holograms (`lib/hologram.ts`,
+  `animate-holo-spin`; gated only by the hero's offscreen pause and reduced motion, never by the
+  WebGL stage), Team's holographic portrait (CSS + an SVG filter), the pointer tilt and Work's
+  screenshot parallax (a CSS scroll-driven animation) load no 3D library.
 - **No decorative dots.** No small round box (a dot-sized `size`/`w`/`h` with `rounded-full`,
   `rounded-pill` or `rounded-[50%|999px|9999px]`), no blinking pip, no glowing full stop — in the
-  header, the hero, the ticker, Directions, Work, the stage or the art. `decorative-dots.test.tsx`
+  header, the hero, the ticker, Directions, Work or the art. `decorative-dots.test.tsx`
   scans the source and the render; the E2E scan checks the page. Exceptions: the dictation
-  button's recording light, "✓" markers, "·" in copy, the red full-stop glyphs, the intro
-  fallback.
+  button's recording light, "✓" markers, "·" in copy, the red full-stop glyphs.
 - **Tilt and first-tap rules are shared, not copied**: `lib/tilt.ts` + `components/fx/usePointerTilt.ts`
   (mouse only, never reduced motion, one rAF write), `lib/tapIntent.ts` (`shouldInterceptTap`, the
   header dropdowns and the direction pills).
-
-### `data-intro-reveal` — the page entrance targets
-
-The page elements the intro animates in carry `data-intro-reveal="grid|header|title|cta|stats|
-ticker"` (`INTRO_REVEAL_ORDER` in `lib/intro.ts`; the `eyebrow` target went with the hero's kicker
-line on 2026-09-25, the `lead` target with its lead line on 2026-10-02). Since 2026-10-09 `title`
-marks a wrapper round the `<h1>` and its subtitle, and `cta` holds the CTA row and the line of
-promises under it, so each enters with its group.
-
-- **Exactly one element per target** on the home page, and **no inline `style`** on any of
-  them once the intro is over.
-- **No CSS may target `[data-intro-reveal]`.** Without an intro — a returning visitor, reduced
-  motion, a test — nothing is hidden: the page is simply there. A rule that hid them "until the
-  entrance" would blank the page for everyone the intro skips.
-- **No CSS transition or animation on `transform`, `opacity` or `filter` on a marked
-  element** — GSAP writes those.
-- **`header` and `stats`: transform only.** An opacity or filter on `<header>` (or on the glass
-  cards) makes it the backdrop root of its own glass and switches the blur off mid-entrance.
-- **`title`: never opacity.** It holds the `<h1>`, the LCP element, which must paint at full
-  opacity under the overlay.
-- **`cta` and `ticker` mark the wrapper**, never the button (its hover lift) or the ticker's
-  CSS-animated track.
-- **No parallax, tilt or other inline style on a marker** (2026-09-17). The hero's parallax
-  moves wrappers inside the `grid` marker and around the `stats` marker; the stat cards tilt
-  inside it. `parallaxTargets` refuses a marker, and the forced-WebGL E2E checks that no marker
-  keeps a `style` attribute after scrolling.
-
-`components/__tests__/intro-reveal-contract.test.tsx` renders Navbar, Hero and Ticker in all
-three languages and checks one marker per target with no style attribute, and scans
-`globals.css`, `tailwind.css` and every `*.module.css` for a selector on the attribute.
 
 ## The HUD chrome (`components/hud/**`, `lib/hud/**`)
 
@@ -550,8 +475,7 @@ the assistant herself stays, and the rules below are hers and the rail's. Wiring
   `components/hud/HudChrome.tsx`, rendered by `app/(site)/layout.tsx` between `<Footer />` and
   `<CookieConsent />`. A part is never imported anywhere else, so nothing of it reaches the page
   bundle or the HTML, and nothing loads before the gate opens (flag → consent → interaction →
-  intro gone → idle). A part also renders nothing on its own while the banner is unanswered or
-  the intro is on screen. A part that exists only on desktop (the rail) is flagged
+  idle). A part also renders nothing on its own while the banner is unanswered. A part that exists only on desktop (the rail) is flagged
   `desktopOnly: true` in `PARTS`: HudChrome renders it through `DesktopOnly`, a
   `useSyncExternalStore` over `matchMedia(HUD_DESKTOP_MEDIA)`, never with a CSS-only hide, so a
   phone never downloads it and a breakpoint crossing mounts or unmounts that part alone. Its own
@@ -570,13 +494,13 @@ the assistant herself stays, and the rules below are hers and the rail's. Wiring
   form (`[data-testid="request-flow"][data-layout="section"]`) intersects the viewport"; yield is
   "the focused element overlaps the part" (`lib/hud/obscure.ts`). No `animation-fill-mode` that
   would outrank the faded opacity.
-- **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger, the
-  intro's lock) a part shows no new prompt and clears a shown one, and the rail neither measures
-  nor writes (the page's positions are not real while the body is pinned; the same holds while
+- **Covered means held back, not hidden.** While `isPageCovered()` (the dialog, the burger) a
+  part shows no new prompt and clears a shown one, and the rail neither measures nor writes (the
+  page's positions are not real while the body is pinned; the same holds while
   `html[data-scroll-measure]` is set); the z-order (`--z-rail` 104, `--z-os` 108 <
   `--z-nav-overlay` 115) does the covering.
 - **No blur, no filter.** No `backdrop-filter` or `filter` on a part or any ancestor of a CSS
-  `preserve-3d` element: it sits over the live WebGL canvas, and a blur flattens the 3D.
+  `preserve-3d` element: it can sit over Work's live WebGL canvas, and a blur flattens the 3D.
   Solid glass (`--glass-bg-solid`, composited over `--bg` when page text can sit under it) plus the
   Neon Cyan ring instead.
 - **No dots.** Bars, streaks, squares; a ring is ≥38px. `decorative-dots.test.tsx` scans each

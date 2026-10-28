@@ -24,7 +24,7 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
 
 const PORTFOLIO_LABEL = L("PORTOFOLIU", "ПОРТФОЛИО", "PORTFOLIO");
 /** The column's one link: the whole portfolio lives on /portofoliu. */
-const ALL_PROJECTS = L("Proiectele TBS", "Проекты TBS", "TBS projects");
+const ALL_PROJECTS = L("Toate proiectele", "Все проекты", "All projects");
 
 /** Where the portfolio link goes — the path, language prefix aside. */
 const PORTFOLIO_PATH = "/portofoliu";

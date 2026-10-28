@@ -11,7 +11,7 @@ import styles from "./Team.module.css";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const SECTION = {
-  title: L("Oamenii din spatele produsului.", "Люди за продуктом.", "The people behind the product."),
+  title: L("Echipa care îți construiește produsul.", "Команда, которая создаёт ваш продукт.", "The team that builds your product."),
 };
 
 /*

@@ -29,7 +29,7 @@
 
 import { scrollProgress, type ScrollSpan } from "@/lib/scene";
 import { clamp01, smoothstep } from "./choreography";
-import { HELIX_ANGLE } from "./shapes";
+import { HELIX_ANGLE } from "@/components/art/shapes";
 
 /** Spiral only where a card column fits beside the helix: tablets (portrait too) and up. */
 export const WORK_HELIX_MEDIA = "(min-width: 768px) and (min-height: 600px)";

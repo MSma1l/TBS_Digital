@@ -1,5 +1,5 @@
 /**
- * The Directions screen's static model illustrations (components/scene/art/ServiceArt.tsx):
+ * The Directions screen's static model illustrations (components/art/ServiceArt.tsx):
  * what every device without the WebGL scene sees. Decided with the client: static art in the
  * 3D models' style (no loops), no decorative dots, nothing a screen reader or the tab order
  * can reach, tokens only. Read from the server-rendered markup, the path data and the CSS
@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SERVICE_DRAWINGS, ServiceArt } from "@/components/scene/art/ServiceArt";
+import { SERVICE_DRAWINGS, ServiceArt } from "@/components/art/ServiceArt";
 import {
   ART_EXTENT,
   STACK_VIEW,
@@ -18,9 +18,9 @@ import {
   NEURAL_LAYERS,
   NEURAL_SEED,
   serviceArtPaths,
-} from "@/components/scene/art/serviceArtPaths";
-import { buildNeuralGraph, projectOrtho, type Vec3 } from "@/components/scene/shapes";
-import { SCENE_SHAPES } from "@/lib/scene";
+} from "@/components/art/serviceArtPaths";
+import { buildNeuralGraph, projectOrtho, type Vec3 } from "@/components/art/shapes";
+import { SERVICE_SHAPES as SCENE_SHAPES } from "@/components/art/shapes";
 
 const ROOT = process.cwd();
 const read = (repoPath: string) => readFileSync(resolve(ROOT, repoPath), "utf8");
@@ -172,7 +172,7 @@ describe("service art — one static illustration per direction", () => {
 
   it("is computed without randomness: a fresh module load yields the same paths", async () => {
     vi.resetModules();
-    const again = await import("@/components/scene/art/serviceArtPaths");
+    const again = await import("@/components/art/serviceArtPaths");
     expect(again.serviceArtPaths("produs-digital")).toEqual(STACK_ART);
     expect(again.serviceArtPaths("e-commerce")).toEqual(COMMERCE_ART);
     expect(again.serviceArtPaths("automatizare-api")).toEqual(HUB_ART);
@@ -215,7 +215,7 @@ describe("service art — each model's geometry", () => {
     expect(hulls).toBe(HUB_SATELLITES);
     // Packets are bars along a link: at the smallest size the screen draws the art (about a
     // pixel per unit) each is at least three times as long as its 3px stroke is wide.
-    expect(read("components/scene/art/ServiceArt.module.css")).toMatch(/\.thick\s*\{\s*stroke-width:\s*3;/);
+    expect(read("components/art/ServiceArt.module.css")).toMatch(/\.thick\s*\{\s*stroke-width:\s*3;/);
     for (const packet of [...subpaths(HUB_ART.packetsOut), ...subpaths(HUB_ART.packetsIn)]) {
       const [a, b] = [packet.points[0], packet.points[packet.points.length - 1]];
       expect(Math.hypot(b[0] - a[0], b[1] - a[1])).toBeGreaterThanOrEqual(9);
@@ -249,27 +249,15 @@ describe("service art — each model's geometry", () => {
 });
 
 describe("service art — styles and pure source", () => {
-  const css = read("components/scene/art/ServiceArt.module.css");
+  const css = read("components/art/ServiceArt.module.css");
   const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
-  it("shows the drawing ONLY once the stage has given up on WebGL, and drops all motion under reduced motion", () => {
-    // Inverted on purpose: the drawing is the fallback, not a preamble. It used to be painted on
-    // every load and cross-faded out when the live model arrived, so every visitor saw a still
-    // picture first and the model replace it. Now the box is empty while the stage decides
-    // (`pending`, which is also the server's value) and while WebGL draws; only `fallback` and
-    // `off` bring it back. A visitor with no JavaScript never reaches a decision, so the
-    // <noscript> rule in app/(site)/layout.tsx shows it to them unconditionally.
-    expect(rules).toMatch(/\.art\s*\{[^}]*opacity:\s*0/);
+  it("is always shown, and plays its entrance only where motion is welcome", () => {
+    // There is no WebGL scene to hand over to any more (removed 2026-10-28): nothing hides it.
+    expect(rules).not.toMatch(/data-renderer|data-scene-stage/);
+    expect(rules).not.toMatch(/\.art\s*\{[^}]*opacity:\s*0/);
     expect(rules).toMatch(
-      /:global\(\[data-scene-stage\]\[data-renderer="fallback"\]\)\s+\.art,[\s\S]*?opacity:\s*1/,
-    );
-    expect(rules).toMatch(
-      /:global\(\[data-scene-stage\]\[data-renderer="off"\]\)\s+\.art\s*\{[^}]*opacity:\s*1/,
-    );
-    // …and nothing re-shows it while WebGL is the renderer.
-    expect(rules).not.toMatch(/data-renderer="webgl"\]\)\s+\.art\s*\{[^}]*opacity:\s*1/);
-    expect(rules).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.art\s*\{[^}]*animation:\s*none;[^}]*transition:\s*none/,
+      /@media \(prefers-reduced-motion: no-preference\)\s*\{\s*\.art\s*\{[^}]*animation:\s*materialize/,
     );
   });
 
@@ -288,7 +276,6 @@ describe("service art — styles and pure source", () => {
     expect(rules).not.toMatch(/\b(?:rgba?|hsla?|oklch|oklab|hwb)\(/);
     expect(rules).toMatch(/vector-effect:\s*non-scaling-stroke/);
     expect(rules).not.toMatch(/stroke-linecap:\s*round|stroke-linejoin:\s*round|border-radius/);
-    expect(rules).not.toMatch(/data-intro-reveal/);
     for (const m of rules.matchAll(/(?:stroke|fill):\s*([^;]+);/g)) {
       if (m[1].trim() === "none") continue;
       expect(m[1], m[0]).toMatch(/var\(--/);
@@ -296,7 +283,7 @@ describe("service art — styles and pure source", () => {
   });
 
   it("the components are pure — no hooks, no client directive, no randomness — so the server and the browser draw the same", () => {
-    for (const file of ["components/scene/art/ServiceArt.tsx", "components/scene/art/serviceArtPaths.ts"]) {
+    for (const file of ["components/art/ServiceArt.tsx", "components/art/serviceArtPaths.ts"]) {
       const src = read(file).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
       expect(src, file).not.toMatch(/^\s*["']use client["']/m);
       expect(src, file).not.toMatch(/\buse(?:State|Effect|Ref|Memo|Callback|LayoutEffect|SyncExternalStore)\b/);

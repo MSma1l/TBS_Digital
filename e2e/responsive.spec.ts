@@ -64,19 +64,18 @@ for (const viewport of VIEWPORTS) {
       await expectNoHorizontalScroll(page);
     });
 
-    test("the home page never scrolls sideways anywhere in the interior stage", async ({ page }) => {
+    test("the home page never scrolls sideways anywhere in the first sections", async ({ page }) => {
       await gotoHydrated(page, "/");
-      // Top, mid-hero, the services section, and the last screen of the stage: the sticky
-      // scene layer (components/scene/SceneStage.tsx) travels through all of them.
+      // Top, mid-hero, the services section, and the end of the project grid.
       const marks = await page.evaluate(() => {
         const hero = document.querySelector("#top")!.getBoundingClientRect();
         const services = document.querySelector("#servicii")!.getBoundingClientRect();
-        const stage = document.querySelector("[data-scene-stage]")!.getBoundingClientRect();
+        const work = document.querySelector("#lucrari")!.getBoundingClientRect();
         return [
           0,
           hero.top + window.scrollY + hero.height / 2,
           services.top + window.scrollY,
-          stage.bottom + window.scrollY - window.innerHeight,
+          work.bottom + window.scrollY - window.innerHeight,
         ];
       });
       for (const y of marks) {

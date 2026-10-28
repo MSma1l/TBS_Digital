@@ -1,7 +1,10 @@
 /**
- * The interior 3D stage contract — names, storage, the renderer decision, the scroll probe
- * and the page → scene input store, shared by the stage, the scene chunk, the sections that
- * feed it and the E2E helpers.
+ * The interior 3D stage contract — names, storage, the renderer decision and the scroll probe,
+ * shared by the stage, the scene chunk and the E2E helpers. Since 2026-10-28 the stage wraps
+ * only Work (its DNA helix is the site's one WebGL scene): Hero, Ticker and Directions draw
+ * static SVG art and the service pages have no stage, so nothing on the page feeds the scene
+ * any more — the old page → scene input store (CTA boost, selected direction, service step) and
+ * the hero / services / service-page anchors are gone.
  *
  * Deliberately NOT a `"use client"` module and nothing touches the DOM at import: server
  * components import constants from it, and `e2e/helpers.ts` imports it into Node. Every
@@ -9,15 +12,13 @@
  */
 
 import type { RefObject } from "react";
-import { directionSlug } from "@/lib/directions";
 
 /* ---- QA switch ----------------------------------------------------------------------- */
 
 /**
  * `localStorage[SCENE_3D_KEY]`: `"force"` drops `failIfMajorPerformanceCaveat`, the software
  * renderer check, the low-tier gate and the FPS bail (SwiftShader in headless Chromium gets
- * WebGL); `"off"` keeps the stage on nothing at all. Interior only — the intro reads its own
- * key (`INTRO_FORCE_3D_KEY`).
+ * WebGL); `"off"` keeps the stage on nothing at all.
  */
 export const SCENE_3D_KEY = "tbs_scene_3d";
 export type SceneFlag = "force" | "off" | null;
@@ -99,30 +100,25 @@ export type SceneTier = "high" | "mid" | "low";
 export type SceneMotion = "live" | "static";
 export type SceneQuality = "full" | "dpr" | "lite";
 /**
- * The services entrance as the scene draws it (`data-entry` on the stage): `idle` nothing formed,
- * `burst` the model exploding out of a speck and assembling (or imploding back), `formed` in place.
- */
-export type SceneEntry = "idle" | "burst" | "formed";
-/**
  * The Work helix's mode, as the spiral driver applies it: `spiral` (the project cards turn round
  * the helix, sticky, laid out inline), `ambient` (a small helix in the band above the heading; the
  * grid or band stays as it is) or `off` (the page as the server rendered it).
  */
 export type SceneHelixMode = "off" | "spiral" | "ambient";
-/** What the scene reports about the helix: `built` once its model compiled (after ready), then each mode. */
+/**
+ * What the scene reports about the helix: `built` once its model compiled (just before ready is
+ * armed: the helix IS the staged scene), then each mode.
+ */
 export type SceneHelix = SceneHelixMode | "built";
 
 /* ---- DOM contract -------------------------------------------------------------------- */
 
 export const SCENE_TESTID = {
   stage: "scene-stage",
-  hero: "scene-hero",
-  services: "scene-services",
 } as const;
 
 export const SCENE_STAGE_ATTR = "data-scene-stage";
 export const SCENE_LAYER_ATTR = "data-scene-layer";
-export const SCENE_ANCHOR_ATTR = "data-scene-anchor";
 
 export const SCENE_ATTR = {
   renderer: "data-renderer",
@@ -130,147 +126,16 @@ export const SCENE_ATTR = {
   tier: "data-tier",
   paused: "data-paused",
   motion: "data-motion",
-  boost: "data-boost",
   quality: "data-quality",
-  morph: "data-morph",
-  entry: "data-entry",
   helix: "data-helix",
   scrollFx: "data-scroll-fx",
-  shape: "data-shape",
-  tilt: "data-tilt",
-  tilting: "data-tilting",
-  parallax: "data-parallax",
 } as const;
 
 /** Set on `<html>` while ScrollTrigger measures: `html[data-scroll-measure]` turns smooth scrolling off (globals.css). */
 export const INSTANT_SCROLL_ATTR = "data-scroll-measure";
-export const HERO_ID = "top";
-export const SERVICES_ID = "servicii";
 export const WORK_ID = "lucrari";
 /** On Work's card grid: the track the helix and its spiral are measured against. */
 export const WORK_TRACK_ATTR = "data-work-track";
-/**
- * On a service page's "Proiecte relevante" grid: the cards whose screenshots the 3D laptop plays
- * (`components/scene/projectsReel.ts`). The grid itself is the content, the accessibility and the
- * fallback — the reel only reads it and listens on it, and never lays a card out differently.
- */
-export const PROJECTS_TRACK_ATTR = "data-projects-track";
-
-/**
- * The hero's metric group (`Hero.tsx`), which the scene reads the stat panels' faces from
- * (`components/scene/statCards.ts`). On the group, not on a card: what the scene watches for is a
- * card appearing or going (the portfolio counter is there only with projects in it) as much as the
- * text inside one changing.
- */
-export const STATS_GROUP_ATTR = "data-stats-group";
-/**
- * On the same element: which project is on the laptop's display right now, 0-based. **The page
- * owns it** — the cycle, the prev/next and the markers are all React state in DirectionPage.tsx,
- * and the same number picks the card the hologram composes and the name, tag and description the
- * page renders beside the machine as real text. One number, one source, so the display and the
- * copy beside it can never disagree.
- */
-export const PROJECTS_INDEX_ATTR = "data-project-index";
-
-/* ---- directions → models ------------------------------------------------------------- */
-
-/** The five direction slugs, in the order the Directions pills show them. */
-export const SCENE_SHAPES = [
-  "produs-digital",
-  "e-commerce",
-  "automatizare-api",
-  "asistenti-ia",
-  "brand-ui",
-] as const;
-export type SceneShape = (typeof SCENE_SHAPES)[number];
-
-export type ServiceModel = "cubes" | "commerce-loop" | "integration-hub" | "neural" | "mesh-wave";
-
-export const SERVICE_MODEL: Readonly<Record<SceneShape, ServiceModel>> = {
-  "produs-digital": "cubes",
-  "e-commerce": "commerce-loop",
-  "automatizare-api": "integration-hub",
-  "asistenti-ia": "neural",
-  "brand-ui": "mesh-wave",
-};
-
-/** Index into SCENE_SHAPES for a current or legacy direction slug; -1 when unknown. */
-export function shapeIndex(slugOrLegacy: string): number {
-  return (SCENE_SHAPES as readonly string[]).indexOf(directionSlug(slugOrLegacy));
-}
-
-/* ---- page → scene input store -------------------------------------------------------- */
-
-export type SceneBoostSource = "hero-primary" | "hero-secondary";
-
-/** Read by the scene every frame (no allocation) and by the stage through a subscription. */
-/**
- * `stage` is which step of "Cum lucrăm" the visitor is reading on a service page, or −1 for none.
- * The world turns it into a place in the model's own loop and holds the model there, so the 3D
- * object illustrates the step being read instead of running on regardless of it.
- */
-export type SceneInput = { boost: 0 | 1; waveSeq: number; shape: number; stage: number };
-
-const INITIAL_INPUT: Readonly<SceneInput> = Object.freeze({
-  boost: 0,
-  waveSeq: 0,
-  shape: 0,
-  stage: -1,
-});
-
-const boostSources = new Set<SceneBoostSource>();
-const inputListeners = new Set<() => void>();
-/** Replaced (never mutated) on every change, so it doubles as a `useSyncExternalStore` snapshot. */
-let input: Readonly<SceneInput> = INITIAL_INPUT;
-
-function publish(next: SceneInput): void {
-  input = Object.freeze(next);
-  for (const listener of [...inputListeners]) listener();
-}
-
-/**
- * A hero CTA is hovered or focused (`active`), or no longer is. The scene boosts while ANY
- * source is active; `waveSeq` counts the 0 → 1 edges only, so moving from one CTA to the
- * other never starts a second light wave.
- */
-export function setSceneBoost(source: SceneBoostSource, active: boolean): void {
-  const had = boostSources.has(source);
-  if (had === active) return;
-  if (active) boostSources.add(source);
-  else boostSources.delete(source);
-  const boost: 0 | 1 = boostSources.size > 0 ? 1 : 0;
-  if (boost === input.boost) return;
-  publish({ ...input, boost, waveSeq: boost === 1 ? input.waveSeq + 1 : input.waveSeq });
-}
-
-/** The selected direction (current or legacy slug). An unknown slug changes nothing. */
-export function selectSceneShape(slugOrLegacy: string): void {
-  const shape = shapeIndex(slugOrLegacy);
-  if (shape < 0 || shape === input.shape) return;
-  publish({ ...input, shape });
-}
-
-/**
- * The step of a service page the visitor is reading (0-based), or −1 for none. The world clamps
- * it against the model's own stage table, so a page with more steps than the model has stages
- * simply releases the model rather than holding it somewhere meaningless.
- */
-export function selectServiceStage(stage: number): void {
-  const next = Number.isFinite(stage) && stage >= 0 ? Math.floor(stage) : -1;
-  if (next === input.stage) return;
-  publish({ ...input, stage: next });
-}
-
-export function readSceneInput(): Readonly<SceneInput> {
-  return input;
-}
-
-export function subscribeSceneInput(listener: () => void): () => void {
-  inputListeners.add(listener);
-  return () => {
-    inputListeners.delete(listener);
-  };
-}
 
 /* ---- scroll probe -------------------------------------------------------------------- */
 
@@ -292,9 +157,8 @@ export type ScrollProbe = {
   headerH: number;
   /** The sticky layer's height in px (`h-scene`: one viewport under the header), 0 until measured. */
   layerH: number;
+  /** The stage's document top and bottom: it wraps Work, so these are Work's own edges. */
   stage: { top: number; bottom: number };
-  hero: DocRect | null;
-  services: DocRect | null;
   /** Work's card track (`[data-work-track]`), null while it is not in the page. */
   work: DocRect | null;
   /**
@@ -309,62 +173,10 @@ export type ScrollProbe = {
    */
   workGap: DocRect | null;
   /**
-   * The FIRST see-through window of a service page's benefits row (`[data-scene-anchor="panels"]`):
-   * the letterbox at the foot of the first panel, measured rather than derived from the row. The
-   * three are one row of equal columns, so this box is every window's size and the first one's
-   * place. Null on every page without a row, and at every width and renderer where the page lays
-   * no window out.
-   */
-  panels: DocRect | null;
-  /**
-   * The distance between two windows' left edges, measured across the row. A panel's centre is not
-   * its third of the row's centre — they differ by a third of the row's gap, a constant ~4.7px that
-   * does not shrink with the viewport and pushes the outer two objects over their window's edge at
-   * the narrow end. 0 without a row.
-   */
-  panelsPitch: number;
-  /**
-   * The hero's stat windows (`[data-scene-anchor="stat"]`), in DOM order: the see-through boxes the
-   * 3D stat panels are drawn in, where the hero's metric cards were. One per metric — the
-   * portfolio counter is there only when the portfolio has projects — so the length is what the
-   * page laid out, never assumed. Empty wherever no box is laid out: below 861px, and on a
-   * `fallback` / `off` renderer, where the cards are the painted cards we have always shipped.
-   *
-   * Two boxes, measured individually rather than one box plus a pitch (the benefits row's trick):
-   * these two are not equal columns — the grid is `lg:grid-cols-2` with a gap, and at 861–1024px
-   * they STACK, so the step between them is vertical. Each panel is fitted to its own box.
-   */
-  stats: DocRect[];
-  /**
-   * A service page's projects window (`[data-scene-anchor="projects"]`): the see-through cell the
-   * 3D laptop stands in, inside the "Proiecte relevante" grid. Measured off the element itself, so
-   * it is null wherever the page lays none out — below 861px and on a `fallback` / `off` renderer,
-   * where the cell is `display: none` and the grid is exactly the one we shipped.
-   */
-  projects: DocRect | null;
-  /**
-   * A service page's steps host (`[data-scene-anchor="steps"]`): the empty, sticky box beside
-   * "Cum lucrăm" the model moves into while the section is read. `y` is where the host RESTS —
-   * its document top unstuck, not where it is pinned at this scroll. Null on every page without
-   * one, and below 861px, where the page does not render it at all.
-   */
-  steps: DocRect | null;
-  /**
-   * The scroll `steps` is pinned over: from the scroll at which it takes its sticky offset to the
-   * one at which the band it is sticky in runs out under it. With `steps.y` it is the whole of the
-   * host's travel, so the scene never has to touch the DOM for it (`stepsHostTop`).
-   */
-  stepsPin: ScrollSpan;
-  /** `#top`, "top top" → "bottom 35%". */
-  heroExit: ScrollSpan;
-  /**
-   * The services anchor, "top 90%" → "top 75%": the entry gate arms once the scroll reaches its
-   * end and disarms above its start. Not a progress — the burst itself runs in time.
-   */
-  entry: ScrollSpan;
-  /**
-   * Work's track, "top 70%" → "top 55%": the work gate's band (the services model hands its
-   * swarm over to the helix), armed and disarmed like `entry`. Not a progress either.
+   * Work's track, "top 70%" → "top 55%": the work gate's band for the ambient helix (the spiral
+   * arms on its own sticky line, choreography.ts `helixArriveSpan`, and keeps this as its disarm
+   * line): armed once the scroll reaches its end, disarmed above its start. Not a progress — the
+   * helix's arrival itself runs in time.
    */
   workSpan: ScrollSpan;
   /**
@@ -381,19 +193,9 @@ export function createScrollProbe(): ScrollProbe {
     headerH: 0,
     layerH: 0,
     stage: { top: 0, bottom: 0 },
-    hero: null,
-    services: null,
     work: null,
     workHead: null,
     workGap: null,
-    panels: null,
-    panelsPitch: 0,
-    stats: [],
-    projects: null,
-    steps: null,
-    stepsPin: { start: 0, end: 0 },
-    heroExit: { start: 0, end: 0 },
-    entry: { start: 0, end: 0 },
     workSpan: { start: 0, end: 0 },
     helix: { start: 0, end: 0 },
   };
@@ -414,36 +216,22 @@ export function scrollProgress(scroll: number, span: ScrollSpan): number {
   return Math.min(1, Math.max(0, (scroll - span.start) / (span.end - span.start)));
 }
 
-/* ---- timing, parallax, component props ----------------------------------------------- */
+/* ---- timing, component props --------------------------------------------------------- */
 
 export const SCENE_TIMING = {
   /** `requestIdleCallback` timeout before the probe / chunk requests. */
   IDLE_TIMEOUT_MS: 1500,
-  /** Added when an intro overlay was on screen: R3F releases the intro's context 500ms after unmount. */
-  AFTER_INTRO_MS: 600,
-  /**
-   * How long into an intro the stage waits before fetching its own chunks behind it.
-   *
-   * Not zero, and the number comes off the film's own clock: the intro requests three.js the
-   * moment its probe answers and had its canvas up at 1.1s on the measured load, so anything
-   * earlier competes with the download the visitor is actually watching. 2500 leaves the whole
-   * rest of the film — the reveal was at 8.2s — for a chunk to arrive in.
-   */
-  WARM_MS: 2500,
-  /** The CSS crossfade from the art to the canvas. */
+  /** The CSS crossfade onto the canvas. */
   CROSSFADE_MS: 500,
   /** ResizeObserver → `ScrollTrigger.refresh()` debounce. */
   REFRESH_DEBOUNCE_MS: 200,
 } as const;
 
-/** Hero parallax only on a capable desktop with a real pointer and motion allowed. */
-export const PARALLAX_MEDIA =
-  "(min-width: 861px) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)";
-
-export const PARALLAX_LAYERS = {
-  "hero-backdrop": { yPercent: 12 },
-  "hero-stats": { yPercent: -8 },
-} as const;
+/**
+ * How far ahead of the viewport Work must come before the stage requests anything heavy
+ * (three.js, GSAP, the GPU probe): one viewport above and below. Nothing loads on entry.
+ */
+export const SCENE_NEAR_ROOT_MARGIN = "100% 0px 100% 0px";
 
 export type SceneCanvasProps = {
   tier: "high" | "mid";
@@ -451,25 +239,20 @@ export type SceneCanvasProps = {
   paused: boolean;
   probe: ScrollProbe;
   /**
-   * Once, after the staged build and compile, from inside the frame loop once the compiled scene
-   * has drawn two frames — a paused canvas draws none, so it stays not ready (and keeps the art).
+   * Once, after the staged build and compile of Work's helix (the scene's one part), from inside
+   * the frame loop once the compiled helix has drawn two frames — a paused canvas draws none, so
+   * it stays not ready (and Work keeps its flat card grid). A page without Work's track has
+   * nothing to stage: ready then follows two frames of the empty canvas.
    */
   onReady(): void;
   onLost(): void;
   onBail(): void;
   /** Only on a change. */
   onQuality(step: SceneQuality): void;
-  /** Only on a change: a morph started (true) or committed (false). */
-  onMorph(running: boolean): void;
   /**
-   * Only on a change, and only once the scene is ready (never while the art still shows): the
-   * services entrance as drawn — the first report is the state the scene is in (a deep link
-   * into the services says `formed` without ever bursting).
-   */
-  onEntry(state: SceneEntry): void;
-  /**
-   * The Work helix: `built` once, when its model compiled (after ready); then every mode the
-   * spiral driver applies, `off` last when the scene goes (the cards' own styles are back).
+   * The Work helix: `built` once, when its model compiled (the frames that make it ready follow);
+   * then every mode the spiral driver applies, `off` last when the scene goes (the cards' own
+   * styles are back).
    */
   onHelix(state: SceneHelix): void;
 };
@@ -481,9 +264,3 @@ export type SceneDirectorProps = {
   onLive(): void;
 };
 
-/** Unit tests only: forget every boost, the selected shape and every subscriber. */
-export function resetSceneForTests(): void {
-  boostSources.clear();
-  inputListeners.clear();
-  input = INITIAL_INPUT;
-}

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   SCENE_GOVERNOR,
-  SCENE_LITE,
   SCENE_TIER_CONFIG,
   clampSceneDpr,
   dprForStep,
-  pointsDrawn,
   sceneGovernorOptions,
 } from "@/components/scene/tiers";
 import {
@@ -17,32 +15,19 @@ import {
 } from "@/components/three/governor";
 
 /*
- * What each interior canvas tier draws and how the FPS governor treats it. The low tier never
- * gets a canvas (the stage keeps the art), so only "high" and "mid" are configured; a forced
- * scene (QA, e2e under SwiftShader) must never bail.
+ * What each interior canvas tier draws — Work's helix, the scene's only model since 2026-10-28 —
+ * and how the FPS governor treats it. The low tier never gets a canvas (Work keeps its flat card
+ * grid), so only "high" and "mid" are configured; a forced scene (QA, e2e under SwiftShader) must
+ * never bail.
  */
 
 describe("scene tiers — budgets", () => {
   const { high, mid } = SCENE_TIER_CONFIG;
-  const sum = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
 
   it("high draws at least as much as mid, everywhere", () => {
     const counts: Array<[string, number, number]> = [
       ["dpr max", high.dpr[1], mid.dpr[1]],
       ["pixel budget", high.pixelBudget, mid.pixelBudget],
-      ["chip traces", high.chipTraces, mid.chipTraces],
-      ["swarm", high.swarm, mid.swarm],
-      ["cubes", high.cubes, mid.cubes],
-      ["wave", high.wave[0] * high.wave[1], mid.wave[0] * mid.wave[1]],
-      ["wave subdiv", high.waveSubdiv, mid.waveSubdiv],
-      ["ui cards", high.uiCards, mid.uiCards],
-      ["neural nodes", sum(high.neural), sum(mid.neural)],
-      ["fanout", high.fanout, mid.fanout],
-      ["node detail", high.nodeDetail, mid.nodeDetail],
-      ["track", high.track, mid.track],
-      ["packages", high.packages, mid.packages],
-      ["satellites", high.satellites, mid.satellites],
-      ["link", high.link[0] * high.link[1], mid.link[0] * mid.link[1]],
       ["helix tube", high.helixTube[0] * high.helixTube[1], mid.helixTube[0] * mid.helixTube[1]],
       ["helix chips", high.helixChips, mid.helixChips],
       ["helix rungs", high.helixRungs, mid.helixRungs],
@@ -50,20 +35,6 @@ describe("scene tiers — budgets", () => {
       ["hologram", high.hologram[0] * high.hologram[1], mid.hologram[0] * mid.hologram[1]],
     ];
     for (const [name, h, m] of counts) expect(h, name).toBeGreaterThanOrEqual(m);
-  });
-
-  it("the hero chip: 7 traces (and pins) per side on high, 5 on mid", () => {
-    expect(high.chipTraces).toBe(7);
-    expect(mid.chipTraces).toBe(5);
-  });
-
-  it("the brand-ui grid: 16×8 cells and 32 segments a row on high, 10×6 and 24 on mid", () => {
-    expect(high.wave).toEqual([16, 8]);
-    expect(high.waveSubdiv).toBe(32);
-    expect(mid.wave).toEqual([10, 6]);
-    expect(mid.waveSubdiv).toBe(24);
-    // Columns get half a row's segments: both tiers split evenly.
-    for (const tier of [high, mid]) expect(tier.waveSubdiv % 2).toBe(0);
   });
 
   it("the Work helix: 160×4 tubes, 80 chips, 22 rungs, 36 bits, a 384×240 hologram on high; 100×3, 52, 14, 20, 256×160 on mid", () => {
@@ -90,30 +61,29 @@ describe("scene tiers — budgets", () => {
     }
   });
 
-  it("only high antialiases; no tier configures the glass core any more", () => {
+  it("only high antialiases; no tier configures a model the scene no longer draws", () => {
     expect(high.antialias).toBe(true);
     expect(mid.antialias).toBe(false);
     for (const tier of [high, mid]) {
-      for (const gone of ["glass", "sphere", "ringTubular", "ringRadial", "cloud", "transmissionScale"]) {
+      for (const gone of [
+        "glass",
+        "sphere",
+        "cloud",
+        "transmissionScale",
+        "chipTraces",
+        "swarm",
+        "cubes",
+        "wave",
+        "neural",
+        "track",
+        "packages",
+        "satellites",
+        "link",
+        "statFace",
+      ]) {
         expect(tier, gone).not.toHaveProperty(gone);
       }
     }
-    expect(SCENE_LITE).not.toHaveProperty("transmissionScale");
-  });
-
-  it("lite never asks for more packages than a tier has, and keeps the neural layers in shape", () => {
-    expect(SCENE_LITE.packages).toBeLessThanOrEqual(mid.packages);
-    for (const tier of [high, mid]) {
-      expect(tier.neural.length).toBeGreaterThanOrEqual(3);
-      expect(tier.cubes).toBeLessThanOrEqual(27);
-    }
-  });
-
-  it("pointsDrawn halves a buffer in lite, never below one point", () => {
-    expect(pointsDrawn(700, false)).toBe(700);
-    expect(pointsDrawn(700, true)).toBe(350);
-    expect(pointsDrawn(1, true)).toBe(1);
-    expect(pointsDrawn(0, true)).toBe(0);
   });
 });
 

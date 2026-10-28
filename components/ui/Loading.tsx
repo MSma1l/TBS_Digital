@@ -21,17 +21,17 @@ export type LoadingProps = {
   /**
    * The accessible name, from the message catalog — e.g. `t("common.loading")`. With a label the
    * mark becomes a live region, so assistive tech is told something is in flight. WITHOUT one it
-   * is purely decorative and `aria-hidden`, which is what a scene host wants: the box it covers
-   * is already `aria-hidden` and a second announcement would be noise.
+   * is purely decorative and `aria-hidden`, which is what a decorative host wants: the box it
+   * covers is already `aria-hidden` and a second announcement would be noise.
    */
   label?: string;
-  /** Positioning and any gating the caller owns (a scene host makes it `absolute inset-0`). */
+  /** Positioning and any gating the caller owns (e.g. `absolute inset-0` over a box). */
   className?: string;
 };
 
 /**
  * The site's one loading mark — anything that is not ready yet, whatever the reason: data in
- * flight, a WebGL scene still compiling, a panel waiting on a fetch.
+ * flight, a panel waiting on a fetch.
  *
  * Deliberately NOT a spinner. Every surface on this site is drawn with HUD corner brackets and a
  * scanning bar, so waiting is drawn the same way: a frame, a bar sweeping between its corners, and
@@ -42,9 +42,7 @@ export type LoadingProps = {
  * It carries no copy of its own: `label` comes from the catalog, so nothing here has to be
  * translated and a decorative use costs no key at all.
  *
- * `data-loading` is the stable hook for callers that gate it from the outside (the scene hosts
- * hold it on `[data-renderer="pending"]`, and the `<noscript>` rule in `app/(site)/layout.tsx`
- * takes it away where no decision ever comes).
+ * `data-loading` is the stable hook for callers that gate it from the outside.
  */
 export function Loading({ size = "md", label, className }: LoadingProps) {
   return (

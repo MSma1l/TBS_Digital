@@ -309,7 +309,8 @@
   border: 1px solid color-mix(in srgb, var(--on-accent) 20%, transparent);
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--void) 78%, transparent);
-  color: var(--txt);
+  /* an always-dark chip over the screenshot, on a light page: its own light text */
+  color: var(--on-obsidian);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   line-height: 1;
@@ -348,7 +349,8 @@
   border: 1px solid color-mix(in srgb, var(--on-accent) 20%, transparent);
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--void) 78%, transparent);
-  color: var(--txt);
+  /* an always-dark chip over the screenshot, on a light page: its own light text */
+  color: var(--on-obsidian);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   line-height: 1;
@@ -689,7 +691,7 @@ button.demoAddr {
   justify-content: center;
   padding: 56px 12px 14px;
   background: linear-gradient(transparent, color-mix(in srgb, var(--void) 88%, transparent) 60%);
-  color: var(--txt);
+  color: var(--on-obsidian);
   font-size: var(--fs-sm);
   font-weight: var(--fw-bold);
   text-decoration: none;
@@ -1889,6 +1891,7 @@ button.demoAddr {
     translate: 0 -50%;
     border-color: color-mix(in srgb, var(--on-accent) 24%, transparent);
     background: color-mix(in srgb, var(--void) 74%, transparent);
+    color: var(--on-obsidian);
     backdrop-filter: blur(6px);
   }
   .navPrev {

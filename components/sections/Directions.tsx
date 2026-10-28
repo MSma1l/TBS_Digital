@@ -2,7 +2,6 @@
 
 import {
   Fragment,
-  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -14,13 +13,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useOffscreenAttribute } from "@/components/fx/useOffscreenAttribute";
 import { Reveal } from "@/components/ui/Reveal";
-import { SceneLoading } from "@/components/scene/art/SceneLoading";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import type { Locale } from "@/lib/i18n/locales";
 import { directionHref } from "@/lib/directions";
 import { useRequestFlow } from "@/lib/request/RequestFlowProvider";
-import { SCENE_SHAPES, SCENE_TESTID, selectSceneShape, type SceneShape } from "@/lib/scene";
+import { SERVICE_SHAPES, type ServiceShape } from "@/components/art/shapes";
 import { directionPrice, directionTab, projectsForSolution, solUI, solutions } from "@/lib/solutions";
 import { useSiteContent } from "@/lib/siteContent";
 import { shouldInterceptTap } from "@/lib/tapIntent";
@@ -39,10 +37,10 @@ const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en }
  * request dialog with this direction preselected, "Detalii →" opens its service page.
  *
  * `slug` is the CURRENT slug, so it keys straight into `lib/solutions.ts` (pitch, accent and
- * project membership), into `directionHref`, and into the interior scene's models (`SceneShape`).
+ * project membership), into `directionHref`, and into the static drawings (`ServiceShape`, components/art).
  */
 type Service = {
-  slug: SceneShape;
+  slug: ServiceShape;
   tab: LocalizedText;
 };
 
@@ -58,14 +56,9 @@ const SERVICES: Service[] = [
 
 const SECTION = {
   title: L(
-    "Cu ce începem ca să testezi ideea?",
-    "С чего начнём, чтобы проверить идею?",
-    "What should we start with to test the idea?",
-  ),
-  lead: L(
-    "Alegem versiunea esențială, vezi investiția de pornire și decizi ce merită testat acum — înainte să extindem produsul.",
-    "Выбираем ключевую версию, вы видите стартовые вложения и решаете, что стоит проверить сейчас, — прежде чем расширять продукт.",
-    "We choose the essential version, show the starting investment and decide what is worth testing now — before expanding the product.",
+    "Alege ce îți trebuie: site, magazin online, aplicație sau automatizare.",
+    "Выберите, что вам нужно: сайт, интернет-магазин, приложение или автоматизация.",
+    "Choose what you need: a website, an online store, an app or an automation.",
   ),
   tabsAria: L("Direcțiile de servicii", "Направления услуг", "Service directions"),
   /* The service page's own action-bar label: both buttons open the same request. */
@@ -119,12 +112,11 @@ const accentStyle = (slug: string): CSSProperties =>
   ({ "--accent": solutions[slug]?.accent ?? "var(--blue)" }) as CSSProperties;
 
 /*
- * The HUD screen's chrome loops only while it can be seen: the scan line pauses under the
- * first-visit intro overlay and while the section is scrolled away (`data-offscreen`), and
- * reduced motion removes it.
+ * The HUD screen's chrome loops only while it can be seen: the scan line pauses while the
+ * section is scrolled away (`data-offscreen`), and reduced motion removes it.
  */
 const SCAN_CLASSES =
-  "[html:has(#tbs-intro)_&]:[animation-play-state:paused] group-data-offscreen/services:[animation-play-state:paused] motion-reduce:hidden";
+  "group-data-offscreen/services:[animation-play-state:paused] motion-reduce:hidden";
 
 /*
  * Heights that do not move when another direction is selected. The pitch, the price and the case
@@ -159,22 +151,22 @@ const MIN_HEIGHT_CLASSES: Record<Locale, { copy: string; screen: string; panel: 
 };
 
 /*
- * The HUD screen's static illustrations (components/scene/art/ServiceArt.tsx). The initially
+ * The HUD screen's static illustrations (components/art/ServiceArt.tsx). The initially
  * selected direction's drawing is a server-rendered slot (`initialArt`), so it is in the HTML
  * at first paint. The other four are NOT: a server slot is serialised into the page's RSC
  * payload, and all five drawings rode every HTML response (~3.5 KB gzip) although a visitor who
- * never switches directions — and every WebGL visitor — never sees them. They are drawn in the
- * browser from the scene's shapes, by a chunk loaded the first time another direction is
+ * never switches directions never sees them. They are drawn in the
+ * browser, by a chunk loaded the first time another direction is
  * selected (the drawing then plays its one-shot entrance).
  */
 const BrowserServiceArt = dynamic(
-  () => import("@/components/scene/art/ServiceArt").then((art) => art.ServiceArt),
+  () => import("@/components/art/ServiceArt").then((art) => art.ServiceArt),
   { ssr: false },
 );
 
 /** The direction the section opens on (the first pill, `active` 0) — whose drawing the page
- *  server-renders into `initialArt`: app/(site)/page.tsx passes `SCENE_SHAPES[0]` too. */
-const INITIAL_ART_SHAPE: SceneShape = SCENE_SHAPES[0];
+ *  server-renders into `initialArt`: app/(site)/page.tsx passes `SERVICE_SHAPES[0]` too. */
+const INITIAL_ART_SHAPE: ServiceShape = SERVICE_SHAPES[0];
 
 export type DirectionsProps = {
   /** The first direction's static illustration, rendered on the server by app/(site)/page.tsx.
@@ -201,11 +193,6 @@ export function Directions({ initialArt }: DirectionsProps) {
 
   // The scan line's off-screen pause (SCAN_CLASSES).
   useOffscreenAttribute(sectionRef);
-
-  // The interior scene morphs to the selected direction's model.
-  useEffect(() => {
-    selectSceneShape(svc.slug);
-  }, [svc.slug]);
 
   const select = (i: number) => {
     // Selecting another pill any other way re-arms the first-tap rule for the primed one.
@@ -273,9 +260,6 @@ export function Directions({ initialArt }: DirectionsProps) {
             <h2 className="m-0 text-balance font-disp text-[clamp(28px,3.5vw,44px)] font-black uppercase leading-[1.05] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
               {l(SECTION.title)}
             </h2>
-            <p className="mt-3.5 mb-0 max-w-[560px] font-copy text-base leading-[1.6] text-mut">
-              {l(SECTION.lead)}
-            </p>
           </div>
         </Reveal>
 
@@ -305,8 +289,7 @@ export function Directions({ initialArt }: DirectionsProps) {
               }}
               /* `pointermove`, never `mouseenter`: a pill that scrolls under a STATIONARY cursor
                  gets the boundary events anyway — the browser sends them to whatever arrives under
-                 the pointer — and selecting on that would switch the direction, and with it the
-                 scene's 3D model, for a visitor who pointed at nothing. The same mistake pinned the
+                 the pointer — and selecting on that would switch the direction for a visitor who pointed at nothing. The same mistake pinned the
                  service pages' project reel (fixed 2026-09-19). One real pixel of movement over a
                  pill selects it; arriving under a still cursor does not. The `i !== active` guard
                  keeps the common case (moving across the pill already selected) free of renders. */
@@ -331,16 +314,13 @@ export function Directions({ initialArt }: DirectionsProps) {
           ))}
         </nav>
 
-        {/* The glass reveal (app/tailwind.css): `entry-glow` lights the panel's edge in the
-            accent once the scene has formed the model (at once without WebGL), `entry-sweep`
-            runs a band of light across the copy while it bursts — its ::after, so no after:
-            utility goes on that column. */}
+        {/* `entry-glow` (app/tailwind.css) lights the panel's edge in the accent. */}
         <div
           style={accentStyle(svc.slug)}
           className={`entry-glow grid overflow-hidden rounded-xl border border-glass-line shadow-lg md:grid-cols-[.95fr_1.05fr] lg:grid-cols-[.82fr_1.18fr] ${minHeights.panel}`}
         >
           <div
-            className={`entry-sweep relative flex min-w-0 flex-col bg-glass-solid p-[clamp(24px,3vw,38px)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${minHeights.copy}`}
+            className={`relative flex min-w-0 flex-col bg-glass-solid p-[clamp(24px,3vw,38px)] before:pointer-events-none before:absolute before:inset-x-6 before:top-0 before:h-px before:bg-linear-to-r before:from-transparent before:via-(--accent) before:to-transparent before:content-[''] ${minHeights.copy}`}
           >
             {/* Keyed, so a new direction's copy plays its entrance. The buttons below are NOT
                 inside: they stay the same elements, only what they open follows the selection.
@@ -401,12 +381,10 @@ export function Directions({ initialArt }: DirectionsProps) {
             </div>
           </div>
 
-          {/* The HUD screen: the selected direction's model above its case card. Below 861px
-              it comes first, right under the pills, so a tap changes the model in view. The
-              screen is see-through — the interior stage's canvas draws behind the page, and
-              the anchor is where it places the model (components/scene). */}
+          {/* The HUD screen: the selected direction's drawing above its case card. Below 861px
+              it comes first, right under the pills, so a tap changes the drawing in view. */}
           <div
-            data-testid={SCENE_TESTID.services}
+            data-testid="services-screen"
             data-shape={svc.slug}
             className={`group/screen relative isolate flex min-w-0 flex-col gap-3 p-4 max-md:order-first sm:gap-4 sm:p-7 lg:flex-row lg:items-center lg:gap-6 ${minHeights.screen}`}
           >
@@ -425,10 +403,9 @@ export function Directions({ initialArt }: DirectionsProps) {
 
             <div
               aria-hidden="true"
-              data-scene-anchor="services"
+              data-art-host=""
               className="pointer-events-none relative min-h-[220px] flex-1 self-stretch sm:min-h-[240px] md:min-h-[220px] lg:min-h-[300px]"
             >
-              <SceneLoading />
               {/* The selected model's static illustration (BrowserServiceArt above). Keyed:
                   each selection mounts its illustration afresh (a one-shot entrance). */}
               {initialArt ? (

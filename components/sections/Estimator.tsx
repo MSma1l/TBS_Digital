@@ -48,9 +48,9 @@ const SECTION = {
   /* The page's line under the heading. The dialog keeps its own lead (RequestFlowProvider). The
      reply time is `SENT_COPY`'s, said before the visitor sends rather than only after. */
   lead: L(
-    "În câteva întrebări definim MVP-ul, ce trebuie validat și un buget inițial mic. Îți răspundem în cel mult o zi lucrătoare.",
-    "За несколько вопросов определим MVP, что нужно проверить и небольшой начальный бюджет. Ответим не позже чем через рабочий день.",
-    "In a few questions, we define the MVP, what needs testing and a small initial budget. We reply within one business day.",
+    "Alege ce vrei să construiești și vezi pe loc prețul de pornire. Fără caiet de sarcini: îți răspundem în cel mult o zi lucrătoare.",
+    "Выберите, что хотите создать, и сразу увидите стартовую цену. Без ТЗ: ответим не позже чем через рабочий день.",
+    "Choose what you want to build and see the starting price right away. No brief needed: we reply within one business day.",
   ),
   step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
   step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),

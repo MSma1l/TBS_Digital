@@ -1,26 +1,28 @@
 "use client";
 
 /**
- * The interior WebGL scene (three.js + R3F): the hero's microprocessor, the five service
- * models and the swarm that bursts them in and morphs between them, and Work's DNA helix (with
- * the driver that turns the project cards round it), drawn on the stage's one sticky canvas.
+ * The interior WebGL scene (three.js + R3F): Work's DNA helix, with the driver that turns the
+ * project cards round it, drawn on the stage's one sticky canvas. Since 2026-10-28 that is the
+ * only WebGL on the site — Hero, Ticker and Directions draw static SVG art, and the service
+ * pages have no stage.
  *
  * Reached only through `next/dynamic` from the stage, via the shared 3D runtime module
- * (components/three/runtime.tsx, the intro's import target too), so three.js and R3F never
- * reach a visitor without a capable GPU. The canvas never takes a pointer event
+ * (components/three/runtime.tsx), so three.js and R3F never reach a visitor without a capable
+ * GPU, nor one who never scrolls near Work. The canvas never takes a pointer event
  * (`pointer-events: none`, R3F events unused): tilt comes from passive window listeners
  * (./input.ts).
  *
- * Failure paths all end in the stage's static art: a refused or lost context (`onLost`), the
+ * Failure paths all end in Work's flat card grid: a refused or lost context (`onLost`), the
  * FPS governor giving up (`onBail`, never when forced), or a throw — an unreadable colour
- * token on mount, a shader that fails — that the stage's error boundary catches.
+ * token on mount, a shader that fails, a helix that could not be staged — that the stage's
+ * error boundary catches.
  */
 
 import { Canvas } from "@react-three/fiber";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GovernorStep } from "@/components/three/governor";
 import { useRendererFactory } from "@/components/three/hooks";
-import type { SceneCanvasProps, SceneEntry, SceneHelix } from "@/lib/scene";
+import type { SceneCanvasProps, SceneHelix } from "@/lib/scene";
 import { SCENE_CAMERA } from "./choreography";
 import { createSceneFx } from "./fx";
 import { attachTiltInput } from "./input";
@@ -55,8 +57,6 @@ export function SceneCanvas({
   onLost,
   onBail,
   onQuality,
-  onMorph,
-  onEntry,
   onHelix,
 }: SceneCanvasProps) {
   // Read before any context exists: an unparsable token throws straight to the stage's
@@ -75,15 +75,13 @@ export function SceneCanvas({
   const [step, setStep] = useState<GovernorStep>("full");
   const [fx] = useState(createSceneFx);
 
-  const callbacks = useRef({ onReady, onLost, onBail, onQuality, onMorph, onEntry, onHelix });
+  const callbacks = useRef({ onReady, onLost, onBail, onQuality, onHelix });
   useEffect(() => {
-    callbacks.current = { onReady, onLost, onBail, onQuality, onMorph, onEntry, onHelix };
-  }, [onReady, onLost, onBail, onQuality, onMorph, onEntry, onHelix]);
+    callbacks.current = { onReady, onLost, onBail, onQuality, onHelix };
+  }, [onReady, onLost, onBail, onQuality, onHelix]);
 
   const handleLost = useCallback(() => callbacks.current.onLost(), []);
   const handleReady = useCallback(() => callbacks.current.onReady(), []);
-  const handleMorph = useCallback((running: boolean) => callbacks.current.onMorph(running), []);
-  const handleEntry = useCallback((state: SceneEntry) => callbacks.current.onEntry(state), []);
   const handleHelix = useCallback((state: SceneHelix) => callbacks.current.onHelix(state), []);
   const handleStep = useCallback((next: GovernorStep) => {
     if (next === "bail") {
@@ -124,8 +122,6 @@ export function SceneCanvas({
         fx={fx}
         onReady={handleReady}
         onStep={handleStep}
-        onMorph={handleMorph}
-        onEntry={handleEntry}
         onHelix={handleHelix}
       />
     </Canvas>

@@ -12,23 +12,16 @@ import { SceneStage } from "@/components/scene/SceneStage";
 import { Navbar } from "@/components/layout/Navbar";
 import { Directions } from "@/components/sections/Directions";
 import { Hero } from "@/components/sections/Hero";
+import { Work } from "@/components/sections/Work";
 import { Ticker } from "@/components/sections/Ticker";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
-import {
-  INTRO_OVERLAY_ID,
-  INTRO_REVEAL_ATTR,
-  INTRO_REVEAL_ORDER,
-  markIntroGone,
-  resetIntroForTests,
-} from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import {
   GPU_PROBE_CACHE_KEY,
   SCENE_3D_KEY,
+  SCENE_NEAR_ROOT_MARGIN,
   SCENE_TIMING,
   readGpuFacts,
-  resetSceneForTests,
-  setSceneBoost,
   type GpuFacts,
   type GpuMode,
   type SceneCanvasProps,
@@ -105,11 +98,6 @@ vi.mock("@/components/scene/SceneCanvas", async () => {
   return { SceneCanvas };
 });
 
-/* The stage loads its canvas through the shared 3D runtime (components/three/runtime.tsx),
-   which also re-exports the intro's scene. Without this, the first import in the file would
-   evaluate the real IntroScene — three.js and R3F — and eat the 1s budget of the timing
-   assertions under a loaded CPU. */
-vi.mock("@/components/intro/IntroScene", () => ({ IntroScene: () => null }));
 
 vi.mock("@/components/scene/SceneDirector", async () => {
   h.importLog.push("director:requested");
@@ -199,8 +187,6 @@ function renderStage(children: ReactNode = <p>page</p>) {
 }
 
 beforeEach(() => {
-  resetIntroForTests();
-  resetSceneForTests();
   sessionStorage.clear();
   localStorage.clear();
   h.idle = [];
@@ -226,7 +212,6 @@ afterEach(() => {
   for (const key of ["hardwareConcurrency", "deviceMemory", "connection"]) {
     Reflect.deleteProperty(navigator, key);
   }
-  document.getElementById(INTRO_OVERLAY_ID)?.remove();
 });
 
 /* ---- 1. everything before a chunk is requested ----------------------------------------- */
@@ -252,7 +237,7 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(root).toHaveAttribute("data-renderer", "pending");
     expect(root).toHaveAttribute("data-motion", "static");
     expect(root).toHaveAttribute("data-scroll-fx", "off");
-    for (const name of ["data-reason", "data-tier", "data-paused", "data-boost", "data-quality", "data-morph", "data-entry", "style"]) {
+    for (const name of ["data-reason", "data-tier", "data-paused", "data-quality", "data-helix", "data-morph", "data-entry", "style"]) {
       expect(root.hasAttribute(name), name).toBe(false);
     }
     expect(root.className.split(" ")).toEqual(["group/stage", "relative", "isolate"]);
@@ -383,52 +368,58 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(h.probeImported).toBe(false);
   });
 
-  it("under an intro that will get the art: one warm slot, which loads nothing, then the full wait", () => {
-    capableBrowser();
-    /* Software: the answer is already "no WebGL", so the warm slot fires and asks for NOTHING.
-       That is what keeps this test in the first describe — a chunk imported here would break the
-       "never requested" guard above. */
-    seedCache({ strict: { context: true, software: true } });
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-
-    renderStage();
-    expect(attr("data-renderer")).toBe("pending");
-    // The stage schedules its warm-up behind the film, and nothing else.
-    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
-    runIdle();
-    expect(h.importLog).toEqual([]);
-
-    // Still attached: marking it gone is a no-op.
-    act(() => markIntroGone());
-    expect(pendingIdle()).toHaveLength(0);
-
-    overlay.remove();
-    act(() => markIntroGone());
-    // Nothing was warmed, so the settle is still owed.
-    expect(pendingIdle().map((entry) => entry.ms)).toEqual([
-      SCENE_TIMING.IDLE_TIMEOUT_MS + SCENE_TIMING.AFTER_INTRO_MS,
-    ]);
-    runIdle();
-    expect([attr("data-renderer"), attr("data-reason")]).toEqual(["fallback", "software"]);
-  });
-
-  it("an unmount cancels the wait; so does leaving before the intro is gone", () => {
+  it("an unmount cancels the wait", () => {
     capableBrowser();
     const view = renderStage();
     expect(pendingIdle()).toHaveLength(1);
     view.unmount();
     expect(pendingIdle()).toHaveLength(0);
+  });
 
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-    const behindIntro = renderStage();
-    behindIntro.unmount();
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(pendingIdle()).toHaveLength(0);
+  it("waits for Work to come near: nothing scheduled (no idle slot, no chunk) until the stage approaches", () => {
+    capableBrowser();
+    seedCache({ strict: { context: true, software: false } });
+    const realObserver = window.IntersectionObserver;
+    const observers: Array<{ cb: IntersectionObserverCallback; options?: IntersectionObserverInit }> = [];
+    window.IntersectionObserver = class {
+      constructor(cb: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        observers.push({ cb, options });
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    } as unknown as typeof IntersectionObserver;
+    try {
+      renderStage();
+      expect(attr("data-renderer")).toBe("pending");
+      expect(pendingIdle()).toHaveLength(0);
+      const near = observers.find((o) => o.options?.rootMargin === SCENE_NEAR_ROOT_MARGIN);
+      expect(near, "an observer with the near margin").toBeDefined();
+
+      // Still far below the fold: nothing.
+      act(() =>
+        near!.cb(
+          [{ isIntersecting: false, boundingClientRect: { bottom: 4000 } } as IntersectionObserverEntry],
+          {} as IntersectionObserver,
+        ),
+      );
+      expect(pendingIdle()).toHaveLength(0);
+      expect(h.importLog).toEqual([]);
+
+      // Within a viewport: now the idle slot, and only then the decision.
+      act(() =>
+        near!.cb(
+          [{ isIntersecting: true, boundingClientRect: { bottom: 900 } } as IntersectionObserverEntry],
+          {} as IntersectionObserver,
+        ),
+      );
+      expect(pendingIdle().map((entry) => entry.ms)).toEqual([SCENE_TIMING.IDLE_TIMEOUT_MS]);
+    } finally {
+      window.IntersectionObserver = realObserver;
+    }
   });
 
   it("reduced motion switched on while waiting settles off for good; the idle slot changes nothing", () => {
@@ -447,27 +438,8 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
     expect(attr("data-renderer")).toBe("off");
   });
 
-  it("toggles data-boost on the stage from the scene input store, whatever the renderer", () => {
-    renderStage();
-    expect(stage().hasAttribute("data-boost")).toBe(false);
-
-    act(() => setSceneBoost("hero-primary", true));
-    expect(attr("data-boost")).toBe("");
-    act(() => setSceneBoost("hero-secondary", true));
-    act(() => setSceneBoost("hero-primary", false));
-    expect(attr("data-boost")).toBe("");
-    act(() => setSceneBoost("hero-secondary", false));
-    expect(stage().hasAttribute("data-boost")).toBe(false);
-  });
-
-  it("a boost already active at mount is on the stage from the start", () => {
-    setSceneBoost("hero-primary", true);
-    renderStage();
-    expect(attr("data-boost")).toBe("");
-  });
-
   for (const locale of ["ro", "ru", "en"] as const) {
-    it(`[${locale}] around Navbar + Hero + Ticker + Directions: 8 unstyled markers, one h1, an inert text-free layer`, () => {
+    it(`[${locale}] the first screen outside, Work inside: one h1, an inert text-free layer`, () => {
       vi.mocked(api.fetchContent).mockRejectedValue(new Error("offline"));
       render(
         <LanguageProvider initialLocale={locale}>
@@ -475,10 +447,11 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
             <RequestFlowProvider>
               <Navbar />
               <main>
+                <Hero />
+                <Ticker />
+                <Directions />
                 <SceneStage>
-                  <Hero />
-                  <Ticker />
-                  <Directions />
+                  <Work />
                 </SceneStage>
               </main>
             </RequestFlowProvider>
@@ -486,12 +459,9 @@ describe("SceneStage — gates, timing and the DOM (no 3D requested)", () => {
         </LanguageProvider>,
       );
 
-      for (const target of INTRO_REVEAL_ORDER) {
-        const markers = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${target}"]`);
-        expect(markers, target).toHaveLength(1);
-        expect(markers[0].hasAttribute("style"), target).toBe(false);
-      }
       expect(document.querySelectorAll("h1")).toHaveLength(1);
+      // The first screen is outside the stage now: no WebGL ever draws behind it.
+      expect(document.querySelector("#top")!.closest("[data-scene-stage]")).toBeNull();
 
       const layer = stage().querySelector<HTMLElement>("[data-scene-layer]")!;
       expect(stage().firstElementChild).toBe(layer.parentElement);
@@ -581,33 +551,6 @@ describe("SceneStage — the WebGL path", () => {
     expect(attr("data-scroll-fx")).toBe("off");
   });
 
-  /* The 5.6s the owner reported were mostly this wait. If it ever collapses back to
-     IDLE_TIMEOUT_MS + AFTER_INTRO_MS the site is slow again after every intro, silently. */
-  it("warmed behind the intro: the chunks are asked for under the film, and only the context wait is left", async () => {
-    capableBrowser();
-    seedCache({ strict: { context: true, software: false } });
-    const overlay = document.createElement("div");
-    overlay.id = INTRO_OVERLAY_ID;
-    document.body.append(overlay);
-
-    renderStage();
-    expect(h.idle.map((entry) => entry.ms)).toEqual([SCENE_TIMING.WARM_MS]);
-
-    // Under the film: both chunks requested, and no probe and no canvas with them.
-    runIdle();
-    await waitFor(() => expect(h.importLog).toContain("director:requested"));
-    expect(h.importLog).toContain("canvas:requested");
-    expect(h.probeModes).toEqual([]);
-    expect(h.canvasMounts).toBe(0);
-    expect(attr("data-renderer")).toBe("pending");
-
-    overlay.remove();
-    act(() => markIntroGone());
-    expect(pendingIdle().map((entry) => entry.ms)).toEqual([SCENE_TIMING.AFTER_INTRO_MS]);
-    runIdle();
-    await waitFor(() => expect(h.canvasMounts).toBe(1));
-  });
-
   it("a session miss probes, then loads", async () => {
     capableBrowser();
     renderStage();
@@ -630,11 +573,19 @@ describe("SceneStage — the WebGL path", () => {
     let report: (visible: boolean) => void = () => {};
     const realObserver = window.IntersectionObserver;
     window.IntersectionObserver = class {
-      constructor(callback: IntersectionObserverCallback) {
+      private near: IntersectionObserverCallback | null = null;
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        // The proximity gate: Work is already near, so the stage may load.
+        if (options?.rootMargin === SCENE_NEAR_ROOT_MARGIN) {
+          this.near = callback;
+          return;
+        }
         report = (visible) =>
           callback([{ isIntersecting: !visible } as IntersectionObserverEntry, { isIntersecting: visible } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
       }
-      observe() {}
+      observe() {
+        this.near?.([{ isIntersecting: true, boundingClientRect: { bottom: 1 } } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+      }
       unobserve() {}
       disconnect() {}
       takeRecords() {
@@ -676,23 +627,19 @@ describe("SceneStage — the WebGL path", () => {
     }
   });
 
-  it("writes data-quality, data-morph and data-entry straight to the DOM, and drops them with the scene", async () => {
+  it("writes data-quality straight to the DOM, and drops it with the scene (no services entrance or morph is reported any more)", async () => {
     await loadScene();
     const props = h.canvasProps!;
-    // Nothing about the services entrance until the scene reports it.
-    expect(stage().hasAttribute("data-entry")).toBe(false);
+    // The helix is the scene's only model: the canvas has no morph or entrance to report.
+    expect(Object.keys(props)).not.toContain("onMorph");
+    expect(Object.keys(props)).not.toContain("onEntry");
+    expect(stage().hasAttribute("data-quality")).toBe(false);
     act(() => props.onQuality("dpr"));
-    act(() => props.onMorph(true));
-    act(() => props.onEntry("idle"));
-    expect([attr("data-quality"), attr("data-morph"), attr("data-entry")]).toEqual(["dpr", "running", "idle"]);
-    act(() => props.onMorph(false));
+    expect(attr("data-quality")).toBe("dpr");
     act(() => props.onQuality("lite"));
-    act(() => props.onEntry("burst"));
-    expect([attr("data-quality"), attr("data-morph"), attr("data-entry")]).toEqual(["lite", "idle", "burst"]);
-    act(() => props.onEntry("formed"));
-    expect(attr("data-entry")).toBe("formed");
+    expect(attr("data-quality")).toBe("lite");
 
-    // The fallback the scene fell back to never carries the entrance.
+    // The fallback the scene fell back to never carries its quality.
     act(() => props.onBail());
     expect(attr("data-renderer")).toBe("fallback");
     expect(stage().hasAttribute("data-quality")).toBe(false);
@@ -798,12 +745,12 @@ describe("SceneStage — the WebGL path", () => {
     await loadScene();
     act(() => h.canvasProps!.onReady());
     act(() => h.directorProps!.onLive());
-    act(() => h.canvasProps!.onEntry("formed"));
+    act(() => h.canvasProps!.onQuality("dpr"));
     act(() => h.canvasProps!.onHelix("spiral"));
 
     setReducedMotion(true);
     expect([attr("data-renderer"), attr("data-reason"), attr("data-motion")]).toEqual(["off", "reduced-motion", "static"]);
-    expect(stage().hasAttribute("data-entry")).toBe(false);
+    expect(stage().hasAttribute("data-quality")).toBe(false);
     expect(stage().hasAttribute("data-helix")).toBe(false);
     expect(stage().querySelector('[data-mock="scene-director"]')).toBeNull();
     expect(canvas()).toBeNull();

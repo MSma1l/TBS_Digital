@@ -18,9 +18,9 @@ import * as api from "@/lib/api";
 import { SiteContentProvider } from "@/lib/siteContent";
 import { Directions, pillIndexForKey } from "@/components/sections/Directions";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
-import { ServiceArt } from "@/components/scene/art/ServiceArt";
+import { ServiceArt } from "@/components/art/ServiceArt";
 import { directions } from "@/lib/directions";
-import { SCENE_SHAPES, readSceneInput, resetSceneForTests, selectSceneShape } from "@/lib/scene";
+import { SERVICE_SHAPES as SCENE_SHAPES } from "@/components/art/shapes";
 import { solutions } from "@/lib/solutions";
 
 beforeEach(() => {
@@ -125,13 +125,13 @@ describe("direction selector — the preview follows the selection", () => {
 
     // first direction
     expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează ideea înainte să construiești tot produsul");
-    expect(screen.getByText("Ipoteză și public")).toBeInTheDocument();
+    expect(screen.getByText("Ideea și publicul")).toBeInTheDocument();
 
     fireEvent.click(links[4]); // Brand & UI
 
-    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Testează mesajul și experiența înainte de o schimbare mare");
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent("Clienții trebuie să înțeleagă din prima ce oferi");
     expect(screen.getByText("Design system")).toBeInTheDocument();
-    expect(screen.queryByText("Ipoteză și public")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ideea și publicul")).not.toBeInTheDocument();
   });
 
   it("keeps the short description visible for every direction", () => {
@@ -295,13 +295,9 @@ function syntheticClick(el: HTMLElement): { navigated: boolean } {
   return { navigated: !prevented };
 }
 
-const screenEl = () => screen.getByTestId("scene-services");
+const screenEl = () => screen.getByTestId("services-screen");
 
 describe("direction selector — a finger selects first, then opens", () => {
-  beforeEach(() => {
-    resetSceneForTests();
-  });
-
   it("first touch tap on another pill selects without navigating; the second navigates", () => {
     renderSection();
     const links = pills();
@@ -408,10 +404,6 @@ describe("direction selector — a finger selects first, then opens", () => {
 });
 
 describe("direction selector — arrow keys walk the pills", () => {
-  beforeEach(() => {
-    resetSceneForTests();
-  });
-
   it("ArrowRight/ArrowLeft move focus and aria-current, wrapping at both ends", () => {
     renderSection();
     const links = pills();
@@ -461,12 +453,8 @@ describe("direction selector — arrow keys walk the pills", () => {
   });
 });
 
-describe("direction selector — the HUD screen and the scene", () => {
-  beforeEach(() => {
-    resetSceneForTests();
-  });
-
-  it("data-shape follows aria-current on a pointer move, focus and click for all 5, and so does the scene", () => {
+describe("direction selector — the HUD screen", () => {
+  it("data-shape follows aria-current on a pointer move, focus and click for all 5", () => {
     const container = renderSection();
     container.addEventListener("click", (e) => e.preventDefault());
     const links = pills();
@@ -482,15 +470,12 @@ describe("direction selector — the HUD screen and the scene", () => {
         move(links[i]);
         expect(selected()).toBe(i);
         expect(screenEl()).toHaveAttribute("data-shape", SCENE_SHAPES[i]);
-        expect(readSceneInput().shape).toBe(i);
       }
     }
   });
 
-  it("the page's selection wins over whatever the scene held before", () => {
-    selectSceneShape("brand-ui");
+  it("opens on the first direction", () => {
     renderSection();
-    expect(readSceneInput().shape).toBe(0);
     expect(screenEl()).toHaveAttribute("data-shape", "produs-digital");
   });
 
@@ -502,7 +487,7 @@ describe("direction selector — the HUD screen and the scene", () => {
         </RequestFlowProvider>
       </SiteContentProvider>,
     );
-    const anchor = container.querySelector<HTMLElement>('[data-scene-anchor="services"]');
+    const anchor = container.querySelector<HTMLElement>('[data-art-host]');
     expect(anchor).not.toBeNull();
     expect(anchor).toHaveAttribute("aria-hidden", "true");
     expect(screenEl().contains(anchor)).toBe(true);
@@ -533,7 +518,7 @@ describe("direction selector — the HUD screen and the scene", () => {
         </RequestFlowProvider>
       </SiteContentProvider>,
     );
-    const anchor = container.querySelector<HTMLElement>('[data-scene-anchor="services"]')!;
+    const anchor = container.querySelector<HTMLElement>('[data-art-host]')!;
     expect(anchor.querySelector("[data-slot]")).toHaveAttribute("data-shape-art", "produs-digital");
 
     const links = pills();
@@ -547,13 +532,11 @@ describe("direction selector — the HUD screen and the scene", () => {
   });
 
   it("a bare render (no initial slot) draws no illustration for any direction", async () => {
-    // The host is never empty any more: `ModelLoader` fills it from first paint until the stage
-    // decides, because the illustrations became the fallback rather than a preamble. So the claim
-    // is about ILLUSTRATIONS — `[data-shape-art]` — not about the host having no children.
+    // No loading mark either: there is nothing to load (no WebGL scene since 2026-10-28).
     renderSection();
-    const anchor = screenEl().querySelector<HTMLElement>('[data-scene-anchor="services"]')!;
+    const anchor = screenEl().querySelector<HTMLElement>('[data-art-host]')!;
     const art = () => anchor.querySelectorAll("[data-shape-art]").length;
-    expect(anchor.querySelectorAll("[data-loading]")).toHaveLength(1);
+    expect(anchor.querySelectorAll("[data-loading]")).toHaveLength(0);
     for (const link of pills()) {
       fireEvent.pointerMove(link);
       expect(art()).toBe(0);
@@ -567,7 +550,7 @@ describe("direction selector — the HUD screen and the scene", () => {
   it("the illustration comes before the case card, and nothing on the screen takes focus", () => {
     renderSection();
     const box = screenEl();
-    const anchor = box.querySelector('[data-scene-anchor="services"]');
+    const anchor = box.querySelector('[data-art-host]');
     const card = box.querySelector("article");
     expect(anchor).not.toBeNull();
     expect(card).not.toBeNull();
@@ -576,25 +559,17 @@ describe("direction selector — the HUD screen and the scene", () => {
   });
 });
 
-/* ---- the glass reveal: `entry-glow` / `entry-sweep` (app/tailwind.css) -------------------- */
+/* ---- the lit edge: `entry-glow` (app/tailwind.css) ---------------------------------------- */
 
-describe("direction selector — the glass reveal hooks", () => {
-  it("the panel carries entry-glow and its copy column entry-sweep, once each, off every reveal marker", () => {
+describe("direction selector — the lit edge", () => {
+  it("the panel carries entry-glow once, off every reveal marker", () => {
     const container = renderSection();
     const panel = container.querySelector<HTMLElement>("#servicii nav ~ div");
-    const copy = screen.getByRole("heading", { level: 3 }).closest<HTMLElement>(".entry-sweep");
-
     expect(panel).toHaveClass("entry-glow");
-    expect(copy).not.toBeNull();
-    expect(copy?.parentElement).toBe(panel);
     expect(container.querySelectorAll(".entry-glow")).toHaveLength(1);
-    expect(container.querySelectorAll(".entry-sweep")).toHaveLength(1);
-    // The band is the column's ::after: no `after:` utility may write the same pseudo-element.
-    expect(copy?.className.split(/\s+/).filter((token) => /(?:^|:)after:/.test(token))).toEqual([]);
-    for (const el of [panel, copy]) {
-      expect(el?.closest("[data-reveal]")).toBeNull();
-      expect(el?.querySelector("[data-reveal]")).toBeNull();
-    }
+    expect(container.querySelectorAll(".entry-sweep")).toHaveLength(0);
+    expect(panel?.closest("[data-reveal]")).toBeNull();
+    expect(panel?.querySelector("[data-reveal]")).toBeNull();
   });
 
   it("the glow's --accent follows the selected direction", () => {

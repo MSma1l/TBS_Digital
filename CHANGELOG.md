@@ -16,6 +16,40 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-28 — Changed: temă albă, fără animație la pornire, texte rescrise (StoryBrand + SEO)
+
+- **Changed — temă albă (light only):** site-ul are o singură paletă, deschisă, fără comutator.
+  Valorile sunt cele aprobate de client (`--bg` #f4f7ff, `--txt` #10172a, `--mut` #586784,
+  `--line` #dbe3f1, carduri albe), restaurate din istoricul de dinainte de `58b18ee`;
+  `color-scheme: light`, `themeColor` #f4f7ff. `--dim` a urcat la #586784 (vechiul #6b7891 pica
+  AA pe alb). Scena 3D desenează din nou în ramura „ink” (`uInk` = 1, blending „over”), aleasă
+  din luminanța `--bg`. Tonurile de umplere folosite greșit ca text mic (cyan, amber, roz) au
+  trecut pe `*-text`; suprafețe întunecate rămase din dark (Estimator, admin, cipurile din
+  Portfolio) corectate. Blocurile `--ink` și `--scrim` rămân închise intenționat.
+- **Removed — animația de la pornire:** intro-ul 3D cu laptopul (`components/intro/**`,
+  `lib/intro.ts`, cookie-ul `tbs_intro`, header-ul `x-intro` din `proxy.ts`) și coperta de
+  încărcare pe tot ecranul (`PageLoading`, `BootCore`). Pagina apare imediat; bannerul de
+  cookie, HUD-ul, asistentul și scena 3D nu mai așteaptă intro-ul. `SceneLoading` (placeholder
+  mic pentru secțiunile 3D lazy) rămâne. Tokenurile `--z-intro` / `--z-page-loading` și cheile
+  `intro.*` din catalog au fost scoase.
+- **Changed — texte (Marketing Made Simple / StoryBrand):** clientul e eroul, TBS e ghidul;
+  one-liner problemă → soluție → rezultat în hero și meta description; plan în 3 pași; un
+  singur CTA direct („Cere ofertă”) peste tot. SEO: `meta.title` ≤ 60 caractere cu cuvântul
+  cheie, `meta.description` 140–160 caractere, H1-uri cu cuvinte cheie pe paginile de servicii,
+  titlu de pagină keyword-first. În ro/ru/en.
+- **Removed (la cererea lui Ivan):** subtitlul de sub titlul din hero, rândul de sub butoanele
+  hero („MVP cu buget de pornire mic · Nu ai nevoie de caiet de sarcini · Răspuns…”) și textul
+  introductiv al secțiunii Direcții — în toate trei limbile.
+- **Docs:** [04 — Design system](./docs/04-design-system.md) (Light only),
+  [16 — i18n & SEO](./docs/16-i18n-seo.md) (Copy framework),
+  [05 — Page sections](./docs/05-page-sections.md), plus mențiunile intro-ului scoase din
+  docs/02, 03, 07, 09, 11, 14, `SECURITY.md`, `README.md`, `e2e/README.md`.
+- **Files:** `app/globals.css`, `app/tailwind.css`, `app/layout.tsx` (viewport),
+  `app/(site)/layout.tsx`, `proxy.ts`, `components/**/*.module.css`,
+  `components/scene/three/palette.ts`, `components/sections/*`, `components/ui/CookieConsent.tsx`,
+  `components/hud/**`, `components/scene/SceneStage.tsx`, `lib/i18n/messages/*`,
+  `lib/solutions.ts`, teste unitare și e2e aferente.
+
 ## 2026-10-19 — Added: fiecare lead nou ajunge și în CRM (Nexa CRM)
 
 - **Added:** fiecare cerere nouă din formularul de contact este trimisă și în CRM-ul companiei

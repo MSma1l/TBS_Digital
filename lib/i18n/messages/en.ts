@@ -11,17 +11,17 @@ import type { MessageKey } from "./ro";
 
 export const en: Record<MessageKey, string> = {
   // --- SEO / document ---
-  "meta.title": "TBS Digital — MVPs, websites & custom software",
+  "meta.title": "Website, App & MVP Development in Moldova | TBS Digital",
   "meta.description":
-    "We build MVPs, websites, CRM, SaaS and apps to test ideas with real users, then develop them in stages.",
+    "Got an idea, or a process slowing you down? We build the MVP, website or app, you test it with real customers and invest only in what works. Get a quote.",
 
   // --- Hero ---
-  "hero.badge": "FROM CONSULTING TO DIGITALIZATION",
+  "hero.badge": "WEBSITES · APPS · MVPS · AUTOMATION",
   "hero.kicker":
-    "Software that delivers:\nless busywork, more clients, more revenue.",
+    "Test the idea before\nyou invest in the whole product.",
   "hero.lead":
-    "Custom software, mobile apps, AI automation, CRM, SaaS and platforms that grow your business — from strategy to launch.",
-  "hero.cta.primary": "Get a price ↗",
+    "We build an MVP, website or app on a small starting budget. You test it with real customers and develop only what works.",
+  "hero.cta.primary": "Get a quote ↗",
   "hero.cta.secondary": "See services",
 
   // --- Principles (/02) ---
@@ -40,9 +40,9 @@ export const en: Record<MessageKey, string> = {
 
   // --- Services (/03) ---
   "services.label": "WHAT WE BUILD",
-  "services.title": "Digitalization\nservices",
+  "services.title": "Websites, apps\nand automation",
   "services.lead":
-    "Pick one service or combine several into a complete product.",
+    "Pick what you need now. We start small and add only what brings results.",
   "services.swipeHint": "← SWIPE ↔ {n} SERVICES →",
   "services.card.cta": "Get a price →",
   "services.card.estimateAria": "Get a price for {name}",
@@ -129,11 +129,11 @@ export const en: Record<MessageKey, string> = {
   "partners.label": "OUR PARTNERS",
   "partners.title": "Growing\ntogether",
   "partners.lead":
-    "We work alongside companies that hold the same standards we do — in audit, consulting and business education. They bring their clients' trust; we bring the technical side.",
+    "We work alongside companies in audit, consulting and business education. They bring their clients' trust; we bring the technical side.",
   "partners.cta.label": "BECOME A PARTNER",
   "partners.cta.title": "You could be a partner too",
   "partners.cta.text":
-    "You work with entrepreneurs every day and see, before anyone else, where a business gets stuck. We build the technical side — software, automation, artificial intelligence — while you stay the person the client trusts. No red tape, no strings: drop us a line, we'll talk, and we'll figure out together what the partnership looks like.",
+    "You work with entrepreneurs and see first where a business gets stuck. We build the technical side — software, automation, AI — while you stay the person the client trusts. Drop us a line and we'll agree together what the partnership looks like.",
 
   // --- Estimator + contact (/07) ---
   "estimator.label": "LET'S BUILD TOGETHER",
@@ -188,11 +188,11 @@ export const en: Record<MessageKey, string> = {
   "nav.about": "ABOUT",
   "dir.section.title": "A direction picker —\nbuilt for fast, confident decisions.",
   "dir.section.lead": "Pick a direction — a dedicated page opens with the details.",
-  "dir.digital": "Digital product",
-  "dir.ecommerce": "E-commerce",
-  "dir.automation": "Automation & API",
-  "dir.ai": "Artificial intelligence: assistants & bots",
-  "dir.brand": "Brand & UI",
+  "dir.digital": "Websites, apps & MVPs",
+  "dir.ecommerce": "Online store & e-commerce",
+  "dir.automation": "Automation, CRM & API",
+  "dir.ai": "AI assistants & bots",
+  "dir.brand": "Brand & UI design",
   "dir.page.soon": "Page in progress — we'll fill it with details soon.",
   "dir.page.back": "Home",
   "nav.company": "COMPANY",
@@ -212,11 +212,11 @@ export const en: Record<MessageKey, string> = {
   // --- Footer ---
   "footer.partnersLabel": "OUR BUSINESS PARTNERS",
   "footer.brandText":
-    "We digitize businesses with custom software, mobile apps, automation and AI.",
+    "A digital agency in Chișinău, Moldova. We build websites, online stores, apps, MVPs and automations on a small starting budget: you start with a first version, test it with real customers and grow on results.",
   "footer.col.nav": "NAVIGATION",
   "footer.col.services": "SERVICES",
   "footer.col.contact": "CONTACT",
-  "footer.cta": "Get a price ↗",
+  "footer.cta": "Get a quote ↗",
   "footer.copyright": "© {year} TBS DIGITAL · ALL RIGHTS RESERVED",
   "footer.madeBy": "BUILT BY THE TBS DIGITAL TEAM",
   "footer.services.0": "Web & Landing",
@@ -228,8 +228,8 @@ export const en: Record<MessageKey, string> = {
   "footer.social.networkAria": "TBS Digital on {network}",
   "footer.legal.privacy": "Privacy",
   "footer.legal.cookies": "Cookies",
-  "cta.collaborate": "Let's work together →",
-  "cta.lead": "Got a project in mind? Let's build it together.",
+  "cta.collaborate": "Get a quote →",
+  "cta.lead": "Got an idea? Start with a small first version and find out quickly if it's worth it.",
 
   // --- Lightbox ---
   "lightbox.dialogAria": "{title} — image {i} of {count}",
@@ -253,11 +253,6 @@ export const en: Record<MessageKey, string> = {
   "cookie.reject": "Reject",
   "cookie.settings": "Essential only",
 
-  // --- Intro preloader ---
+  // --- Loading ---
   "common.loading": "Loading",
-  "intro.status": "SYSTEM_SYNCHRONIZATION",
-  "intro.complete": "ACCESS_GRANTED",
-  "intro.progressAria": "Loading TBS Digital",
-  "intro.skip": "Skip intro",
-  "intro.skipKey": "ESC",
 };

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { HeroCoreArt } from "@/components/scene/art/HeroCoreArt";
+import { HeroCoreArt } from "@/components/art/HeroCoreArt";
 import {
   ART_SCALE,
   CHIP_ART,
@@ -13,18 +13,18 @@ import {
   WAVE_HALF,
   chipLift,
   rotateEulerXYZ,
-} from "@/components/scene/art/heroArt";
-import { CHIP, CHIP_POSE, chipPins, chipTraces, projectOrtho, type Vec3 } from "@/components/scene/shapes";
+} from "@/components/art/heroArt";
+import { CHIP, CHIP_POSE, chipPins, chipTraces, projectOrtho, type Vec3 } from "@/components/art/shapes";
 
 /*
- * The hero's static microprocessor (components/scene/art/HeroCoreArt.tsx + heroArt.ts +
+ * The hero's static microprocessor (components/art/HeroCoreArt.tsx + heroArt.ts +
  * HeroCoreArt.module.css), held to the fallback-art rules: server-rendered, decorative and
  * text-free, no decorative dots, tokens only, static apart from the one-shot boost, and drawn
- * from the WebGL chip's own shapes and pose, so the crossfade lands on the same silhouette.
+ * from the chip's shapes and pose (components/art/shapes.ts).
  */
 
 const ROOT = process.cwd();
-const CSS = readFileSync(resolve(ROOT, "components/scene/art/HeroCoreArt.module.css"), "utf8");
+const CSS = readFileSync(resolve(ROOT, "components/art/HeroCoreArt.module.css"), "utf8");
 const cssNoComments = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
 
 type P2 = [number, number];
@@ -416,10 +416,9 @@ describe("HeroCoreArt — the WebGL chip's proportions", () => {
 });
 
 describe("HeroCoreArt.module.css — static, tokens only", () => {
-  it("hides the art once the WebGL core has taken over", () => {
-    expect(cssNoComments).toMatch(
-      /:global\(\[data-scene-stage\]\[data-renderer="webgl"\]\)\s+\.art\s*\{[^}]*opacity:\s*0/,
-    );
+  it("is always shown: nothing hides the art (there is no canvas to hand over to)", () => {
+    expect(cssNoComments).not.toMatch(/data-renderer|data-scene-stage/);
+    expect(cssNoComments).not.toMatch(/\.art\s*\{[^}]*opacity:\s*0/);
   });
 
   it("never loops, and never animates a dash offset or a filter", () => {
@@ -433,15 +432,20 @@ describe("HeroCoreArt.module.css — static, tokens only", () => {
     }
   });
 
-  it("animates only on the stage's boost, only where motion is welcome, never under the canvas", () => {
+  it("animates only while a hero CTA is hovered or keyboard-focused, only where motion is welcome", () => {
     const animated = [...cssNoComments.matchAll(/([^{}]+)\{[^{}]*\banimation\s*:/g)].map((m) => m[1].trim());
     expect(animated.length).toBeGreaterThan(0);
     for (const selector of animated) {
-      expect(selector).toMatch(/\[data-scene-stage\]:not\(\[data-renderer="webgl"\]\)\[data-boost\]/);
+      expect(selector).toMatch(/#top:has\(\[data-hero-cta\]:(?:hover|focus-visible)\)/);
     }
-    const gated = cssNoComments.match(/@media \(prefers-reduced-motion: no-preference\)\s*\{([\s\S]*?\n)\}/)?.[1] ?? "";
+    const gated = [
+      ...cssNoComments.matchAll(/@media \(prefers-reduced-motion: no-preference\)[^{]*\{([\s\S]*?\n)\}/g),
+    ]
+      .map((m) => m[1])
+      .join("");
     expect(gated.match(/\banimation\s*:/g)).toHaveLength(animated.length);
-    expect(cssNoComments).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
+    // A hover only counts on a device that can hover (a tap leaves :hover stuck).
+    expect(cssNoComments).toMatch(/\(hover: hover\)\s*\{[^@]*:hover\)/);
   });
 
   it("the boost is the square wave scaling 0.95 → 2.3 as it fades, and the packets pulsing", () => {
@@ -465,7 +469,6 @@ describe("HeroCoreArt.module.css — static, tokens only", () => {
     }
     expect(declared("line", "vector-effect")).toEqual(["non-scaling-stroke"]);
     expect(declared("die", "vector-effect")).toEqual(["non-scaling-stroke"]);
-    expect(cssNoComments).not.toMatch(/\[data-intro-reveal/);
   });
 
   it("draws the structure heavier on phones", () => {

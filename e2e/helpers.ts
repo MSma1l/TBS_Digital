@@ -1,9 +1,7 @@
 import {
   expect,
-  test,
   type BrowserContext,
   type BrowserContextOptions,
-  type Cookie,
   type Locator,
   type Page,
 } from "@playwright/test";
@@ -17,7 +15,6 @@ import { messages } from "@/lib/i18n/messages";
 import { DIRECTIONS_BASE, directions } from "@/lib/directions";
 import { solUI } from "@/lib/solutions";
 import { CONSENT_KEY } from "@/lib/consent";
-import { INTRO_COOKIE, INTRO_FORCE_3D_KEY, INTRO_SEEN } from "@/lib/intro";
 import { HUD_FLAG_KEY } from "@/lib/hud/gate";
 import {
   GPU_PROBE_CACHE_KEY,
@@ -98,17 +95,6 @@ export const seedConsent = (
   value: "accepted" | "rejected" = "rejected",
 ) => seedCookie(context, CONSENT_KEY, value, baseURL);
 
-/**
- * Arrive as a visitor who has already seen the home-page intro this session, so the page is
- * the plain, static site from the first byte: no overlay, no three.js, no GSAP.
- *
- * Seeded at the ORIGIN, never at the page URL: Playwright derives a cookie's path from the
- * directory of the `url` it is given, so seeding with `/servicii/e-commerce` would scope the
- * cookie to `/servicii/` and `/` would still play the intro.
- */
-export const seedIntroSeen = (context: BrowserContext, baseURL: string) =>
-  seedCookie(context, INTRO_COOKIE, INTRO_SEEN, new URL("/", baseURL).href);
-
 // --- HUD chrome ------------------------------------------------------------------------
 
 /** A context's storage in the object form `use.storageState` / `browser.newContext` take. */
@@ -124,7 +110,7 @@ export const HUD_ON: StorageState = { cookies: [], origins: [] };
 /**
  * Arm the HUD chrome the way a visitor does — pointer moves — and wait until one of its parts
  * (`[data-hud]`) is in the DOM. The HUD also needs an answered cookie banner
- * (`seedConsent`) and no intro on screen (`gotoHydrated` seeds the intro as seen).
+ * (`seedConsent`).
  */
 export async function armHud(page: Page): Promise<void> {
   const flag = await page.evaluate((key) => {
@@ -184,33 +170,7 @@ export async function cookieValue(
   return all.find((c) => c.name === name)?.value;
 }
 
-/**
- * The whole skip cookie, not just its value. The site never writes it — the intro plays on every
- * hard load of `/` — so the preloader spec uses this to assert it is ABSENT after an intro, and
- * every other spec seeds it (`seedIntroSeen`) to skip the intro it is not testing.
- */
-export async function introCookie(context: BrowserContext): Promise<Cookie | undefined> {
-  const all = await context.cookies();
-  return all.find((c) => c.name === INTRO_COOKIE);
-}
-
 // --- navigation ------------------------------------------------------------------------
-
-/**
- * The origin a cookie for `url` belongs to: `url` itself when absolute, otherwise the
- * project's `baseURL` (the config's `use` block is merged into the project).
- */
-function baseFor(url: string): string {
-  if (/^https?:\/\//i.test(url)) return url;
-  const base = test.info().project.use.baseURL;
-  if (!base) {
-    throw new Error(
-      `gotoHydrated("${url}"): a relative URL needs use.baseURL in playwright.config.ts — ` +
-        "pass an absolute URL or configure one",
-    );
-  }
-  return base;
-}
 
 /**
  * Navigate and wait until React has actually hydrated the markup.
@@ -224,26 +184,16 @@ function baseFor(url: string): string {
  * each host element. It is an internal name, but a stable one across React 18/19 and the
  * only honest "the page is interactive now" marker the App Router exposes.
  *
- * Every spec is a RETURNING visitor unless it says otherwise: the intro cookie is seeded
- * first, so no full-screen overlay sits over the controls a test is about to press.
- * `preloader.spec.ts` passes `{ seedIntro: false }` to exercise the real first visit.
- *
- * A returning visitor also arrives with the GPU probe already answered for the session
- * (`seedGpuProbe`, on by default with `seedIntro`): the interior stage then settles on its
- * static art without creating a throwaway SwiftShader context about a second after idle —
- * CPU time that used to land inside other specs' timing windows. A spec that is about the
- * probe itself passes `{ seedGpuProbe: false }`; one that seeds its own answer
- * (`seedGpuProbe(page, …)`) before calling this keeps it, the default only fills a gap.
+ * A visitor arrives with the GPU probe already answered for the session (`seedGpuProbe`, on by
+ * default): Work's stage then settles on the flat card grid without creating a throwaway
+ * SwiftShader context when Work comes near. A spec that is about the probe passes
+ * `{ seedGpuProbe: false }`; one that seeds its own answer first keeps it.
  */
 export async function gotoHydrated(
   page: Page,
   url: string,
-  {
-    seedIntro = true,
-    seedGpuProbe: seedProbe = seedIntro,
-  }: { seedIntro?: boolean; seedGpuProbe?: boolean } = {},
+  { seedGpuProbe: seedProbe = true }: { seedGpuProbe?: boolean } = {},
 ): Promise<void> {
-  if (seedIntro) await seedIntroSeen(page.context(), baseFor(url));
   if (seedProbe) await seedGpuProbe(page, SOFTWARE_GPU_PROBE);
   await page.goto(url);
   await page.waitForFunction(
@@ -517,35 +467,7 @@ export const estimatorForm = (page: Page): Locator =>
     .locator("form")
     .filter({ has: page.locator('input[type="email"]') });
 
-// --- the intro preloader -----------------------------------------------------------------
-
-/*
- * The first-visit overlay (`components/intro/`), addressed through the hooks its markup
- * declares — `data-testid`, `role="progressbar"`, the catalog's `intro.*` keys — never
- * through CSS-module class names. `gotoHydrated` seeds it away; only a spec that passes
- * `{ seedIntro: false }` (or uses a raw `page.goto` without `seedIntroSeen`) ever sees it.
- */
-
-/** The overlay root. Selector shared with the init-script probes below. */
-const INTRO_SELECTOR = '[data-testid="intro"]';
-
-export const introOverlay = (page: Page): Locator => page.locator(INTRO_SELECTOR);
-
-/** The HUD readout. Its children are presentational, which is why skip sits beside it. */
-export const introProgress = (page: Page): Locator =>
-  introOverlay(page).getByRole("progressbar");
-
-/** The visible `NN` counter the director writes through `textContent`. */
-export const introCounter = (page: Page): Locator =>
-  introOverlay(page).locator('[data-testid="intro-counter"]');
-
-/** Where the WebGL canvas mounts (only when `data-renderer="webgl"`). */
-export const introScene = (page: Page): Locator =>
-  introOverlay(page).locator('[data-testid="intro-scene"]');
-
-/** The skip button, by its catalog label in `locale`. */
-export const introSkip = (page: Page, locale: Locale = "ro"): Locator =>
-  introOverlay(page).getByRole("button", { name: messages[locale]["intro.skip"], exact: true });
+// --- cookie banner, page probes -------------------------------------------------------
 
 /**
  * The cookie banner. `aria-modal="false"` is what tells it apart from the request dialog —
@@ -555,42 +477,7 @@ export const cookieBanner = (page: Page): Locator =>
   page.locator('[role="dialog"][aria-modal="false"]');
 
 /**
- * Record every value the intro's progress bar announces, in order, from the server-rendered
- * one onwards. Consecutive repeats are dropped, so the spec can assert the sequence never
- * goes backwards and ends at exactly 100. Read it with `introProgressValues(page)`.
- */
-export async function recordIntroProgress(page: Page): Promise<void> {
-  await page.addInitScript((selector) => {
-    const w = window as unknown as { __introProgress?: number[] };
-    const values: number[] = [];
-    w.__introProgress = values;
-
-    const record = (node: Node) => {
-      if (!(node instanceof Element) || node.getAttribute("role") !== "progressbar") return;
-      if (!node.closest(selector)) return;
-      const raw = node.getAttribute("aria-valuenow");
-      const value = raw === null || raw.trim() === "" ? Number.NaN : Number(raw);
-      if (Number.isFinite(value) && values[values.length - 1] !== value) values.push(value);
-    };
-
-    new MutationObserver((mutations) => mutations.forEach((m) => record(m.target))).observe(
-      document,
-      { subtree: true, attributes: true, attributeFilter: ["aria-valuenow"] },
-    );
-    // The first value is parsed, not mutated — pick it up once the markup is in.
-    document.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll('[role="progressbar"][aria-valuenow]').forEach(record);
-    });
-  }, INTRO_SELECTOR);
-}
-
-export const introProgressValues = (page: Page): Promise<number[]> =>
-  page.evaluate(
-    () => (window as unknown as { __introProgress?: number[] }).__introProgress ?? [],
-  );
-
-/**
- * Collect Content-Security-Policy violations as `"<directive> <blocked URI>"`. The intro
+ * Collect Content-Security-Policy violations as `"<directive> <blocked URI>"`. The page
  * must not need a CSP change: no CDN assets, workers, wasm or eval. Read with `cspViolations`.
  */
 export async function watchCsp(page: Page): Promise<void> {
@@ -618,9 +505,8 @@ type GetContextArgs = [contextId: string, options?: unknown];
 type AnyGetContext = (this: HTMLCanvasElement, ...args: GetContextArgs) => unknown;
 
 /**
- * Count the distinct WebGL contexts the page creates (the capability probe's throwaway one
- * included). A returning visitor, or reduced motion, must create none. Read with
- * `webglContextCount`.
+ * Count the distinct WebGL contexts the page creates. Only Work's stage may create one, and only
+ * once Work comes near the viewport (2026-10-28). Read with `webglContextCount`.
  */
 export async function countWebGLContexts(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -644,164 +530,30 @@ export async function countWebGLContexts(page: Page): Promise<void> {
 export const webglContextCount = (page: Page): Promise<number> =>
   page.evaluate(() => (window as unknown as { __webgl?: { count: number } }).__webgl?.count ?? 0);
 
-/** A browser with no WebGL at all: the capability probe must fall back to the SVG intro. */
-export async function forceNoWebGL(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const proto = HTMLCanvasElement.prototype as unknown as { getContext: AnyGetContext };
-    const real = proto.getContext;
-    proto.getContext = function (this: HTMLCanvasElement, ...args: GetContextArgs) {
-      return /webgl/i.test(args[0]) ? null : real.apply(this, args);
-    };
-  });
-}
-
-/**
- * WebGL that passes the probe but fails the real renderer. The probe uses a DETACHED
- * canvas; R3F's canvas is in the document — so only connected canvases get `null`, and
- * three.js throws "Error creating WebGL context" inside the scene. The error boundary must
- * turn that into the SVG fallback.
- */
-export async function breakRendererWebGL(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const proto = HTMLCanvasElement.prototype as unknown as { getContext: AnyGetContext };
-    const real = proto.getContext;
-    proto.getContext = function (this: HTMLCanvasElement, ...args: GetContextArgs) {
-      return /webgl/i.test(args[0]) && this.isConnected ? null : real.apply(this, args);
-    };
-  });
-}
-
-/**
- * Watch the overlay every animation frame for `durationMs` and remember whether it was EVER
- * actually visible (displayed, not `visibility:hidden`, opacity above 0) — `toBeHidden`
- * alone ignores opacity and can't see a one-frame flash. Read with `introEverVisible`.
- */
-export async function sampleIntroVisibility(page: Page, durationMs = 5_000): Promise<void> {
-  await page.addInitScript(
-    ({ selector, duration }) => {
-      const w = window as unknown as { __introEverVisible?: boolean };
-      w.__introEverVisible = false;
-      const start = performance.now();
-      const sample = () => {
-        const el = document.querySelector(selector);
-        if (el) {
-          const style = getComputedStyle(el);
-          if (
-            style.display !== "none" &&
-            style.visibility !== "hidden" &&
-            Number(style.opacity) > 0
-          ) {
-            w.__introEverVisible = true;
-            return;
-          }
-        }
-        if (performance.now() - start < duration) requestAnimationFrame(sample);
-      };
-      requestAnimationFrame(sample);
-    },
-    { selector: INTRO_SELECTOR, duration: durationMs },
-  );
-}
-
-export const introEverVisible = (page: Page): Promise<boolean> =>
-  page.evaluate(
-    () => (window as unknown as { __introEverVisible?: boolean }).__introEverVisible ?? false,
-  );
-
 /**
  * Has three.js been evaluated in this page? Its core module sets `window.__THREE__` to the
- * revision as a side effect, in production builds too — so no app-side flag is needed.
+ * revision as a side effect, in production builds too. Only Work's stage loads it, and only near Work.
  */
 export const threeLoaded = (page: Page): Promise<boolean> =>
   page.evaluate(() => "__THREE__" in window);
 
 /**
  * Has GSAP been evaluated in this page? Its core pushes its version onto
- * `window.gsapVersions` when it installs (gsap-core.js), production builds included — the
- * GSAP twin of `threeLoaded`.
+ * `window.gsapVersions` when it installs (gsap-core.js) — the GSAP twin of `threeLoaded`.
+ * Only Work's stage loads it, and only near Work.
  */
 export const gsapLoaded = (page: Page): Promise<boolean> =>
   page.evaluate(() => "gsapVersions" in window);
 
-/**
- * Ask for the WebGL scene even on a software renderer (SwiftShader in this container), the
- * QA switch `components/intro/capability.ts` reads. Set from an init script so it is in
- * localStorage before the app's first line runs.
- */
-export async function forceIntro3d(page: Page): Promise<void> {
-  await page.addInitScript(
-    ({ key }) => {
-      try {
-        window.localStorage.setItem(key, "force");
-      } catch {
-        /* storage blocked: the spec's own assertions will say so */
-      }
-    },
-    { key: INTRO_FORCE_3D_KEY },
-  );
-}
-
-/**
- * Record every value the overlay root's `data-phase` and `data-renderer` take, in order
- * (server-rendered values included, consecutive repeats dropped). A renderer that was
- * "webgl" for a moment and fell back stays visible in the record, which a single read
- * after the fact could never show. Read with `introAttributeValues(page)`.
- */
-export async function recordIntroAttributes(page: Page): Promise<void> {
-  await page.addInitScript((selector) => {
-    const w = window as unknown as { __introAttrs?: Record<string, string[]> };
-    const record: Record<string, string[]> = { "data-phase": [], "data-renderer": [] };
-    w.__introAttrs = record;
-    const add = (name: string, value: string | null) => {
-      const list = record[name];
-      if (value !== null && list && list[list.length - 1] !== value) list.push(value);
-    };
-    const push = (el: Element, name: string) => add(name, el.getAttribute(name));
-    // Old values first, then the value at callback time: two changes inside one batch
-    // (webgl → fallback in the same frame) would otherwise collapse into the last one.
-    new MutationObserver((mutations) => {
-      const touched = new Map<Element, Set<string>>();
-      for (const m of mutations) {
-        if (!(m.target instanceof Element) || !m.attributeName || !m.target.matches(selector)) {
-          continue;
-        }
-        add(m.attributeName, m.oldValue);
-        if (!touched.has(m.target)) touched.set(m.target, new Set());
-        touched.get(m.target)!.add(m.attributeName);
-      }
-      touched.forEach((names, el) => names.forEach((name) => push(el, name)));
-    }).observe(document, {
-      subtree: true,
-      attributes: true,
-      attributeOldValue: true,
-      attributeFilter: ["data-phase", "data-renderer"],
-    });
-    document.addEventListener("DOMContentLoaded", () => {
-      const root = document.querySelector(selector);
-      if (root) Object.keys(record).forEach((name) => push(root, name));
-    });
-  }, INTRO_SELECTOR);
-}
-
-export const introAttributeValues = (
-  page: Page,
-): Promise<{ phase: string[]; renderer: string[] }> =>
-  page.evaluate(() => {
-    const r = (window as unknown as { __introAttrs?: Record<string, string[]> }).__introAttrs;
-    return { phase: r?.["data-phase"] ?? [], renderer: r?.["data-renderer"] ?? [] };
-  });
-
-// --- the interior stage (components/scene/) --------------------------------------------
+// --- the home page's static hosts and Work's stage ------------------------------------------
 
 /*
- * The home page's one WebGL stage wraps Hero → Ticker → Directions. Its state lives on the
- * root `[data-testid="scene-stage"]`: `data-renderer` pending|webgl|fallback|off,
- * `data-reason`, `data-tier`, `data-paused` (only while webgl), `data-motion` live|static,
- * `data-scroll-fx` on|off, `data-boost` ("" while a hero CTA is hovered or focused),
- * `data-quality` and `data-morph` (only once a canvas has reported). Headless Chromium here
- * renders WebGL with SwiftShader, which the stage's strict probe refuses: the default path is
- * the static art (`fallback`/`software`); `tbs_scene_3d=force` is the QA switch that lets it
- * draw (`forceScene3d`).
+ * Work's WebGL stage (components/scene/SceneStage.tsx) — the only one on the site. Its state lives
+ * on `[data-testid="scene-stage"]`: `data-renderer` pending|webgl|fallback|off, `data-reason`,
+ * `data-tier`, `data-paused` (only while webgl), `data-motion`, `data-helix` (spiral|ambient).
+ * Nothing is requested until Work comes within a viewport. Headless Chromium renders WebGL with
+ * SwiftShader, which the strict probe refuses: the default path is the flat card grid
+ * (`fallback`/`software`); `tbs_scene_3d=force` lets it draw (`forceScene3d`).
  */
 
 /** What the probe answers under SwiftShader: a context, but a software one. */
@@ -810,30 +562,14 @@ export const SOFTWARE_GPU_PROBE: GpuProbeCache = {
   strict: { context: true, software: true },
 };
 
-export const sceneStage = (page: Page): Locator =>
-  page.locator(`[data-testid="${SCENE_TESTID.stage}"]`);
-
-/** The hero's core host (inside the backdrop marker; the art or the canvas's anchor). */
-export const sceneHero = (page: Page): Locator =>
-  page.locator(`[data-testid="${SCENE_TESTID.hero}"]`);
-
-/** The services screen: `data-shape` is the selected direction's slug. */
-export const sceneServices = (page: Page): Locator =>
-  page.locator(`[data-testid="${SCENE_TESTID.services}"]`);
-
-/** The five direction pills (links) in `#servicii`, by the nav's own label in `locale`. */
-export const directionPills = (page: Page, locale: Locale = "ro"): Locator =>
-  page
-    .locator("#servicii")
-    .getByRole("navigation", { name: DIRECTIONS_NAV_LABEL[locale], exact: true })
-    .getByRole("link");
-
-/** `components/sections/Directions.tsx` → `SECTION.tabsAria` (module-local copy). */
-const DIRECTIONS_NAV_LABEL: Record<Locale, string> = {
-  ro: "Direcțiile de servicii",
-  ru: "Направления услуг",
-  en: "Service directions",
+/** SwiftShader's answer for both probe modes: forced visits skip the throwaway context. */
+export const FORCED_GPU_PROBE: GpuProbeCache = {
+  v: 1,
+  strict: { context: true, software: true },
+  forced: { context: true, software: true },
 };
+
+export const sceneStage = (page: Page): Locator => page.locator(`[data-testid="${SCENE_TESTID.stage}"]`);
 
 /** Set a `localStorage` key before any page script runs (the scene's QA flag lives there). */
 async function seedLocalStorage(page: Page, key: string, value: string): Promise<void> {
@@ -852,9 +588,6 @@ async function seedLocalStorage(page: Page, key: string, value: string): Promise
 /** `tbs_scene_3d=force`: WebGL even on a software renderer, never a governor bail. */
 export const forceScene3d = (page: Page) => seedLocalStorage(page, SCENE_3D_KEY, "force");
 
-/** `tbs_scene_3d=off`: the stage stays `off`/`flag` and loads nothing. */
-export const disableScene3d = (page: Page) => seedLocalStorage(page, SCENE_3D_KEY, "off");
-
 /**
  * Answer the session's GPU probe before any page script runs — only if the tab has no
  * answer yet, so a real probe's answer (or an earlier seed) is never overwritten on reload.
@@ -872,253 +605,26 @@ export async function seedGpuProbe(page: Page, cache: GpuProbeCache): Promise<vo
   );
 }
 
-/** The session's cached probe answer, parsed (null when absent or unreadable). */
-export const gpuProbeCache = (page: Page): Promise<GpuProbeCache | null> =>
-  page.evaluate((key) => {
-    try {
-      const raw = window.sessionStorage.getItem(key);
-      return raw === null ? null : (JSON.parse(raw) as GpuProbeCache);
-    } catch {
-      return null;
-    }
-  }, GPU_PROBE_CACHE_KEY);
 
-/**
- * Keep a weak reference to every WebGL context the page creates, so a spec can ask how many
- * are still alive (`liveWebGLContexts`: not lost, not collected) — "the stage released its
- * context when the visitor left" is a count going back to 0, not a count of creations.
- */
-export async function trackWebGLContexts(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    type Tracked = { refs: WeakRef<WebGLRenderingContext | WebGL2RenderingContext>[]; created: number };
-    const w = window as unknown as { __webglRefs?: Tracked };
-    const tracked: Tracked = { refs: [], created: 0 };
-    w.__webglRefs = tracked;
-    const seen = new WeakSet<object>();
-    const proto = HTMLCanvasElement.prototype as unknown as { getContext: AnyGetContext };
-    const real = proto.getContext;
-    proto.getContext = function (this: HTMLCanvasElement, ...args: GetContextArgs) {
-      const context = real.apply(this, args);
-      if (context && typeof context === "object" && /webgl/i.test(args[0]) && !seen.has(context)) {
-        seen.add(context);
-        tracked.created += 1;
-        tracked.refs.push(new WeakRef(context as WebGL2RenderingContext));
-      }
-      return context;
-    };
-  });
-}
+/** The hero's core host (inside the backdrop layer; holds the static chip art). */
+export const heroCore = (page: Page): Locator => page.locator('[data-testid="hero-core"]');
 
-/** Contexts created so far that are neither lost nor garbage-collected. */
-export const liveWebGLContexts = (page: Page): Promise<number> =>
-  page.evaluate(() => {
-    const tracked = (
-      window as unknown as {
-        __webglRefs?: { refs: WeakRef<WebGL2RenderingContext>[] };
-      }
-    ).__webglRefs;
-    if (!tracked) return 0;
-    return tracked.refs.filter((ref) => {
-      const context = ref.deref();
-      return !!context && !context.isContextLost();
-    }).length;
-  });
+/** The services screen: `data-shape` is the selected direction's slug. */
+export const servicesScreen = (page: Page): Locator => page.locator('[data-testid="services-screen"]');
 
-/** Every WebGL context the page has created (the tracker's own count, live or not). */
-export const createdWebGLContexts = (page: Page): Promise<number> =>
-  page.evaluate(
-    () => (window as unknown as { __webglRefs?: { created: number } }).__webglRefs?.created ?? 0,
-  );
+/** The five direction pills (links) in `#servicii`, by the nav's own label in `locale`. */
+export const directionPills = (page: Page, locale: Locale = "ro"): Locator =>
+  page
+    .locator("#servicii")
+    .getByRole("navigation", { name: DIRECTIONS_NAV_LABEL[locale], exact: true })
+    .getByRole("link");
 
-type DrawTally = { calls: number; frames: number[]; frameTs: number; frameStart: number };
-
-/**
- * Count WebGL draw calls per animation frame, from the outside: the draw methods of both
- * context prototypes are wrapped, and a frame closes when the first `requestAnimationFrame`
- * callback of the next one runs. The page's code is untouched — a mesh that is not visible
- * issues no draw, so "one more draw per frame" is "one more mesh drew". Read with
- * `drawCallsPerFrame` (the last 600 frames), reset with `resetDrawCalls`.
- */
-export async function countDrawCalls(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const tally: DrawTally = { calls: 0, frames: [], frameTs: -1, frameStart: 0 };
-    (window as unknown as { __draws?: DrawTally }).__draws = tally;
-    for (const ctor of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
-      if (!ctor) continue;
-      const proto = ctor.prototype as unknown as Record<string, unknown>;
-      for (const name of ["drawArrays", "drawElements", "drawArraysInstanced", "drawElementsInstanced"]) {
-        const real = proto[name];
-        if (typeof real !== "function") continue;
-        proto[name] = function (this: unknown, ...args: unknown[]) {
-          tally.calls += 1;
-          return (real as (...a: unknown[]) => unknown).apply(this, args);
-        };
-      }
-    }
-    const raf = window.requestAnimationFrame.bind(window);
-    window.requestAnimationFrame = (callback: FrameRequestCallback) =>
-      raf((ts) => {
-        if (ts !== tally.frameTs) {
-          if (tally.frameTs >= 0) {
-            tally.frames.push(tally.calls - tally.frameStart);
-            if (tally.frames.length > 600) tally.frames.shift();
-          }
-          tally.frameTs = ts;
-          tally.frameStart = tally.calls;
-        }
-        callback(ts);
-      });
-  });
-}
-
-/** Draw calls in each frame since the last reset (frames that drew nothing included). */
-export const drawCallsPerFrame = (page: Page): Promise<number[]> =>
-  page.evaluate(() => (window as unknown as { __draws?: DrawTally }).__draws?.frames.slice() ?? []);
-
-export const resetDrawCalls = (page: Page): Promise<void> =>
-  page.evaluate(() => {
-    const tally = (window as unknown as { __draws?: DrawTally }).__draws;
-    if (tally) tally.frames.length = 0;
-  });
-
-export type SceneRecord = { renderer: string; introPresent: boolean };
-
-/**
- * Record every `data-renderer` the stage takes, in order, with whether the intro overlay was
- * in the document at that moment (the server value first, consecutive repeats dropped).
- * "Never webgl while the intro covers the page" needs the pairing, not two separate lists.
- * Read with `sceneAttributeValues(page)`.
- */
-export async function recordSceneAttributes(page: Page): Promise<void> {
-  await page.addInitScript(
-    ({ stage, intro }) => {
-      const w = window as unknown as { __sceneAttrs?: SceneRecord[] };
-      const values: SceneRecord[] = [];
-      w.__sceneAttrs = values;
-      const add = (renderer: string | null) => {
-        if (renderer === null) return;
-        const introPresent = document.querySelector(intro) !== null;
-        const last = values[values.length - 1];
-        if (last && last.renderer === renderer && last.introPresent === introPresent) return;
-        values.push({ renderer, introPresent });
-      };
-      new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          if (!(m.target instanceof Element) || !m.target.matches(stage)) continue;
-          add(m.oldValue);
-          add(m.target.getAttribute("data-renderer"));
-        }
-      }).observe(document, {
-        subtree: true,
-        attributes: true,
-        attributeOldValue: true,
-        attributeFilter: ["data-renderer"],
-      });
-      document.addEventListener("DOMContentLoaded", () => {
-        add(document.querySelector(stage)?.getAttribute("data-renderer") ?? null);
-      });
-    },
-    { stage: `[data-testid="${SCENE_TESTID.stage}"]`, intro: INTRO_SELECTOR },
-  );
-}
-
-export const sceneAttributeValues = (page: Page): Promise<SceneRecord[]> =>
-  page.evaluate(() => (window as unknown as { __sceneAttrs?: SceneRecord[] }).__sceneAttrs ?? []);
-
-/** Wait for the stage to leave `pending` and return what it settled on. */
-export async function settledRenderer(
-  page: Page,
-  timeout = 15_000,
-): Promise<{ renderer: string | null; reason: string | null }> {
-  const stage = sceneStage(page);
-  await expect(stage).not.toHaveAttribute("data-renderer", "pending", { timeout });
-  return {
-    renderer: await stage.getAttribute("data-renderer"),
-    reason: await stage.getAttribute("data-reason"),
-  };
-}
-
-/** One number of the scene's scroll probe next to what the DOM says it is right now. */
-export type ProbeReading = { name: string; probe: number | null; dom: number };
-
-/**
- * The scroll probe the interior scene reads every frame (lib/scene.ts `ScrollProbe`: the four
- * scroll spans, the stage's top and bottom, both anchors' and Work's track's document y), each
- * next to the same value measured from the DOM right now — what the director SHOULD have stored
- * at its last refresh. Null while no canvas (or no probe) is mounted.
- *
- * A test-only read that needs nothing from production: the probe is the `probe` prop of the
- * components around the canvas, reached through React's fiber on the canvas's DOM ancestors.
- * The DOM side follows the director's triggers: `heroExit` = `#top` "top top" → "bottom 35%",
- * `entry` = the services anchor "top 90%" → "top 75%" (the band the scene's timed entry gate
- * arms and disarms over), `workSpan` = Work's track "top 70%" → "top 55%" (the same kind of band
- * for the work gate) and `helix` = the track "top top" less the header → "bottom bottom" (the
- * scroll Work's spiral turns over; the header height is the sticky layer's resolved `top`). Like
- * ScrollTrigger, an end before the trigger's own start is clamped to it: a phone's band is
- * shorter than the viewport.
- */
-export const sceneProbeVsDom = (page: Page): Promise<ProbeReading[] | null> =>
-  page.evaluate(() => {
-    type Probe = {
-      version: number;
-      live: boolean;
-      stage: { top: number; bottom: number };
-      hero: { y: number } | null;
-      services: { y: number } | null;
-      work: { y: number } | null;
-      heroExit: { start: number; end: number };
-      entry: { start: number; end: number };
-      workSpan: { start: number; end: number };
-      helix: { start: number; end: number };
-    };
-    type Fiber = { return: Fiber | null; memoizedProps?: { probe?: Probe } };
-    const canvas = document.querySelector("[data-scene-layer] canvas");
-    let probe: Probe | null = null;
-    for (let node: Element | null = canvas; node && !probe; node = node.parentElement) {
-      const key = Object.keys(node).find((k) => k.startsWith("__reactFiber$"));
-      const start = key ? ((node as unknown as Record<string, Fiber>)[key] ?? null) : null;
-      for (let fiber = start; fiber && !probe; fiber = fiber.return) {
-        const candidate = fiber.memoizedProps?.probe;
-        if (candidate && typeof candidate.version === "number") probe = candidate;
-      }
-    }
-    if (!probe) return null;
-    const vh = window.innerHeight;
-    const doc = (selector: string) => {
-      const box = document.querySelector(selector)!.getBoundingClientRect();
-      return { top: box.top + window.scrollY, bottom: box.bottom + window.scrollY, h: box.height };
-    };
-    const hero = doc("#top");
-    const stage = doc("[data-scene-stage]");
-    const heroAnchor = doc('[data-scene-anchor="hero"]');
-    const services = doc('[data-scene-anchor="services"]');
-    const track = doc("[data-work-track]");
-    const headerH = Number.parseFloat(getComputedStyle(document.querySelector("[data-scene-layer]")!).top) || 0;
-    return [
-      { name: "live", probe: probe.live ? 1 : 0, dom: 1 },
-      { name: "heroExit.start", probe: probe.heroExit.start, dom: hero.top },
-      { name: "heroExit.end", probe: probe.heroExit.end, dom: hero.bottom - 0.35 * vh },
-      { name: "entry.start", probe: probe.entry.start, dom: services.top - 0.9 * vh },
-      { name: "entry.end", probe: probe.entry.end, dom: services.top - 0.75 * vh },
-      { name: "work.start", probe: probe.workSpan.start, dom: track.top - 0.7 * vh },
-      { name: "work.end", probe: probe.workSpan.end, dom: track.top - 0.55 * vh },
-      { name: "helix.start", probe: probe.helix.start, dom: track.top - headerH },
-      { name: "helix.end", probe: probe.helix.end, dom: Math.max(track.top, track.bottom - vh) },
-      { name: "stage.top", probe: probe.stage.top, dom: stage.top },
-      { name: "stage.bottom", probe: probe.stage.bottom, dom: stage.bottom },
-      { name: "hero.y", probe: probe.hero?.y ?? null, dom: heroAnchor.top },
-      { name: "services.y", probe: probe.services?.y ?? null, dom: services.top },
-      { name: "work.y", probe: probe.work?.y ?? null, dom: track.top },
-    ];
-  });
-
-/** The readings of `sceneProbeVsDom` that are off by more than `tolerance` px (empty: all match). */
-export const probeMismatches = (readings: ProbeReading[] | null, tolerance = 2): string[] =>
-  readings === null
-    ? ["no probe"]
-    : readings
-        .filter((r) => r.probe === null || Math.abs(r.probe - r.dom) > tolerance)
-        .map((r) => `${r.name}: probe ${r.probe === null ? "null" : Math.round(r.probe)}, DOM ${Math.round(r.dom)}`);
+/** `components/sections/Directions.tsx` → `SECTION.tabsAria` (module-local copy). */
+const DIRECTIONS_NAV_LABEL: Record<Locale, string> = {
+  ro: "Direcțiile de servicii",
+  ru: "Направления услуг",
+  en: "Service directions",
+};
 
 export type DotHit = { element: string; pseudo: "" | "::before" | "::after"; width: number; height: number };
 
@@ -1183,9 +689,7 @@ export const computedTransform = (locator: Locator): Promise<string> =>
 
 /**
  * `<html>` and `<body>` carry no inline style and the instant-scroll hold is released: nothing
- * (ScrollTrigger's refreshes, a scroll lock, the HUD) left a write on the root. Polls for up to
- * 5s; `when` names the moment in the failure message. Moved here from interior-webgl.spec.ts
- * so the HUD specs can assert the same.
+ * (ScrollTrigger's refreshes, a scroll lock, the HUD) left a write on the root. Polls for up to 5s; `when` names the moment in the failure message.
  */
 export async function expectRootUntouched(page: Page, when: string): Promise<void> {
   await expect

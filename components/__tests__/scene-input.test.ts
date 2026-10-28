@@ -13,7 +13,7 @@ import {
  * Pointer and gyroscope tilt for the interior scene. The canvas never takes pointer events,
  * so tilt comes from passive window listeners — and the site never asks iOS for motion
  * permission (no prompt, ever): where `DeviceOrientationEvent.requestPermission` exists, no
- * orientation listener is attached at all and the core keeps its idle sway.
+ * orientation listener is attached at all and the helix keeps its idle sway.
  */
 
 describe("orientationToTilt", () => {
@@ -77,8 +77,6 @@ function makeHost(media: Record<string, boolean>, orientationCtor?: unknown) {
   const host = {
     innerWidth: 400,
     innerHeight: 800,
-    scrollX: 0,
-    scrollY: 0,
     screen: { orientation: { angle: 0 } },
     DeviceOrientationEvent: orientationCtor,
     matchMedia: (query: string) => ({ matches: media[query] ?? false }) as MediaQueryList,
@@ -105,12 +103,8 @@ describe("attachTiltInput — fine pointer", () => {
     expect(fx.tiltX).toBeCloseTo(0.5, 12);
     expect(fx.tiltY).toBeCloseTo(-0.5, 12);
 
-    // The mouse sample also started the cursor trail's chain (scene-trail.test.ts has the rest).
-    expect([fx.trail.lastX, fx.trail.lastY]).toEqual([300, 200]);
-
     listeners.get("pointermove")!({ clientX: 0, clientY: 0, pointerType: "touch" } as unknown as Event);
     expect(fx.tiltX).toBeCloseTo(0.5, 12);
-    expect([fx.trail.lastX, fx.trail.lastY]).toEqual([300, 200]);
 
     listeners.get("mouseout")!({ relatedTarget: null } as unknown as Event);
     expect(fx.tiltLive).toBe(false);

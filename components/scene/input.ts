@@ -1,11 +1,9 @@
 /**
- * Pointer and gyroscope tilt for the interior scene. The canvas never listens itself (it is
- * `pointer-events: none`, R3F events are unused): passive listeners on `window` write -1..1
- * targets into the scene's fx, and the world eases towards them.
+ * Pointer and gyroscope tilt for the interior scene (Work's helix leans with it). The canvas
+ * never listens itself (it is `pointer-events: none`, R3F events are unused): passive listeners
+ * on `window` write -1..1 targets into the scene's fx, and the world eases towards them.
  *
- *  · fine pointer — `pointermove` anywhere on the page; the sample is also kept in document px
- *    (`fx.pointerX` / `pointerY`, what the hero's stat panels hit-test against), and a mouse or pen
- *    lays the cursor circuit trail (trail.ts) in the same coordinates;
+ *  · fine pointer — `pointermove` anywhere on the page;
  *  · touch-first  — `deviceorientation`, but only where it works without asking: iOS Safari
  *    gates it behind `DeviceOrientationEvent.requestPermission()`, which needs a gesture and
  *    shows a prompt. The site never asks — iOS keeps the idle sway.
@@ -15,12 +13,8 @@
  */
 
 import type { SceneFx } from "./fx";
-import { pushTrail } from "./trail";
 
-type TiltTarget = Pick<
-  SceneFx,
-  "tiltX" | "tiltY" | "tiltLive" | "trail" | "pointerX" | "pointerY" | "pointerLive"
->;
+type TiltTarget = Pick<SceneFx, "tiltX" | "tiltY" | "tiltLive">;
 
 const clampUnit = (v: number) => Math.max(-1, Math.min(1, v));
 
@@ -94,9 +88,6 @@ type OrientationCtor = { requestPermission?: unknown };
 export type TiltHost = Pick<Window, "addEventListener" | "removeEventListener" | "matchMedia"> & {
   innerWidth: number;
   innerHeight: number;
-  /** The page's scroll offsets: the cursor trail is laid in document px. */
-  scrollX: number;
-  scrollY: number;
   screen?: { orientation?: { angle?: number } };
   DeviceOrientationEvent?: unknown;
 };
@@ -122,20 +113,9 @@ export function attachTiltInput(fx: TiltTarget, host: TiltHost = window): () => 
       fx.tiltX = clampUnit((event.clientX / w) * 2 - 1);
       fx.tiltY = clampUnit((event.clientY / h) * 2 - 1);
       fx.tiltLive = true;
-      // The same sample in document px: what the hero's stat panels hit-test themselves against.
-      fx.pointerX = event.clientX + host.scrollX;
-      fx.pointerY = event.clientY + host.scrollY;
-      fx.pointerLive = true;
-      // The circuit trail follows a mouse or a pen only (event.timeStamp shares performance.now()'s clock).
-      if (event.pointerType === "mouse" || event.pointerType === "pen") {
-        pushTrail(fx.trail, event.clientX + host.scrollX, event.clientY + host.scrollY, event.timeStamp / 1000);
-      }
     };
     const onLeave = (event: MouseEvent) => {
-      if (event.relatedTarget === null) {
-        fx.tiltLive = false;
-        fx.pointerLive = false;
-      }
+      if (event.relatedTarget === null) fx.tiltLive = false;
     };
     host.addEventListener("pointermove", onMove, { passive: true });
     host.addEventListener("mouseout", onLeave, { passive: true });
@@ -143,7 +123,6 @@ export function attachTiltInput(fx: TiltTarget, host: TiltHost = window): () => 
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("mouseout", onLeave);
       fx.tiltLive = false;
-      fx.pointerLive = false;
     };
   }
 

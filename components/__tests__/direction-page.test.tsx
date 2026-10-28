@@ -100,9 +100,7 @@ describe("action bar", () => {
   it("links the reference project to its real URL when it has one", () => {
     renderPage("produs-digital"); // reference: BizCheck
 
-    /* Scoped to the bar itself — the button's own row. The projects section carries a second
-       "Vezi proiectul" per project now: the visually hidden list that stands in for the 3D
-       laptop's display for anyone the picture cannot reach (`reelListTitle`). */
+    /* Scoped to the bar itself — the button's own row. */
     const bar = screen.getByRole("button", { name: "Cere ofertă" }).parentElement!;
     const link = within(bar).getByRole("link", { name: /Vezi proiectul/ });
     expect(link).toHaveAttribute("href", "https://bizcheck.md");
@@ -142,19 +140,9 @@ describe("action bar", () => {
   });
 });
 
-/* The section holds two shapes of the same list, and CSS picks one: the card GRID
-   (`[data-projects-track]`), and — since the 3D laptop took the section over — a visually hidden
-   list headed "Proiectele care rulează pe ecran" that carries the projects playing on its display
-   as real text, for a screen reader, a search engine or a text browser. The grid is what these
-   tests read; the hidden list is asserted alongside it, because the whole point of it is that the
-   two never disagree. */
-const gridOf = (container: HTMLElement) =>
-  container.querySelector("#proiecte [data-projects-track]") as HTMLElement;
-const reelListOf = (container: HTMLElement) =>
-  container
-    .querySelector("#proiecte")!
-    .querySelector("ul")!
-    .closest("div") as HTMLElement;
+/* The section is one plain card grid (the 3D laptop reel that used to take it over on desktop
+   was removed with the WebGL scene, 2026-10-28). */
+const gridOf = (container: HTMLElement) => container.querySelector("#proiecte") as HTMLElement;
 
 describe("relevant projects", () => {
   it("lists the direction's real projects, in the curated order", async () => {
@@ -163,13 +151,9 @@ describe("relevant projects", () => {
     expect(await screen.findByRole("heading", { name: "Itara Global" })).toBeInTheDocument();
     const names = Array.from(gridOf(container).querySelectorAll("h3")).map((h) => h.textContent);
     expect(names).toEqual(["Itara Global", "CGAM", "Balloons Breeze"]);
-    // …and the same three, in the same order, in the list that stands in for the machine.
-    expect(within(reelListOf(container)).getByRole("heading", { level: 3 })).toHaveTextContent(
-      "Proiectele care rulează pe ecran",
-    );
-    expect(Array.from(reelListOf(container).querySelectorAll("li b")).map((b) => b.textContent)).toEqual(
-      names,
-    );
+    // No hidden reel list and no scene plumbing left on the grid.
+    expect(gridOf(container).querySelector("ul")).toBeNull();
+    expect(container.querySelector("[data-projects-track], [data-project-index], [data-scene-anchor]")).toBeNull();
   });
 
   it("lists the two real assistant/bot projects, each with its own public URL", async () => {
@@ -184,10 +168,6 @@ describe("relevant projects", () => {
     ]);
     const urls = ["https://bizcheck.md", "https://balloonsbreeze.md/"];
     expect(Array.from(grid.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual(urls);
-    // The hidden list carries the same two links, so neither shape is a dead end.
-    expect(
-      Array.from(reelListOf(container).querySelectorAll("a")).map((a) => a.getAttribute("href")),
-    ).toEqual(urls);
   });
 
   it("does not borrow a project from another direction", () => {

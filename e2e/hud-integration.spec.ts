@@ -4,6 +4,7 @@ import {
   HUD_ON,
   armHud,
   consoleErrors,
+  countWebGLContexts,
   cookieBanner,
   cspViolations,
   decorativeDots,
@@ -15,15 +16,14 @@ import {
   guideAvatar,
   guideRoot,
   languageOption,
-  liveWebGLContexts,
   modalDialog,
   railNav,
   railRoot,
   scrollToY,
   seedConsent,
   threeLoaded,
-  trackWebGLContexts,
   watchCsp,
+  webglContextCount,
 } from "./helpers";
 
 /*
@@ -138,7 +138,7 @@ test.describe("HUD integration", () => {
     await expect(page.locator('[role="dialog"]')).toHaveCount(1);
   });
 
-  test("HI6 no CSP violation, no console error, and three.js / GSAP never loaded on the default path", async ({
+  test("HI6 no CSP violation, no console error, and three.js / GSAP never loaded", async ({
     page,
   }) => {
     await watchCsp(page);
@@ -168,18 +168,17 @@ test.describe("HUD integration", () => {
     await expectRootUntouched(page, "after arming the HUD and a full scroll");
   });
 
-  test("HI7 /servicii/e-commerce: one stage, never a second live context, and the HUD is there", async ({ page }) => {
-    await trackWebGLContexts(page);
+  test("HI7 /servicii/e-commerce: no WebGL at all, and the HUD is there", async ({ page }) => {
+    await countWebGLContexts(page);
     await gotoHydrated(page, "/servicii/e-commerce");
     await armHud(page);
     await expect(guideAvatar(page)).toBeVisible();
     await scrollThrough(page);
 
-    /* A service page carries its own 3D model now — one per service — so it has a stage of its
-       own. The invariant that still has to hold is the one this file exists for: ONE WebGL
-       context at a time across the whole site, never a second one stacked on top. */
-    await expect(page.locator('[data-testid^="scene-"]')).toHaveCount(1);
-    expect(await liveWebGLContexts(page)).toBeLessThanOrEqual(1);
+    /* The site ships no WebGL (removed 2026-10-28): a service page draws its direction as a
+       static SVG, and creates no context at all. */
+    await expect(page.locator("svg[data-shape-art]")).toHaveCount(1);
+    expect(await webglContextCount(page)).toBe(0);
     // Two parts at 1280 since Phase 5: the guide and the rail.
     await expect(page.locator("[data-hud]")).toHaveCount(2);
     await expect(guideRoot(page)).toHaveCount(1);

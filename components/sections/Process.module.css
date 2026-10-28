@@ -24,8 +24,8 @@
  * the grammar of the portfolio's circuit board (Portfolio.module.css, "the board"): straight runs,
  * exact 45° bends, square ends and mitred corners, square pads — never a circle, never a dot.
  *
- * Under 1025px the trace runs down the left through the four pads, the words to their right. From
- * 1025px it runs across through them, carries on past 04, turns down at 45° and drops along the
+ * Under 1025px the trace runs down the left through the three pads, the words to their right. From
+ * 1025px it runs across through them, carries on past 03, turns down at 45° and drops along the
  * right edge. Both end in an arrowhead just above the section's foot, pointing down at the request
  * form that follows.
  *
@@ -216,20 +216,16 @@
   box-shadow: var(--glow-lit);
   transform-origin: 50% 0;
 }
-/* Each run's stretch of the cyan → blue. Four steps, four runs: the copy above has four. */
+/* Each run's stretch of the cyan → blue. Three steps, three runs: the copy above has three. */
 .step:nth-child(1) {
   --from: var(--c0);
   --to: var(--c1);
 }
 .step:nth-child(2) {
   --from: var(--c1);
-  --to: var(--c2);
-}
-.step:nth-child(3) {
-  --from: var(--c2);
   --to: var(--c3);
 }
-.step:nth-child(4) {
+.step:nth-child(3) {
   --from: var(--c3);
   --to: var(--c4);
 }
@@ -378,9 +374,9 @@
  * Four columns, each step's pad at its column's left and its words under the pad, left-aligned
  * with it. The trace runs through the pads' middles: each step's run goes from its pad's right
  * edge across the gap to the next pad. The list keeps a lane of `--tail` on its right, so the drop
- * never crosses a line of text: past pad 04 the run carries on to `--bend` short of the lane's
+ * never crosses a line of text: past pad 03 the run carries on to `--bend` short of the lane's
  * middle, turns down 45° and drops down the middle of the lane to its tip, half a lane clear of
- * step 04's words.
+ * step 03's words.
  * ============================================================================================= */
 @media (min-width: 1025px) {
   .board {
@@ -392,7 +388,7 @@
   }
 
   .steps {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: var(--gap);
     row-gap: 0;
     padding-right: var(--tail);
@@ -420,7 +416,7 @@
     width: auto;
     height: var(--trace);
   }
-  /* Pad 04's run ends where the bend starts, half a trace into it, so the two leave no notch on
+  /* Pad 03's run ends where the bend starts, half a trace into it, so the two leave no notch on
      the outside of the corner. */
   .step:last-child::before,
   .step:last-child::after {
@@ -546,17 +542,17 @@
   }
   .board[data-entered] .bend::after {
     transition-duration: calc(0.16 * var(--seg));
-    transition-delay: calc(4 * var(--seg));
+    transition-delay: calc(3 * var(--seg));
   }
   .board[data-entered] .drop::after {
     transition-duration: var(--seg);
-    transition-delay: calc(4.16 * var(--seg));
+    transition-delay: calc(3.16 * var(--seg));
   }
   .board[data-entered] .arrowLit {
     transition-property: opacity;
     transition-duration: 0.2s;
     transition-timing-function: var(--motion-ease-out);
-    transition-delay: calc(5.16 * var(--seg));
+    transition-delay: calc(4.16 * var(--seg));
   }
   .board[data-entered] .node::before,
   .board[data-entered] .node::after {

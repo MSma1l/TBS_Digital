@@ -10,9 +10,11 @@ hardcode raw hex values in components.
 
 ## Colors
 
-The site ships **two palettes, and dark is the default** (2026-09-16): a visitor who has not
-chosen gets the dark HUD look, and light is an explicit choice — see [Dark theme](#dark-theme).
-The tokens on `:root` below are the **light** values; the dark theme remaps them.
+The site ships **one palette, and it is light** (2026-10-28) — see
+[Light only](#light-only-2026-10-28). There is no theme toggle, no `data-theme` attribute and
+no dark mode; `color-scheme: light` sits on `:root` and the viewport's `themeColor` is `--bg`
+(`#f4f7ff`). The values below are the client-approved light palette that 58b18ee removed,
+restored as the only one. In `globals.css` they live in the `:root` block titled **"The map"**.
 
 The light palette is a cool, airy scale where each surface step is a real elevation, so a card
 reads as a distinct surface against the page. The hue leans very slightly blue, which is what
@@ -29,6 +31,12 @@ is warm-inclusive — `--amber` is a rich gold and `--coral` is a warm ember.
   --wash:      rgba(219,227,255,.5);   /* the soft blue wash, top right of the page */
   --grid-line: rgba(16,23,42,.04);     /* the faint 56px page grid */
 
+  /* the request section (Estimator, Portfolio monitor) */
+  --deck:       #ffffff;   /* the console shell: a white card on the page */
+  --riser:      #f4f7ff;   /* the proposal panel, a faint blue recess in the deck */
+  --riser-line: #c5d0e4;
+  --slot:       #f4f6fb;   /* a field cut into deck or riser */
+
   /* scrim — stays near-black on purpose: it sits over bright partner/project
      screenshots and is what keeps white-on-transparent logos readable. It is NOT
      part of the light scale and must not be "lifted" to match it. */
@@ -39,7 +47,7 @@ is warm-inclusive — `--amber` is a rich gold and `--coral` is a warm ember.
 
   --txt:   #10172a;   /* primary text */
   --mut:   #586784;   /* body text, and ALL small text */
-  --dim:   #6b7891;   /* faintest tone — under AA on light surfaces, see below */
+  --dim:   #586784;   /* = --mut since 2026-10-28; #6b7891 was under AA, see below */
 
   /* FILLS — brand colours with --on-accent text on top */
   --red:   #ef263d;
@@ -102,30 +110,28 @@ along the whole gradient.
 
 ## HUD layer — the first screen
 
-The first screen (intro preloader, header, hero, ticker, cookie banner) adds a small token
+The first screen (header, hero, ticker, cookie banner) adds a small token
 family of its own, all in `app/globals.css`. It is built from the same palette — nothing here
 is a second design system.
 
 ### Void
 
 ```css
---void: #0a0b10;   /* the preloader's backdrop, and the dark page colour (--dark-bg) */
+--void: #0a0b10;   /* always-dark islands: the Obsidian consoles, scrims over screenshots */
 ```
 
-**`--void` is never remapped.** The intro overlay is **always dark, in the light theme too** —
-it is the one sanctioned exception to "follow the active theme". Its CSS Module uses only the
-fixed tokens (`--void`, the `--dark-*` values, the brand fills), never the remapped `--bg` /
-`--txt` pair, and sets `color-scheme: dark`. The 3D scene also reads `--void` at runtime, so it
-must stay a hex value (see [07 — Conventions](./07-conventions.md#3d-gsap-and-the-interior-stage)).
+**`--void` is not a page colour any more** — the page is light. It stays for what is dark on
+purpose: the Obsidian console islands, the portfolio's pixel matrix and the chips and fades
+laid over screenshots (which carry `--on-obsidian` text, never `--txt`). The `--dark-*` scale is kept in `globals.css` only for anything drawn on its own
+near-black backdrop; nothing on the page references a `--dark-*` token.
 
 ### Glass
 
 ```css
-/* light                                    dark twin (remapped)                  */
---glass-bg:       rgba(255,255,255,.72);  /* --dark-glass-bg:       rgba(24,30,48,.62) */
---glass-bg-text:  rgba(255,255,255,.90);  /* --dark-glass-bg-text:  rgba(24,30,48,.84) */
---glass-bg-solid: rgba(255,255,255,.94);  /* --dark-glass-bg-solid: rgba(24,30,48,.94) */
---glass-line:     rgba(16,23,42,.12);     /* --dark-glass-line:     rgba(246,247,251,.12) */
+--glass-bg:       rgba(255,255,255,.72);
+--glass-bg-text:  rgba(255,255,255,.90);
+--glass-bg-solid: rgba(255,255,255,.94);
+--glass-line:     rgba(16,23,42,.12);
 --glass-blur: 14px;                       /* 8px at ≤640px: blur cost scales with radius */
 ```
 
@@ -133,8 +139,7 @@ Tailwind exposes them as `glass`, `glass-text` (utilities: tint + `backdrop-filt
 `@supports` fallback to the solid tint) and `bg-glass`, `bg-glass-solid`, `border-glass-line`.
 
 **The glass contrast rule.** Text on glass is measured against the **worst pixel that can show
-through** — the darkest under the light sheet, the brightest under the dark one — never against
-the tint alone. That splits glass by what it carries:
+through** — the darkest, under this light sheet — never against the tint alone. That splits glass by what it carries:
 
 | Token | Use it for | Measured |
 |-------|------------|----------|
@@ -160,13 +165,13 @@ Two more rules came out of rendering it:
 --neon-blue:       0 0 0 1px rgba(57,112,255,.45), 0 0 16px rgba(57,112,255,.35);
 
 /* the hero's two key lights sit behind its copy, so they have their own tokens */
---hero-glow-red:  rgba(239,38,61,.08);    /* dark: var(--glow-red) */
---hero-glow-blue: rgba(47,107,239,.06);   /* dark: var(--glow) */
+--hero-glow-red:  rgba(239,38,61,.08);
+--hero-glow-blue: rgba(47,107,239,.06);
 ```
 
 Neon is a stacked shadow (hairline ring + near glow + far glow) on a fill that reads as lit.
 The `cta-neon` utility is the one red call to action: `--grad-red-cta` fill, `--neon-red`
-glow, `--neon-red-strong` on hover, the lift through `translate` (so a GSAP entrance writing
+glow, `--neon-red-strong` on hover, the lift through `translate` (so an entrance writing
 `transform` on a wrapper never fights it).
 
 - **Its focus ring is `--txt`, not the site's usual cyan.** The ring lands on the red glow on
@@ -185,7 +190,7 @@ glow, `--neon-red-strong` on hover, the lift through `translate` (so a GSAP entr
 ### Grid, layout heights
 
 ```css
---hud-grid-line: rgba(57,112,255,.10);   /* dark: rgba(120,150,255,.09) */
+--hud-grid-line: rgba(57,112,255,.10);
 --grid-cell: 64px;
 --gutter:    clamp(16px, 4vw, 40px);     /* the site's horizontal gutter, named */
 --header-h:  71px;   /* 13px + the 44px tap-target row + 13px + 1px border, at every width */
@@ -211,15 +216,14 @@ One ladder for every fixed or sticky layer, low → high:
 | `--z-cookie` | 280 | cookie banner |
 | `--z-progress` | 300 | scroll progress bar (the fibre below 861px; hidden while the rail exists) |
 | `--z-modal` | 320 | the request dialog — above everything interactive |
-| `--z-intro` | 400 | first-visit intro — covers every CTA, so the dialog cannot open under it |
 
 New code reads the token (`z-(--z-header)` in Tailwind, `var(--z-modal)` in a module); a
 literal z-index for one of these layers is a bug. The three HUD chrome layers (2026-09-17, tokens
 only so far) sit **under the whole ladder**, burger overlay included: the overlay, the request
-dialog and the intro cover them with no hide logic ([Cyber Dark / Neon Cyan / Obsidian
+dialog cover them with no hide logic ([Cyber Dark / Neon Cyan / Obsidian
 Black](#cyber-dark--neon-cyan--obsidian-black)). The interior stage added no layer: it is an
-`isolate` stacking context, and the hero's plate and backdrop use local `-z-20` / `-z-10` inside
-it ([The interior stage](#paint-order)).
+`isolate` stacking context around Work, and the hero's plate and backdrop use local `-z-20` /
+`-z-10` ([The interior stage](#paint-order)).
 
 ### Motion
 
@@ -237,16 +241,16 @@ Computed with the WCAG formula against the values above (2026-09-16):
 |------------|-----------|------------|--------|---------|
 | `--txt` | 17.83 | 16.49 | 16.63 | 15.36 |
 | `--mut` | 5.69 | 5.27 | 5.31 | 4.91 |
-| `--dim` | **4.45** | **4.11** | **4.15** | **3.83** |
+| `--dim` | 5.69 | 5.27 | 5.31 | 4.91 |
 | `--red-text` | 5.38 | 4.98 | 5.02 | 4.64 |
 | `--blue-text` | 6.18 | 5.71 | 5.76 | 5.32 |
 | `--green-text` | 5.32 | 4.92 | 4.97 | 4.59 |
 
-**`--dim` does not clear AA 4.5:1 on any light surface.** This file used to claim that every
-text token did (`--dim` on `--panel2` at 4.94:1) — a figure for the `#666c7b` value documented
-here at the time, not for the `#6b7891` that `globals.css` actually carries. Use `--mut` for
-small text: the header clock and the language switcher were moved off `--dim` for exactly this
-reason. White on the fills: `--blue`
+**`--dim` is `--mut`'s value since 2026-10-28.** The light era's `#6b7891` measured 4.45 /
+4.11 / 4.15 / 3.83 — under AA 4.5:1 on every light surface — and `--dim` still carries small
+text in about twenty places (section labels, the admin panel). Rather than invent a new grey,
+it now points at the approved secondary text `#586784`; the hierarchy comes from size and
+weight. New code uses `--mut` for small text. White on the fills: `--blue`
 **4.25:1** (bold/large labels only), `--violet2` **6.18:1**, `--red` **4.19:1** — which is why a
 red button label sits on `--grad-red-cta`, not on `--red` or `--grad-red`.
 
@@ -278,27 +282,30 @@ The accents are not decoration-by-random — they rotate on a fixed four-step cy
 
 ## The interior stage
 
-The home page's Hero, Ticker and Directions scroll over one sticky WebGL canvas (2026-09-17;
-wiring in [03 — Architecture](./03-architecture.md#the-interior-stage), behaviour in
-[05 — Page Sections](./05-page-sections.md#interior-stage-3d)). Everything below is built from
-the existing tokens; the redesign added two, both for the hero on phones.
+Since 2026-10-28 the stage wraps **Work alone**: one sticky WebGL canvas behind `#lucrari` draws
+the projects' DNA helix (wiring in [03 — Architecture](./03-architecture.md#the-interior-stage),
+behaviour in [05 — Page Sections](./05-page-sections.md#interior-stage-3d)). Hero, Ticker and
+Directions sit outside it and draw static SVG art (below), always visible; the service pages have
+no stage. The hero microprocessor core, the services models, the cursor trail and the scene's stat
+panels were deleted from the scene. Everything below is built from the existing tokens; the
+redesign added two, both for the hero on phones.
 
 ### Paint order
 
-Back to front, inside the stage (`relative isolate`, so the whole stack stays under the header,
-the burger overlay and the cookie banner — no new `--z-*` token):
+Back to front, in the hero (`section#top`, no `isolate` of its own; no new `--z-*` token):
 
-1. the hero's opaque plate (`-z-20`, `bg-bg`) — it hides the body's page grid behind the canvas;
+1. the hero's opaque plate (`-z-20`, `bg-bg`) — it hides the body's page grid;
 2. the hero's HUD backdrop marker (`-z-10`): key lights, grid, floor, scanner, and the core's
-   anchor with the static art;
-3. **the canvas**, in the stage's sticky layer (`h-scene`, one viewport under the header);
-4. the phone scrim (below 861px);
-5. the copy, the CTAs and the stat cards — then the Ticker and Directions, whose screen is
-   see-through so the model shows behind its HUD chrome.
+   host (`data-testid="hero-core"`) with the static art;
+3. the phone scrim (below 861px);
+4. the copy, the CTAs and the stat cards.
 
-`isolate` on `section#top` would lift the plate and the backdrop above the canvas, so the hero
-has none. Nothing on the stage or an ancestor of its layer may carry `transform`, `filter`,
-`contain` or `overflow` (they break `sticky`).
+In Work, inside the stage (`relative isolate`, so the whole stack stays under the header, the
+burger overlay and the cookie banner — no new `--z-*` token): **the canvas**, in the stage's
+sticky layer (`h-scene`, one viewport under the header), then Work's heading and cards. In the
+spiral a card the scene gives a negative `z-index` paints under the canvas, a positive one over
+it. Nothing on the stage or an ancestor of its layer or of Work's cards may carry `transform`,
+`filter`, `contain` or `overflow` (they break `sticky`).
 
 ### Hero core tokens (phones)
 
@@ -309,139 +316,110 @@ has none. Nothing on the stage or an ancestor of its layer may carry `transform`
 --hero-scrim:      0.92;    /* --dark-hero-scrim:      0.8  */
 ```
 
-Re-measured for the microprocessor (IT-OS Phase 1, 2026-09-17) with the text hidden, over the
-forced WebGL chip (**12 frames** per case — its moving packets and pin flares are the worst pixels,
-and four frames missed some) and over the static art, at 320, 375, 390, 412, 768 and 844×390 in
-both themes. The gate is **every** pixel under a text line box: ≥4.5:1, or ≥3:1 for the headline.
+Measured for the microprocessor (IT-OS Phase 1, 2026-09-17) with the text hidden, over the
+static art, at 320, 375, 390, 412, 768 and 844×390 in both themes. The gate is **every** pixel
+under a text line box: ≥4.5:1, or ≥3:1 for the headline. (Until 2026-10-28 the values were also
+matched to the WebGL chip the art crossfaded into; those canvas figures no longer apply.)
 
-- **`--hero-core-phone`** is the strength of the chip illustration behind the copy below 861px,
-  set so the art matches the canvas it crossfades into. Brightness is measured as the mean
-  luminance change the chip makes where it sits behind the copy (anchor ∩ copy column, ×1000).
-  The chip's art is brighter than the old core's: at the old values the dark art was 1.6–2.1× the
-  canvas (0.95 against 0.58 at 390px) and 3.7–4× it at 641–860px, the light art 1.2–1.6× (2.4× at 844×390). Now,
-  art ÷ canvas:
-
-  | | 320 | 375 | 390 | 412 | 768×1024 | 844×390 |
-  |---|---|---|---|---|---|---|
-  | dark | 1.17 | 0.91 | 0.91 | 1.12 | 0.97 | 1.10 |
-  | light | 1.26 | 0.94 | 0.92 | 1.01 | 0.92 | 1.37 |
-
-  320px is the outlier in both themes (the art's fixed-width strokes weigh more on a 294px chip);
-  at 844×390 the light chip changes no pixel by 3% either way. **641–860px has its own, fainter
-  value** (`@media (min-width: 641px)` in `globals.css`): there the chip is centred under the lead,
-  below the scrim's full pool, and at the phone values the lead failed (light art 99.13% of its
-  pixels, lowest 4.17; dark 99.92%, 4.28).
+- **`--hero-core-phone`** is the strength of the chip illustration behind the copy below 861px.
+  **641–860px has its own, fainter value** (`@media (min-width: 641px)` in `globals.css`): there
+  the chip is centred under the lead, below the scrim's full pool, and at the phone values the
+  lead failed (light art 99.13% of its pixels, lowest 4.17; dark 99.92%, 4.28).
 - **`--hero-scrim`** is the opacity of the phone scrim, a radial pool of `--bg` between the chip
-  and the copy. Unchanged: the light lead (`--mut`, 4.87:1 on the bare page) sits on the chip's
-  centre and measures exactly 4.50 at its lowest at 390px over 12 frames. More scrim does not buy a
-  brighter chip — at .95 the dim still could not rise (ink 0.6: 99.98%, lowest 4.45; 0.7 / 0.8:
-  4.41 / 4.40) — and at .98 the chip disappears. A more visible light chip needs another scrim
-  shape, not a token.
-- The WebGL chip has its own resting dim while it sits behind the copy
-  (`CORE_BEHIND_COPY_DIM`, `components/scene/choreography.ts`): below 641px 0.55 dark / 0.4
-  light (unchanged), 641–860px **0.25 dark / 0.15 light** (was 0.35 / 0.3, which failed at
-  768×1024 over 12 frames: dark lead 99.94%, lowest 3.78, headline 2.74; light lead 99.84%, 4.06).
-- **Result, every hero text 100% below 861px in both themes and both paths.** Lowest: dark canvas
-  lead 5.05, headline 3.59; dark art lead 7.58, headline 3.84; light canvas lead 4.50, headline
-  3.58; light art lead 4.69, headline 3.74; the light eyebrow 4.55–4.68 is its own colour's limit
-  on the page. Retune the dim and the tokens together.
-- **Still open from 861px** (none of these tokens applies there): at 1024×768 the chip's left
-  traces pass under the end of the headline — dark canvas 99.99% ≥3:1 (lowest 1.22), dark art
-  99.92% (1.92), light canvas lowest 2.38; moving the 861–1024px anchor right by about 5.5vw
-  (`right: calc(var(--gutter) + 6vw)`) measured 100% at 900 and 1024 in both themes and paths. At
-  861px the light eyebrow (99.69%, 4.09) and lead (99.97%, 4.50) sit on the 1px HUD grid line,
-  identical with the chip hidden. See `CHANGELOG.md` (2026-09-17, Faza 1).
+  and the copy. More scrim does not buy a brighter chip, and at .98 the chip disappears. A more
+  visible light chip needs another scrim shape, not a token.
+- **Result on the art, every hero text 100% below 861px in both themes.** Lowest: dark lead 7.58,
+  headline 3.84; light lead 4.69, headline 3.74; the light eyebrow 4.55–4.68 is its own colour's
+  limit on the page. Retune the tokens together.
+- **From 861px** (none of these tokens applies there): at 1024×768 the chip's left traces passed
+  under the end of the headline (art 99.92%, lowest 1.92); the 861–1024px anchor at
+  `right: calc(var(--gutter) + 6vw)` measured 100% at 900 and 1024 in both themes. At 861px the
+  light eyebrow (99.69%, 4.09) and lead (99.97%, 4.50) sit on the 1px HUD grid line, identical with
+  the chip hidden. See `CHANGELOG.md` (2026-09-17, Faza 1).
 
 ### Work's ambient helix and its band (IT-OS Phase 3)
 
-Below 768px Work's DNA helix lies **in the empty band above `#lucrari`'s eyebrow** — Directions'
-36px bottom padding plus Work's 48px top padding, measured into the probe as `workGap` — at full
-brightness, never behind text ([05](./05-page-sections.md#work)). Measured like the hero chip: text
-hidden, forced WebGL, **12 frames**, every pixel under a text line box.
+Below 768px Work's DNA helix lies **in the empty band above `#lucrari`'s eyebrow** — the bottom
+padding of the section before the stage (Directions) plus Work's 48px top padding, measured into
+the probe as `workGap` — at full brightness, never behind text
+([05](./05-page-sections.md#work)). Measured with the text hidden, forced WebGL, **12 frames**,
+every pixel under a text line box.
 
 - **Behind the heading (the first placement) it could not stay visible.** The helix's front chips
   flare and its packets run as comets, and both saturate towards white. At 0.4 of full brightness
   the dark h2 fell to 1.0–1.07:1 and the lead to 1.15–2.28:1; 100% needed 0.07 on the dark page.
-  The light lead's grey (4.24–4.28:1 on the HUD grid lines without any canvas) allowed no ink at all.
-- **In the band, at full brightness** (320, 375, 390, 412, 640, 700, 767px, both themes): the
-  eyebrow, h2, lead and the Directions panel's "Deschide serviciul" link (now "Detalii →", beside
-  the panel's "Cere ofertă" since 2026-10-09; not re-measured) are 100% (dark: eyebrow
-  ≥5.4, h2 ≥14.2, lead ≥7.9, link ≥15.3; light: the link ≥16.9, the heading identical to the page
-  without the canvas). The canvas changes no pixel over the panel, at or below the eyebrow's top or
-  over the band of cards. The helix is 57–67px tall (the band less `HELIX_AMBIENT.clear`, 10px each
-  side), with 9–16px of clear space above it and 9–11px below. At 320×568 the link is under the
-  header whenever the helix is formed.
+  The light lead's grey allowed no ink at all.
+- **In the band, at full brightness** (320, 375, 390, 412, 640, 700, 767px): the eyebrow, h2, lead
+  and the Directions panel's link above it are 100%; the canvas changes no pixel over the panel,
+  at or below the eyebrow's top or over the band of cards. The helix is 57–67px tall (the band less
+  `HELIX_AMBIENT.clear`, 10px each side), with 9–16px of clear space above it and 9–11px below.
+  (Measured 2026-09-17, both themes; not re-measured on the light-only palette.)
 - **Spiral (from 768px): the canvas changes no pixel of Work's heading** at 1280×800 and 1024×768,
   and the front card's name and chips stay 100% at every focus measured at 1280, 1024 and 768 (the
-  name ≥ 4.46:1 mid-turn, large text; the chips ≥ 6.35:1; the description ≥ 6.16:1 — re-measured
-  over 48 combinations after the cards were given their 3D pose, and again after the spacing and
-  the screenshot's arrival animation). Only a side card fading out lets a little of the helix
-  through.
+  name ≥ 4.46:1 mid-turn, large text; the chips ≥ 6.35:1; the description ≥ 6.16:1). Only a side
+  card fading out lets a little of the helix through.
 - **The screenshot's arrival** (`work-media-reveal`, `work-scan` in `app/tailwind.css`) is a
   `clip-path` wipe plus a sheet of scan lines in the card's accent, and a bar crossing the card
   when it reaches the front. The scan layer is painted **on the screenshot and under the card's
-  washes**, so the 82–94% ink that carries the copy attenuates it exactly as it attenuates the
-  picture: no accent, not even FLIRT's `#ff2d78`, can lift a line of copy off its measured floor.
+  washes**, so the ink that carries the copy attenuates it exactly as it attenuates the picture.
   Both are armed only inside `[data-scene-stage][data-helix="spiral"]` and only under
   `prefers-reduced-motion: no-preference`.
-- **The card's 3D pose** (the same measurement): a card is turned by 0.62 of its own angle round
-  the strand, leans up to 0.055rad along the strand's rise and is pushed **away** from the camera
-  by up to 260px — never towards it, so its projected box only ever shrinks and the layout clamp
-  stays a valid bound. `perspective(1200px)` is written **on the card**, not on the track: on the
-  track it would make a stacking context and lift the cards behind the helix out from under the
-  canvas. The front card is posed at zero, so the contrast figures above are measured on exactly
-  the transform a grid card has. Side and back cards are translucent by design and the helix shows
-  through them; note that the calibration lab samples an axis-aligned box, which for a turned card
-  now also catches pixels outside it, so those readings are no longer comparable with the ones
-  taken before the pose.
-- The light theme's heading has pixels under 4.5:1 on the HUD grid's 1px lines (eyebrow 92.99–99.92%,
-  lead 99.94–99.98%, minimum 4.07–4.49), with or without the canvas and before Phase 3 alike.
+- **The card's 3D pose**: a card is turned by 0.62 of its own angle round the strand, leans up to
+  0.055rad along the strand's rise and is pushed **away** from the camera by up to 260px — never
+  towards it, so its projected box only ever shrinks and the layout clamp stays a valid bound.
+  `perspective(1200px)` is written **on the card**, not on the track: on the track it would make a
+  stacking context and lift the cards behind the helix out from under the canvas. The front card
+  is posed at zero, so the contrast figures above are measured on the transform a grid card has.
 
-### Static art (`components/scene/art/`)
+### Static art (`components/art/`)
 
-What every device without the WebGL scene sees, and what the canvas crossfades from.
+What every visitor sees on the hero, Directions and the service pages — always visible since
+2026-10-28 (it used to be the fallback hidden while the WebGL canvas drew). It is outside the
+stage, and nothing on the stage gates it.
 
-- **One SVG per drawing**, viewBox `-100 -100 200 200`, proportions from the scene's own shapes
-  (`components/scene/shapes.ts`, `heroArt.ts`, `serviceArtPaths.ts`) — the art and the model agree.
+- **One SVG per drawing**, viewBox `-100 -100 200 200`, proportions from the shared shapes
+  (`components/art/shapes.ts` — the same pure maths Work's helix uses — `heroArt.ts`,
+  `serviceArtPaths.ts`).
 - **Tokens only**, in a CSS Module per component (the art is not in Tailwind's `@source`):
   `--cyan`, `--blue`, `--blue-text`, `--red`, … Strokes are `vector-effect: non-scaling-stroke`,
   so a line keeps its CSS width at any size; heavier strokes on the hero core at ≤860px.
 - **The hero's microprocessor** (`HeroCoreArt` + `heroArt.ts`, IT-OS Phase 1): one `<svg
   data-core-art>` of 23 elements, no `<circle>`. Every path is written in the chip's own plane
   (`CHIP.R` → 95 art units, `h`/`v`/`l` relative commands) inside one `<g>` whose
-  `CHIP_ART_MATRIX` is the WebGL chip's `CHIP_POSE` projected, so the crossfade lands on the same
-  silhouette; the stacked substrate, heat spreader and die are offset by `chipLift`. Back to front:
-  a square glow (`#tbs-core-glow`), the traces (`chipTraces(5)`, the mid tier's) with a wide faint
+  `CHIP_ART_MATRIX` is `CHIP_POSE` projected; the stacked substrate, heat spreader and die are
+  offset by `chipLift`. Back to front:
+  a square glow (`#tbs-core-glow`), the traces (`chipTraces(5)`) with a wide faint
   `<use>` halo and square vias, rectangular pins, the slabs, the die (`#tbs-core-die`) and its
   grid, **8 packets as red streaks at least `PARTICLE_MIN_LENGTH` = 6 art units long on screen**
   (measured after the projection, which shortens a run), and the square boost wave.
+- **`ServiceArt`** — one drawing per direction, on the Directions screen (`[data-art-host]`) and
+  as the service page's hero drawing.
 - **Never a dot.** Butt caps and mitred joins, no `circle` under r=12; the services' particles
   drawn as short streaks and crosses, packets as bars at least 9 units long; the chip's pins, vias
   and wave are squares and rectangles, its packets streaks (above).
 - **Static by decision.** No infinite animation, nothing on `stroke-dashoffset` or `filter`.
-  Two one-shot motions, transform and opacity only, both gone under reduced motion:
-  `materialize` (0.45s) when another direction's drawing mounts, and the hero's light wave
+  Two one-shot motions, transform and opacity only, both only under
+  `prefers-reduced-motion: no-preference`:
+  `materialize` (0.45s) when a `ServiceArt` drawing mounts, and the hero's light wave
   (`core-wave`, the square scaling out ×2.3, plus `core-packets`, the packets flickering twice —
-  opacity only; 1.1s) on `[data-scene-stage]:not([data-renderer="webgl"])[data-boost]`.
-- **Hidden under WebGL**: `:global([data-scene-stage][data-renderer="webgl"]) .art { opacity: 0 }`
-  with a 500ms transition — the same length as the canvas's fade-in. `fallback`, `pending` and
-  `off` keep the art.
+  opacity only; 1.1s), pure CSS on `#top:has([data-hero-cta]:hover)` (only under
+  `(hover: hover)`) or `#top:has([data-hero-cta]:focus-visible)`.
 - `aria-hidden="true"`, `focusable="false"`, no `<title>`, text, link, heading or role.
   Budget: both art modules together ≤ 2.5 KB gzip of CSS.
 
 ### Stat holograms and tilt
 
-- **Holograms** (`MetricHologram` in `Hero.tsx`, maths in `lib/hologram.ts`): the card's first
-  child, so the value and copy paint over it; top-right, `opacity-50`, cropped by the card's
-  `overflow-hidden`. An octahedron (portfolio) or a gyroscope of four great circles (automations),
-  drawn as 1px hairlines in the card's `--accent` with a 6px glow, positioned with CSS 3D
-  (`transform-3d`, `perspective-[600px]`). Size is one variable, `--holo-a` (26px, 30px from
-  641px). **Never a vertex dot.**
-- It turns (`animate-holo-spin`, 18s) only under
-  `html:not(:has(#tbs-intro)) [data-motion=live] #top:not([data-offscreen])`; otherwise the
-  animation is paused on a three-quarter pose (`rotateX(-20deg) rotateY(35deg)`, with a negative
-  delay so the paused spin sits on the same pose). Reduced motion removes the animation; the
-  resting transform stays.
+- **Holograms** (`MetricHologram` in `Hero.tsx`, maths in `lib/hologram.ts`): lightweight CSS 3D,
+  no WebGL. The card's first child, so the value and copy paint over it; top-right, `opacity-50`,
+  cropped by the card's `overflow-hidden`. An octahedron (portfolio) or a gyroscope of four great
+  circles (automations), `data-hologram="octahedron|rings"`, drawn as 1px hairlines in the card's
+  `--accent` with a 6px glow, positioned with CSS 3D (`transform-3d`, `perspective-[600px]`). Size
+  is one variable, `--holo-a` (26px, 30px from 641px). **Never a vertex dot.**
+- It turns (`animate-holo-spin`, 18s) unless the hero is scrolled out of view: then
+  `group-data-offscreen/hero:[animation-play-state:paused]` parks it on a three-quarter pose
+  (`rotateX(-20deg) rotateY(35deg)`, with a negative delay so the paused spin sits on the same
+  pose). `motion-reduce:animate-none` removes the animation; the resting transform stays. There is
+  no `data-motion` gate any more (the hero is outside the stage).
 - **Tilt** (`components/fx/usePointerTilt.ts` + `lib/tilt.ts`): only a mouse on a fine, hovering
   pointer (`(hover: hover) and (pointer: fine)`), never under reduced motion. The hook writes
   `--tilt-rx` / `--tilt-ry` and `data-tilting` on the card, at most once per frame; CSS turns them
@@ -449,88 +427,31 @@ What every device without the WebGL scene sees, and what the canvas crossfades f
   set (150ms), and eases back to none (300ms). Stat cards tilt up to 8° (`perspective(900px)`),
   project cards 6° (`perspective(1000px)`, from 641px). The tilt is `transform`, the hover lift is
   `translate` — two properties, so they compose. `data-tilt="on|off"` says whether the card can
-  tilt (`off` on the server). A tilt never touches an intro entrance marker.
-
-### The hero stat panels (2026-09-25)
-
-Where the scene draws them (861px and up, `data-renderer="webgl"` — see
-[05 — /01 Hero](./05-page-sections.md#01--hero) for the conditions and the fallback), the hero's
-two metric cards are **holographic panels in the 3D scene** rather than glass cards on the page. One
-`PlaneGeometry` each on `SURFACE_MODE.holo` — the Work hologram's own branch, so they arrive in the
-palette's colour, under the same scanline comb, in the same hairline frame, with the same voxel
-dissolve and the same glitch over a content swap. One draw call and one texture per panel; no frame
-geometry, no vertex dots, no second plane.
-
-**The face is the card.** `three/statFace.ts` composes it from the card's own DOM: every string is
-its `textContent` and every size, weight, family, margin and padding is its COMPUTED style, scaled
-by the one ratio between the canvas and the card's LAYOUT box (`offsetHeight`, so the intro's
-entrance, the scroll parallax and the card's own tilt cannot lean a letter). The face therefore
-carries the counted portfolio number, the visitor's language and any copy or token change with
-nothing authored twice. Drawn on it, in this order: a faint pane (`STAT_FACE.plate`, 0.055 — an
-additive hologram cannot darken what is behind it, so it lifts its own surface instead), the
-wireframe hanging off the top-right corner, the number, a short rule, the label wrapped as the card
-wraps it, the note upper-cased on the card's own tracking, the group's two-digit tick and the
-bracket corners.
-
-**Greyscale on purpose.** The `holo` branch keeps a coloured pixel's own hue and maps a grey one
-into the palette, so a face drawn in colour would be a surface with a colour the palette did not
-give it — allowed for a screenshot on the laptop's display, not for the hero's own numbers. The two
-cards' accents are carried the way the cards carry them: by the wireframe (an octahedron for the
-portfolio, a ring gyroscope for the automations, on the same resting pose the CSS hologram is
-parked at, `rotateX(-20deg) rotateY(35deg)`), and by nothing else.
-
-**Placement and motion.** Fitted to the card's own window, per axis, less `STAT_AIR` (3px) a side —
-a rectangle, not a scaled square: the windows are 0.98 : 1 in two columns and 2.2 : 1 stacked at
-861–1024px, and one scale would letterbox the number away from the place the card kept. A rigid
-follow of the page, with no sway: these are numbers to read, not scenery. The pointer is answered
-from the scene itself — the fine pointer's page position (`fx.pointerX/Y`) against the measured
-windows, so there is no DOM read per frame — with a lean of `STAT_MOTION.lean` (0.14 rad) towards
-the cursor, a lift of 0.12 world units towards the viewer and 22% more light while it is there.
-Idle, each panel breathes on a float of ±0.02 rad of yaw and ±0.014 of pitch, out of phase between
-the two. The group dissolves in and out with `STAT_FADE_SECONDS` (0.3s) as the hero arrives and
-leaves.
-
-**Canvas size.** `SCENE_TIER_CONFIG[tier].statFace` — 512 × 288 high, 384 × 224 mid. Bigger than the
-hologram's cap and for the opposite reason: that one must not be legible, this one is a number the
-visitor reads. The canvas is never larger than the window's own device pixels (the scene's dpr is
-capped at 1.75), and it is re-sized when the window's aspect changes.
+  tilt (`off` on the server).
 
 ### Directions — the HUD screen
 
 - Pills: `rounded-pill` glass links; the selected one (`aria-current`) takes the direction's
   `--accent` as border and glow, lifts 2px from 641px, and shows an `aria-hidden` "↗" in
   `--red-text`. Below 641px the row is a band that scrolls and snaps inside itself.
-- The screen: `cyber-grid` dissolved by `fade-radial`, an accent radial glow
-  (`color-mix(in srgb, var(--accent) 14%, transparent)`), a scan line (`animate-scan`, paused under
-  the intro overlay and while `#servicii` is off screen, hidden under reduced motion) and four
+- The screen (`data-testid="services-screen"`): `cyber-grid` dissolved by `fade-radial`, an accent radial glow
+  (`color-mix(in srgb, var(--accent) 14%, transparent)`), a scan line (`animate-scan`, paused while
+  `#servicii` is off screen, hidden under reduced motion) and four
   1px corner brackets. `--accent` comes from `lib/solutions.ts` — the same brand accent the
   service page uses — as an inline custom property, used for borders and glows only.
 - The case card is an `--ink` block; a reference project's tags are chips joined by the tag's own
   "·" as text.
-- **The glass reveal** (IT-OS Phase 2, 2026-09-17; `app/tailwind.css`): `entry-glow` on the panel,
-  `entry-sweep` on its copy column. Both key off the stage root: `data-entry`
-  (`idle|burst|formed`, written only while a WebGL scene is mounted — see
-  [03](./03-architecture.md#the-services-entrance-it-os-phase-2-2026-09-17)) and `data-renderer`.
-  - **Edge glow:** a `color-mix(in srgb, var(--accent) 70%, transparent)` border, a 1px ring at
-    35% and a 32px glow at 18%, listed after `var(--sh-lg)`, so the depth shadow stays under it.
-    It lights under `[data-renderer="webgl"][data-entry="formed"]`, and **statically** on the `fallback` and `off`
-    renderers (no `data-entry` there). It **never** lights under `pending`, which can still turn
-    into WebGL and take it away again. The 0.5s transition (border colour and shadow,
-    `--motion-ease-out`) exists only under `[data-renderer="webgl"]`, so the static glow never
-    animates in.
+- **The lit edge** (`entry-glow` on the panel, `app/tailwind.css`): a
+  `color-mix(in srgb, var(--accent) 70%, transparent)` border, a 1px ring at 35% and a 32px glow
+  at 18%, listed after `var(--sh-lg)`, so the depth shadow stays under it. **Static** since
+  2026-10-28: no stage, renderer or entrance gating and no transition. (From IT-OS Phase 2,
+  2026-09-17, it lit with the 3D model's entrance, and an `entry-sweep` band — `hud-glass-sweep` —
+  crossed the copy column; both gates and the sweep went with the 3D stage.)
   - **`color-mix` only inside an explicit `@supports (color: color-mix(in lab, red, red))`.**
     Without it Tailwind adds a fallback copy of every rule with the plain, fully opaque accent.
     An engine without `color-mix` keeps the plain panel.
-  - **Sweep:** the column's `::after` (its `::before` is the top hairline, so no `after:`
-    utility may go on that column): a 115° `var(--accent)` band between transparent stops,
-    `pointer-events: none`, opacity 0 at rest. `hud-glass-sweep` plays once under
-    `[data-renderer="webgl"][data-entry="burst"]` with `prefers-reduced-motion: no-preference`, and only then the column
-    is `overflow: clip` (no scroll container, so nothing moves). Its strength is the keyframe's
-    opacity, never a colour mix, so no engine gets an opaque band over the text. At .12, the
-    worst copy under the band's centre measured **5.11:1 dark and 4.61:1 light** (the tag, the
-    tightest line in both themes, for all five accents); .16 would take the light tag to 4.38.
-  - The glow changes no pixel of the copy's text area (measured). Neither goes on
-    `[data-reveal]` or an intro marker, and neither uses `filter`, blur or `border-radius`.
+  - The glow changes no pixel of the copy's text area (measured). It does not go on
+    `[data-reveal]`, and uses no `filter`, blur or `border-radius`.
     `tailwind-contract.test.ts` pins these rules.
 - Height floors: the copy, the screen and the panel carry per-locale `min-h` values measured as
   the tallest of the five directions per width band, so selecting a direction never moves the
@@ -574,7 +495,8 @@ dark wash → the glass edge and corner brackets → the copy.
   card: about 1.7px a step with the nine projects at 1280×800 (3.45px two steps out, at half
   opacity), more with fewer projects or taller cards (about 2.9px at the three-card minimum,
   2.4px for a 360px card on a 768×1024 touch tablet, where every description shows). The held
-  rule repeats the keyframes' numbers; change the two together.
+  rule repeats the keyframes' numbers; change the two together. Outside the spiral (phones, the
+  flat grid on every non-WebGL path) the drift plays.
 - **Layout:** three columns; two up to 900px (`max-[901px]:`), where an odd last card spans the
   row and keeps its screenshot at a normal card's size on its right half, edges faded
   (`edge-fade-x`) — stretched, `object-cover` enlarged the top of a screenshot ~2×. ≤640px one
@@ -781,6 +703,12 @@ existing tokens:
 
 ## Cyber Dark / Neon Cyan / Obsidian Black
 
+> **2026-10-28 — the page is light.** "Cyber Dark" below was written for the near-black page;
+> the chrome now reads the light map through the same tokens (`--panel`, `--glass-*`,
+> `--neon-cyan` `#0891b2`, `--cyan-text` `#0b7490`). The contrast figures quoted for the dark
+> scale are history; the light ones are in [Contrast](#contrast--the-constraint-that-shapes-the-whole-palette)
+> and in the comments of `globals.css`. Obsidian islands stay dark.
+
 The palette of the HUD chrome: the fibre scroll rail, the OS dock and windows, and the Command
 Center form. It is built from the existing system: two brand names map
 onto tokens that already existed, and the new tokens follow the same rules as the rest of the
@@ -935,8 +863,8 @@ field fill is `color-mix(in srgb, var(--on-obsidian) 4%, var(--obsidian))`, whic
      `--glass-bg-solid` plus `--neon-cyan-ring`.
    - No `backdrop-filter` on any ancestor of a CSS `preserve-3d` element: it flattens the 3D.
    - From 861px, OS windows may blur (`backdrop-filter: blur(var(--glass-blur))` over
-     `--glass-bg-text`) if one window open over the running hero holds ≥45 fps (forced mid tier,
-     4× CPU). Otherwise they use `--glass-bg-solid`. Below 861px a window is the request Modal's
+     `--glass-bg-text`) if one window open over the running hero holds ≥45 fps (measured with
+     the hero's since-removed 3D scene at its mid tier, 4× CPU). Otherwise they use `--glass-bg-solid`. Below 861px a window is the request Modal's
      sheet.
 7. **No dots.** Use streaks, bars, squares and diamonds, with `border-radius: 0` at 8px or
    smaller. A ring is at least 38px. As each HUD part lands, its component and module CSS join
@@ -988,9 +916,9 @@ the OS layer 108, both below `--z-nav-overlay` 115.
 
 **When the chrome shows:**
 
-- **Not armed:** nothing renders while the intro is on screen, while the cookie question is
+- **Not armed:** nothing renders while the cookie question is
   unanswered, or when QA sets the `tbs_hud=off` flag. So nothing ever collides with the cookie
-  banner (z 280) or the intro.
+  banner (z 280).
 - **Page covered** (the request dialog or the burger menu): nothing is hidden or made `inert`.
   The z-order covers the chrome and the dialog traps Tab, and live polling and rail writes pause.
 - **Away:** while the home page's own request form (`#estimare`) is in view, the dock goes to
@@ -1375,8 +1303,8 @@ back to the table above, which is exactly the design she shipped with (6d695af);
 the smaller phone size over keeping 60px out of the square (*"a"*).
 
 Everything else about her is this section's rules, not her own: the palette above, the stacking
-ladder, **no `backdrop-filter` and no `filter`** anywhere in a part or above one (she sits over the
-live WebGL canvas), **no round dot** and square line caps, every animation inside
+ladder, **no `backdrop-filter` and no `filter`** anywhere in a part or above one (set when she sat over the
+live WebGL canvas, which since 2026-10-28 is only behind Work; the rule stays), **no round dot** and square line caps, every animation inside
 `@media (prefers-reduced-motion: no-preference)` and limited to `transform` and `opacity`. The
 one exception is her mouth: it is painted by the script (each layer's frame file and its `opacity`,
 never a transform, for the reason in "The mouth" above), and it does not move at all under reduced
@@ -1391,7 +1319,7 @@ native scrollbar, which stays the scrollbar. Behaviour is in
 
 **Placement** (critique R2): `position: fixed; top: calc(var(--header-h) + 16px); right: 0;
 bottom: var(--hud-bottom); width: var(--hud-rail-w)` (44px) at `--z-rail` (104) — under the OS
-layer, the burger overlay, the request dialog and the intro, which cover it with no
+layer, the burger overlay and the request dialog, which cover it with no
 hide logic. The root takes no pointer events; only the marker buttons do. Inside it the fibre and
 the nav are inset by half a marker (22px) at both ends, so every 44×44 button stays inside the
 rail box: clear of the header above, and clear of the bottom 112px of the edge below (the rail
@@ -1443,7 +1371,8 @@ streak and the label. All of it inside `prefers-reduced-motion: no-preference`: 
 rail is static (no pulse is even requested). The thread and the head follow the scroll position
 itself, which is the visitor's own movement.
 
-**Never** a round dot, `backdrop-filter` or `filter` (the rail sits over the live WebGL canvas).
+**Never** a round dot, `backdrop-filter` or `filter` (set when the rail sat over the live WebGL
+canvas, which since 2026-10-28 is only behind Work; the rule stays).
 
 **Below 861px: the top bar is the fibre.** There is no rail on phones and tablets in portrait.
 The existing 2px progress bar (`components/ui/ScrollProgress.tsx`, `[data-progress]`, unchanged;
@@ -1531,17 +1460,18 @@ rule in [07 — Conventions](./07-conventions.md).
 - **Scroll reveal** — elements fade/slide in via `IntersectionObserver` (`[data-reveal]`).
 - **Glow** — radial gradients + blurred layers behind the hero and contact sections.
 - **HUD backdrop** (hero) — two key lights, the `cyber-grid` wall, a `cyber-floor` in
-  perspective drifting towards the viewer, and a hairline scanner. All paused while the intro
-  overlay is in the document, while the hero is scrolled off screen, and under reduced motion.
+  perspective drifting towards the viewer, and a hairline scanner. All paused while the hero
+  is scrolled off screen, and under reduced motion.
 - **Neon and glass** — `cta-neon` buttons, glass header / dropdowns / stat cards / cookie
   banner (see [HUD layer](#hud-layer--the-first-screen)).
 - **Marquee / hazard stripes** — the diagonal `--blue` striped bars (`.hz`) and the trust
   ticker under the hero (five identical groups, each ending in a slanted red neon hairline, so
   the loop has no seam).
-- **The interior 3D stage** — the neon microprocessor (2026-09-17, replacing the glass Cybernetic
-  Core) and the five service models behind Hero → Ticker → Directions, the cursor circuit trail
-  behind a mouse or pen, static SVG art where WebGL is not used, holographic stat cards, pointer
-  tilt, the project cards' CSS parallax ([The interior stage](#the-interior-stage)).
+- **Static art and Work's helix** — the neon microprocessor in the hero and one drawing per
+  service direction, static SVG (`components/art/`); the hero stat cards' CSS-3D holograms,
+  pointer tilt, the project cards' CSS parallax; and the site's one WebGL scene, Work's DNA helix
+  ([The interior stage](#the-interior-stage)). The hero's WebGL chip, the services models and the
+  cursor circuit trail were removed on 2026-10-28.
 - **No decorative dots** (2026-09-17). The clock pip, the eyebrow's blinking dot, the stat-note
   pips, the ticker's round separators, the logo's halo and the estimator chat's status dot are
   gone. What stays: the "TBS." and title full stops as plain red glyphs (no glow), the footer's
@@ -1549,22 +1479,16 @@ rule in [07 — Conventions](./07-conventions.md).
   every "·" in copy. `decorative-dots.test.tsx` and the E2E scan keep them out.
 - **Live clock** — `SYS_TIME 12:04:08 UTC+3` in the header (Chișinău time, real offset). The
   old top status bar is gone.
-- **First-visit intro** — the laptop preloader (2026-09-20, replacing the glass ∞): a six-beat
-  camera flight out of the processor and into the display, the first two beats always drawn as
-  flat SVG ([05 — Page Sections](./05-page-sections.md)).
 
 Keyframes to port from the prototype: `spin`, `floaty`, `pulse`, `riseIn`, `fadeIn`,
 `orbit`, `scan`, `blink`, `marquee`. The Tailwind animations live in `app/tailwind.css` with a
 `hud-` prefix (`hud-marquee`, `hud-grid-drift`, `hud-menu-in`, `hud-cookie-rise`, `hud-scan`,
 `hud-holo-spin`, `hud-swap-in`), because `globals.css` already owns `spin`, `pulse` and `blink`.
-`hud-blink` was removed with the decorative dots (2026-09-17). `hud-holo-spin` (18s) turns the
-stat holograms; `hud-swap-in` (0.32s) brings a direction's copy in. `hud-parallax-media` is a
+`hud-blink` was removed with the decorative dots (2026-09-17); `hud-glass-sweep` with the
+Directions entrance (2026-10-28). `hud-holo-spin` (18s) turns the hero stat holograms. `hud-swap-in` (0.32s) brings a direction's copy in. `hud-parallax-media` is a
 **top-level** keyframe, not in the animations `@theme` block: keyframes there are emitted only
 when an `--animate-*` token naming them is used, and this one is referenced from the
-`parallax-media` utility instead. So is `hud-glass-sweep` (1.1s, IT-OS Phase 2), referenced from
-`entry-sweep`: one band of light crossing the Directions copy (`translateX` −100% → 100%, opacity
-.12 → 0), played only under `[data-renderer="webgl"][data-entry="burst"]` with motion allowed
-([Directions — the HUD screen](#directions--the-hud-screen)). The art's keyframes (`materialize`, `core-wave`, `core-packets`)
+`parallax-media` utility instead. The art's keyframes (`materialize`, `core-wave`, `core-packets`)
 live in their own CSS Modules (see the gotcha below). All of them move `transform` or `opacity`
 only, and the global reduced-motion switch stops them.
 
@@ -1586,62 +1510,41 @@ only, and the global reduced-motion switch stops them.
 > built CSS's prefix counts (`-webkit-backdrop-filter`, `-webkit-mask`, `-webkit-` overall) are
 > recorded in `CHANGELOG.md` and must not drop.
 
-## Dark theme
+## Light only (2026-10-28)
 
-The site ships **light and dark, and dark is the default**. The dark values live **once**, as
-`--dark-*` on `:root` in `globals.css`; the two activation paths only *remap* the real tokens
-onto them, so the palette cannot drift between them.
+The site has **one palette, light**. History: it shipped light, gained a dark default
+(2026-09-16), lost the light theme in 58b18ee (2026-09-19, "Removed: sunetul si tema
+deschisa"), and on 2026-10-28 went back to the light palette — as the only one, with no
+toggle. The owner's brief was "clear and simple": white and very light surfaces, dark readable
+text.
 
-```css
---dark-bg:   #0a0b10;  --dark-bg2:    #06070b;  --dark-panel: #181e30;  --dark-panel2: #1f2639;
---dark-txt:  #f6f7fb;  --dark-mut:    #aeb8cb;  --dark-dim:   #94a1b9;
---dark-line: #2c354c;  --dark-line2:  #3b4664;  --dark-wash:  rgba(39,58,120,.55);
-```
+How it is wired:
 
-The page colour is the HUD's near-black — the same value as `--void` — with `--dark-bg2` one
-step deeper so it still reads as "below" the page (until 2026-09-16: `#101422` / `#0b0e18`).
-Every text pairing gained from it, computed with the WCAG formula:
+- **`app/globals.css`** — the `:root` block titled "The map" holds the light values directly
+  (no `--dark-*` indirection). `color-scheme: light` is on `:root`, so form controls, selects
+  and inner scrollbars paint light. The 641–860px `--hero-core-phone: .11` override follows
+  the map (same specificity, so the later rule wins).
+- **`app/layout.tsx`** — `viewport.themeColor` is `#f4f7ff` (`--bg`) and
+  `viewport.colorScheme` is `light`.
+- **The `--dark-*` scale** stays in `globals.css`, unmapped: only something drawn on its own
+  near-black backdrop reads it by name.
+- **No `data-theme`, no theme cookie, no anti-flash script.** One palette needs none of them.
 
-| On `--dark-bg` | Before (`#101422`) | Now (`#0a0b10`) |
-|----------------|--------------------|-----------------|
-| `--dark-txt` | 17.13 | **18.36** |
-| `--dark-mut` | 9.18 | **9.85** |
-| `--dark-dim` | 7.04 | **7.54** |
-| `--dark-blue-text` | 8.58 | **9.19** |
-| `--dark-red-text` | 6.67 | **7.15** |
-| `--red` (border / glow) | 4.38 | **4.69** |
+### The static art draws in ink
 
-Cards separate more clearly too (`--dark-panel` on the page 1.11 → 1.19). Across the four dark
-surfaces the faintest text pairing is `--dark-red-text` on `--dark-panel2`, at 5.48:1.
+The WebGL scene (Work's helix only since 2026-10-28) reads its colours from the CSS tokens
+(`components/scene/three/palette.ts`) and draws in one mode, `glow` (`uInk` always 0). The static
+hero art (`HeroCoreArt.module.css`) keeps the fainter light
+tints (glow core `.18`, body `.06`, die `.35` / `.6`, halo `.16`): on a light page an additive
+glow vanishes, so the art reads as ink on paper.
 
-Three states, deliberately:
+### What stays dark, and why
 
-| State | How it is expressed |
-|-------|---------------------|
-| Explicit choice | `data-theme="dark"` / `"light"` on `<html>`, from the `tbs_theme` cookie |
-| No choice yet | **`data-theme="dark"`** — `DEFAULT_THEME` in `lib/theme/theme.ts`. The OS preference is deliberately not read |
-| Persistence | cookie `tbs_theme`, 1 year — same shape as `tbs_locale` |
-
-**Why a cookie and not `localStorage`:** the server reads it and stamps `data-theme` into the
-HTML it sends, so every visitor gets the right palette in the **first byte**, with no flash and
-with JavaScript off — a missing or junk cookie stamps the dark default. The inline script in
-`<head>` stamps the same value again before first paint, as the guarantee that holds whatever
-produced the HTML, and pins `color-scheme`; it **carries the CSP nonce** (`x-nonce`, minted in
-`proxy.ts`), without which the strict policy blocks it. The `prefers-color-scheme` block left
-in `globals.css` only matters for a document that arrives with no `data-theme` at all.
-
-The root layout stamps **every** route, so `/admin-tbs-digital` is dark by default as well.
-
-### What is NOT remapped, and why
-
-`--ink*` is not a dark theme — it is the handful of blocks that invert *on purpose*. On dark
-they lift **above** the surface (`#1d2540`) instead of sinking below it, or they would vanish
-into the page.
-
-`--green` and `--amber` get their own dark values: they are darkened for a light background
-and fall under AA on `#181e30`. `--ice` and `--cyan` likewise. **`--blue` and `--red` are
-deliberately left alone** — they are brand *fills* carrying `--on-accent` text, and lightening
-them would weaken that pairing.
+- **`--ink` / `--ink2`** — the handful of blocks that invert *on purpose* (the steps card on a
+  direction page, the Directions project card, the overlays on Work's cards). Their text is
+  `--on-ink` / `--on-ink-mut`.
+- **`--scrim`** — near-black over bright screenshots and partner logos.
+- **The Obsidian islands and the portfolio's screen** — see [Void](#void).
 
 ### Red as text — `--red-text`
 
@@ -1669,9 +1572,6 @@ The same split now exists for the other two accents used as small text:
 --green-text: #0b7a5a;  /* 5.32:1 on --panel — the fill --green is 3.21:1 */
 ```
 
-On dark, `--green-text` simply points at `--dark-green` (already 8.92:1) rather than adding a
-fourth near-identical green.
-
 `Principles` shows why the split is per *role*, not per colour: its `--accent` tints a hover
 **border** (a graphic — 3:1 is enough) while `--accent-text` colours a 12px/800 **number**.
 Same hue, two thresholds, two tokens.
@@ -1680,12 +1580,11 @@ Same hue, two thresholds, two tokens.
 > `--red` 4.19 · `--blue` 4.25 · `--green` **3.21** · `--amber` 3.77 · `--cyan` 3.56 ·
 > `--mint` ≈2.4 · `--star` ≈1.6.
 >
-> **Still open:** `--amber` is text in `Partners.module.css`, and `--cyan` is still text in the
-> legal pages (`LegalDoc.module.css`), most of the admin panel and the section index labels in
-> `globals.css`. Both want the same `*-text` treatment. The header and the cookie banner no
-> longer use `--cyan` as text since their 2026-09-16 rewrite (the clock label is
-> `--blue-text`), and the status bar is gone. As **focus rings, borders and icons** `--cyan` is
-> fine: those are graphics, and 3.56:1 clears the 3:1 bar.
+> **Closed 2026-10-28:** the legal pages, the admin panel and the section index labels use
+> `--cyan-text` for cyan text; `Partners`' CTA label and Work's section index (formerly
+> `--amber`, which has no text twin) use `--red-text`; the admin's error / success text uses
+> `--red-text` / `--green-text`. As **focus rings, borders and icons** `--cyan` is fine: those
+> are graphics, and 3.56:1 clears the 3:1 bar.
 >
 > This file previously claimed `--green` and `--amber` were "darkened enough to clear AA as
 > text". They were not — the numbers above are measured, not derived.
@@ -1742,8 +1641,8 @@ scale.
 | Shadow | `shadow-sm/md/lg` · `shadow-neon-red` · `shadow-neon-red-strong` · `shadow-neon-blue` · `shadow-neon-cyan` | `--sh-*` · `--neon-*` · `--neon-cyan-ring` (the ring, not a shadow colour: the `--shadow-*` key wins over `--color-neon-cyan`) |
 | Spacing | `p-4`, `gap-3`, `min-h-11`, … | `calc(var(--sp-1) * n)` |
 | Custom utilities | `glass` · `glass-text` · `cta-neon` · `cyber-grid` · `cyber-floor` · `edge-fade-x` · `fade-b` | see [HUD layer](#hud-layer--the-first-screen) |
-| | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed; inside the scene's spiral holds it at `--helix-parallax` instead) | see [The interior stage](#the-interior-stage) |
-| | `entry-glow` (the Directions panel's accent edge: under `[data-renderer="webgl"][data-entry="formed"]`, static on the `fallback` / `off` renderers, never `pending`) · `entry-sweep` (its copy column's `::after` band: `hud-glass-sweep` under `[data-renderer="webgl"][data-entry="burst"]`, motion allowed) | see [Directions — the HUD screen](#directions--the-hud-screen) |
+| | `fade-radial` (radial mask, the services screen's grid) · `h-scene` (`100lvh` − `--header-h`, with a `100vh` fallback line; the stage's sticky layer, behind Work) · `view-work` (names the Work section's view timeline `--work-view`) · `parallax-media` (plays `hud-parallax-media` on it, gated by `@supports (animation-timeline: view())` and motion allowed; inside the scene's spiral holds it at `--helix-parallax` instead) · `work-media-reveal` · `work-scan` (the screenshot's arrival, spiral only) | see [The interior stage](#the-interior-stage) |
+| | `entry-glow` (the Directions panel's accent edge: a static lit border, ring and glow in `--accent`, inside `@supports` color-mix) | see [Directions — the HUD screen](#directions--the-hud-screen) |
 | Variant | `menu-open:` | a desktop dropdown is open: real hover (`(hover: hover)`), `focus-within`, or `[data-open]` (first touch tap) — never with `[data-dismissed]` (Escape) |
 
 Tokens without a Tailwind name are still reachable as arbitrary values —

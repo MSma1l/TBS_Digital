@@ -1,0 +1,99 @@
+/* The Directions screen's static model illustrations (ServiceArt.tsx). Tokens only, strokes in
+   screen pixels (non-scaling), butt caps and mitred joins — nothing here may read as a dot.
+   Static by decision (DECISIONS.md §4): the only motion is the one-shot entrance when another
+   direction is selected, and it is gone under reduced motion. */
+
+.art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+.art * {
+  vector-effect: non-scaling-stroke;
+}
+
+/* The one-shot entrance each drawing plays when it mounts (a new direction selected). */
+@media (prefers-reduced-motion: no-preference) {
+  .art {
+    animation: materialize 0.45s var(--motion-ease-out) backwards;
+  }
+}
+
+@keyframes materialize {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+/* ---- strokes ---- */
+.hair {
+  stroke: var(--blue-text);
+  stroke-width: 1;
+  stroke-opacity: 0.4;
+}
+.line {
+  stroke: var(--cyan);
+  stroke-width: 1.25;
+}
+.bold {
+  stroke-width: 2;
+}
+.thick {
+  stroke-width: 3;
+}
+.hot {
+  stroke: var(--red-text);
+}
+.blue {
+  stroke: var(--blue);
+}
+.dash {
+  stroke-dasharray: 5 6;
+}
+/* packets: short bars riding a link, never round */
+.bar {
+  stroke-width: 4;
+  stroke-dasharray: 10 14;
+}
+
+/* ---- fills (opaque, so a nearer part hides a farther one) ---- */
+.top,
+.front,
+.side,
+.glass,
+.node,
+.lit,
+.core {
+  fill: var(--bg);
+}
+.top {
+  fill: color-mix(in srgb, var(--cyan) 30%, var(--bg));
+}
+.front {
+  fill: color-mix(in srgb, var(--blue) 22%, var(--bg));
+}
+.side {
+  fill: color-mix(in srgb, var(--blue) 12%, var(--bg));
+}
+.glass {
+  fill: color-mix(in srgb, var(--cyan) 9%, var(--bg));
+}
+.node {
+  fill: color-mix(in srgb, var(--blue) 26%, var(--bg));
+}
+.lit {
+  fill: color-mix(in srgb, var(--cyan) 55%, var(--bg));
+}
+.core {
+  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
+}
+/* a gate the track runs through: see-through */
+.hoop {
+  fill-opacity: 0.55;
+}

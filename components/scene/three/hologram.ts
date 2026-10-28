@@ -31,13 +31,11 @@ export const HOLOGRAM = {
   band: 0.62,
   scanEvery: 3,
   /**
-   * How dark the comb's line is over the band. A grey picture can take a heavy comb — there is
-   * nothing in it but lightness, so darkening a third of the rows costs nothing but contrast. A
-   * COLOUR one cannot: at 0.55 the hue only survives in two rows out of three and the band reads
-   * as a striped ghost rather than as a screen. 0.24 keeps the comb legible as a comb — the
-   * display's own scanlines are in the shader on top of it — and leaves the picture its colour.
+   * How dark the comb's line is over the band. The picture is grey (luminosity), so it can take a
+   * heavy comb: there is nothing in it but lightness, and darkening a third of the rows costs
+   * nothing but contrast.
    */
-  comb: { mono: 0.55, colour: 0.24 },
+  comb: 0.55,
   cell: 2,
   decodeMs: 1500,
   pad: 12,
@@ -48,19 +46,11 @@ export const HOLOGRAM = {
   bracket: { arm: 14, inset: 4, width: 2 },
 } as const;
 
-/** `size` in whole px, at least 16 × 10, never above `max`. */
-export function clampCanvasSize(
-  size: readonly [number, number],
-  max: readonly [number, number],
-): [number, number] {
-  const fit = (value: number, cap: number, min: number) =>
-    Number.isFinite(value) ? Math.min(cap, Math.max(min, Math.round(value))) : cap;
-  return [fit(size[0], max[0], 16), fit(size[1], max[1], 10)];
-}
-
 /** `size` in whole px, at least 16 × 10, never above `HOLOGRAM_MAX`. */
 export function clampHologramSize(size: readonly [number, number]): [number, number] {
-  return clampCanvasSize(size, HOLOGRAM_MAX);
+  const fit = (value: number, cap: number, min: number) =>
+    Number.isFinite(value) ? Math.min(cap, Math.max(min, Math.round(value))) : cap;
+  return [fit(size[0], HOLOGRAM_MAX[0], 16), fit(size[1], HOLOGRAM_MAX[1], 10)];
 }
 
 /** Whitespace collapsed, trimmed. */
@@ -113,25 +103,13 @@ async function usableImage(card: HTMLElement): Promise<HTMLImageElement | null> 
 }
 
 /**
- * The screenshot, object-cover and top-aligned, in the band, with the comb over it.
- *
- * `tone` says whether the picture keeps its own colour. The helix's card is `mono` — luminosity
- * over black, the image's lightness and none of its hue, because that object is one colour and a
- * card that broke the palette would read as a bug. The laptop's band is `colour`: it is a SCREEN,
- * a machine drawing a real picture, and the one surface in this scene that is allowed its own hue.
- *
- * Neither tone draws a single pixel more than the other. The image is drawn at `HOLOGRAM.cell`
- * scale and blown back up, so the fine print is gone before the band is ever at full size — colour
- * changes what is in a cell, never how many there are, and the 384 x 240 cap is what keeps a
- * screenshot's text unreadable on a display the size of a business card.
+ * The screenshot, object-cover and top-aligned, in the band, with the comb over it: luminosity
+ * over black, the image's lightness and none of its hue, because the helix is one colour and a
+ * card that broke the palette would read as a bug. The image is drawn at `HOLOGRAM.cell` scale
+ * and blown back up, so the fine print is gone before the band is ever at full size, and the
+ * 384 x 240 cap is what keeps a screenshot's text unreadable on a plane the size of a business card.
  */
-function drawImageBand(
-  ctx: CanvasRenderingContext2D,
-  img: HTMLImageElement,
-  w: number,
-  band: number,
-  tone: "mono" | "colour" = "mono",
-): void {
+function drawImageBand(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, band: number): void {
   const cell = ctx.canvas ? HOLOGRAM.cell : 1;
   const cw = Math.max(1, Math.round(w / cell));
   const ch = Math.max(1, Math.round(band / cell));
@@ -140,14 +118,14 @@ function drawImageBand(
   const sh = ch / scale;
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, band);
-  if (tone === "mono") ctx.globalCompositeOperation = "luminosity";
+  ctx.globalCompositeOperation = "luminosity";
   ctx.drawImage(img, (img.naturalWidth - sw) / 2, 0, sw, sh, 0, 0, cw, ch);
   ctx.globalCompositeOperation = "source-over";
   if (cell > 1) {
     // Up from the cells: the fine print is gone before it is ever at full size.
     ctx.drawImage(ctx.canvas, 0, 0, cw, ch, 0, 0, w, band);
   }
-  ctx.fillStyle = `rgba(0, 0, 0, ${tone === "mono" ? HOLOGRAM.comb.mono : HOLOGRAM.comb.colour})`;
+  ctx.fillStyle = `rgba(0, 0, 0, ${HOLOGRAM.comb})`;
   for (let y = 0; y < band; y += HOLOGRAM.scanEvery) ctx.fillRect(0, y, w, 1);
 }
 
@@ -270,408 +248,13 @@ export async function composeHologram(
   return result;
 }
 
-/**
- * The laptop screen's layout (`composeLaptopScreen`), as px at 240 tall — the canvas is scaled by
- * `h / 240`, so every number here is a share of the same picture at every tier.
- *
- * Why there are two layouts and not one: the Work helix's hologram is a 1.6 x 1.0 plane hanging
- * beside a molecule, read at a glance while the cards spiral past; the laptop's is a DISPLAY, read
- * the way a screen is read. `composeHologram` stays exactly as Work shipped it, and this is a
- * second layout over the same pipeline — the same canvas cap, the same privacy rules, the same
- * helpers.
- */
-export const LAPTOP_SCREEN_LAYOUT = {
-  /** The title bar across the head, and the screenshot band's foot as a share of the height. */
-  bar: 26,
-  band: 0.54,
-  pad: 13,
-  /** The footer that carries the call and the reel's ticks. */
-  foot: 26,
-  name: 30,
-  nameMin: 15,
-  desc: 12.5,
-  descLead: 16,
-  descLines: 2,
-  tag: 10.5,
-  index: 11,
-  cta: 11,
-  node: 8,
-  tick: { w: 3, h: 8, gap: 4 },
-  bracket: { arm: 16, inset: 5, width: 2 },
-} as const;
-
-/**
- * The grid states the call in the visitor's own language (DirectionPage.tsx writes them; nothing
- * here is a hardcoded string in one language, docs/16-i18n-seo.md). A card that is an `<a>` has a
- * public page behind it and takes the first; anything else takes the second, which says so rather
- * than promising a link that is not there.
- */
-export const CTA_ATTR = { link: "data-cta-link", private: "data-cta-private" } as const;
-
-/** `text` wrapped to at most `lines` lines of `room` px, the last one ellipsised. */
-function wrapText(ctx: CanvasRenderingContext2D, text: string, room: number, lines: number): string[] {
-  const words = text.split(/\s+/).filter(Boolean);
-  const out: string[] = [];
-  let line = "";
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width <= room || !line) {
-      line = next;
-      continue;
-    }
-    out.push(line);
-    line = word;
-    if (out.length === lines) break;
-  }
-  if (out.length < lines && line) out.push(line);
-  if (out.length === 0) return out;
-  // Anything that did not fit is said with an ellipsis rather than cut mid-word off the edge.
-  const used = out.join(" ");
-  if (used.replace(/\s+/g, " ") !== words.join(" ")) {
-    let last = out[out.length - 1];
-    while (last.length > 1 && ctx.measureText(`${last}…`).width > room) last = last.slice(0, -1);
-    out[out.length - 1] = `${last.trimEnd()}…`;
-  }
-  return out;
-}
-
-/** How many cards the grid holds, and which one this is: read off the card's own siblings. */
-function cardPlace(card: HTMLElement, index: number): { index: number; total: number } {
-  const parent = card.parentElement;
-  const cards = parent
-    ? Array.from(parent.children).filter((node) => node.tagName === "A" || node.tagName === "ARTICLE")
-    : [];
-  const at = cards.indexOf(card);
-  const total = cards.length;
-  return { index: at >= 0 ? at : Math.max(0, Math.floor(index)), total: total > 0 ? total : 1 };
-}
-
-/**
- * Compose `card` as a laptop DISPLAY: a title bar with the project's tag and its place in the
- * reel, the screenshot as the backdrop, then the project's name and two lines of its description,
- * and a footer with the call and one tick per project.
- *
- * **This is how the screen was made legible, and it is the opposite of more pixels.** The canvas
- * stays capped at `HOLOGRAM_MAX` (384 x 240) and the screenshot stays drawn in `HOLOGRAM.cell`-px
- * cells, because that cap is the only reason a real e-mail address in a screenshot is not readable
- * off a 3D display. Text, though, is written into the same canvas with `fillText` at its native
- * resolution — so the words are crisp exactly where the downscaled screenshot is mush, and what a
- * visitor can read is what the page chose to say, never what a screenshot happened to contain.
- */
-export async function composeLaptopScreen(
-  card: HTMLElement,
-  ctx: CanvasRenderingContext2D,
-  size: readonly [number, number],
-  index: number,
-): Promise<"image" | "text"> {
-  const L = LAPTOP_SCREEN_LAYOUT;
-  const img = await usableImage(card);
-  const [w, h] = clampHologramSize(size);
-  const s = h / 240;
-  const px = (value: number) => Math.round(value * s);
-  const pad = px(L.pad);
-  const bar = px(L.bar);
-  const band = Math.round(h * L.band);
-  const foot = px(L.foot);
-
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalCompositeOperation = "source-over";
-  ctx.globalAlpha = 1;
-  ctx.clearRect(0, 0, w, h);
-
-  let result: "image" | "text" = "text";
-  if (img) {
-    drawImageBand(ctx, img, w, band, "colour");
-    result = "image";
-    // The one readback of a compose, and only after a screenshot: a single pixel.
-    try {
-      ctx.getImageData(0, 0, 1, 1);
-    } catch {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.clearRect(0, 0, w, h);
-      result = "text";
-    }
-  }
-
-  /* the title bar, washed over the top of the screenshot so its words read. The wash is the same
-     0.72 it was over a grey band: `luminosity` never changed a pixel's lightness, only its hue, so
-     a colour picture is exactly as bright under the bar as the grey one was. Measured on the
-     rendered frame at device scale 2, the bar's words sit between 6.8:1 and 9.8:1 over the five
-     screenshots in the reel, and the footer's call between 7.2:1 and 8.6:1. */
-  ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-  ctx.fillRect(0, 0, w, bar);
-  ctx.fillStyle = "#fff";
-  ctx.strokeStyle = "#fff";
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "miter";
-
-  const heading = card.querySelector("h3");
-  const place = cardPlace(card, index);
-
-  /* the node mark: a square ring, the house glyph — never a dot */
-  const node = px(L.node);
-  ctx.lineWidth = 1;
-  ctx.strokeRect(pad + 0.5, Math.round((bar - node) / 2) + 0.5, node - 1, node - 1);
-
-  /* the tag */
-  const tagEl = card.querySelector("small");
-  const tag = upper(textOf(tagEl));
-  ctx.font = fontOf(tagEl, L.tag * s, "700");
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  if (tag) {
-    const room = w - 2 * pad - node - px(8) - px(52);
-    ctx.fillText(fitText(ctx, tag, room, L.tag * s, L.tag * s, (size_) => fontOf(tagEl, size_, "700")), pad + node + px(8), bar / 2);
-  }
-
-  /* its place in the reel, as two digits over two */
-  ctx.font = fontOf(heading, L.index * s, "700");
-  ctx.textAlign = "right";
-  ctx.fillText(
-    `${String(place.index + 1).padStart(2, "0")} / ${String(place.total).padStart(2, "0")}`,
-    w - pad,
-    bar / 2,
-  );
-
-  /* the rule under the bar, and the one under the screenshot */
-  ctx.globalAlpha = 0.75;
-  ctx.fillRect(0, bar, w, 1);
-  ctx.globalAlpha = 0.45;
-  ctx.fillRect(0, band, w, 1);
-  ctx.globalAlpha = 1;
-
-  /* the name */
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  const name = upper(textOf(heading));
-  let y = band + px(10) + px(L.name);
-  if (name) {
-    const font = (value: number) => fontOf(heading, value, "900");
-    ctx.fillText(fitText(ctx, name, w - 2 * pad, px(L.name), px(L.nameMin), font), pad, y);
-  }
-
-  /* one or two lines of what it is */
-  const descEl = card.querySelector("p");
-  const desc = textOf(descEl);
-  if (desc) {
-    ctx.font = fontOf(descEl, L.desc * s, "500");
-    const lines = wrapText(ctx, desc, w - 2 * pad, L.descLines);
-    y += px(6);
-    for (const line of lines) {
-      y += px(L.descLead);
-      if (y > h - foot - px(2)) break;
-      ctx.fillText(line, pad, y);
-    }
-  }
-
-  /* the footer: the call, and one tick per project with this one lit */
-  const parent = card.parentElement;
-  const cta = (parent?.getAttribute(card.tagName === "A" ? CTA_ATTR.link : CTA_ATTR.private) ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-  const footY = h - foot / 2;
-  if (cta) {
-    ctx.font = fontOf(tagEl, L.cta * s, "700");
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "left";
-    const label = upper(cta.replace(/[\u2197\u2192\s]+$/u, ""));
-    const room = w - 2 * pad - place.total * px(L.tick.w + L.tick.gap) - px(14);
-    ctx.fillText(fitText(ctx, label, room, L.cta * s, L.cta * s, (v) => fontOf(tagEl, v, "700")), pad, footY);
-    if (card.tagName === "A") {
-      // A chevron, drawn rather than typed: no glyph to depend on.
-      const arm = px(4);
-      const x = pad + Math.min(room, ctx.measureText(label).width) + px(7);
-      ctx.lineWidth = Math.max(1, px(1.5));
-      ctx.beginPath();
-      ctx.moveTo(x, footY - arm);
-      ctx.lineTo(x + arm, footY);
-      ctx.lineTo(x, footY + arm);
-      ctx.stroke();
-    }
-  }
-  const tickW = px(L.tick.w);
-  const tickH = px(L.tick.h);
-  const tickGap = px(L.tick.gap);
-  let tx = w - pad - place.total * (tickW + tickGap) + tickGap;
-  for (let i = 0; i < place.total; i += 1) {
-    ctx.globalAlpha = i === place.index ? 1 : 0.4;
-    const height = i === place.index ? tickH : Math.round(tickH * 0.55);
-    ctx.fillRect(tx, Math.round(footY - height / 2), tickW, height);
-    tx += tickW + tickGap;
-  }
-  ctx.globalAlpha = 1;
-
-  /* bracket corners */
-  const arm = px(L.bracket.arm);
-  const inset = px(L.bracket.inset);
-  ctx.lineWidth = Math.max(1, px(L.bracket.width));
-  ctx.beginPath();
-  for (const [cx, cy, dx, dy] of [
-    [inset, inset, 1, 1],
-    [w - inset, inset, -1, 1],
-    [inset, h - inset, 1, -1],
-    [w - inset, h - inset, -1, -1],
-  ] as const) {
-    ctx.moveTo(cx, cy + dy * arm);
-    ctx.lineTo(cx, cy);
-    ctx.lineTo(cx + dx * arm, cy);
-  }
-  ctx.stroke();
-
-  return result;
-}
-
-/**
- * A BOOT frame for the laptop's display: not a project, and not a picture of one. The machine's
- * own furniture drawing itself, step by step, in the very places the project's furniture will
- * stand — the title bar and its rule, the band rule, the bracket corners and the reel's ticks —
- * with a raster settling behind it and a bar filling across the panel.
- *
- * It costs nothing the project frame does not already cost: the same canvas, capped at the same
- * 384 x 240 (`clampHologramSize`), the same one texture. `step` runs 0 .. `steps - 1`, and each
- * one adds a piece, so the display reads as a machine stepping through its start-up rather than as
- * something fading in.
- *
- * Not one glyph. Every other string on this display is the page's own, in the visitor's language,
- * drawn in the card's own computed font — and a boot frame has no card to read a font off and no
- * business owning a caption in one language. The rules, the brackets, the ticks and the bar say it
- * instead, and the ticks say how many projects are about to run.
- */
-export function composeLaptopBoot(
-  ctx: CanvasRenderingContext2D,
-  size: readonly [number, number],
-  step: number,
-  steps: number,
-  count: number,
-): void {
-  const L = LAPTOP_SCREEN_LAYOUT;
-  const [w, h] = clampHologramSize(size);
-  const s = h / 240;
-  const px = (value: number) => Math.round(value * s);
-  const pad = px(L.pad);
-  const bar = px(L.bar);
-  const band = Math.round(h * L.band);
-  const foot = px(L.foot);
-  const total = Math.max(1, Math.floor(steps));
-  const at = Math.min(total - 1, Math.max(0, Math.floor(step)));
-  const through = (at + 1) / total;
-
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.globalCompositeOperation = "source-over";
-  ctx.globalAlpha = 1;
-  ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#fff";
-  ctx.strokeStyle = "#fff";
-  ctx.lineCap = "butt";
-  ctx.lineJoin = "miter";
-
-  /* The raster. It is BRIGHTEST on the first frame and settles from there, the way a tube flares
-     as it takes power and then calms: the furniture that arrives over it reads better against a
-     quieter field, and the flare is the one thing that says "this just came on". */
-  ctx.globalAlpha = Math.max(0.08, 0.34 - 0.06 * at);
-  for (let y = 0; y < h; y += HOLOGRAM.scanEvery) ctx.fillRect(0, y, w, 1);
-  ctx.globalAlpha = 1;
-
-  /* step 1: the title bar and the node mark */
-  const node = px(L.node);
-  if (at >= 1) {
-    ctx.globalAlpha = 0.72;
-    ctx.fillRect(0, bar, w, 1);
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(pad + 0.5, Math.round((bar - node) / 2) + 0.5, node - 1, node - 1);
-  }
-
-  /* step 2: the rule the screenshot band will sit on, and the corners */
-  if (at >= 2) {
-    ctx.globalAlpha = 0.45;
-    ctx.fillRect(0, band, w, 1);
-    ctx.globalAlpha = 1;
-    const arm = px(L.bracket.arm);
-    const inset = px(L.bracket.inset);
-    ctx.lineWidth = Math.max(1, px(L.bracket.width));
-    ctx.beginPath();
-    for (const [cx, cy, dx, dy] of [
-      [inset, inset, 1, 1],
-      [w - inset, inset, -1, 1],
-      [inset, h - inset, 1, -1],
-      [w - inset, h - inset, -1, -1],
-    ] as const) {
-      ctx.moveTo(cx, cy + dy * arm);
-      ctx.lineTo(cx, cy);
-      ctx.lineTo(cx + dx * arm, cy);
-    }
-    ctx.stroke();
-  }
-
-  /* step 3: the head of the bar the name will sit on, so the panel is already framed */
-  if (at >= 3) {
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(pad, band + px(10), Math.round((w - 2 * pad) * 0.42), Math.max(1, px(2)));
-    ctx.globalAlpha = 1;
-  }
-
-  /* the bar filling across the panel, and the reel's ticks arriving with it */
-  const railY = band + Math.round((h - foot - band) / 2);
-  const railH = Math.max(2, px(4));
-  ctx.globalAlpha = 0.55;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(pad + 0.5, railY + 0.5, w - 2 * pad - 1, railH - 1);
-  ctx.globalAlpha = 1;
-  ctx.fillRect(pad + 2, railY + 2, Math.round((w - 2 * pad - 4) * through), railH - 4);
-
-  if (at >= 3 && count > 0) {
-    const tickW = px(L.tick.w);
-    const tickH = px(L.tick.h);
-    const tickGap = px(L.tick.gap);
-    const lit = Math.round(count * through);
-    let tx = w - pad - count * (tickW + tickGap) + tickGap;
-    const footY = h - foot / 2;
-    for (let i = 0; i < count; i += 1) {
-      ctx.globalAlpha = i < lit ? 0.9 : 0.25;
-      ctx.fillRect(tx, Math.round(footY - tickH / 2), tickW, tickH);
-      tx += tickW + tickGap;
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-
-/** What draws a card onto the canvas: the Work layout, or the laptop's. */
-export type HologramComposer = (
-  card: HTMLElement,
-  ctx: CanvasRenderingContext2D,
-  size: readonly [number, number],
-  index: number,
-) => Promise<"image" | "text">;
-
 export type HologramSource = {
   texture: CanvasTexture;
-  /** The canvas's size in px, as the last `resize` left it (the composer is handed the same pair). */
-  size(): readonly [number, number];
   /**
    * Draw `card` (the `index`-th) in the next idle slot, replacing any pending request; null does
-   * nothing. The same card at the same index is skipped once its screenshot is on the texture —
-   * unless `force`, which is how a caller says the card's CONTENT changed under it (a content
-   * swap replacing a project's image on a node React kept). Without it the texture would keep a
-   * screenshot of a project that is no longer there.
+   * nothing. The same card at the same index is skipped once its screenshot is on the texture.
    */
-  request(card: HTMLElement | null, index: number, force?: boolean): void;
-  /**
-   * Draw straight onto the canvas and flag the texture — no card, no idle slot, no swap. The boot
-   * frames come through here: they are not a project, they have to land on the frame the model
-   * asks for them, and nothing may afterwards think the texture is showing a card (the next
-   * `request` always composes again).
-   */
-  paint(draw: (ctx: CanvasRenderingContext2D, size: readonly [number, number]) => void): void;
-  /**
-   * Re-size the canvas (clamped to the source's cap) and compose the current request onto it
-   * again. For a face that fills a BOX OF THE PAGE rather than a fixed screen: the hero's stat
-   * windows change aspect between the two-column and the stacked layout — 0.98 : 1 to 2.2 : 1 — and
-   * a texture drawn at one and stretched to the other would lean every letter. A size that is
-   * already the canvas's does nothing, so this is safe to call on every measurement.
-   */
-  resize(size: readonly [number, number]): void;
+  request(card: HTMLElement | null, index: number): void;
   dispose(): void;
 };
 
@@ -681,18 +264,12 @@ type IdleWindow = Window & {
 };
 
 /**
- * One canvas of `size` (clamped to `max`, the high tier's hologram by default) and its texture. A
- * request composes in an idle slot (one compose at a time; a newer request wins), then flags the
- * texture and calls `onSwap` (the model glitches over the swap). A change of `<html lang>` composes
- * the current card again.
+ * One canvas of `size` (clamped to `HOLOGRAM_MAX`) and its texture. A request composes in an idle
+ * slot (one compose at a time; a newer request wins), then flags the texture and calls `onSwap`
+ * (the model glitches over the swap). A change of `<html lang>` composes the current card again.
  */
-export function createHologramSource(
-  size: readonly [number, number],
-  onSwap: () => void,
-  compose: HologramComposer = composeHologram,
-  max: readonly [number, number] = HOLOGRAM_MAX,
-): HologramSource {
-  let [w, h] = clampCanvasSize(size, max);
+export function createHologramSource(size: readonly [number, number], onSwap: () => void): HologramSource {
+  const [w, h] = clampHologramSize(size);
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
@@ -730,7 +307,7 @@ export function createHologramSource(
     const started = generation;
     let result: "image" | "text" | null = null;
     try {
-      result = await compose(job.card, ctx, [w, h], job.index);
+      result = await composeHologram(job.card, ctx, [w, h], job.index);
     } catch {
       result = null;
     }
@@ -788,35 +365,8 @@ export function createHologramSource(
 
   return {
     texture,
-    size() {
-      return [w, h] as const;
-    },
-    request(card, index, force = false) {
-      request(card, index, force);
-    },
-    resize(next) {
-      if (disposed) return;
-      const [nw, nh] = clampCanvasSize(next, max);
-      if (nw === w && nh === h) return;
-      w = nw;
-      h = nh;
-      canvas.width = w;
-      canvas.height = h;
-      // The canvas is blank again, so whatever was on it is gone: nothing may be skipped as
-      // "already shown", and the pending or last request has to be composed onto the new size.
-      shown = null;
-      if (wanted) request(wanted.card, wanted.index, true);
-    },
-    paint(draw) {
-      if (disposed || !ctx) return;
-      // A pending compose would land on top of this one: drop it, the caller owns the display now.
-      cancelIdle?.();
-      cancelIdle = null;
-      wanted = null;
-      generation += 1;
-      draw(ctx, [w, h]);
-      shown = null;
-      texture.needsUpdate = true;
+    request(card, index) {
+      request(card, index, false);
     },
     dispose() {
       disposed = true;

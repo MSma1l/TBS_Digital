@@ -46,8 +46,8 @@
     color 0.15s;
 }
 .logout:hover {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--red-text);
+  color: var(--red-text);
 }
 
 .headerActions {
@@ -77,13 +77,13 @@
   background: var(--panel2);
   border: 1px solid var(--line2);
   padding: 34px 30px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--sh-lg);
 }
 
 .gateLabel {
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 .gateTitle {
   font-size: 28px;
@@ -111,12 +111,12 @@
   border-color: var(--cyan);
 }
 .gateError {
-  color: #ff6b6b;
+  color: var(--red-text);
   font-size: 12px;
 }
 .gateBtn {
   cursor: pointer;
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
   letter-spacing: 0.04em;
   background: var(--blue);
@@ -135,7 +135,7 @@
   margin-top: 4px;
 }
 .gateBack:hover {
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 
 /* ---------- editor shell ---------- */
@@ -158,7 +158,7 @@
 .kicker {
   font-size: 11px;
   letter-spacing: 0.1em;
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 .title {
   font-size: clamp(26px, 4vw, 40px);
@@ -185,7 +185,7 @@
 }
 .viewSite:hover {
   border-color: var(--cyan);
-  color: var(--cyan);
+  color: var(--cyan-text);
 }
 
 .sections {
@@ -240,7 +240,7 @@
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1;
-  color: #fff;
+  color: var(--on-accent);
   background: var(--blue);
   border: 1px solid var(--blue2);
   border-radius: 9px;
@@ -322,7 +322,7 @@
 }
 .subLink {
   font-size: 12.5px;
-  color: var(--cyan);
+  color: var(--cyan-text);
   text-decoration: none;
 }
 .subLink:hover {
@@ -341,7 +341,7 @@
   border: 1px dashed var(--line2);
 }
 .subEstimateVal {
-  color: var(--cyan);
+  color: var(--cyan-text);
   font-weight: 700;
 }
 .subMessage {
@@ -373,12 +373,12 @@
   border: 1px solid var(--line);
 }
 .subCrm[data-crm="sent"] {
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.4);
+  color: var(--green-text);
+  border-color: color-mix(in srgb, var(--green-text) 40%, transparent);
 }
 .subCrm[data-crm="failed"] {
-  color: #ff6b6b;
-  border-color: rgba(255, 107, 107, 0.5);
+  color: var(--red-text);
+  border-color: color-mix(in srgb, var(--red-text) 50%, transparent);
 }
 .subCrmResendBtn {
   cursor: pointer;
@@ -391,7 +391,7 @@
   text-transform: uppercase;
 }
 .subCrmResendBtn:hover:not(:disabled) {
-  color: var(--cyan);
+  color: var(--cyan-text);
   border-color: var(--cyan);
 }
 .subCrmResendBtn:disabled {
@@ -412,8 +412,8 @@
     border-color 0.15s;
 }
 .subDeleteBtn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+  color: var(--red-text);
+  border-color: var(--red-text);
 }
 .subConfirm {
   display: flex;
@@ -424,7 +424,7 @@
 .subConfirmLabel {
   font-size: 11px;
   letter-spacing: 0.03em;
-  color: #ff6b6b;
+  color: var(--red-text);
 }
 .subConfirmBtn,
 .subCancelBtn {
@@ -440,10 +440,10 @@
     color 0.15s;
 }
 .subConfirmBtn {
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
-  background: #ff6b6b;
-  border: 1px solid #ff6b6b;
+  background: var(--red);
+  border: 1px solid var(--red);
 }
 .subConfirmBtn:hover {
   opacity: 0.85;
@@ -463,7 +463,7 @@
   cursor: not-allowed;
 }
 .subDeleteError {
-  color: #ff6b6b;
+  color: var(--red-text);
   font-size: 11px;
   letter-spacing: 0.02em;
   margin: 6px 0 0;
@@ -471,7 +471,7 @@
 
 /* inline validation error under an editor field */
 .fieldError {
-  color: #ff6b6b;
+  color: var(--red-text);
   font-size: 11px;
   letter-spacing: 0.02em;
 }
@@ -519,7 +519,7 @@
 .rowTag {
   font-size: 10.5px;
   letter-spacing: 0.08em;
-  color: var(--cyan);
+  color: var(--cyan-text);
   text-transform: uppercase;
 }
 .removeBtn {
@@ -537,8 +537,8 @@
     border-color 0.15s;
 }
 .removeBtn:hover {
-  color: #ff6b6b;
-  border-color: #ff6b6b;
+  color: var(--red-text);
+  border-color: var(--red-text);
 }
 
 .addBtn {
@@ -634,7 +634,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--cyan);
+  color: var(--cyan-text);
   background: rgba(47, 107, 255, 0.08);
   border: 1px solid var(--line);
 }
@@ -652,12 +652,12 @@
   flex-wrap: wrap;
   gap: 12px 14px;
   padding: 14px clamp(16px, 4vw, 40px);
-  background: rgba(6, 10, 22, 0.9);
+  background: var(--glass-bg-solid);
   border-top: 1px solid var(--line2);
   backdrop-filter: blur(8px);
 }
 .savedFlash {
-  color: var(--cyan);
+  color: var(--cyan-text);
   font-size: 13px;
   letter-spacing: 0.04em;
   margin-right: auto;
@@ -680,11 +680,11 @@
   color: var(--mut);
 }
 .resetBtn:hover {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
+  border-color: var(--red-text);
+  color: var(--red-text);
 }
 .saveBtn {
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 600;
   background: var(--blue);
   border: 1px solid var(--blue2);
@@ -768,7 +768,7 @@
   transition: color 0.15s;
 }
 .linkBtn:hover {
-  color: #ff6b6b;
+  color: var(--red-text);
 }
 
 /* ---------- project gallery (Proiecte tab) ---------- */

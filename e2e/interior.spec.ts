@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { INTRO_COOKIE, INTRO_REVEAL_ATTR, INTRO_REVEAL_ORDER } from "@/lib/intro";
-import { SCENE_SHAPES } from "@/lib/scene";
+import { SERVICE_SHAPES as SCENE_SHAPES } from "@/components/art/shapes";
 import {
   computedTransform,
   consoleErrors,
@@ -8,15 +7,12 @@ import {
   cspViolations,
   decorativeDots,
   directionPills,
-  disableScene3d,
   gotoHydrated,
   gsapLoaded,
-  modalCloseButton,
-  modalDialog,
-  sceneHero,
-  sceneServices,
+  heroCore,
   sceneStage,
   scrollToY,
+  servicesScreen as sceneServices,
   seedConsent,
   threeLoaded,
   watchCsp,
@@ -24,31 +20,31 @@ import {
 } from "./helpers";
 
 /*
- * The interior stage on the DEFAULT path (components/scene/): a returning visitor in headless
- * Chromium, whose SwiftShader GPU the stage's strict probe refuses — so the page settles on the
- * static art. What must hold without WebGL: the art is there and still, no three.js or GSAP is
- * ever evaluated, the entrance markers stay untouched, no decorative dot came back, the
- * direction pills drive the services screen (hover, keyboard, first tap on touch), the cards
- * tilt only under a mouse, and reduced motion / Save-Data / the off flag switch it all off.
- * The forced-WebGL half is interior-webgl.spec.ts (@webgl).
+ * The home page's first screen and interior on the DEFAULT path (2026-10-28: only Work has a
+ * WebGL stage, and it loads nothing until Work comes near; headless Chromium's SwiftShader is
+ * refused by its strict probe, so Work stays the flat grid). What must hold: the first screen's
+ * art is static SVG and still, no three.js or GSAP is evaluated and no WebGL context is created
+ * on entry, the first-screen elements stay unstyled, no decorative dot came back, the direction
+ * pills drive the services screen (hover, keyboard, first tap on touch), the cards tilt only
+ * under a mouse, and reduced motion stills what moves. The forced helix is work-helix.spec.ts.
  */
 
-/** The entrance markers the intro drives (and nothing else may style). */
-const MARKERS = `[${INTRO_REVEAL_ATTR}]`;
+/** The first screen's header, headline, stats group and ticker (nothing may style them inline). */
+const MARKERS = ["header", "h1", '[role="group"][aria-label]', "[data-ticker]"];
 
 async function markerState(page: Page) {
-  return page.evaluate((selector) => ({
-    count: document.querySelectorAll(selector).length,
-    styled: document.querySelectorAll(`${selector}[style]`).length,
-  }), MARKERS);
+  return page.evaluate((selectors) => {
+    const found = selectors.map((s) => document.querySelector(s)).filter((el) => el !== null);
+    return { count: found.length, styled: found.filter((el) => el.hasAttribute("style")).length };
+  }, MARKERS);
 }
 
-test.describe("interior stage — default path (no usable GPU)", () => {
+test.describe("interior — static, no WebGL", () => {
   test.beforeEach(async ({ context, baseURL }) => {
     await seedConsent(context, baseURL!);
   });
 
-  test("E1 settles on the static art: no canvas, no three.js, no GSAP, markers untouched @smoke", async ({
+  test("E1 shows the static art: no canvas, no three.js, no GSAP, markers untouched @smoke", async ({
     page,
   }) => {
     await watchCsp(page);
@@ -56,60 +52,36 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await countWebGLContexts(page);
     await gotoHydrated(page, "/");
 
-    const stage = sceneStage(page);
-    await expect(stage).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
-    await expect(stage).toHaveAttribute("data-reason", "software");
-    await expect(stage).not.toHaveAttribute("data-paused", /.*/);
-    await expect(stage).toHaveAttribute("data-motion", "live");
-
     // The art is on screen, whole: the core in the hero, the selected direction's model.
-    const core = sceneHero(page).locator("svg[data-core-art]");
+    const core = heroCore(page).locator("svg[data-core-art]");
     await expect(core).toBeVisible();
     await expect(core).toHaveCSS("opacity", "1");
     await expect(sceneServices(page).locator("svg[data-shape-art]")).toHaveCount(1);
     await expect(sceneServices(page)).toHaveAttribute("data-shape", SCENE_SHAPES[0]);
 
-    await expect(page.locator("[data-scene-layer] canvas")).toHaveCount(0);
-    // Past the idle slot the probe would have run in: still nothing heavy, no context at all
-    // (the session's seeded probe answer was used).
+    await expect(page.locator("canvas")).toHaveCount(0);
+    // Past any idle slot: still nothing heavy, no context at all.
     await page.waitForTimeout(1_500);
     expect(await threeLoaded(page)).toBe(false);
     expect(await gsapLoaded(page)).toBe(false);
     expect(await webglContextCount(page)).toBe(0);
-    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
-    // Work is inside the stage now, and without the scene its cards are exactly as React rendered
-    // them: two colours inline, no layout (the spiral is the WebGL path's), no helix mode.
-    const work = await page.evaluate(() => ({
-      inStage: !!document.querySelector("[data-scene-stage] #lucrari"),
-      track: document.querySelectorAll("#lucrari [data-work-track]").length,
-      styles: Array.from(document.querySelectorAll<HTMLElement>("[data-work-track] > *")).map((el) => el.style.length),
-      front: document.querySelectorAll("[data-helix-front]").length,
-    }));
-    expect(work.inStage).toBe(true);
-    expect(work.track).toBe(1);
-    expect(work.styles.length).toBeGreaterThan(0);
-    expect(work.styles.every((length) => length === 2), JSON.stringify(work.styles)).toBe(true);
-    expect(work.front).toBe(0);
-    await expect(stage).not.toHaveAttribute("data-helix", /.*/);
+    expect(await markerState(page)).toEqual({ count: MARKERS.length, styled: 0 });
+    // Work is a plain grid: each card carries its two colours inline and nothing else.
+    const styles = await page.evaluate(() =>
+      Array.from(document.querySelectorAll<HTMLElement>("#lucrari a, #lucrari article")).map((el) => el.style.length),
+    );
+    expect(styles.length).toBeGreaterThan(0);
+    expect(styles.every((length) => length === 2), JSON.stringify(styles)).toBe(true);
+    // Work's stage is the only one, it wraps Work alone, and at the top of the page it has not
+    // even started deciding (Work is not near yet).
+    await expect(sceneStage(page)).toHaveCount(1);
+    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "pending");
+    expect(await page.evaluate(() => !!document.querySelector("[data-scene-stage] #lucrari"))).toBe(true);
+    expect(await page.evaluate(() => document.querySelector("#top")!.closest("[data-scene-stage]"))).toBeNull();
+    expect(await page.locator("[data-loading]").count()).toBe(0);
     expect(await cspViolations(page)).toEqual([]);
     expect(errors.page).toEqual([]);
     expect(errors.console).toEqual([]);
-  });
-
-  test("E1b without a cached answer the probe makes one throwaway context, and a reload none", async ({
-    page,
-  }) => {
-    await countWebGLContexts(page);
-    await gotoHydrated(page, "/", { seedGpuProbe: false });
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
-    await expect(sceneStage(page)).toHaveAttribute("data-reason", "software");
-    expect(await webglContextCount(page)).toBe(1);
-    expect(await threeLoaded(page)).toBe(false);
-
-    await page.reload();
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
-    await page.waitForTimeout(500);
-    expect(await webglContextCount(page), "the reload answers from the session cache").toBe(0);
   });
 
   for (const viewport of [
@@ -121,9 +93,6 @@ test.describe("interior stage — default path (no usable GPU)", () => {
 
       test(`${viewport.name} no decorative dot in the header, main or footer`, async ({ page }) => {
         await gotoHydrated(page, "/");
-        await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", {
-          timeout: 10_000,
-        });
         // Scroll the page through once so every scroll-revealed block has rendered.
         const height = await page.evaluate(() => document.documentElement.scrollHeight);
         for (let y = 0; y < height; y += 700) await scrollToY(page, y);
@@ -133,7 +102,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     });
   }
 
-  test("E4 keyboard: arrows walk the pills, aria-current and data-shape move together, focus never enters the layer", async ({
+  test("E4 keyboard: arrows walk the pills, aria-current and data-shape move together, focus never enters the art", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
@@ -151,39 +120,18 @@ test.describe("interior stage — default path (no usable GPU)", () => {
       await expect(page.locator('#servicii nav a[aria-current="true"]')).toHaveCount(1);
       await expect(screen).toHaveAttribute("data-shape", SCENE_SHAPES[index]);
       expect(
-        await page.evaluate(() => document.activeElement?.closest("[data-scene-layer], [data-scene-anchor]") ?? null),
+        await page.evaluate(() => document.activeElement?.closest("[data-art-host]") ?? null),
       ).toBeNull();
     }
     await page.keyboard.press("End");
     await expect(pills.last()).toBeFocused();
     await expect(screen).toHaveAttribute("data-shape", SCENE_SHAPES[SCENE_SHAPES.length - 1]);
-    // Nothing in the stage layer or the art is a tab stop.
+    // Nothing in the art is a tab stop.
     expect(
       await page.evaluate(
-        () =>
-          document.querySelectorAll(
-            "[data-scene-layer] [tabindex], [data-scene-layer] a, [data-scene-layer] button, [data-scene-anchor] a, [data-scene-anchor] [tabindex]",
-          ).length,
+        () => document.querySelectorAll("[data-art-host] a, [data-art-host] [tabindex], [data-art-host] button").length,
       ),
     ).toBe(0);
-  });
-
-  test("E5 the sticky layer never paints past the end of the stage", async ({ page }) => {
-    await gotoHydrated(page, "/");
-    const stage = sceneStage(page);
-    await expect(stage).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
-    const { bottom, inner } = await page.evaluate(() => {
-      const box = document.querySelector("[data-scene-stage]")!.getBoundingClientRect();
-      return { bottom: box.bottom + window.scrollY, inner: window.innerHeight };
-    });
-    for (const y of [bottom - 0.3 * inner, bottom + 200]) {
-      await scrollToY(page, y);
-      const rects = await page.evaluate(() => ({
-        layer: document.querySelector("[data-scene-layer]")!.getBoundingClientRect().bottom,
-        stage: document.querySelector("[data-scene-stage]")!.getBoundingClientRect().bottom,
-      }));
-      expect(rects.layer, `at scrollY ${Math.round(y)}`).toBeLessThanOrEqual(rects.stage + 1);
-    }
   });
 
   test("E6 mouse: hovering a pill switches the shape, a click opens its service page", async ({
@@ -205,12 +153,12 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await page.waitForURL(`**/servicii/${SCENE_SHAPES[last]}`);
   });
 
-  test("E7 a stats card tilts under the mouse and settles back; the stats marker is never styled", async ({
+  test("E7 a stats card tilts under the mouse and settles back; the stats group is never styled", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
     const card = page.locator('[data-metric="projects"]');
-    const marker = page.locator(`[${INTRO_REVEAL_ATTR}="stats"]`);
+    const marker = page.locator('#top [role="group"]');
     await expect(card).toHaveAttribute("data-tilt", "on");
 
     const box = (await card.boundingBox())!;
@@ -225,7 +173,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     await expect(card).not.toHaveAttribute("data-tilting", /.*/);
     await expect.poll(() => card.getAttribute("style")).toBeNull();
     expect(await marker.getAttribute("style")).toBeNull();
-    expect(await markerState(page)).toEqual({ count: INTRO_REVEAL_ORDER.length, styled: 0 });
+    expect(await markerState(page)).toEqual({ count: MARKERS.length, styled: 0 });
   });
 
   test("E8 a project card tilts and keeps its --p1/--p2; its screenshot drifts on the section's view timeline", async ({
@@ -277,7 +225,7 @@ test.describe("interior stage — default path (no usable GPU)", () => {
   }) => {
     const html = await (
       await request.get("/", {
-        headers: { cookie: `${INTRO_COOKIE}=seen; tbs_cookie_consent=rejected` },
+        headers: { cookie: "tbs_cookie_consent=rejected" },
       })
     ).text();
     // Its markup, and the server slot's copy in the RSC payload — not all five drawings.
@@ -286,7 +234,6 @@ test.describe("interior stage — default path (no usable GPU)", () => {
 
     const errors = consoleErrors(page);
     await gotoHydrated(page, "/");
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
     const pills = directionPills(page);
     const art = sceneServices(page).locator("svg[data-shape-art]");
     for (const index of [2, 4, 1, 3, 0]) {
@@ -299,37 +246,6 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     }
     expect(errors.page).toEqual([]);
     expect(errors.console).toEqual([]);
-  });
-
-  test("E15 the CTA boost: a hover and a keyboard focus boost; the focus a mouse-closed dialog hands back does not", async ({
-    page,
-  }) => {
-    await gotoHydrated(page, "/");
-    const stage = sceneStage(page);
-    const cta = page.locator("#top").getByRole("button").first();
-
-    await cta.hover();
-    await expect(stage).toHaveAttribute("data-boost", "");
-    await cta.click();
-    await expect(modalDialog(page)).toBeVisible();
-    await modalCloseButton(page).click();
-    await expect(modalDialog(page)).toHaveCount(0);
-    await expect(cta, "the dialog hands focus back to its trigger").toBeFocused();
-    expect(await cta.evaluate((el) => el.matches(":focus-visible"))).toBe(false);
-
-    await page.mouse.move(5, 400, { steps: 4 });
-    await page.waitForTimeout(1_000);
-    await expect(stage).not.toHaveAttribute("data-boost", /.*/);
-
-    // A keyboard focus on the same CTA does boost, and leaving it ends the boost.
-    await page.keyboard.press("Shift+Tab");
-    await page.keyboard.press("Tab");
-    await expect(cta).toBeFocused();
-    expect(await cta.evaluate((el) => el.matches(":focus-visible"))).toBe(true);
-    await expect(stage).toHaveAttribute("data-boost", "");
-    await page.keyboard.press("Shift+Tab");
-    await expect(cta).not.toBeFocused();
-    await expect(stage).not.toHaveAttribute("data-boost", /.*/);
   });
 
   test.describe("1280px work tags", () => {
@@ -466,17 +382,17 @@ test.describe("interior stage — default path (no usable GPU)", () => {
       await expect(stats.first()).not.toHaveAttribute("data-tilting", /.*/);
     });
 
-    test("E11b the services screen (and its model) comes first, above the direction's heading", async ({
+    test("E11b the services screen (and its drawing) comes first, above the direction's heading", async ({
       page,
     }) => {
       await gotoHydrated(page, "/");
       const tops = await page.evaluate(() => ({
-        anchor: document.querySelector('[data-scene-anchor="services"]')!.getBoundingClientRect().top,
+        anchor: document.querySelector("[data-art-host]")!.getBoundingClientRect().top,
         heading: document.querySelector("#servicii h3")!.getBoundingClientRect().top,
-        anchorHeight: document.querySelector('[data-scene-anchor="services"]')!.getBoundingClientRect().height,
+        anchorHeight: document.querySelector("[data-art-host]")!.getBoundingClientRect().height,
       }));
       expect(tops.anchor).toBeLessThan(tops.heading);
-      expect(tops.anchorHeight, "the model gets at least 200px at 390").toBeGreaterThanOrEqual(200);
+      expect(tops.anchorHeight, "the drawing gets at least 200px at 390").toBeGreaterThanOrEqual(200);
     });
   });
 
@@ -484,10 +400,8 @@ test.describe("interior stage — default path (no usable GPU)", () => {
     page,
   }) => {
     await gotoHydrated(page, "/");
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "fallback", { timeout: 10_000 });
-    // Provoke the one-shot motions: the CTA boost wave and a service switch.
+    // Provoke the one-shot motions: the CTA boost wave (pure CSS) and a service switch.
     await page.locator("#top").getByRole("button").first().hover();
-    await expect(sceneStage(page)).toHaveAttribute("data-boost", "");
     await directionPills(page).nth(2).hover();
     await expect(sceneServices(page)).toHaveAttribute("data-shape", SCENE_SHAPES[2]);
 
@@ -527,25 +441,19 @@ test.describe("interior stage — default path (no usable GPU)", () => {
   });
 });
 
-test.describe("interior stage — reduced motion", () => {
+test.describe("interior — reduced motion", () => {
   test.use({ contextOptions: { reducedMotion: "reduce" } });
 
   test.beforeEach(async ({ context, baseURL }) => {
     await seedConsent(context, baseURL!);
   });
 
-  test("E12 is off: no context, no three.js or GSAP, still holograms, no tilt, no parallax — the pills still switch the shape", async ({
+  test("E12 still: no tilt, no parallax, no context, nothing heavy — the pills still switch the drawing", async ({
     page,
   }) => {
     await countWebGLContexts(page);
-    await gotoHydrated(page, "/", { seedGpuProbe: false });
-    const stage = sceneStage(page);
-    await expect(stage).toHaveAttribute("data-renderer", "off");
-    await expect(stage).toHaveAttribute("data-reason", "reduced-motion");
-    await expect(stage).toHaveAttribute("data-motion", "static");
+    await gotoHydrated(page, "/");
 
-    const hologram = page.locator("[data-hologram] > span").first();
-    expect(await hologram.evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
     await expect(page.locator("[data-metric]").first()).toHaveAttribute("data-tilt", "off");
     await expect(page.locator("#lucrari a, #lucrari article").first()).toHaveAttribute("data-tilt", "off");
     const media = page.locator('[data-parallax="work-media"]').first();
@@ -554,55 +462,9 @@ test.describe("interior stage — reduced motion", () => {
     await directionPills(page).nth(3).hover();
     await expect(sceneServices(page)).toHaveAttribute("data-shape", SCENE_SHAPES[3]);
 
-    await page.waitForTimeout(3_000);
+    await page.waitForTimeout(1_500);
     expect(await webglContextCount(page)).toBe(0);
     expect(await threeLoaded(page)).toBe(false);
     expect(await gsapLoaded(page)).toBe(false);
-  });
-});
-
-test.describe("interior stage — gates", () => {
-  test.beforeEach(async ({ context, baseURL }) => {
-    await seedConsent(context, baseURL!);
-  });
-
-  test("E12b Save-Data switches it off", async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "connection", {
-        configurable: true,
-        get: () => ({
-          saveData: true,
-          effectiveType: "4g",
-          addEventListener() {},
-          removeEventListener() {},
-        }),
-      });
-    });
-    await countWebGLContexts(page);
-    await gotoHydrated(page, "/", { seedGpuProbe: false });
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "off");
-    await expect(sceneStage(page)).toHaveAttribute("data-reason", "save-data");
-    await page.waitForTimeout(2_500);
-    expect(await webglContextCount(page)).toBe(0);
-  });
-
-  test("E12c the off flag keeps it off and never requests the probe", async ({ page }) => {
-    await disableScene3d(page);
-    await countWebGLContexts(page);
-    // The probe's chunk is the only one carrying the software-renderer pattern.
-    const probeChunks: string[] = [];
-    page.on("response", async (response) => {
-      const url = response.url();
-      if (!/\/_next\/static\/chunks\/.*\.js/.test(url)) return;
-      const body = await response.text().catch(() => "");
-      if (body.includes("llvmpipe")) probeChunks.push(url);
-    });
-    await gotoHydrated(page, "/", { seedGpuProbe: false });
-    await expect(sceneStage(page)).toHaveAttribute("data-renderer", "off");
-    await expect(sceneStage(page)).toHaveAttribute("data-reason", "flag");
-    await page.waitForTimeout(3_000);
-    expect(probeChunks).toEqual([]);
-    expect(await webglContextCount(page)).toBe(0);
-    expect(await threeLoaded(page)).toBe(false);
   });
 });

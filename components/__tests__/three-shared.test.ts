@@ -1,15 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  Color,
-  ColorManagement,
-  LinearSRGBColorSpace,
-  SRGBColorSpace,
-  Scene,
-  type ColorSpace,
-  type WebGLRenderer,
-} from "three";
 import { clampDprRange } from "@/components/three/capability";
-import { installTransmissionClear, linearTargetClearColor } from "@/components/three/environment";
 import {
   CAP_SLACK,
   DEFAULT_GOVERNOR,
@@ -21,7 +11,6 @@ import {
 import { MAX_FRAME_STEP, clamp, damp, lerp } from "@/components/three/motion";
 import { isParsableTokenColor, readTokenColors } from "@/components/three/palette";
 import { contextAttributes } from "@/components/three/renderer";
-import { clampDpr, HIGH_TIER_PIXEL_BUDGET, TIER_CONFIG } from "@/components/intro/capability";
 
 /*
  * The 3D helpers the intro and the interior share (components/three/*), without a WebGL
@@ -160,24 +149,6 @@ describe("clampDprRange", () => {
     expect(clampDprRange([1, 1.5], 390, 844, Number.NaN)).toEqual([1, 1]);
     expect(clampDprRange([1, 1.5], 0, 0, 0, 1.25e6)).toEqual([1, 1]);
   });
-
-  it("is exactly what the intro's clampDpr used to compute", () => {
-    for (const tier of ["high", "mid", "low"] as const) {
-      for (const [w, h] of [[320, 568], [390, 844], [1280, 800], [2560, 1440], [0, 0]]) {
-        for (const dpr of [0.5, 1, 1.5, 2, 3, Number.NaN]) {
-          expect(clampDpr(tier, w, h, dpr)).toEqual(
-            clampDprRange(
-              TIER_CONFIG[tier].dpr,
-              w,
-              h,
-              dpr,
-              tier === "high" ? HIGH_TIER_PIXEL_BUDGET : undefined,
-            ),
-          );
-        }
-      }
-    }
-  });
 });
 
 describe("readTokenColors", () => {
@@ -239,86 +210,3 @@ describe("contextAttributes", () => {
   });
 });
 
-describe("installTransmissionClear — the transmission target's clear colour", () => {
-  /*
-   * Just enough of three r186's WebGLRenderer: a clear colour is converted when it is SET,
-   * into the colour space of whatever is bound at that moment (WebGLBackground.setClear →
-   * getUnlitUniformColorSpace: the output space for the canvas, the working space for a
-   * render target), and `clear()` uses the stored value. Every clear is recorded.
-   */
-  function fakeRenderer(output: ColorSpace = SRGBColorSpace) {
-    let target: object | null = null;
-    let stored = { r: 0, g: 0, b: 0, a: 0 };
-    const rgb = { r: 0, g: 0, b: 0 };
-    const clears: Array<{ r: number; g: number; b: number; a: number; into: "canvas" | "target" }> = [];
-    const renderer = {
-      autoClear: true,
-      outputColorSpace: output,
-      getRenderTarget: () => target,
-      setRenderTarget: (next: object | null) => {
-        target = next;
-      },
-      setClearColor(color: Color, alpha = 1) {
-        color.getRGB(rgb, target === null ? output : ColorManagement.workingColorSpace);
-        stored = { ...rgb, a: alpha };
-      },
-      clear() {
-        clears.push({ ...stored, into: target === null ? "canvas" : "target" });
-      },
-    };
-    return { renderer, clears, gl: renderer as unknown as WebGLRenderer };
-  }
-
-  /** One frame as r186 orders it: the scene's hook on the canvas, then the transmission pass. */
-  function renderFrame(fake: ReturnType<typeof fakeRenderer>, scene: Scene) {
-    const hook = scene.onBeforeRender as unknown as (gl: WebGLRenderer) => void;
-    hook(fake.gl);
-    fake.renderer.setRenderTarget({});
-    fake.renderer.clear();
-    fake.renderer.setRenderTarget(null);
-  }
-
-  it("clears the linear target to the page colour itself, not to its sRGB encoding", () => {
-    const fake = fakeRenderer();
-    const scene = new Scene();
-    const page = new Color("#0a0b10"); // the dark --bg, held in linear working space
-    installTransmissionClear(fake.gl, scene, page, null);
-    renderFrame(fake, scene);
-
-    const [canvas, target] = fake.clears;
-    expect(canvas).toMatchObject({ into: "canvas", a: 0 });
-    expect(target.into).toBe("target");
-    expect(target.a).toBe(1);
-    expect(target.r).toBeCloseTo(page.r, 6);
-    expect(target.g).toBeCloseTo(page.g, 6);
-    expect(target.b).toBeCloseTo(page.b, 6);
-    // What the uncompensated clear used to write: the sRGB value (≈0.04), about 10× too bright.
-    expect(target.r).toBeLessThan(0.01);
-  });
-
-  it("leaves a linear-output canvas alone, and restores the renderer and scene on undo", () => {
-    const fake = fakeRenderer(LinearSRGBColorSpace);
-    const scene = new Scene();
-    const before = scene.onBeforeRender;
-    const page = new Color("#f4f7ff");
-    const undo = installTransmissionClear(fake.gl, scene, page, null);
-    expect(fake.renderer.autoClear).toBe(false);
-    renderFrame(fake, scene);
-    expect(fake.clears[1].r).toBeCloseTo(page.r, 6);
-
-    undo();
-    expect(fake.renderer.autoClear).toBe(true);
-    expect(scene.onBeforeRender).toBe(before);
-    expect(scene.environment).toBeNull();
-  });
-
-  it("linearTargetClearColor round-trips through three's own output conversion", () => {
-    const page = new Color("#10172a");
-    const compensated = linearTargetClearColor(page, SRGBColorSpace);
-    const rgb = { r: 0, g: 0, b: 0 };
-    compensated.getRGB(rgb, SRGBColorSpace);
-    expect(rgb.r).toBeCloseTo(page.r, 6);
-    expect(rgb.g).toBeCloseTo(page.g, 6);
-    expect(rgb.b).toBeCloseTo(page.b, 6);
-  });
-});

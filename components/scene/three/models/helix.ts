@@ -19,7 +19,7 @@
  *   · `exit` — the spiral's finish (helix.ts `helixExitAt`): the pivot winds up, the strands are
  *     drawn into a beam and the whole model dissolves away, so Work ends instead of stopping.
  *
- * Draws (one idle compile slice each), all on the existing programs:
+ * Draws (one idle compile slice each — they are the scene's whole program set, materials.ts):
  *   · strands (P5 links): both tubes in one geometry, `aTag` 0 on A (outgoing: packets climb) and
  *     1.5 on B (incoming: packets run down, hot);
  *   · chips (P3 edges, instanced): boxes along the strands, `instanceColor` brightening the ones
@@ -31,8 +31,10 @@
  *
  * Frames: `group` (the world's placement) → `tilt` (pointer tilt) → `orient` (upright in spiral;
  * lying along x in ambient, `HELIX_AMBIENT_ROLL`) → `pivot` (the focus turn). The hologram hangs
- * off `group` itself (`HELIX_HOLOGRAM`), so it faces the viewer whatever the focus. The swarm's
- * slot 0 (`helixSamples`) is this model in `group`'s frame, upright at focus 0.
+ * off `group` itself (`HELIX_HOLOGRAM`), so it faces the viewer whatever the focus.
+ *
+ * Since 2026-10-28 this is the interior scene's only model, and its arrival the only entrance the
+ * scene plays: no swarm lands on it any more (that handoff came from the service models).
  */
 
 import {
@@ -53,7 +55,7 @@ import {
   type Object3D,
 } from "three";
 import { mulberry32 } from "@/components/three/random";
-import { HELIX, HELIX_ANGLE } from "../../shapes";
+import { HELIX, HELIX_ANGLE } from "@/components/art/shapes";
 import type { SceneTierConfig } from "../../tiers";
 import {
   LINE_MODE,
@@ -213,8 +215,6 @@ export function helixDim(dim: number | undefined): number {
   return dim === undefined || !Number.isFinite(dim) ? 1 : Math.min(1, Math.max(0, dim));
 }
 
-const AMBIENT_ROLL_MATRIX = new Matrix4().makeRotationZ(HELIX_AMBIENT_ROLL);
-
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 const smoothstep = (a: number, b: number, v: number) => {
   const t = clamp01((v - a) / (b - a || 1));
@@ -286,16 +286,6 @@ export function layoutHelixHologram(group: Object3D, dx: number, dy: number, wid
 
 /** `userData` key holding the hologram's laid-out scale, so `update` can ripple around it. */
 const HOLOGRAM_BASE = "helixHologramBase";
-
-/**
- * Where the swarm's slot 0 lands: `helixSamples` are the helix upright in `group`'s frame, so in
- * ambient mode the world matrix takes the roll `orient` adds (spiral: `group.matrixWorld` as is).
- * Written into `target`.
- */
-export function helixLandingMatrix(group: Object3D, mode: HelixMode, target: Matrix4): Matrix4 {
-  target.copy(group.matrixWorld);
-  return mode === "ambient" ? target.multiply(AMBIENT_ROLL_MATRIX) : target;
-}
 
 /** Pure. The rungs' comet at packet time `time`, in rungs (the synapse shader's `uProg`), bottom to top. */
 export function helixRungSweep(time: number, rungs: number): number {
@@ -433,7 +423,7 @@ export function createHelixModel(config: SceneTierConfig, palette: ScenePalette)
   const chipList = helixChips(config.helixChips);
   const { length, width, thickness } = HELIX_PARTS.chip;
   // A unit box, sized by its instance matrix: the edges shader finds an edge where the box's own
-  // coordinates reach ±0.5 (as the chip core's boxes do).
+  // coordinates reach ±0.5.
   const chipGeometry = new BoxGeometry(1, 1, 1);
   const chips = createSurfaceMaterial({ mode: SURFACE_MODE.edges, roles: { a: "cyan", b: "blue", hot: "hot" }, instanced: true });
   const chipMesh = place(new InstancedMesh(chipGeometry, chips.material, chipList.length), 6);

@@ -4,16 +4,15 @@
  * components on purpose: the React Compiler lint forbids mutating a value a component received,
  * and these mutations are the whole point.
  *
- * Nothing here runs per frame: a refresh happens on mount, on a resize, when the page's
- * height changes and on a bfcache restore (and the boxes alone when the scene's Work spiral
+ * Nothing here runs per frame: a refresh happens on mount, on a resize, when the stage or a
+ * section above it changes height and on a bfcache restore (and the boxes alone when the scene's Work spiral
  * changes the track's height: `SCENE_LAYOUT_EVENT`). Existing boxes are updated in place.
  */
 
 import type { ScrollTrigger } from "gsap/ScrollTrigger";
-import { PANEL_COLUMNS } from "./choreography";
 import {
-  SCENE_ANCHOR_ATTR,
   SCENE_LAYER_ATTR,
+  SCENE_STAGE_ATTR,
   WORK_ID,
   WORK_TRACK_ATTR,
   type DocRect,
@@ -27,16 +26,6 @@ type MeasuredTrigger = Pick<ScrollTrigger, "start" | "end">;
 function writeSpan(span: ScrollSpan, st: MeasuredTrigger): void {
   span.start = Number.isFinite(st.start) ? st.start : 0;
   span.end = Number.isFinite(st.end) ? st.end : 0;
-}
-
-/** `heroExit`: `#top`, "top top" → "bottom 35%". */
-export function writeHeroSpan(probe: ScrollProbe, st: MeasuredTrigger): void {
-  writeSpan(probe.heroExit, st);
-}
-
-/** `entry`: the services anchor, "top 90%" → "top 75%" (the entry gate's hysteresis band). */
-export function writeEntrySpan(probe: ScrollProbe, st: MeasuredTrigger): void {
-  writeSpan(probe.entry, st);
 }
 
 /** `workSpan`: Work's track, "top 70%" → "top 55%" (the work gate's hysteresis band). */
@@ -68,6 +57,19 @@ function docRect(el: Element | null, into: DocRect | null): DocRect | null {
 }
 
 /**
+ * The section whose content ends above `section`. Work is the stage's only section, so its own
+ * previous sibling is the stage's canvas track — absolutely positioned over the whole stage, no
+ * content at all; the section before the STAGE (Directions, outside it since 2026-10-28) is.
+ */
+function sectionAbove(section: Element): Element | null {
+  const previous = section.previousElementSibling;
+  if (previous?.querySelector(`[${SCENE_LAYER_ATTR}]`)) {
+    return section.closest(`[${SCENE_STAGE_ATTR}]`)?.previousElementSibling ?? null;
+  }
+  return previous;
+}
+
+/**
  * The free band above Work's heading (`probe.workGap`), into `into` when there is one: `section`'s
  * width, from the end of the previous section's content (its bottom less its computed bottom
  * padding; the section's own top without one) down to `headTop`, the heading's document top with
@@ -77,7 +79,7 @@ function gapAbove(section: Element | null, headTop: number | null, into: DocRect
   if (!section || headTop === null) return null;
   const box = section.getBoundingClientRect();
   let top = box.top + window.scrollY;
-  const previous = section.previousElementSibling;
+  const previous = sectionAbove(section);
   if (previous) {
     const pad = Number.parseFloat(window.getComputedStyle(previous).paddingBottom);
     top = Math.min(top, previous.getBoundingClientRect().bottom + window.scrollY - (Number.isFinite(pad) ? pad : 0));
@@ -88,215 +90,6 @@ function gapAbove(section: Element | null, headTop: number | null, into: DocRect
   rect.w = box.width;
   rect.h = Math.max(0, headTop - rect.y);
   return rect;
-}
-
-/**
- * What a benefits panel's instrument window has to look like to count as one: the bay at the foot
- * of the panel (`.hlWindow`, DirectionPage.module.css), so flush with the panel's bottom edge, well
- * under half its height, and nearly its full width.
- */
-export const PANEL_WINDOW = { foot: 3, maxShare: 0.5, minWidth: 0.6, minHeight: 24 } as const;
-
-/**
- * A benefits panel's window, measured rather than assumed: its LAST element child, taken only if it
- * is laid out at the panel's foot and is a bay rather than the panel's body. Null is the answer the
- * scene needs wherever the page lays no window out — below the row's stacking width, and on a
- * `fallback` or `off` renderer, where the bay is `display: none` and the panel closes up into the
- * plain card it has always been. Measuring it is what tells those apart: the row's own box is the
- * same shape either way, and carving a strip out of its foot regardless would draw three objects
- * over a panel's own copy.
- */
-function panelWindow(panel: Element | null): DOMRect | null {
-  const bay = panel?.lastElementChild;
-  if (!panel || !bay) return null;
-  const panelBox = panel.getBoundingClientRect();
-  const box = bay.getBoundingClientRect();
-  if (panelBox.width <= 0 || panelBox.height <= 0) return null;
-  if (box.height < PANEL_WINDOW.minHeight || box.height > panelBox.height * PANEL_WINDOW.maxShare) return null;
-  if (box.width < panelBox.width * PANEL_WINDOW.minWidth) return null;
-  if (Math.abs(box.bottom - panelBox.bottom) > PANEL_WINDOW.foot) return null;
-  return box;
-}
-
-/**
- * The benefits row's windows: the first one's box (`probe.panels`) and the step from one to the
- * next (`probe.panelsPitch`), both measured off the real windows rather than cut out of the row.
- *
- * Splitting the row into equal thirds is NOT the same as finding the panels: a third's centre and a
- * panel's centre differ by a third of the row's gap — a constant ~4.7px either side, which does not
- * shrink with the viewport, so at the narrow end it walks the outer two objects over the edge of a
- * 253px window. Measuring the first and last window answers the place, the size and the step at
- * once, and says nothing about gaps, borders or breakpoints.
- *
- * Null with no row, fewer panels than there are objects, or no window laid out; the scene then
- * builds nothing and places nothing.
- */
-export function writePanelsBand(probe: ScrollProbe, row: HTMLElement | null): void {
-  probe.panelsPitch = 0;
-  const panels = row?.children;
-  const first = panels && panels.length >= PANEL_COLUMNS ? panelWindow(panels[0]) : null;
-  const last = first ? panelWindow(panels![PANEL_COLUMNS - 1]) : null;
-  if (!first || !last) {
-    probe.panels = null;
-    return;
-  }
-  const rect = probe.panels ?? { x: 0, y: 0, w: 0, h: 0 };
-  rect.x = first.left + window.scrollX;
-  rect.y = first.top + window.scrollY;
-  rect.w = first.width;
-  rect.h = first.height;
-  probe.panels = rect;
-  probe.panelsPitch = (last.left - first.left) / (PANEL_COLUMNS - 1);
-}
-
-/**
- * `el`'s border box in document pixels **as the page laid it out**, with every ancestor transform
- * left out — the offset chain, not `getBoundingClientRect`.
- *
- * The hero's stat group is transformed by three different things at three different moments: the
- * intro's entrance moves and rotates it (`{ y: 40, rotateX: -14 }`, cleared at the end), the desktop
- * scroll parallax slides its wrapper (`PARALLAX_LAYERS["hero-stats"]`), and a scroll reveal offsets
- * a section. A rect read off the rendered box during any of them is the box at that instant, and
- * the scene would fit a panel to it and keep it there until the next refresh. `offsetTop` /
- * `offsetLeft` / `offsetWidth` / `offsetHeight` are layout, so what comes back is where the card
- * RESTS however it is being animated — which is where the number belongs.
- *
- * The walk is exact for this group: every ancestor up to `<body>` is a plain static or relative box
- * with no border. It is not a general replacement for `docRect`, and nothing else uses it.
- */
-function layoutRect(el: HTMLElement, into: DocRect | null): DocRect {
-  const rect = into ?? { x: 0, y: 0, w: 0, h: 0 };
-  rect.w = el.offsetWidth;
-  rect.h = el.offsetHeight;
-  let x = 0;
-  let y = 0;
-  let node: HTMLElement | null = el;
-  while (node) {
-    x += node.offsetLeft;
-    y += node.offsetTop;
-    node = node.offsetParent as HTMLElement | null;
-  }
-  rect.x = x;
-  rect.y = y;
-  return rect;
-}
-
-/**
- * What one of the hero's stat windows has to measure to count as one. A metric card is a real box
- * in the copy column at every width; what says "the page opened this one for the scene" is the
- * renderer gate in `app/globals.css` — below 861px, and on a `fallback` / `off` renderer, the card
- * keeps its glass and the anchor is not written at all. These floors only keep a box that is being
- * laid out to nothing (a collapsed grid, a hidden section) from scaling a panel to nothing.
- */
-export const STAT_WINDOW = { minWidth: 96, minHeight: 72 } as const;
-
-/**
- * Has the page opened this card as a window for the scene? `app/globals.css` sets `--stat-window: 1`
- * inside the one gated block that also takes the card's paint away, and 0 everywhere else — so the
- * swap and the drawing cannot disagree, at any width, on any renderer, in either theme. Read rather
- * than re-derived here: a second copy of "861px and a renderer that draws" would be a second answer.
- */
-function statWindowOpen(el: Element): boolean {
-  return window.getComputedStyle(el).getPropertyValue("--stat-window").trim() === "1";
-}
-
-/**
- * The hero's stat windows (`probe.stats`), in DOM order, each measured on its own element.
- *
- * The array is reused in place and its rects with it — a refresh happens on every resize, and the
- * scene reads these every frame. A window the page is not laying out (0 x 0, or under the floors
- * above) drops the WHOLE set: the two panels are one group in the hero's composition, and drawing
- * one of a pair because the other collapsed is worse than drawing neither.
- */
-export function writeStatWindows(probe: ScrollProbe, hosts: ArrayLike<HTMLElement>): void {
-  const count = hosts.length;
-  if (count === 0) {
-    probe.stats.length = 0;
-    return;
-  }
-  for (let i = 0; i < count; i += 1) {
-    const host = hosts[i] as HTMLElement;
-    if (!statWindowOpen(host)) {
-      probe.stats.length = 0;
-      return;
-    }
-    const rect = layoutRect(host, probe.stats[i] ?? null);
-    if (rect.w < STAT_WINDOW.minWidth || rect.h < STAT_WINDOW.minHeight) {
-      probe.stats.length = 0;
-      return;
-    }
-    probe.stats[i] = rect;
-  }
-  probe.stats.length = count;
-}
-
-/**
- * What a service page's projects window has to measure to count as one: a real box, at least this
- * wide and this tall. It is a grid CELL, not a strip carved out of a row, so there is nothing to
- * check it against but itself — and the one thing worth checking is that the page laid it out at
- * all. Closed up it is `display: none` (below 861px, and on a `fallback` / `off` renderer) and a
- * `getBoundingClientRect` of 0 x 0 is what says so.
- */
-export const PROJECTS_WINDOW = { minWidth: 140, minHeight: 120 } as const;
-
-/**
- * The projects window (`probe.projects`): the cell the laptop stands in, measured rather than
- * derived from the grid. Which cell it is depends on the direction and the width — the hole a
- * 5-card grid leaves in three columns, the hole a 3-card grid leaves in two, or a cell of its own
- * at the end of the shelf — so there is no arithmetic that could find it from the row. Null with
- * no element, or one the page is not laying out.
- */
-export function writeProjectsWindow(probe: ScrollProbe, el: HTMLElement | null): void {
-  probe.projects = docRect(el, probe.projects);
-  const rect = probe.projects;
-  if (!rect || rect.w < PROJECTS_WINDOW.minWidth || rect.h < PROJECTS_WINDOW.minHeight) {
-    probe.projects = null;
-  }
-}
-
-/** The offset a sticky box pins at (its computed `top`), 0 when that is not a pixel length. */
-function stickyTop(el: Element): number {
-  const top = Number.parseFloat(window.getComputedStyle(el).top);
-  return Number.isFinite(top) ? top : 0;
-}
-
-/**
- * The steps host (`probe.steps`) and the scroll it is pinned over (`probe.stepsPin`).
- *
- * A sticky box measured while it is pinned says nothing about where it lies unstuck — its
- * `getBoundingClientRect` and its `offsetTop` both carry the sticky shift — so the last reading
- * taken while it was still free is kept, and the first refresh happens at the top of the page,
- * where it always is. With none ever taken, the top of the band it is sticky in stands in: its
- * parent, which is its containing block and is never sticky itself.
- */
-export function writeStepsHost(probe: ScrollProbe, el: HTMLElement | null): void {
-  const rested = probe.steps ? probe.steps.y : Number.NaN;
-  probe.steps = docRect(el, probe.steps);
-  // No host, or one with no box at all: the same thing, and the same answer — the model stays on
-  // the hero host. The steps column collapses to 0×0 on a page that will never draw a model
-  // (`fallback` / `off`), and a zero-wide host would scale one to nothing.
-  if (!el || !probe.steps || probe.steps.w <= 0 || probe.steps.h <= 0) {
-    probe.steps = null;
-    probe.stepsPin.start = 0;
-    probe.stepsPin.end = 0;
-    return;
-  }
-  const stick = stickyTop(el);
-  // Its band is its containing block: the parent's CONTENT box — the padding is outside it, and a
-  // grid item spanning every row (which is what a corner beside a two-row section is) fills it.
-  const parent = el.parentElement;
-  const band = parent ? parent.getBoundingClientRect() : null;
-  const pad = parent ? window.getComputedStyle(parent) : null;
-  const padTop = pad ? Number.parseFloat(pad.paddingTop) : 0;
-  const padBottom = pad ? Number.parseFloat(pad.paddingBottom) : 0;
-  const bandTop = band ? band.top + window.scrollY + (Number.isFinite(padTop) ? padTop : 0) : probe.steps.y;
-  const bandBottom = band
-    ? band.bottom + window.scrollY - (Number.isFinite(padBottom) ? padBottom : 0)
-    : probe.steps.y + probe.steps.h;
-  const free = probe.steps.y > window.scrollY + stick + 1;
-  if (!free) probe.steps.y = Number.isFinite(rested) ? rested : bandTop;
-  probe.stepsPin.start = probe.steps.y - stick;
-  probe.stepsPin.end = Math.max(probe.steps.y, bandBottom - probe.steps.h) - stick;
 }
 
 /**
@@ -326,11 +119,9 @@ export function readHeaderHeight(stage: HTMLElement): number {
 }
 
 /**
- * Everything but the spans: the stage's top and bottom, the sticky layer's height, every
- * anchor's box (the hero core's, the services host's, the steps host's, the benefits row's, the
- * hero's stat windows and the projects cell) and Work's track, heading and the band above it (null while one is not in the
- * page), the header height — then `version++` and `live`. Call it after the spans, at the end of
- * a refresh.
+ * Everything but the spans: the stage's top and bottom, the sticky layer's height, Work's track,
+ * heading and the band above it (null while one is not in the page), the header height — then
+ * `version++` and `live`. Call it after the spans, at the end of a refresh.
  */
 export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   const box = stage.getBoundingClientRect();
@@ -338,12 +129,6 @@ export function writeAnchors(probe: ScrollProbe, stage: HTMLElement): void {
   probe.stage.bottom = box.bottom + window.scrollY;
   const layer = stage.querySelector(`[${SCENE_LAYER_ATTR}]`);
   probe.layerH = layer ? layer.getBoundingClientRect().height : 0;
-  probe.hero = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="hero"]`), probe.hero);
-  probe.services = docRect(stage.querySelector(`[${SCENE_ANCHOR_ATTR}="services"]`), probe.services);
-  writeStepsHost(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="steps"]`));
-  writePanelsBand(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="panels"]`));
-  writeStatWindows(probe, stage.querySelectorAll<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="stat"]`));
-  writeProjectsWindow(probe, stage.querySelector<HTMLElement>(`[${SCENE_ANCHOR_ATTR}="projects"]`));
   const track = stage.querySelector(`[${WORK_TRACK_ATTR}]`);
   probe.work = docRect(track, probe.work);
   const head = track?.previousElementSibling ?? null;

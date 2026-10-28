@@ -33,7 +33,7 @@ import {
   wantedHelixMode,
   type CardPose,
 } from "@/components/scene/helix";
-import { HELIX_ANGLE } from "@/components/scene/shapes";
+import { HELIX_ANGLE } from "@/components/art/shapes";
 import { createWorkHelixDriver, type WorkHelixDriver, type WorkHelixMode } from "@/components/scene/workHelix";
 import { LanguageProvider, useLanguage } from "@/lib/i18n/LanguageProvider";
 import { SiteContentProvider } from "@/lib/siteContent";
@@ -1163,7 +1163,7 @@ describe("workHelix — React re-renders keep the spiral (real Work)", () => {
     // itself skips because it collects `instanceof HTMLElement` only. Filter it the same way.
     const cards = Array.from(track.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
     expect(cards.length).toBeGreaterThanOrEqual(3);
-    expect(track.querySelectorAll("[data-loading]")).toHaveLength(1);
+    expect(track.querySelectorAll("[data-loading]")).toHaveLength(0);
     const rendered = styleOf(cards);
     expect(rendered[0]).toMatch(/--p1/);
 

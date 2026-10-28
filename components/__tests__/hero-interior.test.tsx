@@ -3,10 +3,9 @@ import type { ReactNode } from "react";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 
 /*
- * The hero inside the interior stage (components/sections/Hero.tsx): the CTA boost signal to
- * the scene, the stat cards' tilt and holograms, and the hosts the stage and the director
- * rely on — where the core sits in the tree, what may move under the scroll parallax, and
- * that none of it disturbs the intro's entrance markers.
+ * The hero (components/sections/Hero.tsx): the CTAs that light the static core (pure CSS), the
+ * stat cards' tilt, and the core art's host — where it sits in the tree. No WebGL, no scene
+ * input, no parallax director (removed 2026-10-28).
  *
  * jsdom 25 has no PointerEvent: testing-library falls back to a plain Event and drops
  * `pointerType` and the coordinates, so they are defined by hand (as in pointer-tilt.test).
@@ -25,9 +24,7 @@ vi.mock("@/lib/api", () => ({
 import * as api from "@/lib/api";
 import { Hero } from "@/components/sections/Hero";
 import { HUD_DESKTOP_MEDIA } from "@/lib/hud/gate";
-import { INTRO_REVEAL_ATTR } from "@/lib/intro";
 import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
-import { PARALLAX_LAYERS, STATS_GROUP_ATTR, readSceneInput, resetSceneForTests } from "@/lib/scene";
 import { SiteContentProvider, defaultSiteData } from "@/lib/siteContent";
 import { REDUCED_MOTION_QUERY, TILT_MAX, TILT_QUERY } from "@/lib/tilt";
 
@@ -62,7 +59,6 @@ function flushFrames() {
 }
 
 beforeEach(() => {
-  resetSceneForTests();
   media.fine = false;
   media.reduced = false;
   media.desktop = false;
@@ -85,7 +81,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   window.matchMedia = realMatchMedia;
-  resetSceneForTests();
 });
 
 function renderHero(coreArt?: ReactNode) {
@@ -117,154 +112,27 @@ function pointer(
   fireEvent(el, event);
 }
 
-const PRIMARY = "Testează ideea";
+const PRIMARY = "Cere ofertă";
 const SECONDARY = "Vezi serviciile ↓";
 
-const statsMarker = () =>
-  document.querySelector<HTMLElement>(`[${INTRO_REVEAL_ATTR}="stats"]`)!;
+const statsMarker = () => document.querySelector<HTMLElement>('[role="group"]')!;
+/** The decorative backdrop layer: the hero's second child, after the opaque plate. */
+const gridLayer = () =>
+  document.querySelector<HTMLElement>("section#top")!.firstElementChild!.nextElementSibling as HTMLElement;
 const card = (id: string) => document.querySelector<HTMLElement>(`[data-metric="${id}"]`)!;
 
-describe("hero CTAs boost the scene", () => {
-  it("a mouse over the primary CTA boosts once and leaving ends it", () => {
+describe("hero CTAs light the core in CSS", () => {
+  it("both CTAs carry the hook the core art's CSS keys its one-shot wave off", () => {
     renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-
-    pointer("pointerOver", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-
-    pointer("pointerOut", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-    // A hover opens nothing.
-    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(0);
-  });
-
-  it("a finger never boosts (a tap has no hover to end it); a pen does", () => {
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-
-    pointer("pointerOver", cta, "touch");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 0 });
-    pointer("pointerOut", cta, "touch");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 0 });
-
-    pointer("pointerOver", cta, "pen");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-  });
-
-  it("keyboard focus on the secondary link boosts, blur ends it", () => {
-    renderHero();
-    const link = screen.getByRole("link", { name: SECONDARY });
-
-    act(() => link.focus());
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-    act(() => link.blur());
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-  });
-
-  it("moving from one CTA to the other keeps one boost and one light wave", () => {
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-    const link = screen.getByRole("link", { name: SECONDARY });
-
-    pointer("pointerOver", cta, "mouse");
-    pointer("pointerOver", link, "mouse");
-    pointer("pointerOut", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-    pointer("pointerOut", link, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-  });
-
-  it("unmounting while hovered releases the boost", () => {
-    const { unmount } = renderHero();
-    pointer("pointerOver", screen.getByRole("button", { name: PRIMARY }), "mouse");
-    expect(readSceneInput().boost).toBe(1);
-
-    unmount();
-    expect(readSceneInput().boost).toBe(0);
+    expect(screen.getByRole("button", { name: PRIMARY })).toHaveAttribute("data-hero-cta", "");
+    expect(screen.getByRole("link", { name: SECONDARY })).toHaveAttribute("data-hero-cta", "");
   });
 });
 
-/*
- * Focus boosts only when it is `:focus-visible`. jsdom treats every focus as visible (nwsapi
- * matches `:focus-visible` like `:focus`), so a browser's "this focus came from a script after a
- * mouse interaction" is simulated by answering `:focus-visible` false for the element.
- */
-function focusNotVisible(el: HTMLElement) {
-  const real = el.matches.bind(el);
-  el.matches = (selector: string) => (selector === ":focus-visible" ? false : real(selector));
-}
-
-describe("hero CTA boost — only a visible focus, hover and focus kept apart", () => {
-  it("a programmatic focus that is not :focus-visible (the dialog handing focus back after a mouse close) never boosts", () => {
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-    focusNotVisible(cta);
-
-    act(() => cta.focus());
-    expect(document.activeElement).toBe(cta);
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 0 });
-    act(() => cta.blur());
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 0 });
-  });
-
-  it("the lab scenario: hover, click, the dialog closes and refocuses the CTA, the mouse leaves — no boost left behind", () => {
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-
-    pointer("pointerOver", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-    // The dialog opens: focus leaves, then its close hands focus back by script.
-    focusNotVisible(cta);
-    act(() => cta.focus());
-    pointer("pointerOut", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-    expect(document.activeElement).toBe(cta);
-  });
-
-  it("a keyboard focus survives the mouse leaving, and a blur while hovered keeps the hover's boost", () => {
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-
-    // Keyboard focus, then the mouse passes over and away: still boosted until the blur.
-    act(() => cta.focus());
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-    pointer("pointerOver", cta, "mouse");
-    pointer("pointerOut", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 1 });
-    act(() => cta.blur());
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 1 });
-
-    // Hovered, then focused and blurred: the hover still holds it, with no second wave.
-    pointer("pointerOver", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 2 });
-    act(() => cta.focus());
-    act(() => cta.blur());
-    expect(readSceneInput()).toMatchObject({ boost: 1, waveSeq: 2 });
-    pointer("pointerOut", cta, "mouse");
-    expect(readSceneInput()).toMatchObject({ boost: 0, waveSeq: 2 });
-  });
-
-  it("unmounting while keyboard-focused releases the boost, and a remount starts clean", () => {
-    const first = renderHero();
-    act(() => screen.getByRole("button", { name: PRIMARY }).focus());
-    expect(readSceneInput().boost).toBe(1);
-    first.unmount();
-    expect(readSceneInput().boost).toBe(0);
-
-    renderHero();
-    const cta = screen.getByRole("button", { name: PRIMARY });
-    pointer("pointerOver", cta, "mouse");
-    pointer("pointerOut", cta, "mouse");
-    // No focus reason left over from the unmounted hero's CTA.
-    expect(readSceneInput().boost).toBe(0);
-  });
-});
-
-describe("stat holograms", () => {
-  it("one per card, first child, decorative and text-free", async () => {
+describe("stat cards and their CSS holograms", () => {
+  it("each card carries one wireframe hologram (CSS 3D, aria-hidden, text-free) and no scene anchor", async () => {
     renderHero();
     await screen.findByLabelText("Indicatori");
-
     const holograms = document.querySelectorAll<HTMLElement>("[data-hologram]");
     expect(holograms).toHaveLength(2);
     expect(card("projects").firstElementChild?.getAttribute("data-hologram")).toBe("octahedron");
@@ -273,39 +141,19 @@ describe("stat holograms", () => {
       expect(hologram).toHaveAttribute("aria-hidden", "true");
       expect(hologram.textContent).toBe("");
       expect(hologram.querySelector("[role], [tabindex], a, button")).toBeNull();
-      // Edges and rings only: every part is a hairline or a ring, never a small round pip.
-      expect(hologram.querySelectorAll("span span").length).toBeGreaterThanOrEqual(4);
     }
     expect(card("projects").querySelectorAll("[data-hologram] span span")).toHaveLength(12);
+    expect(document.querySelector("[data-scene-anchor], [data-stats-group], [data-parallax]")).toBeNull();
+    expect(card("projects").querySelector("b")?.textContent).toBe(String(defaultSiteData.projects.length));
   });
 
-  it("leaves the metric texts exact (no digits hide in the hologram)", async () => {
+  it("spins with no WebGL gate: paused only while the hero is off screen, dropped under reduced motion", () => {
     renderHero();
-    const metrics = await screen.findByLabelText("Indicatori");
-    expect(screen.getByText("1 zi")).toBeInTheDocument();
-    for (const hologram of metrics.querySelectorAll("[data-hologram]")) {
-      expect(hologram.textContent).not.toMatch(/\d/);
-    }
-  });
-
-  it("an empty portfolio shows one card and one hologram", async () => {
-    vi.mocked(api.fetchContent).mockResolvedValue({ ...defaultSiteData, projects: [] });
-    renderHero();
-    await screen.findByText("1 zi");
-    await vi.waitFor(() => expect(document.querySelectorAll("[data-metric]")).toHaveLength(1));
-    expect(document.querySelectorAll("[data-hologram]")).toHaveLength(1);
-  });
-
-  it("spins only under a live stage with the intro gone and the hero on screen", () => {
-    renderHero();
-    const spinner = document.querySelector("[data-hologram] > span")!;
-    const classes = spinner.getAttribute("class") ?? "";
+    const classes = document.querySelector("[data-hologram] > span")!.getAttribute("class") ?? "";
     expect(classes).toContain("animate-holo-spin");
-    expect(classes).toContain("[animation-play-state:paused]");
-    expect(classes).toContain(
-      "[html:not(:has(#tbs-intro))_[data-motion=live]_#top:not([data-offscreen])_&]:[animation-play-state:running]",
-    );
+    expect(classes).toContain("group-data-offscreen/hero:[animation-play-state:paused]");
     expect(classes).toContain("motion-reduce:animate-none");
+    expect(classes).not.toContain("data-motion");
   });
 });
 
@@ -372,62 +220,20 @@ describe("stat card tilt", () => {
   });
 });
 
-describe("the stat windows the 3D panels are drawn in", () => {
-  it("opens one per card at a desktop width, and none below it", () => {
-    media.desktop = true;
-    const { unmount } = renderHero();
-    const open = Array.from(document.querySelectorAll('[data-scene-anchor="stat"]'));
-    expect(open.map((el) => el.getAttribute("data-metric"))).toEqual(["projects", "automation"]);
-    // the group the scene reads the faces from, on the marker itself
-    expect(statsMarker().hasAttribute(STATS_GROUP_ATTR)).toBe(true);
-    unmount();
-
-    // Below 861px the attribute is not written at all: a card that is a painted card must not be
-    // measured, and the panels are not drawn there.
-    media.desktop = false;
-    renderHero();
-    expect(document.querySelector('[data-scene-anchor="stat"]')).toBeNull();
-    expect(statsMarker().hasAttribute(STATS_GROUP_ATTR)).toBe(true);
-  });
-
-  it("the card keeps its number, its copy and its place in the group", () => {
-    media.desktop = true;
-    renderHero();
-    const projects = card("projects");
-    // The window is the card itself: what the scene measures is what a screen reader reads.
-    expect(projects.getAttribute("data-scene-anchor")).toBe("stat");
-    expect(projects.querySelector("b")?.textContent).toBe(String(defaultSiteData.projects.length));
-    // `:scope >`, as the face composer selects it: the hologram is a <span> with a <span> in it.
-    expect(projects.querySelector(":scope > span:not([data-hologram])")?.textContent).toBeTruthy();
-    expect(projects.querySelector("small")?.textContent).toBeTruthy();
-    expect(projects.closest(`[${STATS_GROUP_ATTR}]`)).toBe(statsMarker());
-    // Nothing is hidden from assistive technology, at any width.
-    expect(projects.getAttribute("aria-hidden")).toBeNull();
-    expect(statsMarker().getAttribute("role")).toBe("group");
-  });
-});
-
-describe("hero hosts in the interior stage", () => {
-  it("scene-hero is inside the grid marker, before the h1, and holds the core art", () => {
+describe("the hero's core host", () => {
+  it("hero-core is inside the backdrop layer, before the h1, and holds the core art", () => {
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
-    const grid = document.querySelector(`[${INTRO_REVEAL_ATTR}="grid"]`)!;
-    const host = screen.getByTestId("scene-hero");
+    const host = screen.getByTestId("hero-core");
     const h1 = document.querySelector("h1")!;
-
-    expect(grid.contains(host)).toBe(true);
+    expect(gridLayer().contains(host)).toBe(true);
     expect(host.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(host.contains(h1)).toBe(false);
-
-    const anchor = host.querySelector('[data-scene-anchor="hero"]');
-    expect(anchor).not.toBeNull();
-    expect(anchor?.querySelector("[data-core-art]")).not.toBeNull();
-    // Outside the parallax layer: the core is never moved with the backdrop.
-    expect(host.closest("[data-parallax]")).toBeNull();
+    expect(host.querySelector("[data-core-art]")).not.toBeNull();
   });
 
-  it("nothing inside scene-hero is text, focusable, a heading or has a role", () => {
+  it("nothing inside hero-core is text, focusable, a heading or has a role", () => {
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
-    const host = screen.getByTestId("scene-hero");
+    const host = screen.getByTestId("hero-core");
     expect(host.textContent).toBe("");
     expect(host.querySelector("a, button, input, [tabindex], [role], h1, h2, h3, h4, h5, h6")).toBeNull();
     expect(host.closest('[aria-hidden="true"]')).not.toBeNull();
@@ -435,33 +241,13 @@ describe("hero hosts in the interior stage", () => {
 
   it("without art the host is still there, empty", () => {
     renderHero();
-    expect(screen.getByTestId("scene-hero").querySelector('[data-scene-anchor="hero"]')?.childElementCount).toBe(0);
+    expect(screen.getByTestId("hero-core").firstElementChild?.childElementCount).toBe(0);
   });
 
-  it("parallax layers are exactly hero-backdrop and hero-stats, once each, never a marker", () => {
-    renderHero();
-    const layers = Array.from(document.querySelectorAll<HTMLElement>("[data-parallax]"));
-    expect(layers.map((el) => el.getAttribute("data-parallax")).sort()).toEqual(
-      Object.keys(PARALLAX_LAYERS).sort(),
-    );
-    for (const el of layers) {
-      expect(el.hasAttribute(INTRO_REVEAL_ATTR)).toBe(false);
-      expect(el.hasAttribute("data-reveal")).toBe(false);
-    }
-    const backdrop = document.querySelector('[data-parallax="hero-backdrop"]')!;
-    expect(backdrop.parentElement).toBe(document.querySelector(`[${INTRO_REVEAL_ATTR}="grid"]`));
-    const stats = document.querySelector('[data-parallax="hero-stats"]')!;
-    expect(stats.firstElementChild).toBe(statsMarker());
-    // The copy column never moves with the scroll.
-    expect(document.querySelector("h1")?.closest("[data-parallax]")).toBeNull();
-  });
-
-  it("paint order: the section is no stacking context, the plate comes first, the scrim after the marker", () => {
+  it("paint order: the plate comes first, then the backdrop, then the phone scrim", () => {
     renderHero();
     const section = document.querySelector<HTMLElement>("section#top")!;
     const classes = (section.getAttribute("class") ?? "").split(/\s+/);
-    expect(classes).not.toContain("isolate");
-    expect(classes).not.toContain("bg-bg");
     expect(classes).toEqual(expect.arrayContaining(["group/hero", "relative", "overflow-hidden"]));
 
     const plate = section.firstElementChild!;
@@ -469,15 +255,12 @@ describe("hero hosts in the interior stage", () => {
     expect((plate.getAttribute("class") ?? "").split(/\s+/)).toEqual(
       expect.arrayContaining(["absolute", "inset-0", "-z-20", "bg-bg", "pointer-events-none"]),
     );
-    const grid = plate.nextElementSibling!;
-    expect(grid.getAttribute(INTRO_REVEAL_ATTR)).toBe("grid");
-    const scrim = grid.nextElementSibling!;
-    expect(scrim).toHaveAttribute("data-scene-scrim");
+    const scrim = gridLayer().nextElementSibling!;
     expect(scrim).toHaveAttribute("aria-hidden", "true");
     expect(scrim.getAttribute("class")).toContain("md:hidden");
   });
 
-  it("keeps the marker contract: the hero's markers once each, none styled, one h1", async () => {
+  it("leaves the hero's layers unstyled under a tilt, with one h1", async () => {
     media.fine = true;
     renderHero(<svg data-core-art="" aria-hidden="true" focusable="false" />);
     await screen.findByLabelText("Indicatori");
@@ -485,11 +268,8 @@ describe("hero hosts in the interior stage", () => {
     pointer("pointerMove", card("automation"), "mouse", 10, 10);
     act(() => flushFrames());
 
-    for (const name of ["grid", "title", "cta", "stats"]) {
-      const found = document.querySelectorAll(`[${INTRO_REVEAL_ATTR}="${name}"]`);
-      expect(found, name).toHaveLength(1);
-      expect(found[0].hasAttribute("style"), name).toBe(false);
-    }
+    expect(gridLayer().hasAttribute("style")).toBe(false);
+    expect(statsMarker().hasAttribute("style")).toBe(false);
     expect(document.querySelectorAll("h1")).toHaveLength(1);
   });
 });
