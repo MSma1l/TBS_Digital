@@ -260,6 +260,7 @@ CONTACT_PAYLOAD = {
     "message": "Salut, vreau un magazin online.",
     "project": "Magazin online",
     "estimate": "1500 EUR",
+    "consent": True,
 }
 
 

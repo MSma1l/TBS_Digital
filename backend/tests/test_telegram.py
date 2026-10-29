@@ -293,7 +293,7 @@ def test_no_token_is_noop_and_contact_returns_201():
     with TestClient(app) as c:
         r = c.post(
             "/api/contact",
-            json={"name": "Ilie", "email": "ilie@example.com", "message": "Salut"},
+            json={"name": "Ilie", "email": "ilie@example.com", "message": "Salut", "consent": True},
         )
         assert r.status_code == 201, r.text
         body = r.json()

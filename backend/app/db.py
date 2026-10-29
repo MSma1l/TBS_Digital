@@ -268,6 +268,13 @@ CRM_COLUMNS = {
     "crm_last_error": "VARCHAR NOT NULL DEFAULT ''",
 }
 
+# Proof of the form's personal-data consent (Legea 133/2011, GDPR art. 7(1)). No backfill
+# either: an empty `consent_at` honestly says the lead arrived before the checkbox existed —
+# inventing a consent time for it would be a false record.
+CONSENT_COLUMNS = {
+    "consent_at": "VARCHAR NOT NULL DEFAULT ''",
+}
+
 
 def create_db_and_tables() -> None:
     """Migrate, then create any missing tables. Safe to call repeatedly (idempotent)."""
@@ -296,6 +303,7 @@ def create_db_and_tables() -> None:
     # the admin fills them in, and an empty link just doesn't render.
     _add_missing_columns(engine, "team", TEAM_LINK_COLUMNS)
     _add_missing_columns(engine, "submissions", CRM_COLUMNS)
+    _add_missing_columns(engine, "submissions", CONSENT_COLUMNS)
     # A project's whole-site capture and its interactive demo (/portofoliu's screen). Each
     # is backfilled below, on its own, like the partner preview: four of the shipped
     # projects come with a capture, all nine with a demo.

@@ -203,6 +203,7 @@ export const ru: Record<MessageKey, string> = {
   "nav.cta": "ОСТАВИТЬ ЗАЯВКУ ↗",
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",
+  "nav.langChange": "Сменить язык",
   "nav.primaryAria": "Основная",
   "header.sysTime": "SYS_TIME",
 

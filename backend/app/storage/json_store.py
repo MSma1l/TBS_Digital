@@ -53,10 +53,12 @@ class JSONFileStore(ContentStore):
         self, data: ContactSubmissionIn, *, crm_queue: bool = False
     ) -> ContactSubmission:
         # Reference store only: it has no CRM outbox, so `crm_queue` is ignored.
+        now = datetime.now(timezone.utc).isoformat()
         record = ContactSubmission(
             id=uuid.uuid4().hex,
-            created_at=datetime.now(timezone.utc).isoformat(),
-            **data.model_dump(),
+            created_at=now,
+            consent_at=now,  # the flag itself is always True here (see schemas.ConsentFlag)
+            **data.model_dump(exclude={"consent"}),
         )
         items = self._read(self.subs_path)
         items.append(record.model_dump())

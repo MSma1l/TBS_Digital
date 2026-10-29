@@ -1265,10 +1265,28 @@ is hidden (flattened it would read as a second border), and selection is an inse
 than a fill — `Highlight`/`HighlightText` on TEXT makes the chip's label vanish, because Chromium
 paints a `Canvas` backplate behind text and `HighlightText` is black in the dark forced scheme.
 
-- **Contact form:** name, email, phone, message + submit. It **does** submit —
-  `POST /api/contact`, validated client-side by `lib/validation.ts` and authoritatively by
-  the backend, then pushed to the Telegram lead bot
+- **Contact form:** name, email, phone, message, the personal-data consent + submit. It
+  **does** submit — `POST /api/contact`, validated client-side by `lib/validation.ts` and
+  authoritatively by the backend, then pushed to the Telegram lead bot
   ([13 — Telegram Bot](./13-telegram.md)).
+- **Personal-data consent (2026-10-29, Legea 133/2011 / GDPR art. 7).** A required checkbox right
+  above the send button: *"Sunt de acord cu prelucrarea datelor personale conform Politicii de
+  confidențialitate și Politicii de cookie-uri."* (ru/en in the same `CONSENT` block of
+  `Estimator.tsx` — local `L()` literals, like the rest of the form's copy). The two policy names
+  link to `/confidentialitate` and `/cookies` with `target="_blank" rel="noopener"`, so reading a
+  policy from the dialog never throws away what was typed; each link carries a visually hidden
+  "(se deschide într-o filă nouă)". It is a real `<input type="checkbox">` with a `<label for>`
+  holding the whole sentence (ids go through `domId`, so the page's form and the dialog's never
+  collide). Unticked, the submit is refused before any request and the form's usual inline
+  `.formNote.formError` `role="alert"` message appears under the box, which carries
+  `aria-invalid="true"` and `aria-describedby` pointing at that message; ticking clears it at
+  once, as editing a text field does. The payload carries `consent: true`, and the backend
+  refuses anything else with a 422 (see [11 — Security](./11-security.md)) and stores when it was
+  given as `consent_at`. Styling: `.consent` in `Estimator.module.css` — `--fs-sm` text in
+  `--mut`, an 18px native box with `accent-color: var(--red)`, links in `--blue-text`, underlined
+  (the cookie banner's link colours). It is declared after the dialog's height-budget block on
+  purpose: `.box[data-layout="dialog"] .form input` has the same specificity and would otherwise
+  give the checkbox a text field's padding.
 
 ## Footer
 

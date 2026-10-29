@@ -72,6 +72,8 @@ const ro = <T extends { ro: string }>(text: T) => text.ro;
 const DIALOG_TITLE = "Spune ce vrei să testezi. Stabilim primul pas.";
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
+/* The personal-data consent checkbox — required, so every send ticks it. */
+const CONSENT = /prelucrarea datelor personale/;
 
 /* ---- IntersectionObserver, by hand ------------------------------------------------------- */
 
@@ -439,6 +441,7 @@ describe("away and yield", () => {
 async function sendFrom(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
   await user.type(within(dialog).getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(within(dialog).getByPlaceholderText(EMAIL_PH), "ion@example.com");
+  await user.click(within(dialog).getByRole("checkbox", { name: CONSENT }));
   await user.click(within(dialog).getByRole("button", { name: /Trimite cererea/ }));
 }
 

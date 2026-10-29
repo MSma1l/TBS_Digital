@@ -4,269 +4,40 @@ import {
   useCallback,
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type FocusEvent as ReactFocusEvent,
   type KeyboardEvent,
 } from "react";
-import { useLanguage } from "@/lib/i18n/LanguageProvider";
-import { useLoc, type LocalizedText } from "@/lib/i18n/content";
+import { useLanguage, useT } from "@/lib/i18n/LanguageProvider";
 import { LOCALES, LOCALE_LABELS, LOCALE_SHORT } from "@/lib/i18n/locales";
 import styles from "./LanguageSwitcher.module.css";
 
 /**
- * The language control, in two shapes — and only ever ONE of them in the DOM.
+ * The language control: one small button showing the language in force ("RO ▾"), which
+ * opens a short list of the three languages. The same shape at every width.
  *
- * ## Why there are two
+ * ## Why a dropdown, everywhere
  *
- * The header row is logo + language + burger, and WCAG 2.5.5 makes every one of those a
- * 44×44 target. Back when the row also carried a theme and a sound toggle the sum did not
- * fit at 320px: the document measured 361px in a 320px viewport and every page scrolled
- * sideways. Shrinking the RO/RU/EN buttons fixes the scroll by breaking the touch target
- * that caused it, so the control itself changes instead:
+ * This used to be two controls: a segmented RO | RU | EN pill above 400px and this button
+ * below it, picked in JS from a `matchMedia` store, with a CSS stand-in for the one frame
+ * between SSR and hydration. The owner asked for the simple dropdown on every screen, and
+ * that removes the whole mechanism at once: the server renders exactly what the client
+ * renders (no viewport guess, no swap, no stand-in), and the header row gives back the
+ * ~70px the segmented track took — which is also why 320px fits with slack.
  *
- *  - **above the compact breakpoint** — the segmented RO / RU / EN control, unchanged;
- *  - **at or below it** — a single 44×44 button showing the active language, which opens the
- *    other two in a popup. That returns ~70px to the row, and 320px fits with slack.
+ * **Switching itself is untouched.** A choice calls `setLocale()` from `LanguageProvider`,
+ * the same single call the segmented control made: the provider re-renders the catalog,
+ * writes the `tbs_locale` cookie and syncs `<html lang>`. Nothing here detects, stores or
+ * routes a locale.
  *
- * ## One control, not two hidden by CSS
+ * ## Semantics
  *
- * The variant is chosen in JS and only the chosen one is rendered. Rendering both and hiding
- * one with `display: none` would put two language controls in the accessibility tree and two
- * matches in front of every `getByRole` in the test suite.
- *
- * ## Hydration
- *
- * The server cannot know the viewport width, so the width lives in a `useSyncExternalStore`
- * triple over `matchMedia`. The **server
- * snapshot is `false` (segmented)**: it is what every viewport from 375px up gets, i.e. every
- * desktop, every tablet and the overwhelming majority of phones, so those render once and
- * never swap.
- *
- * The narrow phone is the case where the server guesses wrong, and it is handled in CSS
- * rather than by guessing the other way: below the breakpoint the segmented markup exists
- * **only** for the single frame between SSR and hydration (after hydration it is not
- * rendered at all), so the stylesheet is free to paint it as an exact stand-in for the
- * compact button — see the `≤ COMPACT_MAX_WIDTH` block in `LanguageSwitcher.module.css`,
- * which collapses it to the same 44×44 box showing the same active language. The frame that
- * would have overflowed is the same size and colour as the control that replaces it, so
- * there is no overflow and nothing visibly moves.
- */
-
-/**
- * Where the control changes shape.
- *
- * Raised from 360 to 400 after measuring: between 361 and 399 the segmented control still
- * fits the header, but each RO/RU/EN button is only ~32.5px wide. WCAG 2.5.5 measures the
- * TARGET, and 32.5×44 fails it. Making them 44 wide needs a 397px header row, which does not
- * fit until the viewport is 398 — so the band 361–399 has no arrangement where the segmented
- * control is both on screen and tappable.
- *
- * 400 therefore covers every phone width the responsive suite checks (320, 375, 390) with the
- * one-button control, where every target is a full 44×44. An earlier note here defended 360
- * so 375 would keep the segmented shape; that was a constraint carried over from a
- * contradictory brief, not an accessibility requirement, and it loses to 2.5.5.
- *
- * **Keep in sync with the `max-width: 400px` block in `LanguageSwitcher.module.css`.**
- */
-export const COMPACT_MAX_WIDTH = 400;
-const COMPACT_QUERY = `(max-width: ${COMPACT_MAX_WIDTH}px)`;
-
-/** Names the control for a reader of any of the three languages — same label in both shapes,
- *  so the group is one stable target for assistive tech and for the E2E locators. */
-const GROUP_LABEL = "Limbă / Язык / Language";
-
-const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
-
-/* Local `{ro,ru,en}` copy resolved through `useLoc()` — the project rule for component-owned
-   strings (same as `Modal`); the message catalog is not touched. */
-const COPY = {
-  change: L("Schimbă limba", "Сменить язык", "Change language"),
-};
-
-// --- the viewport width, as an external store -------------------------------------------
-
-function compactQuery(): MediaQueryList | null {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
-  return window.matchMedia(COMPACT_QUERY);
-}
-
-function subscribeCompact(onChange: () => void): () => void {
-  const query = compactQuery();
-  query?.addEventListener?.("change", onChange);
-  return () => query?.removeEventListener?.("change", onChange);
-}
-
-const getCompact = () => compactQuery()?.matches ?? false;
-/** See the hydration note above: the server renders the segmented control. */
-const getServerCompact = () => false;
-
-/**
- * `useLayoutEffect` on the server logs a warning, and this component IS server-rendered (the
- * segmented shape is the server snapshot above). The measurement it runs is meaningless
- * without layout anyway, so on the server it degrades to the effect that never runs.
- */
-const useMeasureEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
-
-export function LanguageSwitcher() {
-  const compact = useSyncExternalStore(subscribeCompact, getCompact, getServerCompact);
-  return compact ? <CompactSwitcher /> : <SegmentedSwitcher />;
-}
-
-/**
- * Compact RO / RU / EN segmented control. Switching is instant (no reload) and persisted.
- * Each option carries the language's own name as its accessible label, so a screen reader
- * announces "Русский", not "RU".
- *
- * Keyboard: every option is a real button, so Tab reaches each one and Enter/Space picks
- * it. On top of that the arrow keys (plus Home/End) move focus inside the group the way a
- * segmented control is expected to behave — focus only, never a silent language change.
- *
- * ## The thumb
- *
- * The blue fill of the active language is NOT a background on the active button: it is one
- * absolutely positioned `<span>` behind all three labels, which slides from the old option
- * to the new one when the language changes. Switching is a client re-render (these are
- * buttons over `useLanguage`, not links), so the element survives the change and a real
- * transition is possible.
- *
- * Its geometry is **measured, never assumed**. RO/RU/EN are two glyphs each in a monospace
- * face, so they *happen* to come out equal — but the padding, the letter-spacing and the
- * `min-width: 44px` the ≤860px rules add all move with the breakpoint, and a font that
- * falls back before the webfont loads moves them again. So the thumb reads the live
- * `getBoundingClientRect()` of the active button, relative to the first one (sub-pixel, and
- * immune to the ancestor `translate` the header's island animation puts on the whole group
- * — both rects move together, the difference does not).
- *
- * Correct on the FIRST paint: the measurement is a layout effect, so it commits before the
- * browser paints; until it has, the thumb is transparent, so nothing slides in from nowhere
- * on load or after a client navigation. The transition is only armed one commit later
- * (`slides`), which is why the first placement is a jump and every later one is a slide.
- */
-function SegmentedSwitcher() {
-  const { locale, setLocale } = useLanguage();
-
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  /** Where the thumb sits, in px from the first option's left edge. `null` = not measured. */
-  const [thumb, setThumb] = useState<{ x: number; w: number } | null>(null);
-  /** Armed after the first placement — see the note above. */
-  const [slides, setSlides] = useState(false);
-
-  const measure = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const first = track.querySelector<HTMLButtonElement>("button[data-locale]");
-    const active = track.querySelector<HTMLButtonElement>('button[data-active="true"]');
-    if (!first || !active) return;
-    const firstBox = first.getBoundingClientRect();
-    const activeBox = active.getBoundingClientRect();
-    // A track laid out to zero (display:none, a detached tree, jsdom) is not a measurement.
-    if (activeBox.width === 0) return;
-    const next = { x: activeBox.left - firstBox.left, w: activeBox.width };
-    setThumb((prev) => (prev && prev.x === next.x && prev.w === next.w ? prev : next));
-  }, []);
-
-  useMeasureEffect(measure, [measure, locale]);
-
-  /* Arming the slide, one painted frame after the thumb was first placed. The transform is
-     already on screen and does not change here, so adding the transition cannot start one —
-     it only lets the NEXT placement animate.
-     The flip is deliberately inside `requestAnimationFrame` rather than in the effect body:
-     the frame boundary is the thing being waited for, and a synchronous setState in an
-     effect is a cascading render (react-hooks/set-state-in-effect). */
-  useEffect(() => {
-    if (!thumb || slides) return;
-    const frame = requestAnimationFrame(() => setSlides(true));
-    return () => cancelAnimationFrame(frame);
-  }, [thumb, slides]);
-
-  /* Anything that resizes an option resizes the thumb with it: the 860px/400px breakpoints,
-     a rotation, browser zoom, and the frame the monospace webfont swaps in. The options are
-     observed rather than the track, because that is the box the thumb actually copies. */
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => measure());
-    for (const option of track.querySelectorAll("button")) observer.observe(option);
-    return () => observer.disconnect();
-  }, [measure]);
-
-  /** Arrow / Home / End move focus between the options; every other key is left alone. */
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const step =
-      event.key === "ArrowRight" || event.key === "ArrowDown"
-        ? 1
-        : event.key === "ArrowLeft" || event.key === "ArrowUp"
-          ? -1
-          : 0;
-    if (step === 0 && event.key !== "Home" && event.key !== "End") return;
-
-    const options = Array.from(
-      event.currentTarget.querySelectorAll<HTMLButtonElement>("button"),
-    );
-    const current = options.indexOf(document.activeElement as HTMLButtonElement);
-    if (current === -1 || options.length === 0) return;
-
-    event.preventDefault();
-    const next =
-      event.key === "Home"
-        ? 0
-        : event.key === "End"
-          ? options.length - 1
-          : (current + step + options.length) % options.length;
-    options[next].focus();
-  };
-
-  return (
-    <div
-      ref={trackRef}
-      className={`mono ${styles.switcher}`}
-      role="group"
-      aria-label={GROUP_LABEL}
-      onKeyDown={onKeyDown}
-      data-thumb={thumb ? (slides ? "slides" : "placed") : undefined}
-    >
-      {/* Decoration: the fill belongs to the button that owns `aria-pressed`, and a screen
-          reader is told which language is on by that, not by this. A <span>, not a button,
-          so `getAllByRole("button")` inside the group still answers exactly three. */}
-      <span
-        aria-hidden="true"
-        className={styles.thumb}
-        style={thumb ? { width: `${thumb.w}px`, transform: `translateX(${thumb.x}px)` } : undefined}
-      />
-      {LOCALES.map((code) => {
-        const active = code === locale;
-        return (
-          <button
-            key={code}
-            type="button"
-            data-locale={code}
-            data-active={active ? "true" : undefined}
-            onClick={() => setLocale(code)}
-            aria-label={LOCALE_LABELS[code]}
-            aria-pressed={active}
-            className={`${styles.option} ${active ? styles.active : ""}`}
-          >
-            {LOCALE_SHORT[code]}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * The narrow-phone shape: one 44×44 button carrying the active language, plus a popup with
- * the three choices.
- *
- * The popup is a plain container of the *same* real buttons the segmented control uses —
- * `aria-pressed` says which language is on, and each is labelled with the language's own
- * name — so a screen reader, and every locator in the test suite, sees exactly what it sees
- * on desktop. It is deliberately **not** `role="listbox"`/`role="menu"`: those roles would
- * force different child roles and a different keyboard contract for what is the same three
- * choices, and the trigger already announces the popup via `aria-haspopup`/`aria-expanded`.
+ * A disclosure, not a `listbox`/`menu`: the trigger announces the popup through
+ * `aria-haspopup` + `aria-expanded` + `aria-controls`, and the popup is a plain container of
+ * real buttons — each labelled with the language's own name ("Русский", not "RU") and with
+ * `aria-pressed` saying which language is on. The listbox/menu roles would force different
+ * child roles and a different keyboard contract for what is three buttons.
  *
  * ## Keyboard
  *
@@ -278,11 +49,24 @@ function SegmentedSwitcher() {
  *  - **`Tab`** is left entirely to the browser: the popup closes on focus leaving the
  *    control (`onBlur` below), so tabbing past it behaves like tabbing past one button.
  *
- * Arrow keys rather than Tab *between* the options for the same reason the segmented control
- * uses them: the three options are one control, not three stops in the page's tab order.
+ * Arrow keys rather than Tab *between* the options: the three choices are one control, not
+ * three stops in the page's tab order.
+ *
+ * ## Where it lives
+ *
+ * Mounted once, by `PreferencesGroup` in the header bar, at every width. The burger overlay
+ * carries no copy of it: the overlay sits UNDER the header (`--z-nav-overlay` 115 <
+ * `--z-header` 120), so this control and its popup stay on top and usable while the menu is
+ * open — and an Escape that closes the popup is stopped here, so it does not also close the
+ * menu behind it.
  */
-function CompactSwitcher() {
-  const l = useLoc();
+
+/** Names the control for a reader of any of the three languages, so the group is one stable
+ *  target for assistive tech and for the E2E locators whatever language is in force. */
+const GROUP_LABEL = "Limbă / Язык / Language";
+
+export function LanguageSwitcher() {
+  const t = useT();
   const { locale, setLocale } = useLanguage();
   const [open, setOpen] = useState(false);
 
@@ -384,7 +168,7 @@ function CompactSwitcher() {
   return (
     <div
       ref={rootRef}
-      className={`mono ${styles.compact}`}
+      className={`mono ${styles.root}`}
       role="group"
       aria-label={GROUP_LABEL}
       onKeyDown={onKeyDown}
@@ -399,7 +183,7 @@ function CompactSwitcher() {
         aria-controls={open ? listId : undefined}
         /* Says what the button DOES and what is in force, in the visitor's language:
            "Schimbă limba: Română". The visible "RO" alone would only say the second half. */
-        aria-label={`${l(COPY.change)}: ${LOCALE_LABELS[locale]}`}
+        aria-label={`${t("nav.langChange")}: ${LOCALE_LABELS[locale]}`}
         onClick={() => (open ? close(false) : setOpen(true))}
       >
         <span aria-hidden="true">{LOCALE_SHORT[locale]}</span>
@@ -415,7 +199,7 @@ function CompactSwitcher() {
                 key={code}
                 type="button"
                 data-locale={code}
-                className={`${styles.menuOption} ${active ? styles.menuActive : ""}`}
+                className={`${styles.option} ${active ? styles.active : ""}`}
                 aria-label={LOCALE_LABELS[code]}
                 aria-pressed={active}
                 onClick={() => {
@@ -423,12 +207,15 @@ function CompactSwitcher() {
                   close(true);
                 }}
               >
-                <span className={styles.menuShort} aria-hidden="true">
+                <span className={styles.short} aria-hidden="true">
                   {LOCALE_SHORT[code]}
                 </span>
-                <span className={styles.menuName} aria-hidden="true">
+                <span className={styles.name} aria-hidden="true">
                   {LOCALE_LABELS[code]}
                 </span>
+                {/* The mark is decoration: `aria-pressed` is what tells a screen reader. It is
+                    a second cue next to the tint, so "which one is on" never rests on colour. */}
+                {active && <CheckIcon />}
               </button>
             );
           })}
@@ -438,8 +225,8 @@ function CompactSwitcher() {
   );
 }
 
-/* Drawn in `currentColor`, so it inherits the button's token colour without a second
-   definition. */
+/* Both icons are drawn in `currentColor`, so they inherit their button's token colour
+   without a second definition. */
 function ChevronIcon() {
   return (
     <svg
@@ -454,6 +241,24 @@ function ChevronIcon() {
       focusable="false"
     >
       <path d="M6 9.5l6 6 6-6" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      className={styles.check}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   );
 }

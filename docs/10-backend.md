@@ -19,7 +19,7 @@ reference only. Remaining production polish (Alembic, rate limiting, notificatio
 |--------|-------|------|---------|
 | `GET` | `/api/content` | public | Return the whole content document |
 | `PUT` | `/api/content` | admin | Replace it (the admin's Save) |
-| `POST` | `/api/contact` | public | Store a contact-form submission |
+| `POST` | `/api/contact` | public | Store a contact-form submission — requires `consent: true` ([11 — Security](./11-security.md#personal-data-consent-on-the-contact-form-2026-10-29)) |
 | `GET` | `/api/admin/submissions` | admin | List submissions (incl. `crm_status`) |
 | `POST` | `/api/admin/submissions/{id}/crm-resend` | admin | Re-queue a lead for the CRM and retry it now ([17 — CRM](./17-crm.md)) |
 | `POST` | `/api/admin/uploads` | admin | Store a picture (logo, photo, screenshot) → WebP, longest side ≤ 1600px |

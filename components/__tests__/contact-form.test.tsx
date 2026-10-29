@@ -10,7 +10,8 @@
  *
  *   1. an invalid form does not reach the network,
  *   2. a valid one does, exactly once, carrying what the visitor actually chose,
- *   3. a failure is visible and non-destructive.
+ *   3. a failure is visible and non-destructive,
+ *   4. no lead leaves without the visitor's consent to the processing of their data.
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -62,6 +63,8 @@ const seededPrice = (serviceId: string) =>
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
+/* The personal-data consent checkbox — required, so every send ticks it. */
+const CONSENT = /prelucrarea datelor personale/;
 const PHONE_PH = "Telefon (opțional)";
 const DETAILS_PH = "Adaugă orice detaliu important";
 const SUBMIT = /Trimite cererea/;
@@ -99,10 +102,11 @@ async function completeDialog(user: ReturnType<typeof userEvent.setup>) {
   await tap(user, "Sari peste"); // the optional extra step
 }
 
-/** Fill the two required fields with acceptable values. */
+/** Fill the two required fields with acceptable values, and tick the consent box. */
 async function fillValid(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+  await user.click(screen.getByRole("checkbox", { name: CONSENT }));
 }
 
 beforeEach(() => {
@@ -176,6 +180,7 @@ describe("validation — nothing invalid reaches the network", () => {
 
     await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
     await user.type(screen.getByPlaceholderText(EMAIL_PH), "not-an-email");
+    await user.click(screen.getByRole("checkbox", { name: CONSENT }));
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(screen.getByText("Introdu o adresă de email validă.")).toBeInTheDocument();
@@ -188,6 +193,7 @@ describe("validation — nothing invalid reaches the network", () => {
 
     await user.type(screen.getByPlaceholderText(NAME_PH), "<script>x</script>");
     await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+    await user.click(screen.getByRole("checkbox", { name: CONSENT }));
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(
@@ -229,6 +235,80 @@ describe("validation — nothing invalid reaches the network", () => {
     await user.click(screen.getByRole("button", { name: SUBMIT }));
 
     expect(screen.getByPlaceholderText(NAME_PH)).toHaveAttribute("aria-invalid", "true");
+  });
+});
+
+describe("consent — the personal-data checkbox", () => {
+  const CONSENT_ERROR = /Bifează acordul pentru prelucrarea datelor personale/;
+
+  it("is a real, unticked checkbox labelled by the whole sentence", () => {
+    renderForm();
+    const box = screen.getByRole("checkbox", { name: CONSENT });
+    expect(box).not.toBeChecked();
+    expect(box).toBeRequired();
+    expect(box).toHaveAccessibleName(
+      /Sunt de acord cu prelucrarea datelor personale conform Politicii de confidențialitate.* și Politicii de cookie-uri/,
+    );
+  });
+
+  it("blocks the send while unticked, and says why next to the box", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
+    await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    expect(api.submitContact).not.toHaveBeenCalled();
+    const message = screen.getByText(CONSENT_ERROR);
+    expect(message).toHaveAttribute("role", "alert");
+    const box = screen.getByRole("checkbox", { name: CONSENT });
+    expect(box).toHaveAttribute("aria-invalid", "true");
+    // The message is the box's description, so a screen reader reads it on focus too.
+    expect(box).toHaveAttribute("aria-describedby", message.id);
+    expect(box).toHaveAccessibleDescription(CONSENT_ERROR);
+  });
+
+  it("clears its message the moment it is ticked — from the keyboard too", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+    expect(screen.getByText(CONSENT_ERROR)).toBeInTheDocument();
+
+    const box = screen.getByRole("checkbox", { name: CONSENT });
+    box.focus();
+    await user.keyboard(" ");
+    expect(box).toBeChecked();
+    expect(screen.queryByText(CONSENT_ERROR)).not.toBeInTheDocument();
+    expect(box).toHaveAttribute("aria-invalid", "false");
+    expect(box).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("sends consent: true with the request once ticked", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillValid(user); // ticks the box
+    await user.click(screen.getByRole("button", { name: SUBMIT }));
+
+    expect(api.submitContact).toHaveBeenCalledTimes(1);
+    expect(api.submitContact).toHaveBeenCalledWith(expect.objectContaining({ consent: true }));
+  });
+
+  it("links both policies, in a new tab so the form keeps what was typed", () => {
+    renderForm();
+    const privacy = screen.getByRole("link", { name: /Politicii de confidențialitate/ });
+    const cookies = screen.getByRole("link", { name: /Politicii de cookie-uri/ });
+
+    expect(privacy).toHaveAttribute("href", "/confidentialitate");
+    expect(cookies).toHaveAttribute("href", "/cookies");
+    for (const link of [privacy, cookies]) {
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link.getAttribute("rel")).toContain("noopener");
+      // A new tab is announced, not sprung on a screen-reader user.
+      expect(link).toHaveAccessibleName(/se deschide într-o filă nouă/);
+    }
   });
 });
 

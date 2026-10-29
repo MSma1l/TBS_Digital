@@ -210,6 +210,9 @@ export const ro = {
   "nav.cta": "CERE OFERTĂ ↗",
   "nav.burgerAria": "Meniu",
   "nav.closeAria": "Închide",
+  // The language button's accessible name; the component appends the language in force:
+  // "Schimbă limba: Română".
+  "nav.langChange": "Schimbă limba",
   // Screen readers already announce the landmark as "navigation": the label only names which one.
   "nav.primaryAria": "Principal",
   // The header clock's label: a HUD code, the same in every language, but still a key so

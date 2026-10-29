@@ -144,6 +144,9 @@ class SubmissionRow(SQLModel, table=True):
     # Lead classification, driven by the Telegram inline buttons (see app/telegram).
     # One of the STATUSES keys: nou / contactat / oferta / castigat / pierdut.
     status: str = "nou"
+    # When the visitor ticked the personal-data consent box (ISO 8601, = created_at). ""
+    # on the leads that predate it. ALTERed in by db.py on boot (CONSENT_COLUMNS).
+    consent_at: str = ""
     # CRM delivery outbox (see app/crm). ALTERed in by db.py on boot (CRM_COLUMNS).
     # crm_status: "" (never queued — CRM off at submit time, or a pre-CRM row),
     # "pending" (awaiting its first/next attempt), "sent", or "failed" (permanent).

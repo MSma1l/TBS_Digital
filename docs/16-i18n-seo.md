@@ -17,7 +17,30 @@ exist in `ro`; a missing `ru`/`en` string degrades to Romanian, never to a blank
 | Message catalogs | `lib/i18n/messages/{ro,ru,en}.ts` (+ `messages.ts` index) | ~190 keys per language; `ro.ts` defines `MessageKey`, so RU/EN are type-checked against it |
 | Provider + `t()` | `lib/i18n/LanguageProvider.tsx` | Holds the active locale, persists it, exposes `useT()` / `useLanguage()` |
 | Localized content fields | `lib/i18n/content.tsx` | `LocalizedText = { ro, ru, en }`, `loc()`, `useLoc()`, `locFromCatalog()`, `locRo()` |
-| Switcher | `components/ui/LanguageSwitcher.tsx` | RO/RU/EN segmented control; instant, no reload |
+| Switcher | `components/ui/LanguageSwitcher.tsx` | A dropdown in the header bar: one button showing the language in force (`RO ▾`), opening RO · Română / RU · Русский / EN · English; instant, no reload — see below |
+
+### The switcher
+
+One shape at every width (it used to be a segmented `RO | RU | EN` pill above 400px and this
+dropdown below it; since 2026-10-29 it is the dropdown everywhere, so the server and the
+client render the same markup and there is no viewport-dependent swap).
+
+- **Where:** mounted once, by `PreferencesGroup` in the header bar, at every width. The
+  burger overlay has no copy of it — the overlay sits under the header (`--z-nav-overlay`
+  115 < `--z-header` 120), so the button and its popup stay usable while the menu is open.
+- **Semantics:** a disclosure. The button carries `aria-haspopup`, `aria-expanded` and (while
+  open) `aria-controls`; its accessible name is the catalog key `nav.langChange` plus the
+  language in force — "Schimbă limba: Română". The popup holds three real buttons, each named
+  in its own language ("Русский") with `aria-pressed` on the active one, which also gets a
+  tint and a check mark.
+- **Keyboard:** Enter/Space or ArrowDown/ArrowUp open it, focus lands on the language in
+  force, the arrows (wrapping) and Home/End walk the choices, Enter picks. It closes on
+  Escape (without also closing the burger overlay), on a press outside it, on Tab leaving
+  it, and after a choice; Escape and a choice return focus to the button.
+- **Targets and motion:** 44×44 on touch (`max-width: 860px` or `pointer: coarse`), each
+  popup row 44px tall there; reduced motion drops the popup's fade and the chevron's turn.
+- **Switching** is one `setLocale()` call on `LanguageProvider` — the dropdown changes how a
+  language is *offered*, not how it is chosen, stored or detected (below).
 
 ### How the locale is resolved
 

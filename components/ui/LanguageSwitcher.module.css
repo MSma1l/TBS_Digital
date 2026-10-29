@@ -1,179 +1,11 @@
-.switcher {
-  /* The thumb copies this inset, so the two can never drift apart — see `.thumb`. */
-  --track-pad: 2px;
-  /* Tailwind's `ease-out`, which is the curve the header's island condenses with
-     (Navbar.tsx) — inherited by the thumb and the labels below so the whole control moves
-     on one ease. The literal is a fallback only: --ease-out is emitted by Tailwind's theme
-     layer, and a theme that stopped emitting it would otherwise make every `transition`
-     here invalid at computed-value time, i.e. silently unanimated. */
-  --lang-ease: var(--ease-out, cubic-bezier(0, 0, 0.2, 1));
-  /* The thumb is positioned against this box. */
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: var(--track-pad);
-  border: 1px solid var(--glass-line);
-  /* Fully round, from the radius scale in app/globals.css. --r-pill rather than a fixed step
-     because the track's height is NOT fixed: measured 30px from 861px up (a 24px option in
-     2px of padding and a 1px border) and 50px in the 44px tap-target band below it. Any
-     literal step is a squircle at one of those heights and a pill at the other; --r-pill is
-     round at both, and it is the only one that keeps the thumb inside it concentric without
-     a second number per breakpoint. */
-  border-radius: var(--r-pill);
-  /* HUD glass, the header's own material: a tint of the panel colour and a hairline, so the
-     track reads as an inset on the frosted bar in both palettes. Colour only — the blur
-     belongs to the header's ::before (a second backdrop-filter here would blur nothing new
-     and cost a layer). It was --panel2 before; earlier still a near-black scrim that
-     dragged the label text down to unreadable contrast in the light theme. */
-  background: var(--glass-bg);
-}
-
-/* The fill of the active language, as ONE element behind all three labels rather than a
-   background on the active button — which is what lets it slide from the old option to the
-   new one instead of blinking across.
-
-   Placement: `top/bottom/left: var(--track-pad)` puts it exactly on the first option's box
-   (an absolutely positioned child is laid out against the track's PADDING box, so this inset
-   lands on the content box — the row of options), and `transform` + `width` are written by
-   LanguageSwitcher.tsx from the measured rect of the active button. Nothing here assumes the
-   three options are equally wide.
-
-   Transform and width, not `left`/`right`: transform is composited, so the slide does not
-   re-layout the header on any frame. */
-.thumb {
-  position: absolute;
-  top: var(--track-pad);
-  bottom: var(--track-pad);
-  left: var(--track-pad);
-  /* Until the component has measured, there is nothing to draw: the thumb must not appear
-     at width 0 on the left edge and then fly to the active option on the first paint. */
-  width: 0;
-  opacity: 0;
-  border-radius: var(--r-pill);
-  /* The pairing the active option used to carry itself: white on the blue fill, lit with
-     the blue neon. Blue, never red: white on --red is 4.19:1, under AA at this size. */
-  background: var(--blue2);
-  box-shadow: var(--neon-blue);
-  pointer-events: none;
-}
-
-/* Measured and placed — visible, but not yet allowed to move: this is the first paint and
-   the load of a client-navigated page, where a slide would be a slide from nowhere. */
-.switcher[data-thumb] .thumb {
-  opacity: 1;
-}
-
-/* Armed one commit later, so every LATER placement is a slide.
-
-   220ms on --ease-out — the SAME curve and a shorter duration than the 300ms the header's
-   condensed island moves with (Navbar.tsx), so the control settles before the bar it rides
-   in does. Measured on the real page: 84% of the travel is done at 110ms and the last 16%
-   lands in the second half, which is what reads as quick and precise rather than floaty.
-   NOT --motion-ease-out: that curve is an entrance ease built for 400ms+ and at this length
-   it collapses into a jump (measured 97% travelled at 110ms — a teleport with a settle). */
-.switcher[data-thumb="slides"] .thumb {
-  transition:
-    transform 0.22s var(--lang-ease),
-    width 0.22s var(--lang-ease);
-}
-
-.option {
-  /* Positioned with `z-index: auto`, so the labels paint AFTER the (also positioned) thumb
-     and stay legible on top of it. */
-  position: relative;
-  cursor: pointer;
-  border: none;
-  /* Same token as the track: the focus ring below is drawn by `outline`, which follows
-     `border-radius` — a square ring on a pill reads as a bug. */
-  border-radius: var(--r-pill);
-  background: transparent;
-  /* --mut, not --dim: --dim is 4.45:1 on white, under AA for 11px text. */
-  color: var(--mut);
-  font-size: var(--fs-xs);
-  letter-spacing: 0.06em;
-  padding: 5px 9px;
-  /* The crossfade, LEAVING half: the label the thumb is sliding away from holds its white a
-     beat and then fades to --mut over the rest of the slide. The two halves are timed
-     differently on purpose, and the asymmetry falls out of the cascade for free — a label
-     transitions with whatever `transition` it ends up with, which is this one when it loses
-     `.active` and the faster one on `.active` when it gains it.
-     Why this way round: a grey label caught ON the blue fill is the one bad frame this
-     animation can produce (--mut on --blue2 is 2.6:1), and lingering white is what keeps it
-     off the screen — white reads on the fill (5.2:1) AND on the glass it is uncovering. */
-  transition: color 0.22s var(--lang-ease) 0.05s;
-}
-
-.option:hover {
-  color: var(--txt);
-}
-
-/* White on the thumb's blue fill (5.2:1). The fill itself lives on `.thumb`.
-   ARRIVING half of the crossfade: 140ms against the slide's 220, so the label is white
-   before the fill has finished settling under it, never grey on blue. */
-.active {
-  color: var(--on-accent);
-  transition: color 0.14s var(--lang-ease);
-}
-
-/* Keyboard focus must be visible on its own, not only under the pointer. */
-.option:focus-visible {
-  outline: 2px solid var(--cyan);
-  outline-offset: 1px;
-  color: var(--txt);
-}
-.active:focus-visible {
-  color: var(--on-accent);
-}
-
-/* Touch targets on mobile.
-   `PreferencesGroup` stretches the whole group to 44px, but WCAG 2.5.5 measures each
-   TARGET, not the box around them — with `align-items: center` on the track, every RO/RU/EN
-   button stayed 24px tall inside a 44px group. Stretching the track's items and giving the
-   option a min-height makes each button its own 44px target. */
-@media (max-width: 860px) {
-  .switcher {
-    align-items: stretch;
-  }
-  .option {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding-block: 0;
-  }
-}
-
-/* WCAG 2.5.5 measures BOTH sides. The rule above fixed the height and left each option
-   32.5px wide, so RO/RU/EN were 32.5 x 44 — still under target on the axis a thumb is
-   least precise about.
-
-   400px is not a taste breakpoint, it is the measured floor. It was measured when the bar
-   still carried a theme and a sound toggle beside the wordmark, the three language buttons
-   and the burger: with 44px options the row needed 397px, so it first fit at 398, and below
-   that the whole page scrolled sideways. This is why the ≤360px compact control exists at
-   all. The two toggles are gone and the row has slack again, but the breakpoints are left
-   where they were signed off — changing one changes a layout someone approved.
-
-   361–399px is therefore still 32.5px wide, and CSS cannot fix it: the segmented control
-   simply does not fit there. The fix is to raise COMPACT_MAX_WIDTH in LanguageSwitcher.tsx
-   from 360 to 400, so the one-button compact control covers that band too — keep this
-   media query's lower bound and that constant in sync. */
-@media (min-width: 401px) and (max-width: 860px) {
-  .option {
-    justify-content: center;
-    min-width: 44px;
-  }
-}
-
 /* ==========================================================================
-   The compact control (≤360px)
+   The language dropdown
 
-   One 44×44 button carrying the active language, opening a popup with the three choices.
-   Below 360px the header could not hold three separate 44px language buttons alongside the
-   rest of the bar — see the component's header comment.
+   One small button carrying the active language ("RO ▾") and a short popup with the three
+   choices. The same shape at every width — see the header comment in LanguageSwitcher.tsx.
    ========================================================================== */
 
-.compact {
+.root {
   /* The popup is positioned against this box, so the control owns its own stacking context
      inside the header rather than escaping it. */
   position: relative;
@@ -181,20 +13,21 @@
   align-items: stretch;
 }
 
-/* The trigger keeps the header's control language: same border, same --panel2 track — and
-   now the same fully round corners as the segmented track it stands in for, so the two
-   shapes read as one control that changed size rather than two different controls. At its
-   fixed 44x44 that makes it a circle, which is what --r-pill means on a square box. */
+/* The trigger keeps the header's control language: the HUD glass tint and hairline the bar's
+   other controls sit in, fully round (--r-pill), so it reads as one quiet pill next to the
+   red CTA rather than a second call to action.
+
+   32px tall on a desktop pointer, which is what the old segmented track measured, so the bar
+   keeps its rhythm; the touch block below raises it to the full 44px target. */
 .trigger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  align-self: stretch;
-  /* 44×44 is the whole reason this variant exists — never shrink it to buy width. */
+  gap: 4px;
+  align-self: center;
   min-width: 44px;
-  min-height: 44px;
-  padding: 0 var(--sp-1);
+  min-height: 32px;
+  padding: 0 var(--sp-2) 0 calc(var(--sp-2) + 2px);
   cursor: pointer;
   border: 1px solid var(--glass-line);
   border-radius: var(--r-pill);
@@ -206,27 +39,24 @@
   transition:
     color 0.15s,
     background 0.15s,
-    border-color 0.15s,
-    box-shadow 0.15s;
+    border-color 0.15s;
 }
 
 .trigger:hover {
   border-color: var(--blue);
-  box-shadow: var(--neon-blue);
 }
 
-/* Same ring as every other control in the group. */
+/* Same ring as every other control in the bar. */
 .trigger:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 1px;
 }
 
-/* Open state is visible without colour alone: the track turns solid and the chevron flips,
-   matching the `aria-expanded` a screen reader is told. */
+/* Open state is visible without colour alone: the chevron flips, matching the
+   `aria-expanded` a screen reader is told. */
 .trigger[aria-expanded="true"] {
   background: var(--glass-bg-solid);
   border-color: var(--blue);
-  box-shadow: var(--neon-blue);
 }
 
 .chevron {
@@ -244,41 +74,41 @@
   position: absolute;
   /* Hangs below the trigger and is anchored to its RIGHT edge: the control sits in the
      right-hand cluster of the bar, so growing leftwards is the only direction that cannot
-     push the document past the viewport. */
+     push the document past the viewport (the narrowest phone included). */
   top: calc(100% + var(--sp-1));
   right: 0;
   /* Above the rest of the header's contents. The <header> is itself z-index 120
-     (--z-header) and creates the stacking context this number lives in. */
+     (--z-header) and creates the stacking context this number lives in — which is also
+     what keeps the popup above the burger overlay (115). */
   z-index: var(--z-lang-popup);
   display: flex;
   flex-direction: column;
-  min-width: 130px;
+  gap: 2px;
+  min-width: 168px;
   padding: var(--sp-1);
   border: 1px solid var(--glass-line);
-  /* --r-lg, not --r-pill: this is a 130x150 sheet, and a stadium shape on a box that tall is
-     a lozenge, not a rounded panel. 16px is the radius the header's own condensed island
-     uses (Navbar.tsx, `rounded-lg`), so the popup reads as a piece of the header — while the
-     rows inside it stay pills, like the segmented thumb. */
+  /* --r-lg, not --r-pill: this is a sheet, and a stadium shape on a box this tall is a
+     lozenge. 16px is the radius the header's condensed island uses (Navbar.tsx,
+     `rounded-lg`), so the popup reads as a piece of the header. */
   border-radius: var(--r-lg);
-  /* The solid glass sheet, no blur: this popup only exists on ≤400px phones, where a
-     backdrop-filter over the animated hero costs frames. */
+  /* Solid glass, no blur: a backdrop-filter over the animated hero costs frames on a phone,
+     and on the white theme a 94% white sheet reads as solid anyway. */
   background: var(--glass-bg-solid);
   box-shadow: var(--sh-md);
   animation: langMenuIn 0.12s ease-out;
 }
 
-/* Every option is a tap target like any other: 44px tall, full popup width. */
-.menuOption {
+/* One row per language: short code, the language's own name, and the check on the active
+   one pushed to the right edge. */
+.option {
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  min-height: 44px;
+  min-height: 36px;
   padding: 0 var(--sp-2);
   cursor: pointer;
   border: none;
-  /* Same pill as the segmented thumb: the active language is highlighted with the same
-     shape whichever variant of the control the visitor got. */
-  border-radius: var(--r-pill);
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--txt);
   text-align: left;
@@ -289,35 +119,47 @@
     background 0.15s;
 }
 
-.menuOption:hover {
+.option:hover {
   background: color-mix(in srgb, var(--txt) 6%, transparent);
 }
 
-.menuOption:focus-visible {
+.option:focus-visible {
   /* Inset, so the ring is not clipped by the popup's own border. */
   outline: 2px solid var(--cyan);
   outline-offset: -2px;
 }
 
-.menuShort {
-  min-width: 20px;
+.short {
+  min-width: 22px;
   color: var(--mut);
   font-weight: var(--fw-semi);
 }
 
-.menuName {
-  color: var(--mut);
+.name {
+  /* --txt on the white sheet; the short code beside it is the quieter --mut. */
+  color: var(--txt);
 }
 
-/* Same white-on-blue pairing the segmented control uses for the active language. */
-.menuActive,
-.menuActive:hover {
-  background: var(--blue2);
-  box-shadow: var(--neon-blue);
+/* The language in force: a light blue tint, the text in --blue-text (4.93:1 on white, AA at
+   this size) and a check mark — tint AND mark, so it never rests on colour alone. Quieter
+   than a solid blue fill on purpose: on the white theme a filled row inside a small popup
+   shouts louder than the CTA beside it. */
+.active,
+.active:hover {
+  background: color-mix(in srgb, var(--blue) 10%, transparent);
 }
-.menuActive .menuShort,
-.menuActive .menuName {
-  color: var(--on-accent);
+.active .short,
+.active .name {
+  color: var(--blue-text);
+}
+
+.check {
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-left: auto;
+  color: var(--blue-text);
 }
 
 @keyframes langMenuIn {
@@ -331,65 +173,32 @@
   }
 }
 
-/* ==========================================================================
-   The pre-hydration frame below 360px
-
-   Keep in sync with COMPACT_MAX_WIDTH in LanguageSwitcher.tsx.
-
-   Below this width the SEGMENTED markup exists for exactly one frame: the server renders it
-   (it cannot know the viewport width) and hydration replaces it with the compact control.
-   It is never on screen here in a hydrated page, so these rules only ever style that one
-   frame — and their whole job is to make it the same 44×44 box, in the same colours, as the
-   compact trigger that takes its place. Without them a 320px phone would paint one frame of
-   a 361px-wide header before the swap: a visible sideways jolt, and a real horizontal
-   scrollbar for as long as it lasted.
-
-   Consequence, accepted: with JavaScript off, only the active language shows. The switcher
-   is a client component whose buttons do nothing without JS either way. */
-@media (max-width: 400px) {
-  .switcher {
-    padding: 0;
-    gap: 0;
-    border: none;
-    background: transparent;
-  }
-
-  .option:not(.active) {
-    display: none;
-  }
-
-  /* The thumb belongs to the segmented shape only. In this one frame nothing has measured it
-     yet (JS has not run), so it is already invisible — this makes that explicit rather than
-     load-bearing, and the stand-in below paints its own fill instead. */
-  .thumb {
-    display: none;
-  }
-
-  .active {
-    justify-content: center;
-    min-width: 44px;
+/* Touch: every target is a full 44×44 (WCAG 2.5.5) — the trigger stretches to the 44px the
+   PreferencesGroup gives the bar below 860px, and each row in the popup is 44px tall.
+   `pointer: coarse` covers a touch screen wider than 860px (a landscape tablet) too. */
+@media (max-width: 860px), (pointer: coarse) {
+  .trigger {
+    align-self: stretch;
     min-height: 44px;
-    padding: 0 var(--sp-1);
-    /* the compact trigger's exact colours AND corners (see .trigger), so the swap is
-       invisible */
-    border: 1px solid var(--glass-line);
-    border-radius: var(--r-pill);
-    background: var(--glass-bg);
-    box-shadow: none;
-    color: var(--txt);
-    font-weight: var(--fw-semi);
+  }
+  .option {
+    min-height: 44px;
   }
 }
 
-/* The change is instant: the thumb simply appears on the new option and the labels take
-   their colours with it. Everything else the control animates stops too. */
+/* The narrowest phones: the header row (logo, this control, the burger) has to fit 320px.
+   Only the trigger's side padding shrinks; it stays a full 44×44 target. */
+@media (max-width: 380px) {
+  .trigger {
+    gap: 1px;
+    padding: 0 var(--sp-1);
+  }
+}
+
+/* Nothing slides or fades: the popup simply appears and the chevron simply flips. */
 @media (prefers-reduced-motion: reduce) {
-  .thumb,
-  .switcher[data-thumb="slides"] .thumb,
-  .option,
-  .active,
   .trigger,
-  .menuOption,
+  .option,
   .chevron {
     transition: none;
   }

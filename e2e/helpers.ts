@@ -214,13 +214,43 @@ export async function gotoHydrated(
 /** The site header. `.first()` guards against a future second landmark on the page. */
 export const header = (page: Page): Locator => page.locator("header").first();
 
-/** The RO / RU / EN segmented control, by the group label the component declares. */
+/** The language dropdown, by the group label the component declares. */
 export const languageGroup = (page: Page): Locator =>
   header(page).getByRole("group", { name: "Limbă / Язык / Language" });
 
-/** One language option. The accessible name is the language's own name ("Русский"). */
+/** The dropdown's button ("RO ▾"). Identified by `aria-haspopup`, which only it has. */
+export const languageTrigger = (page: Page): Locator =>
+  languageGroup(page).locator("button[aria-haspopup]");
+
+/**
+ * The trigger's accessible name while `locale` is in force — "Schimbă limba: Română". Built
+ * from the same catalog key and label table the component uses, so a copy change breaks the
+ * suite at compile time instead of silently.
+ */
+export const languageTriggerName = (locale: Locale): string =>
+  `${messages[locale]["nav.langChange"]}: ${LOCALE_LABELS[locale]}`;
+
+/**
+ * One language option. The accessible name is the language's own name ("Русский").
+ * Options exist only while the dropdown is open — see `openLanguageMenu`.
+ */
 export const languageOption = (page: Page, locale: Locale): Locator =>
   languageGroup(page).getByRole("button", { name: LOCALE_LABELS[locale], exact: true });
+
+/** Open the dropdown (asserting it really opened), putting the three options on screen. */
+export async function openLanguageMenu(page: Page): Promise<void> {
+  const button = languageTrigger(page);
+  await expect(button).toHaveAttribute("aria-expanded", "false");
+  await button.click();
+  await expect(button).toHaveAttribute("aria-expanded", "true");
+}
+
+/** Pick a language the way a visitor does: open the dropdown, click the choice. */
+export async function chooseLanguage(page: Page, locale: Locale): Promise<void> {
+  await openLanguageMenu(page);
+  await languageOption(page, locale).click();
+  await expect(languageTrigger(page)).toHaveAttribute("aria-expanded", "false");
+}
 
 /** The hamburger. Only rendered/visible below the 860px breakpoint. */
 export const burger = (page: Page, locale: Locale = "ro"): Locator =>
@@ -367,10 +397,15 @@ export const flowFields = (flow: Locator) => ({
   name: flow.locator('input:not([type]), input[type="text"]').first(),
   email: flow.locator('input[type="email"]'),
   phone: flow.locator('input[type="tel"]'),
+  /* The personal-data consent: required, and the only checkbox in the form. */
+  consent: flow.locator('input[type="checkbox"]'),
   submit: flow.getByRole("button", { name: PRIVATE_COPY.estimatorSubmit, exact: true }),
 });
 
-/** Fill the contact step with a plausible lead. The request is stubbed; nothing is sent. */
+/**
+ * Fill the contact step with a plausible lead and tick the consent box, without which the form
+ * refuses to send. The request is stubbed; nothing is sent.
+ */
 export async function fillContactStep(
   flow: Locator,
   lead: { name: string; email: string; phone?: string },
@@ -379,6 +414,7 @@ export async function fillContactStep(
   await f.name.fill(lead.name);
   await f.email.fill(lead.email);
   if (lead.phone) await f.phone.fill(lead.phone);
+  await f.consent.check();
 }
 
 // --- the estimator's chat ----------------------------------------------------------------

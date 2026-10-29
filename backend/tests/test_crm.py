@@ -35,7 +35,13 @@ from sqlmodel import Session  # noqa: E402
 from app.config import Settings, crm_url_problem, get_settings  # noqa: E402
 from app.crm import client as crm_client  # noqa: E402
 from app.crm import service  # noqa: E402
-from app.db import CRM_COLUMNS, _add_missing_columns, create_db_and_tables, get_engine  # noqa: E402
+from app.db import (  # noqa: E402
+    CONSENT_COLUMNS,
+    CRM_COLUMNS,
+    _add_missing_columns,
+    create_db_and_tables,
+    get_engine,
+)
 import app.main as main_module  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import SubmissionRow  # noqa: E402
@@ -210,7 +216,7 @@ def test_contact_with_crm_unconfigured_queues_nothing_and_sends_nothing(monkeypa
     assert get_settings().crm_is_enabled is False
     with TestClient(app) as c:
         r = c.post("/api/contact", json={"name": "Ilie", "email": "ilie@example.com",
-                                         "message": "Salut"})
+                                         "message": "Salut", "consent": True})
     assert r.status_code == 201, r.text
     assert crm.requests == []
     assert _row(r.json()["id"]).crm_status == ""
@@ -386,7 +392,8 @@ def test_contact_returns_201_when_the_crm_is_down(crm_on, monkeypatch):
     monkeypatch.setattr(service, "TRANSPORT", crm.transport)
     with TestClient(app) as c:
         r = c.post("/api/contact", json={"name": "Ilie", "email": "ilie@example.com",
-                                         "message": "Salut", "project": "Site web"})
+                                         "message": "Salut", "project": "Site web",
+                                         "consent": True})
         assert r.status_code == 201, r.text
         body = r.json()
         assert "crm_status" not in body  # internal state stays off the public response
@@ -409,7 +416,7 @@ def test_contact_pushes_the_lead_when_the_crm_is_up(crm_on, monkeypatch):
     monkeypatch.setattr(service, "TRANSPORT", crm.transport)
     with TestClient(app) as c:
         r = c.post("/api/contact", json={"name": "Maria", "email": "maria@example.com",
-                                         "message": "Vreau un CRM"})
+                                         "message": "Vreau un CRM", "consent": True})
     assert r.status_code == 201
     assert _row(r.json()["id"]).crm_status == "sent"
     sent = json.loads(crm.requests[0].content)
@@ -465,6 +472,16 @@ def test_boot_migration_adds_the_crm_columns_without_queueing_old_leads():
             text("SELECT crm_status, crm_attempts FROM submissions WHERE id='old'")
         ).one()
     assert (status, attempts) == ("", 0)  # pre-CRM leads are not pushed on deploy
+
+    # The consent column rides the same boot migration. No backfill: a lead from before the
+    # checkbox has no consent time, and inventing one would be a false record.
+    assert _add_missing_columns(engine, "submissions", CONSENT_COLUMNS) == {"consent_at"}
+    assert _add_missing_columns(engine, "submissions", CONSENT_COLUMNS) == set()
+    with engine.connect() as conn:
+        consent_at = conn.execute(
+            text("SELECT consent_at FROM submissions WHERE id='old'")
+        ).scalar_one()
+    assert consent_at == ""
 
 
 # --- CRM_LEADS_URL rules ---------------------------------------------------------------------

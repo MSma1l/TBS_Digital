@@ -1,46 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LanguageSwitcher, COMPACT_MAX_WIDTH } from "@/components/ui/LanguageSwitcher";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { LOCALE_LABELS } from "@/lib/i18n/locales";
+import { messages } from "@/lib/i18n/messages";
 
 /*
- * The language switcher changes SHAPE with the viewport, and that is what these tests are
- * about — `components/__tests__/navbar.test.tsx` already covers the segmented control as it
- * appears in the header at a normal width.
+ * The language switcher is ONE shape at every width: a button showing the active language
+ * that opens the three choices. `components/__tests__/navbar.test.tsx` covers it as it sits
+ * in the header; this file covers the control's own contract — what is in the DOM closed and
+ * open, the labels, the keyboard, and every way the popup closes.
  *
- * At or below COMPACT_MAX_WIDTH the header cannot hold three 44px language buttons next to the theme
- * toggle, the sound toggle and the burger: the document measured 361px inside a 320px
- * viewport. The control collapses to ONE 44×44 button plus a popup — and, critically, only
- * one of the two shapes is ever in the DOM, because two would mean two language controls in
- * the accessibility tree and two matches for every `getByRole` in this suite.
- *
- * jsdom has no layout, so "the viewport is narrow" is exactly what the component asks: a
- * `matchMedia("(max-width: <COMPACT_MAX_WIDTH>px)")` query, stubbed here. `vitest.setup.ts` installs a
- * matchMedia that always answers `false`, which is why every other test file (and the first
- * describe below) sees the segmented control without doing anything.
+ * It used to switch to a segmented RO | RU | EN control above 400px, chosen from a
+ * `matchMedia` query; that shape is gone, so nothing here stubs the viewport.
  */
-
-const realMatchMedia = window.matchMedia;
-
-/** Answer `matches` for the compact query, `false` for anything else the tree may ask. */
-function stubViewport(compact: boolean) {
-  window.matchMedia = ((query: string) => ({
-    matches: compact && query.includes(`${COMPACT_MAX_WIDTH}px`),
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  })) as typeof window.matchMedia;
-}
-
-afterEach(() => {
-  window.matchMedia = realMatchMedia;
-});
 
 const renderSwitcher = (locale: "ro" | "ru" | "en" = "ro") =>
   render(
@@ -49,43 +23,18 @@ const renderSwitcher = (locale: "ro" | "ru" | "en" = "ro") =>
     </LanguageProvider>,
   );
 
-/** The group label is the same in both shapes, so assistive tech and the E2E locators keep
- *  one stable target across the breakpoint. */
+/** The group label is trilingual and fixed, so assistive tech and the E2E locators keep one
+ *  stable target whatever language is in force. */
 const group = () => screen.getByRole("group", { name: "Limbă / Язык / Language" });
 
 const trigger = () => within(group()).getByRole("button", { expanded: false });
 
-describe("LanguageSwitcher — above the compact breakpoint", () => {
-  beforeEach(() => stubViewport(false));
-
-  it("renders the segmented control: three options, each labelled in its own language", () => {
-    renderSwitcher();
-
-    const options = within(group()).getAllByRole("button");
-    expect(options).toHaveLength(3);
-    expect(options.map((b) => b.getAttribute("aria-label"))).toEqual([
-      LOCALE_LABELS.ro,
-      LOCALE_LABELS.ru,
-      LOCALE_LABELS.en,
-    ]);
-    expect(options[0]).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("has no popup trigger — nothing to expand at this width", () => {
-    renderSwitcher();
-    expect(within(group()).queryByRole("button", { expanded: false })).toBeNull();
-    expect(document.querySelector("[aria-haspopup]")).toBeNull();
-  });
-});
-
-describe("LanguageSwitcher — the compact control (narrow phones)", () => {
-  beforeEach(() => stubViewport(true));
-
+describe("LanguageSwitcher — the dropdown", () => {
   it("collapses to ONE button showing the active language, with the choices closed", () => {
     renderSwitcher();
 
-    // One control in the DOM, not two with one hidden: the segmented options are absent
-    // entirely rather than merely invisible.
+    // Closed, the choices are absent from the DOM entirely, not merely invisible — so the
+    // page has exactly one language button in its tab order and accessibility tree.
     const buttons = within(group()).getAllByRole("button");
     expect(buttons).toHaveLength(1);
     for (const label of Object.values(LOCALE_LABELS)) {
@@ -166,7 +115,6 @@ describe("LanguageSwitcher — the compact control (narrow phones)", () => {
 
   it("closes when something outside it is pressed", async () => {
     const user = userEvent.setup();
-    stubViewport(true);
     render(
       <LanguageProvider initialLocale="ro">
         <LanguageSwitcher />
@@ -204,9 +152,8 @@ describe("LanguageSwitcher — the compact control (narrow phones)", () => {
   });
 
   /**
-   * Arrow keys rather than Tab *between* the options, for the same reason the segmented
-   * control uses them: the three choices are one control, not three stops in the page's tab
-   * order. Moving focus must never be a silent language change.
+   * Arrow keys rather than Tab *between* the options: the three choices are one control, not
+   * three stops in the page's tab order. Moving focus must never be a silent language change.
    */
   it("walks the choices with the arrows and Home/End, without switching language", async () => {
     const user = userEvent.setup();
@@ -248,45 +195,68 @@ describe("LanguageSwitcher — the compact control (narrow phones)", () => {
     expect(button).toHaveTextContent("EN");
     expect(button).toHaveAccessibleName("Change language: English");
   });
-});
 
-/*
- * The sliding thumb (the blue fill behind the active language).
- *
- * jsdom has no layout, so the GEOMETRY of the slide cannot be asserted here — that is
- * measured in the browser. What must hold whatever the layout engine says is the contract
- * around it: the thumb is decoration, so it adds nothing to the accessibility tree and no
- * fourth button for `getByRole` to find; the active option carries the `data-active` hook
- * the measurement looks for; and with no layout to measure the component refuses to place
- * the thumb at all rather than pinning it, at width 0, to the left edge.
- */
-describe("LanguageSwitcher — the sliding thumb", () => {
-  beforeEach(() => stubViewport(false));
-
-  it("adds no control and no accessible node: still exactly three buttons", () => {
+  /* The trigger names its popup only while there is one to name, and the id it points at is
+     the element holding the choices. */
+  it("points aria-controls at the open list, and drops it when closed", async () => {
+    const user = userEvent.setup();
     renderSwitcher();
 
-    expect(within(group()).getAllByRole("button")).toHaveLength(3);
-    const thumb = group().querySelector("span");
-    expect(thumb).not.toBeNull();
-    expect(thumb).toHaveAttribute("aria-hidden", "true");
+    expect(trigger()).not.toHaveAttribute("aria-controls");
+    await user.click(trigger());
+
+    const button = within(group()).getByRole("button", { expanded: true });
+    const id = button.getAttribute("aria-controls");
+    expect(id).toBeTruthy();
+    const list = document.getElementById(id!);
+    expect(list).not.toBeNull();
+    expect(within(list!).getAllByRole("button")).toHaveLength(3);
   });
 
-  it("marks the active option with the hook the measurement reads", () => {
-    renderSwitcher("ru");
+  /* Each row shows the short code AND the language's own name, so a visitor who does not
+     read the language in force can still find theirs. */
+  it("shows each language's code and native name in the list", async () => {
+    const user = userEvent.setup();
+    renderSwitcher("en");
+    await user.click(trigger());
 
-    const active = group().querySelectorAll("[data-active]");
-    expect(active).toHaveLength(1);
-    expect(active[0]).toHaveAttribute("data-locale", "ru");
-    expect(active[0]).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Русский" })).toHaveTextContent("RUРусский");
+    expect(screen.getByRole("button", { name: "Română" })).toHaveTextContent("RORomână");
   });
 
-  it("stays unplaced when there is no layout to measure", () => {
-    renderSwitcher();
+  /* The label comes from the message catalog, so it exists in all three languages. */
+  it("takes the button's label from the catalog in every language", () => {
+    for (const locale of ["ro", "ru", "en"] as const) {
+      const { unmount } = renderSwitcher(locale);
+      expect(trigger()).toHaveAccessibleName(
+        `${messages[locale]["nav.langChange"]}: ${LOCALE_LABELS[locale]}`,
+      );
+      unmount();
+    }
+  });
 
-    // No measurement => no `data-thumb` state, and no inline geometry. The stylesheet keeps
-    // the thumb transparent until the attribute appears, so nothing can flash at 0 width.
-    expect(group()).not.toHaveAttribute("data-thumb");
-    expect(group().querySelector("span")).not.toHaveAttribute("style");
+  /* Escape closes the popup and stops there: the burger overlay behind the header listens
+     for Escape too, and one press must not close both. */
+  it("does not let the Escape that closes it reach the page", async () => {
+    const user = userEvent.setup();
+    let reached = 0;
+    const onKeyDown = (event: { key: string }) => {
+      if (event.key === "Escape") reached += 1;
+    };
+    render(
+      <LanguageProvider initialLocale="ro">
+        <div onKeyDown={onKeyDown}>
+          <LanguageSwitcher />
+        </div>
+      </LanguageProvider>,
+    );
+
+    await user.click(trigger());
+    await user.keyboard("{Escape}");
+    expect(reached).toBe(0);
+
+    // Closed, Escape is not the switcher's to consume.
+    await user.keyboard("{Escape}");
+    expect(reached).toBe(1);
   });
 });

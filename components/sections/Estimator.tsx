@@ -8,6 +8,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Reveal } from "@/components/ui/Reveal";
 import { useLoc, type LocalizedText } from "@/lib/i18n/content";
@@ -86,6 +87,28 @@ const FIELD_LABELS = {
   name: L("Numele", "Имя", "The name"),
   email: L("Emailul", "Email", "The email"),
   phone: L("Telefonul", "Телефон", "The phone"),
+};
+
+/* The personal-data consent under the form (Legea 133/2011, GDPR art. 7). One sentence in four
+   pieces, so the two policy names can be links inside it. They open in a new tab: following
+   one from the dialog must not throw away what the visitor has typed. The pages themselves are
+   app/(site)/confidentialitate and app/(site)/cookies. */
+const CONSENT = {
+  before: L(
+    "Sunt de acord cu prelucrarea datelor personale conform ",
+    "Даю согласие на обработку персональных данных в соответствии с ",
+    "I agree to the processing of my personal data in accordance with the ",
+  ),
+  privacy: L("Politicii de confidențialitate", "Политикой конфиденциальности", "Privacy Policy"),
+  and: L(" și ", " и ", " and the "),
+  cookies: L("Politicii de cookie-uri", "Политикой использования cookie", "Cookie Policy"),
+  after: L(".", ".", "."),
+  newTab: L(" (se deschide într-o filă nouă)", " (откроется в новой вкладке)", " (opens in a new tab)"),
+  required: L(
+    "Bifează acordul pentru prelucrarea datelor personale ca să trimiți cererea.",
+    "Отметьте согласие на обработку персональных данных, чтобы отправить заявку.",
+    "Tick the personal-data consent to send the request.",
+  ),
 };
 
 /* Labels for the transcript that travels with the request — the assistant literally
@@ -590,6 +613,7 @@ export function Estimator({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [details, setDetails] = useState("");
+  const [consent, setConsent] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = useState<LocalizedText | null>(null);
   /* Per-field messages from lib/validation — the same rules the backend enforces, so a
@@ -959,6 +983,18 @@ export function Estimator({
       });
     };
 
+  /* Same rule as the text fields: ticking the box takes its message away at once. */
+  const editConsent = (checked: boolean) => {
+    setConsent(checked);
+    if (!checked) return;
+    setFieldErrors((prev) => {
+      if (!prev.consent) return prev;
+      const next = { ...prev };
+      delete next.consent;
+      return next;
+    });
+  };
+
   /** Client-side half of the defense-in-depth pair; the API re-validates everything. */
   const validate = (): boolean => {
     const next: Record<string, string> = {};
@@ -981,6 +1017,8 @@ export function Estimator({
       tr,
     );
     if (phoneErr) next.phone = phoneErr;
+    // The API refuses a lead without it (422) — this only says so before the round trip.
+    if (!consent) next.consent = l(CONSENT.required);
     setFieldErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -1002,6 +1040,7 @@ export function Estimator({
         message: buildMessage(),
         project: l(PROJECT_TYPES[typeIndex].label),
         estimate: price,
+        consent: true,
       });
       setStatus("sent");
     } catch (err) {
@@ -1235,6 +1274,42 @@ export function Estimator({
           })}
         </span>
       </div>
+      {/* A real checkbox with a real label, so a click on the words ticks it and a screen
+          reader announces the whole sentence. The links inside the label stay links: a click
+          on one follows it and leaves the box alone. */}
+      <div className={styles.consent}>
+        <input
+          id={domId("estimator-consent")}
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => editConsent(e.target.checked)}
+          aria-invalid={!!fieldErrors.consent}
+          aria-describedby={fieldErrors.consent ? domId("estimator-consent-error") : undefined}
+          required
+        />
+        <label htmlFor={domId("estimator-consent")}>
+          {l(CONSENT.before)}
+          <Link href="/confidentialitate" target="_blank" rel="noopener">
+            {l(CONSENT.privacy)}
+            <span className={styles.srOnly}>{l(CONSENT.newTab)}</span>
+          </Link>
+          {l(CONSENT.and)}
+          <Link href="/cookies" target="_blank" rel="noopener">
+            {l(CONSENT.cookies)}
+            <span className={styles.srOnly}>{l(CONSENT.newTab)}</span>
+          </Link>
+          {l(CONSENT.after)}
+        </label>
+      </div>
+      {fieldErrors.consent && (
+        <p
+          id={domId("estimator-consent-error")}
+          className={`${styles.formNote} ${styles.formError}`}
+          role="alert"
+        >
+          {fieldErrors.consent}
+        </p>
+      )}
       <button
         type="submit"
         className={styles.submit}

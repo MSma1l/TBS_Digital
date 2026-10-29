@@ -248,6 +248,17 @@ so the next audit starts from the facts.
     `nosniff` comes from `next.config.ts` `headers()`.
 - Details: [docs/11-security.md](docs/11-security.md#the-portfolios-pixels-through-the-image-optimiser-2026-10-08).
 
+## Contact-form consent (2026-10-29) — one required field
+
+- `POST /api/contact` requires `consent: true` (the form's personal-data checkbox, Legea
+  133/2011 / GDPR art. 7). `ConsentFlag` (`backend/app/schemas.py`) is a `StrictBool` that must
+  be `True`: missing, `false`, `null`, `1` and `"true"` are **422**. The form blocks the submit
+  first; the API does not rely on it.
+- Stored as `consent_at` (server time) on `submissions`, no backfill for older leads; not sent to
+  Telegram or the CRM (explicit field lists). Regression tests: `backend/tests/test_api.py`
+  (`test_contact_*consent*`), `components/__tests__/contact-form.test.tsx` ("consent").
+- Details: [docs/11-security.md](docs/11-security.md#personal-data-consent-on-the-contact-form-2026-10-29).
+
 ## Verified secure (no change needed)
 
 - **SQL injection:** 100% ORM/parameterized; zero raw SQL / `text()` / f-string queries.

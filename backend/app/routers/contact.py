@@ -115,5 +115,6 @@ def resend_submission_to_crm(
         project=row.project,
         estimate=row.estimate,
         status=row.status or "nou",
+        consent_at=row.consent_at or "",
         crm_status=row.crm_status,
     )

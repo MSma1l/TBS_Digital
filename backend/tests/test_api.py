@@ -248,7 +248,7 @@ def test_db_round_trip_persists_across_new_store(client):
 def test_contact_submission_flow(client):
     r = client.post(
         "/api/contact",
-        json={"name": "Ion", "email": "ion@example.com", "message": "Salut"},
+        json={"name": "Ion", "email": "ion@example.com", "message": "Salut", "consent": True},
     )
     assert r.status_code == 201, r.text
     assert r.json()["id"]
@@ -259,6 +259,40 @@ def test_contact_submission_flow(client):
     )
     assert r2.status_code == 200
     assert any(s["name"] == "Ion" for s in r2.json())
+
+
+# --- personal-data consent -----------------------------------------------------
+
+CONSENT_LEAD = {"name": "Vera", "email": "vera@example.com", "message": "Salut"}
+
+
+def test_contact_without_consent_is_rejected(client):
+    # The frontend blocks this too; the API must not rely on it (defence in depth).
+    r = client.post("/api/contact", json=CONSENT_LEAD)
+    assert r.status_code == 422
+    assert any(e["loc"][-1] == "consent" for e in r.json()["detail"])
+
+
+@pytest.mark.parametrize("value", [False, None, 1, "true", "yes"])
+def test_contact_with_anything_but_true_consent_is_rejected(client, value):
+    # StrictBool: only a JSON `true` counts as a yes — not 1, not the string "true".
+    r = client.post("/api/contact", json={**CONSENT_LEAD, "consent": value})
+    assert r.status_code == 422, r.text
+
+
+def test_contact_with_consent_is_accepted_and_its_time_is_kept(client):
+    r = client.post("/api/contact", json={**CONSENT_LEAD, "consent": True})
+    assert r.status_code == 201, r.text
+    body = r.json()
+    # The record keeps WHEN consent was given, not the flag: it is the lead's own time.
+    assert "consent" not in body
+    assert body["consent_at"] == body["created_at"]
+
+    listed = client.get(
+        "/api/admin/submissions", headers={"Authorization": f"Bearer {_token(client)}"}
+    ).json()
+    row = next(s for s in listed if s["id"] == body["id"])
+    assert row["consent_at"] == body["created_at"]
 
 
 def test_me_requires_valid_token(client):
@@ -276,7 +310,7 @@ def test_delete_submission_removes_it_from_the_list(client):
     auth = {"Authorization": f"Bearer {_token(client)}"}
     r = client.post(
         "/api/contact",
-        json={"name": "Elena", "email": "elena@example.com", "message": "Bună"},
+        json={"name": "Elena", "email": "elena@example.com", "message": "Bună", "consent": True},
     )
     assert r.status_code == 201, r.text
     sub_id = r.json()["id"]
@@ -315,7 +349,7 @@ def test_delete_submission_hostile_id_is_inert(client):
     auth = {"Authorization": f"Bearer {_token(client)}"}
     r = client.post(
         "/api/contact",
-        json={"name": "Survivor", "email": "s@example.com", "message": "hi"},
+        json={"name": "Survivor", "email": "s@example.com", "message": "hi", "consent": True},
     )
     assert r.status_code == 201, r.text
     survivor_id = r.json()["id"]
@@ -354,7 +388,7 @@ def _auth(client):
 def test_oversized_field_rejected_on_contact(client):
     r = client.post(
         "/api/contact",
-        json={"name": "x" * 10_000, "email": "a@b.com", "message": "hi"},
+        json={"name": "x" * 10_000, "email": "a@b.com", "message": "hi", "consent": True},
     )
     assert r.status_code == 422
 
@@ -390,6 +424,7 @@ def test_script_in_contact_message_is_sanitized(client):
             "name": "Mallory",
             "email": "m@example.com",
             "message": "<script>alert(1)</script>",
+            "consent": True,
         },
     )
     assert r.status_code == 201, r.text
@@ -432,7 +467,7 @@ def test_script_in_service_name_is_sanitized_and_read_back_clean(client):
 def test_invalid_email_rejected(client):
     r = client.post(
         "/api/contact",
-        json={"name": "Ana", "email": "not-an-email", "message": "hi"},
+        json={"name": "Ana", "email": "not-an-email", "message": "hi", "consent": True},
     )
     assert r.status_code == 422
 
@@ -441,7 +476,7 @@ def test_sqli_string_stored_as_literal_and_db_intact(client):
     injection = "'; DROP TABLE users;--"
     r = client.post(
         "/api/contact",
-        json={"name": injection, "email": "sqli@example.com", "message": "hi"},
+        json={"name": injection, "email": "sqli@example.com", "message": "hi", "consent": True},
     )
     assert r.status_code == 201, r.text
     # Stored as inert literal text, quotes and all: the query structure was never touched
@@ -466,12 +501,12 @@ def test_empty_required_field_rejected(client):
     # Empty message (required, non-empty after trim) → 422.
     r = client.post(
         "/api/contact",
-        json={"name": "Ana", "email": "a@b.com", "message": "   "},
+        json={"name": "Ana", "email": "a@b.com", "message": "   ", "consent": True},
     )
     assert r.status_code == 422
     # Missing name → 422.
     r2 = client.post(
-        "/api/contact", json={"email": "a@b.com", "message": "hi"}
+        "/api/contact", json={"email": "a@b.com", "message": "hi", "consent": True}
     )
     assert r2.status_code == 422
 
@@ -497,6 +532,7 @@ def test_invalid_phone_rejected_on_contact_submission(client):
             "email": "a@b.com",
             "message": "hi",
             "phone": "not-a-phone!!",
+            "consent": True,
         },
     )
     assert r.status_code == 422

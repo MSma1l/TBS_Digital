@@ -122,32 +122,47 @@ describe("Navbar — global preferences group", () => {
 });
 
 /**
- * The switcher is three real buttons: Tab reaches each one, the accessible name is the
- * language's own name, and `aria-pressed` says which one is on. Arrow keys move focus
- * inside the group the way a segmented control should — without switching silently.
+ * The switcher in the header is ONE button showing the language in force, which opens the
+ * three choices. Tab reaches the button (and only the button — the choices are not stops in
+ * the page's tab order), each choice is named in its own language, `aria-pressed` says which
+ * one is on, and picking one swaps the whole header's copy.
  */
 describe("LanguageSwitcher — keyboard and labels", () => {
-  const options = () => [
-    screen.getAllByRole("button", { name: "Română" })[0],
-    screen.getAllByRole("button", { name: "Русский" })[0],
-    screen.getAllByRole("button", { name: "English" })[0],
-  ];
+  const langButton = () =>
+    within(screen.getByRole("group", { name: "Limbă / Язык / Language" })).getByRole("button", {
+      expanded: false,
+    });
 
-  it("labels each option with the language's own name and marks the active one", () => {
+  it("shows the active language on one button, with the choices closed", () => {
     renderNav();
 
-    const [roBtn, ruBtn, enBtn] = options();
-    expect(roBtn).toHaveAttribute("aria-pressed", "true");
-    expect(ruBtn).toHaveAttribute("aria-pressed", "false");
-    expect(enBtn).toHaveAttribute("aria-pressed", "false");
-    expect(roBtn).toHaveTextContent("RO");
+    const button = langButton();
+    expect(button).toHaveTextContent("RO");
+    expect(button).toHaveAccessibleName(`${ro["nav.langChange"]}: Română`);
+    expect(screen.queryByRole("button", { name: "Русский" })).toBeNull();
   });
 
-  it("is reachable by Tab, in order, before the CTA", async () => {
+  it("labels each choice with the language's own name and marks the active one", async () => {
     const user = userEvent.setup();
     renderNav();
 
-    const [roBtn, ruBtn, enBtn] = options();
+    await user.click(langButton());
+    expect(screen.getByRole("button", { name: "Română" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Русский" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: "English" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("is reachable by Tab before the CTA", async () => {
+    const user = userEvent.setup();
+    renderNav();
+
+    const button = langButton();
     const cta = screen.getAllByRole("button", { name: ro["nav.cta"] })[0];
 
     const order: Element[] = [];
@@ -159,40 +174,13 @@ describe("LanguageSwitcher — keyboard and labels", () => {
       if (active === cta) break;
     }
 
-    expect(order).toContain(roBtn);
-    expect(order.indexOf(roBtn)).toBeLessThan(order.indexOf(ruBtn));
-    expect(order.indexOf(ruBtn)).toBeLessThan(order.indexOf(enBtn));
-    expect(order.indexOf(enBtn)).toBeLessThan(order.indexOf(cta));
+    expect(order).toContain(button);
+    expect(order.indexOf(button)).toBeLessThan(order.indexOf(cta));
   });
 
-  it("moves focus with the arrow keys and Home/End, without switching language", async () => {
+  it("switches language from the keyboard: open, walk, Enter", async () => {
     const user = userEvent.setup();
-    renderNav();
-
-    const [roBtn, ruBtn, enBtn] = options();
-    roBtn.focus();
-
-    await user.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(ruBtn);
-    await user.keyboard("{ArrowRight}");
-    expect(document.activeElement).toBe(enBtn);
-    await user.keyboard("{ArrowRight}"); // wraps
-    expect(document.activeElement).toBe(roBtn);
-    await user.keyboard("{ArrowLeft}");
-    expect(document.activeElement).toBe(enBtn);
-
-    await user.keyboard("{Home}");
-    expect(document.activeElement).toBe(roBtn);
-    await user.keyboard("{End}");
-    expect(document.activeElement).toBe(enBtn);
-
-    // Moving focus is not choosing: Romanian is still the pressed option.
-    expect(roBtn).toHaveAttribute("aria-pressed", "true");
-    expect(enBtn).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("switches language when an option is activated from the keyboard", async () => {
-    const user = userEvent.setup();
+    // A real provider: `renderNav()` relies on the context default, whose setLocale is a no-op.
     render(
       <LanguageProvider initialLocale="ro">
         <RequestFlowProvider>
@@ -201,15 +189,15 @@ describe("LanguageSwitcher — keyboard and labels", () => {
       </LanguageProvider>,
     );
 
-    const enBtn = screen.getAllByRole("button", { name: "English" })[0];
-    enBtn.focus();
+    langButton().focus();
+    await user.keyboard("{ArrowDown}"); // opens, focus on Română
+    await user.keyboard("{End}"); // English
     await user.keyboard("{Enter}");
 
-    expect(enBtn).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByRole("button", { name: "Română" })[0]).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    // Closed again, focus back on the button, which now reads EN.
+    const button = langButton();
+    expect(button).toHaveTextContent("EN");
+    expect(document.activeElement).toBe(button);
     // The catalog really swapped — the nav now reads in English.
     expect(screen.getAllByText(messages.en["nav.services"]).length).toBeGreaterThan(0);
   });

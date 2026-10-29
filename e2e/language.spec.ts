@@ -2,10 +2,14 @@ import { expect, test } from "@playwright/test";
 import { LOCALES, LOCALE_COOKIE, LOCALE_LABELS } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 import {
+  chooseLanguage,
   cookieValue,
   gotoHydrated,
   languageGroup,
   languageOption,
+  languageTrigger,
+  languageTriggerName,
+  openLanguageMenu,
   seedLocale,
 } from "./helpers";
 
@@ -16,6 +20,10 @@ import {
  *
  * The `/ru` and `/en` URL prefixes are a SEPARATE mechanism (crawlable per-language URLs)
  * and are covered in routes.spec.ts — here everything happens on the cookie-driven `/`.
+ *
+ * The switcher is a dropdown: one button showing the language in force, opening the three
+ * choices. Which language is on is read off that button (its text and its name), because the
+ * choices are only in the DOM while it is open.
  */
 
 test.describe("language switcher", () => {
@@ -23,6 +31,10 @@ test.describe("language switcher", () => {
     // playwright.config.ts pins `locale: "ro-RO"`, so a fresh visitor gets Romanian.
     await gotoHydrated(page, "/");
     await expect(page.locator("html")).toHaveAttribute("lang", "ro");
+    await expect(languageTrigger(page)).toHaveText("RO");
+    await expect(languageTrigger(page)).toHaveAccessibleName(languageTriggerName("ro"));
+
+    await openLanguageMenu(page);
     await expect(languageOption(page, "ro")).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -34,12 +46,14 @@ test.describe("language switcher", () => {
     });
     await expect(cta).toBeVisible();
 
-    await languageOption(page, "ru").click();
+    await chooseLanguage(page, "ru");
 
     // The catalog swap is a client re-render: same document, new copy.
     await expect(
       page.locator("header").first().getByRole("button", { name: messages.ru["nav.cta"] }),
     ).toBeVisible();
+    await expect(languageTrigger(page)).toHaveAccessibleName(languageTriggerName("ru"));
+    await openLanguageMenu(page);
     await expect(languageOption(page, "ru")).toHaveAttribute("aria-pressed", "true");
     await expect(languageOption(page, "ro")).toHaveAttribute("aria-pressed", "false");
     // Assistive tech must be told too — the provider syncs `document.documentElement.lang`.
@@ -48,7 +62,7 @@ test.describe("language switcher", () => {
 
   test("the choice persists across a reload", async ({ page, context }) => {
     await gotoHydrated(page, "/");
-    await languageOption(page, "en").click();
+    await chooseLanguage(page, "en");
 
     expect(await cookieValue(context, LOCALE_COOKIE)).toBe("en");
 
@@ -56,7 +70,7 @@ test.describe("language switcher", () => {
 
     // After the reload the language comes from the SERVER, not from client state.
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(languageOption(page, "en")).toHaveAttribute("aria-pressed", "true");
+    await expect(languageTrigger(page)).toHaveAccessibleName(languageTriggerName("en"));
     await expect(
       page.locator("header").first().getByRole("button", { name: messages.en["nav.cta"] }),
     ).toBeVisible();
@@ -84,7 +98,10 @@ test.describe("language switcher", () => {
 
     const group = languageGroup(page);
     await expect(group).toBeVisible();
-    await expect(group.getByRole("button")).toHaveCount(LOCALES.length);
+    // Closed: the one button. Open: that button plus one choice per language.
+    await expect(group.getByRole("button")).toHaveCount(1);
+    await openLanguageMenu(page);
+    await expect(group.getByRole("button")).toHaveCount(LOCALES.length + 1);
 
     for (const locale of LOCALES) {
       await expect(
@@ -96,7 +113,7 @@ test.describe("language switcher", () => {
   test("round-tripping ro -> ru -> en -> ro leaves the site in Romanian", async ({ page }) => {
     await gotoHydrated(page, "/");
     for (const locale of ["ru", "en", "ro"] as const) {
-      await languageOption(page, locale).click();
+      await chooseLanguage(page, locale);
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
     }
     await page.reload();

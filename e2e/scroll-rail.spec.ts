@@ -1,6 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { RAIL_COPY, RAIL_HOME_SECTIONS } from "@/components/hud/rail/copy";
-import { LOCALE_LABELS } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 import type { GpuProbeCache } from "@/lib/scene";
 import {
@@ -12,7 +11,8 @@ import {
   forceScene3d,
   gotoHydrated,
   guideAvatar,
-  languageOption,
+  languageTrigger,
+  languageTriggerName,
   railNav,
   railRoot,
   sceneStage,
@@ -167,7 +167,7 @@ test.describe("fibre rail at 1280×800", () => {
     await expectRootUntouched(page, "after a keyboard jump");
   });
 
-  test("Tab after arming still reaches the RO language option within 40 presses; the rail is after the footer", async ({
+  test("Tab after arming still reaches the language button within 40 presses; the rail is after the footer", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
@@ -186,13 +186,13 @@ test.describe("fibre rail at 1280×800", () => {
         const el = document.activeElement as HTMLElement | null;
         return el?.getAttribute("aria-label") ?? el?.textContent?.trim() ?? "";
       });
-      if (name === LOCALE_LABELS.ro) {
+      if (name === languageTriggerName("ro")) {
         presses = i;
         break;
       }
     }
-    expect(presses, "the RO language option within 40 Tab presses").toBeGreaterThan(0);
-    await expect(languageOption(page, "ro")).toBeFocused();
+    expect(presses, "the language button within 40 Tab presses").toBeGreaterThan(0);
+    await expect(languageTrigger(page)).toBeFocused();
   });
 
   test("the guide avatar and the rail do not overlap", async ({ page }) => {

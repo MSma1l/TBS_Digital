@@ -22,6 +22,8 @@ const fields = (page: Page) => {
     email: form.locator('input[type="email"]'),
     phone: form.locator('input[type="tel"]'),
     details: form.locator("textarea"),
+    // The personal-data consent — required; the only checkbox in the form.
+    consent: form.locator('input[type="checkbox"]'),
     // `button[type=submit]` rather than "the button": the details field can host an extra
     // control (dictation) inside the same form.
     submit: form.locator('button[type="submit"]'),
@@ -49,12 +51,13 @@ test.describe("contact / estimate form", () => {
 
     await f.submit.click();
 
-    // Name and email are required, phone is not — so exactly the two required fields are
+    // Name, email and the consent are required, phone is not — so exactly those three are
     // flagged, both visually (`aria-invalid`) and in an announced message.
     await expect(f.name).toHaveAttribute("aria-invalid", "true");
     await expect(f.email).toHaveAttribute("aria-invalid", "true");
+    await expect(f.consent).toHaveAttribute("aria-invalid", "true");
     await expect(f.phone).not.toHaveAttribute("aria-invalid", "true");
-    await expect(errors(f.form)).toHaveCount(2);
+    await expect(errors(f.form)).toHaveCount(3);
 
     // Nothing was sent, and the button is still armed rather than stuck in "sending".
     assertNoRequest();
@@ -81,11 +84,15 @@ test.describe("contact / estimate form", () => {
 
     const f = fields(page);
     await f.submit.click();
-    await expect(errors(f.form)).toHaveCount(2);
+    await expect(errors(f.form)).toHaveCount(3);
 
     await f.name.fill("Ion Popescu");
-    await expect(errors(f.form)).toHaveCount(1);
+    await expect(errors(f.form)).toHaveCount(2);
     await expect(f.name).not.toHaveAttribute("aria-invalid", "true");
+
+    await f.consent.check();
+    await expect(errors(f.form)).toHaveCount(1);
+    await expect(f.consent).not.toHaveAttribute("aria-invalid", "true");
   });
 
   test("a valid form submits the expected payload @smoke", async ({ page }) => {
@@ -97,6 +104,7 @@ test.describe("contact / estimate form", () => {
     await f.email.fill("ion.popescu@example.com");
     await f.phone.fill("+373 60 000 000");
     await f.details.fill("Vrem un magazin online cu plăți online.");
+    await f.consent.check();
 
     await f.submit.click();
 
@@ -120,6 +128,7 @@ test.describe("contact / estimate form", () => {
     expect(typeof body.project).toBe("string");
     expect(String(body.project).length).toBeGreaterThan(0);
     expect(String(body.estimate)).toMatch(/€/);
+    expect(body.consent).toBe(true);
   });
 
   test("the request is sent only once, however hard the button is pressed", async ({ page }) => {
@@ -129,6 +138,7 @@ test.describe("contact / estimate form", () => {
     const f = fields(page);
     await f.name.fill("Ion Popescu");
     await f.email.fill("ion.popescu@example.com");
+    await f.consent.check();
 
     await f.submit.click();
     await expect(f.submit).toBeDisabled();
@@ -150,6 +160,7 @@ test.describe("contact / estimate form", () => {
     const f = fields(page);
     await f.name.fill("Ion Popescu");
     await f.email.fill("ion.popescu@example.com");
+    await f.consent.check();
     await f.submit.click();
 
     await expect(errors(f.form).last()).toBeVisible();

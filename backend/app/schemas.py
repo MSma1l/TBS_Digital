@@ -9,7 +9,7 @@ store. Keep them in sync if the frontend shape changes.
 import html
 from typing import Annotated, List, Literal
 
-from pydantic import AfterValidator, BaseModel, EmailStr, Field, model_validator
+from pydantic import AfterValidator, BaseModel, EmailStr, Field, StrictBool, model_validator
 
 from .validators import IdStr, LinkStr, PhoneStr, SitePathStr, text, validate_contact_value
 
@@ -202,8 +202,20 @@ class SiteContent(BaseModel):
     socials: List[Social] = Field(default_factory=list, max_length=MAX_LIST_ITEMS)
 
 
-class ContactSubmissionIn(BaseModel):
-    """Incoming payload from the site's contact form (+ estimator context)."""
+def _consent_given(value: bool) -> bool:
+    if value is not True:
+        raise ValueError("Consent to personal-data processing is required")
+    return value
+
+
+# The form's "Sunt de acord cu prelucrarea datelor personale…" checkbox (Legea 133/2011,
+# GDPR art. 6/7). StrictBool first, so `1` / `"true"` are not taken as a yes — consent has
+# to be an explicit JSON `true`; missing or `false` is a 422, whatever the frontend did.
+ConsentFlag = Annotated[StrictBool, AfterValidator(_consent_given)]
+
+
+class ContactSubmissionBase(BaseModel):
+    """The lead fields shared by the incoming payload and the stored record."""
 
     name: text(120, required=True)  # required + non-empty after trim
     email: StoredEmail = Field(max_length=254)
@@ -213,10 +225,20 @@ class ContactSubmissionIn(BaseModel):
     estimate: ShortLabel = ""  # attached price estimate label
 
 
-class ContactSubmission(ContactSubmissionIn):
+class ContactSubmissionIn(ContactSubmissionBase):
+    """Incoming payload from the site's contact form (+ estimator context)."""
+
+    consent: ConsentFlag  # required, and only ever `true`
+
+
+class ContactSubmission(ContactSubmissionBase):
+    # Not a subclass of ContactSubmissionIn: a stored record carries *when* consent was
+    # given, not the flag, and the leads that predate the checkbox have none.
     id: IdStr
     created_at: str  # ISO 8601 timestamp
     status: str = "nou"  # lead classification (see app/telegram STATUSES)
+    # Server time the visitor's consent arrived with the lead ("" = a pre-consent lead).
+    consent_at: str = ""
 
 
 class AdminContactSubmission(ContactSubmission):

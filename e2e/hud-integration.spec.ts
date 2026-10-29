@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { LOCALE_LABELS } from "@/lib/i18n/locales";
 import {
   HUD_ON,
   armHud,
@@ -14,7 +13,8 @@ import {
   gsapLoaded,
   guideAvatar,
   guideRoot,
-  languageOption,
+  languageTrigger,
+  languageTriggerName,
   liveWebGLContexts,
   modalDialog,
   railNav,
@@ -122,11 +122,11 @@ test.describe("HUD integration", () => {
     });
   });
 
-  test("HI2 Tab from / after arming reaches the RO language option within 40 presses", async ({ page }) => {
+  test("HI2 Tab from / after arming reaches the language button within 40 presses", async ({ page }) => {
     await gotoHydrated(page, "/");
     await armHud(page);
-    expect(await tabTo(page, LOCALE_LABELS.ro)).toBeLessThanOrEqual(40);
-    await expect(languageOption(page, "ro")).toBeFocused();
+    expect(await tabTo(page, languageTriggerName("ro"))).toBeLessThanOrEqual(40);
+    await expect(languageTrigger(page)).toBeFocused();
   });
 
   test("HI3 a CTA opens exactly one dialog with the HUD armed", async ({ page }) => {

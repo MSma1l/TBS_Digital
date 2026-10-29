@@ -1,9 +1,17 @@
 import { expect, test, type Page } from "@playwright/test";
-import { LOCALE_LABELS } from "@/lib/i18n/locales";
-import { gotoHydrated, languageGroup, languageOption } from "./helpers";
+import {
+  gotoHydrated,
+  languageGroup,
+  languageOption,
+  languageTrigger,
+  languageTriggerName,
+} from "./helpers";
 
 /*
  * Keyboard access to the header preferences.
+ *
+ * The language control is a dropdown: Tab reaches its one button, Enter / Space / the arrows
+ * open it, and the arrows walk the three choices inside it.
  *
  * Everything here is a real <button>, so the browser gives Tab / Enter / Space for free —
  * the point of these tests is to prove nothing (a tabindex, an overlay, a custom key
@@ -39,41 +47,54 @@ async function hasVisibleFocusRing(page: Page): Promise<boolean> {
 }
 
 test.describe("keyboard", () => {
-  test("Tab reaches the language options @smoke", async ({ page }) => {
+  test("Tab reaches the language button @smoke", async ({ page }) => {
     await gotoHydrated(page, "/");
 
-    const toRo = await tabTo(page, LOCALE_LABELS.ro);
-    expect(toRo).toBeGreaterThan(0);
-    await expect(languageOption(page, "ro")).toBeFocused();
-
-    await tabTo(page, LOCALE_LABELS.ru);
-    await expect(languageOption(page, "ru")).toBeFocused();
+    const presses = await tabTo(page, languageTriggerName("ro"));
+    expect(presses).toBeGreaterThan(0);
+    await expect(languageTrigger(page)).toBeFocused();
   });
 
   test("the focus ring is visible on every header control", async ({ page }) => {
     await gotoHydrated(page, "/");
 
-    await tabTo(page, LOCALE_LABELS.ro);
+    await tabTo(page, languageTriggerName("ro"));
+    expect(await hasVisibleFocusRing(page), "language button focus ring").toBe(true);
+
+    // …and on a choice inside the open dropdown, which focus moves to when it opens.
+    await page.keyboard.press("Enter");
+    await expect(languageOption(page, "ro")).toBeFocused();
     expect(await hasVisibleFocusRing(page), "language option focus ring").toBe(true);
   });
 
-  test("Enter picks a language", async ({ page }) => {
+  test("Enter opens the dropdown and Enter picks a language", async ({ page }) => {
     await gotoHydrated(page, "/");
 
-    await tabTo(page, LOCALE_LABELS.ru);
+    await tabTo(page, languageTriggerName("ro"));
+    await page.keyboard.press("Enter");
+    await expect(languageTrigger(page)).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("ArrowDown");
+    await expect(languageOption(page, "ru")).toBeFocused();
     await page.keyboard.press("Enter");
 
     await expect(page.locator("html")).toHaveAttribute("lang", "ru");
-    await expect(languageOption(page, "ru")).toHaveAttribute("aria-pressed", "true");
+    // Closed again, focus back on the button, which now names the new language.
+    await expect(languageTrigger(page)).toHaveAttribute("aria-expanded", "false");
+    await expect(languageTrigger(page)).toBeFocused();
+    await expect(languageTrigger(page)).toHaveAccessibleName(languageTriggerName("ru"));
   });
 
-  test("the arrow keys move focus inside the language group without changing language", async ({
+  test("the arrow keys move focus inside the dropdown without changing language", async ({
     page,
   }) => {
     await gotoHydrated(page, "/");
 
-    await tabTo(page, LOCALE_LABELS.ro);
-    await page.keyboard.press("ArrowRight");
+    await tabTo(page, languageTriggerName("ro"));
+    await page.keyboard.press("ArrowDown"); // opens, on the language in force
+    await expect(languageOption(page, "ro")).toBeFocused();
+
+    await page.keyboard.press("ArrowDown");
     await expect(languageOption(page, "ru")).toBeFocused();
 
     await page.keyboard.press("End");
@@ -84,6 +105,11 @@ test.describe("keyboard", () => {
 
     // Moving the focus must never be a silent language change.
     await expect(page.locator("html")).toHaveAttribute("lang", "ro");
+
+    // Escape closes and hands focus back to the button.
+    await page.keyboard.press("Escape");
+    await expect(languageTrigger(page)).toHaveAttribute("aria-expanded", "false");
+    await expect(languageTrigger(page)).toBeFocused();
     await expect(languageGroup(page)).toBeVisible();
   });
 });

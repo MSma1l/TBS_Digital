@@ -87,6 +87,8 @@ const DIALOG_TITLE = "Spune ce vrei să testezi. Stabilim primul pas.";
 
 const NAME_PH = "Nume și companie";
 const EMAIL_PH = "Email";
+/* The personal-data consent checkbox — required, so every send ticks it. */
+const CONSENT = /prelucrarea datelor personale/;
 const DETAILS_PH = "Adaugă orice detaliu important";
 
 /** Every `role="dialog"` currently in the document — portals included. */
@@ -138,6 +140,7 @@ async function openFrom(
 async function sendFrom(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement) {
   await user.type(within(dialog).getByPlaceholderText(NAME_PH), "Ion Popescu");
   await user.type(within(dialog).getByPlaceholderText(EMAIL_PH), "ion@example.com");
+  await user.click(within(dialog).getByRole("checkbox", { name: CONSENT }));
   await user.click(within(dialog).getByRole("button", { name: /Trimite cererea/ }));
 }
 
@@ -325,6 +328,7 @@ describe("the context the CTA was pressed in travels with the request", () => {
 
     await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
     await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+    await user.click(screen.getByRole("checkbox", { name: CONSENT }));
     await user.click(screen.getByRole("button", { name: /Trimite cererea/ }));
 
     const message = sentMessage();
@@ -338,6 +342,7 @@ describe("the context the CTA was pressed in travels with the request", () => {
 
     await user.type(screen.getByPlaceholderText(NAME_PH), "Ion Popescu");
     await user.type(screen.getByPlaceholderText(EMAIL_PH), "ion@example.com");
+    await user.click(screen.getByRole("checkbox", { name: CONSENT }));
     await user.click(screen.getByRole("button", { name: /Trimite cererea/ }));
 
     expect(sentMessage()).not.toContain("CONTEXTUL CERERII");

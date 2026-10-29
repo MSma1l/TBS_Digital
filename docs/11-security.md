@@ -33,6 +33,22 @@ Required fields (contact `name`, `email`, `message`) must be non-empty **after t
 Each content list (services, stats, team, partners, contacts) is capped at **200 items**
 (`MAX_LIST_ITEMS`) so a `PUT /api/content` can't be used to flood the database.
 
+### Personal-data consent on the contact form (2026-10-29)
+A lead is personal data (Legea 133/2011, GDPR art. 6/7), so `POST /api/contact` requires
+`consent: true` — the form's checkbox, linked to `/confidentialitate` and `/cookies`
+([05 — Page Sections](./05-page-sections.md)). Both sides enforce it:
+
+- **Frontend:** `Estimator.tsx` refuses to submit while the box is unticked and shows an inline
+  error; the payload type (`ContactSubmission.consent: true` in `lib/api.ts`) cannot say anything
+  else.
+- **Backend:** `ConsentFlag` in `backend/app/schemas.py` is a `StrictBool` that must be `True` —
+  missing, `false`, `null`, `1` or `"true"` all answer **422**, whatever the client did.
+- **Proof, not the flag:** the stored record keeps `consent_at` (ISO 8601, the lead's own server
+  time; `""` on leads from before the checkbox — deliberately not backfilled). It is a column on
+  `submissions`, ALTERed in on boot like the CRM columns (`CONSENT_COLUMNS` in
+  `backend/app/db.py`), and is shown in the admin API (`GET /api/admin/submissions`). It is not
+  forwarded to Telegram or the CRM: both build their payloads from an explicit field list.
+
 ### The admin panel is not advertised
 The public site carries **no link to `/admin-tbs-digital`**. A button in the navbar would
 have published the admin's path in the markup of every page — free reconnaissance for

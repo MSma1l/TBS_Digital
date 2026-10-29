@@ -118,7 +118,8 @@ so the data source can change without touching markup.
 │  │  │                    #   played: measures the pads and the chin, SVG + WAAPI)
 │  │  └─ Services.tsx · Partners.tsx   # not rendered by any page today
 │  └─ ui/                  # SectionLabel · Reveal · ScrollProgress · SectionCTA ·
-│                          #   LanguageSwitcher · CookieConsent (Tailwind) · AnalyticsPixel ·
+│                          #   LanguageSwitcher (the header's RO ▾ dropdown) ·
+│                          #   CookieConsent (Tailwind) · AnalyticsPixel ·
 │                          #   Lightbox · ServiceIcons · SocialIcons ·
 │                          #   useAutoCarousel · usePlatform
 │

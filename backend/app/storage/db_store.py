@@ -352,6 +352,7 @@ class DbStore(ContentStore):
                 project=r.project,
                 estimate=r.estimate,
                 status=r.status or "nou",
+                consent_at=r.consent_at or "",
                 crm_status=r.crm_status or "",
             )
             for r in rows
@@ -361,10 +362,14 @@ class DbStore(ContentStore):
         self, data: ContactSubmissionIn, *, crm_queue: bool = False
     ) -> ContactSubmission:
         # `data` is already validated/sanitised; model_construct avoids re-escaping.
+        # The `consent` flag is always True by now (the schema refuses anything else), so
+        # what is kept is its moment: consent_at, the same server time as the lead itself.
+        now = datetime.now(timezone.utc).isoformat()
         record = ContactSubmission.model_construct(
             id=uuid.uuid4().hex,
-            created_at=datetime.now(timezone.utc).isoformat(),
-            **data.model_dump(),
+            created_at=now,
+            consent_at=now,
+            **data.model_dump(exclude={"consent"}),
         )
         with Session(self.engine) as session:
             # crm_next_attempt_at=0 => due immediately: the background push claims it at

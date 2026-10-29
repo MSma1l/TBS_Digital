@@ -1128,6 +1128,63 @@
   padding: 9px 13px;
 }
 
+/* The personal-data consent above the send button. After the dialog block on purpose: its
+   checkbox must shed the text-field look (`.form input`, and the dialog's padding just above,
+   which has the same specificity and so loses on order). Small print in the secondary tone —
+   --mut is AA on the deck and on the riser — with the two policy names as underlined links in
+   the cookie banner's colours. */
+.form .consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--mut);
+}
+.form .consent input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  /* centred on the first line of the 12.5px × 1.5 text */
+  margin: 0.5px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  accent-color: var(--red);
+  cursor: pointer;
+}
+.form .consent label {
+  min-width: 0;
+  cursor: pointer;
+}
+.form .consent a {
+  color: var(--blue-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--r-sm);
+  transition: color 0.2s ease;
+}
+.form .consent a:hover {
+  color: var(--txt);
+}
+.form .consent a:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+/* "(opens in a new tab)" — read out, never drawn. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /*
  * ONE COLUMN ONCE THE DECK ITSELF IS NARROW — a container query, not a window one.
  *

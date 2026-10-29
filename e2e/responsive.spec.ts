@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   MIN_TAP_TARGET,
   MOBILE_BREAKPOINT,
@@ -10,6 +10,8 @@ import {
   header,
   languageGroup,
   languageOption,
+  languageTrigger,
+  openLanguageMenu,
   scrollToY,
 } from "./helpers";
 
@@ -25,36 +27,8 @@ import {
  * the burger menu to change language.
  */
 
-/* The breakpoint is IMPORTED, not copied: it moved 360 -> 400 once measurement showed the
-   segmented control cannot be both on screen and 44px-tappable between 361 and 399, and a
-   copy here would have silently disagreed with the app. */
-import { COMPACT_MAX_WIDTH } from "@/components/ui/LanguageSwitcher";
-
-/**
- * The compact switcher's button. Identified by `aria-haspopup`, which only that shape has —
- * so this locator is also the assertion that the width really did change the control.
- */
-const languageTrigger = (page: Page): Locator =>
-  languageGroup(page).locator("button[aria-haspopup]");
-
-/**
- * Put the three languages on screen, whatever shape the switcher is in: above the
- * breakpoint they already are, below it the popup has to be opened first. Everything the
- * suite asserts about the OPTIONS (that all three are offered, that each is a 44px target)
- * is about the choices a visitor can reach without leaving the header — which is still true
- * when reaching them costs one press on a control that is itself in the header.
- */
-async function revealLanguageOptions(page: Page, compact: boolean): Promise<void> {
-  if (!compact) return;
-  const button = languageTrigger(page);
-  await expect(button).toHaveAttribute("aria-expanded", "false");
-  await button.click();
-  await expect(button).toHaveAttribute("aria-expanded", "true");
-}
-
 for (const viewport of VIEWPORTS) {
   const mobile = viewport.width < MOBILE_BREAKPOINT;
-  const compact = viewport.width <= COMPACT_MAX_WIDTH;
 
   test.describe(viewport.name, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
@@ -121,10 +95,10 @@ for (const viewport of VIEWPORTS) {
       // The burger is untouched — this is the state a visitor lands in.
       await expect(languageGroup(page)).toBeVisible();
 
-      // Below 360px the three languages live behind the switcher's own button. That is
+      // The three languages live behind the switcher's own button, at every width. That is
       // still "without opening the menu": the control is in the bar, the burger is not
       // involved, and the assertion below proves the choices are one press away.
-      await revealLanguageOptions(page, compact);
+      await openLanguageMenu(page);
       for (const locale of ["ro", "ru", "en"] as const) {
         await expect(languageOption(page, locale)).toBeVisible();
       }
@@ -147,26 +121,19 @@ for (const viewport of VIEWPORTS) {
           MIN_TAP_TARGET,
         );
 
-        // The point of the compact shape is that ONE button replaces three — so that one
-        // button has to be a full target in both directions, not a shrunken stand-in.
-        if (compact) {
-          await expectTappable(languageTrigger(page), "language button");
-        }
+        // The dropdown's one button has to be a full target in both directions.
+        await expectTappable(languageTrigger(page), "language button");
       });
 
       /*
-       * WCAG 2.5.5 is satisfied per TARGET, not per group: each RO / RU / EN button is a
-       * separate tap target and must be 44px in its own right. The group used to stretch
-       * to 44px while `.switcher` centred its options, leaving every button ~24px tall —
-       * a third of the strip was dead space between two adjacent language choices.
-       *
-       * The rule does not soften when the options move into the compact switcher's popup:
-       * a row in a popup is a tap target like any other, so each one is measured there
-       * too, with the popup opened first.
+       * WCAG 2.5.5 is satisfied per TARGET, not per group: each RO / RU / EN choice is a
+       * separate tap target and must be 44px in its own right. The rule does not soften
+       * because the choices live in the dropdown's popup: a row in a popup is a tap target
+       * like any other, so each one is measured there, with the popup opened first.
        */
       test("each language option meets the 44px touch target", async ({ page }) => {
         await gotoHydrated(page, "/");
-        await revealLanguageOptions(page, compact);
+        await openLanguageMenu(page);
 
         for (const locale of ["ro", "ru", "en"] as const) {
           const box = (await languageOption(page, locale).boundingBox())!;

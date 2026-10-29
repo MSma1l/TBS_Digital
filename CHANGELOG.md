@@ -16,6 +16,30 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Added: acord pentru prelucrarea datelor personale · Changed: limba ca dropdown
+
+- **Added / Security — acordul pentru date personale în formularul de cerere** (Legea 133/2011,
+  GDPR art. 7): căsuță obligatorie deasupra butonului de trimitere, cu link-uri (filă nouă) spre
+  `/confidentialitate` și `/cookies`, în ro/ru/en. Nebifată → nu se trimite nimic și apare eroarea
+  inline (`aria-invalid` / `aria-describedby`). Payload-ul trimite `consent: true`; backend-ul
+  (`schemas.ConsentFlag`, `StrictBool`) refuză cu 422 lipsa, `false`, `1`, `"true"`. Se păstrează
+  momentul acordului: coloană nouă `submissions.consent_at` (adăugată automat la pornire de
+  `_add_missing_columns`, fără backfill — lead-urile vechi au `""`), vizibilă în admin.
+  Fișiere: `components/sections/Estimator.tsx` + `.module.css`, `lib/api.ts`,
+  `backend/app/{schemas,models,db}.py`, `backend/app/routers/contact.py`,
+  `backend/app/storage/{db_store,json_store}.py`, teste frontend + backend (7 noi), e2e.
+  Docs: [`05`](./docs/05-page-sections.md), [`10`](./docs/10-backend.md),
+  [`11`](./docs/11-security.md), [`13`](./docs/13-telegram.md), [`SECURITY.md`](./SECURITY.md).
+- **Changed — comutatorul de limbă e un dropdown simplu** la orice lățime: butonul „RO ▾” deschide
+  RO · Română / RU · Русский / EN · English, cu limba curentă bifată. Logica de schimbare și
+  detectarea limbii din browser (cookie → `Accept-Language`) sunt neschimbate. Se închide la
+  Escape, click în afară, Tab și după alegere; 44px pe touch. Cheie nouă `nav.langChange`.
+  Fișiere: `components/ui/LanguageSwitcher.tsx` + `.module.css`, `lib/i18n/messages/*`, teste,
+  e2e. Docs: [`16`](./docs/16-i18n-seo.md), [`03`](./docs/03-architecture.md).
+- E2E (Playwright) actualizate, dar nerulate local (lipsește build-ul de Chromium cerut).
+
+---
+
 ## 2026-10-29 — Removed: textul de prezentare din footer
 
 - **Removed — la cererea lui Ivan:** paragraful de sub „TBS. DIGITAL” din footer („Agenție

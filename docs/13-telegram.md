@@ -171,7 +171,8 @@ ca un client adevărat:
 ```bash
 curl -X POST https://tbs.md/api/contact -H "Content-Type: application/json" -d '{
   "name":"TEST — verificare deploy (ignorati)","email":"test@tbs.md",
-  "message":"Mesaj automat de TEST. Nu este un client real.","project":"Site web"}'
+  "message":"Mesaj automat de TEST. Nu este un client real.","project":"Site web",
+  "consent":true}'
 ```
 
 Aștepți **201** plus **zero** linii `Telegram` în `docker logs tbs-digital-backend` — orice

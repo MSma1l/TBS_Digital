@@ -66,7 +66,7 @@ Run the tests with `pytest` (they use an isolated temp SQLite DB, so they don't 
 | `GET` | `/health` | public | Liveness |
 | `GET` | `/api/content` | public | Return the whole `SiteContent` document |
 | `PUT` | `/api/content` | admin | Replace the whole content document (the admin's Save) |
-| `POST` | `/api/contact` | public | Store a contact-form submission |
+| `POST` | `/api/contact` | public | Store a contact-form submission — requires `consent: true` (422 otherwise), stored as `consent_at` |
 | `GET` | `/api/admin/submissions` | admin | List submissions (newest first), incl. `crm_status` |
 | `DELETE` | `/api/admin/submissions/{id}` | admin | Delete a submission |
 | `POST` | `/api/admin/submissions/{id}/crm-resend` | admin | Re-queue a lead for the CRM and retry it now (202; 409 if the CRM isn't configured) |

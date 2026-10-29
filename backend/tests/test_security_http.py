@@ -119,7 +119,7 @@ def test_normal_small_body_passes_through(client):
     # A valid small submission is unaffected by the cap.
     r = client.post(
         "/api/contact",
-        json={"name": "Sizely", "email": "s@example.com", "message": "hi"},
+        json={"name": "Sizely", "email": "s@example.com", "message": "hi", "consent": True},
     )
     assert r.status_code == 201, r.text
 
@@ -165,7 +165,7 @@ def test_submissions_pagination_limit_and_offset(client):
     for name in names:
         r = client.post(
             "/api/contact",
-            json={"name": name, "email": "p@example.com", "message": "hi"},
+            json={"name": name, "email": "p@example.com", "message": "hi", "consent": True},
         )
         assert r.status_code == 201, r.text
 

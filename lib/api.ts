@@ -71,6 +71,9 @@ export type ContactSubmission = {
   message?: string;
   project?: string;
   estimate?: string;
+  /* The form's personal-data consent checkbox. Only ever `true`: the form does not submit
+     without it, and the API answers anything else with a 422 (backend schemas.ConsentFlag). */
+  consent: true;
 };
 
 /**
@@ -80,10 +83,14 @@ export type ContactSubmission = {
  */
 export type CrmStatus = "" | "pending" | "sent" | "failed";
 
-/** A stored submission as returned by `GET /api/admin/submissions`. */
-export type ContactSubmissionRecord = ContactSubmission & {
+/**
+ * A stored submission as returned by `GET /api/admin/submissions`. It carries when consent
+ * was given rather than the flag — `""` on the leads that predate the checkbox.
+ */
+export type ContactSubmissionRecord = Omit<ContactSubmission, "consent"> & {
   id: string;
   created_at: string; // ISO 8601 timestamp
+  consent_at?: string; // ISO 8601 timestamp, or ""
   crm_status?: CrmStatus;
 };
 

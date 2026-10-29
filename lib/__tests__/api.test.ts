@@ -158,6 +158,7 @@ describe("submitContact", () => {
     const payload: ContactSubmission = {
       name: "Ana",
       email: "ana@example.com",
+      consent: true,
     };
     await submitContact(payload);
     expect(calls[0].url).toBe(`${API_BASE}/api/contact`);

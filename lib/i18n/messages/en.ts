@@ -206,6 +206,7 @@ export const en: Record<MessageKey, string> = {
   "nav.cta": "GET A QUOTE ↗",
   "nav.burgerAria": "Menu",
   "nav.closeAria": "Close",
+  "nav.langChange": "Change language",
   "nav.primaryAria": "Main",
   "header.sysTime": "SYS_TIME",
 
