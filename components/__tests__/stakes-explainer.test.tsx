@@ -83,12 +83,10 @@ describe("Explainer section", () => {
       }),
     ).toBeInTheDocument();
 
-    const paragraphs = container.querySelectorAll("p");
-    expect(paragraphs.length).toBeGreaterThanOrEqual(2);
-    expect(paragraphs.length).toBeLessThanOrEqual(3);
-    // The guide and the plan are in it, in plain words.
-    expect(container.textContent).toContain("TBS Digital");
-    expect(container.textContent).toContain("în cel mult o zi lucrătoare");
+    // Two paragraphs: the problem and the result. The one naming the team and the plan was taken
+    // out (2026-10-29).
+    expect(container.querySelectorAll("p")).toHaveLength(2);
+    expect(container.textContent).not.toContain("în cel mult o zi lucrătoare");
   });
 
   it("has no CTA of its own and quotes no price", () => {

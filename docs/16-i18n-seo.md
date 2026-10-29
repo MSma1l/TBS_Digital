@@ -253,9 +253,9 @@ and their copy are in [05 — Page Sections](./05-page-sections.md#the-wireframe
 5. **The plan** — three steps (Process): „Ne spui ideea” → „Primești planul și prețul” → „Lansezi
    și crești”.
 6. **Explanatory paragraph** — the story retold in prose (`Explainer.tsx`): problem → guide →
-   plan → success. This is where the search phrases live in sentences — *creare site-uri*,
-   *magazine online*, *aplicații mobile și web*, *MVP*, *automatizări*, *Chișinău*, *Moldova* —
-   once each, never as a list.
+   success, in two paragraphs. Its heading carries *Chișinău*; the paragraph that named the
+   services (*creare site-uri*, *magazine online*, *MVP*…) was taken out on 2026-10-29 at the
+   owner's request.
 7. **Price choices** — the estimator (RequestSection): the starting prices, the transitional CTA.
 8. **Junk drawer** — the footer: the one-liner again (`footer.brandText`, with the city), the
    CTA, navigation, partners, portfolio, legal.

@@ -914,16 +914,15 @@ names a duration or a price.
 `components/sections/Explainer.tsx` (2026-10-28), wireframe step 6, between Process and the
 request. The whole story retold for the visitor who reads to the end, and for search engines:
 the visitor's problem → TBS Digital as the guide → the three-step plan → the result. One `h2`
-— „Site-uri, aplicații și MVP în Chișinău, construite pas cu pas.” — and three paragraphs:
+— „Site-uri, aplicații și MVP în Chișinău, construite pas cu pas.” — and two paragraphs:
 
 1. the problem (more customers, less manual work, a new product — but a big build paid up front
    is a risk on an untested idea);
-2. the guide and the plan (a development team in Chișinău, Moldova; the services named the way
-   people search for them — creare de site-uri și magazine online, aplicații mobile și web,
-   MVP-uri, asistenți IA, boți Telegram, CRM și automatizări; then the three steps, with the one
-   business day);
-3. the success (test with real customers, the same team develops only what works, time saved,
+2. the success (test with real customers, the same team develops only what works, time saved,
    budget under control).
+
+The middle paragraph (TBS Digital in Chișinău, the services, the three steps with the one business
+day) was taken out on 2026-10-29, at the owner's request — don't bring it back.
 
 One readable column (~68ch) in a quiet `--panel` card, the heading beside the text from 1025px.
 No CTA (the request section follows), no price and no digit — the prices are the owner's, read

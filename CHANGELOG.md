@@ -18,6 +18,10 @@ commit that makes the change. Nothing ships undocumented.
 
 ## 2026-10-29 — Removed: texte descriptive scoase de pe pagina principală
 
+- **Removed — paragraful din mijloc din „Pe scurt” (`Explainer`)**, „TBS Digital este o echipă
+  de dezvoltare din Chișinău…”, în ro/ru/en, la cererea lui Ivan. Rămân titlul și celelalte
+  două paragrafe. Test `stakes-explainer` și docs
+  [`05`](./docs/05-page-sections.md) / [`16`](./docs/16-i18n-seo.md) actualizate.
 - **Removed — la cererea lui Ivan (capturi de ecran), în ro/ru/en:**
   - Problema (`Stakes`): fraza de încheiere de lângă „Cere ofertă”;
   - Servicii (`Directions`): paragraful `pitch.text` din panou (rămâne pe pagina serviciului și
