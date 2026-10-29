@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { GovernorStep } from "@/components/three/governor";
 import { useRendererFactory } from "@/components/three/hooks";
 import type { SceneCanvasProps, SceneEntry, SceneHelix } from "@/lib/scene";
+import { observeTheme } from "@/lib/theme/theme";
 import { SCENE_CAMERA } from "./choreography";
 import { createSceneFx } from "./fx";
 import { attachTiltInput } from "./input";
@@ -60,8 +61,9 @@ export function SceneCanvas({
   onHelix,
 }: SceneCanvasProps) {
   // Read before any context exists: an unparsable token throws straight to the stage's
-  // boundary. Read once: the site has one palette and nothing can change it at runtime.
-  const [palette] = useState(readScenePalette);
+  // boundary. Re-read when the header toggle flips `<html data-theme>`; SceneWorld applies the
+  // new palette in place (`world.setPalette`), the glow/ink mode included.
+  const [palette, setPalette] = useState(readScenePalette);
   const [baseDpr, setBaseDpr] = useState(() => readBaseDpr(tier));
   // The pixel budget follows the window and the screen (./pixelRatio.ts); R3F applies a new `dpr`.
   useEffect(
@@ -102,6 +104,20 @@ export function SceneCanvas({
   });
 
   useEffect(() => attachTiltInput(fx), [fx]);
+
+  // A theme change re-reads the tokens; one that can't be read keeps the palette we have
+  // rather than tearing down a scene that is drawing.
+  useEffect(
+    () =>
+      observeTheme(() => {
+        try {
+          setPalette(readScenePalette());
+        } catch {
+          /* keep the current palette */
+        }
+      }),
+    [],
+  );
 
   return (
     <Canvas

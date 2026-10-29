@@ -213,6 +213,12 @@ export const ro = {
   // The language button's accessible name; the component appends the language in force:
   // "Schimbă limba: Română".
   "nav.langChange": "Schimbă limba",
+  // The theme button's accessible NAME never changes with the state — `aria-pressed` carries
+  // it, so a screen reader reads "Temă închisă, apăsat". The two `switchTo*` strings are the
+  // tooltip: what a press would do next.
+  "theme.toggleAria": "Temă închisă",
+  "theme.switchToDark": "Comută la tema închisă",
+  "theme.switchToLight": "Comută la tema deschisă",
   // Screen readers already announce the landmark as "navigation": the label only names which one.
   "nav.primaryAria": "Principal",
   // The header clock's label: a HUD code, the same in every language, but still a key so

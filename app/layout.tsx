@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Archivo, JetBrains_Mono, Manrope, Montserrat } from "next/font/google";
 import "./globals.css";
 import { SiteContentProvider } from "@/lib/siteContent";
@@ -8,6 +8,8 @@ import { RequestFlowProvider } from "@/lib/request/RequestFlowProvider";
 import { OG_LOCALE, SITE_URL, hreflangAlternates, localeUrl } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
 import { resolveContentLocale, resolveUrlLocale } from "@/lib/i18n/requestLocale";
+import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { THEME_COLOR, THEME_COOKIE, toTheme } from "@/lib/theme/theme";
 
 // Body (Manrope) and mono (JetBrains) load the Cyrillic subset so Russian renders in the
 // brand fonts. Latin-ext covers Romanian diacritics (ă, î, ș, ț).
@@ -43,6 +45,11 @@ const manrope = Manrope({
 // The content and URL locales of the request: lib/i18n/requestLocale.ts (shared with pages
 // that localize their own metadata, such as /portofoliu).
 
+/** The palette of this request: the visitor's `tbs_theme` cookie, light without one. */
+async function resolveTheme() {
+  return toTheme((await cookies()).get(THEME_COOKIE)?.value);
+}
+
 // Locale-aware, per-URL SEO metadata. `metadataBase` lets the file-based OG/Twitter images
 // (app/opengraph-image.tsx, app/twitter-image.tsx) resolve to absolute URLs. Canonical +
 // hreflang are built from the locale-stripped path proxy.ts exposes as `x-pathname`, so
@@ -58,16 +65,23 @@ const manrope = Manrope({
  * resize the content instead, so the dialog shortens and its own internal scroll keeps the
  * focused field on screen.
  *
- * The rest are Next's defaults, restated because declaring `viewport` replaces them.
+ * The rest are Next's defaults, restated because declaring the viewport replaces them.
+ *
+ * A function rather than a static object only for the palette: the browser chrome takes the
+ * page colour (--bg) and `color-scheme` of the visitor's theme, read from the same cookie as
+ * `<html data-theme>`. The route is per-request already (the root layout reads headers), so
+ * this changes nothing about how it renders.
  */
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  interactiveWidget: "resizes-content",
-  // The site's one palette is light: the browser chrome takes the page colour (--bg).
-  themeColor: "#f4f7ff",
-  colorScheme: "light",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const theme = await resolveTheme();
+  return {
+    width: "device-width",
+    initialScale: 1,
+    interactiveWidget: "resizes-content",
+    themeColor: THEME_COLOR[theme],
+    colorScheme: theme,
+  };
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const contentLocale = await resolveContentLocale();
@@ -126,6 +140,12 @@ export default async function RootLayout({
   // provider keeps SSR and hydration in lockstep.
   const locale = await resolveContentLocale();
 
+  // Same idea for the palette: the visitor's choice lives in the `tbs_theme` cookie, so the
+  // server stamps `data-theme` into the HTML it sends and the page is right in its first byte —
+  // no inline script before paint (the CSP stays nonce-only), no flash, and it works with
+  // JavaScript off. No cookie (or a junk value) is light, the base palette (lib/theme/theme.ts).
+  const theme = await resolveTheme();
+
   // Per-request CSP nonce (proxy.ts). Reused so the JSON-LD data block below satisfies the
   // strict, nonce-based script-src — see proxy.ts and app/(site)/layout.tsx.
   const nonce = headerList.get("x-nonce") ?? undefined;
@@ -169,6 +189,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
+      data-theme={theme}
       className={`${archivo.variable} ${montserrat.variable} ${jetbrainsMono.variable} ${manrope.variable}`}
     >
       <body>
@@ -179,17 +200,19 @@ export default async function RootLayout({
           // future catalog value can never terminate this script element.
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
         />
-        <LanguageProvider initialLocale={locale}>
-          <SiteContentProvider>
-            {/* The site's ONE request dialog. Mounted here, above every page, so each
-                commercial CTA can call `openRequest()` instead of rendering a dialog of
-                its own — a page with four CTAs would otherwise ship four dialogs, four
-                focus traps and four scroll locks. Inside the language provider because
-                the dialog's own copy is localized; the flow itself is code-split and
-                nothing of it loads until a CTA is pressed. */}
-            <RequestFlowProvider>{children}</RequestFlowProvider>
-          </SiteContentProvider>
-        </LanguageProvider>
+        <ThemeProvider initialTheme={theme}>
+          <LanguageProvider initialLocale={locale}>
+            <SiteContentProvider>
+              {/* The site's ONE request dialog. Mounted here, above every page, so each
+                  commercial CTA can call `openRequest()` instead of rendering a dialog of
+                  its own — a page with four CTAs would otherwise ship four dialogs, four
+                  focus traps and four scroll locks. Inside the language provider because
+                  the dialog's own copy is localized; the flow itself is code-split and
+                  nothing of it loads until a CTA is pressed. */}
+              <RequestFlowProvider>{children}</RequestFlowProvider>
+            </SiteContentProvider>
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

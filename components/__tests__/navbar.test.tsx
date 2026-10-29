@@ -77,17 +77,20 @@ describe("Navbar — the admin panel is not advertised", () => {
 });
 
 /**
- * Language (and, later, theme) are *global preferences*, not navigation. They live in one
- * group so the theme toggle can join without rearranging the header — these tests hold
- * that grouping in place, on the desktop bar and inside the mobile overlay.
+ * Language and theme are *global preferences*, not navigation. They live in one group —
+ * these tests hold that grouping in place, on the desktop bar and inside the mobile overlay.
  */
 describe("Navbar — global preferences group", () => {
-  it("wraps the language switcher in a preferences group placed before the CTA", () => {
+  it("wraps the language switcher and the theme toggle in a preferences group placed before the CTA", () => {
     renderNav();
 
     const prefs = screen.getByRole("group", { name: /Preferences/ });
-    // The language control is inside the group, not loose in the nav.
-    expect(within(prefs).getByRole("group", { name: /Language/ })).toBeTruthy();
+    // The language control is inside the group, not loose in the nav — and the theme toggle
+    // is its very next sibling.
+    const languages = within(prefs).getByRole("group", { name: /Language/ });
+    expect(languages.nextElementSibling).toBe(
+      within(prefs).getByRole("button", { name: ro["theme.toggleAria"] }),
+    );
 
     // The group sits between the nav links and the call to action. The CTA is a BUTTON,
     // not an anchor: it opens the request dialog in place, so it carries no `#contact`
@@ -118,6 +121,7 @@ describe("Navbar — global preferences group", () => {
     const prefs = groups[0];
     expect(prefs.closest("header")).not.toBeNull();
     expect(within(prefs).getByRole("group", { name: /Language/ })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: ro["theme.toggleAria"] })).toHaveLength(1);
   });
 });
 

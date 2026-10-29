@@ -11,8 +11,8 @@
 }
 
 /* mobile overlay: the row spans the overlay width. Only the FIRST control (the language
-   switcher) grows into it; any control added after it would keep its own natural, icon-sized
-   box, so the row reads as one control plus its switches rather than as equal thirds. */
+   switcher) grows into it; the theme toggle keeps its square, icon-sized box, so the row
+   reads as one control plus its switch rather than as equal halves. */
 .stack {
   display: flex;
 }

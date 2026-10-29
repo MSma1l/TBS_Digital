@@ -95,8 +95,10 @@
     var(--sh-lg);
 }
 
-/* The deck's floor: a faint --txt scoring on the white deck (the site is light), the page grid's
-   tone a step stronger. Masked away from the middle so it never sits under a glyph. */
+/* The deck's floor: a faint --txt scoring on the white deck (light palette), the page grid's
+   tone a step stronger. Masked away from the middle so it never sits under a glyph. On the dark
+   palette the deck is LIGHTER than the page, so the scoring is dark (rule below): a white tint
+   there was built for near-black and reads as nothing. */
 .box::before {
   content: "";
   position: absolute;
@@ -110,6 +112,11 @@
   background-size: 28px 28px;
   -webkit-mask-image: radial-gradient(ellipse 78% 62% at 50% 0%, #000 14%, transparent 100%);
   mask-image: radial-gradient(ellipse 78% 62% at 50% 0%, #000 14%, transparent 100%);
+}
+:global(:root[data-theme="dark"]) .box::before {
+  background-image:
+    linear-gradient(to right, rgb(0 0 0 / 26%) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 0 0 / 26%) 1px, transparent 1px);
 }
 
 /*

@@ -247,7 +247,7 @@ inside R3F becomes an unhandled rejection that never reaches an error boundary.
 
 **Colour tokens read at runtime must stay hex or `rgb()`.** The interior reads `--cyan`, `--blue`, `--blue-text`, `--red-lift`,
 `--red-text`, `--txt` and `--bg` (`components/scene/three/palette.ts`, `SCENE_TOKENS`; `--on-accent`
-left with the glass core), and re-reads them when `data-theme` or `prefers-color-scheme` changes.
+left with the glass core), and re-reads them when `<html data-theme>` changes (`observeTheme` in `lib/theme/theme.ts`; there is no `prefers-color-scheme` switch).
 `THREE.Color` cannot parse `color-mix()` or `oklch()`. Changing one of these tokens to another
 format throws a descriptive error: the interior's error boundary keeps the static art (a later theme change that cannot be read keeps the previous palette).
 

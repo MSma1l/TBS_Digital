@@ -16,6 +16,30 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Added: buton temă deschisă / închisă în antet
+
+- **Added — comutator light/dark** în grupul de preferințe din antet, imediat după limbă
+  (soare / lună, `aria-pressed`, aceeași înălțime și contur ca dropdown-ul de limbă, 44px pe
+  touch). Implicit **alb pentru toți** (sistemul de operare nu e citit); închis doar după apăsare.
+  Alegerea stă în cookie-ul `tbs_theme` (1 an, esențial — adăugat în lista de pe `/cookies`);
+  layout-ul îl citește pe server și scrie `<html data-theme>` direct în HTML — fără script inline
+  (CSP-ul cu nonce rămâne neatins), fără pâlpâire. `theme-color` / `color-scheme` urmează tema.
+  Fișiere: `lib/theme/{theme.ts,ThemeProvider.tsx}`, `components/ui/ThemeToggle.*`,
+  `components/ui/PreferencesGroup.tsx`, `app/layout.tsx`, cataloagele `theme.*` (ro/ru/en),
+  `app/(site)/cookies/content.ts`.
+- **Added — paleta închisă** sub `:root[data-theme="dark"]` în `app/globals.css`, cu valorile
+  aprobate de client (`#101422` fundal, `#181e30` suprafețe, `#f6f7fb` text, `#aeb8cb` secundar,
+  `#2c354c` contur); restul tonurilor restaurate din harta dark care a fost live (4832721/58b18ee^).
+  Toate tonurile de text ≥ AA pe fundalurile dark. Ajustări punctuale pe dark:
+  `HeroCoreArt.module.css` (glow), `WorkProof.module.css` (logo-urile partenerilor din nou albe),
+  `Estimator.module.css` (liniile grilei), `Portfolio.module.css` (umbra monitorului).
+- **Scena 3D** își recitește paleta la schimbarea temei (`SceneCanvas.tsx`, `observeTheme`) și
+  trece singură glow ↔ ink prin `world.setPalette` — modelele și animațiile neatinse.
+- Teste: `theme-toggle.test.tsx` (18), `scene-palette.test.ts` (harta dark reală), `navbar.test.tsx`;
+  e2e `theme.spec.ts`. Docs: [03](docs/03-architecture.md), [04](docs/04-design-system.md),
+  [07](docs/07-conventions.md), [09](docs/09-admin.md), [14](docs/14-testing.md),
+  [16](docs/16-i18n-seo.md), `e2e/README.md`.
+
 ## 2026-10-29 — Added: acord pentru prelucrarea datelor personale · Changed: limba ca dropdown
 
 - **Added / Security — acordul pentru date personale în formularul de cerere** (Legea 133/2011,

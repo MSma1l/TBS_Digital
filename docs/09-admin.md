@@ -188,10 +188,10 @@ The admin lives **outside** the public site's chrome. `app/` uses a route group:
 
 Two consequences of that split since the 2026-09-16 redesign:
 
-- **The admin is dark by default too.** The theme is stamped by the root layout, which wraps
-  every route: an admin who has never chosen gets `data-theme="dark"`, and the panel's
-  stylesheet reads the same tokens, so it follows. The admin has no toggle of its own; a light
-  choice made on the public site (`tbs_theme=light`, `path=/`) applies here as well.
+- **The admin follows the visitor's theme.** The theme is stamped by the root layout, which
+  wraps every route: an admin who has never chosen gets `data-theme="light"`, and the panel's
+  stylesheet reads the same tokens, so it follows. The admin has no toggle of its own; a dark
+  choice made on the public site (`tbs_theme=dark`, `path=/`) applies here as well.
 - **The admin does not load Tailwind.** It is imported from
   `app/(site)/layout.tsx`. (Next never unloads a stylesheet on client navigation, so arriving
   at the admin *from* the site would keep the utilities CSS in the page — harmless, it only

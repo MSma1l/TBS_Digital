@@ -92,7 +92,7 @@
      `rounded-lg`), so the popup reads as a piece of the header. */
   border-radius: var(--r-lg);
   /* Solid glass, no blur: a backdrop-filter over the animated hero costs frames on a phone,
-     and on the white theme a 94% white sheet reads as solid anyway. */
+     and a 94% sheet reads as solid anyway (white on the light palette, --panel on the dark). */
   background: var(--glass-bg-solid);
   box-shadow: var(--sh-md);
   animation: langMenuIn 0.12s ease-out;
@@ -136,13 +136,13 @@
 }
 
 .name {
-  /* --txt on the white sheet; the short code beside it is the quieter --mut. */
+  /* --txt on the sheet; the short code beside it is the quieter --mut. */
   color: var(--txt);
 }
 
-/* The language in force: a light blue tint, the text in --blue-text (4.93:1 on white, AA at
-   this size) and a check mark — tint AND mark, so it never rests on colour alone. Quieter
-   than a solid blue fill on purpose: on the white theme a filled row inside a small popup
+/* The language in force: a faint blue tint, the text in --blue-text (4.93:1 on white, 7.8 on
+   the dark sheet, AA at this size) and a check mark — tint AND mark, so it never rests on colour alone. Quieter
+   than a solid blue fill on purpose: on either palette a filled row inside a small popup
    shouts louder than the CTA beside it. */
 .active,
 .active:hover {

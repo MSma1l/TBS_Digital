@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   SCENE_TOKENS,
@@ -10,13 +12,13 @@ import {
 
 /*
  * The interior scene's colours come from the site's tokens, never literals. The page colour picks
- * the mode: on a dark page the scene draws in "glow" (light added, neon on dark); on the light
- * page — the site's only palette since 2026-10-28 — it draws in "ink" (premultiplied "over",
- * the darker text tones), so `uInk` is 1. The palette module is pure — no three.js — so the
- * role table is pinned here.
+ * the mode: on the dark palette (<html data-theme="dark">) the scene draws in "glow" (light
+ * added, neon on dark); on the light one — the default — it draws in "ink" (premultiplied
+ * "over", the darker text tones), so `uInk` is 1. The palette module is pure — no three.js — so
+ * the role table is pinned here.
  */
 
-/** The token values of globals.css (light, the live palette). */
+/** The token values of globals.css, light (the default palette). */
 const LIGHT: SceneTokenValues = {
   cyan: "#0e93b9",
   blue: "#3970ff",
@@ -29,12 +31,17 @@ const LIGHT: SceneTokenValues = {
   onInk: "#dbe5ff",
 };
 
-/** A near-black page, to pin the glow branch. */
+/** The token values of globals.css, dark (the :root[data-theme="dark"] remap). */
 const DARK: SceneTokenValues = {
-  ...LIGHT,
   cyan: "#4fc3e8",
+  blue: "#3970ff",
+  blueText: "#8fb0ff",
+  redLift: "#ff5362",
+  redText: "#ff6b7b",
   txt: "#f6f7fb",
-  bg: "#0a0b10",
+  bg: "#101422",
+  ink: "#1d2540",
+  onInk: "#dbe5ff",
 };
 
 const rgb = (hex: string) => parseTokenColor(hex)!;
@@ -128,5 +135,45 @@ describe("readScenePalette — from the document", () => {
   it("throws on a bad token, naming it — the stage's error boundary keeps the static art", () => {
     stubTokens({ ...DARK, cyan: "var(--dark-cyan)" });
     expect(() => readScenePalette()).toThrow(/--cyan/);
+  });
+});
+
+/*
+ * The stylesheet itself: every token the scene reads resolves, in both palettes, to a value it can
+ * parse — the dark remap included — and the two fixtures above are what globals.css says.
+ */
+describe("globals.css — the scene's tokens in both palettes", () => {
+  const css = readFileSync(resolve(__dirname, "../../app/globals.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  /** The declarations of every top-level (column-0, outside any @media) block with this selector. */
+  function declarations(selector: string): Record<string, string> {
+    const out: Record<string, string> = {};
+    const escaped = selector.replace(/[[\]"]/g, (c) => `\\${c}`);
+    for (const block of css.matchAll(new RegExp(`^${escaped} \\{([^}]*)\\}`, "gm"))) {
+      for (const [, name, value] of block[1].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) out[name] = value.trim();
+    }
+    return out;
+  }
+
+  const light = declarations(":root");
+  const dark = { ...light, ...declarations(':root[data-theme="dark"]') };
+  const values = (map: Record<string, string>) =>
+    Object.fromEntries(
+      (Object.keys(SCENE_TOKENS) as Array<keyof typeof SCENE_TOKENS>).map((role) => [role, map[SCENE_TOKENS[role]]]),
+    ) as SceneTokenValues;
+
+  it("the light map is the LIGHT fixture and draws in ink", () => {
+    expect(values(light)).toEqual(LIGHT);
+    expect(pickSceneRoles(values(light)).mode).toBe("ink");
+  });
+
+  it("the dark remap is the DARK fixture and draws in glow", () => {
+    expect(values(dark)).toEqual(DARK);
+    expect(pickSceneRoles(values(dark)).mode).toBe("glow");
+  });
+
+  it("dark is opt-in: no prefers-color-scheme rule, and the remap sets color-scheme: dark", () => {
+    expect(css).not.toMatch(/prefers-color-scheme/);
+    expect(css).toMatch(/^:root\[data-theme="dark"\] \{[^}]*color-scheme: dark;/m);
   });
 });

@@ -207,6 +207,9 @@ export const en: Record<MessageKey, string> = {
   "nav.burgerAria": "Menu",
   "nav.closeAria": "Close",
   "nav.langChange": "Change language",
+  "theme.toggleAria": "Dark theme",
+  "theme.switchToDark": "Switch to the dark theme",
+  "theme.switchToLight": "Switch to the light theme",
   "nav.primaryAria": "Main",
   "header.sysTime": "SYS_TIME",
 

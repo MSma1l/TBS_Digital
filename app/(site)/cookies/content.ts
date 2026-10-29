@@ -4,11 +4,11 @@ import type { LegalContent } from "../confidentialitate/LegalDoc";
 /**
  * Cookie Policy — full text in RO / RU / EN.
  *
- * Describes exactly what this site stores: the essential language cookie (tbs_locale), the
- * consent-record cookie (tbs_cookie_consent), the session-storage record of whether the device
- * can draw the 3D animations (tbs_gpu_probe, yes/no values only), the admin localStorage token,
- * and the consent-gated first-party analytics pixel (statistica.tbs.md). No third-party
- * marketing cookies.
+ * Describes exactly what this site stores: the essential language and theme cookies
+ * (tbs_locale, tbs_theme), the consent-record cookie (tbs_cookie_consent), the session-storage
+ * record of whether the device can draw the 3D animations (tbs_gpu_probe, yes/no values only),
+ * the admin localStorage token, and the consent-gated first-party analytics pixel
+ * (statistica.tbs.md). No third-party marketing cookies.
  *
  * Controller: TBS Digital · office@crowe-tm.md.
  */
@@ -16,7 +16,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
   ro: {
     label: "POLITICA DE COOKIE",
     title: "Politica de cookie",
-    updated: "Ultima actualizare: 16 septembrie 2026",
+    updated: "Ultima actualizare: 29 octombrie 2026",
     intro:
       "Această politică explică ce cookie-uri și tehnologii de stocare locală folosește site-ul TBS Digital, în ce scop și cum îți poți gestiona alegerile. O citești împreună cu Politica de confidențialitate (/confidentialitate).",
     sections: [
@@ -52,6 +52,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
             type: "list",
             items: [
               "tbs_locale (esențial) — reține limba aleasă (RO / RU / EN) ca să regăsești site-ul în limba ta. Durată: până la 1 an.",
+              "tbs_theme (esențial) — reține tema aleasă (deschisă sau închisă) ca site-ul să se deschidă la fel la următoarea vizită. Se setează doar când apeși butonul de temă. Durată: până la 1 an.",
               "tbs_cookie_consent (esențial) — reține alegerea ta privind cookie-urile, ca să nu te întrebăm la fiecare vizită. Durată: 6 luni.",
               "tbs_gpu_probe (esențial, stocare de sesiune) — reține dacă dispozitivul tău poate afișa animațiile 3D, ca verificarea să nu se repete la fiecare pagină. Conține doar valori da/nu și nu te identifică. Durată: până închizi fila.",
               "Token de administrare (esențial, stocare locală) — folosit doar în panoul intern de administrare, păstrat în localStorage-ul browserului; nu urmărește vizitatorii site-ului.",
@@ -106,7 +107,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
   ru: {
     label: "ПОЛИТИКА COOKIE",
     title: "Политика использования cookie",
-    updated: "Последнее обновление: 16 сентября 2026 г.",
+    updated: "Последнее обновление: 29 октября 2026 г.",
     intro:
       "Эта политика объясняет, какие cookie и технологии локального хранения использует сайт TBS Digital, с какой целью и как вы можете управлять своим выбором. Её следует читать вместе с Политикой конфиденциальности (/confidentialitate).",
     sections: [
@@ -142,6 +143,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
             type: "list",
             items: [
               "tbs_locale (необходимый) — запоминает выбранный язык (RO / RU / EN), чтобы вы видели сайт на своём языке. Срок: до 1 года.",
+              "tbs_theme (необходимый) — запоминает выбранную тему (светлую или тёмную), чтобы сайт открывался так же при следующем визите. Устанавливается только при нажатии кнопки темы. Срок: до 1 года.",
               "tbs_cookie_consent (необходимый) — запоминает ваш выбор относительно cookie, чтобы не спрашивать при каждом визите. Срок: 6 месяцев.",
               "tbs_gpu_probe (необходимый, хранилище сеанса) — запоминает, может ли ваше устройство показывать 3D-анимации, чтобы проверка не повторялась на каждой странице. Содержит только значения да/нет и не идентифицирует вас. Срок: до закрытия вкладки.",
               "Токен администратора (необходимый, локальное хранилище) — используется только во внутренней панели администрирования, хранится в localStorage браузера; не отслеживает посетителей сайта.",
@@ -196,7 +198,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
   en: {
     label: "COOKIE POLICY",
     title: "Cookie Policy",
-    updated: "Last updated: 16 September 2026",
+    updated: "Last updated: 29 October 2026",
     intro:
       "This policy explains which cookies and local-storage technologies the TBS Digital website uses, for what purpose, and how you can manage your choices. Read it together with the Privacy Policy (/confidentialitate).",
     sections: [
@@ -232,6 +234,7 @@ export const cookieContent: Record<Locale, LegalContent> = {
             type: "list",
             items: [
               "tbs_locale (essential) — remembers your chosen language (RO / RU / EN) so you see the site in your language. Duration: up to 1 year.",
+              "tbs_theme (essential) — remembers your chosen theme (light or dark) so the site opens the same way on your next visit. Set only when you press the theme button. Duration: up to 1 year.",
               "tbs_cookie_consent (essential) — remembers your cookie choice so we don't ask on every visit. Duration: 6 months.",
               "tbs_gpu_probe (essential, session storage) — remembers whether your device can show the 3D animations, so the check does not repeat on every page. It holds only yes/no values and does not identify you. Duration: until you close the tab.",
               "Admin token (essential, local storage) — used only in the internal admin panel, kept in the browser's localStorage; it does not track site visitors.",

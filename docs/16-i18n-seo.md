@@ -37,6 +37,10 @@ client render the same markup and there is no viewport-dependent swap).
   force, the arrows (wrapping) and Home/End walk the choices, Enter picks. It closes on
   Escape (without also closing the burger overlay), on a press outside it, on Tab leaving
   it, and after a choice; Escape and a choice return focus to the button.
+- **Its neighbour:** `ThemeToggle`, the sun/moon button right after it in the same group, is
+  named by the catalog key `theme.toggleAria` ("Temă închisă" / "Тёмная тема" / "Dark theme")
+  whatever the state — `aria-pressed` carries the state — and its tooltip is
+  `theme.switchToDark` / `theme.switchToLight`, what a press would do.
 - **Targets and motion:** 44×44 on touch (`max-width: 860px` or `pointer: coarse`), each
   popup row 44px tall there; reduced motion drops the popup's fade and the chevron's turn.
 - **Switching** is one `setLocale()` call on `LanguageProvider` — the dropdown changes how a
@@ -384,12 +388,13 @@ The pixel host is allow-listed in the CSP `connect-src`/`script-src` via `proxy.
 copy in `content.ts` next to each page and shared styling in `LegalDoc.tsx` /
 `LegalDoc.module.css`. They are listed in the sitemap with full hreflang alternates.
 
-The cookie policy (last updated 16 September 2026) lists **`tbs_gpu_probe`** as
+The cookie policy (last updated 29 October 2026) lists **`tbs_theme`** as an essential cookie
+next to `tbs_locale` in all three languages: the chosen theme (light or dark), set only when
+the visitor presses the theme button, up to 1 year. It lists **`tbs_gpu_probe`** as
 essential **session storage** in all three languages: whether this device can show the 3D animations, so the check is
 not repeated on every page — yes/no values only (never the graphics card's name), identifies
 nobody, gone when the tab closes. `localStorage.tbs_scene_3d` is a QA
-switch the site only reads and never writes, so it is not listed. `tbs_theme` and `tbs_sound` are still
-not listed there; that gap predates the redesign.
+switch the site only reads and never writes, so it is not listed.
 
 ---
 

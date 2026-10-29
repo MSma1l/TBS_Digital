@@ -10,11 +10,14 @@ hardcode raw hex values in components.
 
 ## Colors
 
-The site ships **one palette, and it is light** (2026-10-28) — see
-[Light only](#light-only-2026-10-28). There is no theme toggle, no `data-theme` attribute and
-no dark mode; `color-scheme: light` sits on `:root` and the viewport's `themeColor` is `--bg`
-(`#f4f7ff`). The values below are the client-approved light palette that 58b18ee removed,
-restored as the only one. In `globals.css` they live in the `:root` block titled **"The map"**.
+**Light is the base palette** (2026-10-28) — see [Light only](#light-only-2026-10-28) — and
+every visitor starts on it. Since 2026-10-29 a **dark palette is opt-in**: the header's theme
+toggle sets `<html data-theme="dark">` and the `tbs_theme` cookie, and `globals.css` remaps the
+tokens under `:root[data-theme="dark"]` only — no `prefers-color-scheme` switch (wiring:
+[03 — Architecture](./03-architecture.md), `lib/theme/theme.ts`). `color-scheme: light` sits on
+`:root` and the viewport's `themeColor` is `--bg` (`#f4f7ff`) for a light visitor. The values
+below are the client-approved light palette that 58b18ee removed, restored as the base. In
+`globals.css` they live in the `:root` block titled **"The map"**.
 
 The light palette is a cool, airy scale where each surface step is a real elevation, so a card
 reads as a distinct surface against the page. The hue leans very slightly blue, which is what
@@ -1608,9 +1611,13 @@ How it is wired:
   (no `--dark-*` indirection; that scale was deleted). `color-scheme: light` is on `:root`, so
   form controls, selects and inner scrollbars paint light. The 641–860px
   `--hero-core-phone: .11` override follows the map (same specificity, so the later rule wins).
-- **`app/layout.tsx`** — `viewport.themeColor` is `#f4f7ff` (`--bg`) and
-  `viewport.colorScheme` is `light`.
-- **No `data-theme`, no theme cookie, no anti-flash script.** One palette needs none of them.
+- **`app/layout.tsx`** — `generateViewport` gives `themeColor` `#f4f7ff` (`--bg`) and
+  `colorScheme` `light` to a light visitor.
+- **Superseded 2026-10-29: dark is back as an opt-in.** The root layout stamps `data-theme`
+  from the `tbs_theme` cookie (light without one), the header toggle flips it, and the viewport
+  meta tags follow (`THEME_COLOR` in `lib/theme/theme.ts` mirrors each palette's `--bg`). Still
+  no anti-flash script: the server-rendered attribute is right in the first byte. A dark page
+  puts the scene back in **glow** (below) — `SceneCanvas` re-reads the palette on the change.
 
 ### The 3D scene draws in ink
 

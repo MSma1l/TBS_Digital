@@ -22,7 +22,8 @@
 
 .glowCore {
   stop-color: var(--cyan);
-  /* ink on paper (the site is light): every tint is fainter than it was on the dark page */
+  /* ink on paper (the light palette, the base): every tint is fainter than on the dark page —
+     the dark values are the block at the end of this section */
   stop-opacity: 0.18;
 }
 .glowBody {
@@ -43,6 +44,21 @@
   stop-opacity: 0.6;
 }
 
+/* ---- dark palette: light on a dark page, so the tints come back to full -------------------- */
+
+:global(:root[data-theme="dark"]) .glowCore {
+  stop-opacity: 0.42;
+}
+:global(:root[data-theme="dark"]) .glowBody {
+  stop-opacity: 0.12;
+}
+:global(:root[data-theme="dark"]) .dieDeep {
+  stop-opacity: 0.55;
+}
+:global(:root[data-theme="dark"]) .dieLit {
+  stop-opacity: 0.9;
+}
+
 /* ---- lines ----------------------------------------------------------------------------------- */
 
 .line {
@@ -61,6 +77,9 @@
 .halo {
   stroke-width: 5px;
   stroke-opacity: 0.16;
+}
+:global(:root[data-theme="dark"]) .halo {
+  stroke-opacity: 0.24;
 }
 
 .vias {

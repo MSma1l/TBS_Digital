@@ -1,0 +1,67 @@
+/* ==========================================================================
+   The light / dark toggle
+
+   The language trigger's twin (LanguageSwitcher.module.css `.trigger`): the same HUD glass
+   tint and hairline, the same full round (--r-pill), the same 32px height on a desktop pointer
+   and the same 44px target on touch — the two controls read as one group in the header.
+   Square, because it carries an icon only, so on the pill radius it is a circle. Every value is
+   a token, so it follows whichever palette is on screen.
+   ========================================================================== */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  cursor: pointer;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--r-pill);
+  background: var(--glass-bg);
+  color: var(--txt);
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.toggle:hover {
+  border-color: var(--blue);
+}
+
+/* Same ring as every other control in the bar. */
+.toggle:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 1px;
+}
+
+.icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* Touch: a full 44×44 target (WCAG 2.5.5), on the same breakpoints the language trigger uses,
+   so the two stay exactly the same height. `pointer: coarse` covers a touch screen wider than
+   860px (a landscape tablet). */
+@media (max-width: 860px), (pointer: coarse) {
+  .toggle {
+    align-self: stretch;
+    width: 44px;
+    height: auto;
+    min-height: 44px;
+  }
+  .icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle {
+    transition: none;
+  }
+}

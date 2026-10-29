@@ -13,13 +13,16 @@
    ============================================================ */
 
 :root {
-  /* The site has ONE palette, and it is light (2026-10-28). `color-scheme` here is what makes
-     the browser paint form controls, selects and inner scrollbars light to match. */
+  /* The site has TWO palettes (2026-10-29). Light is the default, for everyone: no attribute
+     or data-theme="light" on <html>. Dark is active only when <html data-theme="dark"> — the
+     visitor's choice from the header toggle. The OS setting never decides: there is no
+     prefers-color-scheme rule anywhere. `color-scheme` here is what makes the browser paint
+     form controls, selects and inner scrollbars light; the dark block sets it to dark. */
   color-scheme: light;
 
   /* The surfaces, lines, text tones, ink blocks, glass and shadows are NOT declared here:
-     they are the light palette in "The map" further down. Only palette-independent values
-     live in this block. */
+     they are the light palette in "The map" further down, and the dark remap after it. Only
+     palette-independent values live in this block. */
 
   /* scrim — stays near-black on purpose (a hair warm): it sits over bright
      partner/project screenshots and is what keeps white-on-transparent logos
@@ -107,7 +110,7 @@
   /* ---- Cyber Dark / Neon Cyan / Obsidian Black: the HUD chrome palette ---------------
      For the fibre rail, the assistant, the OS dock and windows and the Command Center
      (docs/04-design-system.md). Cyber Dark adds no token: the chrome is reached through the
-     mapped --panel / --glass-* like every other component (light, since 2026-10-28).
+     mapped --panel / --glass-* like every other component, in either palette.
      Red stays the only call-to-action fill; cyan is information (rings, threads, ticks, status).
 
      Neon Cyan splits like red, blue and green do: a GRAPHIC tone (--neon-cyan: strokes, rings,
@@ -259,11 +262,12 @@
   }
 }
 
-/* The map — the site's ONE palette, light (2026-10-28). The client-approved light values that
-   58b18ee removed, restored as the only palette: a cool, airy scale where each surface step is
-   a real elevation, so a card reads as a distinct surface against the page. The hue leans very
-   slightly blue, which is what keeps large white panels from looking grey next to --bg.
-   One block, no condition. */
+/* The map — the light palette, the base and the default (2026-10-28). The client-approved light
+   values that 58b18ee removed, restored: a cool, airy scale where each surface step is a real
+   elevation, so a card reads as a distinct surface against the page. The hue leans very slightly
+   blue, which is what keeps large white panels from looking grey next to --bg.
+   One block, no condition. Every token here is overridden by the dark remap further down, when
+   <html data-theme="dark">; a token added here needs its dark value there too. */
 :root {
   --bg: #f4f7ff;
   --bg2: #e9eefc;
@@ -344,6 +348,104 @@
   }
 }
 
+/* ============================================================
+   The dark remap (2026-10-29)
+   ------------------------------------------------------------
+   Active ONLY on <html data-theme="dark"> — the header toggle's choice. No prefers-color-scheme:
+   the default stays light for everyone. Same token names as the map above, so no component
+   knows which palette it is on; :root[data-theme="dark"] outranks :root, whatever the order.
+
+   The owner-approved base: page #101422, surfaces #181e30, text #f6f7fb, secondary text
+   #aeb8cb, border #2c354c. The rest are the dark values that were approved and live before the
+   site went light (4832721 → 58b18ee^ / 14d2444^); --bg2 is the step that was paired with
+   #101422 (#0b0e18). The brand fills (--red #ef263d, --red-lift #ff5362, --blue …) are not
+   remapped: they are palette-independent in the first :root block.
+
+   Text tones are NOT the light ones reused: --green, --amber, --red-text, --blue-text are
+   darkened for a light background and would fall under AA on #181e30, so dark lifts them.
+   Measured (WCAG) on --bg / --bg2 / --panel / --panel2:
+     --txt        17.13 / 17.99 / 15.48 / 14.07
+     --mut         9.18 /  9.65 /  8.30 /  7.54
+     --dim         7.04 /  7.39 /  6.36 /  5.78
+     --red-text    6.67 /  7.01 /  6.03 /  5.48
+     --blue-text   8.58 /  9.01 /  7.75 /  7.04
+     --green-text  9.87 / 10.37 /  8.92 /  8.11
+     --cyan-text  11.69 / 12.27 / 10.56 /  9.60
+   On --ink2 (the lowest surface any of them meets) the weakest, --red-text, is still 4.66.
+   ============================================================ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #101422;
+  --bg2: #0b0e18;
+  --panel: #181e30;
+  --panel2: #1f2639;
+  /* The request section's surfaces, as tuned for the dark deck: a low-saturation shell, the
+     proposal panel a DARK recess in it (the price in --txt measures 16.58:1 on it), and fields
+     that are recesses, never pure-black holes. */
+  --deck: #1f232e;
+  --riser: #151820;
+  --riser-line: #5a6176;
+  --slot: #0d0f14;
+  --line: #2c354c;
+  --line2: #3b4664;
+  --txt: #f6f7fb;
+  --mut: #aeb8cb;
+  /* On dark --dim can be its own, quieter step again: 7.04:1 on --bg, 5.78 on --panel2. */
+  --dim: #94a1b9;
+  --wash: rgba(39, 58, 120, 0.55);
+  --grid-line: rgba(255, 255, 255, 0.035);
+  /* the "inverted" blocks must stay distinguishable from the page once the page is itself
+     dark, so they lift ABOVE the surface rather than sinking below it */
+  --ink: #1d2540;
+  --ink2: #27314f;
+  --ink-line: rgba(255, 255, 255, 0.14);
+  --green: #2fd6a8;
+  --amber: #f3c14b;
+  /* the small-text red, lifted for a dark surface: same hue as --red, L71% — one step above
+     --red-lift, which the CTA gradient already puts on screen. */
+  --red-text: #ff6b7b;
+  --blue-text: #8fb0ff;
+  /* --green already clears AA on dark (8.92:1 on --panel), so it doubles as the text tone. */
+  --green-text: #2fd6a8;
+  --ice: #93a4f5;
+  --cyan: #4fc3e8;
+  /* Neon Cyan on dark: one bright tone serves graphics and text alike (same hex as
+     --obsidian-neon): 11.69:1 on --bg, 9.60 on --panel2. */
+  --neon-cyan: #38e1ff;
+  --cyan-text: #38e1ff;
+  --glow-cyan: rgba(56, 225, 255, 0.38);
+  --neon-cyan-ring: 0 0 0 1px rgba(56, 225, 255, 0.55), 0 0 18px rgba(56, 225, 255, 0.4);
+  /* on a dark page a shadow has to be much deeper than on paper to read as elevation */
+  --sh-sm: 0 2px 10px rgba(0, 0, 0, 0.4);
+  --sh-md: 0 10px 28px rgba(0, 0, 0, 0.5);
+  --sh-lg: 0 18px 55px rgba(0, 0, 0, 0.53);
+  /* Dark glass is the panel colour, a little see-through. Measured against the WORST (here the
+     brightest: white) pixel that can show through: --glass-bg is decorative (--mut 2.36 over
+     white, 8.65 over --bg); the -text twin keeps --mut 5.02 and --blue-text 4.68 over white;
+     the -solid one 7.01 / 6.54. */
+  --glass-bg: rgba(24, 30, 48, 0.62);
+  --glass-bg-text: rgba(24, 30, 48, 0.84);
+  --glass-bg-solid: rgba(24, 30, 48, 0.94);
+  --glass-line: rgba(246, 247, 251, 0.12);
+  --hud-grid-line: rgba(120, 150, 255, 0.09);
+  /* the full key lights: over the dark page the lead keeps 7:1 and more under them */
+  --hero-glow-red: var(--glow-red);
+  --hero-glow-blue: var(--glow);
+  /* Light strokes on the dark page: the phone chip art at .65 (.27 from 641px, below), the
+     scrim at .8 — the values the dark hero was measured with (copy ≥7.58:1). */
+  --hero-core-phone: 0.65;
+  --hero-scrim: 0.8;
+}
+
+/* 641–860px on dark: the fainter chip art, as on light (0.11) — the dark page's value. After the
+   dark block on purpose: same specificity, so the later rule wins. */
+@media (min-width: 641px) {
+  :root[data-theme="dark"] {
+    --hero-core-phone: 0.27;
+  }
+}
+
 /* The three element rules a Tailwind utility must be able to override. Unlayered, `a { color:
    inherit }` would beat `text-*` on a link and `button { font-family: inherit }` would beat
    `font-hud` on a button, whatever the specificity. In the base layer they lose to utilities
@@ -365,8 +467,8 @@
 }
 
 /* The native scrollbar stays the page's scrollbar (IT-OS decision 5: the fibre rail only draws
-   progress next to it). Thin, with a --neon-cyan thumb on a clear track: 3.44:1 against
-   --bg. A stylesheet rule, never an inline style on <html>.
+   progress next to it). Thin, with a --neon-cyan thumb on a clear track: 3.44:1 against the
+   light --bg, 11.69:1 against the dark one. A stylesheet rule, never an inline style on <html>.
    `scrollbar-color` is inherited, so every inner scroller that sets no colour of its own (the
    request dialog's body, the burger menu, the assistant's bubble) gets the same cyan thumb; the chat
    log and Work's phone band keep theirs. `scrollbar-width` is not inherited. */

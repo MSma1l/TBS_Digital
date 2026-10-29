@@ -157,6 +157,14 @@
     0 0 120px -34px color-mix(in srgb, var(--pf-glow) 45%, transparent),
     0 34px 60px -30px color-mix(in srgb, var(--txt) 30%, transparent);
 }
+/* On the dark palette --txt is near-white, so the drop shadow takes the near-black it had there. */
+:global(:root[data-theme="dark"]) .monitor {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--on-accent) 7%, transparent),
+    0 0 42px -10px color-mix(in srgb, var(--pf-glow) 55%, transparent),
+    0 0 120px -34px color-mix(in srgb, var(--pf-glow) 45%, transparent),
+    0 34px 60px -30px color-mix(in srgb, var(--void) 90%, transparent);
+}
 .rgb {
   position: absolute;
   left: 50%;

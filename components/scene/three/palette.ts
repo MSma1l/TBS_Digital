@@ -10,7 +10,8 @@
  * neon on near-black. Light ("ink"): an additive glow vanishes on a pale page, so every
  * material switches its blend factors to premultiplied "over" (`uInk` = 1) and draws with the
  * darker text tones (--blue-text, --red-text) and --txt as its highlight — never a shader
- * recompile. The site's one palette is light (2026-10-28), so in practice the scene draws in ink.
+ * recompile. The site has two palettes (2026-10-29): light, the default, draws in ink; dark
+ * (<html data-theme="dark">, --bg #101422) draws in glow. Every token below has a value in both.
  *
  * One exception to ink: the Work hologram (models/helix.ts) is a screen. In ink it stands on a
  * dark backing panel (`panel`, the site's --ink island) and keeps drawing as light — additive,

@@ -204,6 +204,9 @@ export const ru: Record<MessageKey, string> = {
   "nav.burgerAria": "Меню",
   "nav.closeAria": "Закрыть",
   "nav.langChange": "Сменить язык",
+  "theme.toggleAria": "Тёмная тема",
+  "theme.switchToDark": "Включить тёмную тему",
+  "theme.switchToLight": "Включить светлую тему",
   "nav.primaryAria": "Основная",
   "header.sysTime": "SYS_TIME",
 

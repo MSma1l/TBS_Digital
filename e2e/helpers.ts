@@ -12,6 +12,7 @@ import {
   type Locale,
 } from "@/lib/i18n/locales";
 import { messages } from "@/lib/i18n/messages";
+import { THEME_COOKIE, type Theme } from "@/lib/theme/theme";
 import { DIRECTIONS_BASE, directions } from "@/lib/directions";
 import { solUI } from "@/lib/solutions";
 import { CONSENT_KEY } from "@/lib/consent";
@@ -65,8 +66,8 @@ export function localePath(locale: Locale, path: string): string {
 
 /**
  * Seed a site cookie BEFORE the first navigation, which is the only way to exercise the
- * server-rendered half of the language model: the root layout reads these cookies and
- * stamps `<html lang>` into the very first byte it sends.
+ * server-rendered half of the language and theme models: the root layout reads these cookies
+ * and stamps `<html lang>` / `<html data-theme>` into the very first byte it sends.
  */
 export async function seedCookie(
   context: BrowserContext,
@@ -79,6 +80,9 @@ export async function seedCookie(
 
 export const seedLocale = (context: BrowserContext, locale: Locale, baseURL: string) =>
   seedCookie(context, LOCALE_COOKIE, locale, baseURL);
+
+export const seedTheme = (context: BrowserContext, theme: Theme, baseURL: string) =>
+  seedCookie(context, THEME_COOKIE, theme, baseURL);
 
 /**
  * Answer the cookie banner before the page is even loaded.
@@ -251,6 +255,13 @@ export async function chooseLanguage(page: Page, locale: Locale): Promise<void> 
   await languageOption(page, locale).click();
   await expect(languageTrigger(page)).toHaveAttribute("aria-expanded", "false");
 }
+
+/**
+ * The light/dark switch, right after the language dropdown. Its accessible name comes from the
+ * message catalog and therefore changes with the language, so the current locale is passed in.
+ */
+export const themeToggle = (page: Page, locale: Locale = "ro"): Locator =>
+  header(page).getByRole("button", { name: messages[locale]["theme.toggleAria"], exact: true });
 
 /** The hamburger. Only rendered/visible below the 860px breakpoint. */
 export const burger = (page: Page, locale: Locale = "ro"): Locator =>

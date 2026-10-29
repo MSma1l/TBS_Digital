@@ -18,7 +18,7 @@ so the data source can change without touching markup.
 ├─ postcss.config.mjs      # loads only @tailwindcss/postcss (Lightning CSS does the prefixing)
 ├─ app/
 │  ├─ layout.tsx           # Root: fonts, <html lang data-theme>, JSON-LD, generateMetadata (SEO),
-│  │                       #   LanguageProvider + SiteContentProvider
+│  │                       #   generateViewport, ThemeProvider + LanguageProvider + SiteContentProvider
 │  ├─ globals.css          # Design tokens (CSS variables) + base styles + keyframes;
 │  │                       #   line 1 is the @layer order Tailwind depends on
 │  ├─ tailwind.css         # Tailwind v4, utilities only (no preflight), theme mapped onto the
@@ -118,7 +118,8 @@ so the data source can change without touching markup.
 │  │  │                    #   played: measures the pads and the chin, SVG + WAAPI)
 │  │  └─ Services.tsx · Partners.tsx   # not rendered by any page today
 │  └─ ui/                  # SectionLabel · Reveal · ScrollProgress · SectionCTA ·
-│                          #   LanguageSwitcher (the header's RO ▾ dropdown) ·
+│                          #   PreferencesGroup (the header's preferences: LanguageSwitcher, the
+│                          #   RO ▾ dropdown, then ThemeToggle, the sun/moon button) ·
 │                          #   CookieConsent (Tailwind) · AnalyticsPixel ·
 │                          #   Lightbox · ServiceIcons · SocialIcons ·
 │                          #   useAutoCarousel · usePlatform
@@ -160,8 +161,8 @@ so the data source can change without touching markup.
 │  │                       #   RequestSource, RequestAttachment) · catalog.ts (the estimator's
 │  │                       #   project types and options with stable ids, SERVICE_FOR_TYPE) ·
 │  │                       #   attachment.ts (a HUD tool's block, cleaned and capped at 1,200)
-│  ├─ theme/               # theme.ts (DEFAULT_THEME = "dark", cookie, inline init script) ·
-│  │                       #   ThemeProvider
+│  ├─ theme/               # theme.ts (DEFAULT_THEME = "light", tbs_theme cookie, THEME_COLOR,
+│  │                       #   observeTheme) · ThemeProvider (state, cookie, <html data-theme>)
 │  └─ i18n/                # locales.ts · messages/{ro,ru,en}.ts · LanguageProvider ·
 │                          #   content.tsx (LocalizedText, loc/useLoc) · format.tsx
 │
@@ -188,9 +189,15 @@ defaults, `siteContent` for anything the admin edits, `i18n` for anything the vi
 | `/robots.txt`, `/sitemap.xml`, `/opengraph-image`, `/twitter-image` | Generated metadata routes. |
 
 Every page renders **dynamically** — the root layout reads request headers for the CSP
-nonce and locale (see `proxy.ts`). It also stamps `data-theme` on `<html>` for every route,
-the admin included: the visitor's `tbs_theme` cookie if it says `light`, otherwise the dark
-default (`lib/theme/theme.ts`).
+nonce and locale (see `proxy.ts`). It also reads the `tbs_theme` cookie and stamps
+`data-theme` on `<html>` for every route, the admin included: `dark` if the visitor chose it
+with the header toggle, otherwise `light`, the base palette (`lib/theme/theme.ts`). Reading the
+cookie changes nothing about how routes render (they are per-request already) and needs no
+inline script, so the strict CSP is untouched and the page is right in its first byte; the
+same cookie drives `generateViewport` (`theme-color`, `color-scheme`). A press on the toggle
+(`ThemeProvider`) sets the attribute and the two meta tags at once and writes the cookie
+(1 year, `path=/`, `SameSite=Lax`); globals.css remaps the tokens under
+`:root[data-theme="dark"]`, and the 3D scene follows through `observeTheme` (below).
 
 > **Every document request must reach the proxy** (2026-09-25), or it is served with no
 > `x-pathname`. `proxy.ts`'s matcher used to copy Next's CSP recipe verbatim and skip any request
@@ -312,7 +319,7 @@ mode, the card nearest the band's middle).
 | `lib/scene.ts` (+ `lib/gpuProbe.ts`) | The contract: `SCENE_3D_KEY`, the live gates (`readMotionGate`), the probe cache and `decideWebGL` / `reasonFor`, the `data-*` names and test ids, `SCENE_SHAPES` → `SERVICE_MODEL`, the input store, the `ScrollProbe` type, `SCENE_TIMING`, `PARALLAX_MEDIA` / `PARALLAX_LAYERS`, `WORK_TRACK_ATTR`, `SceneHelixMode` / `SceneHelix`, `SCENE_LAYOUT_EVENT`. No `"use client"`, no DOM at import (server components and `e2e/helpers.ts` import it) |
 | `SceneStage` | The pipeline and its state, pausing, the React-written attributes and the DOM-written reports (`data-helix` included), the error boundary, the session marks |
 | `SceneDirector` + `scrollGuard.ts` / `scrollProbe.ts` | ScrollTrigger: the four measuring triggers (`heroExit`, `entry`, `workSpan`, `helix`), when to refresh, re-reading the boxes on `SCENE_LAYOUT_EVENT`, no measurement under a cover, the smooth-scroll guard, quiet/wake, the desktop hero parallax |
-| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer, tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate and the Work gate, Work's helix (built after ready) and its hologram. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` / `onHelix`. It touches the page in **one** place only: in spiral mode the scene chunk's driver (`workHelix.ts`, created by `SceneWorld`, called by the world every frame, disposed with it) writes Work's cards' inline layout, and puts every card back when it leaves. It READS the page in two more (`projectsReel.ts`, `statCards.ts`): which project card the laptop shows, and the hero's metric cards the stat panels' faces are composed from — both framework-free, both through a MutationObserver, neither per frame |
+| `SceneCanvas` / `SceneWorld` + `three/*` | Drawing: renderer and DPR (`pixelRatio.ts`), palette and theme observer (`SceneCanvas` re-reads `readScenePalette()` when `observeTheme` reports a new `<html data-theme>`; `SceneWorld` applies it in place with `world.setPalette`, glow ↔ ink included; an unreadable token keeps the current palette), tilt listeners (`input.ts`), the staged build and compile, the frame-counted ready, the governor, the services entry gate and the Work gate, Work's helix (built after ready) and its hologram. Reports `onReady` / `onLost` / `onBail` / `onQuality` / `onMorph` / `onEntry` / `onHelix`. It touches the page in **one** place only: in spiral mode the scene chunk's driver (`workHelix.ts`, created by `SceneWorld`, called by the world every frame, disposed with it) writes Work's cards' inline layout, and puts every card back when it leaves. It READS the page in two more (`projectsReel.ts`, `statCards.ts`): which project card the laptop shows, and the hero's metric cards the stat panels' faces are composed from — both framework-free, both through a MutationObserver, neither per frame |
 | `helix.ts` / `workHelix.ts` | The spiral's pure layout; the DOM driver: which mode, when it may switch, the cards' inline poses, focus, the restore contract |
 | `Hero`, `Directions` | The anchors the scene fits its models into, the art slots, and the inputs: `setSceneBoost` (CTA hover / keyboard focus), `selectSceneShape` (the selected pill) |
 | `Work` | The cards as React renders them (`--p1` / `--p2` inline, nothing else) and the track attribute (`data-work-track`); it knows nothing of the spiral, and React re-renders never undo it (they diff only React's own style keys) |
