@@ -156,15 +156,6 @@
   overflow-wrap: break-word;
 }
 
-.stepText {
-  grid-column: 2;
-  grid-row: 2;
-  margin: 0;
-  color: var(--mut);
-  font-size: var(--fs-md);
-  line-height: 1.55;
-}
-
 /* Step 02's promise as a part on the wire: a dark chip with a cyan edge, sitting ON the trace, so
    the line runs into it and out the other side, its opaque fill hiding the run beneath. Under
    1025px it hangs below step 02's words, threaded on the vertical trace — it starts at the pads'
@@ -524,8 +515,7 @@
   .board[data-armed]:not([data-entered]) .chip {
     opacity: 0;
   }
-  .board[data-armed]:not([data-entered]) .stepTitle,
-  .board[data-armed]:not([data-entered]) .stepText {
+  .board[data-armed]:not([data-entered]) .stepTitle {
     opacity: 0;
     transform: translateY(6px);
   }
@@ -561,8 +551,7 @@
     transition-timing-function: var(--motion-ease-out);
     transition-delay: calc(var(--step) * var(--seg));
   }
-  .board[data-entered] .stepTitle,
-  .board[data-entered] .stepText {
+  .board[data-entered] .stepTitle {
     transition-property: opacity, transform;
     transition-duration: 0.5s;
     transition-timing-function: var(--motion-ease-out);

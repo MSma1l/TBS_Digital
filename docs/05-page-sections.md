@@ -356,8 +356,8 @@ fear. One `h2`, three cards (a `role="list"`), then the way out:
 | `TIMP` (blue) | „Ore pierdute pe muncă manuală” | „Tabele, date copiate dintr-un loc în altul, aceleași răspunsuri scrise iar și iar. Timp care nu mai rămâne pentru clienți.” |
 
 Each problem is one TBS's offer answers: sites and stores, the MVP, CRM and automations. Then
-the closing line — „Nu trebuie să rezolvi totul deodată. Începe cu o primă versiune mică, cu
-buget clar, și vezi ce funcționează.” — and the direct CTA **„Cere ofertă”** (`solUI.actionTalk`),
+the direct CTA **„Cere ofertă”** (`solUI.actionTalk`) — alone: its closing line was taken out on
+2026-10-29 (the owner's rule; don't bring it back) —
 the site's red button, which opens the shared request dialog with `source: "home-stakes"`.
 
 - **The cards** are Principles' cards without the marks and proofs: `--panel`, `--line` border,
@@ -403,8 +403,9 @@ project come from `lib/solutions.ts` and the live portfolio.
 - **Selecting** swaps the preview (a short entrance, none under reduced motion), sets
   `data-shape` on the screen, and tells the 3D scene which model to show.
 - **Preview:** the direction's **pitch** (`pitch` in `lib/solutions.ts`, the same text the
-  service page leads with): an outcome as the `<h3>`, what we do as the text, three ✓
-  deliverables. Then the **starting price** and **two actions**.
+  service page leads with): an outcome as the `<h3>` and three ✓ deliverables — the pitch's
+  text is not shown here since 2026-10-29 (the owner's rule; the service page still leads with
+  it and it stays the meta description). Then the **starting price** and **two actions**.
   - **The price** comes from the admin's services, verbatim (it already says "de la"). It is
     found through the same direction → estimator type → service mapping the request dialog uses
     (`directionPrice`), so the card always shows the figure the dialog will. Brand & UI has no
@@ -619,9 +620,8 @@ the academy's web platform (cgam.md); IQ Arena is the mobile negotiation game. S
 projects have just been shown, so this is where to act on them. A compact centred column, no
 heading of its own and no id:
 
-- one line — *„Proiecte reale, nu machete: platforme web, aplicații mobile și sisteme interne, de
-  la un portal pentru o firmă de audit la o aplicație pentru evenimente.”* (the guide's authority,
-  wireframe step 4: no client named that the portfolio does not name, no count);
+- no line of text: the sentence that opened it (*„Proiecte reale, nu machete…”*) was taken out
+  on 2026-10-29, at the owner's request — don't bring it back;
 - **"Vreau un proiect similar"** (red CTA, the request dialog, `source: "home-work"`) and **"Vezi
   toate proiectele →"** (`/portofoliu`, built like the footer's link; the arrow is `aria-hidden`).
   Stacked full width on a phone, one row from 641px;
@@ -784,12 +784,15 @@ see [07](./07-conventions.md#the-rest).
 Since 2026-10-09 the section answers *why choose us* — it was "Cum lucrăm, pe scurt.", three
 principles. Four numbered cards, each with its own accent:
 
-| Card | Title | Text | Mark |
-|---|---|---|---|
-| `01 / IDEEA` (blue) | „Pornim de la problema ta, nu de la o listă de funcții” | „Ascultăm ce vrei să rezolvi și ce vrei să afli de la clienți, înainte să construim ceva mai mare.” | a bracketed sight |
-| `02 / BUGET` (amber) | „Buget de pornire mic și clar” | „Alegi ce construim și vezi prețul de pornire înainte de orice discuție.” | a price tag (no figure) |
-| `03 / REZULTATE` (green) | „Dezvoltăm doar ce funcționează” | „Vezi produsul la fiecare etapă, în demo-uri. După lansare ascultăm clienții tăi și dezvoltăm doar ce merită.” | three listed stages |
-| `04 / CONTINUITATE` (red) | „Aceeași echipă, de la MVP la produs” | „Oamenii care fac prima versiune o duc mai departe. Păstrăm contextul, codul și deciziile, fără să o luăm de la capăt.” | layers |
+| Card | Title | Mark |
+|---|---|---|
+| `01 / IDEEA` (blue) | „Pornim de la problema ta, nu de la o listă de funcții” | a bracketed sight |
+| `02 / BUGET` (amber) | „Buget de pornire mic și clar” | a price tag (no figure) |
+| `03 / REZULTATE` (green) | „Dezvoltăm doar ce funcționează” | three listed stages |
+| `04 / CONTINUITATE` (red) | „Aceeași echipă, de la MVP la produs” | layers |
+
+The cards carry **no sentence** under the title since 2026-10-29 (the owner's rule): number,
+title, mark and proof.
 
 Since 2026-10-28 the section is the guide's **empathy** in the wireframe: its `<h2>` is
 „Înțelegem ce riști când pornești ceva nou.” and the cards under it are the authority, each with
@@ -874,12 +877,11 @@ which there would read as a faded glyph.
 is, right before the form. Since 2026-10-28 it is the wireframe's **plan** — three steps (it had
 four):
 
-1. **„Ne spui ideea”** — „Ne scrii în câteva rânduri ce vrei să rezolvi și pentru cine. Nu ai
-   nevoie de caiet de sarcini.”
-2. **„Primești planul și prețul”** — „În cel mult o zi lucrătoare revenim cu întrebări concrete
-   și stabilim prima versiune și prețul ei.”
-3. **„Lansezi și crești”** — „Lansăm prima versiune, o testezi cu clienți reali și dezvoltăm
-   doar ce funcționează.”
+1. **„Ne spui ideea”**
+2. **„Primești planul și prețul”**
+3. **„Lansezi și crești”**
+
+Titles only since 2026-10-29: the sentence under each step was taken out at the owner's request.
 
 The stylesheet follows the count: three grid columns from 1025px, three runs of the cyan → blue
 (`--c0`→`--c1`, `--c1`→`--c3`, `--c3`→`--c4`), and the bend, drop and arrowhead delays start
@@ -1043,9 +1045,9 @@ see [09 — Admin](./09-admin.md).
   keeps its heading and `#estimare`; the dialog has its own head and must not carry a second copy
   of either.
 - **The close of the page (2026-10-09).** The heading, shared by the page and the dialog, is
-  **"Spune ce vrei să testezi. Stabilim primul pas."** It makes the decision before the price:
-  the page lead explains that a few questions define the first version, what must be validated
-  and a small initial budget, then promises a reply within one business day. The dialog's lead
+  **"Spune ce vrei să testezi. Stabilim primul pas."** It makes the decision before the price.
+  The page has **no lead** under it and the proposal has **no line** under its price (both taken
+  out on 2026-10-29, at the owner's request — don't bring them back). The dialog's lead
   explains that its summary is attached to the request. The assistant is labelled **"Ghid pentru
   prima versiune"**, not “online”: it is a guided decision flow, not a live-availability claim.
   Its first question asks what the visitor wants to test; the product branch asks what the first

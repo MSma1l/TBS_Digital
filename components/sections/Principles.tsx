@@ -21,7 +21,6 @@ type MarkKind = "rezultat" | "pret" | "proces" | "echipa";
 type Why = {
   number: LocalizedText;
   title: LocalizedText;
-  text: LocalizedText;
   mark: MarkKind;
   accent: string;
   accentText: string;
@@ -40,11 +39,6 @@ const WHY: Why[] = [
       "Начинаем с вашей задачи, а не со списка функций",
       "We start with your problem, not a feature list",
     ),
-    text: L(
-      "Ascultăm ce vrei să rezolvi și ce vrei să afli de la clienți, înainte să construim ceva mai mare.",
-      "Слушаем, что вы хотите решить и что узнать от клиентов, прежде чем строить что-то большее.",
-      "We listen to what you want to solve and learn from customers before we build anything bigger.",
-    ),
     mark: "rezultat",
     accent: "var(--blue)",
     accentText: "var(--blue-text)",
@@ -56,11 +50,6 @@ const WHY: Why[] = [
       "Buget de pornire mic și clar",
       "Небольшой и понятный стартовый бюджет",
       "A small, clear starting budget",
-    ),
-    text: L(
-      "Alegi ce construim și vezi prețul de pornire înainte de orice discuție.",
-      "Вы выбираете, что строим, и видите стартовую цену ещё до разговора.",
-      "You choose what we build and see the starting price before any call.",
     ),
     mark: "pret",
     accent: "var(--amber)",
@@ -74,11 +63,6 @@ const WHY: Why[] = [
       "Развиваем только то, что работает",
       "We develop only what works",
     ),
-    text: L(
-      "Vezi produsul la fiecare etapă, în demo-uri. După lansare ascultăm clienții tăi și dezvoltăm doar ce merită.",
-      "Вы видите продукт на каждом этапе, в демо. После запуска слушаем ваших клиентов и развиваем только то, что того стоит.",
-      "You see the product at every stage, in demos. After launch we listen to your customers and develop only what's worth it.",
-    ),
     mark: "proces",
     accent: "var(--green)",
     accentText: "var(--green-text)",
@@ -87,11 +71,6 @@ const WHY: Why[] = [
   {
     number: L("04 / CONTINUITATE", "04 / НЕПРЕРЫВНОСТЬ", "04 / CONTINUITY"),
     title: L("Aceeași echipă, de la MVP la produs", "Одна команда — от MVP до продукта", "One team, from MVP to product"),
-    text: L(
-      "Oamenii care fac prima versiune o duc mai departe. Păstrăm contextul, codul și deciziile, fără să o luăm de la capăt.",
-      "Те же люди, что делают первую версию, ведут продукт дальше. Сохраняем контекст, код и решения — без старта с нуля.",
-      "The people who build the first version take it further. We keep the context, code and decisions, with no starting over.",
-    ),
     mark: "echipa",
     accent: "var(--red)",
     accentText: "var(--red-text)",
@@ -457,7 +436,6 @@ export function Principles() {
                 <CardMark kind={w.mark} />
               </div>
               <h3 className={`disp ${styles.cardTitle}`}>{l(w.title)}</h3>
-              <p className={styles.cardText}>{l(w.text)}</p>
               <CardProof kind={w.mark} />
             </Reveal>
           ))}

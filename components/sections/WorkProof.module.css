@@ -19,19 +19,6 @@
   text-align: center;
 }
 
-.line {
-  margin: 0 auto;
-  max-width: 58ch;
-  color: var(--txt);
-  /* --fs-lg from 1000px; a step under it on a phone, where the sentence already runs to several
-     lines. Between the two it is not on the scale: a statement line scales like a heading. */
-  font-size: clamp(18px, 2vw, var(--fs-lg));
-  font-weight: var(--fw-semi);
-  line-height: 1.45;
-  letter-spacing: -0.01em;
-  text-wrap: balance;
-}
-
 /* ---------- the two actions ----------
    Phones: stacked, full width, the request first. From 641px: one centred row. */
 .actions {

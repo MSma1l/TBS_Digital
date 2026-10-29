@@ -103,16 +103,6 @@
   }
 }
 
-.closeText {
-  margin: 0;
-  max-width: 58ch;
-  color: var(--txt);
-  font-size: clamp(17px, 1.8vw, var(--fs-lg));
-  font-weight: var(--fw-semi);
-  line-height: 1.45;
-  text-wrap: balance;
-}
-
 /* The site's red CTA, as in WorkProof: the label-safe gradient, `<button>`, so an explicit
    `border: 0` and `cursor: pointer`. At least 52px tall for a coarse pointer. */
 .cta {

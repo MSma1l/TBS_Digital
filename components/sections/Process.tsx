@@ -8,7 +8,7 @@ import styles from "./Process.module.css";
 
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
-type Step = { title: LocalizedText; text: LocalizedText };
+type Step = { title: LocalizedText };
 
 /*
  * "Cum începem": the three-step plan (docs/16, "Copy framework"), placed right above the request
@@ -17,29 +17,11 @@ type Step = { title: LocalizedText; text: LocalizedText };
  */
 const STEPS: Step[] = [
   {
-    title: L("Ne spui ideea", "Рассказываете идею", "Tell us the idea"),
-    text: L(
-      "Ne scrii în câteva rânduri ce vrei să rezolvi și pentru cine. Nu ai nevoie de caiet de sarcini.",
-      "Напишите в паре строк, что хотите решить и для кого. ТЗ не нужно.",
-      "Write a few lines on what you want to solve and for whom. No brief needed.",
-    ),
-  },
+    title: L("Ne spui ideea", "Рассказываете идею", "Tell us the idea") },
   {
-    title: L("Primești planul și prețul", "Получаете план и цену", "Get the plan and the price"),
-    text: L(
-      "În cel mult o zi lucrătoare revenim cu întrebări concrete și stabilim prima versiune și prețul ei.",
-      "Не позже чем через рабочий день возвращаемся с конкретными вопросами и вместе определяем первую версию и её цену.",
-      "Within one business day we come back with concrete questions and agree the first version and its price.",
-    ),
-  },
+    title: L("Primești planul și prețul", "Получаете план и цену", "Get the plan and the price") },
   {
-    title: L("Lansezi și crești", "Запускаете и растёте", "Launch and grow"),
-    text: L(
-      "Lansăm prima versiune, o testezi cu clienți reali și dezvoltăm doar ce funcționează.",
-      "Запускаем первую версию, вы проверяете её на реальных клиентах, а мы развиваем только то, что работает.",
-      "We launch the first version, you test it with real customers and we develop only what works.",
-    ),
-  },
+    title: L("Lansezi și crești", "Запускаете и растёте", "Launch and grow") },
 ];
 
 const SECTION = {
@@ -137,7 +119,6 @@ export function Process() {
               >
                 <span className={`mono ${styles.node}`}>{String(i + 1).padStart(2, "0")}</span>
                 <h3 className={`disp ${styles.stepTitle}`}>{l(step.title)}</h3>
-                <p className={styles.stepText}>{l(step.text)}</p>
                 {i === CHIP_STEP && (
                   <span className={`mono ${styles.chip}`} aria-hidden="true">
                     {l(REPLY_CHIP)}

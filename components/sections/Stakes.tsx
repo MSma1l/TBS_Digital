@@ -75,11 +75,6 @@ const SECTION = {
     "Что вы теряете, когда онлайн не работает на вас.",
     "What you lose when online doesn't work for you.",
   ),
-  close: L(
-    "Nu trebuie să rezolvi totul deodată. Începe cu o primă versiune mică, cu buget clar, și vezi ce funcționează.",
-    "Не нужно решать всё сразу. Начните с небольшой первой версии с понятным бюджетом и посмотрите, что работает.",
-    "You don't have to fix everything at once. Start with a small first version on a clear budget and see what works.",
-  ),
 };
 
 /** Anchor of the section (`/#problema`). */
@@ -119,7 +114,6 @@ export function Stakes() {
         </ul>
 
         <Reveal className={styles.close}>
-          <p className={styles.closeText}>{l(SECTION.close)}</p>
           {/* `returnFocusTo`, as on every CTA on the page: Safari does not focus a button it
               clicks, so the dialog would have nowhere to hand focus back to. */}
           <button

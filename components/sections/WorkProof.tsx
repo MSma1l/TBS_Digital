@@ -13,13 +13,6 @@ import styles from "./WorkProof.module.css";
 const L = (ro: string, ru: string, en: string): LocalizedText => ({ ro, ru, en });
 
 const COPY = {
-  /* The guide's authority (docs/16, "Copy framework"): real work only, described as it is in the
-     portfolio above — no client named that the portfolio does not name, no count. */
-  line: L(
-    "Proiecte reale, nu machete: platforme web, aplicații mobile și sisteme interne, de la un portal pentru o firmă de audit la o aplicație pentru evenimente.",
-    "Реальные проекты, а не макеты: веб-платформы, мобильные приложения и внутренние системы — от портала для аудиторской компании до приложения для мероприятий.",
-    "Real projects, not mock-ups: web platforms, mobile apps and internal systems, from a portal for an audit firm to an app for events.",
-  ),
   similar: L("Vreau un proiect similar", "Хочу похожий проект", "I want a similar project"),
   /* Its "→" is drawn beside the words, aria-hidden, so the link is announced by its words alone
      (the same split as the service link at the close of /portofoliu). */
@@ -59,8 +52,6 @@ export function WorkProof() {
     <section className={styles.section}>
       <div className="container">
         <Reveal className={styles.inner}>
-          <p className={styles.line}>{l(COPY.line)}</p>
-
           <div className={styles.actions}>
             {/* `returnFocusTo`: Safari does not focus a button it clicks, so "whatever had focus"
                 would be <body> and the dialog would have nowhere to hand focus back to. */}

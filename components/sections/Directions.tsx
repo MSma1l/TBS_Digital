@@ -343,7 +343,6 @@ export function Directions({ initialArt }: DirectionsProps) {
               <h3 className="mt-0 mb-3.5 font-disp text-[clamp(24px,2.6vw,30px)] font-black uppercase leading-[1.06] tracking-[-0.04em] text-txt [overflow-wrap:break-word]">
                 {l(pitch.title)}
               </h3>
-              <p className="m-0 mb-4 max-w-[430px] font-copy text-base leading-[1.6] text-mut">{l(pitch.text)}</p>
               <ul className="m-0 mb-5.5 grid list-none gap-1 p-0 font-copy text-base leading-normal text-txt">
                 {pitch.points.map((item, i) => (
                   <li

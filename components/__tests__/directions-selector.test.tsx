@@ -134,13 +134,15 @@ describe("direction selector — the preview follows the selection", () => {
     expect(screen.queryByText("Ideea și publicul")).not.toBeInTheDocument();
   });
 
-  it("keeps the short description visible for every direction", () => {
+  /* The owner took the pitch paragraph off the panel (2026-10-29): the heading and the points
+     carry it. The pitch text stays the service page's meta description. */
+  it("shows no description paragraph under the heading, for any direction", () => {
     renderSection();
     const links = pills();
     for (let i = 0; i < links.length; i += 1) {
       fireEvent.pointerMove(links[i]);
       const panelText = screen.getByRole("heading", { level: 3 }).parentElement;
-      expect(panelText?.querySelector("p")?.textContent?.length ?? 0).toBeGreaterThan(20);
+      expect(panelText?.querySelector(":scope > p")).toBeNull();
     }
   });
 

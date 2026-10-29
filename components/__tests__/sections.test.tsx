@@ -168,7 +168,8 @@ describe("Principles section", () => {
 
     expect(screen.getByText("Pornim de la problema ta, nu de la o listă de funcții")).toBeInTheDocument();
     expect(screen.getByText("Buget de pornire mic și clar")).toBeInTheDocument();
-    expect(screen.getByText(/Ascultăm ce vrei să rezolvi/)).toBeInTheDocument();
+    // The cards' sentences were taken out (2026-10-29): title and proof only.
+    expect(screen.queryByText(/Ascultăm ce vrei să rezolvi/)).not.toBeInTheDocument();
   });
 });
 

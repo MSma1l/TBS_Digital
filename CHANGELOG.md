@@ -16,6 +16,22 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Removed: texte descriptive scoase de pe pagina principală
+
+- **Removed — la cererea lui Ivan (capturi de ecran), în ro/ru/en:**
+  - Problema (`Stakes`): fraza de încheiere de lângă „Cere ofertă”;
+  - Servicii (`Directions`): paragraful `pitch.text` din panou (rămâne pe pagina serviciului și
+    ca meta description);
+  - Proiecte (`WorkProof`): fraza „Proiecte reale, nu machete…”;
+  - De ce TBS (`Principles`): textul de sub titlul fiecăruia din cele 4 carduri;
+  - Cum începem (`Process`): textul de sub fiecare din cei 3 pași;
+  - Cerere (`Estimator`): lead-ul de sub titlu și rândul de sub preț („Include direcție UX…”).
+- Clasele CSS rămase fără folosință au fost scoase; titlurile, dovezile, butoanele și toate
+  animațiile/scenele 3D sunt neatinse. Teste actualizate (`directions-selector`, `sections`).
+- Docs: [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+---
+
 ## 2026-10-28 — Changed: temă albă, fără animația de la intrare, texte de vânzare (StoryBrand + SEO)
 
 - **Changed — temă albă (light only):** o singură paletă, deschisă, fără comutator. Valorile

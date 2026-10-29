@@ -45,13 +45,6 @@ const SECTION = {
     "Расскажите, что хотите проверить. Определим первый шаг.",
     "Tell us what you want to test. We'll define the first step.",
   ),
-  /* The page's line under the heading. The dialog keeps its own lead (RequestFlowProvider). The
-     reply time is `SENT_COPY`'s, said before the visitor sends rather than only after. */
-  lead: L(
-    "Alege ce vrei să construiești și vezi pe loc prețul de pornire. Fără caiet de sarcini: îți răspundem în cel mult o zi lucrătoare.",
-    "Выберите, что хотите создать, и сразу увидите стартовую цену. Без ТЗ: ответим не позже чем через рабочий день.",
-    "Choose what you want to build and see the starting price right away. No brief needed: we reply within one business day.",
-  ),
   step1: L("01 · TIP PROIECT", "01 · ТИП ПРОЕКТА", "01 · PROJECT TYPE"),
   step2: L("02 · OPȚIUNI CARE CONTEAZĂ", "02 · ЧТО ВАЖНО ДОБАВИТЬ", "02 · OPTIONS THAT MATTER"),
   proposal: L("PROPUNEREA TA", "ВАШЕ ПРЕДЛОЖЕНИЕ", "YOUR PROPOSAL"),
@@ -182,12 +175,6 @@ const CHAT_MAX = 1000;
 
 /* The project types, the options and the type -> admin service pairing live in
    `lib/request/catalog.ts`, with the ids other entry points preselect them by. */
-
-const RESULT_COPY = L(
-  "Include direcție UX, design și o discuție tehnică despre integrări.",
-  "Включает UX-направление, дизайн и техническое обсуждение интеграций.",
-  "Includes UX direction, design and a technical discussion about integrations.",
-);
 
 const PLACEHOLDERS = {
   name: L("Nume și companie", "Имя и компания", "Name and company"),
@@ -1349,7 +1336,6 @@ export function Estimator({
             data-commit={commit ?? undefined}
           >
             <b className={`disp ${styles.price}`}>{price}</b>
-            <p className={styles.resultCopy}>{l(RESULT_COPY)}</p>
             {/* What the calculator already chose for this visitor. Only ever present when a
                 caller passed an attachment, which today is the OS calculator opening the
                 dialog — but it is rendered by the deck rather than by a layout, so whatever
@@ -1374,7 +1360,6 @@ export function Estimator({
         <Reveal className={styles.top}>
           <div>
             <h2 className={`disp ${styles.title}`}>{l(SECTION.title)}</h2>
-            <p className={styles.lead}>{l(SECTION.lead)}</p>
           </div>
         </Reveal>
         {deck}
