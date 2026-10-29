@@ -211,8 +211,6 @@ export const en: Record<MessageKey, string> = {
 
   // --- Footer ---
   "footer.partnersLabel": "OUR BUSINESS PARTNERS",
-  "footer.brandText":
-    "A digital agency in Chișinău, Moldova. We build websites, online stores, apps, MVPs and automations on a small starting budget: you start with a first version, test it with real customers and grow on results.",
   "footer.col.nav": "NAVIGATION",
   "footer.col.services": "SERVICES",
   "footer.col.contact": "CONTACT",

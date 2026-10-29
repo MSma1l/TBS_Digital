@@ -218,8 +218,6 @@ export const ro = {
 
   // --- Footer ---
   "footer.partnersLabel": "PARTENERII NOȘTRI DE AFACERI",
-  "footer.brandText":
-    "Agenție digitală din Chișinău, Moldova. Creăm site-uri, magazine online, aplicații, MVP-uri și automatizări cu buget de pornire mic: începi cu o primă versiune, o testezi cu clienți reali și crești pe rezultate.",
   "footer.col.nav": "NAVIGARE",
   "footer.col.services": "SERVICII",
   "footer.col.contact": "CONTACT",

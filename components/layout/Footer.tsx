@@ -148,7 +148,6 @@ export function Footer() {
             <div className={`disp ${styles.brand}`}>
               TBS<span className={styles.dot}>.</span> DIGITAL
             </div>
-            <p className={styles.brandText}>{t("footer.brandText")}</p>
             {/* The request, from the end of every page: the same shared dialog the hero and the
                 header open, so a visitor who read to the bottom is one press from a price. Focus
                 is handed back to this button explicitly: Safari does not focus a button on click,

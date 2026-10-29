@@ -1274,7 +1274,8 @@ paints a `Canvas` backplate behind text and `HighlightText` is black in the dark
 
 The card the page ends on (`<footer id="contact">` since 2026-10-09: `/#contact` and the rail's
 "Contact" land here now that BottomCTA, which held the id, is gone; `scroll-margin-top` keeps the
-jump clear of the sticky header), in **three tracks**: the brand (the mark, one line of copy,
+jump clear of the sticky header), in **three tracks**: the brand (the mark — no line of copy
+under it since 2026-10-29, the owner took `footer.brandText` out —
 **"Cere ofertă ↗"** — the catalog's `footer.cta` (the site's one direct CTA since 2026-10-28), an outline button 44px tall that opens the
 request dialog, `source: "footer"`, 2026-10-09 — the social buttons — note that all three seeded
 socials ship with an empty url, so until the owner pastes them in the admin that row is the one

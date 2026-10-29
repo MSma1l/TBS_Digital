@@ -208,8 +208,6 @@ export const ru: Record<MessageKey, string> = {
 
   // --- Footer ---
   "footer.partnersLabel": "НАШИ БИЗНЕС-ПАРТНЁРЫ",
-  "footer.brandText":
-    "Digital-агентство из Кишинёва, Молдова. Создаём сайты, интернет-магазины, приложения, MVP и автоматизацию с небольшим стартовым бюджетом: вы начинаете с первой версии, проверяете её на реальных клиентах и растёте на результатах.",
   "footer.col.nav": "НАВИГАЦИЯ",
   "footer.col.services": "УСЛУГИ",
   "footer.col.contact": "КОНТАКТЫ",

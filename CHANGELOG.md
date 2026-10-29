@@ -16,6 +16,16 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Removed: textul de prezentare din footer
+
+- **Removed — la cererea lui Ivan:** paragraful de sub „TBS. DIGITAL” din footer („Agenție
+  digitală din Chișinău, Moldova…”), în ro/ru/en: cheia `footer.brandText` scoasă din cele trei
+  cataloage, `<p>` din `Footer.tsx` și regulile `.brandText` din `Footer.module.css`. Butonul,
+  rețelele și contactele rămân.
+- Docs: [`05`](./docs/05-page-sections.md), [`16`](./docs/16-i18n-seo.md).
+
+---
+
 ## 2026-10-29 — Removed: eticheta de sub cifrele din hero
 
 - **Removed — la cererea lui Ivan:** cardurile de indicatori din hero nu mai au rândul de

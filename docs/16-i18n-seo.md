@@ -257,8 +257,8 @@ and their copy are in [05 — Page Sections](./05-page-sections.md#the-wireframe
    services (*creare site-uri*, *magazine online*, *MVP*…) was taken out on 2026-10-29 at the
    owner's request.
 7. **Price choices** — the estimator (RequestSection): the starting prices, the transitional CTA.
-8. **Junk drawer** — the footer: the one-liner again (`footer.brandText`, with the city), the
-   CTA, navigation, partners, portfolio, legal.
+8. **Junk drawer** — the footer: the CTA (its one-liner, `footer.brandText`, was taken out on
+   2026-10-29 at the owner's request), navigation, partners, portfolio, legal.
 
 The direct CTA appears in parts 1, 2, 3 (each direction), 4 (WorkProof, the price rows), 7 and 8.
 Each section has one `h2`; a section's copy fits on one screen — no section grows a lead

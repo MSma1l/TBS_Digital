@@ -153,14 +153,6 @@
   color: var(--red);
 }
 
-.brandText {
-  color: var(--mut);
-  line-height: 1.55;
-  font-size: var(--fs-md);
-  max-width: 330px;
-  margin: 14px 0 0;
-}
-
 /* "Calculează prețul ↗" — the site's outline button (a service page's `.ghost`, the secondary
    action beside its red CTA) at the footer's scale: a 1px --line2 frame and the same lift on
    hover. Its fill is --panel2 rather than the ghost's --panel, because --panel is this card and
@@ -629,10 +621,6 @@ a.colLink:hover {
 
   .top {
     gap: 20px;
-  }
-
-  .brandText {
-    margin-top: 10px;
   }
 
   .cta {
