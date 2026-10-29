@@ -398,7 +398,8 @@ describe("Hero metrics", () => {
     expect(
       within(metrics).getByText(String(defaultProjects.length)),
     ).toBeInTheDocument();
-    expect(within(metrics).getByText("proiecte în portofoliu")).toBeInTheDocument();
+    // The label line under the value was taken out (2026-10-29).
+    expect(within(metrics).queryByText("proiecte în portofoliu")).not.toBeInTheDocument();
     // The old hand-written claim is gone.
     expect(within(metrics).queryByText("50+")).not.toBeInTheDocument();
   });

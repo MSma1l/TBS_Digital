@@ -140,10 +140,8 @@
   max-width: 100%;
 }
 
-/* DARK tiles, not light ones. The partners' logos are white on transparent (public/partners/,
-   and the admin asks for exactly that, "site-ul are fundal închis"): a light tile would erase
-   them. On --panel they keep their full contrast, one height for every tile, each logo
-   contained in it whatever its aspect ratio. */
+/* One height for every tile, each logo contained in it whatever its aspect ratio. The tile is
+   --panel, white since the light theme (2026-10-28); the logos are drawn dark on it, see .logo. */
 .tile {
   display: flex;
   flex: 1 1 auto;
@@ -163,7 +161,10 @@
     translate 0.18s;
 }
 
-/* Held back a little until hovered or focused, as on the partner cards in Partners.module.css. */
+/* The partners' logos are white on transparent (public/partners/, and the admin asks for exactly
+   that): painted as they are, they vanish on the white tile. `brightness(0)` turns every opaque
+   pixel black and keeps the alpha, so any white or monochrome logo reads as a dark wordmark; held
+   back to a dark grey (black at 0.72 on white) until hovered or focused, full black then. */
 .logo {
   display: block;
   min-width: 0;
@@ -171,7 +172,8 @@
   height: 28px;
   width: auto;
   object-fit: contain;
-  opacity: 0.8;
+  filter: brightness(0);
+  opacity: 0.72;
   transition: opacity 0.18s;
 }
 
@@ -253,8 +255,8 @@ a.tile:focus-visible .logo {
     background-image: none;
   }
 
-  /* The white logos were drawn for this dark plate, and a contrast theme would repaint it to
-     Canvas — white in the light themes, where they would vanish. The tile keeps its own paint and
+  /* The logos are drawn dark for this white plate, and a contrast theme would repaint it to
+     Canvas — black in the dark themes, where they would vanish. The tile keeps its own paint and
      takes a system-coloured edge; the focus ring takes the system's colour too. */
   .tile {
     forced-color-adjust: none;

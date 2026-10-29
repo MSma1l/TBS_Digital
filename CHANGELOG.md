@@ -16,6 +16,33 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Removed: eticheta de sub cifrele din hero
+
+- **Removed — la cererea lui Ivan:** cardurile de indicatori din hero nu mai au rândul de
+  etichetă („proiecte în portofoliu”, „răspuns la orice cerere”), în ro/ru/en. Rămân cifra și
+  nota verde. Panoul 3D al cardului (`statFace.ts`) desenează deja fără etichetă când nu o
+  găsește — scena neatinsă.
+- Fișiere: `components/sections/Hero.tsx`; teste `work`, `hero-interior`. Docs:
+  [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+---
+
+## 2026-10-29 — Fixed: logo-urile partenerilor vizibile pe tema albă
+
+- **Fixed:** sub „Lucrăm alături de” (`WorkProof`, pagina principală) cardurile partenerilor
+  apăreau goale. Cauza: logo-urile din `public/partners/` (Crowe, CGAM, Ivan Turcan) sunt PNG-uri
+  albe pe fundal transparent, făcute pentru tema închisă, iar tile-ul `--panel` e alb de la tema
+  albă — alb pe alb. Acum `.logo` are `filter: brightness(0)` (orice pixel opac devine negru,
+  transparența rămâne), opacitate 0.72, complet la hover/focus. Partenerii fără logo își arată
+  numele în `--txt`, neschimbat. Comentariul pentru forced colors actualizat (tile-ul își
+  păstrează vopseaua albă, altfel logo-urile închise ar dispărea pe un Canvas negru).
+- `Partners.tsx` nu e randat de nicio pagină — neatins; nota din docs spune ce ar trebui făcut
+  dacă revine.
+- Fișiere: `components/sections/WorkProof.module.css`. Docs:
+  [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+---
+
 ## 2026-10-29 — Changed: „Problema” — descrierea la hover, text și buton mai mari
 
 - **Changed — la cererea lui Ivan:** în `Stakes`, descrierea fiecărui card apare la hover (fade

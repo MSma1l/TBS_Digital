@@ -303,7 +303,9 @@ reduced motion.
   glass cards (`data-metric="projects|automation"`) with a red / blue accent and an accent
   hairline along the top. The portfolio count is `projects.length` in its own `<b>` (no count-up,
   no card when it is 0). The second card is the reply time, a promise the site makes on every
-  request: **"1 zi"** — *"răspuns la orice cerere"*, *"în cel mult o zi lucrătoare"*. It was
+  request: **"1 zi"** — *"în cel mult o zi lucrătoare"*. Each card is the value and the note only:
+  the label line between them (*"proiecte în portofoliu"*, *"răspuns la orice cerere"*) was taken
+  out on 2026-10-29, at the owner's request; the 3D panel draws no label when the card has none. It was
   `24/7` *"automatizări active"* until 2026-10-09, too close to the claims removed from the team
   card as not measurable; it keeps the `automation` id. Solid glass instead of blur below 861px.
   - **Drawn by the 3D scene from 2026-09-25 (`[data-scene-anchor="stat"]`).** At 861px and up, on
@@ -631,9 +633,12 @@ heading of its own and no id:
 - **"Lucrăm alături de"** and the partners' logos, from the store (`partners`: Crowe Turcan
   Mikhailenko, CGAM Business Academy, Ivan Turcan), each linking to its site in a new tab like
   the footer's partner links. The logo files were on disk but shown nowhere before. They are
-  white on transparent (the admin asks for exactly that), so each sits on a dark `--panel` tile
-  of one height. Forced colours keep the tiles dark, or the white logos would vanish. A partner
-  without a logo shows its name.
+  white on transparent (the admin asks for exactly that), and the `--panel` tile has been white
+  since the light theme, so `.logo` draws them dark: `filter: brightness(0)` (every opaque pixel
+  black, alpha kept) at opacity 0.72, full on hover/focus — fixed 2026-10-29, when they showed as
+  empty white tiles. Each tile is one height. Forced colours keep the tiles' own white paint, or
+  the dark logos would vanish on a dark Canvas. A partner without a logo shows its name in
+  `--txt`.
 
 No testimonials: none exist, and the page invents none. When the owner has real ones (a name, a
 role, their consent), this is where they go.
@@ -1025,8 +1030,10 @@ Each card also carries a **preview screenshot of the partner's site**: it fades 
 the logo on hover (desktop) and is simply shown from the start on touch devices, where no
 hover exists.
 Real content, not placeholders: Crowe Turcan Mikhailenko, CGAM Business Academy and
-Ivan Turcan. Logos are monochrome-white PNGs on transparent backgrounds (the section
-renders on the dark background) and live in `public/partners/`.
+Ivan Turcan. Logos are monochrome-white PNGs on transparent backgrounds (drawn for the old
+dark background) and live in `public/partners/`. This section is not rendered today; on the
+light theme its white logos would need the same treatment as WorkProof's (`brightness(0)`)
+wherever no dark preview scrim sits behind them.
 
 Fully editable from the admin's **Parteneri** tab, including uploading a new logo —
 see [09 — Admin](./09-admin.md).

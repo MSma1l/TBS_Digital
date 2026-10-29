@@ -36,14 +36,10 @@ const METRICS_LABEL = L("Indicatori", "Показатели", "Metrics");
 
 /** A metric's value is the portfolio count (digits, the same in every language) or a fixed
  *  claim worded per language. */
-type Metric = { id: string; value: MaybeLocalized; label: LocalizedText; note: LocalizedText };
+type Metric = { id: string; value: MaybeLocalized; note: LocalizedText };
 
-/** The portfolio counter's copy. Its *value* is counted, never written here. */
-const PROJECTS_LABEL = L(
-  "proiecte în portofoliu",
-  "проектов в портфолио",
-  "projects in the portfolio",
-);
+/** The portfolio counter's copy. Its *value* is counted, never written here. The cards carry no
+ *  label line between the value and the note (the owner took it out, 2026-10-29). */
 const PROJECTS_NOTE = L("experiență aplicată", "прикладной опыт", "applied experience");
 
 /** Metrics that don't come from the portfolio. The reply time is a promise made on every
@@ -54,7 +50,6 @@ const FIXED_METRICS: Metric[] = [
   {
     id: "automation",
     value: L("1 zi", "1 день", "1 day"),
-    label: L("răspuns la orice cerere", "ответ на любой запрос", "reply to every request"),
     note: L("în cel mult o zi lucrătoare", "не позже одного рабочего дня", "within one business day"),
   },
 ];
@@ -215,7 +210,6 @@ export function Hero({ coreArt }: HeroProps) {
           {
             id: "projects",
             value: String(projects.length),
-            label: PROJECTS_LABEL,
             note: PROJECTS_NOTE,
           },
         ]
@@ -420,9 +414,6 @@ export function Hero({ coreArt }: HeroProps) {
                 <b className="relative block font-disp text-[clamp(32px,4.2vw,48px)] font-black leading-none tracking-[-0.04em] text-txt">
                   {l(m.value)}
                 </b>
-                <span className="relative mt-2.5 block font-copy text-md leading-[1.4] text-mut [overflow-wrap:anywhere]">
-                  {l(m.label)}
-                </span>
                 <small className="relative mt-3 block font-hud text-xs font-bold uppercase leading-[1.4] tracking-[.08em] text-green-text">
                   {l(m.note)}
                 </small>

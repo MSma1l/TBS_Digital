@@ -398,7 +398,8 @@ describe("the stat windows the 3D panels are drawn in", () => {
     expect(projects.getAttribute("data-scene-anchor")).toBe("stat");
     expect(projects.querySelector("b")?.textContent).toBe(String(defaultSiteData.projects.length));
     // `:scope >`, as the face composer selects it: the hologram is a <span> with a <span> in it.
-    expect(projects.querySelector(":scope > span:not([data-hologram])")?.textContent).toBeTruthy();
+    // No label line since 2026-10-29: the face composer finds none and draws the value and note.
+    expect(projects.querySelector(":scope > span:not([data-hologram])")).toBeNull();
     expect(projects.querySelector("small")?.textContent).toBeTruthy();
     expect(projects.closest(`[${STATS_GROUP_ATTR}]`)).toBe(statsMarker());
     // Nothing is hidden from assistive technology, at any width.
