@@ -83,8 +83,25 @@
 .cardText {
   margin: 0;
   color: var(--mut);
-  font-size: var(--fs-md);
+  font-size: var(--fs-base);
   line-height: 1.55;
+}
+
+/* The description shows on hover (the owner's call, 2026-10-29), only where a hover exists: on a
+   touch screen it is always shown. It fades in over the space it already takes, so the row never
+   changes height under the pointer; hidden by opacity only, it is still read by a screen reader. */
+@media (hover: hover) {
+  .cardText {
+    opacity: 0;
+    translate: 0 6px;
+    transition:
+      opacity 0.25s var(--motion-ease-out),
+      translate 0.25s var(--motion-ease-out);
+  }
+  .card:hover .cardText {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
 
 /* ---------- the way out ----------
@@ -104,23 +121,24 @@
 }
 
 /* The site's red CTA, as in WorkProof: the label-safe gradient, `<button>`, so an explicit
-   `border: 0` and `cursor: pointer`. At least 52px tall for a coarse pointer. */
+   `border: 0` and `cursor: pointer`. 60px tall and 18px type since 2026-10-29: the owner wanted it
+   bigger. */
 .cta {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  padding: 16px 26px;
+  min-height: 60px;
+  padding: 18px 38px;
   border: 0;
   border-radius: var(--r-md);
   cursor: pointer;
   background: var(--grad-red-cta);
   box-shadow: var(--sh-red);
   color: var(--on-accent);
-  font-size: var(--fs-base);
+  font-size: 18px;
   font-weight: var(--fw-extra);
-  line-height: 1.55;
+  line-height: 1.4;
   transition:
     translate 0.15s,
     box-shadow 0.15s;
@@ -140,8 +158,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cta {
+  .cta,
+  .cardText {
     transition: none;
+    translate: none;
   }
 }
 

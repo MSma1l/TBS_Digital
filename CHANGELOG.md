@@ -16,6 +16,17 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-29 — Changed: „Problema” — descrierea la hover, text și buton mai mari
+
+- **Changed — la cererea lui Ivan:** în `Stakes`, descrierea fiecărui card apare la hover (fade
+  peste propriul spațiu, deci rândul nu-și schimbă înălțimea); pe ecrane tactile rămâne mereu
+  vizibilă, iar cititorul de ecran o citește oricum. Textul descrierii 14 → 16px. Butonul
+  „Cere ofertă” de sub carduri: 52 → 60px înălțime, text 16 → 18px.
+- Fișiere: `components/sections/Stakes.module.css`. Docs:
+  [`docs/05-page-sections.md`](./docs/05-page-sections.md).
+
+---
+
 ## 2026-10-29 — Removed: texte descriptive scoase de pe pagina principală
 
 - **Removed — paragraful din mijloc din „Pe scurt” (`Explainer`)**, „TBS Digital este o echipă

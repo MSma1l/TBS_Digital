@@ -355,8 +355,11 @@ fear. One `h2`, three cards (a `role="list"`), then the way out:
 | `BUGET` (cyan) | „Buget pus pe o idee netestată” | „Construiești tot produsul dintr-odată și afli abia la final dacă îl vrea cineva.” |
 | `TIMP` (blue) | „Ore pierdute pe muncă manuală” | „Tabele, date copiate dintr-un loc în altul, aceleași răspunsuri scrise iar și iar. Timp care nu mai rămâne pentru clienți.” |
 
-Each problem is one TBS's offer answers: sites and stores, the MVP, CRM and automations. Then
-the direct CTA **„Cere ofertă”** (`solUI.actionTalk`) — alone: its closing line was taken out on
+Each card's description (16px) is hidden until the card is hovered, where a hover exists — on a
+touch screen it is always shown (2026-10-29, the owner's call); it fades in over its own space, so
+the row keeps its height. Each problem is one TBS's offer answers: sites and stores, the MVP, CRM
+and automations. Then
+the direct CTA **„Cere ofertă”** (`solUI.actionTalk`, 60px tall, 18px type) — alone: its closing line was taken out on
 2026-10-29 (the owner's rule; don't bring it back) —
 the site's red button, which opens the shared request dialog with `source: "home-stakes"`.
 
