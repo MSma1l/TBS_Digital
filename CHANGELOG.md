@@ -16,6 +16,17 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-10-30 — Changed: paginile de servicii mai scurte, descrierea cardurilor la hover
+
+- **Removed — paragraful de sub promisiune** pe toate paginile `/servicii/*` (ex. „Nu vrei să
+  riști tot bugetul…”). `pitch.text` rămâne în `lib/solutions.ts` ca meta description.
+- **Removed — fraza de sub „Gata să faci primul pas?”** („Spune-ne ce vrei să testezi…”): cheia
+  `bottomLead` ștearsă din `lib/solutions.ts`, regula `.bottom p` scoasă.
+- **Changed — cele trei carduri (01/02/03)**: descrierea apare la hover (sau focus din tastatură),
+  ca la cardurile „Problema” de pe prima pagină; pe touch rămâne mereu vizibilă; fără tranziție la
+  „reduced motion”. Fișiere: `components/sections/DirectionPage.tsx` + `.module.css`.
+  Docs: [16](docs/16-i18n-seo.md).
+
 ## 2026-10-29 — Added: buton temă deschisă / închisă în antet
 
 - **Added — comutator light/dark** în grupul de preferințe din antet, imediat după limbă

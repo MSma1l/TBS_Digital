@@ -570,12 +570,5 @@ export const solUI = {
   caseLink: L("Deschide site-ul ↗", "Открыть сайт ↗", "Open the site ↗"),
   projectsTitle: L("Proiecte relevante", "Релевантные проекты", "Relevant projects"),
   bottomTitle: L("Gata să faci primul pas?", "Готовы сделать первый шаг?", "Ready to take the first step?"),
-  /* The reply time is the estimator's `SENT_COPY` promise; the starting price is the one the
-     request already shows. Nothing faster, nothing new. */
-  bottomLead: L(
-    "Spune-ne ce vrei să testezi. Prețul de pornire îl vezi chiar în cerere, iar noi revenim în cel mult o zi lucrătoare.",
-    "Расскажите, что хотите проверить. Стартовую цену вы увидите прямо в заявке, а мы ответим не позже чем через рабочий день.",
-    "Tell us what you want to test. You see the starting price right in the request, and we reply within one business day.",
-  ),
   start: L("Începe cererea", "Начать заявку", "Start a request"),
 };

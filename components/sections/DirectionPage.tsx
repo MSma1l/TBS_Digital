@@ -513,11 +513,10 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
         <section className={styles.hero}>
           <div>
             <h1 className={styles.title}>{l(sol.title)}</h1>
-            {/* Two paragraphs, not a <strong> run into the text: a screen reader would read the
-                promise and its first sentence as one. Not a heading either — it introduces the
-                page rather than a section of it. */}
+            {/* The promise alone (its detail, `pitch.text`, stays the page's meta description —
+                removed from the page at the owner's request, 2026-10-30). Not a heading — it
+                introduces the page rather than a section of it. */}
             <p className={styles.leadTitle}>{l(sol.pitch.title)}</p>
-            <p className={styles.lead}>{l(sol.pitch.text)}</p>
             {price ? <p className={styles.price}>{price}</p> : null}
           </div>
 
@@ -617,7 +616,7 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <h2>{l(it.title)}</h2>
-                <p>{l(it.desc)}</p>
+                <p className={styles.hlText}>{l(it.desc)}</p>
               </div>
               {/* The instrument window: the panel's bottom bay, see-through down to the
                   canvas, with its own chrome (a rule across its head, two guide rails and two
@@ -1008,7 +1007,6 @@ export function DirectionPage({ slug, modelArt }: { slug: string; modelArt?: Rea
             <span className={styles.bottomThread} />
           </span>
           <h2 className="disp">{l(solUI.bottomTitle)}</h2>
-          <p>{l(solUI.bottomLead)}</p>
           <button
             type="button"
             className={styles.cta}

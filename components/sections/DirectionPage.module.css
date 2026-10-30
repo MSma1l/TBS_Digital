@@ -71,14 +71,6 @@
   line-height: 1.35;
 }
 
-.lead {
-  margin: 0;
-  max-width: 560px;
-  color: var(--mut);
-  font-size: var(--fs-base);
-  line-height: 1.6;
-}
-
 /* The admin's own text ("de la 150€"), set the way the request dialog's proposal sets it: the
    display face in capitals, tight. On its own line, so a longer figure wraps rather than
    pushing the column. */
@@ -270,6 +262,29 @@
 .highlight:hover {
   translate: 0 -4px;
   border-color: var(--sol-accent, var(--blue));
+}
+/* The description shows on hover (the owner's call, 2026-10-30, like the home page's Stakes
+   cards), only where a hover exists: on a touch screen it is always shown. It fades in over the
+   space it already takes, so the panel never changes height under the pointer; hidden by
+   opacity only, it is still read by a screen reader. Keyboard focus inside the panel shows it too. */
+@media (hover: hover) {
+  .hlText {
+    opacity: 0;
+    translate: 0 6px;
+    transition:
+      opacity 0.25s var(--motion-ease-out),
+      translate 0.25s var(--motion-ease-out);
+  }
+  .highlight:hover .hlText,
+  .highlight:focus-within .hlText {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hlText {
+    transition: none;
+  }
 }
 /* The edge glow: the accent border, a 1px ring and a soft halo, all listed after the depth
    shadow so the depth stays under the glow. `color-mix` inside an explicit @supports —
@@ -1829,12 +1844,8 @@ span.projHit:focus-visible {
 .bottom h2 {
   font-size: clamp(30px, 5vw, 40px);
   letter-spacing: -0.04em;
-  margin: 0 0 10px;
-  color: var(--txt);
-}
-.bottom p {
-  color: var(--mut);
   margin: 0 0 18px;
+  color: var(--txt);
 }
 
 /* ---------- placeholder (directions not built yet) ---------- */

@@ -295,8 +295,8 @@ paragraph it did not have.
 brand last — *"Creare site-uri, aplicații și MVP în Chișinău | TBS Digital"*, *"Создание сайтов,
 приложений и MVP в Кишинёве | TBS Digital"*, *"Website, App & MVP Development in Moldova | TBS
 Digital"*. `meta.description` is 140–160 characters: the one-liner plus the CTA. A service page's
-description is its `pitch.text` (also 140–160, shown under the `<h1>` too, so it carries no CTA of
-its own — the buttons are right under it); its title is its `dir.*` name + *" | TBS Digital"* (keyword first, brand last),
+description is its `pitch.text` (also 140–160; meta only since 2026-10-30 — the page shows just
+`pitch.title` under the `<h1>`; it carries no CTA of its own); its title is its `dir.*` name + *" | TBS Digital"* (keyword first, brand last),
 which now names the service as people search for it (*"Site-uri, aplicații și MVP"*, *"Magazin
 online și e-commerce"*, *"Automatizare, CRM și API"*, *"Asistenți IA și boți"*, *"Brand și design
 UI"*). Each phrase appears once per title and once or twice in the copy — no keyword lists.
