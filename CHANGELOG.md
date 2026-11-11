@@ -16,6 +16,17 @@ commit that makes the change. Nothing ships undocumented.
 
 ---
 
+## 2026-11-11 — Added: graful de cod graphify pentru asistentul AI
+
+- **Added — [graphify](https://github.com/Graphify-Labs/graphify)** (`graphifyy` 0.9.106, instalat cu
+  `uv tool install`): hartă a codului (4225 noduri, 10839 relații, 135 comunități) construită
+  local din AST, fără API extern, ca Claude Code să caute prin graf în loc de grep pe fișiere.
+- Integrare la nivel de proiect: secțiunea `## graphify` în `CLAUDE.md`, `.claude/CLAUDE.md`,
+  skill-ul `.claude/skills/graphify/`, hook-uri în `.claude/settings.json` (doar sugestie, nu
+  blochează). `graphify-out/` e în `.gitignore` și `.dockerignore` — se construiește pe fiecare
+  mașină. Fără efect asupra site-ului sau a build-ului de producție.
+  Docs: [07 — Code graph](docs/07-conventions.md#code-graph-graphify).
+
 ## 2026-10-30 — Changed: paginile de servicii mai scurte, descrierea cardurilor la hover
 
 - **Removed — paragraful de sub promisiune** pe toate paginile `/servicii/*` (ex. „Nu vrei să

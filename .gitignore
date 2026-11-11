@@ -45,3 +45,6 @@ next-env.d.ts
 # Scratch: frozen intro frames and guide-portrait working files (tools/guide rebuilds them).
 .scenes/
 .work/
+
+# graphify — the local code graph is rebuilt per machine (docs/07, "Code graph")
+/graphify-out/

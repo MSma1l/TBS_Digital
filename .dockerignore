@@ -34,3 +34,4 @@ docs
 *.pem
 npm-debug.log*
 *.tsbuildinfo
+graphify-out

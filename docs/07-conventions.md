@@ -569,3 +569,23 @@ Details and gotchas: [16 — i18n & SEO](./16-i18n-seo.md).
 - A new public page must be added to `app/sitemap.ts`; a new doc must be added to the table
   in `README.md`.
 - Don't commit secrets or `.env` (the `.env.example` templates *are* tracked, on purpose).
+
+## Code graph (graphify)
+
+The project uses [graphify](https://github.com/Graphify-Labs/graphify) so an AI assistant can
+ask "where does X live / what calls Y" against a graph instead of grepping raw files.
+
+- **Install once per machine:** `uv tool install graphifyy` (Python 3.10+; uv brings its own).
+- **Build the graph:** `graphify extract . --code-only` then `graphify cluster-only . --no-label`
+  — local tree-sitter parsing only, **no API key, nothing leaves the machine**. Output goes to
+  `graphify-out/` (`graph.json`, `GRAPH_REPORT.md`, `graph.html`), which is **git-ignored and
+  Docker-ignored**: every machine builds its own.
+- **After code changes:** `graphify update .` (AST-only, seconds).
+- **Use:** `graphify query "<question>"`, `graphify path "A" "B"`, `graphify explain "X"`.
+- **Claude Code wiring (project-scoped, tracked):** the `## graphify` section in `CLAUDE.md`,
+  `.claude/CLAUDE.md`, the skill in `.claude/skills/graphify/`, and the hooks in
+  `.claude/settings.json` (a PreToolUse nudge before Grep/Read/Glob/search-style Bash, plus a
+  SessionStart reset on compaction). The hooks only *suggest* the graph, they never block a
+  read. On a machine without graphify installed the hook command is missing and Claude Code
+  shows a non-blocking hook error — install graphify or remove the hooks locally.
+- **Remove:** `graphify claude uninstall` (CLAUDE.md section + hooks).
